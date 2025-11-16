@@ -1,0 +1,615 @@
+const { PrismaClient } = require('@prisma/client')
+const multer = require('multer')
+const path = require('path')
+const crypto = require('crypto')
+const fs = require('fs').promises
+const sharp = require('sharp')
+const { exec } = require('child_process')
+const { promisify } = require('util')
+
+const execAsync = promisify(exec)
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Virus scanning function
+const scanFileForVirus = async (filePath) => {
+  try {
+    // Check if ClamAV is available
+    try {
+      await execAsync('clamscan --version')
+    } catch (error) {
+      log.warn('ClamAV not available, skipping virus scan')
+      return { clean: true, message: 'Virus scanner not available' }
+    }
+
+    // Scan the file
+    const { stdout, stderr } = await execAsync(`clamscan --no-summary "${filePath}"`)
+    
+    if (stderr && stderr.includes('FOUND')) {
+      return { clean: false, message: 'Virus detected in file' }
+    }
+    
+    return { clean: true, message: 'File is clean' }
+  } catch (error) {
+    log.error('Virus scan error:', error, { error: error.message, stack: error.stack })
+    return { clean: false, message: 'Virus scan failed' }
+  }
+}
+
+// Enhanced file validation function
+const validateFile = async (filePath, originalName, mimeType) => {
+  const validations = []
+
+  // Get max file size from system settings (default to 10MB)
+  let maxFileSize = 10 * 1024 * 1024 // Default 10MB
+  try {
+    const setting = await prisma.systemSetting.findFirst({
+      where: { key: 'max_file_size' }
+    })
+    if (setting?.value) {
+      maxFileSize = parseInt(setting.value, 10) || maxFileSize
+    }
+  } catch (error) {
+    log.error('Error fetching max_file_size setting:', error, { error: error.message, stack: error.stack })
+  }
+
+  // Check file size
+  const stats = await fs.stat(filePath)
+  if (stats.size === 0) {
+    validations.push('File is empty')
+  }
+  if (stats.size > maxFileSize) {
+    const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(2)
+    validations.push(`File exceeds maximum size limit of ${maxSizeMB}MB`)
+  }
+
+  // Check file extension matches MIME type
+  const extension = path.extname(originalName).toLowerCase()
+  const expectedExtensions = {
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/png': ['.png'],
+    'image/gif': ['.gif'],
+    'image/webp': ['.webp'],
+    'application/pdf': ['.pdf'],
+    'text/plain': ['.txt'],
+    'application/msword': ['.doc'],
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    'application/vnd.ms-excel': ['.xls'],
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    'text/csv': ['.csv']
+  }
+
+  if (expectedExtensions[mimeType] && !expectedExtensions[mimeType].includes(extension)) {
+    validations.push('File extension does not match MIME type')
+  }
+
+  // Check for suspicious file names
+  const suspiciousPatterns = [
+    /\.exe$/i,
+    /\.bat$/i,
+    /\.cmd$/i,
+    /\.scr$/i,
+    /\.pif$/i,
+    /\.com$/i,
+    /\.vbs$/i,
+    /\.js$/i,
+    /\.jar$/i
+  ]
+
+  if (suspiciousPatterns.some(pattern => pattern.test(originalName))) {
+    validations.push('Suspicious file type detected')
+  }
+
+  // Check for malicious content in text files
+  if (mimeType.startsWith('text/')) {
+    try {
+      const content = await fs.readFile(filePath, 'utf8')
+      const maliciousPatterns = [
+        /<script/i,
+        /javascript:/i,
+        /vbscript:/i,
+        /onload=/i,
+        /onerror=/i
+      ]
+
+      if (maliciousPatterns.some(pattern => pattern.test(content))) {
+        validations.push('Potentially malicious content detected')
+      }
+    } catch (error) {
+      validations.push('Unable to read file content for validation')
+    }
+  }
+
+  return validations
+}
+
+// Configure multer for secure file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads', file.fieldname)
+    await fs.mkdir(uploadDir, { recursive: true })
+    cb(null, uploadDir)
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = crypto.randomBytes(16).toString('hex')
+    const ext = path.extname(file.originalname)
+    cb(null, `${uniqueSuffix}${ext}`)
+  }
+})
+
+const fileFilter = (req, file, cb) => {
+  // Define allowed file types
+  const allowedTypes = {
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/png': ['.png'],
+    'image/gif': ['.gif'],
+    'image/webp': ['.webp'],
+    'application/pdf': ['.pdf'],
+    'application/msword': ['.doc'],
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    'application/vnd.ms-excel': ['.xls'],
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    'text/plain': ['.txt'],
+    'text/csv': ['.csv']
+  }
+  
+  const ext = path.extname(file.originalname).toLowerCase()
+  const mimeType = file.mimetype
+  
+  if (allowedTypes[mimeType] && allowedTypes[mimeType].includes(ext)) {
+    cb(null, true)
+  } else {
+    cb(new Error('Invalid file type'), false)
+  }
+}
+
+// Get max file size for multer configuration (default to 10MB)
+// This will be initialized on first use since we need to query the database
+const getMaxFileSizeForMulter = async () => {
+  try {
+    const setting = await prisma.systemSetting.findFirst({
+      where: { key: 'max_file_size' }
+    })
+    if (setting?.value) {
+      return parseInt(setting.value, 10) || (10 * 1024 * 1024)
+    }
+  } catch (error) {
+    log.error('Error fetching max_file_size setting for multer:', error, { error: error.message, stack: error.stack })
+  }
+  return 10 * 1024 * 1024 // Default 10MB
+}
+
+// Configure multer with dynamic file size limit
+// We'll use a higher limit initially and validate in validateFile function
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // Higher limit for multer, actual validation in validateFile
+    files: 5 // Maximum 5 files per request
+  }
+})
+
+const getAllFiles = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const { category, uploadedBy, search, page = 1, limit = 20 } = req.query
+    
+    const where = {}
+    if (category) where.category = category
+    if (uploadedBy) where.uploadedBy = uploadedBy
+    if (search) {
+      where.OR = [
+        { filename: { contains: search, mode: 'insensitive' } },
+        { originalName: { contains: search, mode: 'insensitive' } }
+      ]
+    }
+    
+    const files = await prisma.file.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        }
+      },
+      orderBy: { uploadedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: parseInt(limit)
+    })
+    
+    const total = await prisma.file.count({ where })
+    
+    res.json({
+      files,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    log.error('Get files error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const uploadFiles = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const files = req.files
+    const { category = 'OTHER' } = req.body
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' })
+    }
+    
+    const uploadedFiles = []
+    const failedFiles = []
+    
+    for (const file of files) {
+      try {
+        // Enhanced file validation
+        const validationErrors = await validateFile(file.path, file.originalname, file.mimetype)
+        if (validationErrors.length > 0) {
+          // Clean up the uploaded file
+          await fs.unlink(file.path).catch(err => log.error('Failed to unlink file', { error: err.message, filePath: file.path }))
+          failedFiles.push({
+            filename: file.originalname,
+            errors: validationErrors
+          })
+          continue
+        }
+
+        // Virus scanning
+        const virusScanResult = await scanFileForVirus(file.path)
+        if (!virusScanResult.clean) {
+          // Clean up the uploaded file
+          await fs.unlink(file.path).catch(err => log.error('Failed to unlink file', { error: err.message, filePath: file.path }))
+          failedFiles.push({
+            filename: file.originalname,
+            errors: [virusScanResult.message]
+          })
+          continue
+        }
+
+        // Generate checksum for file integrity
+        const fileBuffer = await fs.readFile(file.path)
+        const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex')
+        
+        // Check if file already exists (by checksum)
+        const existingFile = await prisma.file.findFirst({
+          where: { checksum: checksum }
+        })
+
+        if (existingFile) {
+          // Clean up the duplicate file
+          await fs.unlink(file.path).catch(err => log.error('Failed to unlink file', { error: err.message, filePath: file.path }))
+          failedFiles.push({
+            filename: file.originalname,
+            errors: ['File already exists']
+          })
+          continue
+        }
+        
+        // Process images with sharp for optimization
+        if (file.mimetype.startsWith('image/')) {
+          const optimizedPath = file.path.replace(path.extname(file.path), '_optimized.jpg')
+          await sharp(file.path)
+            .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 85 })
+            .toFile(optimizedPath)
+          
+          // Replace original with optimized version
+          await fs.unlink(file.path)
+          await fs.rename(optimizedPath, file.path)
+        }
+        
+        const fileRecord = await prisma.file.create({
+          data: {
+            filename: file.filename,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            path: file.path,
+            category,
+            uploadedBy: req.user.id,
+            checksum,
+            metadata: JSON.stringify({
+              uploadedAt: new Date().toISOString(),
+              virusScanResult: virusScanResult.message,
+              validationPassed: true
+            })
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true,
+                role: true
+              }
+            }
+          }
+        })
+        
+        uploadedFiles.push(fileRecord)
+      } catch (fileError) {
+        log.error(`Error processing file ${file.originalname}:`, fileError, { error: fileError.message, stack: fileError.stack })
+        // Clean up the uploaded file
+        await fs.unlink(file.path).catch(err => log.error('Failed to unlink file', { error: err.message, filePath: file.path }))
+        failedFiles.push({
+          filename: file.originalname,
+          errors: ['Processing error: ' + fileError.message]
+        })
+      }
+    }
+    
+    // Log upload activity
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'UPLOAD_FILES',
+        details: `Uploaded ${uploadedFiles.length} files, ${failedFiles.length} failed`,
+        category: 'FILE_MANAGEMENT'
+      }
+    })
+    
+    res.status(201).json({ 
+      files: uploadedFiles,
+      failedFiles: failedFiles,
+      summary: {
+        total: files.length,
+        successful: uploadedFiles.length,
+        failed: failedFiles.length
+      }
+    })
+  } catch (error) {
+    log.error('Upload files error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getFileById = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const { id } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    const file = await prisma.file.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    })
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    
+    // Check access permissions
+    if (!['ORGANIZER', 'BOARD'].includes(userRole) && 
+        file.uploadedBy !== userId && 
+        !file.isPublic) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    
+    res.json(file)
+  } catch (error) {
+    log.error('Get file by ID error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const downloadFile = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const { id } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    const file = await prisma.file.findUnique({
+      where: { id }
+    })
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    
+    // Check access permissions
+    if (!['ORGANIZER', 'BOARD'].includes(userRole) && 
+        file.uploadedBy !== userId && 
+        !file.isPublic) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    
+    // Check if file exists on disk
+    try {
+      await fs.access(file.path)
+    } catch (error) {
+      return res.status(404).json({ error: 'File not found on disk' })
+    }
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', file.mimeType)
+    res.setHeader('Content-Disposition', 'attachment; filename="' + file.originalName + '"')
+    res.setHeader('Content-Length', file.size)
+    
+    // Stream the file
+    const fileStream = require('fs').createReadStream(file.path)
+    fileStream.pipe(res)
+    
+    // Log download activity
+    await prisma.activityLog.create({
+      data: {
+        userId: userId,
+        action: 'DOWNLOAD_FILE',
+        details: `Downloaded file: ${file.originalName}`,
+        category: 'FILE_MANAGEMENT'
+      }
+    })
+    
+  } catch (error) {
+    log.error('Download file error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateFile = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const { id } = req.params
+    const { category, isPublic, metadata } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    const file = await prisma.file.findUnique({
+      where: { id }
+    })
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    
+    // Check permissions - only file owner or admin can update
+    if (file.uploadedBy !== userId && !['ORGANIZER', 'BOARD'].includes(userRole)) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    
+    const updatedFile = await prisma.file.update({
+      where: { id },
+      data: {
+        ...(category && { category }),
+        ...(isPublic !== undefined && { isPublic }),
+        ...(metadata && { metadata })
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    })
+    
+    res.json(updatedFile)
+  } catch (error) {
+    log.error('Update file error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteFile = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const { id } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    const file = await prisma.file.findUnique({
+      where: { id }
+    })
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    
+    // Check permissions - only file owner or admin can delete
+    if (file.uploadedBy !== userId && !['ORGANIZER', 'BOARD'].includes(userRole)) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    
+    // Delete file from disk
+    try {
+      await fs.unlink(file.path)
+    } catch (error) {
+      log.warn('File not found on disk:', file.path)
+    }
+    
+    // Delete file record from database
+    await prisma.file.delete({
+      where: { id }
+    })
+    
+    // Log deletion activity
+    await prisma.activityLog.create({
+      data: {
+        userId: userId,
+        action: 'DELETE_FILE',
+        details: `Deleted file: ${file.originalName}`,
+        category: 'FILE_MANAGEMENT'
+      }
+    })
+    
+    res.json({ message: 'File deleted successfully' })
+  } catch (error) {
+    log.error('Delete file error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getFileStats = async (req, res) => {
+  const log = createRequestLogger(req, 'file')
+  try {
+    const userRole = req.user.role
+
+    if (!['ORGANIZER', 'BOARD'].includes(userRole)) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const stats = {
+      totalFiles: await prisma.file.count(),
+      totalSize: await prisma.file.aggregate({
+        _sum: { size: true }
+      }),
+      byCategory: await prisma.file.groupBy({
+        by: ['category'],
+        _count: { category: true },
+        _sum: { size: true }
+      }),
+      recentUploads: await prisma.file.count({
+        where: {
+          uploadedAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+          }
+        }
+      })
+    }
+    
+    res.json(stats)
+  } catch (error) {
+    log.error('Get file stats error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getAllFiles,
+  uploadFiles,
+  getFileById,
+  downloadFile,
+  updateFile,
+  deleteFile,
+  getFileStats,
+  upload // Export multer middleware
+}

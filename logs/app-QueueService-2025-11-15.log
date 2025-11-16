@@ -1,0 +1,8 @@
+[2025-11-15 16:03:57] [INFO] [QUEUESERVICE] Worker created | {"queue":"app-events","concurrency":5}
+[2025-11-15 16:03:57] [INFO] [QUEUESERVICE] Redis connected
+[2025-11-15 23:37:11] [INFO] [QUEUESERVICE] Worker created | {"queue":"app-events","concurrency":5}
+[2025-11-15 23:37:11] [INFO] [QUEUESERVICE] Redis connected
+[2025-11-15 23:37:16] [INFO] [QUEUESERVICE] Worker created | {"queue":"app-events","concurrency":5}
+[2025-11-15 23:37:16] [INFO] [QUEUESERVICE] Redis connected
+[2025-11-15 23:59:31] [INFO] [QUEUESERVICE] Worker created | {"queue":"app-events","concurrency":5}
+[2025-11-15 23:59:31] [INFO] [QUEUESERVICE] Redis connected

@@ -1,0 +1,25 @@
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/prometheus \
+    --config.file=/etc/prometheus/prometheus.yml \
+    --storage.tsdb.path=/var/lib/prometheus \
+    --web.console.libraries=/usr/share/prometheus/console_libraries \
+    --web.console.templates=/usr/share/prometheus/consoles \
+    --web.external-url=http://conmgr.com/monitoring/prometheus/ \
+    --web.route-prefix=/ \
+    --web.listen-address=127.0.0.1:9090
+
+[Install]
+WantedBy=multi-user.target
+
+

@@ -1,0 +1,783 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getTemplates = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { eventId } = req.query
+    
+    // Filter by eventId if provided, otherwise get all templates
+    const whereClause = eventId ? { eventId: eventId } : {}
+    
+    const templates = await prisma.emailTemplate.findMany({
+      where: whereClause,
+      include: {
+        event: {
+          select: { id: true, name: true }
+        },
+        creator: {
+          select: { id: true, name: true, preferredName: true, email: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Ensure we always return an array
+    res.json(Array.isArray(templates) ? templates : [])
+  } catch (error) {
+    log.error('Get email templates error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { 
+      name, 
+      subject, 
+      body, 
+      type, 
+      eventId, 
+      variables,
+      // Layout and formatting fields
+      headerHtml,
+      footerHtml,
+      logoUrl,
+      logoPosition,
+      backgroundColor,
+      primaryColor,
+      textColor,
+      fontFamily,
+      fontSize,
+      layoutType,
+      contentWrapper,
+      borderStyle,
+      borderColor,
+      borderWidth,
+      borderRadius,
+      padding,
+      margin,
+      templateData
+    } = req.body
+
+    const template = await prisma.emailTemplate.create({
+      data: {
+        name: name || null,
+        subject: subject || null,
+        body: body || null,
+        type: type || 'CUSTOM',
+        eventId: eventId || null,
+        variables: variables ? JSON.stringify(variables) : null,
+        headerHtml: headerHtml || null,
+        footerHtml: footerHtml || null,
+        logoUrl: logoUrl || null,
+        logoPosition: logoPosition || null,
+        backgroundColor: backgroundColor || null,
+        primaryColor: primaryColor || null,
+        textColor: textColor || null,
+        fontFamily: fontFamily || null,
+        fontSize: fontSize || null,
+        layoutType: layoutType || null,
+        contentWrapper: contentWrapper || null,
+        borderStyle: borderStyle || null,
+        borderColor: borderColor || null,
+        borderWidth: borderWidth || null,
+        borderRadius: borderRadius || null,
+        padding: padding || null,
+        margin: margin || null,
+        templateData: templateData ? JSON.stringify(templateData) : null,
+        createdBy: req.user.id
+      },
+      include: {
+        event: {
+          select: { id: true, name: true }
+        },
+        creator: {
+          select: { id: true, name: true, preferredName: true, email: true }
+        }
+      }
+    })
+
+    res.status(201).json(template)
+  } catch (error) {
+    log.error('Create email template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { id } = req.params
+    const { 
+      name, 
+      subject, 
+      body, 
+      type, 
+      eventId, 
+      variables,
+      // Layout and formatting fields
+      headerHtml,
+      footerHtml,
+      logoUrl,
+      logoPosition,
+      backgroundColor,
+      primaryColor,
+      textColor,
+      fontFamily,
+      fontSize,
+      layoutType,
+      contentWrapper,
+      borderStyle,
+      borderColor,
+      borderWidth,
+      borderRadius,
+      padding,
+      margin,
+      templateData
+    } = req.body
+
+    const updateData = {}
+    if (name !== undefined) updateData.name = name || null
+    if (subject !== undefined) updateData.subject = subject || null
+    if (body !== undefined) updateData.body = body || null
+    if (type !== undefined) updateData.type = type || null
+    if (eventId !== undefined) updateData.eventId = eventId || null
+    if (variables !== undefined) updateData.variables = variables ? JSON.stringify(variables) : null
+    if (headerHtml !== undefined) updateData.headerHtml = headerHtml || null
+    if (footerHtml !== undefined) updateData.footerHtml = footerHtml || null
+    if (logoUrl !== undefined) updateData.logoUrl = logoUrl || null
+    if (logoPosition !== undefined) updateData.logoPosition = logoPosition || null
+    if (backgroundColor !== undefined) updateData.backgroundColor = backgroundColor || null
+    if (primaryColor !== undefined) updateData.primaryColor = primaryColor || null
+    if (textColor !== undefined) updateData.textColor = textColor || null
+    if (fontFamily !== undefined) updateData.fontFamily = fontFamily || null
+    if (fontSize !== undefined) updateData.fontSize = fontSize || null
+    if (layoutType !== undefined) updateData.layoutType = layoutType || null
+    if (contentWrapper !== undefined) updateData.contentWrapper = contentWrapper || null
+    if (borderStyle !== undefined) updateData.borderStyle = borderStyle || null
+    if (borderColor !== undefined) updateData.borderColor = borderColor || null
+    if (borderWidth !== undefined) updateData.borderWidth = borderWidth || null
+    if (borderRadius !== undefined) updateData.borderRadius = borderRadius || null
+    if (padding !== undefined) updateData.padding = padding || null
+    if (margin !== undefined) updateData.margin = margin || null
+    if (templateData !== undefined) updateData.templateData = templateData ? JSON.stringify(templateData) : null
+
+    const template = await prisma.emailTemplate.update({
+      where: { id },
+      data: updateData,
+      include: {
+        event: {
+          select: { id: true, name: true }
+        },
+        creator: {
+          select: { id: true, name: true, preferredName: true, email: true }
+        }
+      }
+    })
+
+    res.json(template)
+  } catch (error) {
+    log.error('Update email template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { id } = req.params
+
+    await prisma.emailTemplate.delete({
+      where: { id }
+    })
+
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete email template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCampaigns = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const campaigns = await prisma.emailCampaign.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+
+    res.json(campaigns)
+  } catch (error) {
+    log.error('Get email campaigns error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createCampaign = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { name, templateId, recipients, scheduledAt } = req.body
+
+    const campaign = await prisma.emailCampaign.create({
+      data: {
+        name,
+        templateId,
+        recipients,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        createdBy: req.user.id
+      }
+    })
+
+    res.status(201).json(campaign)
+  } catch (error) {
+    log.error('Create email campaign error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const sendCampaign = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { id } = req.params
+
+    await prisma.emailCampaign.update({
+      where: { id },
+      data: { 
+        status: 'SENT',
+        sentAt: new Date()
+      }
+    })
+
+    res.json({ message: 'Campaign sent successfully' })
+  } catch (error) {
+    log.error('Send campaign error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getLogs = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    // Check if EmailLog model exists in Prisma schema
+    if (!prisma.emailLog || typeof prisma.emailLog.findMany !== 'function') {
+      log.warn('EmailLog model not found in Prisma schema, returning empty array')
+      return res.json([])
+    }
+
+    const logs = await prisma.emailLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+
+    res.json(logs)
+  } catch (error) {
+    log.error('Get email logs error:', error, { error: error.message, stack: error.stack })
+    // Return empty array instead of error to prevent frontend issues
+    res.json([])
+  }
+}
+
+// Send email to multiple recipients
+const sendMultipleEmails = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { recipients, subject, content, type = 'CUSTOM' } = req.body
+
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ error: 'Recipients array is required' })
+    }
+
+    if (!subject || !content) {
+      return res.status(400).json({ error: 'Subject and content are required' })
+    }
+
+    const results = []
+    const { transporter, from } = await createTransporter(req)
+
+    for (const recipient of recipients) {
+      try {
+        const mailOptions = {
+          from: from || process.env.SMTP_FROM || 'noreply@eventmanager.com',
+          to: recipient.email || recipient,
+          subject: subject,
+          html: content,
+          text: content.replace(/<[^>]*>/g, '') // Strip HTML for text version
+        }
+
+        const info = await transporter.sendMail(mailOptions)
+        
+        // Log successful email
+        await prisma.emailLog.create({
+          data: {
+            to: recipient.email || recipient,
+            subject: subject,
+            status: 'SENT',
+            sentAt: new Date(),
+            messageId: info.messageId
+          }
+        })
+
+        results.push({
+          recipient: recipient.email || recipient,
+          status: 'SENT',
+          messageId: info.messageId
+        })
+      } catch (error) {
+        log.error(`Failed to send email to ${recipient.email || recipient}:`, error, { error: error.message, stack: error.stack })
+        
+        // Log failed email
+        await prisma.emailLog.create({
+          data: {
+            to: recipient.email || recipient,
+            subject: subject,
+            status: 'FAILED',
+            sentAt: new Date(),
+            errorMessage: error.message
+          }
+        })
+
+        results.push({
+          recipient: recipient.email || recipient,
+          status: 'FAILED',
+          error: error.message
+        })
+      }
+    }
+
+    res.json({
+      message: 'Bulk email processing completed',
+      results: results,
+      totalSent: results.filter(r => r.status === 'SENT').length,
+      totalFailed: results.filter(r => r.status === 'FAILED').length
+    })
+  } catch (error) {
+    log.error('Send multiple emails error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Send email to users by role
+const sendEmailByRole = async (req, res) => {
+  const log = createRequestLogger(req, 'email')
+  try {
+    const { roles, subject, content, type = 'CUSTOM' } = req.body
+
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+      return res.status(400).json({ error: 'Roles array is required' })
+    }
+
+    if (!subject || !content) {
+      return res.status(400).json({ error: 'Subject and content are required' })
+    }
+
+    // Get users with specified roles
+    const users = await prisma.user.findMany({
+      where: {
+        role: { in: roles },
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      }
+    })
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'No users found with specified roles' })
+    }
+
+    const results = []
+    const { transporter, from } = await createTransporter()
+
+    for (const user of users) {
+      try {
+        const mailOptions = {
+          from: from || process.env.SMTP_FROM || 'noreply@eventmanager.com',
+          to: user.email,
+          subject: subject,
+          html: content,
+          text: content.replace(/<[^>]*>/g, '') // Strip HTML for text version
+        }
+
+        const info = await transporter.sendMail(mailOptions)
+        
+        // Log successful email
+        await prisma.emailLog.create({
+          data: {
+            to: user.email,
+            subject: subject,
+            status: 'SENT',
+            sentAt: new Date(),
+            messageId: info.messageId
+          }
+        })
+
+        results.push({
+          user: user.name,
+          email: user.email,
+          role: user.role,
+          status: 'SENT',
+          messageId: info.messageId
+        })
+      } catch (error) {
+        log.error(`Failed to send email to ${user.email}:`, error, { error: error.message, stack: error.stack })
+        
+        // Log failed email
+        await prisma.emailLog.create({
+          data: {
+            to: user.email,
+            subject: subject,
+            status: 'FAILED',
+            sentAt: new Date(),
+            errorMessage: error.message
+          }
+        })
+
+        results.push({
+          user: user.name,
+          email: user.email,
+          role: user.role,
+          status: 'FAILED',
+          error: error.message
+        })
+      }
+    }
+
+    res.json({
+      message: 'Role-based email processing completed',
+      results: results,
+      totalSent: results.filter(r => r.status === 'SENT').length,
+      totalFailed: results.filter(r => r.status === 'FAILED').length,
+      roles: roles
+    })
+  } catch (error) {
+    log.error('Send email by role error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Helper function to create nodemailer transporter from database settings
+const createTransporter = async (req = null) => {
+  const log = createRequestLogger(req || {}, 'email')
+  try {
+    const nodemailer = require('nodemailer')
+    
+    // Get SMTP settings from database - check both email_ and smtp_ prefixes
+    const smtpHost = await prisma.systemSetting.findFirst({ 
+      where: { 
+        OR: [
+          { key: 'email_smtpHost' },
+          { key: 'smtp_host' }
+        ]
+      }
+    })
+    const smtpPort = await prisma.systemSetting.findFirst({
+      where: {
+        OR: [
+          { key: 'email_smtpPort' },
+          { key: 'smtp_port' }
+        ]
+      }
+    })
+    const smtpUser = await prisma.systemSetting.findFirst({
+      where: {
+        OR: [
+          { key: 'email_smtpUser' },
+          { key: 'smtp_user' }
+        ]
+      }
+    })
+    const smtpPassword = await prisma.systemSetting.findFirst({
+      where: {
+        OR: [
+          { key: 'email_smtpPassword' },
+          { key: 'smtp_password' }
+        ]
+      }
+    })
+    const smtpSecure = await prisma.systemSetting.findFirst({
+      where: {
+        OR: [
+          { key: 'email_smtpSecure' },
+          { key: 'email_secure' },
+          { key: 'smtp_secure' }
+        ]
+      }
+    })
+    const smtpFrom = await prisma.systemSetting.findFirst({
+      where: {
+        OR: [
+          { key: 'email_fromEmail' },
+          { key: 'email_from' },
+          { key: 'smtp_from' }
+        ]
+      }
+    })
+    
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
+      const missingSettings = []
+      if (!smtpHost) missingSettings.push('SMTP Host')
+      if (!smtpPort) missingSettings.push('SMTP Port')
+      if (!smtpUser) missingSettings.push('SMTP User')
+      if (!smtpPassword) missingSettings.push('SMTP Password')
+      
+      const errorMessage = `SMTP settings not configured. Missing: ${missingSettings.join(', ')}. Please configure email settings in System Settings > Email Settings.`
+      console.error('[EMAIL] SMTP configuration error:', {
+        missingSettings,
+        checkedKeys: {
+          smtpHost: smtpHost?.key || 'not found',
+          smtpPort: smtpPort?.key || 'not found',
+          smtpUser: smtpUser?.key || 'not found',
+          smtpPassword: smtpPassword?.key || 'not found'
+        }
+      })
+      throw new Error(errorMessage)
+    }
+    
+    const port = parseInt(smtpPort.value) || 587
+    const smtpSecureSetting = smtpSecure ? (smtpSecure.value === 'true') : false
+    
+    // Port 465 always uses direct SSL, regardless of setting
+    // Port 587 uses STARTTLS (not direct SSL)
+    // Other ports use the secure setting
+    let isSecure = false
+    let requireTLS = false
+    
+    if (port === 465) {
+      // Port 465 requires direct SSL
+      isSecure = true
+    } else if (port === 587) {
+      // Port 587 uses STARTTLS (not direct SSL) - CRITICAL: ignore SSL checkbox
+      isSecure = false
+      requireTLS = true
+    } else {
+      // For other ports, use the secure setting
+      isSecure = smtpSecureSetting
+      requireTLS = smtpSecureSetting && port !== 465
+    }
+    
+    const transporterConfig = {
+      host: smtpHost.value,
+      port: port,
+      secure: isSecure, // MUST be false for port 587
+      auth: {
+        user: smtpUser.value,
+        pass: smtpPassword.value
+      }
+    }
+    
+    // For port 587 (STARTTLS), we need requireTLS but NOT the tls option
+    // For port 465 (direct SSL), we don't need requireTLS
+    if (port === 587) {
+      // Port 587 uses STARTTLS - require TLS upgrade
+      transporterConfig.secure = false
+      transporterConfig.requireTLS = true
+      // Do NOT set tls option for STARTTLS - let nodemailer handle it
+    } else if (port === 465) {
+      // Port 465 uses direct SSL - secure: true is already set
+    } else {
+      // For other ports, add TLS options if using secure
+      if (isSecure) {
+        transporterConfig.tls = {
+          rejectUnauthorized: false
+        }
+      } else if (requireTLS) {
+        transporterConfig.requireTLS = true
+      }
+    }
+    
+    const transporter = nodemailer.createTransport(transporterConfig)
+    
+    return { transporter, from: smtpFrom ? smtpFrom.value : smtpUser.value }
+  } catch (error) {
+    log.error('Failed to create email transporter:', error, { error: error.message, stack: error.stack })
+    throw error
+  }
+}
+
+// Send report via email
+const sendReportEmail = async ({ to, subject, reportData, filename, contentType, html }, req = null) => {
+  const log = createRequestLogger(req || {}, 'email')
+  try {
+    if (!reportData || !Buffer.isBuffer(reportData)) {
+      log.error('Invalid reportData provided to sendReportEmail', {
+        hasReportData: !!reportData,
+        isBuffer: Buffer.isBuffer(reportData),
+        type: typeof reportData
+      })
+      throw new Error('Report data is required and must be a Buffer')
+    }
+    
+    const { transporter, from } = await createTransporter(req)
+    
+    // Convert reportData to attachment
+    const attachment = {
+      filename,
+      content: reportData,
+      contentType
+    }
+    
+    // Use provided HTML or default
+    const emailHtml = html || `<p>Please find the attached <strong>${subject}</strong></p>`
+    
+    const recipients = Array.isArray(to) ? to : [to]
+    
+    // Send email
+    const info = await transporter.sendMail({
+      from,
+      to: recipients.join(', '),
+      subject,
+      text: `Please find the attached ${subject}`,
+      html: emailHtml,
+      attachments: [attachment]
+    })
+    
+    // Log successful email for each recipient
+    for (const recipient of recipients) {
+      try {
+        await prisma.emailLog.create({
+          data: {
+            to: recipient,
+            subject: subject,
+            status: 'SENT',
+            sentAt: new Date(),
+            messageId: info.messageId
+          }
+        })
+      } catch (logError) {
+        // Don't fail if logging fails
+        log.warn('Failed to log email:', logError.message)
+      }
+    }
+    
+    log.debug('Report email sent:', info.messageId)
+    return { success: true, messageId: info.messageId }
+  } catch (error) {
+    // Log failed email
+    const recipients = Array.isArray(to) ? to : [to]
+    for (const recipient of recipients) {
+      try {
+        await prisma.emailLog.create({
+          data: {
+            to: recipient,
+            subject: subject,
+            status: 'FAILED',
+            sentAt: new Date(),
+            errorMessage: error.message
+          }
+        })
+      } catch (logError) {
+        // Don't fail if logging fails
+        log.warn('Failed to log email error:', logError.message)
+      }
+    }
+    
+    log.error('Failed to send report email:', error, { 
+      error: error.message, 
+      stack: error.stack,
+      errorName: error.name,
+      errorCode: error.code,
+      recipients: Array.isArray(to) ? to : [to],
+      hasReportData: !!reportData,
+      reportDataType: typeof reportData,
+      isBuffer: Buffer.isBuffer(reportData)
+    })
+    
+    // Log to console for immediate visibility
+    console.error('[EMAIL] Failed to send report email details:', {
+      error: error.message,
+      errorName: error.name,
+      errorCode: error.code,
+      recipients: Array.isArray(to) ? to : [to],
+      filename: filename,
+      hasReportData: !!reportData,
+      reportDataSize: Buffer.isBuffer(reportData) ? reportData.length : 'N/A',
+      isBuffer: Buffer.isBuffer(reportData)
+    })
+    
+    throw error
+  }
+}
+
+// Send custom email
+const sendEmail = async ({ to, subject, text, html, attachments = [] }, req = null) => {
+  const log = createRequestLogger(req || {}, 'email')
+  try {
+    const { transporter, from } = await createTransporter(req)
+    
+    const recipients = Array.isArray(to) ? to : [to]
+    
+    const info = await transporter.sendMail({
+      from,
+      to: recipients.join(', '),
+      subject,
+      text,
+      html,
+      attachments
+    })
+    
+    // Log successful email for each recipient
+    for (const recipient of recipients) {
+      try {
+        await prisma.emailLog.create({
+          data: {
+            to: recipient,
+            subject: subject,
+            status: 'SENT',
+            sentAt: new Date(),
+            messageId: info.messageId
+          }
+        })
+      } catch (logError) {
+        // Don't fail if logging fails
+        log.warn('Failed to log email:', logError.message)
+      }
+    }
+    
+    log.debug('Email sent:', info.messageId)
+    return { success: true, messageId: info.messageId }
+  } catch (error) {
+    // Log failed email
+    const recipients = Array.isArray(to) ? to : [to]
+    for (const recipient of recipients) {
+      try {
+        await prisma.emailLog.create({
+          data: {
+            to: recipient,
+            subject: subject,
+            status: 'FAILED',
+            sentAt: new Date(),
+            errorMessage: error.message
+          }
+        })
+      } catch (logError) {
+        // Don't fail if logging fails
+        log.warn('Failed to log email error:', logError.message)
+      }
+    }
+    
+    log.error('Failed to send email:', error, { error: error.message, stack: error.stack })
+    throw error
+  }
+}
+
+module.exports = {
+  getTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  getCampaigns,
+  createCampaign,
+  sendCampaign,
+  getLogs,
+  sendMultipleEmails,
+  sendEmailByRole,
+  sendReportEmail,
+  sendEmail,
+  createTransporter
+}

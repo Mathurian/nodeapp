@@ -1,0 +1,673 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Helper function to get Judge ID from User ID
+const getJudgeIdFromUser = async (userId) => {
+  const userWithJudge = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { judge: true }
+  })
+  
+  if (!userWithJudge || !userWithJudge.judge) {
+    return null
+  }
+  
+  return userWithJudge.judge.id
+}
+
+// Get judge dashboard stats
+const getStats = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const judgeId = await getJudgeIdFromUser(req.user.id)
+    
+    if (!judgeId) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+
+    const totalAssignments = await prisma.assignment.count({
+      where: { judgeId }
+    })
+
+    const pendingAssignments = await prisma.assignment.count({
+      where: { 
+        judgeId,
+        status: 'PENDING'
+      }
+    })
+
+    const activeAssignments = await prisma.assignment.count({
+      where: { 
+        judgeId,
+        status: 'ACTIVE'
+      }
+    })
+
+    const completedAssignments = await prisma.assignment.count({
+      where: { 
+        judgeId,
+        status: 'COMPLETED'
+      }
+    })
+
+    const totalScores = await prisma.score.count({
+      where: { judgeId }
+    })
+
+    res.json({
+      totalAssignments,
+      pendingAssignments,
+      activeAssignments,
+      completedAssignments,
+      totalScores
+    })
+  } catch (error) {
+    log.error('Get judge stats error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get assignment management
+const getAssignments = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const userRole = req.user?.role
+    const judgeId = await getJudgeIdFromUser(req.user.id)
+    
+    // For ADMIN and ORGANIZER, they can view all assignments even if not linked to a Judge
+    // For JUDGE, they must be linked to a Judge record
+    if (userRole === 'JUDGE' && !judgeId) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+
+    // Build where clause - JUDGE sees only their assignments, ADMIN/ORGANIZER see all
+    const whereClause = userRole === 'JUDGE' && judgeId 
+      ? { judgeId } 
+      : {} // ADMIN/ORGANIZER see all assignments
+
+    const assignments = await prisma.assignment.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        judgeId: true,
+        categoryId: true,
+        contestId: true,
+        eventId: true,
+        status: true,
+        assignedAt: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            contestId: true,
+            contest: {
+              select: {
+                id: true,
+                name: true,
+                eventId: true
+              }
+            }
+          }
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            eventId: true
+          }
+        }
+      },
+      orderBy: { assignedAt: 'desc' }
+    })
+
+    res.json(assignments)
+  } catch (error) {
+    log.error('Get assignments error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Update assignment status
+const updateAssignmentStatus = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const { assignmentId } = req.params
+    const { status } = req.body
+    const judgeId = await getJudgeIdFromUser(req.user.id)
+    
+    if (!judgeId) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+
+    const assignment = await prisma.assignment.findFirst({
+      where: { 
+        id: assignmentId,
+        judgeId
+      }
+    })
+
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' })
+    }
+
+    const updatedAssignment = await prisma.assignment.update({
+      where: { id: assignmentId },
+      data: { status },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    res.json(updatedAssignment)
+  } catch (error) {
+    log.error('Update assignment status error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get scoring interface
+const getScoringInterface = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const { categoryId } = req.params
+    
+    // Get the Judge record linked to this User
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { judge: true }
+    })
+    
+    if (!user || !user.judge) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+    
+    const judgeId = user.judge.id
+
+    // Check if judge is assigned to this category
+    const assignment = await prisma.assignment.findFirst({
+      where: {
+        judgeId,
+        categoryId,
+        status: { in: ['ACTIVE', 'COMPLETED'] }
+      }
+    })
+
+    if (!assignment) {
+      return res.status(403).json({ error: 'Not assigned to this category' })
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        criteria: {
+          orderBy: { order: 'asc' }
+        },
+        contestants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true
+              }
+            }
+          }
+        },
+        scores: {
+          where: { judgeId },
+          include: {
+            criterion: true,
+            contestant: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    res.json({
+      category: {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        maxScore: category.maxScore
+      },
+      contest: {
+        id: category.contest.id,
+        name: category.contest.name,
+        eventName: category.contest.event.name
+      },
+      criteria: category.criteria,
+      contestants: category.contestants,
+      scores: category.scores,
+      assignment: {
+        id: assignment.id,
+        status: assignment.status,
+        assignedAt: assignment.assignedAt
+      }
+    })
+  } catch (error) {
+    log.error('Get scoring interface error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Submit score
+const submitScore = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const { categoryId, contestantId, criterionId, score, comment } = req.body
+    const judgeId = await getJudgeIdFromUser(req.user.id)
+    
+    if (!judgeId) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+
+    // Check if judge is assigned to this category
+    const assignment = await prisma.assignment.findFirst({
+      where: {
+        judgeId,
+        categoryId,
+        status: { in: ['ACTIVE', 'COMPLETED'] }
+      }
+    })
+
+    if (!assignment) {
+      return res.status(403).json({ error: 'Not assigned to this category' })
+    }
+
+    // If criterionId provided, validate the criterion
+    let criterion = null
+    if (criterionId) {
+      criterion = await prisma.criterion.findUnique({
+        where: { id: criterionId }
+      })
+
+      if (!criterion) {
+        return res.status(404).json({ error: 'Criterion not found' })
+      }
+
+      // Validate score is within criterion range
+      if (score !== undefined && (score < 0 || score > criterion.maxScore)) {
+        return res.status(400).json({ error: `Score must be between 0 and ${criterion.maxScore}` })
+      }
+    }
+
+    // For categories without criteria, just store comment if no score provided
+    const finalScore = score !== undefined ? score : null
+    
+    // Upsert score (comment only if no criteria, or full score if criteria exists)
+    const scoreRecord = await prisma.score.upsert({
+      where: {
+        judgeId_categoryId_contestantId_criterionId: {
+          judgeId,
+          categoryId,
+          contestantId,
+          criterionId: criterionId || 'no-criterion' // Use unique placeholder if no criterion
+        }
+      },
+      update: { 
+        score: finalScore,
+        comment: comment !== undefined ? comment : undefined
+      },
+      create: {
+        judgeId,
+        categoryId,
+        contestantId,
+        criterionId: criterionId || null,
+        score: finalScore,
+        comment: comment || null
+      },
+      include: {
+        criterion: true,
+        contestant: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    res.json(scoreRecord)
+  } catch (error) {
+    log.error('Submit score error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get certification workflow
+const getCertificationWorkflow = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const { categoryId } = req.params
+    const judgeId = await getJudgeIdFromUser(req.user.id)
+    
+    if (!judgeId) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+
+    // Check if judge is assigned to this category
+    const assignment = await prisma.assignment.findFirst({
+      where: {
+        judgeId,
+        categoryId,
+        status: { in: ['ACTIVE', 'COMPLETED'] }
+      }
+    })
+
+    if (!assignment) {
+      return res.status(403).json({ error: 'Not assigned to this category' })
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        scores: {
+          where: { judgeId },
+          include: {
+            criterion: true,
+            contestant: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Calculate certification status
+    const certificationStatus = {
+      totalsCertified: category.totalsCertified,
+      finalCertified: category.finalCertified,
+      tallyMasterCertified: category.tallyMasterCertified,
+      auditorCertified: category.auditorCertified,
+      boardApproved: category.boardApproved,
+      currentStep: 1,
+      totalSteps: 4,
+      canProceed: false,
+      nextStep: null
+    }
+
+    // Determine current step and next action
+    if (!category.totalsCertified) {
+      certificationStatus.currentStep = 1
+      certificationStatus.nextStep = 'TALLY_MASTER_REVIEW'
+      certificationStatus.canProceed = false
+    } else if (!category.finalCertified) {
+      certificationStatus.currentStep = 2
+      certificationStatus.nextStep = 'AUDITOR_REVIEW'
+      certificationStatus.canProceed = false
+    } else if (!category.boardApproved) {
+      certificationStatus.currentStep = 3
+      certificationStatus.nextStep = 'BOARD_APPROVAL'
+      certificationStatus.canProceed = false
+    } else {
+      certificationStatus.currentStep = 4
+      certificationStatus.nextStep = 'COMPLETED'
+      certificationStatus.canProceed = false
+    }
+
+    res.json({
+      category: {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        maxScore: category.maxScore
+      },
+      contest: {
+        id: category.contest.id,
+        name: category.contest.name,
+        eventName: category.contest.event.name
+      },
+      certificationStatus,
+      scores: category.scores,
+      totalScores: category.scores.length,
+      assignment: {
+        id: assignment.id,
+        status: assignment.status,
+        assignedAt: assignment.assignedAt
+      }
+    })
+  } catch (error) {
+    log.error('Get certification workflow error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get contestant bios
+const getContestantBios = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const { categoryId } = req.params
+    
+    // Get the Judge record linked to this User
+    const userWithJudge = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { judge: true }
+    })
+    
+    if (!userWithJudge || !userWithJudge.judge) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+    
+    const judgeId = userWithJudge.judge.id
+
+    // Check if judge is assigned to this category
+    const assignment = await prisma.assignment.findFirst({
+      where: {
+        judgeId,
+        categoryId,
+        status: { in: ['ACTIVE', 'COMPLETED'] }
+      }
+    })
+
+    if (!assignment) {
+      return res.status(403).json({ error: 'Not assigned to this category' })
+    }
+
+    const contestants = await prisma.contestant.findMany({
+      where: {
+        categories: {
+          some: {
+            id: categoryId
+          }
+        }
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            pronouns: true,
+            imagePath: true,
+            bio: true,
+            contestantBio: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    })
+
+    res.json(contestants)
+  } catch (error) {
+    log.error('Get contestant bios error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get judge history
+const getJudgeHistory = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const judgeId = await getJudgeIdFromUser(req.user.id)
+    
+    if (!judgeId) {
+      return res.status(403).json({ error: 'User is not linked to a Judge record' })
+    }
+    
+    const { page = 1, limit = 10 } = req.query
+    const offset = (page - 1) * limit
+
+    const assignments = await prisma.assignment.findMany({
+      where: { judgeId },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { assignedAt: 'desc' },
+      skip: offset,
+      take: parseInt(limit)
+    })
+
+    const total = await prisma.assignment.count({
+      where: { judgeId }
+    })
+
+    res.json({
+      assignments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    log.error('Get judge history error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getContestantBio = async (req, res) => {
+  const log = createRequestLogger(req, 'judge')
+  try {
+    const { contestantNumber } = req.params
+    
+    // Find contestant by number (Int in schema)
+    const num = parseInt(contestantNumber, 10)
+    if (Number.isNaN(num)) {
+      return res.status(400).json({ error: 'Invalid contestant number' })
+    }
+    const contestant = await prisma.contestant.findFirst({
+      where: { contestantNumber: num },
+      select: {
+        id: true,
+        name: true,
+        contestantNumber: true,
+        bio: true,
+        categoryContestants: {
+          select: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                contest: {
+                  select: {
+                    id: true,
+                    name: true,
+                    event: {
+                      select: { id: true, name: true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        users: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            bio: true,
+            imagePath: true
+          }
+        }
+      }
+    })
+
+    if (!contestant) {
+      return res.status(404).json({ error: 'Contestant not found' })
+    }
+
+    res.json({ data: contestant })
+  } catch (error) {
+    log.error('Get contestant bio error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getStats,
+  getAssignments,
+  updateAssignmentStatus,
+  getScoringInterface,
+  submitScore,
+  getCertificationWorkflow,
+  getContestantBios,
+  getJudgeHistory,
+  getContestantBio
+}

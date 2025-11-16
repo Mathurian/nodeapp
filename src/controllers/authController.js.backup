@@ -1,0 +1,404 @@
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
+const NodeCache = require('node-cache')
+const { PERMISSIONS, getRolePermissions, isAdmin } = require('../middleware/permissions')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+const { userCache } = require('../utils/cache')
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h'
+const RESET_TOKEN_TTL_SECONDS = 10 * 60 // 10 minutes
+const resetTokenCache = new NodeCache({ stdTTL: RESET_TOKEN_TTL_SECONDS, checkperiod: 120 })
+
+
+const login = async (req, res) => {
+  const log = createRequestLogger(req, 'auth')
+  try {
+    const { email, password } = req.body
+
+    log.debug('Login attempt', { email })
+
+    if (!email || !password) {
+      log.warn('Login failed: missing credentials', { email })
+      return res.status(400).json({ error: "Email and password are required" })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        judge: true,
+        contestant: true
+      }
+    })
+
+    if (!user || !await bcrypt.compare(password, user.password)) {
+      log.warn('Login failed: invalid credentials', { email })
+      return res.status(401).json({ error: "Invalid credentials" })
+    }
+
+    log.debug('Updating last login timestamp', { userId: user.id })
+
+    // Update last login timestamp
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    })
+
+    // Invalidate user cache after login update
+    userCache.invalidate(user.id)
+
+    // Use longer expiration for ADMIN and ORGANIZER roles to prevent frequent re-authentication
+    // Admin and Organizer get 24 hours instead of the default (which is currently 1h)
+    let tokenExpiresIn = JWT_EXPIRES_IN
+    if (user.role === 'ADMIN' || user.role === 'ORGANIZER') {
+      tokenExpiresIn = '1h' // Always give admin/organizer 24 hours
+    }
+
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email, 
+        role: user.role,
+        sessionVersion: user.sessionVersion
+      },
+      JWT_SECRET,
+      { expiresIn: tokenExpiresIn }
+    )
+
+    // Get user permissions based on role
+    const permissions = getRolePermissions(user.role)
+    const hasAdminAccess = isAdmin(user.role)
+
+    log.info('Login successful', { userId: user.id, email: user.email, role: user.role })
+
+    // Log login activity
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'LOGIN',
+          resourceType: 'AUTH',
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('User-Agent') || 'Unknown',
+          details: {
+            method: req.method,
+            path: req.path,
+            timestamp: new Date().toISOString(),
+            email: user.email
+          }
+        }
+      })
+    } catch (logError) {
+      // Don't fail login if logging fails
+      console.error('Failed to log login activity:', logError)
+    }
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        preferredName: user.preferredName,
+        email: user.email,
+        role: user.role,
+        sessionVersion: user.sessionVersion,
+        permissions: permissions,
+        hasAdminAccess: hasAdminAccess,
+        judge: user.judge,
+        contestant: user.contestant,
+        // Contestant fields on User model
+        contestantNumber: user.contestantNumber,
+        contestantAge: user.contestantAge,
+        contestantSchool: user.contestantSchool,
+        contestantBio: user.contestantBio,
+        judgeBio: user.judgeBio,
+        judgeSpecialties: user.judgeSpecialties,
+        judgeCertifications: user.judgeCertifications,
+        gender: user.gender,
+        pronouns: user.pronouns
+      }
+    })
+  } catch (error) {
+    log.error('Login error', {
+      error: error.message,
+      stack: error.stack,
+      email: req.body?.email,
+      origin: req.headers?.origin,
+      host: req.headers?.host,
+      userAgent: req.headers?.['user-agent'],
+      ip: req.ip || req.connection?.remoteAddress,
+      csrfHeader: req.headers?.['x-csrf-token'] ? 'present' : 'missing',
+      csrfCookie: req.cookies?._csrf ? 'present' : 'missing'
+    })
+    // Log to file and console for debugging external access issues
+    console.error('Login error details:', {
+      error: error.message,
+      origin: req.headers?.origin,
+      host: req.headers?.host,
+      ip: req.ip,
+      hasCsrfToken: !!req.headers?.['x-csrf-token'],
+      hasCsrfCookie: !!req.cookies?._csrf,
+      email: req.body?.email
+    })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+const getProfile = async (req, res) => {
+  const log = createRequestLogger(req, 'auth')
+  try {
+    const userId = req.user.id
+    log.debug('Fetching user profile', { userId })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        judge: true,
+        contestant: true
+      }
+    })
+
+    if (!user) {
+      log.warn('Profile fetch failed: user not found', { userId })
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Get user permissions based on role
+    const permissions = getRolePermissions(user.role)
+    const hasAdminAccess = isAdmin(user.role)
+
+    log.debug('Profile fetched successfully', { userId, role: user.role })
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      preferredName: user.preferredName,
+      email: user.email,
+      role: user.role,
+      sessionVersion: user.sessionVersion,
+      permissions: permissions,
+      hasAdminAccess: hasAdminAccess,
+      judge: user.judge,
+      contestant: user.contestant,
+      // Contestant fields on User model
+      contestantNumber: user.contestantNumber,
+      contestantAge: user.contestantAge,
+      contestantSchool: user.contestantSchool,
+      contestantBio: user.contestantBio,
+      judgeBio: user.judgeBio,
+      judgeSpecialties: user.judgeSpecialties,
+      judgeCertifications: user.judgeCertifications,
+      gender: user.gender,
+      pronouns: user.pronouns
+    })
+  } catch (error) {
+    log.error('Profile error', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get user permissions
+const getPermissions = async (req, res) => {
+  const log = createRequestLogger(req, 'auth')
+  try {
+    const userId = req.user.id
+    log.debug('Fetching user permissions', { userId })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!user) {
+      log.warn('Permissions fetch failed: user not found', { userId })
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const permissions = getRolePermissions(user.role)
+    const hasAdminAccess = isAdmin(user.role)
+
+    log.debug('Permissions fetched successfully', { userId, role: user.role })
+
+    res.json({
+      role: user.role,
+      permissions: permissions,
+      hasAdminAccess: hasAdminAccess,
+      permissionsMatrix: PERMISSIONS
+    })
+  } catch (error) {
+    log.error('Get permissions error', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  login,
+  getProfile,
+  getPermissions
+}
+
+// Forgot password: generate one-time token and send email (generic response)
+const forgotPassword = async (req, res) => {
+  const log = createRequestLogger(req, 'auth')
+  try {
+    const { email } = req.body
+    log.debug('Password reset requested', { email })
+
+    if (!email) {
+      log.warn('Password reset failed: email missing')
+      return res.status(400).json({ message: 'If an account exists, a reset link has been sent' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } })
+    // Always respond generically; if user found, create token
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex')
+      // Store hashed token in cache keyed by token, value = userId
+      resetTokenCache.set(token, user.id)
+      // In a real system, send email. Here we log for admins/testing.
+      log.info('Password reset token generated', { userId: user.id, email })
+      // Optionally, persist a notification/email queue here
+    } else {
+      log.debug('Password reset requested for non-existent email', { email })
+    }
+
+    return res.json({ message: 'If an account exists, a reset link has been sent' })
+  } catch (error) {
+    log.error('Forgot password error', {
+      error: error.message,
+      stack: error.stack,
+      email: req.body?.email
+    })
+    return res.json({ message: 'If an account exists, a reset link has been sent' })
+  }
+}
+
+// Reset password with token
+const resetPasswordWithToken = async (req, res) => {
+  const log = createRequestLogger(req, 'auth')
+  try {
+    const { token, newPassword } = req.body
+    log.debug('Password reset with token attempted', { token: token ? 'provided' : 'missing' })
+
+    if (!token || !newPassword) {
+      log.warn('Password reset failed: missing token or password')
+      return res.status(400).json({ error: 'Invalid request' })
+    }
+
+    const userId = resetTokenCache.get(token)
+    if (!userId) {
+      log.warn('Password reset failed: invalid or expired token', { token: token ? 'provided' : 'missing' })
+      return res.status(400).json({ error: 'Invalid or expired token' })
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      log.warn('Password reset failed: password too short', { userId })
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) {
+      log.warn('Password reset failed: user not found', { userId })
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    log.debug('Hashing new password and updating user', { userId })
+
+    const hashed = await bcrypt.hash(newPassword, 10)
+    // Increment session version to invalidate all existing sessions
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashed,
+        sessionVersion: { increment: 1 }
+      }
+    })
+
+    // Invalidate user cache after password change
+    userCache.invalidate(user.id)
+
+    // Invalidate token
+    resetTokenCache.del(token)
+
+    log.info('Password reset successful', { userId, email: user.email })
+    return res.json({ message: 'Password has been reset successfully' })
+  } catch (error) {
+    log.error('Reset password error', {
+      error: error.message,
+      stack: error.stack,
+      token: req.body?.token ? 'provided' : 'missing'
+    })
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports.forgotPassword = forgotPassword
+module.exports.resetPasswordWithToken = resetPasswordWithToken
+
+// Logout
+const logout = async (req, res) => {
+  const log = createRequestLogger(req, 'auth')
+  try {
+    const userId = req.user?.id
+    const userName = req.user?.name
+    const userRole = req.user?.role
+    log.info('Logout requested', { userId })
+    
+    // Log logout activity before clearing session
+    if (userId) {
+      try {
+        await prisma.activityLog.create({
+          data: {
+            userId: userId,
+            userName: userName,
+            userRole: userRole,
+            action: 'LOGOUT',
+            resourceType: 'AUTH',
+            ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
+            userAgent: req.get('User-Agent') || 'Unknown',
+            details: {
+              method: req.method,
+              path: req.path,
+              timestamp: new Date().toISOString()
+            }
+          }
+        })
+      } catch (logError) {
+        // Don't fail logout if logging fails
+        console.error('Failed to log logout activity:', logError)
+      }
+    }
+    
+    // Clear the token cookie if it exists
+    res.clearCookie('token')
+    
+    // For JSON API requests, return JSON
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      log.debug('Logout successful (JSON response)', { userId })
+      return res.json({ message: 'Logged out successfully' })
+    }
+    
+    // For browser GET requests, redirect to login
+    log.debug('Logout successful (redirect)', { userId })
+    res.redirect('/login')
+  } catch (error) {
+    log.error('Logout error', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports.logout = logout

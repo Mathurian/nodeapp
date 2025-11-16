@@ -1,0 +1,753 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getStats = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get board stats requested', { userId, userRole })
+
+    // Count total contests
+    const totalContests = await prisma.contest.count()
+    
+    // Count total categories
+    const totalCategories = await prisma.category.count()
+    
+    // Count certified categories (those with FINAL certification)
+    const categories = await prisma.category.findMany({
+      include: {
+        certifications: true
+      }
+    })
+    
+    const certified = categories.filter(cat => 
+      cat.certifications.some(cert => cert.type === 'FINAL')
+    ).length
+    
+    const pending = categories.filter(cat => 
+      !cat.certifications.some(cert => cert.type === 'FINAL')
+    ).length
+    
+    const stats = {
+      contests: totalContests,
+      categories: totalCategories,
+      certified,
+      pending
+    }
+
+    log.info('Board stats fetched successfully', { stats, userId })
+    res.json(stats)
+  } catch (error) {
+    log.error('Get board stats error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCertifications = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get certifications requested', { userId, userRole })
+
+    const categories = await prisma.category.findMany({
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        scores: {
+          include: {
+            judge: true,
+            contestant: true
+          }
+        },
+        certifications: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Filter for categories with FINAL certification
+    const certifiedCategories = categories.filter(cat => 
+      cat.certifications.some(cert => cert.type === 'FINAL')
+    )
+
+    log.info('Certifications fetched successfully', { count: certifiedCategories.length, userId })
+    res.json(certifiedCategories)
+  } catch (error) {
+    log.error('Get certifications error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const approveCertification = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Approve certification requested', { categoryId: id, userId, userRole })
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Category not found for approval', { categoryId: id, userId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Validate RoleAssignment for BOARD role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, id)
+    } catch (assignmentError) {
+      log.warn('Category assignment validation failed for approval', { categoryId: id, userId, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    await prisma.category.update({
+      where: { id },
+      data: { boardApproved: true }
+    })
+
+    log.info('Certification approved successfully', { categoryId: id, userId, categoryName: category.name })
+    res.json({ message: 'Certification approved' })
+  } catch (error) {
+    log.error('Approve certification error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const rejectCertification = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Reject certification requested', { categoryId: id, reason, userId, userRole })
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Category not found for rejection', { categoryId: id, userId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Validate RoleAssignment for BOARD role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, id)
+    } catch (assignmentError) {
+      log.warn('Category assignment validation failed for rejection', { categoryId: id, userId, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    await prisma.category.update({
+      where: { id },
+      data: { 
+        boardApproved: false,
+        rejectionReason: reason
+      }
+    })
+
+    log.info('Certification rejected successfully', { categoryId: id, reason, userId, categoryName: category.name })
+    res.json({ message: 'Certification rejected' })
+  } catch (error) {
+    log.error('Reject certification error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCertificationStatus = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get certification status requested', { userId, userRole })
+
+    // Get all categories with their certifications
+    const categories = await prisma.category.findMany({
+      include: {
+        certifications: {
+          where: {
+            status: {
+              in: ['CERTIFIED', 'PENDING', 'IN_PROGRESS']
+            }
+          }
+        }
+      }
+    })
+
+    // Count categories by certification status
+    const status = {
+      total: categories.length,
+      pending: categories.filter(cat => 
+        cat.certifications.length === 0 || 
+        cat.certifications.every(cert => cert.status !== 'CERTIFIED')
+      ).length,
+      certified: categories.filter(cat => 
+        cat.certifications.some(cert => cert.status === 'CERTIFIED')
+      ).length,
+      approved: 0 // This would be board approval, not implemented yet
+    }
+
+    log.info('Certification status fetched successfully', { status, userId })
+    res.json(status)
+  } catch (error) {
+    log.error('Get certification status error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getEmceeScripts = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get emcee scripts requested', { userId, userRole })
+
+    const scripts = await prisma.emceeScript.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+
+    log.info('Emcee scripts fetched successfully', { count: scripts.length, userId })
+    res.json(scripts)
+  } catch (error) {
+    log.error('Get emcee scripts error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createEmceeScript = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { title, content, type, eventId, contestId, categoryId, order, notes } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Create emcee script requested', { title, type, eventId, contestId, categoryId, userId, userRole })
+
+    const script = await prisma.emceeScript.create({
+      data: {
+        title,
+        content,
+        type,
+        eventId,
+        contestId,
+        categoryId,
+        order: order || 0,
+        notes,
+        isActive: true,
+        createdBy: req.user.id
+      }
+    })
+
+    log.info('Emcee script created successfully', { scriptId: script.id, title, userId })
+    res.status(201).json(script)
+  } catch (error) {
+    log.error('Create emcee script error', {
+      error: error.message,
+      stack: error.stack,
+      title: req.body?.title
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateEmceeScript = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { id } = req.params
+    const { title, content, type, eventId, contestId, categoryId, order, notes, isActive } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Update emcee script requested', { scriptId: id, title, type, isActive, userId, userRole })
+
+    const script = await prisma.emceeScript.update({
+      where: { id },
+      data: {
+        title,
+        content,
+        type,
+        eventId,
+        contestId,
+        categoryId,
+        order,
+        notes,
+        isActive
+      }
+    })
+
+    log.info('Emcee script updated successfully', { scriptId: id, title, userId })
+    res.json(script)
+  } catch (error) {
+    log.error('Update emcee script error', {
+      error: error.message,
+      stack: error.stack,
+      scriptId: req.params?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteEmceeScript = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Delete emcee script requested', { scriptId: id, userId, userRole })
+
+    await prisma.emceeScript.delete({
+      where: { id }
+    })
+
+    log.info('Emcee script deleted successfully', { scriptId: id, userId })
+    res.json({ message: 'Emcee script deleted successfully' })
+  } catch (error) {
+    log.error('Delete emcee script error', {
+      error: error.message,
+      stack: error.stack,
+      scriptId: req.params?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const generateReport = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { type, parameters } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Generate report requested', { type, parameters, userId, userRole })
+
+    let reportData = null
+
+    switch (type) {
+      case 'CERTIFICATION_SUMMARY':
+        reportData = await generateCertificationSummary(parameters)
+        break
+      case 'CONTEST_SUMMARY':
+        reportData = await generateContestSummary(parameters)
+        break
+      case 'SCORE_REMOVAL_REQUESTS':
+        reportData = await generateScoreRemovalRequests(parameters)
+        break
+      case 'EMCEE_SCRIPT_USAGE':
+        reportData = await generateEmceeScriptUsage(parameters)
+        break
+      default:
+        log.warn('Invalid report type requested', { type, userId })
+        return res.status(400).json({ error: 'Invalid report type' })
+    }
+
+    log.info('Report generated successfully', { type, userId })
+    res.json(reportData)
+  } catch (error) {
+    log.error('Generate report error', {
+      error: error.message,
+      stack: error.stack,
+      type: req.body?.type
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const generateCertificationSummary = async (parameters) => {
+  const { eventId, contestId, categoryId, dateFrom, dateTo } = parameters
+
+  const whereClause = {
+    ...(eventId && { event: { id: eventId } }),
+    ...(contestId && { contest: { id: contestId } }),
+    ...(categoryId && { id: categoryId }),
+    ...(dateFrom && dateTo && {
+      createdAt: {
+        gte: new Date(dateFrom),
+        lte: new Date(dateTo)
+      }
+    })
+  }
+
+  const certifications = await prisma.certification.findMany({
+    where: whereClause,
+    include: {
+      category: {
+        include: {
+          contest: {
+            include: {
+              event: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  const stats = {
+    total: certifications.length,
+    certified: certifications.filter(c => c.status === 'CERTIFIED').length,
+    pending: certifications.filter(c => c.status === 'PENDING').length,
+    rejected: certifications.filter(c => c.status === 'REJECTED').length
+  }
+
+  return {
+    type: 'CERTIFICATION_SUMMARY',
+    stats,
+    certifications,
+    generatedAt: new Date().toISOString(),
+    generatedBy: 'BOARD'
+  }
+}
+
+const generateContestSummary = async (parameters) => {
+  const { eventId, contestId } = parameters
+
+  const whereClause = {
+    ...(eventId && { eventId }),
+    ...(contestId && { id: contestId })
+  }
+
+  const contests = await prisma.contest.findMany({
+    where: whereClause,
+    include: {
+      event: true,
+      categories: {
+        include: {
+          scores: {
+            include: {
+              judge: true,
+              contestant: true
+            }
+          }
+        }
+      },
+      contestants: true,
+      judges: true
+    }
+  })
+
+  const summary = contests.map(contest => ({
+    id: contest.id,
+    name: contest.name,
+    eventName: contest.event.name,
+    categoriesCount: contest.categories.length,
+    contestantsCount: contest.contestants.length,
+    judgesCount: contest.judges.length,
+    totalScores: contest.categories.reduce((sum, cat) => sum + cat.scores.length, 0),
+    averageScore: contest.categories.reduce((sum, cat) => {
+      const avg = cat.scores.length > 0 ? cat.scores.reduce((s, score) => s + score.score, 0) / cat.scores.length : 0
+      return sum + avg
+    }, 0) / contest.categories.length
+  }))
+
+  return {
+    type: 'CONTEST_SUMMARY',
+    summary,
+    generatedAt: new Date().toISOString(),
+    generatedBy: 'BOARD'
+  }
+}
+
+const generateScoreRemovalRequests = async (parameters) => {
+  const { status, dateFrom, dateTo } = parameters
+
+  const whereClause = {
+    ...(status && { status }),
+    ...(dateFrom && dateTo && {
+      createdAt: {
+        gte: new Date(dateFrom),
+        lte: new Date(dateTo)
+      }
+    })
+  }
+
+  const requests = await prisma.judgeScoreRemovalRequest.findMany({
+    where: whereClause,
+    include: {
+      judge: true,
+      category: {
+        include: {
+          contest: {
+            include: {
+              event: true
+            }
+          }
+        }
+      },
+      score: {
+        include: {
+          contestant: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  const stats = {
+    total: requests.length,
+    pending: requests.filter(r => r.status === 'PENDING').length,
+    approved: requests.filter(r => r.status === 'APPROVED').length,
+    rejected: requests.filter(r => r.status === 'REJECTED').length
+  }
+
+  return {
+    type: 'SCORE_REMOVAL_REQUESTS',
+    stats,
+    requests,
+    generatedAt: new Date().toISOString(),
+    generatedBy: 'BOARD'
+  }
+}
+
+const generateEmceeScriptUsage = async (parameters) => {
+  const { eventId, contestId, dateFrom, dateTo } = parameters
+
+  const whereClause = {
+    ...(eventId && { eventId }),
+    ...(contestId && { contestId }),
+    ...(dateFrom && dateTo && {
+      createdAt: {
+        gte: new Date(dateFrom),
+        lte: new Date(dateTo)
+      }
+    })
+  }
+
+  const scripts = await prisma.emceeScript.findMany({
+    where: whereClause,
+    include: {
+      event: true,
+      contest: true,
+      category: true
+    },
+    orderBy: { usageCount: 'desc' }
+  })
+
+  const stats = {
+    totalScripts: scripts.length,
+    activeScripts: scripts.filter(s => s.isActive).length,
+    totalUsage: scripts.reduce((sum, s) => sum + s.usageCount, 0),
+    averageUsage: scripts.length > 0 ? scripts.reduce((sum, s) => sum + s.usageCount, 0) / scripts.length : 0
+  }
+
+  return {
+    type: 'EMCEE_SCRIPT_USAGE',
+    stats,
+    scripts,
+    generatedAt: new Date().toISOString(),
+    generatedBy: 'BOARD'
+  }
+}
+
+const getScoreRemovalRequests = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { status, page = 1, limit = 20 } = req.query
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get score removal requests requested', { status, page, limit, userId, userRole })
+
+    const whereClause = {
+      ...(status && { status })
+    }
+
+    const requests = await prisma.judgeScoreRemovalRequest.findMany({
+      where: whereClause,
+      include: {
+        judge: true,
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        score: {
+          include: {
+            contestant: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (parseInt(page) - 1) * parseInt(limit),
+      take: parseInt(limit)
+    })
+
+    const total = await prisma.judgeScoreRemovalRequest.count({
+      where: whereClause
+    })
+
+    log.info('Score removal requests fetched successfully', { count: requests.length, total, page, userId })
+    res.json({
+      requests,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    })
+  } catch (error) {
+    log.error('Get score removal requests error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const approveScoreRemoval = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Approve score removal requested', { requestId: id, reason, userId, userRole })
+
+    const request = await prisma.judgeScoreRemovalRequest.findUnique({
+      where: { id },
+      include: { score: true }
+    })
+
+    if (!request) {
+      log.warn('Score removal request not found', { requestId: id, userId })
+      return res.status(404).json({ error: 'Request not found' })
+    }
+
+    log.info('Approving score removal and deleting score', { requestId: id, scoreId: request.scoreId, userId })
+
+    // Delete the score
+    await prisma.score.delete({
+      where: { id: request.scoreId }
+    })
+
+    // Update the request status
+    const updatedRequest = await prisma.judgeScoreRemovalRequest.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        approvedBy: req.user.id,
+        approvedAt: new Date(),
+        reason
+      }
+    })
+
+    log.info('Score removal approved successfully', { requestId: id, scoreId: request.scoreId, userId })
+    res.json(updatedRequest)
+  } catch (error) {
+    log.error('Approve score removal error', {
+      error: error.message,
+      stack: error.stack,
+      requestId: req.params?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const rejectScoreRemoval = async (req, res) => {
+  const log = createRequestLogger(req, 'board')
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Reject score removal requested', { requestId: id, reason, userId, userRole })
+
+    const updatedRequest = await prisma.judgeScoreRemovalRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectedBy: req.user.id,
+        rejectedAt: new Date(),
+        reason
+      }
+    })
+
+    log.info('Score removal rejected successfully', { requestId: id, userId })
+    res.json(updatedRequest)
+  } catch (error) {
+    log.error('Reject score removal error', {
+      error: error.message,
+      stack: error.stack,
+      requestId: req.params?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getStats,
+  getCertifications,
+  approveCertification,
+  rejectCertification,
+  getCertificationStatus,
+  getEmceeScripts,
+  createEmceeScript,
+  updateEmceeScript,
+  deleteEmceeScript,
+  generateReport,
+  getScoreRemovalRequests,
+  approveScoreRemoval,
+  rejectScoreRemoval
+}

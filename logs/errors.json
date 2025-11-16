@@ -1,0 +1,694 @@
+[
+  {
+    "id": "err_1762554675581_tmwlkilqi",
+    "timestamp": "2025-11-07T22:31:15.581Z",
+    "severity": "low",
+    "message": "Missing required fields: contestId",
+    "stack": "ValidationError: Missing required fields: contestId\n    at CategoryService.validateRequired (/var/www/event-manager/src/services/BaseService.ts:140:13)\n    at CategoryService.createCategory (/var/www/event-manager/src/services/CategoryService.ts:50:12)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:73:36)\n    at Promise.finally.completed (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at _runTest (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/var/www/event-manager/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/var/www/event-manager/node_modules/jest-runner/build/index.js:275:16)\n    at runTest (/var/www/event-manager/node_modules/jest-runner/build/index.js:343:7)",
+    "context": {
+      "operation": "createCategory",
+      "data": {
+        "name": "Talent"
+      }
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Missing required fields: contestId",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1762554675609_lmcr1q8tl",
+    "timestamp": "2025-11-07T22:31:15.609Z",
+    "severity": "low",
+    "message": "Missing required fields: name",
+    "stack": "ValidationError: Missing required fields: name\n    at CategoryService.validateRequired (/var/www/event-manager/src/services/BaseService.ts:140:13)\n    at CategoryService.createCategory (/var/www/event-manager/src/services/CategoryService.ts:50:12)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:79:36)\n    at Promise.finally.completed (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at _runTest (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/var/www/event-manager/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/var/www/event-manager/node_modules/jest-runner/build/index.js:275:16)\n    at runTest (/var/www/event-manager/node_modules/jest-runner/build/index.js:343:7)",
+    "context": {
+      "operation": "createCategory",
+      "data": {
+        "contestId": "contest-1"
+      }
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Missing required fields: name",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1762554675620_ikg2eu2bt",
+    "timestamp": "2025-11-07T22:31:15.620Z",
+    "severity": "low",
+    "message": "Score cap must be non-negative",
+    "stack": "ValidationError: Score cap must be non-negative\n    at CategoryService.createCategory (/var/www/event-manager/src/services/CategoryService.ts:53:15)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:89:36)\n    at Promise.finally.completed (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at _runTest (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at _runTestsForDescribeBlock (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/var/www/event-manager/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/var/www/event-manager/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/var/www/event-manager/node_modules/jest-runner/build/index.js:275:16)\n    at runTest (/var/www/event-manager/node_modules/jest-runner/build/index.js:343:7)",
+    "context": {
+      "operation": "createCategory",
+      "data": {
+        "name": "Talent",
+        "contestId": "contest-1",
+        "scoreCap": -10
+      }
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Score cap must be non-negative",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1762554675656_a82lvzbab",
+    "timestamp": "2025-11-07T22:31:15.656Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:143:7)",
+    "context": {
+      "operation": "getCategoryById",
+      "id": "invalid"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675677_8v9ggrlao",
+    "timestamp": "2025-11-07T22:31:15.677Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryWithDetails (/var/www/event-manager/src/services/CategoryService.ts:100:15)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:183:7)",
+    "context": {
+      "operation": "getCategoryWithDetails",
+      "id": "invalid"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675704_2s2qk8whi",
+    "timestamp": "2025-11-07T22:31:15.704Z",
+    "severity": "low",
+    "message": "Score cap must be non-negative",
+    "stack": "ValidationError: Score cap must be non-negative\n    at CategoryService.updateCategory (/var/www/event-manager/src/services/CategoryService.ts:133:15)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:252:7)",
+    "context": {
+      "operation": "updateCategory",
+      "id": "1",
+      "data": {
+        "scoreCap": -50
+      }
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Score cap must be non-negative",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1762554675714_juiecikb2",
+    "timestamp": "2025-11-07T22:31:15.714Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at CategoryService.updateCategory (/var/www/event-manager/src/services/CategoryService.ts:130:24)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:261:7)",
+    "context": {
+      "operation": "getCategoryById",
+      "id": "invalid"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675718_m4r0197wj",
+    "timestamp": "2025-11-07T22:31:15.718Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at CategoryService.updateCategory (/var/www/event-manager/src/services/CategoryService.ts:130:24)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:261:7)",
+    "context": {
+      "operation": "updateCategory",
+      "id": "invalid",
+      "data": {
+        "name": "New Name"
+      }
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675739_4x7wabgbe",
+    "timestamp": "2025-11-07T22:31:15.739Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at CategoryService.deleteCategory (/var/www/event-manager/src/services/CategoryService.ts:148:24)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:289:7)",
+    "context": {
+      "operation": "getCategoryById",
+      "id": "invalid"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675743_0aanlhvml",
+    "timestamp": "2025-11-07T22:31:15.743Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at CategoryService.deleteCategory (/var/www/event-manager/src/services/CategoryService.ts:148:24)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:289:7)",
+    "context": {
+      "operation": "deleteCategory",
+      "id": "invalid"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675775_fy2be04au",
+    "timestamp": "2025-11-07T22:31:15.775Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at CategoryService.certifyTotals (/var/www/event-manager/src/services/CategoryService.ts:178:24)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:368:7)",
+    "context": {
+      "operation": "getCategoryById",
+      "id": "invalid"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762554675779_8oonpzo8q",
+    "timestamp": "2025-11-07T22:31:15.779Z",
+    "severity": "low",
+    "message": "Category with identifier 'invalid' not found",
+    "stack": "NotFoundError: Category with identifier 'invalid' not found\n    at CategoryService.getCategoryById (/var/www/event-manager/src/services/CategoryService.ts:78:15)\n    at CategoryService.certifyTotals (/var/www/event-manager/src/services/CategoryService.ts:178:24)\n    at Object.<anonymous> (/var/www/event-manager/tests/unit/services/CategoryService.test.ts:368:7)",
+    "context": {
+      "operation": "certifyTotals",
+      "id": "invalid",
+      "certified": true
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "Category with identifier 'invalid' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762558869296_btn4bdvf1",
+    "timestamp": "2025-11-07T23:41:09.296Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558869396_wkht5t3y9",
+    "timestamp": "2025-11-07T23:41:09.396Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558869435_xgvqbuguq",
+    "timestamp": "2025-11-07T23:41:09.435Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558869474_g8eapspwu",
+    "timestamp": "2025-11-07T23:41:09.474Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558870343_wwhx1xr1f",
+    "timestamp": "2025-11-07T23:41:10.343Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558885316_5uja53q2u",
+    "timestamp": "2025-11-07T23:41:25.316Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558885344_paow60csd",
+    "timestamp": "2025-11-07T23:41:25.344Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558885411_32lus61ek",
+    "timestamp": "2025-11-07T23:41:25.411Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558885419_658sslfho",
+    "timestamp": "2025-11-07T23:41:25.419Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558886362_kzy277wmj",
+    "timestamp": "2025-11-07T23:41:26.362Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762558974897_v2a2ti0he",
+    "timestamp": "2025-11-07T23:42:54.897Z",
+    "severity": "high",
+    "message": "Cannot read properties of undefined (reading 'event')",
+    "stack": "TypeError: Cannot read properties of undefined (reading 'event')\n    at EventRepository.getModel (/var/www/event-manager/dist/repositories/BaseRepository.js:11:27)\n    at EventRepository.findMany (/var/www/event-manager/dist/repositories/BaseRepository.js:25:21)\n    at EventRepository.findAll (/var/www/event-manager/dist/repositories/BaseRepository.js:36:21)\n    at EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:123:47)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'event')"
+    }
+  },
+  {
+    "id": "err_1762623751924_9jv1j91s8",
+    "timestamp": "2025-11-08T17:42:31.924Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.contest.findUnique()` invocation:\n\n{\n  where: {\n    id: \"cmh8bd4f3002xtzbv6dj59t3g\"\n  },\n  include: {\n    event: true,\n    categories: {\n      include: {\n        criteria: true,\n        judges: {\n          include: {\n            user: {\n            ~~~~\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true\n              }\n            },\n?           category?: true,\n?           judge?: true\n          }\n        },\n        contestants: {\n          include: {\n            user: {\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true,\n                contestantNumber: true\n              }\n            }\n          }\n        }\n      }\n    },\n    contestants: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true,\n            contestantNumber: true\n          }\n        }\n      }\n    },\n    judges: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true\n          }\n        }\n      }\n    }\n  }\n}\n\nUnknown field `user` for include statement on model `CategoryJudge`. Available options are marked with ?.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.contest.findUnique()` invocation:\n\n{\n  where: {\n    id: \"cmh8bd4f3002xtzbv6dj59t3g\"\n  },\n  include: {\n    event: true,\n    categories: {\n      include: {\n        criteria: true,\n        judges: {\n          include: {\n            user: {\n            ~~~~\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true\n              }\n            },\n?           category?: true,\n?           judge?: true\n          }\n        },\n        contestants: {\n          include: {\n            user: {\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true,\n                contestantNumber: true\n              }\n            }\n          }\n        }\n      }\n    },\n    contestants: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true,\n            contestantNumber: true\n          }\n        }\n      }\n    },\n    judges: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true\n          }\n        }\n      }\n    }\n  }\n}\n\nUnknown field `user` for include statement on model `CategoryJudge`. Available options are marked with ?.\n    at Nn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6911)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async ContestService.getContestWithDetails (/var/www/event-manager/dist/services/ContestService.js:78:29)\n    at async getContestById (/var/www/event-manager/dist/controllers/contestsController.js:18:29)",
+    "context": {
+      "operation": "getContestWithDetails",
+      "id": "cmh8bd4f3002xtzbv6dj59t3g"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.contest.findUnique()` invocation:\n\n{\n  where: {\n    id: \"cmh8bd4f3002xtzbv6dj59t3g\"\n  },\n  include: {\n    event: true,\n    categories: {\n      include: {\n        criteria: true,\n        judges: {\n          include: {\n            user: {\n            ~~~~\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true\n              }\n            },\n?           category?: true,\n?           judge?: true\n          }\n        },\n        contestants: {\n          include: {\n            user: {\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true,\n                contestantNumber: true\n              }\n            }\n          }\n        }\n      }\n    },\n    contestants: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true,\n            contestantNumber: true\n          }\n        }\n      }\n    },\n    judges: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true\n          }\n        }\n      }\n    }\n  }\n}\n\nUnknown field `user` for include statement on model `CategoryJudge`. Available options are marked with ?."
+    }
+  },
+  {
+    "id": "err_1762625934550_9mgollr1a",
+    "timestamp": "2025-11-08T18:18:54.550Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.contest.findUnique()` invocation:\n\n{\n  where: {\n    id: \"cmh8bd4f3002xtzbv6dj59t3g\"\n  },\n  include: {\n    event: true,\n    categories: {\n      include: {\n        criteria: true,\n        judges: {\n          include: {\n            user: {\n            ~~~~\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true\n              }\n            },\n?           category?: true,\n?           judge?: true\n          }\n        },\n        contestants: {\n          include: {\n            user: {\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true,\n                contestantNumber: true\n              }\n            }\n          }\n        }\n      }\n    },\n    contestants: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true,\n            contestantNumber: true\n          }\n        }\n      }\n    },\n    judges: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true\n          }\n        }\n      }\n    }\n  }\n}\n\nUnknown field `user` for include statement on model `CategoryJudge`. Available options are marked with ?.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.contest.findUnique()` invocation:\n\n{\n  where: {\n    id: \"cmh8bd4f3002xtzbv6dj59t3g\"\n  },\n  include: {\n    event: true,\n    categories: {\n      include: {\n        criteria: true,\n        judges: {\n          include: {\n            user: {\n            ~~~~\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true\n              }\n            },\n?           category?: true,\n?           judge?: true\n          }\n        },\n        contestants: {\n          include: {\n            user: {\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true,\n                contestantNumber: true\n              }\n            }\n          }\n        }\n      }\n    },\n    contestants: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true,\n            contestantNumber: true\n          }\n        }\n      }\n    },\n    judges: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true\n          }\n        }\n      }\n    }\n  }\n}\n\nUnknown field `user` for include statement on model `CategoryJudge`. Available options are marked with ?.\n    at Nn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6911)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async ContestService.getContestWithDetails (/var/www/event-manager/dist/services/ContestService.js:78:29)\n    at async getContestById (/var/www/event-manager/dist/controllers/contestsController.js:18:29)",
+    "context": {
+      "operation": "getContestWithDetails",
+      "id": "cmh8bd4f3002xtzbv6dj59t3g"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.contest.findUnique()` invocation:\n\n{\n  where: {\n    id: \"cmh8bd4f3002xtzbv6dj59t3g\"\n  },\n  include: {\n    event: true,\n    categories: {\n      include: {\n        criteria: true,\n        judges: {\n          include: {\n            user: {\n            ~~~~\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true\n              }\n            },\n?           category?: true,\n?           judge?: true\n          }\n        },\n        contestants: {\n          include: {\n            user: {\n              select: {\n                id: true,\n                name: true,\n                email: true,\n                preferredName: true,\n                contestantNumber: true\n              }\n            }\n          }\n        }\n      }\n    },\n    contestants: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true,\n            contestantNumber: true\n          }\n        }\n      }\n    },\n    judges: {\n      include: {\n        user: {\n          select: {\n            id: true,\n            name: true,\n            email: true,\n            preferredName: true\n          }\n        }\n      }\n    }\n  }\n}\n\nUnknown field `user` for include statement on model `CategoryJudge`. Available options are marked with ?."
+    }
+  },
+  {
+    "id": "err_1762791832606_t7spo9r4s",
+    "timestamp": "2025-11-10T16:23:52.606Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762791833720_y3eg3o6nn",
+    "timestamp": "2025-11-10T16:23:53.720Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762791843936_4dgmr0tyn",
+    "timestamp": "2025-11-10T16:24:03.936Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762791845062_a0uq6d39g",
+    "timestamp": "2025-11-10T16:24:05.062Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762791963963_2e9i4blpy",
+    "timestamp": "2025-11-10T16:26:03.963Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762791965032_e5qwei8wr",
+    "timestamp": "2025-11-10T16:26:05.032Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762792274117_omqdpd2n9",
+    "timestamp": "2025-11-10T16:31:14.117Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762792275306_t1p3hyh88",
+    "timestamp": "2025-11-10T16:31:15.306Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762792282846_lnqloj181",
+    "timestamp": "2025-11-10T16:31:22.846Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762792284036_tecm7q8d1",
+    "timestamp": "2025-11-10T16:31:24.036Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+    "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.\n    at ei.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:7268)\n    at ei.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6593)\n    at ei.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6300)\n    at async a (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9551)\n    at async EventService.getAllEvents (/var/www/event-manager/dist/services/EventService.js:126:26)\n    at async getAllEvents (/var/www/event-manager/dist/controllers/eventsController.js:29:28)",
+    "context": {
+      "operation": "getAllEvents",
+      "filters": {}
+    },
+    "error": {
+      "name": "PrismaClientKnownRequestError",
+      "message": "\nInvalid `prisma.event.findMany()` invocation:\n\n\nThe column `events.contestantViewRestricted` does not exist in the current database.",
+      "code": "P2022"
+    }
+  },
+  {
+    "id": "err_1762792431745_5lkhl1bzx",
+    "timestamp": "2025-11-10T16:33:51.745Z",
+    "severity": "low",
+    "message": "Cannot delete admin/organizer users. Found 1 protected user(s): cmhqp1z2y00bp8cpqt0z3j567. Use forceDeleteAdmin flag to override.",
+    "stack": "ValidationError: Cannot delete admin/organizer users. Found 1 protected user(s): cmhqp1z2y00bp8cpqt0z3j567. Use forceDeleteAdmin flag to override.\n    at UserService.bulkDeleteUsers (/var/www/event-manager/dist/services/UserService.js:275:23)\n    at async bulkDeleteUsers (/var/www/event-manager/dist/controllers/usersController.js:484:28)",
+    "context": {
+      "method": "bulkDeleteUsers",
+      "userIds": [
+        "cmhslqb3200488caagbmiwvmu",
+        "cmhslqb2r00408caafhof7tam",
+        "cmhslqb2k003x8caanulaobfp",
+        "cmhslqb2e003u8caamk0w1r45",
+        "cmhslqb27003r8caak16599dy",
+        "cmhslqb1w003j8caa2az1w7g5",
+        "cmhslqb1p003g8caa36e4q42p",
+        "cmhslqb1k003d8caa8f4clv8w",
+        "cmhslqb1d003a8caa59yf3qq3",
+        "cmhslqb1100308caaahj2mzwz",
+        "cmhslqb0w002x8caadfao8dqa",
+        "cmhslqb0r002u8caa7te0xlon",
+        "cmhslqb0l002r8caasojrdpcs",
+        "cmhslqb0c002o8caa56mxoqhw",
+        "cmhslqb03002l8caal20i9wac",
+        "cmhslqazv002i8caaarrfrim4",
+        "cmhslqazn002f8caaz7waw6sc",
+        "cmhslqazc00278caa7jjb22ig",
+        "cmhslqaz500248caa0k69zlgh",
+        "cmhslqayx00218caasd2j9rzh",
+        "cmhslqayq001y8caadqod1ddc",
+        "cmhslqayc001q8caanvrxmbn3",
+        "cmhslqay2001n8caay5dd1ngp",
+        "cmhslqaxw001k8caab8bsqns9",
+        "cmhslqaxp001h8caam7mie9pq",
+        "cmhslqawz00178caay7dv4gn4",
+        "cmhslqawv00148caaf60dwuax",
+        "cmhslqawp00118caakxv2bk9o",
+        "cmhslqawj000y8caabh3h54ed",
+        "cmhslqawd000v8caagcb9mh6w",
+        "cmhslqawb000u8caa1tkr1k5m",
+        "cmhqp1z2y00bp8cpqt0z3j567"
+      ]
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Cannot delete admin/organizer users. Found 1 protected user(s): cmhqp1z2y00bp8cpqt0z3j567. Use forceDeleteAdmin flag to override.",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1762792518922_hgbdoz93i",
+    "timestamp": "2025-11-10T16:35:18.922Z",
+    "severity": "low",
+    "message": "Cannot delete admin/organizer users. Found 1 protected user(s): cmhqp1z2y00bp8cpqt0z3j567. Use forceDeleteAdmin flag to override.",
+    "stack": "ValidationError: Cannot delete admin/organizer users. Found 1 protected user(s): cmhqp1z2y00bp8cpqt0z3j567. Use forceDeleteAdmin flag to override.\n    at UserService.bulkDeleteUsers (/var/www/event-manager/dist/services/UserService.js:275:23)\n    at async bulkDeleteUsers (/var/www/event-manager/dist/controllers/usersController.js:484:28)",
+    "context": {
+      "method": "bulkDeleteUsers",
+      "userIds": [
+        "cmhslqb3200488caagbmiwvmu",
+        "cmhslqb2r00408caafhof7tam",
+        "cmhslqb2k003x8caanulaobfp",
+        "cmhslqb2e003u8caamk0w1r45",
+        "cmhslqb27003r8caak16599dy",
+        "cmhslqb1w003j8caa2az1w7g5",
+        "cmhslqb1p003g8caa36e4q42p",
+        "cmhslqb1k003d8caa8f4clv8w",
+        "cmhslqb1d003a8caa59yf3qq3",
+        "cmhslqb1100308caaahj2mzwz",
+        "cmhslqb0w002x8caadfao8dqa",
+        "cmhslqb0r002u8caa7te0xlon",
+        "cmhslqb0l002r8caasojrdpcs",
+        "cmhslqb0c002o8caa56mxoqhw",
+        "cmhslqb03002l8caal20i9wac",
+        "cmhslqazv002i8caaarrfrim4",
+        "cmhslqazn002f8caaz7waw6sc",
+        "cmhslqazc00278caa7jjb22ig",
+        "cmhslqaz500248caa0k69zlgh",
+        "cmhslqayx00218caasd2j9rzh",
+        "cmhslqayq001y8caadqod1ddc",
+        "cmhslqayc001q8caanvrxmbn3",
+        "cmhslqay2001n8caay5dd1ngp",
+        "cmhslqaxw001k8caab8bsqns9",
+        "cmhslqaxp001h8caam7mie9pq",
+        "cmhslqawz00178caay7dv4gn4",
+        "cmhslqawv00148caaf60dwuax",
+        "cmhslqawp00118caakxv2bk9o",
+        "cmhslqawj000y8caabh3h54ed",
+        "cmhslqawd000v8caagcb9mh6w",
+        "cmhslqawb000u8caa1tkr1k5m",
+        "cmhqp1z2y00bp8cpqt0z3j567"
+      ]
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Cannot delete admin/organizer users. Found 1 protected user(s): cmhqp1z2y00bp8cpqt0z3j567. Use forceDeleteAdmin flag to override.",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1762808892503_ghlyd9w20",
+    "timestamp": "2025-11-10T21:08:12.503Z",
+    "severity": "low",
+    "message": "User with identifier 'bulk-template' not found",
+    "stack": "NotFoundError: User with identifier 'bulk-template' not found\n    at UserService.assertExists (/var/www/event-manager/dist/services/BaseService.js:105:19)\n    at UserService.getUserByIdWithRelations (/var/www/event-manager/dist/services/UserService.js:460:18)\n    at async getUserById (/var/www/event-manager/dist/controllers/usersController.js:34:26)",
+    "context": {
+      "method": "getUserByIdWithRelations",
+      "userId": "bulk-template"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "User with identifier 'bulk-template' not found",
+      "code": "NOT_FOUND"
+    }
+  },
+  {
+    "id": "err_1762809199391_qqsp7qqxq",
+    "timestamp": "2025-11-10T21:13:19.391Z",
+    "severity": "low",
+    "message": "User with identifier 'bulk-template' not found",
+    "stack": "NotFoundError: User with identifier 'bulk-template' not found\n    at UserService.assertExists (/var/www/event-manager/dist/services/BaseService.js:105:19)\n    at UserService.getUserByIdWithRelations (/var/www/event-manager/dist/services/UserService.js:460:18)\n    at async getUserById (/var/www/event-manager/dist/controllers/usersController.js:34:26)",
+    "context": {
+      "method": "getUserByIdWithRelations",
+      "userId": "bulk-template"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "User with identifier 'bulk-template' not found",
+      "code": "NOT_FOUND"
+    }
+  }
+]

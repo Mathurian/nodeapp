@@ -1,0 +1,441 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Create deduction request
+const createDeductionRequest = async (req, res) => {
+  const log = createRequestLogger(req, 'deduction')
+  try {
+    const { contestantId, categoryId, amount, reason } = req.body
+    const requestedBy = req.user.id
+
+    if (!contestantId || !categoryId || !amount || !reason) {
+      return res.status(400).json({ error: 'Contestant ID, category ID, amount, and reason are required' })
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Deduction amount must be greater than 0' })
+    }
+
+    // Verify contestant and category exist
+    const [contestant, category] = await Promise.all([
+      prisma.contestant.findUnique({ where: { id: contestantId } }),
+      prisma.category.findUnique({ where: { id: categoryId } })
+    ])
+
+    if (!contestant) {
+      return res.status(404).json({ error: 'Contestant not found' })
+    }
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Create deduction request
+    const deductionRequest = await prisma.deductionRequest.create({
+      data: {
+        contestantId,
+        categoryId,
+        amount: parseFloat(amount),
+        reason,
+        requestedBy,
+        status: 'PENDING'
+      },
+      include: {
+        contestant: {
+          select: { id: true, name: true, email: true }
+        },
+        category: {
+          select: { id: true, name: true }
+        },
+        requestedBy: {
+          select: { id: true, name: true, email: true, role: true }
+        }
+      }
+    })
+
+    res.status(201).json(deductionRequest)
+  } catch (error) {
+    log.error('Create deduction request error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get pending deductions (role-filtered)
+const getPendingDeductions = async (req, res) => {
+  const log = createRequestLogger(req, 'deduction')
+  try {
+    const userRole = req.user.role
+    const userId = req.user.id
+
+    let whereClause = { status: 'PENDING' }
+
+    // Role-based filtering
+    switch (userRole) {
+      case 'ADMIN':
+      case 'ORGANIZER':
+        // Can see all pending deductions
+        break
+
+      case 'BOARD':
+        // Can see all pending deductions
+        break
+
+      case 'JUDGE':
+        // Can see deductions for categories they're assigned to
+        const judgeCategories = await prisma.judge.findMany({
+          where: { userId },
+          select: { categoryId: true }
+        })
+        whereClause.categoryId = { in: judgeCategories.map(j => j.categoryId) }
+        break
+
+      case 'TALLY_MASTER':
+        // Can see all pending deductions
+        break
+
+      case 'AUDITOR':
+        // Can see all pending deductions
+        break
+
+      default:
+        return res.status(403).json({ error: 'Insufficient permissions' })
+    }
+
+    const deductions = await prisma.deductionRequest.findMany({
+      where: whereClause,
+      include: {
+        contestant: {
+          select: { id: true, name: true, email: true }
+        },
+        category: {
+          select: { id: true, name: true }
+        },
+        requestedBy: {
+          select: { id: true, name: true, email: true, role: true }
+        },
+        approvals: {
+          include: {
+            approvedBy: {
+              select: { id: true, name: true, email: true, role: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Add approval status for each deduction
+    const deductionsWithStatus = deductions.map(deduction => {
+      const approvals = deduction.approvals || []
+      const hasHeadJudgeApproval = approvals.some(a => a.isHeadJudge)
+      const hasTallyMasterApproval = approvals.some(a => a.role === 'TALLY_MASTER')
+      const hasAuditorApproval = approvals.some(a => a.role === 'AUDITOR')
+      const hasBoardApproval = approvals.some(a => ['BOARD', 'ORGANIZER', 'ADMIN'].includes(a.role))
+
+      const canApprove = !approvals.some(a => a.approvedBy === userId)
+      const isFullyApproved = hasHeadJudgeApproval && hasTallyMasterApproval && hasAuditorApproval && hasBoardApproval
+
+      return {
+        ...deduction,
+        approvalStatus: {
+          hasHeadJudgeApproval,
+          hasTallyMasterApproval,
+          hasAuditorApproval,
+          hasBoardApproval,
+          isFullyApproved,
+          canApprove,
+          approvalCount: approvals.length,
+          requiredApprovals: 4
+        }
+      }
+    })
+
+    res.json(deductionsWithStatus)
+  } catch (error) {
+    log.error('Get pending deductions error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Approve deduction
+const approveDeduction = async (req, res) => {
+  const log = createRequestLogger(req, 'deduction')
+  try {
+    const { id } = req.params
+    const { signature, notes } = req.body
+    const approvedBy = req.user.id
+    const userRole = req.user.role
+
+    if (!signature) {
+      return res.status(400).json({ error: 'Digital signature is required' })
+    }
+
+    // Find deduction request
+    const deductionRequest = await prisma.deductionRequest.findUnique({
+      where: { id },
+      include: {
+        approvals: true
+      }
+    })
+
+    if (!deductionRequest) {
+      return res.status(404).json({ error: 'Deduction request not found' })
+    }
+
+    if (deductionRequest.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Deduction request is not pending' })
+    }
+
+    // Check if user has already approved
+    const existingApproval = deductionRequest.approvals.find(a => a.approvedBy === approvedBy)
+    if (existingApproval) {
+      return res.status(400).json({ error: 'You have already approved this deduction' })
+    }
+
+    // Check if user can approve based on role
+    let isHeadJudge = false
+    if (userRole === 'JUDGE') {
+      const judge = await prisma.judge.findFirst({
+        where: { userId: approvedBy }
+      })
+      isHeadJudge = judge?.isHeadJudge || false
+    }
+
+    // Create approval
+    const approval = await prisma.deductionApproval.create({
+      data: {
+        requestId: id,
+        approvedBy,
+        role: userRole,
+        isHeadJudge,
+        signature,
+        notes: notes || null,
+        approvedAt: new Date()
+      },
+      include: {
+        approvedBy: {
+          select: { id: true, name: true, email: true, role: true }
+        }
+      }
+    })
+
+    // Check if all required approvals are met
+    const allApprovals = await prisma.deductionApproval.findMany({
+      where: { requestId: id }
+    })
+
+    const hasHeadJudgeApproval = allApprovals.some(a => a.isHeadJudge)
+    const hasTallyMasterApproval = allApprovals.some(a => a.role === 'TALLY_MASTER')
+    const hasAuditorApproval = allApprovals.some(a => a.role === 'AUDITOR')
+    const hasBoardApproval = allApprovals.some(a => ['BOARD', 'ORGANIZER', 'ADMIN'].includes(a.role))
+
+    if (hasHeadJudgeApproval && hasTallyMasterApproval && hasAuditorApproval && hasBoardApproval) {
+      // All approvals received, apply deduction
+      await prisma.deductionRequest.update({
+        where: { id },
+        data: { status: 'APPROVED' }
+      })
+
+      // Apply deduction to contestant's score
+      await prisma.score.updateMany({
+        where: {
+          contestantId: deductionRequest.contestantId,
+          categoryId: deductionRequest.categoryId
+        },
+        data: {
+          deduction: deductionRequest.amount,
+          deductionReason: deductionRequest.reason,
+          deductionApprovedAt: new Date()
+        }
+      })
+    }
+
+    res.json({
+      message: 'Deduction approved successfully',
+      approval,
+      isFullyApproved: hasHeadJudgeApproval && hasTallyMasterApproval && hasAuditorApproval && hasBoardApproval
+    })
+  } catch (error) {
+    log.error('Approve deduction error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Reject deduction
+const rejectDeduction = async (req, res) => {
+  const log = createRequestLogger(req, 'deduction')
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+    const rejectedBy = req.user.id
+
+    if (!reason) {
+      return res.status(400).json({ error: 'Rejection reason is required' })
+    }
+
+    // Find deduction request
+    const deductionRequest = await prisma.deductionRequest.findUnique({
+      where: { id }
+    })
+
+    if (!deductionRequest) {
+      return res.status(404).json({ error: 'Deduction request not found' })
+    }
+
+    if (deductionRequest.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Deduction request is not pending' })
+    }
+
+    // Update status to rejected
+    await prisma.deductionRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: reason,
+        rejectedBy,
+        rejectedAt: new Date()
+      }
+    })
+
+    res.json({ message: 'Deduction rejected successfully' })
+  } catch (error) {
+    log.error('Reject deduction error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get approval status for a deduction
+const getApprovalStatus = async (req, res) => {
+  const log = createRequestLogger(req, 'deduction')
+  try {
+    const { id } = req.params
+
+    const deductionRequest = await prisma.deductionRequest.findUnique({
+      where: { id },
+      include: {
+        approvals: {
+          include: {
+            approvedBy: {
+              select: { id: true, name: true, email: true, role: true }
+            }
+          },
+          orderBy: { approvedAt: 'asc' }
+        },
+        contestant: {
+          select: { id: true, name: true, email: true }
+        },
+        category: {
+          select: { id: true, name: true }
+        },
+        requestedBy: {
+          select: { id: true, name: true, email: true, role: true }
+        }
+      }
+    })
+
+    if (!deductionRequest) {
+      return res.status(404).json({ error: 'Deduction request not found' })
+    }
+
+    const approvals = deductionRequest.approvals || []
+    const hasHeadJudgeApproval = approvals.some(a => a.isHeadJudge)
+    const hasTallyMasterApproval = approvals.some(a => a.role === 'TALLY_MASTER')
+    const hasAuditorApproval = approvals.some(a => a.role === 'AUDITOR')
+    const hasBoardApproval = approvals.some(a => ['BOARD', 'ORGANIZER', 'ADMIN'].includes(a.role))
+
+    const approvalStatus = {
+      hasHeadJudgeApproval,
+      hasTallyMasterApproval,
+      hasAuditorApproval,
+      hasBoardApproval,
+      isFullyApproved: hasHeadJudgeApproval && hasTallyMasterApproval && hasAuditorApproval && hasBoardApproval,
+      approvalCount: approvals.length,
+      requiredApprovals: 4,
+      approvals: approvals.map(approval => ({
+        id: approval.id,
+        approvedBy: approval.approvedBy,
+        role: approval.role,
+        isHeadJudge: approval.isHeadJudge,
+        signature: approval.signature,
+        notes: approval.notes,
+        approvedAt: approval.approvedAt
+      }))
+    }
+
+    res.json({
+      ...deductionRequest,
+      approvalStatus
+    })
+  } catch (error) {
+    log.error('Get approval status error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get deduction history
+const getDeductionHistory = async (req, res) => {
+  const log = createRequestLogger(req, 'deduction')
+  try {
+    const { page = 1, limit = 50, status, categoryId, contestantId } = req.query
+    const skip = (parseInt(page) - 1) * parseInt(limit)
+    const take = parseInt(limit)
+
+    const whereClause = {}
+    if (status) whereClause.status = status
+    if (categoryId) whereClause.categoryId = categoryId
+    if (contestantId) whereClause.contestantId = contestantId
+
+    const [deductions, total] = await Promise.all([
+      prisma.deductionRequest.findMany({
+        where: whereClause,
+        skip,
+        take,
+        include: {
+          contestant: {
+            select: { id: true, name: true, email: true }
+          },
+          category: {
+            select: { id: true, name: true }
+          },
+          requestedBy: {
+            select: { id: true, name: true, email: true, role: true }
+          },
+          approvals: {
+            include: {
+              approvedBy: {
+                select: { id: true, name: true, email: true, role: true }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.deductionRequest.count({ where: whereClause })
+    ])
+
+    res.json({
+      deductions,
+      pagination: {
+        page: parseInt(page),
+        limit: take,
+        total,
+        totalPages: Math.ceil(total / take),
+        hasNext: skip + take < total,
+        hasPrev: page > 1
+      }
+    })
+  } catch (error) {
+    log.error('Get deduction history error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  createDeductionRequest,
+  getPendingDeductions,
+  approveDeduction,
+  rejectDeduction,
+  getApprovalStatus,
+  getDeductionHistory
+}

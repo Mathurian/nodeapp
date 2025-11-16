@@ -1,0 +1,126 @@
+const cacheService = require('../services/cacheService')
+const { createRequestLogger } = require('../utils/logger')
+
+/**
+ * Get cache statistics
+ */
+const getCacheStats = async (req, res) => {
+  const log = createRequestLogger(req, 'cache')
+  try {
+    const stats = await cacheService.getStats()
+    res.json(stats)
+  } catch (error) {
+    log.error('Get cache stats error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Failed to get cache statistics' })
+  }
+}
+
+/**
+ * Flush all cache
+ */
+const flushCache = async (req, res) => {
+  const log = createRequestLogger(req, 'cache')
+  try {
+    const success = await cacheService.flush()
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Cache flushed successfully' 
+      })
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to flush cache. Cache may be disabled.' 
+      })
+    }
+  } catch (error) {
+    log.error('Flush cache error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Failed to flush cache' })
+  }
+}
+
+/**
+ * Delete specific cache key
+ */
+const deleteCacheKey = async (req, res) => {
+  const log = createRequestLogger(req, 'cache')
+  try {
+    const { key } = req.params
+    
+    if (!key) {
+      return res.status(400).json({ error: 'Cache key is required' })
+    }
+
+    const success = await cacheService.delete(key)
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: `Cache key "${key}" deleted successfully` 
+      })
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to delete cache key' 
+      })
+    }
+  } catch (error) {
+    log.error('Delete cache key error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Failed to delete cache key' })
+  }
+}
+
+/**
+ * Delete cache keys by pattern
+ */
+const deleteCachePattern = async (req, res) => {
+  const log = createRequestLogger(req, 'cache')
+  try {
+    const { pattern } = req.body
+    
+    if (!pattern) {
+      return res.status(400).json({ error: 'Pattern is required' })
+    }
+
+    const success = await cacheService.deletePattern(pattern)
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: `Cache keys matching "${pattern}" deleted successfully` 
+      })
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to delete cache keys' 
+      })
+    }
+  } catch (error) {
+    log.error('Delete cache pattern error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Failed to delete cache keys' })
+  }
+}
+
+/**
+ * Check cache status
+ */
+const getCacheStatus = async (req, res) => {
+  const log = createRequestLogger(req, 'cache')
+  try {
+    const isEnabled = cacheService.isEnabled()
+    res.json({ 
+      enabled: isEnabled,
+      status: isEnabled ? 'connected' : 'disconnected'
+    })
+  } catch (error) {
+    log.error('Get cache status error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Failed to get cache status' })
+  }
+}
+
+module.exports = {
+  getCacheStats,
+  flushCache,
+  deleteCacheKey,
+  deleteCachePattern,
+  getCacheStatus
+}
+

@@ -1,0 +1,875 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Get emcee dashboard stats
+const getStats = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const totalScripts = await prisma.emceeScript.count()
+
+    const totalEvents = await prisma.event.count()
+
+    const totalContests = await prisma.contest.count()
+
+    const totalCategories = await prisma.category.count()
+
+    res.json({
+      totalScripts,
+      totalEvents,
+      totalContests,
+      totalCategories
+    })
+  } catch (error) {
+    log.error('Get emcee stats error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get script access
+const getScripts = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { eventId, contestId, categoryId } = req.query
+
+    const whereClause = {}
+    
+    if (eventId) whereClause.eventId = eventId
+    if (contestId) whereClause.contestId = contestId
+    if (categoryId) whereClause.categoryId = categoryId
+
+    const scripts = await prisma.emceeScript.findMany({
+      where: whereClause,
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    })
+
+    res.json(scripts)
+  } catch (error) {
+    log.error('Get scripts error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get specific script
+const getScript = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { scriptId } = req.params
+
+    const script = await prisma.emceeScript.findUnique({
+      where: { id: scriptId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            startDate: true,
+            endDate: true
+          }
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            startTime: true,
+            endTime: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            maxScore: true
+          }
+        },
+        author: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    if (!script) {
+      return res.status(404).json({ error: 'Script not found' })
+    }
+
+    res.json(script)
+  } catch (error) {
+    log.error('Get script error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get contestant bios
+const getContestantBios = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { eventId, contestId, categoryId } = req.query
+
+    // If categoryId is provided, use the same approach as judge bios
+    if (categoryId) {
+      const assignments = await prisma.categoryContestant.findMany({
+        where: { categoryId },
+        include: {
+          contestant: {
+            include: {
+              users: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true,
+                  email: true,
+                  pronouns: true,
+                  gender: true,
+                  imagePath: true,
+                  phone: true,
+                  address: true,
+                  city: true,
+                  state: true,
+                  zipCode: true,
+                  country: true,
+                  bio: true,
+                  contestantBio: true,
+                  grade: true,
+                  parentGuardian: true,
+                  parentPhone: true
+                }
+              },
+              contestContestants: {
+                include: {
+                  contest: {
+                    include: {
+                      event: {
+                        select: {
+                          id: true,
+                          name: true,
+                          description: true,
+                          startDate: true,
+                          endDate: true
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              categoryContestants: {
+                include: {
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                      description: true,
+                      scoreCap: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+      
+      const contestants = assignments.map(a => a.contestant)
+      return res.json(contestants)
+    }
+
+    // For eventId or contestId, get all categories first, then contestants
+    let categoryIds = []
+    
+    if (eventId) {
+      // Get all contests for the event
+      const contests = await prisma.contest.findMany({
+        where: { eventId },
+        select: { id: true }
+      })
+      
+      // Get all categories for those contests
+      const categories = await prisma.category.findMany({
+        where: {
+          contestId: { in: contests.map(c => c.id) }
+        },
+        select: { id: true }
+      })
+      
+      categoryIds = categories.map(c => c.id)
+    } else if (contestId) {
+      // Get all categories for the contest
+      const categories = await prisma.category.findMany({
+        where: { contestId },
+        select: { id: true }
+      })
+      
+      categoryIds = categories.map(c => c.id)
+    }
+
+    if (categoryIds.length === 0) {
+      return res.json([])
+    }
+
+    // Get contestants for all categories and dedupe
+    const assignments = await prisma.categoryContestant.findMany({
+      where: {
+        categoryId: { in: categoryIds }
+      },
+      include: {
+        contestant: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true,
+                pronouns: true
+              }
+            },
+            contestContestants: {
+              include: {
+                contest: {
+                  include: {
+                    event: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        startDate: true,
+                        endDate: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            categoryContestants: {
+              include: {
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    scoreCap: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Dedupe by contestant ID
+    const seen = new Map()
+    const contestants = []
+    for (const assignment of assignments) {
+      if (!seen.has(assignment.contestant.id)) {
+        seen.set(assignment.contestant.id, true)
+        contestants.push(assignment.contestant)
+      }
+    }
+
+    res.json(contestants.sort((a, b) => (a.name || '').localeCompare(b.name || '')))
+  } catch (error) {
+    log.error('Get contestant bios error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get judge bios
+const getJudgeBios = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { eventId, contestId, categoryId } = req.query
+
+    // Filter by event/contest/category through judge assignments
+    let userIds = null
+    
+    if (eventId || contestId || categoryId) {
+      const assignmentFilter = {}
+      if (eventId) assignmentFilter.eventId = eventId
+      if (contestId) assignmentFilter.contestId = contestId
+      if (categoryId) assignmentFilter.categoryId = categoryId
+      
+      // Get assignments and find the judge IDs
+      const assignments = await prisma.assignment.findMany({
+        where: assignmentFilter,
+        select: {
+          judgeId: true
+        },
+        distinct: ['judgeId']
+      })
+      
+      const judgeIds = assignments.map(a => a.judgeId)
+      
+      // If no assignments found, return empty array
+      if (judgeIds.length === 0) {
+        return res.json([])
+      }
+      
+      // Get user IDs that have these judge IDs
+      const judges = await prisma.judge.findMany({
+        where: {
+          id: { in: judgeIds }
+        },
+        select: {
+          users: {
+            select: {
+              id: true
+            }
+          }
+        }
+      })
+      
+      userIds = judges.flatMap(j => j.users.map(u => u.id))
+      
+      if (userIds.length === 0) {
+        return res.json([])
+      }
+    }
+
+    const whereClause = {
+      role: { in: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'] },
+      judgeId: { 
+        not: null
+      }
+    }
+    
+    // If we filtered by assignments, add userId filter
+    if (userIds !== null) {
+      whereClause.id = { in: userIds }
+    }
+
+    const judges = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        preferredName: true,
+        email: true,
+        role: true,
+        pronouns: true,
+        gender: true,
+        imagePath: true,
+        phone: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
+        country: true,
+        judgeBio: true,
+        judgeSpecialties: true,
+        judgeCertifications: true,
+        judge: {
+          select: {
+            id: true,
+            bio: true,
+            imagePath: true,
+            isHeadJudge: true
+          }
+        },
+        createdAt: true
+      },
+      orderBy: { name: 'asc' }
+    })
+
+    res.json(judges)
+  } catch (error) {
+    log.error('Get judge bios error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get event management
+const getEvents = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const events = await prisma.event.findMany({
+      include: {
+        contests: {
+          include: {
+            categories: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                scoreCap: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { startDate: 'asc' }
+    })
+
+    res.json(events)
+  } catch (error) {
+    log.error('Get events error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get specific event
+const getEvent = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { eventId } = req.params
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        contests: {
+          include: {
+            categories: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                scoreCap: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' })
+    }
+
+    res.json(event)
+  } catch (error) {
+    log.error('Get event error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get contest management
+const getContests = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { eventId } = req.query
+
+    const whereClause = {}
+    if (eventId) whereClause.eventId = eventId
+
+    const contests = await prisma.contest.findMany({
+      where: whereClause,
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            startDate: true,
+            endDate: true
+          }
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            scoreCap: true
+          },
+          orderBy: { name: 'asc' }
+        }
+      }
+    })
+
+    res.json(contests)
+  } catch (error) {
+    log.error('Get contests error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get specific contest
+const getContest = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { contestId } = req.params
+
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            startDate: true,
+            endDate: true
+          }
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            scoreCap: true
+          },
+          orderBy: { name: 'asc' }
+        }
+      }
+    })
+
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    res.json(contest)
+  } catch (error) {
+    log.error('Get contest error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get emcee history
+const getEmceeHistory = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { page = 1, limit = 10 } = req.query
+    const offset = (page - 1) * limit
+
+    const scripts = await prisma.emceeScript.findMany({
+      where: { isActive: true },
+      include: {
+        event: true,
+        contest: true,
+        category: true
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: parseInt(limit)
+    })
+
+    const total = await prisma.emceeScript.count({
+      where: { isActive: true }
+    })
+
+    res.json({
+      scripts,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    log.error('Get emcee history error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Upload script file
+const uploadScript = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { title, eventId, contestId, categoryId, order } = req.body
+    
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' })
+    }
+
+    // Handle file upload if present
+    let content = req.body.content || ''
+    let filePath = null
+    
+    if (req.file) {
+      filePath = `/uploads/emcee/${req.file.filename}`
+      // If file is uploaded, content might be in the file or body
+      if (!req.body.content) {
+        // Read file content if it's a text file
+        const fs = require('fs')
+        try {
+          if (req.file.mimetype === 'text/plain' || req.file.mimetype === 'text/markdown') {
+            content = fs.readFileSync(req.file.path, 'utf8')
+          } else {
+            // For binary files (PDF, DOCX), just store the file path
+            content = `File uploaded: ${req.file.originalname}`
+          }
+        } catch (err) {
+          log.warn('Could not read file content:', err)
+        }
+      }
+    }
+
+    if (!content && !filePath) {
+      return res.status(400).json({ error: 'Content or file is required' })
+    }
+
+    const script = await prisma.emceeScript.create({
+      data: {
+        title,
+        content: content || `Script file: ${filePath}`,
+        filePath: filePath || null,
+        eventId: eventId || null,
+        contestId: contestId || null,
+        categoryId: categoryId || null,
+        order: order || 0
+      }
+    })
+
+    res.status(201).json(script)
+  } catch (error) {
+    log.error('Upload script error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Update script
+const updateScript = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { id } = req.params
+    const { title, content, eventId, contestId, categoryId, order, isActive } = req.body
+
+    const script = await prisma.emceeScript.update({
+      where: { id },
+      data: {
+        title,
+        content,
+        eventId: eventId || null,
+        contestId: contestId || null,
+        categoryId: categoryId || null,
+        order: order || 0
+      }
+    })
+
+    res.json(script)
+  } catch (error) {
+    log.error('Update script error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Delete script
+const deleteScript = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { id } = req.params
+
+    await prisma.emceeScript.delete({
+      where: { id }
+    })
+
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete script error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Toggle script (deleted - no isActive field in schema)
+const toggleScript = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { id } = req.params
+
+    const script = await prisma.emceeScript.findUnique({
+      where: { id }
+    })
+
+    if (!script) {
+      return res.status(404).json({ error: 'Script not found' })
+    }
+
+    // Since there's no isActive field, just return the script
+    res.json(script)
+  } catch (error) {
+    log.error('Toggle script error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Generate a signed token for file access (temporary access, 5 minutes)
+const generateFileAccessToken = async (scriptId) => {
+  try {
+    const crypto = require('crypto')
+    const secret = process.env.FILE_SECRET || 'default-file-secret-change-in-production'
+    
+    // Create token with timestamp
+    const timestamp = Date.now()
+    const data = `${scriptId}:${timestamp}`
+    const token = crypto.createHmac('sha256', secret).update(data).digest('hex')
+    
+    // Store token with expiration (5 minutes)
+    const tokenStore = require('node-cache')
+    if (!global.fileTokenCache) {
+      global.fileTokenCache = new tokenStore({ stdTTL: 300, checkperiod: 60 })
+    }
+    
+    const fullToken = `${token}:${timestamp}`
+    global.fileTokenCache.set(fullToken, scriptId, 300) // 5 minutes TTL
+    
+    return fullToken
+  } catch (error) {
+    log.error('Generate file token error:', error, { error: error.message, stack: error.stack })
+    throw error
+  }
+}
+
+// Verify signed token
+const verifyFileToken = (token) => {
+  try {
+    if (!global.fileTokenCache) {
+      return false
+    }
+    
+    const scriptId = global.fileTokenCache.get(token)
+    return scriptId || false
+  } catch (error) {
+    log.error('Verify file token error:', error, { error: error.message, stack: error.stack })
+    return false
+  }
+}
+
+// Serve emcee script file (with or without auth)
+const serveScriptFile = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { scriptId } = req.params
+    const { token } = req.query
+    
+    // Check authentication: either valid token OR authenticated user
+    const hasAuth = req.user || (token && verifyFileToken(token))
+    
+    if (!hasAuth) {
+      return res.status(401).json({ error: 'Unauthorized: Valid token or authentication required' })
+    }
+    
+    const script = await prisma.emceeScript.findUnique({
+      where: { id: scriptId }
+    })
+    
+    if (!script || !script.filePath) {
+      return res.status(404).json({ error: 'Script file not found' })
+    }
+    
+    // Security: Prevent directory traversal
+    if (script.filePath.includes('..')) {
+      return res.status(400).json({ error: 'Invalid file path' })
+    }
+    
+    const path = require('path')
+    const fs = require('fs').promises
+    
+    // Resolve file path - handle both /uploads/... and /uploads/emcee/... paths
+    let filePath = path.join(__dirname, '../../', script.filePath)
+    
+    log.debug('Script filePath:', script.filePath)
+    log.debug('Resolved filePath:', filePath)
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath)
+      log.debug('File exists:', filePath)
+    } catch (error) {
+      log.error('File not found at:', filePath, error.message, { error: error.message, stack: error.stack })
+      
+      // Try alternative path (if stored as /uploads/emcee/ but file is in /uploads)
+      const filename = path.basename(script.filePath)
+      const altPath = path.join(__dirname, '../../uploads/', filename)
+      log.debug('Trying alternative path:', altPath)
+      
+      try {
+        await fs.access(altPath)
+        log.debug('File exists at alternative path:', altPath)
+        filePath = altPath
+      } catch {
+        log.error('File not found at alternative path either:', altPath, { error: error.message, stack: error.stack })
+        return res.status(404).json({ error: 'File not found on disk' })
+      }
+    }
+    
+    // Determine MIME type based on file extension
+    const ext = path.extname(filePath).toLowerCase()
+    let mimeType = 'application/octet-stream'
+    
+    const mimeTypes = {
+      '.pdf': 'application/pdf',
+      '.txt': 'text/plain',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.html': 'text/html',
+      '.md': 'text/markdown'
+    }
+    
+    mimeType = mimeTypes[ext] || mimeType
+    
+    // Set headers for inline viewing
+    res.setHeader('Content-Type', mimeType)
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(script.filePath)}"`)
+    
+    // Stream the file
+    const fileStream = require('fs').createReadStream(filePath)
+    fileStream.pipe(res)
+    
+  } catch (error) {
+    log.error('Serve script file error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get a signed URL for viewing a file
+const getFileViewUrl = async (req, res) => {
+  const log = createRequestLogger(req, 'emcee')
+  try {
+    const { scriptId } = req.params
+    
+    const script = await prisma.emceeScript.findUnique({
+      where: { id: scriptId }
+    })
+    
+    if (!script || !script.filePath) {
+      return res.status(404).json({ error: 'Script file not found' })
+    }
+    
+    // Generate signed token
+    const token = await generateFileAccessToken(scriptId)
+    
+    const viewUrl = `/api/emcee/scripts/${scriptId}/view?token=${token}`
+    
+    res.json({ viewUrl, expiresIn: 300 }) // 5 minutes
+  } catch (error) {
+    log.error('Get file view URL error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getStats,
+  getScripts,
+  getScript,
+  getContestantBios,
+  getJudgeBios,
+  getEvents,
+  getEvent,
+  getContests,
+  getContest,
+  getEmceeHistory,
+  uploadScript,
+  updateScript,
+  deleteScript,
+  toggleScript,
+  serveScriptFile,
+  getFileViewUrl
+}

@@ -1,0 +1,124 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Get user field visibility configuration
+const getFieldVisibilitySettings = async (req, res) => {
+  const log = createRequestLogger(req, 'userfieldvisibility')
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: {
+        key: {
+          startsWith: 'user_field_visibility_'
+        }
+      }
+    })
+
+    // Default field visibility configuration
+    const fieldVisibility = {
+      name: { visible: true, required: true },
+      email: { visible: true, required: true },
+      role: { visible: true, required: true },
+      phone: { visible: true, required: false },
+      address: { visible: true, required: false },
+      bio: { visible: true, required: false },
+      preferredName: { visible: true, required: false },
+      pronouns: { visible: true, required: false },
+      gender: { visible: true, required: false },
+      // Role-specific fields
+      judgeNumber: { visible: true, required: false },
+      judgeLevel: { visible: true, required: false },
+      isHeadJudge: { visible: true, required: false },
+      contestantNumber: { visible: true, required: false },
+      age: { visible: true, required: false },
+      school: { visible: true, required: false },
+      grade: { visible: true, required: false },
+      parentGuardian: { visible: true, required: false },
+      parentPhone: { visible: true, required: false }
+    }
+
+    // Override with stored settings
+    settings.forEach(setting => {
+      const fieldName = setting.key.replace('user_field_visibility_', '')
+      try {
+        fieldVisibility[fieldName] = JSON.parse(setting.value)
+      } catch (e) {
+        log.warn(`Failed to parse field visibility setting for ${fieldName}`)
+      }
+    })
+
+    res.json(fieldVisibility)
+  } catch (error) {
+    log.error('Get field visibility settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Update field visibility settings
+const updateFieldVisibility = async (req, res) => {
+  const log = createRequestLogger(req, 'userfieldvisibility')
+  try {
+    const { field } = req.params
+    const { visible, required } = req.body
+
+    if (!field || typeof visible !== 'boolean') {
+      return res.status(400).json({ error: 'Field name and visible status are required' })
+    }
+
+    const value = JSON.stringify({ visible, required: required || false })
+
+    await prisma.systemSetting.upsert({
+      where: {
+        key: `user_field_visibility_${field}`
+      },
+      update: {
+        value,
+        updatedBy: req.user?.id
+      },
+      create: {
+        key: `user_field_visibility_${field}`,
+        value,
+        description: `Visibility setting for user field: ${field}`,
+        category: 'user_fields',
+        updatedBy: req.user?.id
+      }
+    })
+
+    res.json({
+      message: 'Field visibility updated successfully',
+      field,
+      visible,
+      required: required || false
+    })
+  } catch (error) {
+    log.error('Update field visibility error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Reset field visibility to defaults
+const resetFieldVisibility = async (req, res) => {
+  const log = createRequestLogger(req, 'userfieldvisibility')
+  try {
+    // Delete all user field visibility settings
+    await prisma.systemSetting.deleteMany({
+      where: {
+        key: {
+          startsWith: 'user_field_visibility_'
+        }
+      }
+    })
+
+    res.json({ message: 'Field visibility reset to defaults successfully' })
+  } catch (error) {
+    log.error('Reset field visibility error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getFieldVisibilitySettings,
+  updateFieldVisibility,
+  resetFieldVisibility
+}
+

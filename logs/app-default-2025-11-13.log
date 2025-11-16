@@ -1,0 +1,9 @@
+[2025-11-13 00:30:07] [INFO] [DEFAULT] SIGTERM received, shutting down gracefully...
+[2025-11-13 00:30:07] [INFO] [DEFAULT] HTTP server closed
+[2025-11-13 00:30:12] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-13 00:30:12] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-13 00:30:12] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-13 00:30:12] [INFO] [DEFAULT] Allowed origins: http://192.168.80.246, http://192.168.80.246:3000, http://localhost:3000, https://conmgr.com, https://www.conmgr.com
+[2025-11-13 00:30:13] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-13 00:30:13] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-13 00:30:13] [INFO] [DEFAULT] 🔒 CORS: configured

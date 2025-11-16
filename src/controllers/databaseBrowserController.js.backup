@@ -1,0 +1,234 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+/**
+ * Database Browser Controller
+ * Provides secure read-only database query interface for admins
+ */
+
+/**
+ * Execute a SELECT query
+ * SECURITY: Only SELECT queries are allowed
+ */
+const executeQuery = async (req, res) => {
+  const log = createRequestLogger(req, 'databasebrowser')
+  try {
+    const { query } = req.body
+
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ error: 'Query is required' })
+    }
+
+    // Security check: Only allow SELECT queries
+    const trimmedQuery = query.trim().toLowerCase()
+    if (!trimmedQuery.startsWith('select')) {
+      return res.status(403).json({ 
+        error: 'Only SELECT queries are allowed for security reasons' 
+      })
+    }
+
+    // Additional security: Block potentially dangerous operations
+    const dangerousKeywords = [
+      'drop', 'delete', 'insert', 'update', 'alter', 'create', 
+      'truncate', 'exec', 'execute', 'grant', 'revoke'
+    ]
+    
+    const lowerQuery = query.toLowerCase()
+    for (const keyword of dangerousKeywords) {
+      if (lowerQuery.includes(keyword)) {
+        return res.status(403).json({ 
+          error: `Query contains forbidden keyword: ${keyword.toUpperCase()}` 
+        })
+      }
+    }
+
+    // Execute query using raw SQL
+    const results = await prisma.$queryRawUnsafe(query)
+
+    // Get count
+    const count = Array.isArray(results) ? results.length : 0
+
+    res.json({
+      success: true,
+      data: results,
+      count,
+      query
+    })
+  } catch (error) {
+    log.error('Database query error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Query execution failed',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Get list of all tables in the database
+ */
+const getTables = async (req, res) => {
+  const log = createRequestLogger(req, 'databasebrowser')
+  try {
+    // Query to get all table names (PostgreSQL)
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_type = 'BASE TABLE'
+      ORDER BY table_name
+    `
+
+    res.json({
+      success: true,
+      data: tables.map(t => t.table_name)
+    })
+  } catch (error) {
+    log.error('Get tables error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to retrieve table list',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Get table schema (columns, types, etc.)
+ */
+const getTableSchema = async (req, res) => {
+  const log = createRequestLogger(req, 'databasebrowser')
+  try {
+    const { tableName } = req.params
+
+    if (!tableName) {
+      return res.status(400).json({ error: 'Table name is required' })
+    }
+
+    // Get table schema (PostgreSQL)
+    const schema = await prisma.$queryRawUnsafe(`
+      SELECT 
+        column_name, 
+        data_type, 
+        is_nullable, 
+        column_default
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = '${tableName}'
+      ORDER BY ordinal_position
+    `)
+
+    // Get row count
+    const countResult = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) as count FROM "${tableName}"`
+    )
+    const rowCount = countResult[0]?.count || 0
+
+    res.json({
+      success: true,
+      data: {
+        tableName,
+        rowCount: parseInt(rowCount),
+        columns: schema
+      }
+    })
+  } catch (error) {
+    log.error('Get table schema error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to retrieve table schema',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Get sample data from a table
+ */
+const getTableData = async (req, res) => {
+  const log = createRequestLogger(req, 'databasebrowser')
+  try {
+    const { tableName } = req.params
+    const { limit = 100, offset = 0 } = req.query
+
+    if (!tableName) {
+      return res.status(400).json({ error: 'Table name is required' })
+    }
+
+    // Validate limit and offset
+    const safeLimit = Math.min(parseInt(limit) || 100, 1000)
+    const safeOffset = parseInt(offset) || 0
+
+    // Get data
+    const data = await prisma.$queryRawUnsafe(`
+      SELECT * FROM "${tableName}" 
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
+    `)
+
+    // Get total count
+    const countResult = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) as count FROM "${tableName}"`
+    )
+    const totalCount = parseInt(countResult[0]?.count || 0)
+
+    res.json({
+      success: true,
+      data: {
+        tableName,
+        data,
+        count: data.length,
+        totalCount,
+        limit: safeLimit,
+        offset: safeOffset
+      }
+    })
+  } catch (error) {
+    log.error('Get table data error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to retrieve table data',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Get query history (from activity logs)
+ */
+const getQueryHistory = async (req, res) => {
+  const log = createRequestLogger(req, 'databasebrowser')
+  try {
+    const { limit = 10 } = req.query
+
+    const history = await prisma.activityLog.findMany({
+      where: {
+        action: 'DATABASE_QUERY'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: parseInt(limit) || 10,
+      select: {
+        id: true,
+        userName: true,
+        details: true,
+        createdAt: true
+      }
+    })
+
+    res.json({
+      success: true,
+      history
+    })
+  } catch (error) {
+    log.error('Get query history error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to retrieve query history'
+    })
+  }
+}
+
+module.exports = {
+  executeQuery,
+  getTables,
+  getTableSchema,
+  getTableData,
+  getQueryHistory
+}

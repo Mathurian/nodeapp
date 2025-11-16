@@ -1,0 +1,141 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getAllNotifications = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    res.json(notifications)
+  } catch (error) {
+    log.error('Get notifications error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getNotificationById = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    const { id } = req.params
+
+    const notification = await prisma.notification.findUnique({
+      where: { id }
+    })
+
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' })
+    }
+
+    res.json(notification)
+  } catch (error) {
+    log.error('Get notification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createNotification = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    const { title, message, type, userId } = req.body
+
+    const notification = await prisma.notification.create({
+      data: {
+        title,
+        message,
+        type,
+        userId: userId || req.user.id,
+        createdBy: req.user.id
+      }
+    })
+
+    res.status(201).json(notification)
+  } catch (error) {
+    log.error('Create notification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateNotification = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    const { id } = req.params
+    const { title, message, type } = req.body
+
+    const notification = await prisma.notification.update({
+      where: { id },
+      data: {
+        title,
+        message,
+        type
+      }
+    })
+
+    res.json(notification)
+  } catch (error) {
+    log.error('Update notification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteNotification = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    const { id } = req.params
+
+    await prisma.notification.delete({
+      where: { id }
+    })
+
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete notification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const markAsRead = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    const { id } = req.params
+
+    await prisma.notification.update({
+      where: { id },
+      data: { read: true }
+    })
+
+    res.json({ message: 'Notification marked as read' })
+  } catch (error) {
+    log.error('Mark notification as read error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const markAllAsRead = async (req, res) => {
+  const log = createRequestLogger(req, 'notifications')
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user.id },
+      data: { read: true }
+    })
+
+    res.json({ message: 'All notifications marked as read' })
+  } catch (error) {
+    log.error('Mark all notifications as read error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getAllNotifications,
+  getNotificationById,
+  createNotification,
+  updateNotification,
+  deleteNotification,
+  markAsRead,
+  markAllAsRead
+}

@@ -1,0 +1,1053 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getAllSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    log.debug('Fetching all settings')
+    const settings = await prisma.systemSetting.findMany()
+    log.info('Settings retrieved successfully', { count: settings.length })
+    res.json(settings)
+  } catch (error) {
+    log.error('Get all settings error', { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    log.debug('Fetching settings')
+    const settings = await prisma.systemSetting.findMany()
+    log.info('Settings retrieved successfully', { count: settings.length })
+    res.json(settings)
+  } catch (error) {
+    log.error('Get settings error', { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get app name for all authenticated users
+const getAppName = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    log.debug('Fetching app name')
+    const [nameSetting, subtitleSetting] = await Promise.all([
+      prisma.systemSetting.findFirst({
+        where: { key: 'app_name' }
+      }),
+      prisma.systemSetting.findFirst({
+        where: { key: 'app_subtitle' }
+      })
+    ])
+    const appName = nameSetting?.value || 'Event Manager'
+    const appSubtitle = subtitleSetting?.value || ''
+    log.debug('App name retrieved', { appName, appSubtitle })
+    res.json({ data: { appName, appSubtitle } })
+  } catch (error) {
+    log.error('Get app name error', { error: error.message, stack: error.stack })
+    res.json({ data: { appName: 'Event Manager', appSubtitle: '' } })
+  }
+}
+
+// Public-safe settings for unauthenticated pages (e.g., login)
+const getPublicSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    log.debug('Fetching public settings')
+    const keys = ['app_name', 'app_subtitle', 'show_forgot_password', 'theme_logoPath', 'theme_faviconPath', 'footer_contactEmail']
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { in: keys } }
+    })
+    const map = Object.fromEntries(settings.map(s => [s.key, s.value]))
+    const publicSettings = {
+      appName: map['app_name'] || 'Event Manager',
+      appSubtitle: map['app_subtitle'] || '',
+      showForgotPassword: (map['show_forgot_password'] || 'true') === 'true',
+      logoPath: map['theme_logoPath'] || null,
+      faviconPath: map['theme_faviconPath'] || null,
+      contactEmail: map['footer_contactEmail'] || null
+    }
+    log.debug('Public settings retrieved', { keys: Object.keys(publicSettings) })
+    res.json(publicSettings)
+  } catch (error) {
+    log.error('Get public settings error', { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = req.body
+    log.info('Settings update requested', { keys: Object.keys(settings), userId: req.user?.id })
+
+    let updatedCount = 0
+    for (const [key, value] of Object.entries(settings)) {
+      log.debug('Updating setting', { key, value })
+      
+      // Determine category based on key prefix
+      let category = 'general'
+      if (key.startsWith('email_') || key.startsWith('smtp_')) {
+        category = 'email'
+      } else if (key.startsWith('theme_')) {
+        category = 'theme'
+      } else if (key.startsWith('logging_')) {
+        category = 'logging'
+      } else if (key.startsWith('security_')) {
+        category = 'security'
+      } else if (key.startsWith('database_')) {
+        category = 'database'
+      } else if (key.startsWith('backup_')) {
+        category = 'backup'
+      } else if (key.startsWith('notifications_')) {
+        category = 'notifications'
+      }
+      
+      await prisma.systemSetting.upsert({
+        where: { key: key },
+        update: { 
+          value: value,
+          category: category,
+          updatedBy: req.user?.id
+        },
+        create: { 
+          key: key, 
+          value: value,
+          category: category,
+          description: `Setting for ${key}`,
+          updatedBy: req.user?.id
+        }
+      })
+      updatedCount++
+    }
+
+    log.info('Settings updated successfully', { count: updatedCount, keys: Object.keys(settings) })
+    res.json({ message: 'Settings updated successfully' })
+  } catch (error) {
+    log.error('Update settings error', { error: error.message, stack: error.stack, keys: Object.keys(req.body || {}) })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const nodemailer = require('nodemailer')
+
+const testSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const { type } = req.params
+
+    switch (type) {
+      case 'email':
+        // Get email settings from database
+        const emailSettings = await prisma.systemSetting.findMany({
+          where: { category: 'email' }
+        })
+        
+        const emailConfig = {}
+        emailSettings.forEach(setting => {
+          const key = setting.key.replace('email_', '')
+          emailConfig[key] = setting.value
+        })
+        
+        log.debug('Raw email config from database', { 
+          emailConfig, 
+          port: emailConfig.smtpPort || emailConfig.port,
+          smtpSecure: emailConfig.smtpSecure,
+          secure: emailConfig.secure,
+          userId: req.user?.id 
+        })
+        
+        // Check if email is enabled
+        if (emailConfig.enabled !== 'true' && emailConfig.enableEmail !== 'true') {
+          return res.json({ 
+            status: 'warning', 
+            message: 'Email is disabled in settings' 
+          })
+        }
+        
+        // Check if required settings exist
+        if (!emailConfig.smtpHost && !emailConfig.host) {
+          return res.json({ 
+            status: 'error', 
+            message: 'Email configuration is incomplete. Please configure SMTP host.' 
+          })
+        }
+        if (!emailConfig.smtpUser && !emailConfig.user) {
+          return res.json({ 
+            status: 'error', 
+            message: 'Email configuration is incomplete. Please configure SMTP username.' 
+          })
+        }
+        
+        // Determine port and secure settings
+        const port = parseInt(emailConfig.smtpPort || emailConfig.port || '587')
+        
+        // IMPORTANT: For port 587, we MUST use STARTTLS (secure: false, requireTLS: true)
+        // For port 465, we MUST use direct SSL (secure: true)
+        // The SSL checkbox setting is IGNORED for these standard ports
+        let isSecure = false
+        let requireTLS = false
+        
+        if (port === 465) {
+          // Port 465 requires direct SSL - ignore any other settings
+          isSecure = true
+          requireTLS = false
+          log.debug('Using port 465 - forcing direct SSL', { userId: req.user?.id })
+        } else if (port === 587) {
+          // Port 587 requires STARTTLS - ignore SSL checkbox, always use STARTTLS
+          isSecure = false
+          requireTLS = true
+          log.debug('Using port 587 - forcing STARTTLS', { userId: req.user?.id })
+        } else {
+          // For other ports, respect the secure setting
+          const smtpSecureSetting = emailConfig.smtpSecure === 'true' || emailConfig.secure === 'true'
+          isSecure = smtpSecureSetting
+          requireTLS = smtpSecureSetting && port !== 465
+          log.debug('Using custom port - respecting SSL setting', { port, smtpSecureSetting, userId: req.user?.id })
+        }
+        
+        const host = emailConfig.smtpHost || emailConfig.host
+        const user = emailConfig.smtpUser || emailConfig.user
+        const password = emailConfig.smtpPassword || emailConfig.password
+        
+        log.debug('Email test configuration', { 
+          host, 
+          port, 
+          isSecure, 
+          requireTLS, 
+          smtpSecureSetting,
+          userId: req.user?.id 
+        })
+        
+        // Create transporter with proper TLS/SSL configuration
+        // CRITICAL: For port 587, secure MUST be false and requireTLS MUST be true
+        const transporterConfig = {
+          host: host,
+          port: port,
+          secure: isSecure, // MUST be false for port 587
+          auth: {
+            user: user,
+            pass: password
+          }
+        }
+        
+        // For port 587 (STARTTLS), we need requireTLS but NOT the tls option
+        // For port 465 (direct SSL), we don't need requireTLS
+        if (port === 587) {
+          // Port 587 uses STARTTLS - require TLS upgrade
+          transporterConfig.requireTLS = true
+          // Do NOT set tls option for STARTTLS - let nodemailer handle it
+        } else if (port === 465) {
+          // Port 465 uses direct SSL - no TLS option needed
+          // secure: true is already set
+        } else {
+          // For other ports, add TLS options if using secure
+          if (isSecure) {
+            transporterConfig.tls = {
+              rejectUnauthorized: false
+            }
+          } else if (requireTLS) {
+            transporterConfig.requireTLS = true
+          }
+        }
+        
+        // Double-check: If port is 587, ensure secure is false and requireTLS is true
+        if (port === 587) {
+          transporterConfig.secure = false
+          transporterConfig.requireTLS = true
+          // Explicitly remove tls option if it exists
+          delete transporterConfig.tls
+        }
+        
+        log.debug('Transporter config (final)', { 
+          host: transporterConfig.host, 
+          port: transporterConfig.port, 
+          secure: transporterConfig.secure, 
+          requireTLS: transporterConfig.requireTLS,
+          hasTls: !!transporterConfig.tls,
+          hasAuth: !!transporterConfig.auth.user 
+        })
+        
+        const transporter = nodemailer.createTransporter(transporterConfig)
+        
+        // Test the connection
+        await transporter.verify()
+        
+        // Send test email
+        try {
+          const fromEmail = emailConfig.fromEmail || emailConfig.from || emailConfig.user || user
+          const fromName = emailConfig.fromName || 'Event Manager'
+          const info = await transporter.sendMail({
+            from: fromName ? `${fromName} <${fromEmail}>` : fromEmail,
+            to: req.user.email,
+            subject: 'Test Email from Event Manager',
+            text: 'This is a test email. Your email configuration is working correctly.',
+            html: '<p>This is a test email. Your email configuration is working correctly.</p>'
+          })
+          
+          // Log test email
+          try {
+            await prisma.emailLog.create({
+              data: {
+                to: req.user.email,
+                subject: 'Test Email from Event Manager',
+                status: 'SENT',
+                sentAt: new Date(),
+                messageId: info.messageId
+              }
+            })
+          } catch (logError) {
+            // Don't fail if logging fails
+            log.warn('Failed to log test email:', logError.message)
+          }
+          
+          res.json({ 
+            status: 'success', 
+            message: `Test email sent successfully to ${req.user.email}` 
+          })
+        } catch (emailError) {
+          // Log failed test email
+          try {
+            await prisma.emailLog.create({
+              data: {
+                to: req.user.email,
+                subject: 'Test Email from Event Manager',
+                status: 'FAILED',
+                sentAt: new Date(),
+                errorMessage: emailError.message
+              }
+            })
+          } catch (logError) {
+            // Don't fail if logging fails
+            log.warn('Failed to log test email error:', logError.message)
+          }
+          
+          res.json({ 
+            status: 'error', 
+            message: `SMTP verification failed: ${emailError.message}` 
+          })
+        }
+        break
+        
+      case 'database':
+        // Test database connection
+        const result = await prisma.$queryRaw`SELECT 1 as test`
+        if (result && result.length > 0) {
+          res.json({ status: 'success', message: 'Database connection test passed' })
+        } else {
+          res.status(500).json({ error: 'Database connection test failed' })
+        }
+        break
+        
+      case 'backup':
+        // Test backup settings
+        res.json({ status: 'success', message: 'Backup settings test passed' })
+        break
+        
+      default:
+        res.status(400).json({ error: 'Invalid test type' })
+    }
+  } catch (error) {
+    log.error('Test settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      status: 'error', 
+      message: `Test failed: ${error.message}` 
+    })
+  }
+}
+
+// Logging levels settings
+const getLoggingLevels = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: 'logging_' } }
+    })
+    
+    const loggingLevels = {
+      default: 'INFO',
+      api: 'INFO',
+      database: 'WARN',
+      auth: 'INFO',
+      backup: 'INFO'
+    }
+    
+    // Override with stored settings
+    settings.forEach(setting => {
+      const key = setting.key.replace('logging_', '')
+      loggingLevels[key] = setting.value
+    })
+    
+    res.json(loggingLevels)
+  } catch (error) {
+    log.error('Get logging levels error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateLoggingLevel = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const { level, category } = req.body
+    
+    if (!level || !category) {
+      return res.status(400).json({ error: 'Level and category are required' })
+    }
+    
+    const validLevels = ['ERROR', 'WARN', 'INFO', 'DEBUG']
+    if (!validLevels.includes(level)) {
+      return res.status(400).json({ error: 'Invalid logging level' })
+    }
+    
+    await prisma.systemSetting.upsert({
+      where: { key: `logging_${category}` },
+      update: { 
+        value: level,
+        updatedBy: req.user?.id
+      },
+      create: { 
+        key: `logging_${category}`, 
+        value: level,
+        description: `Logging level for ${category}`,
+        updatedBy: req.user?.id
+      }
+    })
+    
+    // Refresh log levels in logger
+    const { refreshLogLevels } = require('../utils/logger')
+    await refreshLogLevels()
+    
+    res.json({ message: 'Logging level updated successfully' })
+  } catch (error) {
+    log.error('Update logging level error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Security settings
+const getSecuritySettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: 'security_' } }
+    })
+    
+    const securitySettings = {
+      passwordMinLength: 8,
+      passwordRequireUppercase: true,
+      passwordRequireLowercase: true,
+      passwordRequireNumbers: true,
+      passwordRequireSpecialChars: false,
+      sessionTimeout: 3600, // 1 hour in seconds
+      maxLoginAttempts: 5,
+      lockoutDuration: 900, // 15 minutes in seconds
+      requireTwoFactor: false
+    }
+    
+    // Override with stored settings
+    settings.forEach(setting => {
+      const key = setting.key.replace('security_', '')
+      if (key in securitySettings) {
+        securitySettings[key] = setting.value === 'true' ? true : 
+                               setting.value === 'false' ? false : 
+                               parseInt(setting.value) || setting.value
+      }
+    })
+    
+    res.json(securitySettings)
+  } catch (error) {
+    log.error('Get security settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateSecuritySettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = req.body
+    
+    for (const [key, value] of Object.entries(settings)) {
+      await prisma.systemSetting.upsert({
+        where: { key: `security_${key}` },
+        update: { 
+          value: value.toString(),
+          updatedBy: req.user?.id
+        },
+        create: { 
+          key: `security_${key}`, 
+          value: value.toString(),
+          description: `Security setting for ${key}`,
+          updatedBy: req.user?.id
+        }
+      })
+    }
+    
+    res.json({ message: 'Security settings updated successfully' })
+  } catch (error) {
+    log.error('Update security settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Backup settings
+const getBackupSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = await prisma.backupSetting.findMany()
+    
+    const backupSettings = {
+      schema: {
+        enabled: false,
+        frequency: 'DAILY',
+        frequencyValue: 1,
+        retentionDays: 30
+      },
+      full: {
+        enabled: false,
+        frequency: 'WEEKLY',
+        frequencyValue: 1,
+        retentionDays: 90
+      }
+    }
+    
+    // Override with stored settings - normalize backupType case
+    settings.forEach(setting => {
+      const normalizedType = setting.backupType.toUpperCase()
+      if (normalizedType === 'SCHEMA' || normalizedType === 'FULL') {
+        backupSettings[normalizedType.toLowerCase()] = {
+          enabled: setting.enabled,
+          frequency: setting.frequency,
+          frequencyValue: setting.frequencyValue,
+          retentionDays: setting.retentionDays
+        }
+      }
+    })
+    
+    res.json(backupSettings)
+  } catch (error) {
+    log.error('Get backup settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateBackupSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const { schema, full } = req.body
+    
+    // Update schema backup settings
+    if (schema) {
+      // Try both uppercase and lowercase since database might store it either way
+      const existing = await prisma.backupSetting.findFirst({
+        where: { 
+          OR: [
+            { backupType: 'SCHEMA' },
+            { backupType: 'schema' },
+            { backupType: 'Schema' }
+          ]
+        }
+      })
+      
+      if (existing) {
+        await prisma.backupSetting.update({
+          where: { id: existing.id },
+          data: {
+            enabled: schema.enabled,
+            frequency: schema.frequency,
+            frequencyValue: schema.frequencyValue,
+            retentionDays: schema.retentionDays,
+            updatedAt: new Date()
+          }
+        })
+      } else {
+        await prisma.backupSetting.create({
+          data: {
+            backupType: 'SCHEMA',
+            enabled: schema.enabled,
+            frequency: schema.frequency,
+            frequencyValue: schema.frequencyValue,
+            retentionDays: schema.retentionDays
+          }
+        })
+      }
+    }
+    
+    // Update full backup settings
+    if (full) {
+      // Try both uppercase and lowercase since database might store it either way
+      const existing = await prisma.backupSetting.findFirst({
+        where: { 
+          OR: [
+            { backupType: 'FULL' },
+            { backupType: 'full' },
+            { backupType: 'Full' }
+          ]
+        }
+      })
+      
+      if (existing) {
+        await prisma.backupSetting.update({
+          where: { id: existing.id },
+          data: {
+            enabled: full.enabled,
+            frequency: full.frequency,
+            frequencyValue: full.frequencyValue,
+            retentionDays: full.retentionDays,
+            updatedAt: new Date()
+          }
+        })
+      } else {
+        await prisma.backupSetting.create({
+          data: {
+            backupType: 'FULL',
+            enabled: full.enabled,
+            frequency: full.frequency,
+            frequencyValue: full.frequencyValue,
+            retentionDays: full.retentionDays
+          }
+        })
+      }
+    }
+    
+    res.json({ message: 'Backup settings updated successfully' })
+  } catch (error) {
+    log.error('Update backup settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Email settings
+const getEmailSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: 'email_' } }
+    })
+    
+    const emailSettings = {
+      smtpHost: '',
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: '',
+      smtpPassword: '',
+      fromEmail: '',
+      fromName: 'Event Manager',
+      testEmail: ''
+    }
+    
+    // Override with stored settings
+    settings.forEach(setting => {
+      const key = setting.key.replace('email_', '')
+      if (key in emailSettings) {
+        emailSettings[key] = setting.value === 'true' ? true : 
+                            setting.value === 'false' ? false : 
+                            parseInt(setting.value) || setting.value
+      }
+    })
+    
+    res.json(emailSettings)
+  } catch (error) {
+    log.error('Get email settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateEmailSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = req.body
+    
+    for (const [key, value] of Object.entries(settings)) {
+      await prisma.systemSetting.upsert({
+        where: { key: `email_${key}` },
+        update: { 
+          value: value.toString(),
+          category: 'email',
+          updatedBy: req.user?.id
+        },
+        create: { 
+          key: `email_${key}`, 
+          value: value.toString(),
+          category: 'email',
+          description: `Email setting for ${key}`,
+          updatedBy: req.user?.id
+        }
+      })
+    }
+    
+    res.json({ message: 'Email settings updated successfully' })
+  } catch (error) {
+    log.error('Update email settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Password policy
+const getPasswordPolicy = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: 'password_' } }
+    })
+    
+    const passwordPolicy = {
+      minLength: 8,
+      requireUppercase: true,
+      requireLowercase: true,
+      requireNumbers: true,
+      requireSpecialChars: false,
+      preventCommonPasswords: true,
+      preventUserInfo: true
+    }
+    
+    // Override with stored settings
+    settings.forEach(setting => {
+      const key = setting.key.replace('password_', '')
+      if (key in passwordPolicy) {
+        passwordPolicy[key] = setting.value === 'true' ? true : 
+                              setting.value === 'false' ? false : 
+                              parseInt(setting.value) || setting.value
+      }
+    })
+    
+    res.json(passwordPolicy)
+  } catch (error) {
+    log.error('Get password policy error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updatePasswordPolicy = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const policy = req.body
+    
+    for (const [key, value] of Object.entries(policy)) {
+      await prisma.systemSetting.upsert({
+        where: { key: `password_${key}` },
+        update: { 
+          value: value.toString(),
+          updatedBy: req.user?.id
+        },
+        create: { 
+          key: `password_${key}`, 
+          value: value.toString(),
+          description: `Password policy for ${key}`,
+          updatedBy: req.user?.id
+        }
+      })
+    }
+    
+    res.json({ message: 'Password policy updated successfully' })
+  } catch (error) {
+    log.error('Update password policy error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateJWTConfig = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const { jwtExpiresIn, sessionTimeout, refreshTokenExpiresIn } = req.body
+    
+    // Update JWT settings
+    await prisma.systemSetting.upsert({
+      where: { key: 'JWT_EXPIRES_IN' },
+      update: { value: jwtExpiresIn },
+      create: { key: 'JWT_EXPIRES_IN', value: jwtExpiresIn, description: 'JWT token expiration time' }
+    })
+
+    if (sessionTimeout) {
+      await prisma.systemSetting.upsert({
+        where: { key: 'SESSION_TIMEOUT' },
+        update: { value: sessionTimeout.toString() },
+        create: { key: 'SESSION_TIMEOUT', value: sessionTimeout.toString(), description: 'Session timeout in minutes' }
+      })
+    }
+
+    if (refreshTokenExpiresIn) {
+      await prisma.systemSetting.upsert({
+        where: { key: 'REFRESH_TOKEN_EXPIRES_IN' },
+        update: { value: refreshTokenExpiresIn },
+        create: { key: 'REFRESH_TOKEN_EXPIRES_IN', value: refreshTokenExpiresIn, description: 'Refresh token expiration time' }
+      })
+    }
+
+    res.json({ message: 'JWT configuration updated successfully' })
+  } catch (error) {
+    log.error('Update JWT config error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getJWTConfig = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: {
+        key: {
+          in: ['JWT_EXPIRES_IN', 'SESSION_TIMEOUT', 'REFRESH_TOKEN_EXPIRES_IN']
+        }
+      }
+    })
+
+    const config = {
+      jwtExpiresIn: settings.find(s => s.key === 'JWT_EXPIRES_IN')?.value || '24h',
+      sessionTimeout: parseInt(settings.find(s => s.key === 'SESSION_TIMEOUT')?.value || '1440'), // 24 hours in minutes
+      refreshTokenExpiresIn: settings.find(s => s.key === 'REFRESH_TOKEN_EXPIRES_IN')?.value || '7d'
+    }
+
+    res.json(config)
+  } catch (error) {
+    log.error('Get JWT config error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Theme settings
+const getThemeSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    log.debug('Fetching theme settings')
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: 'theme_' } }
+    })
+    
+    const themeSettings = {
+      primaryColor: '#3b82f6',
+      secondaryColor: '#1e40af',
+      successColor: '#10b981',
+      warningColor: '#f59e0b',
+      dangerColor: '#ef4444',
+      infoColor: '#3b82f6',
+      accentColor: '#f59e0b',
+      lightBackground: '#f9fafb',
+      darkBackground: '#111827',
+      cardBackgroundLight: '#ffffff',
+      cardBackgroundDark: '#1f2937',
+      headerBackgroundLight: '#ffffff',
+      headerBackgroundDark: '#1f2937',
+      footerBackgroundLight: '#ffffff',
+      footerBackgroundDark: '#1f2937',
+      accordionBackgroundLight: '#ffffff',
+      accordionBackgroundDark: '#1f2937',
+      accordionBorderLight: '#e5e7eb',
+      accordionBorderDark: '#374151',
+      logoPath: null,
+      faviconPath: null,
+      customCSS: null,
+      fontFamily: 'system-ui',
+      fontSize: '16px',
+      spacing: 'normal',
+      themeMode: 'system'
+    }
+    
+    // Override with stored settings
+    settings.forEach(setting => {
+      const key = setting.key.replace('theme_', '')
+      if (key in themeSettings) {
+        themeSettings[key] = setting.value
+      }
+    })
+    
+    log.info('Theme settings retrieved successfully', { keys: Object.keys(themeSettings) })
+    res.json({ data: themeSettings })
+  } catch (error) {
+    log.error('Get theme settings error', { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateThemeSettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const settings = req.body
+    log.info('Theme settings update requested', { keys: Object.keys(settings), userId: req.user?.id })
+    
+    let updatedCount = 0
+    for (const [key, value] of Object.entries(settings)) {
+      log.debug('Updating theme setting', { key, value })
+      await prisma.systemSetting.upsert({
+        where: { key: `theme_${key}` },
+        update: { 
+          value: value,
+          updatedBy: req.user?.id
+        },
+        create: { 
+          key: `theme_${key}`, 
+          value: value,
+          category: 'theme',
+          description: `Theme setting for ${key}`,
+          updatedBy: req.user?.id
+        }
+      })
+      updatedCount++
+    }
+    
+    log.info('Theme settings updated successfully', { count: updatedCount, keys: Object.keys(settings) })
+    res.json({ message: 'Theme settings updated successfully' })
+  } catch (error) {
+    log.error('Update theme settings error', { error: error.message, stack: error.stack, keys: Object.keys(req.body || {}) })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const uploadThemeLogo = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No logo file provided' })
+    }
+    
+    const logoPath = `/uploads/theme/${req.file.filename}`
+    
+    await prisma.systemSetting.upsert({
+      where: { key: 'theme_logoPath' },
+      update: { 
+        value: logoPath,
+        updatedBy: req.user?.id
+      },
+      create: { 
+        key: 'theme_logoPath', 
+        value: logoPath,
+        category: 'theme',
+        description: 'Theme logo path',
+        updatedBy: req.user?.id
+      }
+    })
+    
+    res.json({ message: 'Logo uploaded successfully', logoPath })
+  } catch (error) {
+    log.error('Upload theme logo error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const uploadThemeFavicon = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No favicon file provided' })
+    }
+    
+    const faviconPath = `/uploads/theme/${req.file.filename}`
+    
+    await prisma.systemSetting.upsert({
+      where: { key: 'theme_faviconPath' },
+      update: { 
+        value: faviconPath,
+        updatedBy: req.user?.id
+      },
+      create: { 
+        key: 'theme_faviconPath', 
+        value: faviconPath,
+        category: 'theme',
+        description: 'Theme favicon path',
+        updatedBy: req.user?.id
+      }
+    })
+    
+    res.json({ message: 'Favicon uploaded successfully', faviconPath })
+  } catch (error) {
+    log.error('Upload theme favicon error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Contestant visibility settings
+const getContestantVisibilitySettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const canViewWinners = await prisma.systemSetting.findUnique({
+      where: { key: 'contestant_can_view_winners' }
+    })
+    
+    const canViewOverallResults = await prisma.systemSetting.findUnique({
+      where: { key: 'contestant_can_view_overall_results' }
+    })
+
+    res.json({
+      canViewWinners: (canViewWinners?.value || 'true') === 'true',
+      canViewOverallResults: (canViewOverallResults?.value || 'true') === 'true'
+    })
+  } catch (error) {
+    log.error('Get contestant visibility settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateContestantVisibilitySettings = async (req, res) => {
+  const log = createRequestLogger(req, 'settings')
+  try {
+    const { canViewWinners, canViewOverallResults } = req.body
+
+    await prisma.systemSetting.upsert({
+      where: { key: 'contestant_can_view_winners' },
+      update: {
+        value: canViewWinners ? 'true' : 'false',
+        updatedBy: req.user?.id,
+        category: 'contestant',
+        description: 'Allow contestants to view winners'
+      },
+      create: {
+        key: 'contestant_can_view_winners',
+        value: canViewWinners ? 'true' : 'false',
+        category: 'contestant',
+        description: 'Allow contestants to view winners',
+        updatedBy: req.user?.id
+      }
+    })
+
+    await prisma.systemSetting.upsert({
+      where: { key: 'contestant_can_view_overall_results' },
+      update: {
+        value: canViewOverallResults ? 'true' : 'false',
+        updatedBy: req.user?.id,
+        category: 'contestant',
+        description: 'Allow contestants to view overall results (all contestants, not just their own)'
+      },
+      create: {
+        key: 'contestant_can_view_overall_results',
+        value: canViewOverallResults ? 'true' : 'false',
+        category: 'contestant',
+        description: 'Allow contestants to view overall results (all contestants, not just their own)',
+        updatedBy: req.user?.id
+      }
+    })
+
+    res.json({ message: 'Contestant visibility settings updated successfully' })
+  } catch (error) {
+    log.error('Update contestant visibility settings error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getAllSettings,
+  getSettings,
+  getAppName,
+  getPublicSettings,
+  updateSettings,
+  testSettings,
+  updateJWTConfig,
+  getJWTConfig,
+  getLoggingLevels,
+  updateLoggingLevel,
+  getSecuritySettings,
+  updateSecuritySettings,
+  getBackupSettings,
+  updateBackupSettings,
+  getEmailSettings,
+  updateEmailSettings,
+  getPasswordPolicy,
+  updatePasswordPolicy,
+  getThemeSettings,
+  updateThemeSettings,
+  uploadThemeLogo,
+  uploadThemeFavicon,
+  getContestantVisibilitySettings,
+  updateContestantVisibilitySettings
+}

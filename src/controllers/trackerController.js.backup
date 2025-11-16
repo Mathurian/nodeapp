@@ -1,0 +1,493 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Get scoring progress by contest
+const getScoringProgressByContest = async (req, res) => {
+  const log = createRequestLogger(req, 'tracker')
+  try {
+    const { contestId } = req.params
+    
+    // Get contest with categories
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      select: {
+        id: true,
+        name: true,
+        event: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            contestants: {
+              select: { contestantId: true }
+            },
+            scores: {
+              select: { id: true, judgeId: true }
+            },
+            judges: {
+              select: { judgeId: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    // Calculate completion for each category
+    const categoryProgress = await Promise.all(contest.categories.map(async category => {
+      const totalContestants = category.contestants.length
+      const uniqueJudges = new Set(category.scores.map(s => s.judgeId))
+      const totalJudgeScores = category.scores.length
+      
+      // Calculate expected scores (assuming all judges score all contestants)
+      const expectedScores = totalContestants * uniqueJudges.size
+      const completionPercentage = expectedScores > 0 
+        ? Math.round((totalJudgeScores / expectedScores) * 100) 
+        : 0
+
+      // Calculate judge-specific completion
+      const judgeCompletion = await Promise.all(Array.from(uniqueJudges).map(async (judgeId) => {
+        const judgeScores = category.scores.filter(s => s.judgeId === judgeId).length
+        const judgeCompletionPct = totalContestants > 0 
+          ? Math.round((judgeScores / totalContestants) * 100) 
+          : 0
+        
+        // Fetch judge details to get the name
+        const judge = await prisma.judge.findUnique({
+          where: { id: judgeId },
+          select: { name: true }
+        })
+        
+        return {
+          judgeId,
+          judgeName: judge?.name || 'Unknown',
+          completed: judgeScores,
+          total: totalContestants,
+          completionPercentage: judgeCompletionPct
+        }
+      }))
+
+      return {
+        categoryId: category.id,
+        categoryName: category.name,
+        totalContestants,
+        totalJudges: uniqueJudges.size,
+        totalScores: totalJudgeScores,
+        expectedScores,
+        completionPercentage,
+        judges: judgeCompletion
+      }
+    }))
+
+    res.json({
+      contestId: contest.id,
+      contestName: contest.name,
+      eventName: contest.event.name,
+      categories: categoryProgress,
+      overallCompletion: categoryProgress.length > 0
+        ? Math.round(categoryProgress.reduce((sum, cat) => sum + cat.completionPercentage, 0) / categoryProgress.length)
+        : 0
+    })
+  } catch (error) {
+    log.error('Get scoring progress by contest error', {
+      error: error.message,
+      stack: error.stack,
+      contestId: req.params?.contestId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get scoring progress by category
+const getScoringProgressByCategory = async (req, res) => {
+  const log = createRequestLogger(req, 'tracker')
+  try {
+    const { categoryId } = req.params
+    
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        contestants: {
+          select: { id: true }
+        },
+        scores: {
+          select: { id: true, judgeId: true, contestantId: true }
+        },
+        judges: {
+          include: {
+            judge: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    const totalContestants = category.contestants.length
+    const uniqueJudges = new Set(category.scores.map(s => s.judgeId))
+    const totalJudgeScores = category.scores.length
+    
+    // Calculate expected scores
+    const expectedScores = totalContestants * uniqueJudges.size
+    const completionPercentage = expectedScores > 0 
+      ? Math.round((totalJudgeScores / expectedScores) * 100) 
+      : 0
+
+    // Calculate judge-specific completion
+    const judgeCompletion = Array.from(uniqueJudges).map(judgeId => {
+      const judgeScores = category.scores.filter(s => s.judgeId === judgeId).length
+      const judgeCompletionPct = totalContestants > 0 
+        ? Math.round((judgeScores / totalContestants) * 100) 
+        : 0
+      
+      const judgeObj = category.judges.find(j => j.judgeId === judgeId)
+      return {
+        judgeId,
+        judgeName: judgeObj?.judge?.user?.name || 'Unknown',
+        completed: judgeScores,
+        total: totalContestants,
+        completionPercentage: judgeCompletionPct
+      }
+    })
+
+    res.json({
+      categoryId: category.id,
+      categoryName: category.name,
+      contestId: category.contest.id,
+      contestName: category.contest.name,
+      eventName: category.contest.event.name,
+      totalContestants,
+      totalJudges: uniqueJudges.size,
+      totalScores: totalJudgeScores,
+      expectedScores,
+      completionPercentage,
+      judges: judgeCompletion
+    })
+  } catch (error) {
+    log.error('Get scoring progress by category error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params?.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get judge scoring progress across all assignments
+const getJudgeScoringProgress = async (req, res) => {
+  const log = createRequestLogger(req, 'tracker')
+  try {
+    const { judgeId } = req.params
+    
+    // Get all assignments for this judge
+    const assignments = await prisma.assignment.findMany({
+      where: {
+        judgeId,
+        status: { in: ['ACTIVE', 'COMPLETED'] }
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            },
+            contestants: {
+              select: { id: true }
+            },
+            scores: {
+              where: { judgeId },
+              select: { id: true, contestantId: true }
+            }
+          }
+        }
+      }
+    })
+
+    const judgeProgress = assignments.map(assignment => {
+      const category = assignment.category
+      const totalContestants = category.contestants.length
+      const scoresSubmitted = category.scores.length
+      const completionPercentage = totalContestants > 0 
+        ? Math.round((scoresSubmitted / totalContestants) * 100) 
+        : 0
+
+      return {
+        categoryId: category.id,
+        categoryName: category.name,
+        contestId: category.contest.id,
+        contestName: category.contest.name,
+        eventId: category.contest.event.id,
+        eventName: category.contest.event.name,
+        totalContestants,
+        scoresSubmitted,
+        completionPercentage,
+        assignmentId: assignment.id,
+        assignmentStatus: assignment.status
+      }
+    })
+
+    res.json({
+      judgeId,
+      assignments: judgeProgress,
+      totalAssignments: judgeProgress.length,
+      totalCompleted: judgeProgress.filter(p => p.completionPercentage === 100).length,
+      overallCompletion: judgeProgress.length > 0
+        ? Math.round(judgeProgress.reduce((sum, p) => sum + p.completionPercentage, 0) / judgeProgress.length)
+        : 0
+    })
+  } catch (error) {
+    log.error('Get judge scoring progress error', {
+      error: error.message,
+      stack: error.stack,
+      judgeId: req.params?.judgeId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get certification status summary
+const getCertificationStatus = async (req, res) => {
+  const log = createRequestLogger(req, 'tracker')
+  try {
+    const userRole = req.user.role
+    
+    // Get all categories with their certification status
+    const categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            event: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        scores: {
+          select: {
+            id: true,
+            judgeId: true
+          }
+        },
+        categoryCertifications: {
+          select: {
+            role: true,
+            userId: true
+          }
+        },
+        _count: {
+          select: {
+            contestants: true
+          }
+        }
+      }
+    })
+
+    // Get judge certifications for all categories in parallel
+    const categoryIds = categories.map(c => c.id)
+    const judgeCertifications = await prisma.judgeCertification.findMany({
+      where: { categoryId: { in: categoryIds } }
+    })
+    const judgeCertMap = new Map()
+    judgeCertifications.forEach(jc => {
+      if (!judgeCertMap.has(jc.categoryId)) {
+        judgeCertMap.set(jc.categoryId, [])
+      }
+      judgeCertMap.get(jc.categoryId).push(jc)
+    })
+
+    const certificationStatus = categories.map(category => {
+      // Calculate completion
+      const totalContestants = category._count?.contestants || 0
+      const totalScores = category.scores.length
+      const totalJudges = new Set(category.scores.map(s => s.judgeId)).size
+      
+      // Check certification levels - using the new CategoryCertification model
+      const hasJudgeCerts = judgeCertMap.has(category.id) && judgeCertMap.get(category.id).length > 0
+      const hasTallyCerts = category.categoryCertifications.some(c => c.role === 'TALLY_MASTER')
+      const hasAuditorCerts = category.categoryCertifications.some(c => c.role === 'AUDITOR')
+      const hasBoardCerts = category.categoryCertifications.some(c => c.role === 'BOARD')
+      
+      const certificationProgress = {
+        judge: hasJudgeCerts,
+        tallyMaster: hasTallyCerts,
+        auditor: hasAuditorCerts,
+        board: hasBoardCerts
+      }
+
+      const completedSteps = Object.values(certificationProgress).filter(Boolean).length
+      const totalSteps = 4
+      const certCompletionPercentage = Math.round((completedSteps / totalSteps) * 100)
+
+      return {
+        categoryId: category.id,
+        categoryName: category.name,
+        contestId: category.contest.id,
+        contestName: category.contest.name,
+        eventId: category.contest.event.id,
+        eventName: category.contest.event.name,
+        scoringProgress: {
+          totalContestants,
+          totalScores,
+          totalJudges,
+          completionPercentage: totalContestants > 0 && totalJudges > 0
+            ? Math.round((totalScores / (totalContestants * totalJudges)) * 100)
+            : 0
+        },
+        certificationProgress,
+        certificationStatus: completedSteps === totalSteps ? 'COMPLETED' : 'PENDING',
+        certificationPercentage: certCompletionPercentage
+      }
+    })
+
+    res.json({
+      totalCategories: categories.length,
+      completedCategories: certificationStatus.filter(s => s.certificationStatus === 'COMPLETED').length,
+      pendingCategories: certificationStatus.filter(s => s.certificationStatus === 'PENDING').length,
+      categories: certificationStatus
+    })
+  } catch (error) {
+    log.error('Get certification status error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get pending certifications for the current user's role
+const getPendingCertifications = async (req, res) => {
+  const log = createRequestLogger(req, 'tracker')
+  try {
+    const userRole = req.user.role
+    
+    // Get categories that need certification at this role's level
+    const categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            event: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        categoryCertifications: {
+          select: {
+            role: true,
+            userId: true
+          }
+        },
+        scores: {
+          select: {
+            id: true,
+            isCertified: true
+          }
+        }
+      }
+    })
+
+    let pendingItems = []
+
+    if (userRole === 'TALLY_MASTER') {
+      // Categories where all judges have certified their category
+      // but Tally Master hasn't certified yet
+      pendingItems = await Promise.all(
+        categories.map(async (category) => {
+          // Check if judge has certified the category
+          const hasJudgeCategoryCert = await prisma.judgeCertification.findFirst({
+            where: { categoryId: category.id }
+          })
+          const hasTallyCert = category.categoryCertifications.some(c => c.role === 'TALLY_MASTER')
+          // Check if judges have certified all their scores (if score-level certification exists)
+          const allJudgesCertified = category.scores.length === 0 || category.scores.every(s => s.isCertified === true)
+          return hasJudgeCategoryCert && !hasTallyCert && allJudgesCertified && category.scores.length > 0 ? category : null
+        })
+      )
+      pendingItems = pendingItems.filter(Boolean)
+    } else if (userRole === 'AUDITOR') {
+      // Categories where Tally Master has certified
+      // but Auditor hasn't certified yet
+      pendingItems = categories.filter(category => {
+        const hasTallyCert = category.categoryCertifications.some(c => c.role === 'TALLY_MASTER')
+        const hasAuditorCert = category.categoryCertifications.some(c => c.role === 'AUDITOR')
+        return hasTallyCert && !hasAuditorCert
+      })
+    } else if (['BOARD', 'ADMIN', 'ORGANIZER'].includes(userRole)) {
+      // Categories where Auditor has certified
+      // but Board hasn't certified yet
+      pendingItems = categories.filter(category => {
+        const hasAuditorCert = category.categoryCertifications.some(c => c.role === 'AUDITOR')
+        const hasBoardCert = category.categoryCertifications.some(c => c.role === 'BOARD')
+        return hasAuditorCert && !hasBoardCert
+      })
+    }
+
+    const formattedPending = pendingItems.map(category => ({
+      categoryId: category.id,
+      categoryName: category.name,
+      contestId: category.contest.id,
+      contestName: category.contest.name,
+      eventId: category.contest.event.id,
+      eventName: category.contest.event.name,
+      nextCertificationLevel: userRole === 'TALLY_MASTER' ? 'Tally Master' :
+                               userRole === 'AUDITOR' ? 'Auditor' :
+                               (userRole === 'BOARD' || userRole === 'ADMIN' || userRole === 'ORGANIZER') ? 'Board' : 'Unknown'
+    }))
+
+    res.json({
+      pendingItems: formattedPending,
+      total: formattedPending.length
+    })
+  } catch (error) {
+    log.error('Get pending certifications error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getScoringProgressByContest,
+  getScoringProgressByCategory,
+  getJudgeScoringProgress,
+  getCertificationStatus,
+  getPendingCertifications
+}
+

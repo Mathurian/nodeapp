@@ -1,0 +1,569 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+/**
+ * Get category certification progress
+ * Shows status of all certification steps for a category
+ */
+const getCategoryCertificationProgress = async (req, res) => {
+  const log = createRequestLogger(req, 'certification')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Category certification progress requested', { categoryId, userId, userRole })
+
+    if (!categoryId) {
+      log.warn('Category certification progress failed: missing categoryId')
+      return res.status(400).json({ error: 'Category ID is required' })
+    }
+
+    // Get all contestants in the category
+    const categoryContestants = await prisma.categoryContestant.findMany({
+      where: { categoryId },
+      include: { contestant: true }
+    })
+
+    // Get all judges assigned to this category
+    const categoryJudges = await prisma.categoryJudge.findMany({
+      where: { categoryId },
+      include: { judge: true }
+    })
+
+    // Judge certifications: We infer judge category certification by ensuring
+    // each judge has certified every contestant in this category
+    const judgeContestantCertifications = await prisma.judgeContestantCertification.findMany({
+      where: { categoryId }
+    })
+
+    // Check tally master certifications
+    const tallyMasterContestantReviews = await prisma.reviewContestantCertification.findMany({
+      where: {
+        categoryId,
+        reviewerRole: 'TALLY_MASTER'
+      }
+    })
+
+    const tallyMasterJudgeReviews = await prisma.reviewJudgeScoreCertification.findMany({
+      where: {
+        categoryId,
+        reviewerRole: 'TALLY_MASTER'
+      }
+    })
+
+    const tallyMasterCategoryCert = await prisma.categoryCertification.findFirst({
+      where: {
+        categoryId,
+        role: 'TALLY_MASTER'
+      }
+    })
+
+    // Check auditor certifications
+    const auditorContestantReviews = await prisma.reviewContestantCertification.findMany({
+      where: {
+        categoryId,
+        reviewerRole: 'AUDITOR'
+      }
+    })
+
+    const auditorJudgeReviews = await prisma.reviewJudgeScoreCertification.findMany({
+      where: {
+        categoryId,
+        reviewerRole: 'AUDITOR'
+      }
+    })
+
+    const auditorCategoryCert = await prisma.categoryCertification.findFirst({
+      where: {
+        categoryId,
+        role: 'AUDITOR'
+      }
+    })
+
+    // Check for BOARD/ORGANIZER/ADMIN certifications (any of these roles can certify)
+    const boardCategoryCerts = await prisma.categoryCertification.findMany({
+      where: {
+        categoryId,
+        role: { in: ['BOARD', 'ORGANIZER', 'ADMIN'] }
+      }
+    })
+
+    const hasBoardOrganizerAdminCert = boardCategoryCerts.length > 0
+
+    // Determine can certify flags
+    const canTallyMasterCertifyCategory = 
+      tallyMasterContestantReviews.length === categoryContestants.length &&
+      tallyMasterJudgeReviews.length === categoryJudges.length &&
+      !tallyMasterCategoryCert
+
+    const canAuditorCertifyCategory =
+      auditorContestantReviews.length === categoryContestants.length &&
+      auditorJudgeReviews.length === categoryJudges.length &&
+      !auditorCategoryCert &&
+      tallyMasterCategoryCert // Can only certify after Tally Master
+
+    const canBoardOrganizerAdminCertifyCategory =
+      tallyMasterCategoryCert &&
+      auditorCategoryCert &&
+      !hasBoardOrganizerAdminCert // Can certify after both Tally and Auditor (only one of BOARD/ORGANIZER/ADMIN needs to certify)
+
+    // Helper: compute per-judge category certified flag
+    const totalContestants = categoryContestants.length
+
+    const isJudgeCategoryCertified = (judgeId) => {
+      const numCertifiedForJudge = judgeContestantCertifications.filter(c => c.judgeId === judgeId).length
+      return numCertifiedForJudge === totalContestants && totalContestants > 0
+    }
+
+    const progress = {
+      categoryId,
+      // Judge progress
+      judgeProgress: {
+        contestantsCertified: judgeContestantCertifications.length,
+        totalContestants: totalContestants,
+        // Category considered certified at judge level when all judges have
+        // certified all contestants
+        isCategoryCertified: categoryJudges.every(cj => isJudgeCategoryCertified(cj.judgeId)),
+        canCertifyCategory: false
+      },
+      // Tally Master progress
+      tallyMasterProgress: {
+        contestantsReviewed: tallyMasterContestantReviews.length,
+        judgesReviewed: tallyMasterJudgeReviews.length,
+        totalContestants: categoryContestants.length,
+        totalJudges: categoryJudges.length,
+        isCategoryCertified: !!tallyMasterCategoryCert,
+        canCertifyCategory: canTallyMasterCertifyCategory
+      },
+      // Auditor progress
+      auditorProgress: {
+        contestantsReviewed: auditorContestantReviews.length,
+        judgesReviewed: auditorJudgeReviews.length,
+        totalContestants: categoryContestants.length,
+        totalJudges: categoryJudges.length,
+        isCategoryCertified: !!auditorCategoryCert,
+        canCertifyCategory: canAuditorCertifyCategory
+      },
+      // Board/Organizer/Admin progress
+      boardProgress: {
+        isCategoryCertified: hasBoardOrganizerAdminCert,
+        canCertifyCategory: canBoardOrganizerAdminCertifyCategory
+      },
+      // Detailed lists
+      contestants: categoryContestants.map(cc => ({
+        contestant: cc.contestant,
+        judgeCertified: judgeContestantCertifications.some(c => c.contestantId === cc.contestantId),
+        tallyMasterReviewed: tallyMasterContestantReviews.some(r => r.contestantId === cc.contestantId),
+        auditorReviewed: auditorContestantReviews.some(r => r.contestantId === cc.contestantId)
+      })),
+      judges: categoryJudges.map(cj => ({
+        judge: cj.judge,
+        hasCategoryCertified: isJudgeCategoryCertified(cj.judgeId),
+        tallyMasterReviewed: tallyMasterJudgeReviews.some(r => r.judgeId === cj.judgeId),
+        auditorReviewed: auditorJudgeReviews.some(r => r.judgeId === cj.judgeId)
+      }))
+    }
+
+    res.json(progress)
+  } catch (error) {
+    log.error('Get category certification progress error', { 
+      error: error.message, 
+      stack: error.stack, 
+      categoryId: req.params.categoryId 
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
+ * Certify contestant (Tally Master or Auditor review)
+ */
+const certifyContestant = async (req, res) => {
+  const log = createRequestLogger(req, 'certification')
+  try {
+    const { categoryId, contestantId } = req.params
+    const { comments } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Contestant certification requested', { categoryId, contestantId, userId, userRole })
+
+    if (!['TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
+      log.warn('Contestant certification failed: insufficient permissions', { userId, userRole, categoryId, contestantId })
+      return res.status(403).json({ error: 'Only Tally Master or Auditor can review contestants' })
+    }
+
+    // Check if already reviewed
+    log.debug('Checking for existing certification', { categoryId, contestantId, userId })
+    const existing = await prisma.reviewContestantCertification.findFirst({
+      where: {
+        categoryId,
+        contestantId,
+        reviewedBy: userId
+      }
+    })
+
+    if (existing) {
+      log.warn('Contestant certification failed: already reviewed', { categoryId, contestantId, userId })
+      return res.status(400).json({ error: 'Already reviewed this contestant' })
+    }
+
+    // Create review certification
+    log.debug('Creating contestant certification', { categoryId, contestantId, userId, userRole })
+    const certification = await prisma.reviewContestantCertification.create({
+      data: {
+        categoryId,
+        contestantId,
+        reviewedBy: userId,
+        reviewerRole: userRole,
+        comments: comments || null
+      },
+      include: {
+        contestant: true,
+        category: true
+      }
+    })
+
+    log.info('Contestant certified successfully', { 
+      categoryId, 
+      contestantId, 
+      userId, 
+      userRole,
+      certificationId: certification.id 
+    })
+    res.status(201).json({
+      message: 'Contestant reviewed and certified successfully',
+      certification
+    })
+  } catch (error) {
+    log.error('Certify contestant error', { 
+      error: error.message, 
+      stack: error.stack, 
+      categoryId: req.params.categoryId,
+      contestantId: req.params.contestantId 
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
+ * Certify judge scores (Tally Master or Auditor review)
+ */
+const certifyJudgeScores = async (req, res) => {
+  const log = createRequestLogger(req, 'certification')
+  try {
+    const { categoryId, judgeId } = req.params
+    const { comments } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Judge score certification requested', { categoryId, judgeId, userId, userRole })
+
+    if (!['TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
+      log.warn('Judge score certification failed: insufficient permissions', { userId, userRole, categoryId, judgeId })
+      return res.status(403).json({ error: 'Only Tally Master or Auditor can review judge scores' })
+    }
+
+    // Check if already reviewed
+    log.debug('Checking for existing judge certification', { categoryId, judgeId, userId })
+    const existing = await prisma.reviewJudgeScoreCertification.findFirst({
+      where: {
+        categoryId,
+        judgeId,
+        reviewedBy: userId
+      }
+    })
+
+    if (existing) {
+      log.warn('Judge score certification failed: already reviewed', { categoryId, judgeId, userId })
+      return res.status(400).json({ error: 'Already reviewed this judge\'s scores' })
+    }
+
+    // Create review certification
+    log.debug('Creating judge score certification', { categoryId, judgeId, userId, userRole })
+    const certification = await prisma.reviewJudgeScoreCertification.create({
+      data: {
+        categoryId,
+        judgeId,
+        reviewedBy: userId,
+        reviewerRole: userRole,
+        comments: comments || null
+      },
+      include: {
+        judge: true,
+        category: true
+      }
+    })
+
+    log.info('Judge scores certified successfully', { 
+      categoryId, 
+      judgeId, 
+      userId, 
+      userRole,
+      certificationId: certification.id 
+    })
+
+    res.status(201).json({
+      message: 'Judge scores reviewed and certified successfully',
+      certification
+    })
+  } catch (error) {
+    log.error('Certify judge scores error', { 
+      error: error.message, 
+      stack: error.stack, 
+      categoryId: req.params.categoryId,
+      judgeId: req.params.judgeId 
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
+ * Certify category (after all contestants and judges reviewed)
+ */
+const certifyCategory = async (req, res) => {
+  const log = createRequestLogger(req, 'certification')
+  try {
+    const { categoryId } = req.params
+    const { comments, signatureName } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Category certification requested', { categoryId, userId, userRole })
+
+    if (!['ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].includes(userRole)) {
+      log.warn('Category certification failed: insufficient permissions', { userId, userRole, categoryId })
+      return res.status(403).json({ error: 'Role not authorized to certify categories' })
+    }
+
+    // Get all contestants and judges
+    const categoryContestants = await prisma.categoryContestant.findMany({
+      where: { categoryId }
+    })
+
+    const categoryJudges = await prisma.categoryJudge.findMany({
+      where: { categoryId }
+    })
+
+    // Judge contestant certifications for this category (used to infer per-judge category completion)
+    const judgeContestantCertifications = await prisma.judgeContestantCertification.findMany({
+      where: { categoryId }
+    })
+
+    // Verify prerequisites based on role
+    if (userRole === 'TALLY_MASTER') {
+      // Must have reviewed all contestants and all judge scores
+      const contestantReviews = await prisma.reviewContestantCertification.findMany({
+        where: {
+          categoryId,
+          reviewerRole: 'TALLY_MASTER'
+        }
+      })
+
+      const judgeReviews = await prisma.reviewJudgeScoreCertification.findMany({
+        where: {
+          categoryId,
+          reviewerRole: 'TALLY_MASTER'
+        }
+      })
+
+      if (contestantReviews.length !== categoryContestants.length) {
+        return res.status(400).json({
+          error: 'Must review all contestants before certifying category',
+          required: categoryContestants.length,
+          reviewed: contestantReviews.length
+        })
+      }
+
+      if (judgeReviews.length !== categoryJudges.length) {
+        return res.status(400).json({
+          error: 'Must review all judge scores before certifying category',
+          required: categoryJudges.length,
+          reviewed: judgeReviews.length
+        })
+      }
+
+      // Check if judges have certified their categories (all contestants certified per judge)
+      const judgeIds = categoryJudges.map(j => j.judgeId)
+      const judgeToCertifiedCount = Object.fromEntries(
+        judgeIds.map(jid => [jid, 0])
+      )
+      judgeContestantCertifications
+        .filter(c => judgeIds.includes(c.judgeId))
+        .forEach(c => { judgeToCertifiedCount[c.judgeId] = (judgeToCertifiedCount[c.judgeId] || 0) + 1 })
+
+      const judgesWithFullCertification = judgeIds.filter(jid => judgeToCertifiedCount[jid] === categoryContestants.length)
+
+      if (judgesWithFullCertification.length !== categoryJudges.length) {
+        log.warn('Category certification failed: not all judges certified', {
+          categoryId,
+          userId,
+          userRole,
+          required: categoryJudges.length,
+          certified: judgesWithFullCertification.length
+        })
+        return res.status(400).json({
+          error: 'All judges must certify all contestants before category certification',
+          required: categoryJudges.length,
+          certified: judgesWithFullCertification.length
+        })
+      }
+    } else if (userRole === 'AUDITOR') {
+      // Must have reviewed all contestants and all judge scores
+      const contestantReviews = await prisma.reviewContestantCertification.findMany({
+        where: {
+          categoryId,
+          reviewerRole: 'AUDITOR'
+        }
+      })
+
+      const judgeReviews = await prisma.reviewJudgeScoreCertification.findMany({
+        where: {
+          categoryId,
+          reviewerRole: 'AUDITOR'
+        }
+      })
+
+      if (contestantReviews.length !== categoryContestants.length) {
+        log.warn('Category certification failed: auditor not all contestants reviewed', {
+          categoryId,
+          userId,
+          required: categoryContestants.length,
+          reviewed: contestantReviews.length
+        })
+        return res.status(400).json({
+          error: 'Must review all contestants before certifying category',
+          required: categoryContestants.length,
+          reviewed: contestantReviews.length
+        })
+      }
+
+      if (judgeReviews.length !== categoryJudges.length) {
+        log.warn('Category certification failed: auditor not all judge scores reviewed', {
+          categoryId,
+          userId,
+          required: categoryJudges.length,
+          reviewed: judgeReviews.length
+        })
+        return res.status(400).json({
+          error: 'Must review all judge scores before certifying category',
+          required: categoryJudges.length,
+          reviewed: judgeReviews.length
+        })
+      }
+
+      // Must have Tally Master certification
+      const tallyMasterCert = await prisma.categoryCertification.findFirst({
+        where: {
+          categoryId,
+          role: 'TALLY_MASTER'
+        }
+      })
+
+      if (!tallyMasterCert) {
+        log.warn('Category certification failed: auditor cannot certify before tally master', {
+          categoryId,
+          userId
+        })
+        return res.status(400).json({
+          error: 'Tally Master must certify the category first'
+        })
+      }
+    } else if (['BOARD', 'ORGANIZER', 'ADMIN'].includes(userRole)) {
+      // Must have both Tally Master and Auditor certifications
+      const tallyMasterCert = await prisma.categoryCertification.findFirst({
+        where: {
+          categoryId,
+          role: 'TALLY_MASTER'
+        }
+      })
+
+      const auditorCert = await prisma.categoryCertification.findFirst({
+        where: {
+          categoryId,
+          role: 'AUDITOR'
+        }
+      })
+
+      if (!tallyMasterCert) {
+        log.warn('Category certification failed: board/organizer/admin cannot certify before tally master', {
+          categoryId,
+          userId,
+          userRole
+        })
+        return res.status(400).json({
+          error: 'Tally Master must certify the category first'
+        })
+      }
+
+      if (!auditorCert) {
+        log.warn('Category certification failed: board/organizer/admin cannot certify before auditor', {
+          categoryId,
+          userId,
+          userRole
+        })
+        return res.status(400).json({
+          error: 'Auditor must certify the category before Board/Organizer/Admin can certify'
+        })
+      }
+    }
+
+    // Check if already certified
+    log.debug('Checking for existing category certification', { categoryId, userId, userRole })
+    const existing = await prisma.categoryCertification.findFirst({
+      where: {
+        categoryId,
+        role: userRole
+      }
+    })
+
+    if (existing) {
+      log.warn('Category certification failed: already certified', { categoryId, userId, userRole })
+      return res.status(400).json({ error: 'Already certified this category' })
+    }
+
+    // Create certification
+    log.debug('Creating category certification', { categoryId, userId, userRole })
+    const certification = await prisma.categoryCertification.create({
+      data: {
+        categoryId,
+        role: userRole,
+        userId,
+        signatureName: signatureName || null,
+        comments: comments || null
+      },
+      include: {
+        category: true,
+        user: true
+      }
+    })
+
+    log.info('Category certified successfully', {
+      categoryId,
+      userId,
+      userRole,
+      certificationId: certification.id
+    })
+    res.status(201).json({
+      message: 'Category certified successfully',
+      certification
+    })
+  } catch (error) {
+    log.error('Certify category error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getCategoryCertificationProgress,
+  certifyContestant,
+  certifyJudgeScores,
+  certifyCategory
+}
+

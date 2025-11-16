@@ -1,0 +1,3 @@
+[2025-11-15 16:45:00] [INFO] [DOCSCONTROLLER] Listing documentation files | {"userId":"cmhtexnb800008c275jyqkbyc"}
+[2025-11-15 16:45:00] [ERROR] [DOCSCONTROLLER] Error scanning directory | {"dir":"/var/www/event-manager/docs/enhancements","error":{"errno":-13,"code":"EACCES","syscall":"scandir","path":"/var/www/event-manager/docs/enhancements"}}
+[2025-11-15 16:45:01] [ERROR] [DOCSCONTROLLER] Error listing documentation | {"error":{"errno":-13,"code":"EACCES","syscall":"scandir","path":"/var/www/event-manager/docs/enhancements"}}

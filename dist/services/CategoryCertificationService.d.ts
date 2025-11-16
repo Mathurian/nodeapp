@@ -1,0 +1,33 @@
+import { BaseService } from './BaseService';
+import { PrismaClient } from '@prisma/client';
+export declare class CategoryCertificationService extends BaseService {
+    private prisma;
+    constructor(prisma: PrismaClient);
+    getCertificationProgress(categoryId: string): Promise<{
+        categoryId: string;
+        judgeProgress: {
+            contestantsCertified: number;
+            totalContestants: number;
+            isCategoryCertified: boolean;
+        };
+        tallyMasterProgress: {
+            isCategoryCertified: boolean;
+        };
+        auditorProgress: {
+            isCategoryCertified: boolean;
+        };
+        boardProgress: {
+            isCategoryCertified: boolean;
+        };
+    }>;
+    certifyCategory(categoryId: string, userId: string, userRole: string): Promise<{
+        id: string;
+        categoryId: string;
+        role: string;
+        comments: string | null;
+        certifiedAt: Date;
+        signatureName: string | null;
+        userId: string;
+    }>;
+}
+//# sourceMappingURL=CategoryCertificationService.d.ts.map

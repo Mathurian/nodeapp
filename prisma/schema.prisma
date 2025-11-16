@@ -1,0 +1,1439 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                 String    @id @default(cuid())
+  name               String
+  slug               String    @unique
+  domain             String?   @unique
+  isActive           Boolean   @default(true)
+  settings           Json?
+  maxUsers           Int?
+  maxEvents          Int?
+  maxStorage         BigInt?
+  planType           String    @default("free")
+  subscriptionStatus String    @default("active")
+  subscriptionEndsAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([domain])
+  @@index([isActive])
+  @@map("tenants")
+}
+
+model Event {
+  id                        String                  @id @default(cuid())
+  name                      String
+  description               String?
+  startDate                 DateTime
+  endDate                   DateTime
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  archived                  Boolean                 @default(false)
+  location                  String?
+  maxContestants            Int?
+  contestantNumberingMode   ContestantNumberingMode @default(MANUAL)
+  contestantViewRestricted  Boolean                 @default(false)
+  isLocked                  Boolean                 @default(false)
+  contestantViewReleaseDate DateTime?
+  lockedAt                  DateTime?
+  lockVerifiedBy            String?
+  tenantId                  String
+
+  @@index([tenantId])
+  @@index([tenantId, archived])
+  @@map("events")
+}
+
+model Contest {
+  id                        String                  @id @default(cuid())
+  eventId                   String
+  name                      String
+  description               String?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  contestantNumberingMode   ContestantNumberingMode @default(MANUAL)
+  nextContestantNumber      Int?                    @default(1)
+  archived                  Boolean                 @default(false)
+  contestantViewRestricted  Boolean                 @default(false)
+  contestantViewReleaseDate DateTime?
+  isLocked                  Boolean                 @default(false)
+  lockedAt                  DateTime?
+  lockVerifiedBy            String?
+  tenantId                  String
+
+  @@index([tenantId])
+  @@index([eventId])
+  @@index([eventId, archived])
+  @@index([tenantId, eventId])
+  @@index([eventId, archived], map: "idx_contests_event_archived")
+  @@index([eventId], map: "idx_contests_event_id")
+  @@map("contests")
+}
+
+model Category {
+  id              String   @id @default(cuid())
+  contestId       String
+  name            String
+  description     String?
+  scoreCap        Int?
+  timeLimit       Int?
+  contestantMin   Int?
+  contestantMax   Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  totalsCertified Boolean  @default(false)
+  tenantId        String
+
+  @@index([tenantId])
+  @@index([contestId])
+  @@index([contestId, createdAt])
+  @@index([tenantId, contestId])
+  @@index([contestId], map: "idx_categories_contest_id")
+  @@map("categories")
+}
+
+model Contestant {
+  id               String   @id @default(cuid())
+  name             String
+  email            String?
+  gender           String?
+  pronouns         String?
+  contestantNumber Int?
+  bio              String?
+  imagePath        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenantId         String
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([tenantId, contestantNumber])
+  @@index([contestantNumber], map: "idx_contestant_number")
+  @@map("contestants")
+}
+
+model Judge {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  gender      String?
+  pronouns    String?
+  bio         String?
+  imagePath   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isHeadJudge Boolean  @default(false)
+  tenantId    String
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("judges")
+}
+
+model Criterion {
+  id         String   @id @default(cuid())
+  categoryId String
+  name       String
+  maxScore   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("criteria")
+}
+
+model Score {
+  id               String    @id @default(cuid())
+  categoryId       String
+  contestantId     String
+  judgeId          String
+  criterionId      String?
+  score            Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  allowCommentEdit Boolean   @default(true)
+  certifiedAt      DateTime?
+  certifiedBy      String?
+  comment          String?
+  isCertified      Boolean   @default(false)
+  isLocked         Boolean   @default(false)
+  lockedAt         DateTime?
+  lockedBy         String?
+
+  @@unique([categoryId, contestantId, judgeId, criterionId])
+  @@index([categoryId, contestantId])
+  @@index([categoryId, judgeId])
+  @@index([isCertified, categoryId])
+  @@map("scores")
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  name                  String
+  preferredName         String?
+  email                 String
+  password              String
+  role                  UserRole
+  gender                String?
+  pronouns              String?
+  judgeId               String?
+  contestantId          String?
+  sessionVersion        Int       @default(1)
+  isActive              Boolean   @default(true)
+  lastLoginAt           DateTime?
+  judgeBio              String?
+  judgeSpecialties      String?
+  judgeCertifications   String?
+  contestantBio         String?
+  contestantNumber      String?
+  contestantAge         Int?
+  contestantSchool      String?
+  bio                   String?
+  imagePath             String?
+  phone                 String?
+  address               String?
+  timezone              String?   @default("UTC")
+  language              String?   @default("en")
+  notificationSettings  String?
+  smsPhone              String?
+  smsEnabled            Boolean   @default(false)
+  privacy               String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  navigationPreferences Json?
+  city                  String?
+  state                 String?
+  country               String?
+  tenantId              String
+  isSuperAdmin          Boolean   @default(false)
+  mfaBackupCodes        String?
+  mfaEnabled            Boolean   @default(false)
+  mfaEnrolledAt         DateTime?
+  mfaMethod             String?   @default("totp")
+  mfaSecret             String?
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, role])
+  @@map("users")
+}
+
+model JudgeComment {
+  id           String   @id @default(cuid())
+  categoryId   String
+  contestantId String
+  judgeId      String
+  comment      String?
+  createdAt    DateTime @default(now())
+
+  @@unique([categoryId, contestantId, judgeId])
+  @@map("judge_comments")
+}
+
+model JudgeCertification {
+  id            String   @id @default(cuid())
+  categoryId    String
+  judgeId       String
+  signatureName String
+  certifiedAt   DateTime @default(now())
+
+  @@unique([categoryId, judgeId])
+  @@map("judge_certifications")
+}
+
+model OverallDeduction {
+  id           String   @id @default(cuid())
+  categoryId   String
+  contestantId String
+  deduction    Float
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([categoryId, contestantId])
+  @@map("overall_deductions")
+}
+
+model ActivityLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  userName     String?
+  userRole     String?
+  action       String
+  resourceType String?
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  logLevel     LogLevel @default(INFO)
+  createdAt    DateTime @default(now())
+  details      Json?
+
+  @@map("activity_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@map("system_settings")
+}
+
+model EmceeScript {
+  id         String   @id @default(cuid())
+  eventId    String?
+  contestId  String?
+  categoryId String?
+  title      String
+  content    String
+  order      Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  file_path  String?
+
+  @@map("emcee_scripts")
+}
+
+model ArchivedEvent {
+  id           String    @id @default(cuid())
+  eventId      String
+  name         String
+  description  String?
+  startDate    DateTime?
+  endDate      DateTime?
+  archivedAt   DateTime  @default(now())
+  archivedById String
+
+  @@map("archived_events")
+}
+
+model CategoryTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("category_templates")
+}
+
+model TemplateCriterion {
+  id         String   @id @default(cuid())
+  templateId String
+  name       String
+  maxScore   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("template_criteria")
+}
+
+model JudgeScoreRemovalRequest {
+  id           String        @id @default(cuid())
+  categoryId   String
+  contestantId String
+  judgeId      String
+  reason       String
+  status       RequestStatus @default(PENDING)
+  requestedAt  DateTime      @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  @@map("judge_score_removal_requests")
+}
+
+model ContestContestant {
+  contestId    String
+  contestantId String
+
+  @@id([contestId, contestantId])
+  @@map("contest_contestants")
+}
+
+model ContestJudge {
+  contestId String
+  judgeId   String
+
+  @@id([contestId, judgeId])
+  @@map("contest_judges")
+}
+
+model CategoryContestant {
+  categoryId   String
+  contestantId String
+
+  @@id([categoryId, contestantId])
+  @@map("category_contestants")
+}
+
+model CategoryJudge {
+  categoryId String
+  judgeId    String
+
+  @@id([categoryId, judgeId])
+  @@map("category_judges")
+}
+
+model Assignment {
+  id         String           @id @default(cuid())
+  judgeId    String
+  categoryId String?
+  contestId  String
+  eventId    String
+  status     AssignmentStatus @default(PENDING)
+  assignedAt DateTime         @default(now())
+  assignedBy String
+  notes      String?
+  priority   Int              @default(1)
+  tenantId   String
+
+  @@unique([tenantId, judgeId, categoryId])
+  @@index([tenantId])
+  @@index([tenantId, judgeId, status])
+  @@index([contestId, categoryId])
+  @@index([judgeId, status])
+  @@map("assignments")
+}
+
+model Certification {
+  id               String              @id @default(cuid())
+  categoryId       String
+  contestId        String
+  eventId          String
+  userId           String?
+  status           CertificationStatus @default(PENDING)
+  currentStep      Int                 @default(1)
+  totalSteps       Int                 @default(4)
+  judgeCertified   Boolean             @default(false)
+  tallyCertified   Boolean             @default(false)
+  auditorCertified Boolean             @default(false)
+  boardApproved    Boolean             @default(false)
+  certifiedAt      DateTime?
+  certifiedBy      String?
+  rejectionReason  String?
+  comments         String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  tenantId         String
+
+  @@unique([tenantId, categoryId, contestId, eventId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("certifications")
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType @default(INFO)
+  title       String
+  message     String
+  link        String?
+  read        Boolean          @default(false)
+  readAt      DateTime?
+  metadata    String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  tenantId    String
+  emailSent   Boolean          @default(false)
+  emailSentAt DateTime?
+  pushSent    Boolean          @default(false)
+  pushSentAt  DateTime?
+  templateId  String?
+
+  @@index([tenantId])
+  @@index([tenantId, userId, read])
+  @@index([userId, createdAt])
+  @@index([userId, read])
+  @@index([templateId])
+  @@map("notifications")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  parameters  String
+  format      String
+  generatedBy String
+  filePath    String?
+  fileSize    Int?
+  status      String   @default("GENERATED")
+  createdAt   DateTime @default(now())
+  tenantId    String
+
+  @@index([tenantId])
+  @@index([tenantId, type])
+  @@index([tenantId, createdAt])
+  @@map("reports")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  changes    String?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+  tenantId   String
+
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, action])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+model BackupLog {
+  id           String    @id @default(cuid())
+  location     String    @default("")
+  size         BigInt?
+  createdAt    DateTime  @default(now())
+  errorMessage String?
+  type         String    @default("full")
+  status       String    @default("success")
+  tenantId     String
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  duration     Int?
+  metadata     Json?
+
+  @@index([tenantId])
+  @@index([tenantId, type, status])
+  @@index([type, status])
+  @@index([startedAt])
+  @@map("backup_logs")
+}
+
+model BackupSchedule {
+  id            String    @id @default(cuid())
+  tenantId      String?
+  name          String
+  backupType    String    @default("full")
+  frequency     String
+  enabled       Boolean   @default(true)
+  retentionDays Int       @default(30)
+  nextRunAt     DateTime?
+  lastRunAt     DateTime?
+  lastStatus    String?   @default("pending")
+  targets       Json      @default("[]")
+  compression   Boolean   @default(true)
+  encryption    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([enabled, nextRunAt])
+  @@index([tenantId])
+  @@map("backup_schedules")
+}
+
+model BackupSetting {
+  id             String   @id @default(cuid())
+  retentionDays  Int      @default(30)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  backupType     String
+  enabled        Boolean  @default(false)
+  frequency      String
+  frequencyValue Int?
+
+  @@map("backup_settings")
+}
+
+model BackupTarget {
+  id           String    @id @default(cuid())
+  tenantId     String?
+  name         String
+  type         String
+  config       Json
+  enabled      Boolean   @default(true)
+  priority     Int       @default(0)
+  verified     Boolean   @default(false)
+  lastVerified DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([enabled, priority])
+  @@index([tenantId])
+  @@map("backup_targets")
+}
+
+model CategoryCertification {
+  id            String   @id @default(cuid())
+  categoryId    String
+  role          String
+  userId        String
+  signatureName String?
+  certifiedAt   DateTime @default(now())
+  comments      String?
+
+  @@unique([categoryId, role])
+  @@map("category_certifications")
+}
+
+model CategoryType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@map("category_types")
+}
+
+model ContestCertification {
+  id          String   @id @default(cuid())
+  contestId   String
+  role        String
+  userId      String
+  certifiedAt DateTime @default(now())
+  comments    String?
+
+  @@unique([contestId, role])
+  @@map("contest_certifications")
+}
+
+model CustomFieldValue {
+  id            String   @id @default(cuid())
+  customFieldId String
+  entityId      String
+  value         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([customFieldId, entityId])
+  @@index([entityId])
+  @@map("custom_field_values")
+}
+
+model CustomField {
+  id           String          @id @default(cuid())
+  name         String
+  key          String
+  type         CustomFieldType
+  entityType   String
+  required     Boolean         @default(false)
+  defaultValue String?
+  options      Json?
+  validation   Json?
+  order        Int             @default(0)
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([key, entityType])
+  @@index([entityType, active])
+  @@map("custom_fields")
+}
+
+model DeductionApproval {
+  id           String   @id @default(cuid())
+  requestId    String
+  approvedById String
+  role         String
+  isHeadJudge  Boolean  @default(false)
+  approvedAt   DateTime @default(now())
+
+  @@unique([requestId, approvedById])
+  @@map("deduction_approvals")
+}
+
+model DeductionRequest {
+  id            String          @id @default(cuid())
+  contestantId  String
+  categoryId    String
+  amount        Float
+  reason        String
+  requestedById String
+  status        DeductionStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+
+  @@map("deduction_requests")
+}
+
+model DrConfig {
+  id                  String   @id @default(cuid())
+  tenantId            String?
+  backupFrequency     String   @default("daily")
+  backupRetentionDays Int      @default(30)
+  enableAutoBackup    Boolean  @default(true)
+  enablePITR          Boolean  @default(false)
+  enableDRTesting     Boolean  @default(true)
+  drTestFrequency     String   @default("weekly")
+  backupLocations     Json     @default("[]")
+  rtoMinutes          Int      @default(240)
+  rpoMinutes          Int      @default(60)
+  alertEmail          String?
+  enableFailover      Boolean  @default(false)
+  healthCheckInterval Int      @default(5)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("dr_configs")
+}
+
+model DrMetric {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  metricType String
+  value      Float
+  unit       String
+  timestamp  DateTime @default(now())
+  metadata   Json?
+
+  @@index([metricType, timestamp])
+  @@index([tenantId])
+  @@index([tenantId, metricType, timestamp])
+  @@map("dr_metrics")
+}
+
+model DrTestLog {
+  id            String    @id @default(cuid())
+  tenantId      String?
+  testType      String    @default("restore")
+  backupId      String?
+  status        String    @default("running")
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  duration      Int?
+  testResults   Json?
+  errorMessage  String?
+  automatedTest Boolean   @default(true)
+  testedBy      String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  @@index([startedAt])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("dr_test_logs")
+}
+
+model EmailLog {
+  id           String   @id @default(cuid())
+  to           String
+  subject      String
+  status       String
+  sentAt       DateTime @default(now())
+  messageId    String?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([sentAt])
+  @@index([status])
+  @@map("email_logs")
+}
+
+model EmailSetting {
+  id                  String   @id @default(cuid())
+  smtpHost            String?
+  smtpPort            Int      @default(587)
+  smtpSecure          Boolean  @default(false)
+  smtpUser            String?
+  smtpPassword        String?
+  fromEmail           String?
+  fromName            String?
+  enableEmail         Boolean  @default(false)
+  enableNotifications Boolean  @default(true)
+  enableReports       Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("email_settings")
+}
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  name            String?
+  subject         String?
+  body            String?
+  type            String?  @default("CUSTOM")
+  eventId         String?
+  variables       String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  headerHtml      String?
+  footerHtml      String?
+  logoUrl         String?
+  logoPosition    String?
+  backgroundColor String?
+  primaryColor    String?
+  textColor       String?
+  fontFamily      String?
+  fontSize        String?
+  layoutType      String?
+  contentWrapper  String?
+  borderStyle     String?
+  borderColor     String?
+  borderWidth     String?
+  borderRadius    String?
+  padding         String?
+  margin          String?
+  templateData    String?
+
+  @@index([eventId])
+  @@index([type])
+  @@map("email_templates")
+}
+
+model EventLog {
+  id            String    @id @default(cuid())
+  tenantId      String?
+  eventType     String
+  entityType    String?
+  entityId      String?
+  payload       Json
+  userId        String?
+  source        String    @default("system")
+  correlationId String?
+  timestamp     DateTime  @default(now())
+  processed     Boolean   @default(false)
+  processedAt   DateTime?
+  retryCount    Int       @default(0)
+  lastError     String?
+  metadata      Json?
+
+  @@index([correlationId])
+  @@index([eventType, timestamp])
+  @@index([processed])
+  @@index([tenantId, eventType])
+  @@index([tenantId])
+  @@index([timestamp])
+  @@map("event_logs")
+}
+
+model EventTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  contests    Json
+  categories  Json
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("event_templates")
+}
+
+model File {
+  id           String       @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  path         String
+  category     FileCategory
+  uploadedBy   String
+  uploadedAt   DateTime     @default(now())
+  isPublic     Boolean      @default(false)
+  metadata     String?
+  checksum     String?
+  eventId      String?
+  contestId    String?
+  categoryId   String?
+
+  @@map("files")
+}
+
+model JudgeContestantCertification {
+  id           String   @id @default(cuid())
+  categoryId   String
+  judgeId      String
+  contestantId String
+  certifiedAt  DateTime @default(now())
+  comments     String?
+
+  @@unique([categoryId, judgeId, contestantId])
+  @@map("judge_contestant_certifications")
+}
+
+model JudgeUncertificationRequest {
+  id              String        @id @default(cuid())
+  categoryId      String
+  judgeId         String
+  reason          String
+  requestedBy     String
+  requestedAt     DateTime      @default(now())
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  status          RequestStatus @default(PENDING)
+
+  @@map("judge_uncertification_requests")
+}
+
+model LoggingSetting {
+  id             String   @id @default(cuid())
+  level          LogLevel @default(INFO)
+  enableAudit    Boolean  @default(true)
+  enableActivity Boolean  @default(true)
+  enableError    Boolean  @default(true)
+  maxLogAge      Int      @default(30)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("logging_settings")
+}
+
+model NotificationDigest {
+  id         String    @id @default(cuid())
+  userId     String
+  frequency  String
+  lastSentAt DateTime?
+  nextSendAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([nextSendAt])
+  @@index([userId])
+  @@map("notification_digests")
+}
+
+model NotificationPreference {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  emailEnabled         Boolean  @default(true)
+  pushEnabled          Boolean  @default(true)
+  inAppEnabled         Boolean  @default(true)
+  emailDigestFrequency String   @default("daily")
+  emailTypes           String?
+  pushTypes            String?
+  inAppTypes           String?
+  quietHoursStart      String?
+  quietHoursEnd        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+model NotificationTemplate {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  type         String
+  title        String
+  body         String
+  emailSubject String?
+  emailBody    String?
+  variables    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([type, isActive])
+  @@map("notification_templates")
+}
+
+model PasswordPolicy {
+  id                  String   @id @default(cuid())
+  minLength           Int      @default(8)
+  requireUppercase    Boolean  @default(true)
+  requireLowercase    Boolean  @default(true)
+  requireNumbers      Boolean  @default(true)
+  requireSpecialChars Boolean  @default(true)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("password_policies")
+}
+
+model PerformanceLog {
+  id           String   @id @default(cuid())
+  endpoint     String
+  method       String
+  responseTime Int
+  statusCode   Int
+  userId       String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  eventId      String?
+  contestId    String?
+  categoryId   String?
+
+  @@map("performance_logs")
+}
+
+model ReportInstance {
+  id            String   @id @default(cuid())
+  templateId    String?  @default("default")
+  generatedById String
+  generatedAt   DateTime @default(now())
+  data          String?
+  format        String
+  name          String
+  type          String
+
+  @@map("report_instances")
+}
+
+model ReportTemplate {
+  id         String   @id @default(cuid())
+  name       String
+  type       String
+  template   String
+  parameters String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("report_templates")
+}
+
+model ReviewContestantCertification {
+  id           String   @id @default(cuid())
+  categoryId   String
+  contestantId String
+  reviewedBy   String
+  reviewerRole String
+  reviewedAt   DateTime @default(now())
+  comments     String?
+
+  @@unique([categoryId, contestantId, reviewedBy])
+  @@map("review_contestant_certifications")
+}
+
+model ReviewJudgeScoreCertification {
+  id           String   @id @default(cuid())
+  categoryId   String
+  judgeId      String
+  reviewedBy   String
+  reviewerRole String
+  reviewedAt   DateTime @default(now())
+  comments     String?
+
+  @@unique([categoryId, judgeId, reviewedBy])
+  @@map("review_judge_score_certifications")
+}
+
+model RoleAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  role       String
+  contestId  String?
+  eventId    String?
+  categoryId String?
+  assignedAt DateTime @default(now())
+  assignedBy String
+  notes      String?
+  isActive   Boolean  @default(true)
+
+  @@unique([userId, role, contestId, eventId, categoryId])
+  @@index([categoryId, role, isActive])
+  @@index([userId, role, isActive])
+  @@map("role_assignments")
+}
+
+model SavedSearch {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  query       String
+  filters     String?
+  entityTypes String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isPublic])
+  @@map("saved_searches")
+}
+
+model ScoreComment {
+  id           String   @id @default(cuid())
+  scoreId      String
+  criterionId  String
+  contestantId String
+  judgeId      String
+  comment      String
+  isPrivate    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([scoreId, criterionId, contestantId, judgeId])
+  @@map("score_comments")
+}
+
+model ScoreFile {
+  id           String   @id @default(cuid())
+  categoryId   String
+  judgeId      String
+  contestantId String?
+  fileName     String
+  fileType     String
+  filePath     String
+  fileSize     Int
+  uploadedById String
+  status       String   @default("pending")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([contestantId])
+  @@index([judgeId])
+  @@index([status])
+  @@index([uploadedById])
+  @@map("score_files")
+}
+
+model ScoreRemovalRequest {
+  id               String        @id @default(cuid())
+  categoryId       String
+  judgeId          String
+  reason           String
+  status           RequestStatus @default(PENDING)
+  requestedBy      String
+  requestedAt      DateTime      @default(now())
+  tallySignature   String?
+  tallySignedAt    DateTime?
+  tallySignedBy    String?
+  auditorSignature String?
+  auditorSignedAt  DateTime?
+  auditorSignedBy  String?
+  boardSignature   String?
+  boardSignedAt    DateTime?
+  boardSignedBy    String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@map("score_removal_requests")
+}
+
+model SearchAnalytic {
+  id              String   @id @default(cuid())
+  query           String
+  resultCount     Int
+  avgResponseTime Int
+  searchCount     Int      @default(1)
+  lastSearched    DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([query])
+  @@index([searchCount])
+  @@map("search_analytics")
+}
+
+model SearchHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  query       String
+  filters     String?
+  entityTypes String?
+  resultCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("search_history")
+}
+
+model SecuritySetting {
+  id                       String   @id @default(cuid())
+  passwordMinLength        Int      @default(8)
+  passwordRequireUppercase Boolean  @default(true)
+  passwordRequireLowercase Boolean  @default(true)
+  passwordRequireNumbers   Boolean  @default(true)
+  passwordRequireSymbols   Boolean  @default(false)
+  passwordExpiryDays       Int      @default(90)
+  maxLoginAttempts         Int      @default(5)
+  lockoutDurationMinutes   Int      @default(30)
+  requireTwoFactor         Boolean  @default(false)
+  sessionTimeoutMinutes    Int      @default(480)
+  enableIpWhitelist        Boolean  @default(false)
+  allowedIps               String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("security_settings")
+}
+
+model ThemeSetting {
+  id             String   @id @default(cuid())
+  primaryColor   String   @default("#2563eb")
+  secondaryColor String   @default("#1e40af")
+  logoPath       String?
+  faviconPath    String?
+  updatedAt      DateTime @updatedAt
+
+  @@map("theme_settings")
+}
+
+model UserFieldConfiguration {
+  id         String  @id @default(cuid())
+  fieldName  String  @unique
+  isVisible  Boolean @default(true)
+  isRequired Boolean @default(false)
+  order      Int     @default(0)
+
+  @@map("user_field_configurations")
+}
+
+model WebhookConfig {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  url           String
+  events        Json
+  enabled       Boolean  @default(true)
+  secret        String?
+  headers       Json?
+  retryAttempts Int      @default(3)
+  timeout       Int      @default(30)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([tenantId])
+  @@map("webhook_configs")
+}
+
+model WebhookDelivery {
+  id             String    @id @default(cuid())
+  webhookId      String
+  eventId        String
+  status         String    @default("pending")
+  attemptCount   Int       @default(0)
+  lastAttemptAt  DateTime?
+  responseStatus Int?
+  responseBody   String?
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([webhookId])
+  @@map("webhook_deliveries")
+}
+
+model WinnerSignature {
+  id         String   @id @default(cuid())
+  categoryId String
+  contestId  String
+  eventId    String
+  userId     String
+  userRole   String
+  signature  String
+  signedAt   DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([categoryId, userId])
+  @@map("winner_signatures")
+}
+
+model WorkflowInstance {
+  id            String    @id @default(cuid())
+  templateId    String
+  tenantId      String
+  entityType    String
+  entityId      String
+  currentStepId String?
+  status        String    @default("active")
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  metadata      Json?
+
+  @@index([status])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId])
+  @@map("workflow_instances")
+}
+
+model WorkflowStepExecution {
+  id             String    @id @default(cuid())
+  instanceId     String
+  stepId         String
+  status         String    @default("pending")
+  startedAt      DateTime?
+  completedAt    DateTime?
+  completedBy    String?
+  approvalStatus String?
+  comments       String?
+  metadata       Json?
+
+  @@index([instanceId])
+  @@index([status])
+  @@map("workflow_step_executions")
+}
+
+model WorkflowStep {
+  id              String   @id @default(cuid())
+  templateId      String
+  name            String
+  description     String?
+  stepOrder       Int
+  requiredRole    String?
+  autoAdvance     Boolean  @default(false)
+  requireApproval Boolean  @default(true)
+  conditions      Json?
+  actions         Json?
+  notifyRoles     Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([templateId, stepOrder])
+  @@map("workflow_steps")
+}
+
+model WorkflowTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  name        String
+  description String?
+  type        String   @default("certification")
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  config      Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+  @@index([type, isActive])
+  @@map("workflow_templates")
+}
+
+model WorkflowTransition {
+  id             String   @id @default(cuid())
+  fromStepId     String
+  toStepId       String
+  condition      String?  @default("approved")
+  transitionType String   @default("sequential")
+  priority       Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([fromStepId])
+  @@index([toStepId])
+  @@map("workflow_transitions")
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+  BOARD
+  JUDGE
+  CONTESTANT
+  EMCEE
+  TALLY_MASTER
+  AUDITOR
+}
+
+enum LogLevel {
+  ERROR
+  WARN
+  INFO
+  DEBUG
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CertificationStatus {
+  PENDING
+  IN_PROGRESS
+  CERTIFIED
+  REJECTED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  SYSTEM
+}
+
+enum BackupFrequency {
+  MINUTES
+  HOURS
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum BackupStatus {
+  SUCCESS
+  FAILED
+  IN_PROGRESS
+}
+
+enum BackupType {
+  SCHEMA
+  FULL
+  SCHEDULED
+}
+
+enum ContestantNumberingMode {
+  MANUAL
+  AUTO_INDEXED
+  OPTIONAL
+}
+
+enum CustomFieldType {
+  TEXT
+  TEXT_AREA
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  EMAIL
+  URL
+  PHONE
+}
+
+enum DeductionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FileCategory {
+  CONTESTANT_IMAGE
+  JUDGE_IMAGE
+  DOCUMENT
+  TEMPLATE
+  REPORT
+  BACKUP
+  OTHER
+}

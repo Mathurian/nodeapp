@@ -1,0 +1,2 @@
+[2025-11-14 19:45:01] [INFO] [QUEUESERVICE] Worker created | {"queue":"app-events","concurrency":5}
+[2025-11-14 19:45:01] [INFO] [QUEUESERVICE] Redis connected

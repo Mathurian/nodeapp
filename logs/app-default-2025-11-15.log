@@ -1,0 +1,33 @@
+[2025-11-15 16:03:57] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-15 16:03:57] [INFO] [DEFAULT] Allowed origins: http://192.168.80.246, http://192.168.80.246:3000, http://localhost:3000, https://conmgr.com, https://www.conmgr.com
+[2025-11-15 16:03:57] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-15 16:03:57] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-15 16:03:57] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-15 16:03:57] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-15 16:03:57] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-15 21:49:28] [ERROR] [DEFAULT] Tenant middleware error: | {"code":"P1000","meta":{"modelName":"Tenant","database_user":"event_manager"},"clientVersion":"6.18.0","name":"PrismaClientKnownRequestError"}
+[2025-11-15 23:23:11] [INFO] [DEFAULT] SIGTERM received, shutting down gracefully...
+[2025-11-15 23:23:11] [INFO] [DEFAULT] HTTP server closed
+[2025-11-15 23:37:11] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-15 23:37:11] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001
+[2025-11-15 23:37:11] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-15 23:37:11] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-15 23:37:11] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-15 23:37:11] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-15 23:37:11] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-15 23:37:16] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-15 23:37:16] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001
+[2025-11-15 23:37:16] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-15 23:37:16] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-15 23:37:17] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-15 23:37:17] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-15 23:37:17] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-15 23:59:27] [INFO] [DEFAULT] SIGTERM received, shutting down gracefully...
+[2025-11-15 23:59:27] [INFO] [DEFAULT] HTTP server closed
+[2025-11-15 23:59:31] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-15 23:59:31] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com
+[2025-11-15 23:59:31] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-15 23:59:31] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-15 23:59:31] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-15 23:59:31] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-15 23:59:31] [INFO] [DEFAULT] 🔒 CORS: configured

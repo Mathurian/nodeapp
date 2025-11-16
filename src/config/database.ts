@@ -1,0 +1,145 @@
+/**
+ * Database Configuration and Connection Management
+ * Centralized Prisma client with optimized connection pooling
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+/**
+ * Global Prisma instance to prevent multiple connections
+ */
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
+/**
+ * Prisma Client Configuration
+ * - Connection pooling optimized for production
+ * - Query logging in development
+ * - Error logging in all environments
+ * - Connection lifecycle management
+ */
+const prismaClientSingleton = () => {
+  const client = new PrismaClient({
+    log: process.env.NODE_ENV === 'development'
+      ? ['query', 'info', 'warn', 'error']
+      : ['error'],
+
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
+      }
+    },
+
+    // Optimized connection pool settings
+    // See: https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
+  });
+
+  // Query performance monitoring is now handled by Prisma's built-in logging
+  // Slow query warnings are shown in the log output when log level includes 'query'
+
+  return client;
+};
+
+/**
+ * Singleton Prisma Client Instance
+ * Prevents multiple instances in development (hot reload)
+ */
+export const prisma = globalThis.prisma ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.prisma = prisma;
+}
+
+/**
+ * Test database connection
+ */
+export async function testDatabaseConnection(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('✓ Database connection successful');
+    return true;
+  } catch (error) {
+    console.error('✗ Database connection failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Get database connection pool stats
+ */
+export async function getDatabasePoolStats() {
+  try {
+    const poolStats = await prisma.$queryRaw<any[]>`
+      SELECT
+        count(*) as total_connections,
+        count(*) FILTER (WHERE state = 'active') as active_connections,
+        count(*) FILTER (WHERE state = 'idle') as idle_connections
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+    `;
+
+    return poolStats[0];
+  } catch (error) {
+    console.error('Error fetching pool stats:', error);
+    return null;
+  }
+}
+
+/**
+ * Graceful shutdown - close database connections
+ */
+export async function disconnectDatabase(): Promise<void> {
+  try {
+    await prisma.$disconnect();
+    console.log('✓ Database disconnected gracefully');
+  } catch (error) {
+    console.error('✗ Error disconnecting database:', error);
+    throw error;
+  }
+}
+
+/**
+ * Health check - verify database is responsive
+ */
+export async function checkDatabaseHealth(): Promise<{
+  status: 'healthy' | 'unhealthy';
+  latency?: number;
+  error?: string;
+}> {
+  try {
+    const start = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const latency = Date.now() - start;
+
+    return {
+      status: 'healthy',
+      latency
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Execute database operations in a transaction
+ */
+export async function executeInTransaction<T>(
+  callback: (tx: any) => Promise<T>
+): Promise<T> {
+  return prisma.$transaction(callback);
+}
+
+/**
+ * Batch operations helper
+ */
+export async function batchExecute<T>(
+  operations: Promise<T>[]
+): Promise<T[]> {
+  return Promise.all(operations);
+}
+
+export default prisma;

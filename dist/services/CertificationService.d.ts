@@ -1,0 +1,15 @@
+import { BaseService } from './BaseService';
+import { PrismaClient } from '@prisma/client';
+export declare class CertificationService extends BaseService {
+    private prisma;
+    constructor(prisma: PrismaClient);
+    getOverallStatus(eventId: string): Promise<{
+        event: string;
+        contests: any[];
+    }>;
+    certifyAll(eventId: string, userId: string, userRole: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+}
+//# sourceMappingURL=CertificationService.d.ts.map

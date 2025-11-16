@@ -1,0 +1,94 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: event_manager
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: event_manager_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run TypeScript type check
+        run: npm run type-check
+      
+      - name: Run unit tests
+        run: npm run test:unit
+      
+      - name: Setup test database
+        run: |
+          DATABASE_URL="postgresql://event_manager:password@localhost:5432/event_manager_test" npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
+      
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
+          NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-key-for-testing
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Start backend server
+        run: |
+          npm start &
+          sleep 10
+        env:
+          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
+          NODE_ENV: test
+          PORT: 3000
+      
+      - name: Start frontend server
+        run: |
+          cd frontend && npm ci && npm run build && npm run preview &
+          sleep 10
+        env:
+          PORT: 5173
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          FRONTEND_URL: http://localhost:5173
+          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+

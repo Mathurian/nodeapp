@@ -1,0 +1,1 @@
+[2025-11-09 21:47:42] [INFO] [TESTEVENTSETUP] Test event created | {"eventId":"cmhslqaw2000s8caahs7slsup","userId":"cmh6kqule0000b11b4vwhgdmm","requestId":"unknown","method":"POST","path":"/","user":{"id":"cmh6kqule0000b11b4vwhgdmm","email":"admin@eventmanager.com","role":"ADMIN"},"ip":"192.168.80.140"}

@@ -1,0 +1,306 @@
+const { PrismaClient } = require('@prisma/client')
+
+// Score Comment endpoints
+const createScoreComment = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { scoreId, criterionId, contestantId, comment, isPrivate } = req.body
+
+    const scoreComment = await prisma.scoreComment.create({
+      data: {
+        scoreId,
+        criterionId,
+        contestantId,
+        judgeId: req.user.id,
+        comment,
+        isPrivate: isPrivate || false
+      }
+    })
+
+    res.status(201).json(scoreComment)
+  } catch (error) {
+    log.error("Create score comment error:", error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+const getScoreComments = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { scoreId } = req.params
+
+    const comments = await prisma.scoreComment.findMany({
+      where: { scoreId },
+      include: {
+        judge: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    })
+
+    res.json(comments)
+  } catch (error) {
+    log.error("Get score comments error:", error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+const updateScoreComment = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { id } = req.params
+    const { comment, isPrivate } = req.body
+
+    const scoreComment = await prisma.scoreComment.update({
+      where: { id },
+      data: {
+        comment,
+        isPrivate: isPrivate || false
+      }
+    })
+
+    res.json(scoreComment)
+  } catch (error) {
+    log.error("Update score comment error:", error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+const deleteScoreComment = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { id } = req.params
+
+    await prisma.scoreComment.delete({
+      where: { id }
+    })
+
+    res.status(204).send()
+  } catch (error) {
+    log.error("Delete score comment error:", error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const createComment = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { scoreId, criterionId, contestantId, comment, isPrivate } = req.body
+    const judgeId = req.user.id
+
+    if (!scoreId || !criterionId || !contestantId || !comment) {
+      return res.status(400).json({ error: 'Score ID, criterion ID, contestant ID, and comment are required' })
+    }
+
+    const scoreComment = await prisma.scoreComment.create({
+      data: {
+        scoreId,
+        criterionId,
+        contestantId,
+        judgeId,
+        comment,
+        isPrivate: isPrivate || false
+      },
+      include: {
+        judge: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    res.status(201).json(scoreComment)
+  } catch (error) {
+    log.error('Create comment error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCommentsForScore = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { scoreId } = req.params
+    const userRole = req.user.role
+
+    let whereClause = { scoreId }
+
+    // Filter private comments based on role
+    if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
+      whereClause.isPrivate = false
+    }
+
+    const comments = await prisma.scoreComment.findMany({
+      where: whereClause,
+      include: {
+        judge: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        criterion: {
+          select: {
+            name: true,
+            description: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    res.json(comments)
+  } catch (error) {
+    log.error('Get comments error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateComment = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { id } = req.params
+    const { comment, isPrivate } = req.body
+    const userId = req.user.id
+
+    // Check if user owns the comment or has admin privileges
+    const existingComment = await prisma.scoreComment.findUnique({
+      where: { id }
+    })
+
+    if (!existingComment) {
+      return res.status(404).json({ error: 'Comment not found' })
+    }
+
+    if (existingComment.judgeId !== userId && !['ADMIN', 'ORGANIZER'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' })
+    }
+
+    const updatedComment = await prisma.scoreComment.update({
+      where: { id },
+      data: {
+        comment,
+        isPrivate: isPrivate !== undefined ? isPrivate : existingComment.isPrivate
+      },
+      include: {
+        judge: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    res.json(updatedComment)
+  } catch (error) {
+    log.error('Update comment error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteComment = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { id } = req.params
+    const userId = req.user.id
+
+    // Check if user owns the comment or has admin privileges
+    const existingComment = await prisma.scoreComment.findUnique({
+      where: { id }
+    })
+
+    if (!existingComment) {
+      return res.status(404).json({ error: 'Comment not found' })
+    }
+
+    if (existingComment.judgeId !== userId && !['ADMIN', 'ORGANIZER'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' })
+    }
+
+    await prisma.scoreComment.delete({
+      where: { id }
+    })
+
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete comment error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCommentsByContestant = async (req, res) => {
+  const log = createRequestLogger(req, 'commentary')
+  try {
+    const { contestantId } = req.params
+    const userRole = req.user.role
+
+    let whereClause = { contestantId }
+
+    // Filter private comments based on role
+    if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
+      whereClause.isPrivate = false
+    }
+
+    const comments = await prisma.scoreComment.findMany({
+      where: whereClause,
+      include: {
+        judge: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        criterion: {
+          select: {
+            name: true,
+            description: true
+          }
+        },
+        score: {
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { score: { category: { contest: { event: { startDate: 'desc' } } } } },
+        { createdAt: 'asc' }
+      ]
+    })
+
+    res.json(comments)
+  } catch (error) {
+    log.error('Get comments by contestant error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  createScoreComment,
+  getScoreComments,
+  updateScoreComment,
+  deleteScoreComment,
+  createComment,
+  getCommentsForScore,
+  updateComment,
+  deleteComment,
+  getCommentsByContestant
+}

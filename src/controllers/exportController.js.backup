@@ -1,0 +1,604 @@
+const { PrismaClient } = require('@prisma/client')
+const XLSX = require('xlsx')
+const csvWriter = require('csv-writer')
+const xml2js = require('xml2js')
+const PDFDocument = require('pdfkit')
+const fs = require('fs').promises
+const path = require('path')
+const { generateSecurePassword, encryptMetadata, decryptMetadata } = require('../middleware/fileEncryption')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Export directory
+const EXPORT_DIR = path.join(__dirname, '../exports')
+
+// Ensure export directory exists
+const ensureExportDir = async () => {
+  try {
+    await fs.mkdir(EXPORT_DIR, { recursive: true })
+  } catch (error) {
+    log.error('Error creating export directory:', error, { error: error.message, stack: error.stack })
+  }
+}
+
+// Export event data to Excel
+const exportEventToExcel = async (req, res) => {
+  const log = createRequestLogger(req, 'export')
+  try {
+    const { eventId, includeDetails = false } = req.body
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        contests: {
+          include: {
+            categories: {
+              include: {
+                scores: {
+                  include: {
+                    judge: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        email: true
+                      }
+                    },
+                    contestant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        email: true,
+                        contestantNumber: true
+                      }
+                    },
+                    criterion: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        maxScore: true
+                      }
+                    }
+                  }
+                },
+                contestants: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        email: true,
+                        contestantNumber: true,
+                        contestantAge: true,
+                        contestantSchool: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' })
+    }
+
+    await ensureExportDir()
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new()
+
+    // Event summary sheet
+    const eventSummary = [
+      ['Event Name', event.name],
+      ['Description', event.description],
+      ['Start Date', event.startDate],
+      ['End Date', event.endDate],
+      ['Location', event.location],
+      ['Status', event.status],
+      ['Max Contestants', event.maxContestants],
+      ['Total Contests', event.contests.length],
+      ['Total Categories', event.contests.reduce((sum, contest) => sum + contest.categories.length, 0)],
+      ['Total Contestants', event.contests.reduce((sum, contest) => 
+        sum + contest.categories.reduce((catSum, category) => catSum + category.contestants.length, 0), 0)],
+      ['Total Scores', event.contests.reduce((sum, contest) => 
+        sum + contest.categories.reduce((catSum, category) => catSum + category.scores.length, 0), 0)]
+    ]
+
+    const eventSummarySheet = XLSX.utils.aoa_to_sheet(eventSummary)
+    XLSX.utils.book_append_sheet(workbook, eventSummarySheet, 'Event Summary')
+
+    // Contests sheet
+    const contestsData = event.contests.map(contest => ({
+      'Contest Name': contest.name,
+      'Description': contest.description,
+      'Categories': contest.categories.length,
+      'Total Contestants': contest.categories.reduce((sum, category) => sum + category.contestants.length, 0),
+      'Total Scores': contest.categories.reduce((sum, category) => sum + category.scores.length, 0)
+    }))
+
+    const contestsSheet = XLSX.utils.json_to_sheet(contestsData)
+    XLSX.utils.book_append_sheet(workbook, contestsSheet, 'Contests')
+
+    if (includeDetails) {
+      // Detailed scores sheet
+      const scoresData = []
+      event.contests.forEach(contest => {
+        contest.categories.forEach(category => {
+          category.scores.forEach(score => {
+            scoresData.push({
+              'Event': event.name,
+              'Contest': contest.name,
+              'Category': category.name,
+              'Contestant': score.contestant.preferredName || score.contestant.name,
+              'Contestant Number': score.contestant.contestantNumber,
+              'Judge': score.judge.preferredName || score.judge.name,
+              'Criterion': score.criterion.name,
+              'Score': score.score,
+              'Max Score': score.criterion.maxScore,
+              'Score Date': score.createdAt
+            })
+          })
+        })
+      })
+
+      const scoresSheet = XLSX.utils.json_to_sheet(scoresData)
+      XLSX.utils.book_append_sheet(workbook, scoresSheet, 'Detailed Scores')
+    }
+
+    // Generate filename
+    const filename = `event-export-${event.name.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.xlsx`
+    const filepath = path.join(EXPORT_DIR, filename)
+
+    // Write file
+    XLSX.writeFile(workbook, filepath)
+
+    // Set headers for download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+
+    // Send file
+    const fileBuffer = await fs.readFile(filepath)
+    res.send(fileBuffer)
+
+    // Clean up file
+    await fs.unlink(filepath)
+  } catch (error) {
+    log.error('Export event to Excel error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Export contest results to CSV
+const exportContestResultsToCSV = async (req, res) => {
+  const log = createRequestLogger(req, 'export')
+  try {
+    const { contestId, categoryId } = req.body
+
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+            location: true
+          }
+        },
+        categories: {
+          where: categoryId ? { id: categoryId } : {},
+          include: {
+            scores: {
+              include: {
+                judge: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true
+                  }
+                },
+                contestant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true,
+                    contestantNumber: true
+                  }
+                },
+                criterion: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    maxScore: true
+                  }
+                }
+              }
+            },
+            contestants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true,
+                    contestantNumber: true,
+                    contestantAge: true,
+                    contestantSchool: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    await ensureExportDir()
+
+    // Prepare CSV data
+    const csvData = []
+    
+    contest.categories.forEach(category => {
+      // Calculate contestant totals
+      const contestantTotals = {}
+      category.scores.forEach(score => {
+        const key = score.contestantId
+        if (!contestantTotals[key]) {
+          contestantTotals[key] = {
+            contestant: score.contestant,
+            totalScore: 0,
+            scoreCount: 0,
+            scores: []
+          }
+        }
+        contestantTotals[key].totalScore += score.score
+        contestantTotals[key].scoreCount += 1
+        contestantTotals[key].scores.push(score)
+      })
+
+      // Add contestant results
+      Object.values(contestantTotals).forEach(group => {
+        csvData.push({
+          'Event': contest.event.name,
+          'Contest': contest.name,
+          'Category': category.name,
+          'Contestant': group.contestant.preferredName || group.contestant.name,
+          'Contestant Number': group.contestant.contestantNumber,
+          'Total Score': group.totalScore,
+          'Average Score': group.totalScore / group.scoreCount,
+          'Score Count': group.scoreCount,
+          'Rank': 0 // Will be calculated after sorting
+        })
+      })
+    })
+
+    // Sort by total score and assign ranks
+    csvData.sort((a, b) => b['Total Score'] - a['Total Score'])
+    csvData.forEach((row, index) => {
+      row['Rank'] = index + 1
+    })
+
+    // Generate filename
+    const filename = `contest-results-${contest.name.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.csv`
+    const filepath = path.join(EXPORT_DIR, filename)
+
+    // Create CSV writer
+    const writer = csvWriter.createObjectCsvWriter({
+      path: filepath,
+      header: [
+        { id: 'Event', title: 'Event' },
+        { id: 'Contest', title: 'Contest' },
+        { id: 'Category', title: 'Category' },
+        { id: 'Contestant', title: 'Contestant' },
+        { id: 'Contestant Number', title: 'Contestant Number' },
+        { id: 'Total Score', title: 'Total Score' },
+        { id: 'Average Score', title: 'Average Score' },
+        { id: 'Score Count', title: 'Score Count' },
+        { id: 'Rank', title: 'Rank' }
+      ]
+    })
+
+    // Write CSV file
+    await writer.writeRecords(csvData)
+
+    // Set headers for download
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+
+    // Send file
+    const fileBuffer = await fs.readFile(filepath)
+    res.send(fileBuffer)
+
+    // Clean up file
+    await fs.unlink(filepath)
+  } catch (error) {
+    log.error('Export contest results to CSV error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Export judge performance to XML
+const exportJudgePerformanceToXML = async (req, res) => {
+  const log = createRequestLogger(req, 'export')
+  try {
+    const { judgeId, eventId } = req.body
+
+    const judge = await prisma.user.findUnique({
+      where: { id: judgeId },
+      include: {
+        scores: {
+          where: eventId ? {
+            category: {
+              contest: {
+                eventId: eventId
+              }
+            }
+          } : {},
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: {
+                      select: {
+                        id: true,
+                        name: true,
+                        startDate: true,
+                        endDate: true,
+                        location: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true,
+                contestantNumber: true
+              }
+            },
+            criterion: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                maxScore: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!judge) {
+      return res.status(404).json({ error: 'Judge not found' })
+    }
+
+    await ensureExportDir()
+
+    // Calculate performance statistics
+    const performanceStats = {
+      totalScores: judge.scores.length,
+      averageScore: judge.scores.length > 0 ? 
+        judge.scores.reduce((sum, score) => sum + score.score, 0) / judge.scores.length : 0,
+      categoriesJudged: [...new Set(judge.scores.map(score => score.category.name))].length
+    }
+
+    // Prepare XML data
+    const xmlData = {
+      judgePerformance: {
+        judge: {
+          id: judge.id,
+          name: judge.name,
+          preferredName: judge.preferredName,
+          email: judge.email,
+          role: judge.role,
+          bio: judge.bio
+        },
+        performance: {
+          totalScores: performanceStats.totalScores,
+          averageScore: performanceStats.averageScore,
+          categoriesJudged: performanceStats.categoriesJudged
+        },
+        scores: judge.scores.map(score => ({
+          score: {
+            id: score.id,
+            score: score.score,
+            createdAt: score.createdAt,
+            contestant: {
+              id: score.contestant.id,
+              name: score.contestant.name,
+              preferredName: score.contestant.preferredName,
+              contestantNumber: score.contestant.contestantNumber
+            },
+            category: {
+              id: score.category.id,
+              name: score.category.name,
+              description: score.category.description
+            },
+            contest: {
+              id: score.category.contest.id,
+              name: score.category.contest.name,
+              description: score.category.contest.description
+            },
+            event: {
+              id: score.category.contest.event.id,
+              name: score.category.contest.event.name,
+              startDate: score.category.contest.event.startDate,
+              endDate: score.category.contest.event.endDate,
+              location: score.category.contest.event.location
+            },
+            criterion: {
+              id: score.criterion.id,
+              name: score.criterion.name,
+              description: score.criterion.description,
+              maxScore: score.criterion.maxScore
+            }
+          }
+        }))
+      }
+    }
+
+    // Generate XML
+    const builder = new xml2js.Builder({ rootName: 'judgePerformance', xmldec: { version: '1.0', encoding: 'UTF-8' } })
+    const xml = builder.buildObject(xmlData)
+
+    // Generate filename
+    const filename = `judge-performance-${judge.name.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.xml`
+    const filepath = path.join(EXPORT_DIR, filename)
+
+    // Write file
+    await fs.writeFile(filepath, xml, 'utf8')
+
+    // Set headers for download
+    res.setHeader('Content-Type', 'application/xml')
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+
+    // Send file
+    const fileBuffer = await fs.readFile(filepath)
+    res.send(fileBuffer)
+
+    // Clean up file
+    await fs.unlink(filepath)
+  } catch (error) {
+    log.error('Export judge performance to XML error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Export system analytics to PDF
+const exportSystemAnalyticsToPDF = async (req, res) => {
+  const log = createRequestLogger(req, 'export')
+  try {
+    const { startDate, endDate } = req.body
+
+    // Get system analytics data
+    const analytics = await prisma.$queryRaw`
+      SELECT 
+        COUNT(DISTINCT e.id) as total_events,
+        COUNT(DISTINCT c.id) as total_contests,
+        COUNT(DISTINCT cat.id) as total_categories,
+        COUNT(DISTINCT u.id) as total_users,
+        COUNT(DISTINCT s.id) as total_scores,
+        AVG(s.score) as average_score,
+        COUNT(DISTINCT CASE WHEN u.role = 'JUDGE' THEN u.id END) as total_judges,
+        COUNT(DISTINCT CASE WHEN u.role = 'CONTESTANT' THEN u.id END) as total_contestants
+      FROM "Event" e
+      LEFT JOIN "Contest" c ON c."eventId" = e.id
+      LEFT JOIN "Category" cat ON cat."contestId" = c.id
+      LEFT JOIN "User" u ON u.id IS NOT NULL
+      LEFT JOIN "Score" s ON s."categoryId" = cat.id
+      WHERE e."createdAt" >= ${startDate || '2020-01-01'}::timestamp
+      AND e."createdAt" <= ${endDate || new Date().toISOString()}::timestamp
+    `
+
+    const stats = analytics[0] || {}
+
+    await ensureExportDir()
+
+    // Create PDF document
+    const doc = new PDFDocument()
+    
+    // Generate filename
+    const filename = `system-analytics-${Date.now()}.pdf`
+    const filepath = path.join(EXPORT_DIR, filename)
+
+    // Pipe PDF to file
+    doc.pipe(require('fs').createWriteStream(filepath))
+
+    // Add content
+    doc.fontSize(20).text('System Analytics Report', 50, 50)
+    doc.fontSize(12).text(`Generated on: ${new Date().toISOString()}`, 50, 80)
+    
+    doc.fontSize(16).text('Overview Statistics', 50, 120)
+    doc.fontSize(12)
+      .text(`Total Events: ${stats.total_events || 0}`, 50, 150)
+      .text(`Total Contests: ${stats.total_contests || 0}`, 50, 170)
+      .text(`Total Categories: ${stats.total_categories || 0}`, 50, 190)
+      .text(`Total Users: ${stats.total_users || 0}`, 50, 210)
+      .text(`Total Judges: ${stats.total_judges || 0}`, 50, 230)
+      .text(`Total Contestants: ${stats.total_contestants || 0}`, 50, 250)
+      .text(`Total Scores: ${stats.total_scores || 0}`, 50, 270)
+      .text(`Average Score: ${(stats.average_score || 0).toFixed(2)}`, 50, 290)
+
+    // Add charts section
+    doc.fontSize(16).text('Performance Metrics', 50, 330)
+    doc.fontSize(12).text('Score distribution and performance metrics would be visualized here.', 50, 360)
+
+    // Finalize PDF
+    doc.end()
+
+    // Wait for PDF to be written
+    await new Promise((resolve) => {
+      doc.on('end', resolve)
+    })
+
+    // Set headers for download
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+
+    // Send file
+    const fileBuffer = await fs.readFile(filepath)
+    res.send(fileBuffer)
+
+    // Clean up file
+    await fs.unlink(filepath)
+  } catch (error) {
+    log.error('Export system analytics to PDF error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get export history
+const getExportHistory = async (req, res) => {
+  const log = createRequestLogger(req, 'export')
+  try {
+    const exports = await prisma.report.findMany({
+      where: {
+        generatedBy: req.user.id,
+        type: {
+          in: ['EXCEL_EXPORT', 'CSV_EXPORT', 'XML_EXPORT', 'PDF_EXPORT']
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    })
+
+    res.json({
+      exports,
+      message: 'Export history retrieved successfully'
+    })
+  } catch (error) {
+    log.error('Get export history error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  exportEventToExcel,
+  exportContestResultsToCSV,
+  exportJudgePerformanceToXML,
+  exportSystemAnalyticsToPDF,
+  getExportHistory
+}

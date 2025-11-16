@@ -1,0 +1,244 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getAllRoleAssignments = async (req, res) => {
+  const log = createRequestLogger(req, 'roleassignment')
+  try {
+    const { role, contestId, eventId, categoryId } = req.query
+    
+    const whereClause = {
+      ...(role && { role }),
+      ...(contestId && { contestId }),
+      ...(eventId && { eventId }),
+      ...(categoryId && { categoryId }),
+    }
+    
+    const assignments = await prisma.roleAssignment.findMany({
+      where: whereClause,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        event: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: [
+        { assignedAt: 'desc' }
+      ]
+    })
+    
+    res.json(assignments)
+  } catch (error) {
+    log.error('Get role assignments error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createRoleAssignment = async (req, res) => {
+  const log = createRequestLogger(req, 'roleassignment')
+  try {
+    const { userId, role, contestId, eventId, categoryId, notes } = req.body
+    
+    // Must have userId and role
+    if (!userId || !role) {
+      return res.status(400).json({ error: 'userId and role are required' })
+    }
+    
+    // Must have at least one of contestId, eventId, or categoryId
+    if (!contestId && !eventId && !categoryId) {
+      return res.status(400).json({ error: 'At least one of contestId, eventId, or categoryId is required' })
+    }
+    
+    // Validate role
+    const validRoles = ['BOARD', 'TALLY_MASTER', 'AUDITOR']
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` })
+    }
+    
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    })
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    
+    // Check for existing assignment
+    const existingAssignment = await prisma.roleAssignment.findFirst({
+      where: {
+        userId,
+        role,
+        contestId: contestId || null,
+        eventId: eventId || null,
+        categoryId: categoryId || null,
+        isActive: true
+      }
+    })
+    
+    if (existingAssignment) {
+      return res.status(400).json({ error: 'This assignment already exists' })
+    }
+    
+    // Create the assignment
+    const assignment = await prisma.roleAssignment.create({
+      data: {
+        userId,
+        role,
+        contestId: contestId || null,
+        eventId: eventId || null,
+        categoryId: categoryId || null,
+        notes,
+        assignedBy: req.user.id
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        event: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    })
+    
+    res.status(201).json(assignment)
+  } catch (error) {
+    log.error('Create role assignment error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteRoleAssignment = async (req, res) => {
+  const log = createRequestLogger(req, 'roleassignment')
+  try {
+    const { id } = req.params
+    
+    const assignment = await prisma.roleAssignment.findUnique({
+      where: { id }
+    })
+    
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' })
+    }
+    
+    await prisma.roleAssignment.delete({
+      where: { id }
+    })
+    
+    res.json({ message: 'Assignment deleted successfully' })
+  } catch (error) {
+    log.error('Delete role assignment error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateRoleAssignment = async (req, res) => {
+  const log = createRequestLogger(req, 'roleassignment')
+  try {
+    const { id } = req.params
+    const { notes, isActive } = req.body
+    
+    const assignment = await prisma.roleAssignment.findUnique({
+      where: { id }
+    })
+    
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' })
+    }
+    
+    const updated = await prisma.roleAssignment.update({
+      where: { id },
+      data: {
+        ...(notes !== undefined && { notes }),
+        ...(isActive !== undefined && { isActive })
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        event: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    })
+    
+    res.json(updated)
+  } catch (error) {
+    log.error('Update role assignment error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getAllRoleAssignments,
+  createRoleAssignment,
+  deleteRoleAssignment,
+  updateRoleAssignment
+}
+

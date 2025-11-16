@@ -1,0 +1,268 @@
+const fs = require('fs').promises
+const path = require('path')
+const { createRequestLogger } = require('../utils/logger')
+
+/**
+ * Log Files Controller
+ * Provides access to view, download, and manage application log files
+ */
+
+const LOG_DIRECTORY = path.join(__dirname, '../../logs')
+
+/**
+ * Ensure logs directory exists
+ */
+const ensureLogDirectory = async () => {
+  try {
+    await fs.mkdir(LOG_DIRECTORY, { recursive: true })
+  } catch (error) {
+    log.error('Failed to create logs directory:', error, { error: error.message, stack: error.stack })
+  }
+}
+
+/**
+ * Get list of all log files
+ */
+const getLogFiles = async (req, res) => {
+  const log = createRequestLogger(req, 'logfiles')
+  try {
+    await ensureLogDirectory()
+    
+    const files = await fs.readdir(LOG_DIRECTORY)
+    
+    // Get file stats for each log file
+    const fileStats = await Promise.all(
+      files
+        .filter(file => file.endsWith('.log'))
+        .map(async (file) => {
+          const filePath = path.join(LOG_DIRECTORY, file)
+          const stats = await fs.stat(filePath)
+          
+          return {
+            name: file,
+            size: stats.size,
+            sizeFormatted: formatFileSize(stats.size),
+            modifiedAt: stats.mtime,
+            path: filePath
+          }
+        })
+    )
+
+    // Sort by modification time (newest first)
+    fileStats.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime())
+
+    res.json({
+      success: true,
+      files: fileStats,
+      directory: LOG_DIRECTORY
+    })
+  } catch (error) {
+    log.error('Get log files error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to retrieve log files',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Get contents of a specific log file
+ */
+const getLogFileContents = async (req, res) => {
+  const log = createRequestLogger(req, 'logfiles')
+  try {
+    const { filename } = req.params
+    const { lines = 500 } = req.query
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' })
+    }
+
+    // Security: Prevent directory traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: 'Invalid filename' })
+    }
+
+    const filePath = path.join(LOG_DIRECTORY, filename)
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath)
+    } catch {
+      return res.status(404).json({ error: 'Log file not found' })
+    }
+
+    // Read file contents
+    const contents = await fs.readFile(filePath, 'utf-8')
+    
+    // Split into lines and get last N lines
+    const allLines = contents.split('\n')
+    const maxLines = parseInt(lines) || 500
+    const lastLines = allLines.slice(-maxLines)
+
+    res.json({
+      success: true,
+      filename,
+      contents: lastLines.join('\n'),
+      totalLines: allLines.length,
+      displayedLines: lastLines.length
+    })
+  } catch (error) {
+    log.error('Get log file contents error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to read log file',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Download a log file
+ */
+const downloadLogFile = async (req, res) => {
+  const log = createRequestLogger(req, 'logfiles')
+  try {
+    const { filename } = req.params
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' })
+    }
+
+    // Security: Prevent directory traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: 'Invalid filename' })
+    }
+
+    const filePath = path.join(LOG_DIRECTORY, filename)
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath)
+    } catch {
+      return res.status(404).json({ error: 'Log file not found' })
+    }
+
+    // Send file
+    res.download(filePath, filename)
+  } catch (error) {
+    log.error('Download log file error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to download log file',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Delete old log files based on retention policy
+ */
+const cleanupOldLogs = async (req, res) => {
+  const log = createRequestLogger(req, 'logfiles')
+  try {
+    const { daysToKeep } = req.body
+
+    if (!daysToKeep || daysToKeep < 1) {
+      return res.status(400).json({ error: 'Valid daysToKeep is required (minimum 1)' })
+    }
+
+    await ensureLogDirectory()
+
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(daysToKeep))
+
+    const files = await fs.readdir(LOG_DIRECTORY)
+    let deletedCount = 0
+    let deletedSize = 0
+
+    for (const file of files) {
+      if (!file.endsWith('.log')) continue
+
+      const filePath = path.join(LOG_DIRECTORY, file)
+      const stats = await fs.stat(filePath)
+
+      if (stats.mtime < cutoffDate) {
+        await fs.unlink(filePath)
+        deletedCount++
+        deletedSize += stats.size
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} log file(s)`,
+      deletedCount,
+      deletedSize,
+      deletedSizeFormatted: formatFileSize(deletedSize)
+    })
+  } catch (error) {
+    log.error('Cleanup old logs error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to cleanup log files',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Delete a specific log file
+ */
+const deleteLogFile = async (req, res) => {
+  const log = createRequestLogger(req, 'logfiles')
+  try {
+    const { filename } = req.params
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' })
+    }
+
+    // Security: Prevent directory traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: 'Invalid filename' })
+    }
+
+    const filePath = path.join(LOG_DIRECTORY, filename)
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath)
+    } catch {
+      return res.status(404).json({ error: 'Log file not found' })
+    }
+
+    // Delete file
+    await fs.unlink(filePath)
+
+    res.json({
+      success: true,
+      message: `Log file "${filename}" deleted successfully`
+    })
+  } catch (error) {
+    log.error('Delete log file error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ 
+      error: 'Failed to delete log file',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Format file size to human-readable format
+ */
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes'
+  
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+}
+
+module.exports = {
+  getLogFiles,
+  getLogFileContents,
+  downloadLogFile,
+  cleanupOldLogs,
+  deleteLogFile
+}
+

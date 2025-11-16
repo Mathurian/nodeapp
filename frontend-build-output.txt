@@ -1,0 +1,30 @@
+
+> event-manager-frontend@1.0.0 build
+> tsc && vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 934 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/registerSW.js                  0.13 kB
+dist/manifest.webmanifest           0.50 kB
+dist/index.html                     0.91 kB │ gzip:   0.47 kB
+dist/assets/index-CC6ANnLN.css     55.67 kB │ gzip:   8.82 kB
+dist/assets/index-DFDwdb9_.js   1,366.64 kB │ gzip: 258.72 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 31.24s
+
+PWA v1.1.0
+mode      generateSW
+precache  1 entries (0.00 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-a959eb95.js
+warnings
+  An error occurred when globbing for files. 'Cannot read properties of undefined (reading 'sync')'
+

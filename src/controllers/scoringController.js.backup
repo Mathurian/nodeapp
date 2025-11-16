@@ -1,0 +1,1146 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getScores = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId, contestantId } = req.params
+    log.debug('Fetching scores', { categoryId, contestantId })
+
+    let whereClause = { categoryId }
+    if (contestantId) {
+      whereClause.contestantId = contestantId
+    }
+
+    const scores = await prisma.score.findMany({
+      where: whereClause,
+      include: {
+        contestant: true,
+        judge: true,
+        category: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    log.info('Scores retrieved successfully', { categoryId, contestantId, count: scores.length })
+    res.json(scores)
+  } catch (error) {
+    log.error('Get scores error', { error: error.message, stack: error.stack, categoryId: req.params.categoryId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const submitScore = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId, contestantId } = req.params
+    const { criteriaId, score, comments } = req.body
+    
+    log.info('Score submission requested', { categoryId, contestantId, criteriaId, score, hasComments: !!comments })
+
+    // Verify category exists and get context
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Score submission failed: category not found', { categoryId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Get the Judge record from the User
+    log.debug('Fetching judge record for user', { userId: req.user.id })
+    const userWithJudge = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        judge: true
+      }
+    })
+
+    if (!userWithJudge.judge) {
+      log.warn('Score submission failed: user not linked to judge', { userId: req.user.id })
+      return res.status(400).json({ error: 'User is not linked to a Judge record' })
+    }
+
+    const judgeId = userWithJudge.judge.id
+    log.debug('Judge ID retrieved', { judgeId })
+
+    // Validate judge assignment to this category (like in judgeContestantCertificationController)
+    log.debug('Checking judge assignment', { judgeId, categoryId, contestId: category.contestId })
+    const assignment = await prisma.assignment.findFirst({
+      where: {
+        judgeId: userWithJudge.judge.id,
+        OR: [
+          { categoryId },
+          { contestId: category.contestId, categoryId: null }
+        ],
+        status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] }
+      }
+    })
+
+    if (!assignment && req.user.role !== 'ADMIN') {
+      log.warn('Score submission failed: judge not assigned to category', { judgeId, categoryId, userId: req.user.id })
+      return res.status(403).json({ error: 'Not assigned to this category' })
+    }
+
+    // Check if there's an existing score for this judge/contestant/category
+    log.debug('Checking for existing score', { categoryId, contestantId, judgeId, criteriaId })
+    const existingScore = await prisma.score.findFirst({
+      where: {
+        categoryId,
+        contestantId,
+        judgeId,
+        criterionId: criteriaId || null
+      }
+    })
+
+    // If there's an existing certified/locked score, prevent new scores but allow comment-only updates
+    if (existingScore && (existingScore.isCertified || existingScore.isLocked)) {
+      // If trying to submit a score (not just a comment), reject
+      if (score !== null && score !== undefined) {
+        log.warn('Score submission failed: score is certified/locked', { 
+          scoreId: existingScore.id, 
+          isCertified: existingScore.isCertified,
+          isLocked: existingScore.isLocked 
+        })
+        return res.status(403).json({ 
+          error: 'This score has been certified and cannot be modified. Only comments can be added.' 
+        })
+      }
+      // Allow comment-only updates
+      if (comments && existingScore.allowCommentEdit) {
+        log.debug('Updating comment on certified score', { scoreId: existingScore.id })
+        const updatedScore = await prisma.score.update({
+          where: { id: existingScore.id },
+          data: { comment: comments }
+        })
+        log.info('Comment updated on certified score', { scoreId: existingScore.id })
+        return res.json(updatedScore)
+      }
+      return res.status(201).json(existingScore)
+    }
+
+    // Use category already fetched above for scoreCap
+
+    // Validate score does not exceed category scoreCap
+    if (score !== null && score !== undefined && category.scoreCap && score > category.scoreCap) {
+      log.warn('Score submission failed: score exceeds cap', { score, scoreCap: category.scoreCap, categoryId })
+      return res.status(400).json({ 
+        error: `Score cannot exceed the maximum of ${category.scoreCap}` 
+      })
+    }
+
+    // If existing score exists but is not certified, update it instead of creating a new one
+    if (existingScore) {
+      log.debug('Updating existing score', { scoreId: existingScore.id })
+      const updateData = {}
+      if (score !== null && score !== undefined) {
+        updateData.score = score
+      }
+      if (comments !== undefined) {
+        updateData.comment = comments
+      }
+
+      const updatedScore = await prisma.score.update({
+        where: { id: existingScore.id },
+        data: updateData
+      })
+
+      log.info('Score updated successfully', { scoreId: existingScore.id, score, categoryId, contestantId, judgeId })
+      return res.json(updatedScore)
+    }
+
+    // Create new score
+    log.debug('Creating new score', { categoryId, contestantId, judgeId, criteriaId, score })
+    const scoreRecord = await prisma.score.create({
+      data: {
+        categoryId,
+        contestantId,
+        judgeId: judgeId,
+        criterionId: criteriaId || null,
+        score: score || null,
+        comment: comments || '' 
+      }
+    })
+
+    log.info('Score created successfully', { scoreId: scoreRecord.id, score, categoryId, contestantId, judgeId })
+    res.status(201).json(scoreRecord)
+  } catch (error) {
+    log.error('Submit score error', { error: error.message, stack: error.stack, categoryId: req.params.categoryId, contestantId: req.params.contestantId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateScore = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { scoreId } = req.params
+    const { score, comment, allowCommentEdit } = req.body
+
+    log.info('Score update requested', { scoreId, score, hasComment: !!comment, allowCommentEdit })
+
+    // Check if score is locked or certified
+    const existingScore = await prisma.score.findUnique({
+      where: { id: scoreId }
+    })
+
+    if (!existingScore) {
+      log.warn('Score update failed: score not found', { scoreId })
+      return res.status(404).json({ error: 'Score not found' })
+    }
+
+    if (existingScore.isLocked && !allowCommentEdit) {
+      log.warn('Score update failed: score is locked', { scoreId })
+      return res.status(403).json({ error: 'Score is locked and cannot be modified' })
+    }
+
+    if (existingScore.isCertified && !allowCommentEdit) {
+      log.warn('Score update failed: score is certified', { scoreId })
+      return res.status(403).json({ error: 'Score is certified and cannot be modified' })
+    }
+
+    const updateData = {}
+    if (score !== undefined && !existingScore.isLocked) {
+      updateData.score = score
+    }
+    if (comment !== undefined && existingScore.allowCommentEdit) {
+      updateData.comment = comment
+    }
+
+    log.debug('Updating score', { scoreId, updateData })
+    const scoreRecord = await prisma.score.update({
+      where: { id: scoreId },
+      data: updateData
+    })
+
+    log.info('Score updated successfully', { scoreId, score: scoreRecord.score })
+    res.json(scoreRecord)
+  } catch (error) {
+    log.error('Update score error', { error: error.message, stack: error.stack, scoreId: req.params.scoreId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteScore = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { scoreId } = req.params
+    log.info('Score deletion requested', { scoreId })
+
+    const scoreToDelete = await prisma.score.findUnique({
+      where: { id: scoreId },
+      select: { id: true, categoryId: true, contestantId: true, judgeId: true }
+    })
+
+    if (!scoreToDelete) {
+      log.warn('Score deletion failed: score not found', { scoreId })
+      return res.status(404).json({ error: 'Score not found' })
+    }
+
+    log.debug('Deleting score', { scoreId })
+    await prisma.score.delete({
+      where: { id: scoreId }
+    })
+
+    log.info('Score deleted successfully', { scoreId, categoryId: scoreToDelete.categoryId, contestantId: scoreToDelete.contestantId })
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete score error', { error: error.message, stack: error.stack, scoreId: req.params.scoreId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const certifyScore = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { scoreId } = req.params
+    log.info('Score certification requested', { scoreId, userId: req.user.id })
+
+    // Check if score exists
+    const existingScore = await prisma.score.findUnique({
+      where: { id: scoreId }
+    })
+
+    if (!existingScore) {
+      log.warn('Score certification failed: score not found', { scoreId })
+      return res.status(404).json({ error: 'Score not found' })
+    }
+
+    if (existingScore.isCertified) {
+      log.warn('Score certification failed: already certified', { scoreId })
+      return res.status(400).json({ error: 'Score is already certified' })
+    }
+
+    // Update score to certified
+    log.debug('Certifying score', { scoreId })
+    const scoreRecord = await prisma.score.update({
+      where: { id: scoreId },
+      data: {
+        isCertified: true,
+        certifiedAt: new Date(),
+        certifiedBy: req.user.id,
+        isLocked: true,
+        lockedAt: new Date(),
+        lockedBy: req.user.id,
+        allowCommentEdit: true // Allow commentary editing post-certification
+      }
+    })
+
+    log.info('Score certified successfully', { scoreId, categoryId: scoreRecord.categoryId, contestantId: scoreRecord.contestantId })
+    res.json({ message: 'Score certified and locked successfully', score: scoreRecord })
+  } catch (error) {
+    log.error('Certify score error', { error: error.message, stack: error.stack, scoreId: req.params.scoreId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const certifyScores = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId } = req.params
+    log.info('Bulk score certification requested', { categoryId, userId: req.user.id })
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId }
+    })
+
+    if (!category) {
+      log.warn('Bulk score certification failed: category not found', { categoryId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Update all scores in the category to certified
+    log.debug('Certifying all scores in category', { categoryId })
+    const result = await prisma.score.updateMany({
+      where: { categoryId },
+      data: { 
+        isCertified: true,
+        certifiedAt: new Date(),
+        certifiedBy: req.user.id,
+        isLocked: true,
+        lockedAt: new Date(),
+        lockedBy: req.user.id,
+        allowCommentEdit: true
+      }
+    })
+
+    log.info('Bulk score certification completed', { categoryId, count: result.count })
+    res.json({ message: 'Scores certified successfully' })
+  } catch (error) {
+    log.error('Certify scores error', { error: error.message, stack: error.stack, categoryId: req.params.categoryId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const certifyTotals = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId } = req.params
+    log.info('Total certification requested', { categoryId, userId: req.user?.id })
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId }
+    })
+
+    if (!category) {
+      log.warn('Total certification failed: category not found', { categoryId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Calculate totals and mark as certified
+    log.debug('Calculating totals for category', { categoryId })
+    const scores = await prisma.score.findMany({
+      where: { categoryId }
+    })
+
+    // Group by contestant and calculate totals
+    const totals = {}
+    scores.forEach(score => {
+      if (!totals[score.contestantId]) {
+        totals[score.contestantId] = 0
+      }
+      totals[score.contestantId] += score.score
+    })
+
+    // Update category totals
+    log.debug('Marking category totals as certified', { categoryId })
+    await prisma.category.update({
+      where: { id: categoryId },
+      data: { totalsCertified: true }
+    })
+
+    log.info('Totals certified successfully', { categoryId, contestantsCount: Object.keys(totals).length })
+    res.json({ message: 'Totals certified successfully', totals })
+  } catch (error) {
+    log.error('Certify totals error', { error: error.message, stack: error.stack, categoryId: req.params.categoryId })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const finalCertification = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Final certification requested', { categoryId, userId, userRole })
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId }
+    })
+
+    if (!category) {
+      log.warn('Final certification failed: category not found', { categoryId, userId, userRole })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    log.debug('Marking category as finally certified', { categoryId })
+
+    // Mark category as finally certified
+    await prisma.category.update({
+      where: { id: categoryId },
+      data: { finalCertified: true }
+    })
+
+    log.info('Final certification completed successfully', { categoryId, userId, userRole })
+    res.json({ message: 'Final certification completed' })
+  } catch (error) {
+    log.error('Final certification error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Point deduction approval functionality
+const requestDeduction = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId, contestantId, deduction, reason } = req.body
+    const requestedBy = req.user.id
+    const userRole = req.user.role
+
+    log.info('Deduction request submitted', { categoryId, contestantId, deduction, requestedBy, userRole })
+
+    if (!categoryId || !contestantId || deduction === undefined || !reason) {
+      log.warn('Deduction request failed: missing required fields', { categoryId, contestantId, deduction, requestedBy })
+      return res.status(400).json({ error: 'Category ID, Contestant ID, deduction amount, and reason are required' })
+    }
+
+    // Check if user has permission to request deductions
+    if (!['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN'].includes(req.user.role)) {
+      log.warn('Deduction request failed: insufficient permissions', { requestedBy, userRole, categoryId, contestantId })
+      return res.status(403).json({ error: 'Insufficient permissions to request deductions' })
+    }
+
+    // Check if deduction already exists
+    const existingDeduction = await prisma.overallDeduction.findUnique({
+      where: {
+        categoryId_contestantId: {
+          categoryId,
+          contestantId
+        }
+      }
+    })
+
+    if (existingDeduction) {
+      log.warn('Deduction request failed: deduction already exists', { categoryId, contestantId, requestedBy })
+      return res.status(400).json({ error: 'Deduction already exists for this contestant in this category' })
+    }
+
+    log.debug('Creating deduction request', { categoryId, contestantId, deduction })
+
+    // Create deduction request
+    const deductionRequest = await prisma.overallDeduction.create({
+      data: {
+        categoryId,
+        contestantId,
+        deduction,
+        reason,
+        requestedBy
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        contestant: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    log.info('Deduction request created successfully', { deductionId: deductionRequest.id, categoryId, contestantId, requestedBy })
+    res.json({
+      message: 'Deduction request created successfully',
+      deduction: deductionRequest
+    })
+  } catch (error) {
+    log.error('Request deduction error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.body.categoryId,
+      contestantId: req.body.contestantId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const approveDeduction = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { deductionId } = req.params
+    const { signature } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Deduction approval requested', { deductionId, userId, userRole })
+
+    if (!signature) {
+      log.warn('Deduction approval failed: signature missing', { deductionId, userId })
+      return res.status(400).json({ error: 'Signature is required' })
+    }
+
+    // Check if user has permission to approve deductions
+    if (!['BOARD', 'AUDITOR', 'TALLY_MASTER'].includes(userRole)) {
+      log.warn('Deduction approval failed: insufficient permissions', { deductionId, userId, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to approve deductions' })
+    }
+
+    const deduction = await prisma.overallDeduction.findUnique({
+      where: { id: deductionId },
+      include: {
+        category: true,
+        contestant: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    if (!deduction) {
+      log.warn('Deduction approval failed: deduction not found', { deductionId, userId })
+      return res.status(404).json({ error: 'Deduction not found' })
+    }
+
+    log.debug('Updating deduction with signature', { deductionId, userRole })
+
+    // Update the deduction with the signature
+    let updateData = {}
+    if (userRole === 'TALLY_MASTER') {
+      updateData = {
+        tallySignature: signature,
+        tallySignedAt: new Date(),
+        tallySignedBy: userId
+      }
+    } else if (userRole === 'AUDITOR') {
+      updateData = {
+        auditorSignature: signature,
+        auditorSignedAt: new Date(),
+        auditorSignedBy: userId
+      }
+    } else if (userRole === 'BOARD') {
+      updateData = {
+        boardSignature: signature,
+        boardSignedAt: new Date(),
+        boardSignedBy: userId
+      }
+    }
+
+    const updatedDeduction = await prisma.overallDeduction.update({
+      where: { id: deductionId },
+      data: updateData,
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        contestant: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    // Check if all required signatures are present
+    const hasTallySignature = !!updatedDeduction.tallySignature
+    const hasAuditorSignature = !!updatedDeduction.auditorSignature
+    const hasBoardSignature = !!updatedDeduction.boardSignature
+
+    if (hasTallySignature && hasAuditorSignature && hasBoardSignature) {
+      // All signatures present, deduction is approved
+      log.debug('All signatures present, marking deduction as approved', { deductionId })
+      await prisma.overallDeduction.update({
+        where: { id: deductionId },
+        data: { status: 'APPROVED' }
+      })
+
+      log.info('Deduction approved successfully', { deductionId, userId, userRole })
+      res.json({
+        message: 'Deduction approved successfully',
+        deduction: updatedDeduction
+      })
+    } else {
+      log.info('Signature added, waiting for additional signatures', { deductionId, userId, userRole })
+      res.json({
+        message: 'Signature added, waiting for additional signatures',
+        deduction: updatedDeduction
+      })
+    }
+  } catch (error) {
+    log.error('Approve deduction error', {
+      error: error.message,
+      stack: error.stack,
+      deductionId: req.params.deductionId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const rejectDeduction = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { deductionId } = req.params
+    const { reason } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Deduction rejection requested', { deductionId, userId, userRole })
+
+    if (!reason) {
+      log.warn('Deduction rejection failed: reason missing', { deductionId, userId })
+      return res.status(400).json({ error: 'Rejection reason is required' })
+    }
+
+    // Check if user has permission to reject deductions
+    if (!['BOARD', 'AUDITOR'].includes(req.user.role)) {
+      log.warn('Deduction rejection failed: insufficient permissions', { deductionId, userId, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to reject deductions' })
+    }
+
+    log.debug('Updating deduction status to rejected', { deductionId })
+
+    const deduction = await prisma.overallDeduction.update({
+      where: { id: deductionId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: reason,
+        rejectedAt: new Date(),
+        rejectedBy: req.user.id
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        contestant: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    log.info('Deduction rejected successfully', { deductionId, userId, userRole })
+    res.json({
+      message: 'Deduction rejected successfully',
+      deduction
+    })
+  } catch (error) {
+    log.error('Reject deduction error', {
+      error: error.message,
+      stack: error.stack,
+      deductionId: req.params.deductionId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getDeductions = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId } = req.query
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.debug('Fetching deductions', { categoryId, userId, userRole })
+
+    let whereClause = {}
+    if (categoryId) {
+      whereClause.categoryId = categoryId
+    }
+
+    const deductions = await prisma.overallDeduction.findMany({
+      where: whereClause,
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    log.info('Deductions fetched successfully', { count: deductions.length, categoryId, userId })
+    res.json(deductions)
+  } catch (error) {
+    log.error('Get deductions error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.query.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const unsignScore = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { scoreId } = req.params
+    const { reason, secondaryApproverId } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Score unsign requested', { scoreId, userId, userRole, secondaryApproverId })
+
+    if (!reason || !secondaryApproverId) {
+      log.warn('Score unsign failed: missing required fields', { scoreId, userId })
+      return res.status(400).json({ error: 'Reason and secondary approver ID are required' })
+    }
+
+    // Check if user has permission to unsign scores
+    if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(req.user.role)) {
+      log.warn('Score unsign failed: insufficient permissions', { scoreId, userId, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to unsign scores' })
+    }
+
+    // Get the score
+    const existingScore = await prisma.score.findUnique({
+      where: { id: scoreId }
+    })
+
+    if (!existingScore) {
+      log.warn('Score unsign failed: score not found', { scoreId, userId })
+      return res.status(404).json({ error: 'Score not found' })
+    }
+
+    if (!existingScore.isCertified && !existingScore.isLocked) {
+      log.warn('Score unsign failed: score not certified or locked', { scoreId, userId })
+      return res.status(400).json({ error: 'Score is not certified or locked' })
+    }
+
+    // Get secondary approver
+    const secondaryApprover = await prisma.user.findUnique({
+      where: { id: secondaryApproverId }
+    })
+
+    if (!secondaryApprover) {
+      log.warn('Score unsign failed: secondary approver not found', { scoreId, userId, secondaryApproverId })
+      return res.status(404).json({ error: 'Secondary approver not found' })
+    }
+
+    // Verify secondary approver has appropriate role
+    if (!['ADMIN', 'BOARD', 'AUDITOR', 'TALLY_MASTER'].includes(secondaryApprover.role)) {
+      log.warn('Score unsign failed: invalid secondary approver role', { scoreId, userId, secondaryApproverId, approverRole: secondaryApprover.role })
+      return res.status(400).json({ error: 'Secondary approver must be Admin, Board, Auditor, or Tally Master' })
+    }
+
+    log.debug('Unsigning score', { scoreId, userId, secondaryApproverId })
+
+    // Unsign the score (unlock and uncertify)
+    const scoreRecord = await prisma.score.update({
+      where: { id: scoreId },
+      data: {
+        isCertified: false,
+        certifiedAt: null,
+        certifiedBy: null,
+        isLocked: false,
+        lockedAt: null,
+        lockedBy: null,
+        allowCommentEdit: true,
+        comment: existingScore.comment + `\n\n[UNSIGNED] ${reason} - Unsigned by ${req.user.name} (${req.user.role}) with approval from ${secondaryApprover.name} (${secondaryApprover.role}) at ${new Date().toISOString()}`
+      }
+    })
+
+    log.info('Score unsigned successfully', { scoreId, userId, secondaryApproverId })
+    res.json({ 
+      message: 'Score unsigned successfully', 
+      score: scoreRecord 
+    })
+  } catch (error) {
+    log.error('Unsign score error', {
+      error: error.message,
+      stack: error.stack,
+      scoreId: req.params.scoreId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCategories = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const user = req.user
+    const userId = user.id
+    const userRole = user.role
+    
+    log.debug('Fetching categories', { userId, userRole })
+    
+    // If judge, only show categories they're assigned to
+    let categories
+    
+    if (user.role === 'JUDGE') {
+      // Get the Judge record linked to this User
+      const userWithJudge = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: { judge: true }
+      })
+      
+      if (!userWithJudge || !userWithJudge.judge) {
+        return res.json([])
+      }
+      
+      const judgeId = userWithJudge.judge.id
+      
+      // Get judge's assignments using the Judge table ID
+      const assignments = await prisma.assignment.findMany({
+        where: {
+          judgeId: judgeId,
+          status: { in: ['ACTIVE', 'PENDING', 'COMPLETED'] }
+        },
+        select: {
+          id: true,
+          judgeId: true,
+          categoryId: true,
+          contestId: true,
+          eventId: true,
+          status: true,
+          assignedAt: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              contestId: true
+            }
+          },
+          contest: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              eventId: true
+            }
+          }
+        }
+      })
+
+      // Extract unique categories from assignments
+      const categoryIds = new Set()
+      const contestIds = new Set()
+      
+      assignments.forEach(assignment => {
+        if (assignment.categoryId) {
+          // Category-level assignment: add specific category
+          categoryIds.add(assignment.categoryId)
+        } else if (assignment.categoryId === null && assignment.contestId) {
+          // Contest-level assignment: add contest to get all categories later
+          contestIds.add(assignment.contestId)
+        }
+      })
+
+      // Get categories: specific assignments + contest-level assignments
+      // If no assignments, return empty array
+      if (categoryIds.size === 0 && contestIds.size === 0) {
+        categories = []
+      } else {
+        // Build where clause based on what we have
+        const whereConditions = []
+        if (categoryIds.size > 0) {
+          whereConditions.push({ id: { in: Array.from(categoryIds) } })
+        }
+        if (contestIds.size > 0) {
+          whereConditions.push({ contestId: { in: Array.from(contestIds) } })
+        }
+        
+        // Construct where clause - use OR if multiple conditions, single condition if one
+        let whereClause
+        if (whereConditions.length === 0) {
+          whereClause = {}
+        } else if (whereConditions.length === 1) {
+          whereClause = whereConditions[0]
+        } else {
+          whereClause = { OR: whereConditions }
+        }
+        
+        categories = await prisma.category.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            scoreCap: true,
+            timeLimit: true,
+            contestantMin: true,
+            contestantMax: true,
+            createdAt: true,
+            updatedAt: true,
+            contestId: true,
+            contest: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                eventId: true,
+                event: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    startDate: true,
+                    endDate: true
+                  }
+                }
+              }
+            },
+            criteria: {
+              select: {
+                id: true,
+                name: true,
+                maxScore: true,
+                createdAt: true,
+                updatedAt: true
+              },
+              orderBy: { createdAt: 'asc' }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+      }
+    } else {
+      // Admins and other roles see all categories
+      log.debug('Fetching all categories for admin/other role', { userId, userRole })
+      categories = await prisma.category.findMany({
+        include: {
+          contest: {
+            include: {
+              event: true
+            }
+          },
+          criteria: true
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    }
+
+    log.info('Categories fetched successfully', { count: categories.length, userId, userRole })
+    res.json(categories)
+  } catch (error) {
+    log.error('Get categories error', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Certify contest-level scores for a judge
+const certifyJudgeContestScores = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { contestId, judgeId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    log.info('Contest-level certification for judge requested', { contestId, judgeId, userId, userRole })
+    
+    // Get the Judge record from the User
+    const userWithJudge = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        judge: true
+      }
+    })
+
+    if (!userWithJudge.judge || userWithJudge.judge.id !== judgeId) {
+      log.warn('Contest-level certification failed: unauthorized judge', { contestId, judgeId, userId })
+      return res.status(403).json({ error: 'You can only certify your own contest scores' })
+    }
+
+    log.debug('Fetching contest with categories and scores', { contestId, judgeId })
+
+    // Get contest with all categories
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        categories: {
+          include: {
+            contestants: {
+              select: { id: true }
+            },
+            scores: {
+              where: { judgeId },
+              select: { id: true, contestantId: true, isCertified: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      log.warn('Contest-level certification failed: contest not found', { contestId, judgeId })
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    // Check if all category-level scores are certified
+    const allCategoriesCertified = contest.categories.every(category => {
+      const totalContestants = category.contestants.length
+      const scoresSubmitted = category.scores.length
+      const certifiedScores = category.scores.filter(s => s.isCertified).length
+      
+      // All contestants must be scored and certified
+      return scoresSubmitted === totalContestants && certifiedScores === totalContestants
+    })
+
+    if (!allCategoriesCertified) {
+      log.warn('Contest-level certification failed: not all category scores certified', { contestId, judgeId })
+      return res.status(400).json({ 
+        error: 'All category-level scores must be submitted and certified before contest-level certification' 
+      })
+    }
+
+    log.debug('Creating contest-level certification record', { contestId, judgeId })
+
+    // Create contest-level certification record
+    const certification = await prisma.certification.create({
+      data: {
+        contestId,
+        judgeId,
+        level: 'CONTEST',
+        certifiedBy: req.user.id,
+        certifiedByRole: 'JUDGE',
+        notes: 'Contest-level certification after all category scores certified'
+      },
+      include: {
+        certifiedByUser: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    })
+
+    log.info('Contest-level certification completed successfully', { contestId, judgeId, certificationId: certification.id, userId })
+    res.json({
+      message: 'Contest-level certification completed successfully',
+      certification
+    })
+  } catch (error) {
+    log.error('Certify judge contest scores error', {
+      error: error.message,
+      stack: error.stack,
+      contestId: req.params.contestId,
+      judgeId: req.params.judgeId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Un-certify a category (remove all certifications)
+const uncertifyCategory = async (req, res) => {
+  const log = createRequestLogger(req, 'scoring')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    log.info('Category uncertification requested', { categoryId, userId, userRole })
+    
+    // Check if user has permission to uncertify
+    if (!['ADMIN', 'BOARD', 'ORGANIZER'].includes(req.user.role)) {
+      log.warn('Category uncertification failed: insufficient permissions', { categoryId, userId, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to uncertify category' })
+    }
+
+    log.debug('Removing all certifications for category', { categoryId })
+
+    // Remove all certifications for this category
+    await prisma.certification.deleteMany({
+      where: { categoryId }
+    })
+
+    log.debug('Unlocking all scores in category', { categoryId })
+
+    // Unlock all scores in this category
+    await prisma.score.updateMany({
+      where: { categoryId },
+      data: {
+        isCertified: false,
+        isLocked: false,
+        lockedBy: null,
+        lockedAt: null
+      }
+    })
+
+    log.info('Category uncertified successfully', { categoryId, userId, userRole })
+    res.json({ 
+      message: 'Category uncertified successfully',
+      categoryId 
+    })
+  } catch (error) {
+    log.error('Uncertify category error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getScores,
+  getCategories,
+  submitScore,
+  updateScore,
+  deleteScore,
+  certifyScore,
+  certifyScores,
+  certifyTotals,
+  finalCertification,
+  requestDeduction,
+  approveDeduction,
+  rejectDeduction,
+  getDeductions,
+  unsignScore,
+  certifyJudgeContestScores,
+  uncertifyCategory
+}

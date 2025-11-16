@@ -1,0 +1,65 @@
+[2025-11-16 00:27:38] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 00:27:38] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 00:27:38] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com
+[2025-11-16 00:27:38] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 00:27:38] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 00:27:38] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 00:27:38] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 00:32:23] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 00:32:23] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 00:32:23] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 00:32:23] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com
+[2025-11-16 00:32:23] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 00:32:23] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 00:32:23] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 00:35:51] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 00:35:51] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com
+[2025-11-16 00:35:51] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 00:35:51] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 00:35:51] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 00:35:51] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 00:35:51] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 03:06:55] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 03:06:55] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com, http://192.168.80.246
+[2025-11-16 03:06:55] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 03:06:55] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 03:07:20] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com, http://192.168.80.246
+[2025-11-16 03:07:20] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 03:07:20] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 03:07:20] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 03:07:20] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 03:07:20] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 03:07:20] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 03:08:07] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 03:08:07] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 03:08:07] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com, http://192.168.80.246
+[2025-11-16 03:08:07] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 03:08:08] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 03:08:08] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 03:08:08] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 03:12:48] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com, http://192.168.80.246
+[2025-11-16 03:12:48] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 03:12:48] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 03:12:48] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 03:12:48] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 03:12:48] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 03:12:48] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 05:29:00] [WARN] [DEFAULT] Tenant not found: 107
+[2025-11-16 12:13:54] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 12:13:54] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com, http://192.168.80.246
+[2025-11-16 12:13:54] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 12:13:54] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 12:13:54] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 12:13:54] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 12:13:54] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 13:12:16] [WARN] [DEFAULT] Tenant not found: 107
+[2025-11-16 13:12:32] [INFO] [DEFAULT] SIGTERM received, shutting down gracefully...
+[2025-11-16 13:12:36] [INFO] [DEFAULT] Configuration validation passed
+[2025-11-16 13:12:36] [INFO] [DEFAULT] Allowed origins: http://localhost:3000, http://localhost:3001, https://conmgr.com, http://conmgr.com, http://192.168.80.246
+[2025-11-16 13:12:36] [INFO] [DEFAULT] Frontend static files serving enabled
+[2025-11-16 13:12:36] [INFO] [DEFAULT] Swagger UI available at /api-docs
+[2025-11-16 13:12:37] [INFO] [DEFAULT] 🚀 Event Manager API server running on port 3000
+[2025-11-16 13:12:37] [INFO] [DEFAULT] 🔒 CORS: configured
+[2025-11-16 13:12:37] [INFO] [DEFAULT] 📝 Environment: production
+[2025-11-16 13:32:16] [WARN] [DEFAULT] Tenant not found: 107
+[2025-11-16 14:28:56] [WARN] [DEFAULT] Tenant not found: 107

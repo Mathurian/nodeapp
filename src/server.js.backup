@@ -1,0 +1,410 @@
+const express = require('express')
+const cors = require('cors')
+const helmet = require('helmet')
+const morgan = require('morgan')
+const compression = require('compression')
+const { Server } = require('socket.io')
+const http = require('http')
+// Load environment variables
+require('dotenv').config()
+
+const prisma = require('./utils/prisma')
+const { logger } = require('./utils/logger')
+
+// Initialize loggers for different categories
+const appLogger = logger('default')
+const apiLogger = logger('api')
+const dbLogger = logger('database')
+const authLogger = logger('auth')
+const backupLogger = logger('backup')
+
+// Validate production configuration
+const { validateProductionConfig } = require('./utils/config')
+try {
+  validateProductionConfig()
+} catch (error) {
+  appLogger.error('Configuration validation failed', { error: error.message })
+  process.exit(1)
+}
+
+// Import middleware
+const { requestLogging, errorLogging } = require('./middleware/requestLogger')
+
+// Import services
+const ScheduledBackupService = require("./services/scheduledBackupService")
+const { generalLimiter, authLimiter } = require('./middleware/rateLimiting')
+const { errorHandler } = require('./middleware/errorHandler')
+
+// Import routes
+const healthRoutes = require('./routes/healthRoutes')
+const authRoutes = require('./routes/authRoutes')
+const eventsRoutes = require('./routes/eventsRoutes')
+const contestsRoutes = require('./routes/contestsRoutes')
+const categoriesRoutes = require('./routes/categoriesRoutes')
+const usersRoutes = require('./routes/usersRoutes')
+const scoringRoutes = require('./routes/scoringRoutes')
+const resultsRoutes = require('./routes/resultsRoutes')
+const commentaryRoutes = require('./routes/commentaryRoutes')
+const deductionRoutes = require('./routes/deductionRoutes')
+const adminRoutes = require('./routes/adminRoutes')
+const uploadRoutes = require('./routes/uploadRoutes')
+const settingsRoutes = require('./routes/settingsRoutes')
+const smsRoutes = require('./routes/smsRoutes')
+const archiveRoutes = require('./routes/archiveRoutes')
+const backupRoutes = require('./routes/backupRoutes')
+const assignmentsRoutes = require('./routes/assignmentsRoutes')
+const fileRoutes = require('./routes/fileRoutes')
+const performanceRoutes = require('./routes/performanceRoutes')
+const certificationRoutes = require('./routes/certificationRoutes')
+const auditorRoutes = require('./routes/auditorRoutes')
+const boardRoutes = require('./routes/boardRoutes')
+const tallyMasterRoutes = require('./routes/tallyMasterRoutes')
+const judgeRoutes = require('./routes/judgeRoutes')
+const emailRoutes = require('./routes/emailRoutes')
+const reportsRoutes = require('./routes/reportsRoutes')
+const printRoutes = require('./routes/printRoutes')
+const exportRoutes = require('./routes/exportRoutes')
+const fileManagementRoutes = require('./routes/fileManagementRoutes')
+const fileBackupRoutes = require('./routes/fileBackupRoutes')
+const errorHandlingRoutes = require('./routes/errorHandlingRoutes')
+const templatesRoutes = require('./routes/templatesRoutes')
+const eventTemplateRoutes = require('./routes/eventTemplateRoutes')
+const notificationsRoutes = require('./routes/notificationsRoutes')
+const emceeRoutes = require('./routes/emceeRoutes')
+const categoryTypeRoutes = require('./routes/categoryTypeRoutes')
+const navigationRoutes = require('./routes/navigationRoutes')
+const advancedReportingRoutes = require('./routes/advancedReportingRoutes')
+const winnersRoutes = require('./routes/winnersRoutes')
+const contestCertificationRoutes = require('./routes/contestCertificationRoutes')
+const judgeContestantCertificationRoutes = require('./routes/judgeContestantCertificationRoutes')
+const categoryCertificationRoutes = require('./routes/categoryCertificationRoutes')
+const judgeUncertificationRoutes = require('./routes/judgeUncertificationRoutes')
+const userFieldVisibilityRoutes = require('./routes/userFieldVisibilityRoutes')
+const cacheRoutes = require('./routes/cacheRoutes')
+const databaseBrowserRoutes = require('./routes/databaseBrowserRoutes')
+const logFilesRoutes = require('./routes/logFilesRoutes')
+const trackerRoutes = require('./routes/trackerRoutes')
+const roleAssignmentRoutes = require('./routes/roleAssignmentRoutes')
+const bioRoutes = require('./routes/bioRoutes')
+
+const app = express()
+const server = http.createServer(app)
+const PORT = process.env.PORT || 3000
+
+const scheduledBackupService = new ScheduledBackupService(prisma)
+
+// Parse allowed origins from environment
+const parseAllowedOrigins = () => {
+  const origins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
+  // In development no env set, allow localhost for convenience
+  if (process.env.NODE_ENV === 'development' && origins.length === 0) {
+    return ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173']
+  }
+  return origins
+}
+
+const allowedOrigins = parseAllowedOrigins()
+
+// CORS origin validation function
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true // Allow same-origin/no-origin requests
+  if (allowedOrigins.length === 0) {
+    // If no origins configured in production, deny all
+    if (process.env.NODE_ENV === 'production') return false
+    // Development fallback
+    return true
+  }
+  
+  // Normalize origin (remove trailing slash, ensure protocol)
+  const normalizedOrigin = origin.trim().replace(/\/$/, '')
+  const isAllowed = allowedOrigins.some(allowed => {
+    const normalizedAllowed = allowed.trim().replace(/\/$/, '')
+    return normalizedAllowed === normalizedOrigin || normalizedOrigin.startsWith(normalizedAllowed)
+  })
+  
+  // Log CORS rejections for debugging
+  if (!isAllowed) {
+    console.warn('CORS rejection:', {
+      origin: normalizedOrigin,
+      allowedOrigins: allowedOrigins,
+      timestamp: new Date().toISOString()
+    })
+    try {
+      const { logger } = require('./utils/logger')
+      const appLogger = logger('default')
+      appLogger.warn('CORS rejection', {
+        origin: normalizedOrigin,
+        allowedOrigins: allowedOrigins
+      })
+    } catch (logError) {
+      // Logger not available, continue
+    }
+  }
+  
+  return isAllowed
+}
+
+// Socket.IO setup with extended timeouts for reliability
+const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true)
+      }
+      return callback(new Error('Not allowed by CORS'))
+    },
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  // Extended timeouts to prevent disconnections
+  pingTimeout: 60000,  // 60 seconds - time to wait for pong response
+  pingInterval: 25000, // 25 seconds - time between pings
+  // Enable reconnection and upgrade
+  transports: ['websocket', 'polling'],
+  allowUpgrades: true,
+  // Increase buffer size for large payloads
+  maxHttpBufferSize: 1e8, // 100MB
+  // Additional stability settings
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+    skipMiddlewares: true
+  }
+})
+
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true)
+    }
+    return callback(new Error('Not allowed by CORS'))
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token']
+}
+
+// Trust proxy for rate limiting behind Nginx
+app.set('trust proxy', 1)
+
+// Build CSP connectSrc dynamically from allowed origins
+const parseSocketOrigins = () => {
+  const origins = (process.env.SOCKET_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
+  return origins
+}
+
+const socketOrigins = parseSocketOrigins()
+const connectSrc = ["'self'"]
+// Add allowed origins to connectSrc
+allowedOrigins.forEach(origin => {
+  if (origin && !connectSrc.includes(origin)) {
+    connectSrc.push(origin)
+  }
+})
+// Add socket origins to connectSrc
+socketOrigins.forEach(origin => {
+  if (origin && !connectSrc.includes(origin)) {
+    connectSrc.push(origin)
+  }
+})
+
+// Middleware - Enhanced security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // React dev requires unsafe-eval
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: connectSrc,
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
+  hsts: {
+    maxAge: 31536000,        // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { 
+    action: 'deny'  // Prevent clickjacking
+  },
+  noSniff: true,  // Prevent MIME type sniffing
+  referrerPolicy: { 
+    policy: 'strict-origin-when-cross-origin' 
+  },
+  dnsPrefetchControl: { allow: false },
+  hidePoweredBy: true,
+}))
+
+// Additional Permissions Policy header
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()')
+  next()
+})
+
+app.use(cors(corsOptions))
+app.use(compression())
+app.use(morgan('combined'))
+app.use(express.json({ limit: '10mb' }))
+
+// Request logging with correlation IDs (QW-002)
+app.use(requestLogging)
+app.use(express.urlencoded({ extended: true }))
+
+// Cookie parser for CSRF tokens
+const cookieParser = require('cookie-parser')
+const path = require('path')
+app.use(cookieParser())
+
+// Create uploads directories
+const fs = require('fs')
+const uploadDirs = ['uploads/users', 'uploads/emcee', 'uploads/theme', 'uploads/bios']
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+})
+
+// Rate limiting
+app.use('/api/auth/', authLimiter)
+app.use('/api/', generalLimiter)
+
+// Performance monitoring middleware
+const { logPerformance } = require('./controllers/performanceController')
+app.use('/api/', logPerformance)
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() })
+})
+
+// CSRF token endpoint (public)
+const { getCsrfToken, csrfProtection, csrfErrorHandler } = require('./middleware/csrf')
+app.get('/api/csrf-token', getCsrfToken)
+
+// Apply CSRF protection to all mutating API routes
+app.use('/api', (req, res, next) => {
+  const method = req.method.toUpperCase()
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    return csrfProtection(req, res, next)
+  }
+  return next()
+})
+
+// API Routes
+// Health check routes (QW-003) - no authentication required
+app.use('/', healthRoutes)
+app.use('/api/auth', authRoutes)
+app.use('/api/events', eventsRoutes)
+app.use('/api/contests', contestsRoutes)
+app.use('/api/categories', categoriesRoutes)
+app.use('/api/users', usersRoutes)
+app.use('/api/scoring', scoringRoutes)
+app.use('/api/results', resultsRoutes)
+app.use('/api/commentary', commentaryRoutes)
+app.use('/api/deductions', deductionRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/upload', uploadRoutes)
+app.use('/api/settings', settingsRoutes)
+app.use('/api/sms', smsRoutes)
+app.use('/api/archive', archiveRoutes)
+app.use('/api/backup', backupRoutes)
+app.use('/api/assignments', assignmentsRoutes)
+app.use('/api/files', fileRoutes)
+app.use('/api/performance', performanceRoutes)
+app.use('/api/certifications', certificationRoutes)
+app.use('/api/auditor', auditorRoutes)
+app.use('/api/board', boardRoutes)
+app.use('/api/tally-master', tallyMasterRoutes)
+app.use('/api/judge', judgeRoutes)
+app.use('/api/email', emailRoutes)
+app.use('/api/reports', reportsRoutes)
+app.use('/api/print', printRoutes)
+app.use('/api/export', exportRoutes)
+app.use('/api/file-management', fileManagementRoutes)
+app.use('/api/file-backup', fileBackupRoutes)
+app.use('/api/errors', errorHandlingRoutes)
+app.use('/api/templates', templatesRoutes)
+app.use('/api/category-templates', templatesRoutes)
+app.use('/api/event-templates', eventTemplateRoutes)
+app.use('/api/notifications', notificationsRoutes)
+app.use('/api/emcee', emceeRoutes)
+app.use('/api/category-types', categoryTypeRoutes)
+app.use('/api/navigation', navigationRoutes)
+app.use('/api/advanced-reports', advancedReportingRoutes)
+app.use('/api/winners', winnersRoutes)
+app.use('/api/contest-certifications', contestCertificationRoutes)
+app.use('/api/judge-certifications', judgeContestantCertificationRoutes)
+app.use('/api/category-certifications', categoryCertificationRoutes)
+app.use('/api/judge-uncertification', judgeUncertificationRoutes)
+app.use('/api/user-field-visibility', userFieldVisibilityRoutes)
+app.use('/api/cache', cacheRoutes)
+app.use('/api/database', databaseBrowserRoutes)
+app.use('/api/log-files', logFilesRoutes)
+app.use('/api/tracker', trackerRoutes)
+app.use('/api/role-assignments', roleAssignmentRoutes)
+app.use('/api/bios', bioRoutes)
+
+// Serve uploaded files statically with security options
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  dotfiles: 'deny', // Prevent access to dotfiles
+  index: false, // Disable directory listing
+  setHeaders: (res, filePath) => {
+    // Set appropriate cache headers for uploaded files
+    if (filePath.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000') // 1 year for images
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600') // 1 hour for other files
+    }
+    // Security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+  }
+}))
+
+// Socket.IO connection handling
+  io.on('connection', (socket) => {
+  appLogger.info('User connected', { socketId: socket.id })
+  
+  socket.on('disconnect', () => {
+    appLogger.info('User disconnected', { socketId: socket.id })
+  })
+})
+
+// CSRF error handler (must come before general error handler)
+app.use(csrfErrorHandler)
+
+// Error handling middleware
+// Error logging middleware (QW-002)
+app.use(errorLogging)
+app.use(errorHandler)
+
+// Start server
+server.listen(PORT, async () => {
+
+  // Start scheduled backup service
+  try {
+    await scheduledBackupService.start()
+    backupLogger.info("Scheduled backup service started")
+  } catch (error) {
+    backupLogger.error("Failed to start scheduled backup service", { error: error.message })
+  }
+  appLogger.info(`Event Manager API server running on port ${PORT}`)
+})
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  await scheduledBackupService.stop()
+  appLogger.info('SIGTERM received, shutting down gracefully')
+  await prisma.$disconnect()
+  process.exit(0)
+})
+
+process.on('SIGINT', async () => {
+  await scheduledBackupService.stop()
+  appLogger.info('SIGINT received, shutting down gracefully')
+  await prisma.$disconnect()
+  process.exit(0)
+})

@@ -1,0 +1,96 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getAllCategoryTypes = async (req, res) => {
+  const log = createRequestLogger(req, 'categorytype')
+  try {
+    const categoryTypes = await prisma.categoryType.findMany({
+      orderBy: { name: 'asc' }
+    })
+
+    res.json(categoryTypes)
+  } catch (error) {
+    log.error('Get category types error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createCategoryType = async (req, res) => {
+  const log = createRequestLogger(req, 'categorytype')
+  try {
+    const { name, description } = req.body
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' })
+    }
+
+    const categoryType = await prisma.categoryType.create({
+      data: {
+        name,
+        description: description || null,
+        isSystem: false,
+        createdById: req.user.id
+      }
+    })
+
+    res.status(201).json(categoryType)
+  } catch (error) {
+    log.error('Create category type error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const updateCategoryType = async (req, res) => {
+  const log = createRequestLogger(req, 'categorytype')
+  try {
+    const { id } = req.params
+    const { name, description } = req.body
+
+    const categoryType = await prisma.categoryType.update({
+      where: { id },
+      data: {
+        name,
+        description: description || null
+      }
+    })
+
+    res.json(categoryType)
+  } catch (error) {
+    log.error('Update category type error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteCategoryType = async (req, res) => {
+  const log = createRequestLogger(req, 'categorytype')
+  try {
+    const { id } = req.params
+
+    // Check if it's a system category type
+    const categoryType = await prisma.categoryType.findUnique({
+      where: { id }
+    })
+
+    if (categoryType.isSystem) {
+      return res.status(400).json({ error: 'Cannot delete system category types' })
+    }
+
+    await prisma.categoryType.delete({
+      where: { id }
+    })
+
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete category type error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getAllCategoryTypes,
+  createCategoryType,
+  updateCategoryType,
+  deleteCategoryType
+}

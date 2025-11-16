@@ -1,0 +1,1238 @@
+const bcrypt = require('bcryptjs')
+const { maxFileSize, maxFileSizeMB } = require('../utils/config')
+const { createRequestLogger } = require('../utils/logger')
+const prisma = require('../utils/prisma')
+const contestantNumberingService = require('../services/contestantNumberingService')
+const { userCache } = require('../utils/cache')
+
+// Upload user image
+const uploadUserImage = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    const requestingUserId = req.user?.id
+    const requestingUserRole = req.user?.role
+    
+    log.info('User image upload requested', { userId: id, requestingUserId, requestingUserRole, fileSize: req.file?.size, mimetype: req.file?.mimetype })
+    
+    // Check permissions: user can upload their own image, or admin/organizer/board can upload for others
+    if (requestingUserId !== id && !['ADMIN', 'ORGANIZER', 'BOARD'].includes(requestingUserRole)) {
+      log.warn('User image upload denied: insufficient permissions', { userId: id, requestingUserId, requestingUserRole })
+      return res.status(403).json({ error: 'You do not have permission to upload images for this user' })
+    }
+    
+    if (!req.file) {
+      log.warn('User image upload failed: no file provided', { userId: id })
+      return res.status(400).json({ error: "No image file provided" })
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"]
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      log.warn('User image upload failed: invalid file type', { userId: id, mimetype: req.file.mimetype })
+      return res.status(400).json({ error: "Invalid file type. Only JPEG, PNG, and GIF are allowed." })
+    }
+
+    // Validate file size (configurable limit)
+    if (req.file.size > maxFileSize) {
+      log.warn('User image upload failed: file too large', { userId: id, fileSize: req.file.size, maxSize: maxFileSize })
+      return res.status(400).json({ error: `File size too large. Maximum ${maxFileSizeMB}MB allowed.` })
+    }
+
+    const imagePath = `/uploads/users/${req.file.filename}`
+    log.debug('Updating user with image path', { userId: id, imagePath })
+
+    // Update user with image path
+    const user = await prisma.user.update({
+      where: { id },
+      data: { imagePath }
+    })
+
+    // Invalidate user cache after update
+    userCache.invalidate(id)
+
+    log.info('User image uploaded successfully', { userId: id, imagePath })
+    res.json({
+      message: "Image uploaded successfully",
+      imagePath,
+      user
+    })
+  } catch (error) {
+    log.error("Upload user image error", { error: error.message, stack: error.stack, userId: req.params.id })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+// Upload user bio file
+const uploadUserBioFile = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    log.info('User bio file upload requested', { userId: id, fileSize: req.file?.size, mimetype: req.file?.mimetype })
+    
+    if (!req.file) {
+      log.warn('User bio file upload failed: no file provided', { userId: id })
+      return res.status(400).json({ error: "No bio file provided" })
+    }
+
+    // Validate file type
+    const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      log.warn('User bio file upload failed: invalid file type', { userId: id, mimetype: req.file.mimetype })
+      return res.status(400).json({ error: "Invalid file type. Only PDF, DOC, and DOCX are allowed." })
+    }
+
+    // Validate file size (10MB max for bio files)
+    const maxBioFileSize = 10 * 1024 * 1024 // 10MB
+    if (req.file.size > maxBioFileSize) {
+      log.warn('User bio file upload failed: file too large', { userId: id, fileSize: req.file.size, maxSize: maxBioFileSize })
+      return res.status(400).json({ error: `File size too large. Maximum 10MB allowed.` })
+    }
+
+    const bioFilePath = `/uploads/users/bios/${req.file.filename}`
+    log.debug('Updating user with bio file path', { userId: id, bioFilePath })
+
+    // Store bio file path - ideally would be in File model
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        bio: req.file.filename // Store filename as reference
+      }
+    })
+
+    // Invalidate user cache after update
+    userCache.invalidate(id)
+
+    log.info('User bio file uploaded successfully', { userId: id, bioFilePath })
+    res.json({ 
+      message: "Bio file uploaded successfully",
+      bioFilePath,
+      user 
+    })
+  } catch (error) {
+    log.error("Upload user bio file error", { error: error.message, stack: error.stack, userId: req.params.id })
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+const getAllUsers = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    log.debug('Fetching all users')
+    const users = await prisma.user.findMany({
+      include: {
+        judge: true,
+        contestant: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Map lastLoginAt to lastLogin for frontend compatibility
+    const mappedUsers = users.map(user => ({
+      ...user,
+      lastLogin: user.lastLoginAt || null
+    }))
+
+    log.info('Users retrieved successfully', { count: mappedUsers.length })
+    res.json({ data: mappedUsers })
+  } catch (error) {
+    log.error('Get users error', { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getUserById = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    log.debug('Fetching user by ID', { userId: id })
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        judge: true,
+        contestant: true
+      }
+    })
+
+    if (!user) {
+      log.warn('User not found', { userId: id })
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user
+    
+    log.debug('User retrieved successfully', { userId: id, email: user.email, hasImagePath: !!user.imagePath })
+    res.json({ data: userWithoutPassword })
+  } catch (error) {
+    log.error('Get user error', { error: error.message, stack: error.stack, userId: req.params.id })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const createUser = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { 
+      name, email, password, role, preferredName, gender, pronouns, 
+      phone, address, bio, judgeNumber, judgeLevel, isHeadJudge,
+      contestantNumber, age, school, grade, parentGuardian, parentPhone,
+      contestAssignment, categoryAssignment
+    } = req.body
+
+    log.info('User creation requested', { 
+      email, 
+      role, 
+      name, 
+      hasContestAssignment: !!contestAssignment,
+      hasCategoryAssignment: !!categoryAssignment
+    })
+
+    // Validate required fields
+    if (!name || !email || !password || !role) {
+      log.warn('User creation failed: missing required fields', { 
+        hasName: !!name, 
+        hasEmail: !!email, 
+        hasPassword: !!password, 
+        hasRole: !!role 
+      })
+      return res.status(400).json({ error: 'Name, email, password, and role are required' })
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      log.warn('User creation failed: invalid email format', { email })
+      return res.status(400).json({ error: 'Invalid email format' })
+    }
+
+    // Validate role
+    const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+    if (!validRoles.includes(role)) {
+      log.warn('User creation failed: invalid role', { role })
+      return res.status(400).json({ error: 'Invalid role' })
+    }
+
+    // Check if email already exists
+    log.debug('Checking if email already exists', { email })
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    })
+
+    if (existingUser) {
+      log.warn('User creation failed: email already exists', { email })
+      return res.status(400).json({ error: 'User with this email already exists' })
+    }
+
+    log.debug('Hashing password')
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Create user with role-specific data
+    const userData = {
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      preferredName: preferredName || null,
+      gender: gender || null,
+      pronouns: pronouns || null,
+      phone: phone || null,
+      address: address || null,
+      bio: bio || null,
+      isActive: true
+    }
+
+    // Add role-specific fields
+    if (role === 'JUDGE') {
+      userData.judgeBio = bio || null
+      userData.judgeCertifications = judgeLevel || null
+    } else if (role === 'CONTESTANT') {
+      userData.contestantBio = bio || null
+      userData.contestantNumber = contestantNumber || null
+      userData.contestantAge = age ? parseInt(age) : null
+      userData.contestantSchool = school || null
+    }
+
+    log.debug('Creating user record', { email, role })
+    const user = await prisma.user.create({
+      data: userData
+    })
+    log.info('User record created', { userId: user.id, email, role })
+
+    // Create associated Judge or Contestant record if applicable
+    if (role === 'JUDGE') {
+      log.debug('Creating judge record', { userId: user.id })
+      const judge = await prisma.judge.create({
+        data: {
+          name,
+          email,
+          gender: gender || null,
+          pronouns: pronouns || null,
+          bio: bio || null,
+          isHeadJudge: isHeadJudge || false
+        }
+      })
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { judgeId: judge.id }
+      })
+      log.info('Judge record created and linked', { userId: user.id, judgeId: judge.id })
+    } else if (role === 'CONTESTANT') {
+      log.debug('Creating contestant record', { userId: user.id })
+      // Determine contestant number based on contest numbering mode
+      let finalContestantNumber = contestantNumber ? parseInt(contestantNumber) : null
+      
+      // If contest assignment is provided, check auto-numbering
+      if (contestAssignment && !contestantNumber) {
+        try {
+          log.debug('Checking auto-numbering mode', { contestId: contestAssignment })
+          const mode = await contestantNumberingService.getNumberingMode(contestAssignment)
+          if (mode === 'AUTO_INDEXED') {
+            finalContestantNumber = await contestantNumberingService.getNextContestantNumber(contestAssignment)
+            log.debug('Auto-assigned contestant number', { contestId: contestAssignment, number: finalContestantNumber })
+          }
+        } catch (error) {
+          log.error('Error getting auto contestant number', { error: error.message, contestId: contestAssignment })
+          // Continue without auto-number
+        }
+      }
+      
+      const contestant = await prisma.contestant.create({
+        data: {
+          name,
+          email,
+          contestantNumber: finalContestantNumber,
+          bio: bio || null,
+          gender: gender || null,
+          pronouns: pronouns || null
+        }
+      })
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { contestantId: contestant.id }
+      })
+      log.info('Contestant record created and linked', { userId: user.id, contestantId: contestant.id, contestantNumber: finalContestantNumber })
+    }
+
+    // Fetch the updated user with relations
+    const createdUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        judge: true,
+        contestant: true
+      }
+    })
+
+    // Create assignments if contestAssignment or categoryAssignment is provided
+    if ((contestAssignment || categoryAssignment) && (role === 'JUDGE' || role === 'CONTESTANT')) {
+      log.debug('Creating assignments', { 
+        userId: createdUser.id, 
+        contestAssignment, 
+        categoryAssignment,
+        role 
+      })
+      try {
+        let categoriesToAssign = []
+
+        if (categoryAssignment) {
+          // Specific category assignment - assign to just this one category
+          const category = await prisma.category.findUnique({
+            where: { id: categoryAssignment },
+            include: {
+              contest: {
+                include: {
+                  event: true
+                }
+              }
+            }
+          })
+          if (category) {
+            categoriesToAssign = [category]
+            log.debug('Found category for assignment', { categoryId: category.id, categoryName: category.name })
+          }
+        } else if (contestAssignment) {
+          // Contest assignment - assign to ALL categories in this contest
+          const contestCategories = await prisma.category.findMany({
+            where: { contestId: contestAssignment },
+            include: {
+              contest: {
+                include: {
+                  event: true
+                }
+              }
+            }
+          })
+          categoriesToAssign = contestCategories
+          log.debug('Found categories for contest assignment', { contestId: contestAssignment, count: contestCategories.length })
+        }
+
+        // Create assignments for all categories
+        let assignmentCount = 0
+        for (const category of categoriesToAssign) {
+          if (role === 'JUDGE' && createdUser.judgeId) {
+            // Create judge assignment
+            try {
+              await prisma.assignment.create({
+                data: {
+                  judgeId: createdUser.judgeId,
+                  categoryId: category.id,
+                  contestId: category.contestId,
+                  eventId: category.contest.eventId,
+                  assignedBy: req.user.id,
+                  status: 'PENDING'
+                }
+              })
+              assignmentCount++
+            } catch (error) {
+              // Ignore duplicate assignment errors
+              if (error.code !== 'P2002') {
+                log.error('Judge assignment error', { error: error.message, categoryId: category.id, judgeId: createdUser.judgeId })
+              } else {
+                log.debug('Judge assignment already exists', { categoryId: category.id, judgeId: createdUser.judgeId })
+              }
+            }
+          } else if (role === 'CONTESTANT' && createdUser.contestantId) {
+            // Create contestant assignment
+            try {
+              await prisma.categoryContestant.create({
+                data: {
+                  categoryId: category.id,
+                  contestantId: createdUser.contestantId
+                }
+              })
+              assignmentCount++
+            } catch (error) {
+              // Ignore duplicate assignment errors
+              if (error.code !== 'P2002') {
+                log.error('Contestant assignment error', { error: error.message, categoryId: category.id, contestantId: createdUser.contestantId })
+              } else {
+                log.debug('Contestant assignment already exists', { categoryId: category.id, contestantId: createdUser.contestantId })
+              }
+            }
+          }
+        }
+        log.info('Assignments created', { userId: createdUser.id, assignmentCount, role })
+      } catch (assignmentError) {
+        log.error('Assignment creation error (non-critical)', { error: assignmentError.message, userId: createdUser.id })
+        // Don't fail user creation if assignment fails
+      }
+    }
+
+    log.info('User created successfully', { userId: createdUser.id, email, role })
+    res.status(201).json(createdUser)
+  } catch (error) {
+    log.error('Create user error', { error: error.message, stack: error.stack, email: req.body.email })
+    if (error.code === 'P2002') {
+      res.status(400).json({ error: 'User with this email already exists' })
+    } else {
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+}
+
+const updateUser = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    log.info('User update requested', { userId: id })
+    
+    const { 
+      name, email, role, phone, address, city, state, country,
+      bio, preferredName, pronouns, gender,
+      judgeNumber, judgeLevel, isHeadJudge,
+      contestantNumber, age, school, grade, parentGuardian, parentPhone,
+      emergencyContact, emergencyPhone, isActive
+    } = req.body
+
+    // Get current user to check if they have a judgeId or contestantId
+    log.debug('Fetching current user data', { userId: id })
+    const currentUser = await prisma.user.findUnique({
+      where: { id }
+    })
+
+    if (!currentUser) {
+      log.warn('User update failed: user not found', { userId: id })
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    log.debug('Building user update data', { 
+      userId: id, 
+      roleChanged: role !== currentUser.role,
+      oldRole: currentUser.role,
+      newRole: role 
+    })
+
+    const userData = {
+      name,
+      email,
+      role,
+      phone: phone || null,
+      address: address || null,
+      city: city || null,
+      state: state || null,
+      country: country || null,
+      bio: bio || null,
+      preferredName: preferredName || null,
+      pronouns: pronouns || null,
+      gender: gender || null,
+      isActive: isActive !== undefined ? isActive : true
+    }
+
+    // Add role-specific fields for User model
+    if (role === 'JUDGE') {
+      userData.judgeBio = bio || null
+      userData.judgeCertifications = judgeLevel || null
+    } else if (role === 'CONTESTANT') {
+      userData.contestantBio = bio || null
+      userData.contestantNumber = contestantNumber || null
+      userData.contestantAge = age ? parseInt(age) : null
+      userData.contestantSchool = school || null
+    }
+
+    // Update user
+    log.debug('Updating user record', { userId: id })
+    const user = await prisma.user.update({
+      where: { id },
+      data: userData,
+      include: {
+        judge: true,
+        contestant: true
+      }
+    })
+
+    // Invalidate user cache after update
+    userCache.invalidate(id)
+
+    log.info('User record updated', { userId: id, email: user.email })
+
+    // Update associated Judge record if user is a judge and isHeadJudge is provided
+    if (currentUser.role === 'JUDGE' && isHeadJudge !== undefined && currentUser.judgeId) {
+      log.debug('Updating judge head judge status', { userId: id, judgeId: currentUser.judgeId, isHeadJudge })
+      await prisma.judge.update({
+        where: { id: currentUser.judgeId },
+        data: { isHeadJudge: isHeadJudge }
+      })
+    }
+
+    // Update or create Judge record if role is being changed to JUDGE
+    if (role === 'JUDGE' && !currentUser.judgeId) {
+      log.info('Creating judge record for user', { userId: id })
+      const judge = await prisma.judge.create({
+        data: {
+          name,
+          email,
+          gender: user.gender || null,
+          pronouns: pronouns || null,
+          bio: bio || null,
+          isHeadJudge: isHeadJudge || false
+        }
+      })
+      
+      await prisma.user.update({
+        where: { id },
+        data: { judgeId: judge.id }
+      })
+      
+      user.judgeId = judge.id
+      log.info('Judge record created and linked', { userId: id, judgeId: judge.id })
+    }
+
+    // Update or create Contestant record if role is being changed to CONTESTANT
+    if (role === 'CONTESTANT' && !currentUser.contestantId) {
+      log.info('Creating contestant record for user', { userId: id })
+      const contestant = await prisma.contestant.create({
+        data: {
+          name,
+          email,
+          contestantNumber: contestantNumber ? parseInt(contestantNumber) : null,
+          bio: bio || null
+        }
+      })
+      
+      await prisma.user.update({
+        where: { id },
+        data: { contestantId: contestant.id }
+      })
+      
+      user.contestantId = contestant.id
+      log.info('Contestant record created and linked', { userId: id, contestantId: contestant.id })
+    }
+
+    log.info('User updated successfully', { userId: id, email: user.email })
+    res.json(user)
+  } catch (error) {
+    log.error('Update user error', { error: error.message, stack: error.stack, userId: req.params.id })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const deleteUser = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    log.info('User deletion requested', { userId: id })
+
+    // Fetch user before deletion for logging
+    const userToDelete = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, name: true, role: true }
+    })
+
+    if (!userToDelete) {
+      log.warn('User deletion failed: user not found', { userId: id })
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    log.debug('Deleting user record', { userId: id, email: userToDelete.email })
+    await prisma.user.delete({
+      where: { id }
+    })
+
+    log.info('User deleted successfully', { userId: id, email: userToDelete.email, role: userToDelete.role })
+    res.status(204).send()
+  } catch (error) {
+    log.error('Delete user error', { error: error.message, stack: error.stack, userId: req.params.id })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const resetPassword = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    const { newPassword } = req.body
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    await prisma.user.update({
+      where: { id },
+      data: {
+        password: hashedPassword
+      }
+    })
+
+    res.json({ message: 'Password reset successfully' })
+  } catch (error) {
+    log.error('Reset password error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// CSV Import functionality
+const importUsersFromCSV = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { csvData, userType } = req.body
+
+    if (!csvData || !Array.isArray(csvData) || csvData.length === 0) {
+      return res.status(400).json({ error: 'CSV data is required' })
+    }
+
+    if (!userType) {
+      return res.status(400).json({ error: 'User type is required' })
+    }
+
+    const results = []
+    const errors = []
+
+    for (let i = 0; i < csvData.length; i++) {
+      const row = csvData[i]
+      try {
+        // Validate required fields based on user type
+        const requiredFields = ['name', 'email']
+        const missingFields = requiredFields.filter(field => !row[field])
+        
+        if (missingFields.length > 0) {
+          errors.push({
+            row: i + 1,
+            error: `Missing required fields: ${missingFields.join(', ')}`
+          })
+          continue
+        }
+
+        // Check if user already exists
+        const existingUser = await prisma.user.findUnique({
+          where: { email: row.email }
+        })
+
+        if (existingUser) {
+          errors.push({
+            row: i + 1,
+            email: row.email,
+            error: 'User already exists'
+          })
+          continue
+        }
+
+        // Hash password (use default or provided)
+        const password = row.password || 'defaultPassword123!'
+        const hashedPassword = await bcrypt.hash(password, 10)
+
+        // Create user data
+        const userData = {
+          name: row.name,
+          email: row.email,
+          password: hashedPassword,
+          role: userType,
+          isActive: true,
+          preferredName: row.preferredName || null,
+          pronouns: row.pronouns || null,
+          phone: row.phone || null,
+          address: row.address || null,
+          emergencyContact: row.emergencyContact || null,
+          emergencyPhone: row.emergencyPhone || null,
+          medicalInfo: row.medicalInfo || null,
+          notes: row.notes || null
+        }
+
+        // Create user
+        const user = await prisma.user.create({
+          data: userData
+        })
+
+        // Create role-specific data
+        if (userType === 'JUDGE' && row.judgeData) {
+          await prisma.judge.create({
+            data: {
+              userId: user.id,
+              experience: row.judgeData.experience || null,
+              specialties: row.judgeData.specialties || null,
+              certifications: row.judgeData.certifications || null,
+              bio: row.judgeData.bio || null,
+              availability: row.judgeData.availability || null
+            }
+          })
+        } else if (userType === 'CONTESTANT' && row.contestantData) {
+          await prisma.contestant.create({
+            data: {
+              userId: user.id,
+              contestantNumber: row.contestantData.contestantNumber || null,
+              age: row.contestantData.age || null,
+              school: row.contestantData.school || null,
+              grade: row.contestantData.grade || null,
+              parentGuardian: row.contestantData.parentGuardian || null,
+              parentPhone: row.contestantData.parentPhone || null,
+              parentEmail: row.contestantData.parentEmail || null,
+              bio: row.contestantData.bio || null,
+              achievements: row.contestantData.achievements || null
+            }
+          })
+        }
+
+        results.push({
+          row: i + 1,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          },
+          status: 'SUCCESS'
+        })
+      } catch (error) {
+        log.error(`Error processing row ${i + 1}:`, error, { error: error.message, stack: error.stack })
+        errors.push({
+          row: i + 1,
+          error: error.message
+        })
+      }
+    }
+
+    res.json({
+      message: 'CSV import completed',
+      totalProcessed: csvData.length,
+      successful: results.length,
+      failed: errors.length,
+      results: results,
+      errors: errors
+    })
+  } catch (error) {
+    log.error('CSV import error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get CSV template
+const getCSVTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { userType } = req.query
+
+    if (!userType) {
+      return res.status(400).json({ error: 'User type is required' })
+    }
+
+    let template = {
+      headers: ['name', 'email', 'preferredName', 'pronouns', 'phone', 'address', 'emergencyContact', 'emergencyPhone', 'medicalInfo', 'notes'],
+      sample: {
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+        preferredName: 'Johnny',
+        pronouns: 'he/him',
+        phone: '555-1234',
+        address: '123 Main St, City, State 12345',
+        emergencyContact: 'Jane Doe',
+        emergencyPhone: '555-5678',
+        medicalInfo: 'None',
+        notes: 'Sample user'
+      }
+    }
+
+    // Add role-specific fields
+    if (userType === 'JUDGE') {
+      template.headers.push('judgeData.experience', 'judgeData.specialties', 'judgeData.certifications', 'judgeData.bio', 'judgeData.availability')
+      template.sample['judgeData.experience'] = '5 years'
+      template.sample['judgeData.specialties'] = 'Speech, Debate'
+      template.sample['judgeData.certifications'] = 'Certified Judge'
+      template.sample['judgeData.bio'] = 'Experienced judge'
+      template.sample['judgeData.availability'] = 'Weekends'
+    } else if (userType === 'CONTESTANT') {
+      template.headers.push('contestantData.contestantNumber', 'contestantData.age', 'contestantData.school', 'contestantData.grade', 'contestantData.parentGuardian', 'contestantData.parentPhone', 'contestantData.parentEmail', 'contestantData.bio', 'contestantData.achievements')
+      template.sample['contestantData.contestantNumber'] = '001'
+      template.sample['contestantData.age'] = '16'
+      template.sample['contestantData.school'] = 'High School'
+      template.sample['contestantData.grade'] = '11'
+      template.sample['contestantData.parentGuardian'] = 'Jane Doe'
+      template.sample['contestantData.parentPhone'] = '555-5678'
+      template.sample['contestantData.parentEmail'] = 'jane.doe@example.com'
+      template.sample['contestantData.bio'] = 'Student bio'
+      template.sample['contestantData.achievements'] = 'Previous awards'
+    }
+
+    res.json(template)
+  } catch (error) {
+    log.error('Get CSV template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Update user last login
+const updateLastLogin = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        lastLoginAt: new Date()
+      }
+    })
+
+    // Invalidate user cache after update
+    userCache.invalidate(id)
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      lastLoginAt: user.lastLoginAt
+    })
+  } catch (error) {
+    log.error('Update last login error:', error, { error: error.message, stack: error.stack })
+    if (error.code === 'P2025') {
+      res.status(404).json({ error: 'User not found' })
+    } else {
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+}
+
+// Bulk remove users
+const bulkRemoveUsers = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { userIds } = req.body
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs array is required' })
+    }
+
+    // Prevent deletion of admin users
+    const adminUsers = await prisma.user.findMany({
+      where: {
+        id: { in: userIds },
+        role: 'ORGANIZER'
+      }
+    })
+
+    if (adminUsers.length > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete admin users',
+        adminUsers: adminUsers.map(u => ({ id: u.id, name: u.name, email: u.email }))
+      })
+    }
+
+    const result = await prisma.user.deleteMany({
+      where: {
+        id: { in: userIds }
+      }
+    })
+
+    res.json({
+      message: `${result.count} users deleted successfully`,
+      deletedCount: result.count
+    })
+  } catch (error) {
+    log.error('Bulk remove users error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Remove all users by role
+const removeAllUsersByRole = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { role } = req.params
+    
+    // Validate role
+    const validRoles = ['JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']
+    if (!validRoles.includes(role.toUpperCase())) {
+      return res.status(400).json({ error: 'Invalid role' })
+    }
+
+    const roleUpper = role.toUpperCase()
+
+    // Prevent deletion of admin/organizer users
+    if (roleUpper === 'ADMIN' || roleUpper === 'ORGANIZER') {
+      return res.status(400).json({ error: 'Cannot delete admin or organizer users' })
+    }
+
+    // Get users to be deleted
+    const usersToDelete = await prisma.user.findMany({
+      where: { role: roleUpper },
+      select: { id: true, name: true, email: true }
+    })
+
+    if (usersToDelete.length === 0) {
+      return res.json({
+        message: `No ${role} users found`,
+        deletedCount: 0
+      })
+    }
+
+    // Delete users
+    const result = await prisma.user.deleteMany({
+      where: { role: roleUpper }
+    })
+
+    res.json({
+      message: `${result.count} ${role} users deleted successfully`,
+      deletedCount: result.count,
+      deletedUsers: usersToDelete
+    })
+  } catch (error) {
+    log.error('Remove all users by role error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get users by role
+const getUsersByRole = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { role } = req.params
+
+    const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' })
+    }
+
+    const users = await prisma.user.findMany({
+      where: { role },
+      include: {
+        judge: true,
+        contestant: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    res.json(users)
+  } catch (error) {
+    log.error('Get users by role error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Update user role-specific fields
+const updateUserRoleFields = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { id } = req.params
+    const { role, roleSpecificData } = req.body
+
+    if (!role || !roleSpecificData) {
+      return res.status(400).json({ error: 'Role and role-specific data are required' })
+    }
+
+    let updateData = {}
+
+    switch (role) {
+      case 'JUDGE':
+        updateData = {
+          judgeBio: roleSpecificData.bio || null,
+          judgeSpecialties: roleSpecificData.specialties ? JSON.stringify(roleSpecificData.specialties) : null,
+          judgeCertifications: roleSpecificData.certifications ? JSON.stringify(roleSpecificData.certifications) : null,
+          isHeadJudge: roleSpecificData.isHeadJudge || false
+        }
+        break
+
+      case 'CONTESTANT':
+        updateData = {
+          contestantBio: roleSpecificData.bio || null,
+          contestantNumber: roleSpecificData.number || null,
+          contestantAge: roleSpecificData.age || null,
+          contestantSchool: roleSpecificData.school || null
+        }
+        break
+
+      case 'EMCEE':
+        updateData = {
+          bio: roleSpecificData.bio || null,
+          phone: roleSpecificData.phone || null
+        }
+        break
+
+      default:
+        updateData = {
+          bio: roleSpecificData.bio || null,
+          phone: roleSpecificData.phone || null
+        }
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateData
+    })
+
+    res.json(user)
+  } catch (error) {
+    log.error('Update user role fields error:', error, { error: error.message, stack: error.stack })
+    if (error.code === 'P2025') {
+      res.status(404).json({ error: 'User not found' })
+    } else {
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+}
+
+// Get user statistics
+const getUserStats = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const [totalUsers, usersByRole, recentLogins] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.groupBy({
+        by: ['role'],
+        _count: {
+          role: true
+        }
+      }),
+      prisma.user.count({
+        where: {
+          lastLoginAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+          }
+        }
+      })
+    ])
+
+    const roleStats = usersByRole.reduce((acc, item) => {
+      acc[item.role] = item._count.role
+      return acc
+    }, {})
+
+    res.json({
+      totalUsers,
+      usersByRole: roleStats,
+      recentLogins,
+      lastWeek: recentLogins
+    })
+  } catch (error) {
+    log.error('Get user stats error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+
+// Bulk upload users from CSV
+const bulkUploadUsers = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'CSV file is required' })
+    }
+
+    const results = []
+    const errors = []
+    const csv = require('csv-parser')
+    const fs = require('fs')
+
+    // Parse CSV file
+    const csvData = []
+    const stream = fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on('data', (data) => csvData.push(data))
+      .on('end', async () => {
+        try {
+          for (let i = 0; i < csvData.length; i++) {
+            const row = csvData[i]
+            const { name, email, password, role, phone, bio } = row
+
+            // Validate required fields
+            if (!name || !email || !password || !role) {
+              errors.push({
+                row: i + 1,
+                error: 'Missing required fields: name, email, password, role'
+              })
+              continue
+            }
+
+            // Check if user already exists
+            const existingUser = await prisma.user.findUnique({
+              where: { email }
+            })
+
+            if (existingUser) {
+              errors.push({
+                row: i + 1,
+                email,
+                error: 'User with this email already exists'
+              })
+              continue
+            }
+
+            // Hash password
+            const hashedPassword = await bcrypt.hash(password, 10)
+
+            // Create user
+            const user = await prisma.user.create({
+              data: {
+                name,
+                email,
+                password: hashedPassword,
+                role,
+                phone: phone || null,
+                bio: bio || null
+              },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                phone: true,
+                bio: true
+              }
+            })
+
+            results.push(user)
+          }
+
+          // Clean up uploaded file
+          fs.unlinkSync(req.file.path)
+
+          res.json({
+            message: 'Bulk upload completed',
+            imported: results.length,
+            errors: errors.length,
+            results,
+            errors
+          })
+        } catch (error) {
+          log.error('Bulk upload processing error:', error, { error: error.message, stack: error.stack })
+          res.status(500).json({ error: 'Internal server error' })
+        }
+      })
+      .on('error', (error) => {
+        log.error('CSV parsing error:', error, { error: error.message, stack: error.stack })
+        res.status(500).json({ error: 'Failed to parse CSV file' })
+      })
+  } catch (error) {
+    log.error('Bulk upload users error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Bulk delete users
+const bulkDeleteUsers = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { userIds } = req.body
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs array is required' })
+    }
+
+    // Verify all users exist
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, email: true }
+    })
+
+    if (users.length !== userIds.length) {
+      return res.status(400).json({ 
+        error: 'Some users not found',
+        found: users.length,
+        requested: userIds.length
+      })
+    }
+
+    // Delete users
+    await prisma.user.deleteMany({
+      where: { id: { in: userIds } }
+    })
+
+    res.json({
+      message: 'Users deleted successfully',
+      deletedCount: users.length,
+      deletedUsers: users.map(u => ({ id: u.id, name: u.name, email: u.email }))
+    })
+  } catch (error) {
+    log.error('Bulk delete users error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get bulk upload template
+const getBulkUploadTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'users')
+  try {
+    const { userType } = req.params
+
+    const template = `name,email,password,role,phone,bio
+John Doe,john.doe@example.com,password123,${userType},+1234567890,User bio here
+Jane Smith,jane.smith@example.com,password123,${userType},+1234567891,Another user bio`
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', `attachment; filename="${userType}_bulk_template.csv"`)
+    res.send(template)
+  } catch (error) {
+    log.error('Get bulk upload template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  uploadUserImage,
+  uploadUserBioFile,
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+  resetPassword,
+  importUsersFromCSV,
+  getCSVTemplate,
+  updateLastLogin,
+  bulkRemoveUsers,
+  removeAllUsersByRole,
+  getUsersByRole,
+  updateUserRoleFields,
+  getUserStats,
+  bulkUploadUsers,
+  bulkDeleteUsers,
+  getBulkUploadTemplate
+}

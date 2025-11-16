@@ -1,0 +1,224 @@
+/**
+ * Notification Template Repository
+ * Handles database operations for notification templates
+ */
+
+import { injectable } from 'tsyringe';
+import { PrismaClient, NotificationTemplate, Prisma } from '@prisma/client';
+import prisma from '../config/database';
+
+export interface CreateNotificationTemplateDTO {
+  name: string;
+  type: string;
+  title: string;
+  body: string;
+  emailSubject?: string;
+  emailBody?: string;
+  variables?: string[];
+  isActive?: boolean;
+}
+
+export interface UpdateNotificationTemplateDTO {
+  name?: string;
+  type?: string;
+  title?: string;
+  body?: string;
+  emailSubject?: string;
+  emailBody?: string;
+  variables?: string[];
+  isActive?: boolean;
+}
+
+@injectable()
+export class NotificationTemplateRepository {
+  constructor(private prismaClient: PrismaClient = prisma) {}
+
+  /**
+   * Find template by ID
+   */
+  async findById(id: string): Promise<NotificationTemplate | null> {
+    return this.prismaClient.notificationTemplate.findUnique({
+      where: { id },
+    });
+  }
+
+  /**
+   * Find template by name
+   */
+  async findByName(name: string): Promise<NotificationTemplate | null> {
+    return this.prismaClient.notificationTemplate.findUnique({
+      where: { name },
+    });
+  }
+
+  /**
+   * Find all templates
+   */
+  async findAll(options?: {
+    type?: string;
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<NotificationTemplate[]> {
+    const where: Prisma.NotificationTemplateWhereInput = {};
+
+    if (options?.type) where.type = options.type;
+    if (options?.isActive !== undefined) where.isActive = options.isActive;
+
+    return this.prismaClient.notificationTemplate.findMany({
+      where,
+      take: options?.limit,
+      skip: options?.offset,
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /**
+   * Create template
+   */
+  async create(data: CreateNotificationTemplateDTO): Promise<NotificationTemplate> {
+    return this.prismaClient.notificationTemplate.create({
+      data: {
+        name: data.name,
+        type: data.type,
+        title: data.title,
+        body: data.body,
+        emailSubject: data.emailSubject,
+        emailBody: data.emailBody,
+        variables: data.variables ? JSON.stringify(data.variables) : null,
+        isActive: data.isActive ?? true,
+      },
+    });
+  }
+
+  /**
+   * Update template
+   */
+  async update(id: string, data: UpdateNotificationTemplateDTO): Promise<NotificationTemplate> {
+    const updateData: Prisma.NotificationTemplateUpdateInput = {};
+
+    if (data.name) updateData.name = data.name;
+    if (data.type) updateData.type = data.type;
+    if (data.title) updateData.title = data.title;
+    if (data.body) updateData.body = data.body;
+    if (data.emailSubject !== undefined) updateData.emailSubject = data.emailSubject;
+    if (data.emailBody !== undefined) updateData.emailBody = data.emailBody;
+    if (data.variables) updateData.variables = JSON.stringify(data.variables);
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    return this.prismaClient.notificationTemplate.update({
+      where: { id },
+      data: updateData,
+    });
+  }
+
+  /**
+   * Delete template
+   */
+  async delete(id: string): Promise<NotificationTemplate> {
+    return this.prismaClient.notificationTemplate.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * Render template with variables
+   */
+  renderTemplate(template: NotificationTemplate, variables: Record<string, any>): {
+    title: string;
+    body: string;
+    emailSubject?: string;
+    emailBody?: string;
+  } {
+    const render = (text: string, vars: Record<string, any>): string => {
+      return text.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+        return vars[key] !== undefined ? String(vars[key]) : match;
+      });
+    };
+
+    return {
+      title: render(template.title, variables),
+      body: render(template.body, variables),
+      emailSubject: template.emailSubject ? render(template.emailSubject, variables) : undefined,
+      emailBody: template.emailBody ? render(template.emailBody, variables) : undefined,
+    };
+  }
+
+  /**
+   * Seed default templates
+   */
+  async seedDefaultTemplates(): Promise<void> {
+    const defaultTemplates: CreateNotificationTemplateDTO[] = [
+      {
+        name: 'score_submitted',
+        type: 'SUCCESS',
+        title: 'Score Submitted',
+        body: 'Your score for {{contestantName}} in {{categoryName}} has been submitted successfully.',
+        emailSubject: 'Score Submitted - {{categoryName}}',
+        emailBody: 'Your score for {{contestantName}} in {{categoryName}} has been submitted successfully.',
+        variables: ['contestantName', 'categoryName'],
+      },
+      {
+        name: 'contest_certified',
+        type: 'SUCCESS',
+        title: 'Contest Certified',
+        body: 'The contest "{{contestName}}" has been certified.',
+        emailSubject: 'Contest Certified - {{contestName}}',
+        emailBody: 'The contest "{{contestName}}" has been certified and results are now available.',
+        variables: ['contestName'],
+      },
+      {
+        name: 'assignment_change',
+        type: 'INFO',
+        title: '{{action}} Assignment',
+        body: 'You have been {{action}} {{preposition}} judging "{{contestName}}".',
+        emailSubject: 'Assignment Update - {{contestName}}',
+        emailBody: 'You have been {{action}} {{preposition}} judging "{{contestName}}".',
+        variables: ['action', 'preposition', 'contestName'],
+      },
+      {
+        name: 'report_ready',
+        type: 'SUCCESS',
+        title: 'Report Ready',
+        body: 'Your requested report "{{reportName}}" is ready for download.',
+        emailSubject: 'Report Ready - {{reportName}}',
+        emailBody: 'Your requested report "{{reportName}}" is ready for download.',
+        variables: ['reportName', 'reportId'],
+      },
+      {
+        name: 'certification_required',
+        type: 'WARNING',
+        title: 'Certification Required',
+        body: 'Your action is required for {{level}} of "{{contestName}}".',
+        emailSubject: 'Certification Required - {{contestName}}',
+        emailBody: 'Your action is required for {{level}} of "{{contestName}}". Please review and certify.',
+        variables: ['level', 'contestName'],
+      },
+      {
+        name: 'role_change',
+        type: 'INFO',
+        title: 'Role Updated',
+        body: 'Your role has been changed to {{newRole}}.',
+        emailSubject: 'Role Updated',
+        emailBody: 'Your role has been changed to {{newRole}}.',
+        variables: ['newRole'],
+      },
+      {
+        name: 'system_maintenance',
+        type: 'SYSTEM',
+        title: 'System Maintenance',
+        body: '{{message}}',
+        emailSubject: 'System Maintenance Notification',
+        emailBody: '{{message}}',
+        variables: ['message'],
+      },
+    ];
+
+    for (const template of defaultTemplates) {
+      const existing = await this.findByName(template.name);
+      if (!existing) {
+        await this.create(template);
+      }
+    }
+  }
+}

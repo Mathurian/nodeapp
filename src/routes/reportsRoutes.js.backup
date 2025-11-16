@@ -1,0 +1,114 @@
+const express = require('express')
+const { PrismaClient } = require('@prisma/client')
+const {
+  exportToPDF,
+  exportToExcel,
+  exportToCSV, 
+  getTemplates, 
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  generateReport,
+  sendReportEmail,
+  getReportInstances,
+  deleteReportInstance,
+  generateContestantReports
+} = require('../controllers/reportsController')
+
+const prisma = require('../utils/prisma')
+
+
+const { authenticateToken, requireRole } = require("../middleware/auth")
+const { logActivity } = require("../middleware/errorHandler")
+const router = express.Router()
+
+// Apply authentication to all routes
+router.use(authenticateToken)
+
+// Report templates
+router.get('/templates', getTemplates)
+router.post('/templates', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_REPORT_TEMPLATE', 'REPORT'), createTemplate)
+router.put('/templates/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_REPORT_TEMPLATE', 'REPORT'), updateTemplate)
+router.delete('/templates/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_REPORT_TEMPLATE', 'REPORT'), deleteTemplate)
+
+// Report generation and management
+router.post('/generate', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), logActivity('GENERATE_REPORT', 'REPORT'), generateReport)
+router.post('/generate-contestant-reports', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('GENERATE_CONTESTANT_REPORTS', 'REPORT'), generateContestantReports)
+router.get('/', getReportInstances) // Main reports endpoint
+router.get('/instances', getReportInstances)
+router.delete('/instances/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_REPORT_INSTANCE', 'REPORT'), deleteReportInstance)
+router.post('/send-email', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('EMAIL_REPORT', 'REPORT'), sendReportEmail)
+
+// Download/View route
+router.get("/:id/download", requireRole(["ADMIN", "ORGANIZER", "BOARD", "JUDGE"]), async (req, res) => {
+  try {
+    const { id } = req.params
+    const reportInstance = await prisma.reportInstance.findUnique({
+      where: { id },
+      include: {
+        template: true,
+        generatedBy: {
+          select: { 
+            id: true,
+            name: true, 
+            preferredName: true,
+            email: true 
+          }
+        }
+      }
+    })
+
+    if (!reportInstance) {
+      return res.status(404).json({ error: 'Report not found' })
+    }
+
+    // Parse the data field safely
+    let parsedData = {}
+    try {
+      if (reportInstance.data && reportInstance.data !== '{}' && reportInstance.data.trim() !== '') {
+        parsedData = JSON.parse(reportInstance.data)
+      } else {
+        parsedData = { 
+          message: 'No report data available',
+          reportType: reportInstance.type,
+          generatedAt: reportInstance.generatedAt
+        }
+      }
+    } catch (parseError) {
+      console.error('Failed to parse report data:', parseError)
+      parsedData = { 
+        error: 'Failed to parse report data',
+        rawData: reportInstance.data?.substring(0, 100) // Include first 100 chars for debugging
+      }
+    }
+
+    // Return report data with parsed data
+    // Wrap in { data: ... } to match ApiResponse pattern
+    res.json({
+      data: {
+        id: reportInstance.id,
+        name: reportInstance.name,
+        type: reportInstance.type,
+        format: reportInstance.format,
+        generatedAt: reportInstance.generatedAt,
+        generatedBy: reportInstance.generatedBy ? {
+          name: reportInstance.generatedBy.preferredName || reportInstance.generatedBy.name,
+          email: reportInstance.generatedBy.email
+        } : null,
+        template: reportInstance.template,
+        data: parsedData
+      }
+    })
+  } catch (error) {
+    console.error('Download report error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Note: These routes should come AFTER specific routes like /generate
+// or they will match /generate as an :id parameter
+router.post("/:id/export/pdf", requireRole(["ADMIN", "ORGANIZER", "BOARD", "JUDGE"]), logActivity("EXPORT_REPORT_PDF", "REPORT"), exportToPDF)
+router.post("/:id/export/excel", requireRole(["ADMIN", "ORGANIZER", "BOARD", "JUDGE"]), logActivity("EXPORT_REPORT_EXCEL", "REPORT"), exportToExcel)
+router.post("/:id/export/csv", requireRole(["ADMIN", "ORGANIZER", "BOARD", "JUDGE"]), logActivity("EXPORT_REPORT_CSV", "REPORT"), exportToCSV)
+
+module.exports = router

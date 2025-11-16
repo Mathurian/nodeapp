@@ -1,0 +1,569 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Request uncertification of judge's scores for a category
+const requestUncertification = async (req, res) => {
+  const log = createRequestLogger(req, 'judgeuncertification')
+  try {
+    const { categoryId, reason } = req.body
+    const userId = req.user.id
+    const judgeId = req.user.judge?.id
+
+    if (!userId || !judgeId) {
+      return res.status(400).json({ error: 'User must be authenticated and linked to a judge' })
+    }
+
+    if (!categoryId || !reason || !reason.trim()) {
+      return res.status(400).json({ error: 'Category ID and reason are required' })
+    }
+
+    log.info('Judge uncertification request', { categoryId, judgeId, userId, reason })
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Check if judge has certified this category
+    const categoryCertification = await prisma.judgeCertification.findFirst({
+      where: {
+        categoryId,
+        judgeId: judgeId
+      }
+    })
+
+    if (!categoryCertification) {
+      return res.status(400).json({ error: 'Category is not certified by this judge' })
+    }
+
+    // Check if there's already a pending request
+    const existingRequest = await prisma.judgeUncertificationRequest.findFirst({
+      where: {
+        categoryId,
+        judgeId: judgeId,
+        status: 'PENDING'
+      }
+    })
+
+    if (existingRequest) {
+      return res.status(400).json({ error: 'A pending uncertification request already exists for this category' })
+    }
+
+    // Create the request
+    const request = await prisma.judgeUncertificationRequest.create({
+      data: {
+        categoryId,
+        judgeId: judgeId,
+        reason: reason.trim(),
+        requestedBy: userId,
+        status: 'PENDING'
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        requestedByUser: true
+      }
+    })
+
+    // Get judge name
+    const judge = await prisma.judge.findUnique({
+      where: { id: judgeId },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    })
+    const judgeName = (judge?.users && judge.users.length > 0 ? judge.users[0].name : null) || judge?.name || 'Unknown Judge'
+
+    // Create notifications for authorized users
+    const authorizedRoles = ['ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+    
+    // Get users with authorized roles
+    const authorizedUsers = await prisma.user.findMany({
+      where: {
+        role: { in: authorizedRoles }
+      }
+    })
+
+    // Also get users assigned to this category
+    const categoryAssignments = await prisma.roleAssignment.findMany({
+      where: {
+        categoryId,
+        role: { in: ['TALLY_MASTER', 'AUDITOR'] }
+      },
+      include: {
+        user: true
+      }
+    })
+
+    const assignedUserIds = categoryAssignments.map(a => a.userId)
+    const allNotifyUserIds = [...authorizedUsers.map(u => u.id), ...assignedUserIds]
+    const uniqueNotifyUserIds = [...new Set(allNotifyUserIds)]
+
+    // Create notifications
+    const notifications = await Promise.all(
+      uniqueNotifyUserIds.map(notifyUserId =>
+        prisma.notification.create({
+          data: {
+            title: 'Judge Uncertification Request',
+            message: `${judgeName} has requested to uncertify their scores for category "${category.name}" in contest "${category.contest.name}". Reason: ${reason.trim()}`,
+            type: 'JUDGE_UNCERTIFICATION_REQUEST',
+            userId: notifyUserId,
+            createdBy: userId,
+            read: false
+          }
+        })
+      )
+    )
+
+    log.info('Uncertification request created and notifications sent', {
+      requestId: request.id,
+      notificationsCount: notifications.length
+    })
+
+    res.status(201).json({
+      message: 'Uncertification request submitted successfully',
+      request,
+      notificationsSent: notifications.length
+    })
+  } catch (error) {
+    log.error('Request uncertification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get all uncertification requests
+const getUncertificationRequests = async (req, res) => {
+  const log = createRequestLogger(req, 'judgeuncertification')
+  try {
+    const userRole = req.user?.role
+
+    if (!userRole || !['ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].includes(userRole)) {
+      log.warn('Insufficient permissions for uncertification requests', { userRole, userId: req.user?.id })
+      return res.status(403).json({ error: 'Insufficient permissions' })
+    }
+
+    log.debug('Fetching uncertification requests', { userRole, userId: req.user?.id })
+
+    try {
+      const requests = await prisma.judgeUncertificationRequest.findMany({
+        include: {
+          category: {
+            include: {
+              contest: {
+                include: {
+                  event: {
+                    select: {
+                      id: true,
+                      name: true,
+                      startDate: true,
+                      endDate: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          judge: {
+            include: {
+              users: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true
+                }
+              }
+            }
+          },
+          requestedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          approvedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          rejectedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { requestedAt: 'desc' }
+      })
+
+      log.debug('Successfully fetched uncertification requests', { count: requests.length })
+      res.json({ requests })
+    } catch (prismaError) {
+      log.error('Prisma query error in getUncertificationRequests', {
+        error: prismaError.message,
+        code: prismaError.code,
+        meta: prismaError.meta,
+        stack: prismaError.stack,
+        name: prismaError.name
+      })
+      
+      // If it's a validation error, provide more helpful information
+      if (prismaError.name === 'PrismaClientValidationError') {
+        log.error('Validation error details:', {
+          clientVersion: prismaError.clientVersion,
+          method: prismaError.method,
+          path: prismaError.path
+        })
+      }
+      
+      throw prismaError
+    }
+  } catch (error) {
+    log.error('Get uncertification requests error:', error, { 
+      error: error.message, 
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    })
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+}
+
+// Approve uncertification request
+const approveUncertification = async (req, res) => {
+  const log = createRequestLogger(req, 'judgeuncertification')
+  try {
+    const { id } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    if (!['ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].includes(userRole)) {
+      return res.status(403).json({ error: 'Insufficient permissions to approve uncertification' })
+    }
+
+    log.info('Approve uncertification request', { requestId: id, userId, userRole })
+
+    // Get the request
+    const request = await prisma.judgeUncertificationRequest.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        judge: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        requestedByUser: true
+      }
+    })
+
+    if (!request) {
+      return res.status(404).json({ error: 'Uncertification request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: `Request is already ${request.status.toLowerCase()}` })
+    }
+
+    // Remove all judge certifications for this category
+    log.debug('Removing judge certifications', { categoryId: request.categoryId, judgeId: request.judgeId })
+
+    // Delete JudgeContestantCertification records
+    await prisma.judgeContestantCertification.deleteMany({
+      where: {
+        categoryId: request.categoryId,
+        judgeId: request.judgeId
+      }
+    })
+
+    // Delete JudgeCertification record
+    await prisma.judgeCertification.deleteMany({
+      where: {
+        categoryId: request.categoryId,
+        judgeId: request.judgeId
+      }
+    })
+
+    // Unlock scores (set isCertified to false and isLocked to false)
+    await prisma.score.updateMany({
+      where: {
+        categoryId: request.categoryId,
+        judgeId: request.judgeId
+      },
+      data: {
+        isCertified: false,
+        certifiedAt: null,
+        certifiedBy: null,
+        isLocked: false,
+        lockedAt: null,
+        lockedBy: null
+      }
+    })
+
+    // Update request status
+    const updatedRequest = await prisma.judgeUncertificationRequest.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        approvedBy: userId,
+        approvedAt: new Date()
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        requestedByUser: true,
+        approvedByUser: true
+      }
+    })
+
+    // Create notification for the judge
+    await prisma.notification.create({
+      data: {
+        title: 'Uncertification Request Approved',
+        message: `Your request to uncertify scores for category "${request.category.name}" has been approved. All certifications have been removed and scores are now unlocked for editing.`,
+        type: 'JUDGE_UNCERTIFICATION_APPROVED',
+        userId: request.requestedBy,
+        createdBy: userId,
+        read: false
+      }
+    })
+
+    log.info('Uncertification request approved', {
+      requestId: id,
+      categoryId: request.categoryId,
+      judgeId: request.judgeId
+    })
+
+    res.json({
+      message: 'Uncertification request approved successfully',
+      request: updatedRequest
+    })
+  } catch (error) {
+    log.error('Approve uncertification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Reject uncertification request
+const rejectUncertification = async (req, res) => {
+  const log = createRequestLogger(req, 'judgeuncertification')
+  try {
+    const { id } = req.params
+    const { rejectionReason } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    if (!['ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].includes(userRole)) {
+      return res.status(403).json({ error: 'Insufficient permissions to reject uncertification' })
+    }
+
+    if (!rejectionReason || !rejectionReason.trim()) {
+      return res.status(400).json({ error: 'Rejection reason is required' })
+    }
+
+    log.info('Reject uncertification request', { requestId: id, userId, userRole, rejectionReason })
+
+    // Get the request
+    const request = await prisma.judgeUncertificationRequest.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        judge: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        requestedByUser: true
+      }
+    })
+
+    if (!request) {
+      return res.status(404).json({ error: 'Uncertification request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: `Request is already ${request.status.toLowerCase()}` })
+    }
+
+    // Update request status
+    const updatedRequest = await prisma.judgeUncertificationRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectedBy: userId,
+        rejectedAt: new Date(),
+        rejectionReason: rejectionReason.trim()
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        requestedByUser: true,
+        rejectedByUser: true
+      }
+    })
+
+    // Create notification for the judge
+    await prisma.notification.create({
+      data: {
+        title: 'Uncertification Request Rejected',
+        message: `Your request to uncertify scores for category "${request.category.name}" has been rejected. Reason: ${rejectionReason.trim()}`,
+        type: 'JUDGE_UNCERTIFICATION_REJECTED',
+        userId: request.requestedBy,
+        createdBy: userId,
+        read: false
+      }
+    })
+
+    log.info('Uncertification request rejected', {
+      requestId: id,
+      categoryId: request.categoryId,
+      judgeId: request.judgeId
+    })
+
+    res.json({
+      message: 'Uncertification request rejected successfully',
+      request: updatedRequest
+    })
+  } catch (error) {
+    log.error('Reject uncertification error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get uncertification requests for a specific judge
+const getJudgeUncertificationRequests = async (req, res) => {
+  const log = createRequestLogger(req, 'judgeuncertification')
+  try {
+    const userId = req.user.id
+    const judgeId = req.user.judge?.id
+
+    if (!userId || !judgeId) {
+      return res.status(400).json({ error: 'User must be authenticated and linked to a judge' })
+    }
+
+    const requests = await prisma.judgeUncertificationRequest.findMany({
+      where: {
+        judgeId: judgeId
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        approvedByUser: true,
+        rejectedByUser: true
+      },
+      orderBy: { requestedAt: 'desc' }
+    })
+
+    res.json({ requests })
+  } catch (error) {
+    log.error('Get judge uncertification requests error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  requestUncertification,
+  getUncertificationRequests,
+  approveUncertification,
+  rejectUncertification,
+  getJudgeUncertificationRequests
+}
+

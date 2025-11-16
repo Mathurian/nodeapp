@@ -1,0 +1,78 @@
+const { doubleCsrf } = require('csrf-csrf')
+const { randomBytes } = require('crypto')
+
+// CSRF secret for token generation
+const CSRF_SECRET = process.env.CSRF_SECRET || 'super-secret-csrf-key-change-in-production'
+
+// Configure CSRF protection
+const {
+  generateToken, // Use this in your routes to provide a CSRF hash + token cookie and token
+  validateRequest, // Use this as middleware to validate a request
+  invalidCsrfTokenError, // This is just for convenience if you plan on making your own middleware
+  doubleCsrfProtection, // This is the default CSRF protection middleware
+} = doubleCsrf({
+  getSecret: () => CSRF_SECRET,
+  cookieName: '_csrf',
+  cookieOptions: {
+    sameSite: 'strict',
+    path: '/',
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+  getTokenFromRequest: (req) => req.headers['x-csrf-token'] || req.body._csrf,
+})
+
+/**
+ * Middleware to generate and set CSRF token
+ * Use this on routes that need to provide CSRF tokens
+ */
+const generateCsrfToken = (req, res, next) => {
+  const csrfToken = generateToken(req, res)
+  req.csrfToken = csrfToken
+  next()
+}
+
+/**
+ * Endpoint to get CSRF token
+ * Frontend should call this on app initialization
+ */
+const getCsrfToken = (req, res) => {
+  try {
+    // Use generateToken which sets both the double submit cookie AND returns the token
+    const csrfToken = generateToken(req, res)
+    res.json({ csrfToken })
+  } catch (error) {
+    console.error('Error generating CSRF token:', error)
+    res.status(500).json({ error: 'Failed to generate CSRF token', details: error.message })
+  }
+}
+
+/**
+ * Middleware to validate CSRF token on state-changing requests
+ * Use this to protect POST/PUT/DELETE/PATCH routes
+ */
+const csrfProtection = doubleCsrfProtection
+
+/**
+ * Error handler for CSRF token validation failures
+ */
+const csrfErrorHandler = (err, req, res, next) => {
+  if (err === invalidCsrfTokenError) {
+    return res.status(403).json({ 
+      error: 'CSRF token validation failed',
+      message: 'Invalid or missing CSRF token. Please refresh the page and try again.'
+    })
+  }
+  next(err)
+}
+
+module.exports = {
+  generateCsrfToken,
+  getCsrfToken,
+  csrfProtection,
+  csrfErrorHandler,
+  validateRequest
+}
+

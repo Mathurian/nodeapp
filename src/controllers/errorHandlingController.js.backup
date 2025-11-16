@@ -1,0 +1,421 @@
+const { PrismaClient } = require('@prisma/client')
+const fs = require('fs').promises
+const path = require('path')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Comprehensive Error Handling Functions
+
+// Log error with context
+const logError = async (error, context = {}) => {
+  try {
+    const errorLog = {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      timestamp: new Date().toISOString(),
+      context: {
+        userId: context.userId,
+        userAgent: context.userAgent,
+        ipAddress: context.ipAddress,
+        url: context.url,
+        method: context.method,
+        body: context.body,
+        query: context.query,
+        params: context.params,
+        ...context.additionalContext
+      },
+      severity: determineErrorSeverity(error),
+      category: categorizeError(error),
+      resolved: false
+    }
+
+    // Save to database
+    await prisma.activityLog.create({
+      data: {
+        action: `ERROR_${errorLog.category}`,
+        resourceType: 'ERROR',
+        resourceId: `error-${Date.now()}`,
+        userId: context.userId,
+        details: errorLog,
+        severity: errorLog.severity
+      }
+    })
+
+    // Save to file for detailed analysis
+    await saveErrorToFile(errorLog)
+
+    return errorLog
+  } catch (logError) {
+    log.error('Failed to log error:', logError, { error: error.message, stack: error.stack })
+    // Fallback to console
+    log.error('Original error:', error, { error: error.message, stack: error.stack })
+  }
+}
+
+// Determine error severity
+const determineErrorSeverity = (error) => {
+  if (error.name === 'ValidationError' || error.name === 'CastError') {
+    return 'LOW'
+  }
+  if (error.name === 'UnauthorizedError' || error.name === 'ForbiddenError') {
+    return 'MEDIUM'
+  }
+  if (error.name === 'DatabaseError' || error.name === 'ConnectionError') {
+    return 'HIGH'
+  }
+  if (error.name === 'SyntaxError' || error.name === 'ReferenceError') {
+    return 'CRITICAL'
+  }
+  return 'MEDIUM'
+}
+
+// Categorize error type
+const categorizeError = (error) => {
+  if (error.name === 'ValidationError') return 'VALIDATION'
+  if (error.name === 'DatabaseError') return 'DATABASE'
+  if (error.name === 'AuthenticationError') return 'AUTHENTICATION'
+  if (error.name === 'AuthorizationError') return 'AUTHORIZATION'
+  if (error.name === 'NetworkError') return 'NETWORK'
+  if (error.name === 'FileSystemError') return 'FILESYSTEM'
+  if (error.name === 'SyntaxError') return 'SYNTAX'
+  if (error.name === 'ReferenceError') return 'REFERENCE'
+  return 'UNKNOWN'
+}
+
+// Save error to file for detailed analysis
+const saveErrorToFile = async (errorLog) => {
+  try {
+    const errorDir = path.join(__dirname, '../logs/errors')
+    await fs.mkdir(errorDir, { recursive: true })
+
+    const filename = `error-${Date.now()}-${errorLog.category.toLowerCase()}.json`
+    const filepath = path.join(errorDir, filename)
+
+    await fs.writeFile(filepath, JSON.stringify(errorLog, null, 2))
+  } catch (error) {
+    log.error('Failed to save error to file:', error, { error: error.message, stack: error.stack })
+  }
+}
+
+// Get error statistics
+const getErrorStatistics = async (req, res) => {
+  const log = createRequestLogger(req, 'errorhandling')
+  try {
+    const { period = '24h' } = req.query
+
+    // Calculate time range
+    const now = new Date()
+    const periodHours = period === '1h' ? 1 : period === '6h' ? 6 : period === '24h' ? 24 : period === '7d' ? 168 : 24
+    const startTime = new Date(now.getTime() - (periodHours * 60 * 60 * 1000))
+
+    // Get error counts by category
+    const errorCounts = await prisma.activityLog.groupBy({
+      by: ['action'],
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      },
+      _count: { id: true }
+    })
+
+    // Get error counts by severity
+    const severityCounts = await prisma.activityLog.groupBy({
+      by: ['severity'],
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      },
+      _count: { id: true }
+    })
+
+    // Get recent errors
+    const recentErrors = await prisma.activityLog.findMany({
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    // Calculate error rate
+    const totalActivity = await prisma.activityLog.count({
+      where: { createdAt: { gte: startTime } }
+    })
+    const totalErrors = await prisma.activityLog.count({
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      }
+    })
+
+    res.json({
+      period,
+      statistics: {
+        totalErrors,
+        totalActivity,
+        errorRate: totalActivity > 0 ? (totalErrors / totalActivity) * 100 : 0,
+        categoryCounts: errorCounts,
+        severityCounts
+      },
+      recentErrors,
+      generatedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    log.error('Get error statistics error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get error details
+const getErrorDetails = async (req, res) => {
+  const log = createRequestLogger(req, 'errorhandling')
+  try {
+    const { errorId } = req.params
+
+    const error = await prisma.activityLog.findUnique({
+      where: { id: errorId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    })
+
+    if (!error) {
+      return res.status(404).json({ error: 'Error not found' })
+    }
+
+    res.json({ error })
+  } catch (error) {
+    log.error('Get error details error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Mark error as resolved
+const markErrorResolved = async (req, res) => {
+  const log = createRequestLogger(req, 'errorhandling')
+  try {
+    const { errorId } = req.params
+    const { resolution, notes } = req.body
+
+    const error = await prisma.activityLog.findUnique({
+      where: { id: errorId }
+    })
+
+    if (!error) {
+      return res.status(404).json({ error: 'Error not found' })
+    }
+
+    // Update error details
+    const updatedDetails = {
+      ...error.details,
+      resolved: true,
+      resolvedAt: new Date().toISOString(),
+      resolvedBy: req.user.id,
+      resolution,
+      notes
+    }
+
+    await prisma.activityLog.update({
+      where: { id: errorId },
+      data: {
+        details: updatedDetails
+      }
+    })
+
+    res.json({ message: 'Error marked as resolved' })
+  } catch (error) {
+    log.error('Mark error resolved error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get error trends
+const getErrorTrends = async (req, res) => {
+  const log = createRequestLogger(req, 'errorhandling')
+  try {
+    const { period = '7d' } = req.query
+
+    // Calculate time range
+    const now = new Date()
+    const periodDays = period === '1d' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : 7
+    const startTime = new Date(now.getTime() - (periodDays * 24 * 60 * 60 * 1000))
+
+    // Get daily error counts
+    const dailyErrors = await prisma.activityLog.groupBy({
+      by: ['createdAt'],
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      },
+      _count: { id: true },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    // Get error trends by category
+    const categoryTrends = await prisma.activityLog.groupBy({
+      by: ['action', 'createdAt'],
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      },
+      _count: { id: true },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    res.json({
+      period,
+      dailyErrors,
+      categoryTrends,
+      generatedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    log.error('Get error trends error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Clean up old error logs
+const cleanupErrorLogs = async (req, res) => {
+  const log = createRequestLogger(req, 'errorhandling')
+  try {
+    const { daysToKeep = 30 } = req.body
+
+    const cutoffDate = new Date(Date.now() - (daysToKeep * 24 * 60 * 60 * 1000))
+
+    const deletedCount = await prisma.activityLog.deleteMany({
+      where: {
+        createdAt: { lt: cutoffDate },
+        action: { startsWith: 'ERROR_' }
+      }
+    })
+
+    // Also clean up error files
+    const errorDir = path.join(__dirname, '../logs/errors')
+    try {
+      const files = await fs.readdir(errorDir)
+      let deletedFiles = 0
+
+      for (const file of files) {
+        const filepath = path.join(errorDir, file)
+        const stats = await fs.stat(filepath)
+        
+        if (stats.mtime < cutoffDate) {
+          await fs.unlink(filepath)
+          deletedFiles++
+        }
+      }
+
+      res.json({
+        deletedLogs: deletedCount.count,
+        deletedFiles,
+        cutoffDate: cutoffDate.toISOString(),
+        message: 'Error logs cleanup completed'
+      })
+    } catch (fileError) {
+      res.json({
+        deletedLogs: deletedCount.count,
+        deletedFiles: 0,
+        cutoffDate: cutoffDate.toISOString(),
+        message: 'Error logs cleanup completed (file cleanup failed)'
+      })
+    }
+  } catch (error) {
+    log.error('Cleanup error logs error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Export error logs
+const exportErrorLogs = async (req, res) => {
+  const log = createRequestLogger(req, 'errorhandling')
+  try {
+    const { format = 'json', period = '7d' } = req.query
+
+    // Calculate time range
+    const now = new Date()
+    const periodDays = period === '1d' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : 7
+    const startTime = new Date(now.getTime() - (periodDays * 24 * 60 * 60 * 1000))
+
+    const errors = await prisma.activityLog.findMany({
+      where: {
+        createdAt: { gte: startTime },
+        action: { startsWith: 'ERROR_' }
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    })
+
+    if (format === 'csv') {
+      const csv = convertToCSV(errors)
+      res.setHeader('Content-Type', 'text/csv')
+      res.setHeader('Content-Disposition', 'attachment; filename="error-logs-' + period + '.csv"')
+      res.send(csv)
+    } else {
+      res.json({
+        errors,
+        period,
+        totalCount: errors.length,
+        generatedAt: new Date().toISOString()
+      })
+    }
+  } catch (error) {
+    log.error('Export error logs error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Convert errors to CSV format
+const convertToCSV = (errors) => {
+  const headers = ['Timestamp', 'Action', 'Severity', 'User', 'Message', 'Details']
+  const rows = errors.map(error => [
+    error.createdAt.toISOString(),
+    error.action,
+    error.severity,
+    error.user?.preferredName || error.user?.name || 'Unknown',
+    error.details?.message || '',
+    JSON.stringify(error.details)
+  ])
+
+  return [headers, ...rows].map(row => row.join(',')).join('\n')
+}
+
+module.exports = {
+  logError,
+  getErrorStatistics,
+  getErrorDetails,
+  markErrorResolved,
+  getErrorTrends,
+  cleanupErrorLogs,
+  exportErrorLogs
+}

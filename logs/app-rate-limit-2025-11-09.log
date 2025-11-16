@@ -1,0 +1,2 @@
+[2025-11-09 21:15:08] [WARN] [RATE-LIMIT] Redis unavailable for rate limiting, falling back to memory: | "connect ECONNREFUSED 127.0.0.1:6379"
+[2025-11-09 21:44:15] [WARN] [RATE-LIMIT] Redis unavailable for rate limiting, falling back to memory: | "connect ECONNREFUSED 127.0.0.1:6379"

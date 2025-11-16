@@ -1,0 +1,1097 @@
+const { PrismaClient } = require('@prisma/client')
+const puppeteer = require('puppeteer')
+const handlebars = require('handlebars')
+const fs = require('fs').promises
+const path = require('path')
+const { generateSecurePassword, encryptMetadata, decryptMetadata } = require('../middleware/fileEncryption')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+// Print templates directory
+const TEMPLATES_DIR = path.join(__dirname, '../templates/print')
+
+// Ensure templates directory exists
+const ensureTemplatesDir = async () => {
+  try {
+    await fs.mkdir(TEMPLATES_DIR, { recursive: true })
+  } catch (error) {
+    log.error('Error creating templates directory:', error, { error: error.message, stack: error.stack })
+  }
+}
+
+// Get available print templates
+const getPrintTemplates = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    await ensureTemplatesDir()
+    
+    const templates = await fs.readdir(TEMPLATES_DIR)
+    const templateList = templates
+      .filter(file => file.endsWith('.hbs'))
+      .map(file => ({
+        name: file.replace('.hbs', ''),
+        filename: file,
+        path: path.join(TEMPLATES_DIR, file)
+      }))
+
+    res.json({
+      templates: templateList,
+      message: 'Print templates retrieved successfully'
+    })
+  } catch (error) {
+    log.error('Get print templates error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Create custom print template
+const createPrintTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { name, content, description, type } = req.body
+
+    if (!name || !content) {
+      return res.status(400).json({ error: 'Template name and content are required' })
+    }
+
+    await ensureTemplatesDir()
+
+    const templatePath = path.join(TEMPLATES_DIR, `${name}.hbs`)
+    
+    // Validate handlebars template
+    try {
+      handlebars.compile(content)
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid template syntax: ' + error.message })
+    }
+
+    await fs.writeFile(templatePath, content, 'utf8')
+
+    // Save template metadata to database
+    const template = await prisma.template.create({
+      data: {
+        name,
+        description: description || '',
+        type: type || 'PRINT',
+        content,
+        createdBy: req.user.id,
+        isActive: true
+      }
+    })
+
+    res.json({
+      template,
+      message: 'Print template created successfully'
+    })
+  } catch (error) {
+    log.error('Create print template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Update print template
+const updatePrintTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+    const { name, content, description, type } = req.body
+
+    const template = await prisma.template.findUnique({
+      where: { id }
+    })
+
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' })
+    }
+
+    // Validate handlebars template if content is provided
+    if (content) {
+      try {
+        handlebars.compile(content)
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid template syntax: ' + error.message })
+      }
+    }
+
+    const updatedTemplate = await prisma.template.update({
+      where: { id },
+      data: {
+        name: name || template.name,
+        content: content || template.content,
+        description: description || template.description,
+        type: type || template.type,
+        updatedAt: new Date()
+      }
+    })
+
+    // Update file if content changed
+    if (content) {
+      const templatePath = path.join(TEMPLATES_DIR, `${updatedTemplate.name}.hbs`)
+      await fs.writeFile(templatePath, content, 'utf8')
+    }
+
+    res.json({
+      template: updatedTemplate,
+      message: 'Print template updated successfully'
+    })
+  } catch (error) {
+    log.error('Update print template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Delete print template
+const deletePrintTemplate = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+
+    const template = await prisma.template.findUnique({
+      where: { id }
+    })
+
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' })
+    }
+
+    // Delete file
+    const templatePath = path.join(TEMPLATES_DIR, `${template.name}.hbs`)
+    try {
+      await fs.unlink(templatePath)
+    } catch (error) {
+      log.warn('Template file not found:', templatePath)
+    }
+
+    // Delete from database
+    await prisma.template.delete({
+      where: { id }
+    })
+
+    res.json({ message: 'Print template deleted successfully' })
+  } catch (error) {
+    log.error('Delete print template error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Print event report
+const printEventReport = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { eventId, templateName, format = 'pdf', options = {} } = req.body
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        contests: {
+          include: {
+            categories: {
+              include: {
+                scores: {
+                  include: {
+                    judge: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        email: true
+                      }
+                    },
+                    contestant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        email: true,
+                        contestantNumber: true
+                      }
+                    },
+                    criterion: {
+                      select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        maxScore: true
+                      }
+                    }
+                  }
+                },
+                contestants: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        email: true,
+                        contestantNumber: true,
+                        contestantAge: true,
+                        contestantSchool: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' })
+    }
+
+    // Get template
+    const templatePath = path.join(TEMPLATES_DIR, `${templateName || 'event-report'}.hbs`)
+    let templateContent
+
+    try {
+      templateContent = await fs.readFile(templatePath, 'utf8')
+    } catch (error) {
+      // Use default template if custom template not found
+      templateContent = await getDefaultEventTemplate()
+    }
+
+    // Compile template
+    const template = handlebars.compile(templateContent)
+    
+    // Prepare data for template
+    const templateData = {
+      event,
+      generatedAt: new Date().toISOString(),
+      generatedBy: req.user.name,
+      options
+    }
+
+    // Generate HTML
+    const html = template(templateData)
+
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
+
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+
+    let output
+    if (format === 'pdf') {
+      output = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '1cm',
+          right: '1cm',
+          bottom: '1cm',
+          left: '1cm'
+        },
+        ...options
+      })
+    } else {
+      // For other formats, we'll return the HTML
+      output = html
+    }
+
+    await browser.close()
+
+    // Set appropriate headers
+    if (format === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', 'attachment; filename="event-report-' + event.name + '-' + Date.now() + '.pdf"')
+    } else {
+      res.setHeader('Content-Type', 'text/html')
+    }
+
+    res.send(output)
+  } catch (error) {
+    log.error('Print event report error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Print contest results
+const printContestResults = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { contestId, templateName, format = 'pdf', options = {} } = req.body
+
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+            location: true
+          }
+        },
+        categories: {
+          include: {
+            scores: {
+              include: {
+                judge: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true
+                  }
+                },
+                contestant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true,
+                    contestantNumber: true
+                  }
+                },
+                criterion: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    maxScore: true
+                  }
+                }
+              }
+            },
+            contestants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true,
+                    email: true,
+                    contestantNumber: true,
+                    contestantAge: true,
+                    contestantSchool: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    // Get template
+    const templatePath = path.join(TEMPLATES_DIR, `${templateName || 'contest-results'}.hbs`)
+    let templateContent
+
+    try {
+      templateContent = await fs.readFile(templatePath, 'utf8')
+    } catch (error) {
+      // Use default template if custom template not found
+      templateContent = await getDefaultContestTemplate()
+    }
+
+    // Compile template
+    const template = handlebars.compile(templateContent)
+    
+    // Prepare data for template
+    const templateData = {
+      contest,
+      generatedAt: new Date().toISOString(),
+      generatedBy: req.user.name,
+      options
+    }
+
+    // Generate HTML
+    const html = template(templateData)
+
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
+
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+
+    let output
+    if (format === 'pdf') {
+      output = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '1cm',
+          right: '1cm',
+          bottom: '1cm',
+          left: '1cm'
+        },
+        ...options
+      })
+    } else {
+      // For other formats, we'll return the HTML
+      output = html
+    }
+
+    await browser.close()
+
+    // Set appropriate headers
+    if (format === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', 'attachment; filename="contest-results-' + contest.name + '-' + Date.now() + '.pdf"')
+    } else {
+      res.setHeader('Content-Type', 'text/html')
+    }
+
+    res.send(output)
+  } catch (error) {
+    log.error('Print contest results error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Print judge performance report
+const printJudgePerformance = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { judgeId, eventId, templateName, format = 'pdf', options = {} } = req.body
+
+    const judge = await prisma.user.findUnique({
+      where: { id: judgeId },
+      include: {
+        scores: {
+          where: eventId ? {
+            category: {
+              contest: {
+                eventId: eventId
+              }
+            }
+          } : {},
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: {
+                      select: {
+                        id: true,
+                        name: true,
+                        startDate: true,
+                        endDate: true,
+                        location: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true,
+                contestantNumber: true
+              }
+            },
+            criterion: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                maxScore: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!judge) {
+      return res.status(404).json({ error: 'Judge not found' })
+    }
+
+    // Get template
+    const templatePath = path.join(TEMPLATES_DIR, `${templateName || 'judge-performance'}.hbs`)
+    let templateContent
+
+    try {
+      templateContent = await fs.readFile(templatePath, 'utf8')
+    } catch (error) {
+      // Use default template if custom template not found
+      templateContent = await getDefaultJudgeTemplate()
+    }
+
+    // Compile template
+    const template = handlebars.compile(templateContent)
+    
+    // Calculate performance statistics
+    const performanceStats = {
+      totalScores: judge.scores.length,
+      averageScore: judge.scores.length > 0 ? 
+        judge.scores.reduce((sum, score) => sum + score.score, 0) / judge.scores.length : 0,
+      scoreDistribution: calculateScoreDistribution(judge.scores),
+      categoriesJudged: [...new Set(judge.scores.map(score => score.category.name))].length
+    }
+
+    // Prepare data for template
+    const templateData = {
+      judge,
+      performanceStats,
+      generatedAt: new Date().toISOString(),
+      generatedBy: req.user.name,
+      options
+    }
+
+    // Generate HTML
+    const html = template(templateData)
+
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
+
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+
+    let output
+    if (format === 'pdf') {
+      output = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '1cm',
+          right: '1cm',
+          bottom: '1cm',
+          left: '1cm'
+        },
+        ...options
+      })
+    } else {
+      // For other formats, we'll return the HTML
+      output = html
+    }
+
+    await browser.close()
+
+    // Set appropriate headers
+    if (format === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', 'attachment; filename="judge-performance-' + judge.name + '-' + Date.now() + '.pdf"')
+    } else {
+      res.setHeader('Content-Type', 'text/html')
+    }
+
+    res.send(output)
+  } catch (error) {
+    log.error('Print judge performance error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Helper function to calculate score distribution
+const calculateScoreDistribution = (scores) => {
+  const distribution = {}
+  scores.forEach(score => {
+    const range = Math.floor(score.score / 10) * 10
+    const key = `${range}-${range + 9}`
+    distribution[key] = (distribution[key] || 0) + 1
+  })
+  return distribution
+}
+
+// Default templates
+const getDefaultEventTemplate = async () => {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Event Report - {{event.name}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .event-info { margin-bottom: 20px; }
+        .contest-section { margin-bottom: 30px; page-break-inside: avoid; }
+        .contest-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .category-section { margin-left: 20px; margin-bottom: 15px; }
+        .category-title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+        .stats { background-color: #f5f5f5; padding: 10px; margin-bottom: 20px; }
+        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Event Report</h1>
+        <h2>{{event.name}}</h2>
+    </div>
+    
+    <div class="event-info">
+        <p><strong>Description:</strong> {{event.description}}</p>
+        <p><strong>Date:</strong> {{event.startDate}} - {{event.endDate}}</p>
+        <p><strong>Location:</strong> {{event.location}}</p>
+        <p><strong>Status:</strong> {{event.status}}</p>
+    </div>
+    
+    <div class="stats">
+        <h3>Event Statistics</h3>
+        <p>Total Contests: {{event.contests.length}}</p>
+        <p>Total Categories: {{event.contests.length}}</p>
+        <p>Total Contestants: {{event.contests.length}}</p>
+    </div>
+    
+    {{#each event.contests}}
+    <div class="contest-section">
+        <div class="contest-title">{{name}}</div>
+        <p>{{description}}</p>
+        
+        {{#each categories}}
+        <div class="category-section">
+            <div class="category-title">{{name}}</div>
+            <p>{{description}}</p>
+            <p>Max Score: {{maxScore}}</p>
+            <p>Contestants: {{contestants.length}}</p>
+        </div>
+        {{/each}}
+    </div>
+    {{/each}}
+    
+    <div class="footer">
+        <p>Generated on {{generatedAt}} by {{generatedBy}}</p>
+    </div>
+</body>
+</html>
+  `
+}
+
+const getDefaultContestTemplate = async () => {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Contest Results - {{contest.name}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .contest-info { margin-bottom: 20px; }
+        .category-section { margin-bottom: 30px; page-break-inside: avoid; }
+        .category-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .results-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .results-table th, .results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .results-table th { background-color: #f2f2f2; }
+        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Contest Results</h1>
+        <h2>{{contest.name}}</h2>
+    </div>
+    
+    <div class="contest-info">
+        <p><strong>Event:</strong> {{contest.event.name}}</p>
+        <p><strong>Description:</strong> {{contest.description}}</p>
+        <p><strong>Date:</strong> {{contest.event.startDate}} - {{contest.event.endDate}}</p>
+        <p><strong>Location:</strong> {{contest.event.location}}</p>
+    </div>
+    
+    {{#each contest.categories}}
+    <div class="category-section">
+        <div class="category-title">{{name}}</div>
+        <p>{{description}}</p>
+        <p>Max Score: {{maxScore}}</p>
+        
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Contestant</th>
+                    <th>Number</th>
+                    <th>Total Score</th>
+                    <th>Average Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each contestants}}
+                <tr>
+                    <td>{{@index}}</td>
+                    <td>{{user.preferredName}}</td>
+                    <td>{{user.contestantNumber}}</td>
+                    <td>{{totalScore}}</td>
+                    <td>{{averageScore}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+    {{/each}}
+    
+    <div class="footer">
+        <p>Generated on {{generatedAt}} by {{generatedBy}}</p>
+    </div>
+</body>
+</html>
+  `
+}
+
+const getDefaultJudgeTemplate = async () => {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Judge Performance Report - {{judge.name}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .judge-info { margin-bottom: 20px; }
+        .stats-section { margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .stat-card { background-color: #f5f5f5; padding: 15px; border-radius: 5px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #333; }
+        .stat-label { font-size: 14px; color: #666; }
+        .scores-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .scores-table th, .scores-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .scores-table th { background-color: #f2f2f2; }
+        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Judge Performance Report</h1>
+        <h2>{{judge.name}}</h2>
+    </div>
+    
+    <div class="judge-info">
+        <p><strong>Email:</strong> {{judge.email}}</p>
+        <p><strong>Role:</strong> {{judge.role}}</p>
+        <p><strong>Bio:</strong> {{judge.bio}}</p>
+    </div>
+    
+    <div class="stats-section">
+        <h3>Performance Statistics</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{performanceStats.totalScores}}</div>
+                <div class="stat-label">Total Scores</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{performanceStats.averageScore}}</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{performanceStats.categoriesJudged}}</div>
+                <div class="stat-label">Categories Judged</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="scores-section">
+        <h3>Recent Scores</h3>
+        <table class="scores-table">
+            <thead>
+                <tr>
+                    <th>Contestant</th>
+                    <th>Category</th>
+                    <th>Criterion</th>
+                    <th>Score</th>
+                    <th>Max Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each judge.scores}}
+                <tr>
+                    <td>{{contestant.preferredName}}</td>
+                    <td>{{category.name}}</td>
+                    <td>{{criterion.name}}</td>
+                    <td>{{score}}</td>
+                    <td>{{criterion.maxScore}}</td>
+                    <td>{{createdAt}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="footer">
+        <p>Generated on {{generatedAt}} by {{generatedBy}}</p>
+    </div>
+</body>
+</html>
+  `
+}
+
+const printContestantReport = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+    
+    const contestant = await prisma.contestant.findUnique({
+      where: { id },
+      include: {
+        categoryContestants: {
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        scores: {
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: true
+                  }
+                }
+              }
+            },
+            judge: true,
+            criterion: true
+          },
+          orderBy: [
+            { category: { createdAt: 'asc' } },
+            { createdAt: 'asc' }
+          ]
+        }
+      }
+    })
+
+    if (!contestant) {
+      return res.status(404).json({ error: 'Contestant not found' })
+    }
+
+    res.json(contestant)
+  } catch (error) {
+    log.error('Print contestant report error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const printJudgeReport = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+    
+    const judge = await prisma.judge.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        scores: {
+          include: {
+            category: {
+              include: {
+                contest: {
+                  include: {
+                    event: true
+                  }
+                }
+              }
+            },
+            contestant: true,
+            criterion: true
+          },
+          orderBy: [
+            { category: { createdAt: 'asc' } },
+            { createdAt: 'asc' }
+          ]
+        }
+      }
+    })
+
+    if (!judge) {
+      return res.status(404).json({ error: 'Judge not found' })
+    }
+
+    res.json(judge)
+  } catch (error) {
+    log.error('Print judge report error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const printCategoryReport = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+    
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        contestants: {
+          include: {
+            contestant: true
+          }
+        },
+        judges: {
+          include: {
+            judge: true
+          }
+        },
+        criteria: {
+          orderBy: { createdAt: 'asc' }
+        },
+        scores: {
+          include: {
+            contestant: true,
+            judge: true,
+            criterion: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    res.json(category)
+  } catch (error) {
+    log.error('Print category report error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const printContestReport = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+    
+    const contest = await prisma.contest.findUnique({
+      where: { id },
+      include: {
+        event: true,
+        categories: {
+          include: {
+            contestants: {
+              include: {
+                contestant: true
+              }
+            },
+            judges: {
+              include: {
+                judge: true
+              }
+            },
+            criteria: {
+              orderBy: { createdAt: 'asc' }
+            },
+            scores: {
+              include: {
+                contestant: true,
+                judge: true,
+                criterion: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    res.json(contest)
+  } catch (error) {
+    log.error('Print contest report error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const printArchivedContestReport = async (req, res) => {
+  const log = createRequestLogger(req, 'print')
+  try {
+    const { id } = req.params
+    
+    // Find archived contest
+    const contest = await prisma.contest.findFirst({
+      where: {
+        id,
+        archived: true
+      },
+      include: {
+        event: true,
+        categories: {
+          include: {
+            contestants: {
+              include: {
+                contestant: true
+              }
+            },
+            judges: {
+              include: {
+                judge: true
+              }
+            },
+            criteria: {
+              orderBy: { createdAt: 'asc' }
+            },
+            scores: {
+              include: {
+                contestant: true,
+                judge: true,
+                criterion: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      return res.status(404).json({ error: 'Archived contest not found' })
+    }
+
+    res.json(contest)
+  } catch (error) {
+    log.error('Print archived contest report error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getPrintTemplates,
+  createPrintTemplate,
+  updatePrintTemplate,
+  deletePrintTemplate,
+  printEventReport,
+  printContestResults,
+  printJudgePerformance,
+  printContestantReport,
+  printJudgeReport,
+  printCategoryReport,
+  printContestReport,
+  printArchivedContestReport
+}

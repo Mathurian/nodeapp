@@ -1,0 +1,1631 @@
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = require('../utils/prisma')
+const { createRequestLogger } = require('../utils/logger')
+
+const getStats = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const userId = req.user?.id
+    const userRole = req.user?.role
+    
+    log.debug('Fetching tally master stats', { userId, userRole })
+    
+    const stats = {
+      totalCategories: await prisma.category.count(),
+      pendingTotals: await prisma.category.count({
+        where: { totalsCertified: false }
+      }),
+      certifiedTotals: await prisma.category.count({
+        where: { totalsCertified: true }
+      })
+    }
+
+    log.info('Tally master stats fetched successfully', { stats, userId })
+    res.json(stats)
+  } catch (error) {
+    log.error('Get tally master stats error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCertifications = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { page = 1, limit = 20 } = req.query
+    const offset = (parseInt(page) - 1) * parseInt(limit)
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Fetching certifications', { page, limit, userId, userRole })
+
+    const categories = await prisma.category.findMany({
+      where: { totalsCertified: true },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        scores: {
+          include: {
+            judge: true,
+            contestant: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: parseInt(limit)
+    })
+
+    const total = await prisma.category.count({
+      where: { totalsCertified: true }
+    })
+
+    log.info('Certifications fetched successfully', { count: categories.length, total, page, limit, userId })
+    res.json({
+      categories,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    })
+  } catch (error) {
+    log.error('Get certifications error', {
+      error: error.message,
+      stack: error.stack,
+      page: req.query?.page,
+      limit: req.query?.limit
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getCertificationQueue = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { page = 1, limit = 20 } = req.query
+    const offset = (parseInt(page) - 1) * parseInt(limit)
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Fetching certification queue', { page, limit, userId, userRole })
+
+    // Get all categories with necessary relations
+    const allCategories = await prisma.category.findMany({
+      where: { totalsCertified: false },
+      include: {
+        contest: {
+          select: {
+            id: true,
+            eventId: true,
+            name: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+            contestantNumberingMode: true,
+            nextContestantNumber: true,
+            event: true
+          }
+        },
+        scores: {
+          include: {
+            judge: true,
+            contestant: true
+          }
+        },
+        categoryCertifications: {
+          where: {
+            role: 'TALLY_MASTER'
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Filter categories using same logic as tracker: 
+    // Categories where all judges have certified their category
+    // but Tally Master hasn't certified yet
+    const pendingItems = await Promise.all(
+      allCategories.map(async (category) => {
+        // Check if judge has certified the category
+        const hasJudgeCategoryCert = await prisma.judgeCertification.findFirst({
+          where: { categoryId: category.id }
+        })
+        const hasTallyCert = category.categoryCertifications.length > 0
+        // Check if judges have certified all their scores
+        const allJudgesCertified = category.scores.length === 0 || category.scores.every(s => s.isCertified === true)
+        return hasJudgeCategoryCert && !hasTallyCert && allJudgesCertified && category.scores.length > 0 ? category : null
+      })
+    )
+    
+    const categories = pendingItems.filter(Boolean)
+    const total = categories.length
+    
+    // Apply pagination
+    const paginatedCategories = categories.slice(offset, offset + parseInt(limit))
+
+    log.info('Certification queue fetched successfully', { count: paginatedCategories.length, total, page, limit, userId })
+    res.json({
+      categories: paginatedCategories,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    })
+  } catch (error) {
+    log.error('Get certification queue error', {
+      error: error.message,
+      stack: error.stack,
+      page: req.query?.page,
+      limit: req.query?.limit
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getPendingCertifications = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { page = 1, limit = 20 } = req.query
+    const offset = (parseInt(page) - 1) * parseInt(limit)
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Fetching pending certifications', { page, limit, userId, userRole })
+
+    // Get all categories with necessary relations - same filtering logic as getCertificationQueue
+    const allCategories = await prisma.category.findMany({
+      where: { totalsCertified: false },
+      include: {
+        contest: {
+          select: {
+            id: true,
+            eventId: true,
+            name: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+            contestantNumberingMode: true,
+            nextContestantNumber: true,
+            event: true
+          }
+        },
+        scores: {
+          include: {
+            judge: true,
+            contestant: true
+          }
+        },
+        categoryCertifications: {
+          where: {
+            role: 'TALLY_MASTER'
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Filter categories using same logic as getCertificationQueue and tracker: 
+    // Categories where all judges have certified their category
+    // but Tally Master hasn't certified yet
+    const pendingItems = await Promise.all(
+      allCategories.map(async (category) => {
+        // Check if judge has certified the category
+        const hasJudgeCategoryCert = await prisma.judgeCertification.findFirst({
+          where: { categoryId: category.id }
+        })
+        const hasTallyCert = category.categoryCertifications.length > 0
+        // Check if judges have certified all their scores
+        const allJudgesCertified = category.scores.length === 0 || category.scores.every(s => s.isCertified === true)
+        return hasJudgeCategoryCert && !hasTallyCert && allJudgesCertified && category.scores.length > 0 ? category : null
+      })
+    )
+    
+    const filteredCategories = pendingItems.filter(Boolean)
+    const total = filteredCategories.length
+    
+    // Apply pagination
+    const categories = filteredCategories.slice(offset, offset + parseInt(limit))
+
+    // Add dynamic certification status to each category
+    const categoriesWithStatus = categories.map(category => {
+      // Determine current certification status
+      const allJudgesCertified = category.scores.length > 0 && category.scores.every(s => s.isCertified === true)
+      const judgeStatus = allJudgesCertified ? 'COMPLETED' : 'PENDING'
+      
+      // Calculate progress
+      let currentStep = 1
+      let totalSteps = 4
+      let statusLabel = 'Waiting for Judges'
+      let statusColor = 'warning' // yellow
+      
+      if (allJudgesCertified && !category.totalsCertified) {
+        currentStep = 2
+        statusLabel = 'Ready for Tally Master'
+        statusColor = 'success' // green
+      } else if (category.totalsCertified && !category.tallyMasterCertified) {
+        currentStep = 3
+        statusLabel = 'Ready for Tally Master Review'
+        statusColor = 'info' // blue
+      } else if (category.tallyMasterCertified && !category.auditorCertified) {
+        currentStep = 4
+        statusLabel = 'Ready for Auditor'
+        statusColor = 'info'
+      } else if (category.auditorCertified && !category.boardApproved) {
+        currentStep = 5
+        statusLabel = 'Ready for Board'
+        statusColor = 'success'
+      } else if (category.boardApproved) {
+        currentStep = 6
+        statusLabel = 'Fully Certified'
+        statusColor = 'success'
+      }
+
+      return {
+        ...category,
+        certificationStatus: {
+          currentStep,
+          totalSteps,
+          statusLabel,
+          statusColor,
+          allJudgesCertified
+        }
+      }
+    })
+
+    res.json({
+      categories: categoriesWithStatus,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    })
+  } catch (error) {
+    log.error('Get pending certifications error', {
+      error: error.message,
+      stack: error.stack,
+      page: req.query?.page,
+      limit: req.query?.limit
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const certifyTotals = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { categoryId } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Certify totals requested', { categoryId, userId, userRole })
+
+    if (!categoryId) {
+      log.warn('Certify totals failed: categoryId missing', { userId })
+      return res.status(400).json({ error: 'Category ID is required' })
+    }
+
+    // Verify category exists and get context
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Certify totals failed: category not found', { categoryId, userId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Validate RoleAssignment for TALLY_MASTER role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+    } catch (assignmentError) {
+      log.warn('Certify totals failed: insufficient permissions', { categoryId, userId, userRole, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    log.debug('Marking category totals as certified', { categoryId })
+
+    // Update category to mark totals as certified
+    const updatedCategory = await prisma.category.update({
+      where: { id: categoryId },
+      data: { 
+        totalsCertified: true
+      }
+    })
+
+    log.info('Totals certified successfully', { categoryId, userId })
+    res.json(updatedCategory)
+  } catch (error) {
+    log.error('Certify totals error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.body?.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get score review interface
+const getScoreReview = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.debug('Get score review requested', { categoryId, userId, userRole })
+
+    // Validate RoleAssignment for TALLY_MASTER role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+    } catch (assignmentError) {
+      log.warn('Get score review failed: insufficient permissions', { categoryId, userId, userRole, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        scoreCap: true,
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            event: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        scores: {
+          select: {
+            id: true,
+            score: true,
+            comment: true,
+            createdAt: true,
+            contestantId: true,
+            judge: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                contestantNumber: true
+              }
+            },
+            criterion: {
+              select: {
+                id: true,
+                name: true,
+                maxScore: true
+              }
+            }
+          },
+          orderBy: [
+            { contestant: { name: 'asc' } }
+          ]
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Get score review failed: category not found', { categoryId, userId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Group scores by contestant for review
+    const contestantScores = category.scores.reduce((acc, score) => {
+      const key = score.contestantId
+      if (!acc[key]) {
+        acc[key] = {
+          contestant: score.contestant,
+          scores: [],
+          totalScore: 0,
+          averageScore: 0,
+          scoreCount: 0
+        }
+      }
+      acc[key].scores.push(score)
+      acc[key].totalScore += score.score
+      acc[key].scoreCount += 1
+      return acc
+    }, {})
+
+    // Calculate averages
+    Object.values(contestantScores).forEach(group => {
+      group.averageScore = group.scoreCount > 0 ? group.totalScore / group.scoreCount : 0
+    })
+
+    // Sort by average score (descending)
+    const sortedContestants = Object.values(contestantScores).sort((a, b) => b.averageScore - a.averageScore)
+
+    res.json({
+      category: {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        scoreCap: category.scoreCap,
+        maxScore: category.scoreCap
+      },
+      contest: {
+        id: category.contest.id,
+        name: category.contest.name,
+        eventName: category.contest.event.name
+      },
+      contestants: sortedContestants,
+      totalScores: category.scores.length,
+      uniqueContestants: Object.keys(contestantScores).length
+    })
+  } catch (error) {
+    log.error('Get score review error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get certification workflow
+const getCertificationWorkflow = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.debug('Get certification workflow requested', { categoryId, userId, userRole })
+
+    // Validate RoleAssignment for TALLY_MASTER role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+    } catch (assignmentError) {
+      log.warn('Get certification workflow failed: insufficient permissions', { categoryId, userId, userRole, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        scores: {
+          take: 1 // Just get count, we don't need actual scores
+        },
+        _count: {
+          select: {
+            scores: true
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Calculate certification status - simplified for Tally Master role
+    const certificationStatus = {
+      totalsCertified: category.totalsCertified,
+      currentStep: category.totalsCertified ? 2 : 1,
+      totalSteps: 2,
+      canProceed: !category.totalsCertified,
+      nextStep: category.totalsCertified ? 'COMPLETED' : 'CERTIFY_TOTALS'
+    }
+
+    res.json({
+      category: {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        maxScore: category.maxScore
+      },
+      contest: {
+        id: category.contest.id,
+        name: category.contest.name,
+        eventName: category.contest.event.name
+      },
+      certificationStatus,
+      totalScores: category._count.scores
+    })
+  } catch (error) {
+    log.error('Get certification workflow error:', error, { error: error.message, stack: error.stack })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get bias checking tools
+const getBiasCheckingTools = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.debug('Get bias checking tools requested', { categoryId, userId, userRole })
+
+    // Validate RoleAssignment for TALLY_MASTER role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+    } catch (assignmentError) {
+      log.warn('Get bias checking tools failed: insufficient permissions', { categoryId, userId, userRole, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        scores: {
+          include: {
+            judge: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true,
+                role: true
+              }
+            },
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                preferredName: true,
+                email: true,
+                contestantNumber: true
+              }
+            },
+            criterion: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                maxScore: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Get bias checking tools failed: category not found', { categoryId, userId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Analyze scores for potential bias
+    const judgeScores = category.scores.reduce((acc, score) => {
+      const key = score.judgeId
+      if (!acc[key]) {
+        acc[key] = {
+          judge: score.judge,
+          scores: [],
+          totalScore: 0,
+          averageScore: 0,
+          scoreCount: 0
+        }
+      }
+      acc[key].scores.push(score)
+      acc[key].totalScore += score.score
+      acc[key].scoreCount += 1
+      return acc
+    }, {})
+
+    // Calculate judge averages
+    Object.values(judgeScores).forEach(group => {
+      group.averageScore = group.scoreCount > 0 ? group.totalScore / group.scoreCount : 0
+    })
+
+    // Calculate overall average
+    const overallAverage = category.scores.length > 0 
+      ? category.scores.reduce((sum, s) => sum + s.score, 0) / category.scores.length 
+      : 0
+
+    // Identify potential bias (judges with significantly different averages)
+    const biasAnalysis = Object.values(judgeScores).map(judge => {
+      const deviation = Math.abs(judge.averageScore - overallAverage)
+      const deviationPercentage = overallAverage > 0 ? (deviation / overallAverage) * 100 : 0
+      
+      return {
+        judge: judge.judge,
+        averageScore: parseFloat(judge.averageScore.toFixed(2)),
+        scoreCount: judge.scoreCount,
+        deviation: parseFloat(deviation.toFixed(2)),
+        deviationPercentage: parseFloat(deviationPercentage.toFixed(2)),
+        potentialBias: deviationPercentage > 20 // Flag if deviation is more than 20%
+      }
+    }).sort((a, b) => b.deviationPercentage - a.deviationPercentage)
+
+    res.json({
+      category: {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        maxScore: category.maxScore
+      },
+      overallAverage: parseFloat(overallAverage.toFixed(2)),
+      totalScores: category.scores.length,
+      uniqueJudges: Object.keys(judgeScores).length,
+      biasAnalysis,
+      recommendations: biasAnalysis.filter(j => j.potentialBias).map(j => 
+        `Judge ${j.judge.name} shows potential bias with ${j.deviationPercentage}% deviation from average`
+      )
+    })
+  } catch (error) {
+    log.error('Get bias checking tools error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get tally master history
+const getTallyMasterHistory = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { page = 1, limit = 10 } = req.query
+    const offset = (page - 1) * limit
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get tally master history requested', { page, limit, userId, userRole })
+
+    const categories = await prisma.category.findMany({
+      where: { 
+        tallyMasterCertified: true
+      },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        }
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip: offset,
+      take: parseInt(limit)
+    })
+
+    const total = await prisma.category.count({
+      where: { 
+        tallyMasterCertified: true
+      }
+    })
+
+    log.info('Tally master history fetched successfully', { count: categories.length, total, page, limit, userId })
+    res.json({
+      categories,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    log.error('Get tally master history error', {
+      error: error.message,
+      stack: error.stack,
+      page: req.query?.page,
+      limit: req.query?.limit
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Score removal functionality
+const requestScoreRemoval = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { categoryId, contestId, judgeId, reason } = req.body
+    const requestedBy = req.user.id
+    const userRole = req.user.role
+
+    log.info('Request score removal', { categoryId, contestId, judgeId, reason, requestedBy, userRole })
+
+    // Support both category-level and contest-level removals
+    if ((!categoryId && !contestId) || !judgeId || !reason) {
+      log.warn('Request score removal failed: missing required fields', { categoryId, contestId, judgeId, requestedBy })
+      return res.status(400).json({ error: 'Either Category ID or Contest ID, Judge ID, and reason are required' })
+    }
+
+    // Check if user has permission to request score removal
+    if (!['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'ORGANIZER'].includes(req.user.role)) {
+      log.warn('Request score removal failed: insufficient permissions', { requestedBy, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to request score removal' })
+    }
+
+    // For contest-level removals, we need to create requests for all categories in the contest
+    if (contestId && !categoryId) {
+      // Get all categories in the contest
+      const categories = await prisma.category.findMany({
+        where: { contestId },
+        select: { id: true }
+      })
+
+      if (categories.length === 0) {
+        return res.status(404).json({ error: 'No categories found for this contest' })
+      }
+
+      // Create removal requests for all categories
+      const requests = await Promise.all(
+        categories.map(category =>
+          prisma.scoreRemovalRequest.create({
+            data: {
+              categoryId: category.id,
+              judgeId,
+              reason,
+              requestedBy,
+              status: 'PENDING'
+            },
+            include: {
+              category: {
+                include: {
+                  contest: {
+                    include: {
+                      event: true
+                    }
+                  }
+                }
+              },
+              judge: true
+            }
+          })
+        )
+      )
+
+      log.info('Contest-level score removal requests created successfully', { requestCount: requests.length, contestId, judgeId, requestedBy })
+      return res.json({
+        message: `Score removal requests created successfully for ${requests.length} categories`,
+        requests
+      })
+    }
+
+    // Category-level removal (original logic)
+    // Validate RoleAssignment for scoped roles
+    if (categoryId) {
+      const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+      try {
+        await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+      } catch (assignmentError) {
+        // ADMIN and ORGANIZER bypass assignment checks
+        if (userRole !== 'ADMIN' && userRole !== 'ORGANIZER') {
+          log.warn('Request score removal failed: insufficient permissions', { categoryId, requestedBy, userRole, error: assignmentError.message })
+          return res.status(403).json({ error: assignmentError.message })
+        }
+      }
+    }
+
+    log.debug('Creating score removal request', { categoryId, judgeId })
+
+    // Create score removal request
+    const scoreRemovalRequest = await prisma.scoreRemovalRequest.create({
+      data: {
+        categoryId,
+        judgeId,
+        reason,
+        requestedBy,
+        status: 'PENDING'
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: true
+      }
+    })
+
+    log.info('Score removal request created successfully', { requestId: scoreRemovalRequest.id, categoryId, judgeId, requestedBy })
+    res.json({
+      message: 'Score removal request created successfully',
+      request: scoreRemovalRequest
+    })
+  } catch (error) {
+    log.error('Request score removal error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.body?.categoryId,
+      judgeId: req.body?.judgeId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const getScoreRemovalRequests = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get score removal requests requested', { userId, userRole })
+
+    const requests = await prisma.scoreRemovalRequest.findMany({
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: true
+      },
+      orderBy: {
+        requestedAt: 'desc'
+      }
+    })
+
+    log.info('Score removal requests fetched successfully', { count: requests.length, userId })
+    res.json(requests)
+  } catch (error) {
+    log.error('Get score removal requests error', {
+      error: error.message,
+      stack: error.stack
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const approveScoreRemoval = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { requestId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+    const { signature } = req.body
+
+    log.info('Approve score removal requested', { requestId, userId, userRole })
+
+    if (!signature) {
+      log.warn('Approve score removal failed: signature missing', { requestId, userId })
+      return res.status(400).json({ error: 'Signature is required' })
+    }
+
+    // Check if user has permission to approve
+    if (!['TALLY_MASTER', 'AUDITOR', 'BOARD'].includes(userRole)) {
+      log.warn('Approve score removal failed: insufficient permissions', { requestId, userId, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to approve score removal' })
+    }
+
+    const request = await prisma.scoreRemovalRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        category: true,
+        judge: true
+      }
+    })
+
+    if (!request) {
+      log.warn('Approve score removal failed: request not found', { requestId, userId })
+      return res.status(404).json({ error: 'Score removal request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      log.warn('Approve score removal failed: request not pending', { requestId, status: request.status, userId })
+      return res.status(400).json({ error: 'Request is not pending' })
+    }
+
+    // Validate RoleAssignment for scoped roles
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(userId, userRole, request.categoryId)
+    } catch (assignmentError) {
+      log.warn('Approve score removal failed: insufficient permissions', { requestId, categoryId: request.categoryId, userId, userRole, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    log.debug('Updating score removal request with signature', { requestId, userRole })
+
+    // Update the request with the signature
+    let updateData = {}
+    if (userRole === 'TALLY_MASTER') {
+      updateData = {
+        tallySignature: signature,
+        tallySignedAt: new Date(),
+        tallySignedBy: userId
+      }
+    } else if (userRole === 'AUDITOR') {
+      updateData = {
+        auditorSignature: signature,
+        auditorSignedAt: new Date(),
+        auditorSignedBy: userId
+      }
+    } else if (userRole === 'BOARD') {
+      updateData = {
+        boardSignature: signature,
+        boardSignedAt: new Date(),
+        boardSignedBy: userId
+      }
+    }
+
+    const updatedRequest = await prisma.scoreRemovalRequest.update({
+      where: { id: requestId },
+      data: updateData,
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: true
+      }
+    })
+
+    // Check if all required signatures are present
+    const hasTallySignature = !!updatedRequest.tallySignature
+    const hasAuditorSignature = !!updatedRequest.auditorSignature
+    const hasBoardSignature = !!updatedRequest.boardSignature
+
+    if (hasTallySignature && hasAuditorSignature && hasBoardSignature) {
+      log.debug('All signatures present, removing scores', { requestId, categoryId: request.categoryId, judgeId: request.judgeId })
+      // All signatures present, remove the scores
+      await prisma.score.deleteMany({
+        where: {
+          categoryId: request.categoryId,
+          judgeId: request.judgeId
+        }
+      })
+
+      // Update request status to approved
+      await prisma.scoreRemovalRequest.update({
+        where: { id: requestId },
+        data: { status: 'APPROVED' }
+      })
+
+      log.info('Score removal approved and scores deleted', { requestId, categoryId: request.categoryId, judgeId: request.judgeId, userId })
+      res.json({
+        message: 'Score removal request approved and scores removed',
+        request: updatedRequest
+      })
+    } else {
+      log.info('Signature added, waiting for additional signatures', { requestId, hasTallySignature, hasAuditorSignature, hasBoardSignature, userId })
+      res.json({
+        message: 'Signature added, waiting for additional signatures',
+        request: updatedRequest
+      })
+    }
+  } catch (error) {
+    log.error('Approve score removal error', {
+      error: error.message,
+      stack: error.stack,
+      requestId: req.params.requestId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+const rejectScoreRemoval = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { requestId } = req.params
+    const { reason } = req.body
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.info('Reject score removal requested', { requestId, reason, userId, userRole })
+
+    if (!reason) {
+      log.warn('Reject score removal failed: reason missing', { requestId, userId })
+      return res.status(400).json({ error: 'Rejection reason is required' })
+    }
+
+    // Check if user has permission to reject
+    if (!['BOARD', 'AUDITOR'].includes(req.user.role)) {
+      log.warn('Reject score removal failed: insufficient permissions', { requestId, userId, userRole })
+      return res.status(403).json({ error: 'Insufficient permissions to reject score removal' })
+    }
+
+    log.debug('Updating score removal request status to rejected', { requestId })
+
+    const request = await prisma.scoreRemovalRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: reason,
+        rejectedAt: new Date(),
+        rejectedBy: req.user.id
+      },
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        },
+        judge: true
+      }
+    })
+
+    log.info('Score removal request rejected successfully', { requestId, userId })
+    res.json({
+      message: 'Score removal request rejected',
+      request
+    })
+  } catch (error) {
+    log.error('Reject score removal error', {
+      error: error.message,
+      stack: error.stack,
+      requestId: req.params.requestId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get contest-level score review
+const getContestScoreReview = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { contestId } = req.params
+    const userId = req.user.id
+    const userRole = req.user.role
+
+    log.debug('Get contest score review requested', { contestId, userId, userRole })
+
+    // Validate RoleAssignment for TALLY_MASTER role at contest level
+    const { validateContestAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateContestAssignment(req.user.id, req.user.role, contestId)
+    } catch (assignmentError) {
+      log.warn('Get contest score review failed: insufficient permissions', { contestId, userId, userRole, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    const contest = await prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        event: true,
+        categories: {
+          include: {
+            scores: {
+              include: {
+                judge: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                },
+                contestant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    contestantNumber: true
+                  }
+                },
+                criterion: {
+                  select: {
+                    id: true,
+                    name: true,
+                    maxScore: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!contest) {
+      log.warn('Get contest score review failed: contest not found', { contestId, userId })
+      return res.status(404).json({ error: 'Contest not found' })
+    }
+
+    // Group by judge
+    const judgeBreakdown = {}
+    contest.categories.forEach(category => {
+      category.scores.forEach(score => {
+        const judgeId = score.judgeId
+        if (!judgeBreakdown[judgeId]) {
+          judgeBreakdown[judgeId] = {
+            judge: score.judge,
+            categories: new Set(),
+            contestants: new Set(),
+            scores: [],
+            totalScore: 0
+          }
+        }
+        judgeBreakdown[judgeId].scores.push({ ...score, categoryId: category.id, categoryName: category.name })
+        judgeBreakdown[judgeId].categories.add(category.id)
+        judgeBreakdown[judgeId].contestants.add(score.contestantId)
+        if (score.score) {
+          judgeBreakdown[judgeId].totalScore += score.score
+        }
+      })
+    })
+
+    // Convert Sets to arrays for JSON
+    Object.values(judgeBreakdown).forEach(judge => {
+      judge.categories = Array.from(judge.categories)
+      judge.contestants = Array.from(judge.contestants)
+    })
+
+    // Group by contestant
+    const contestantBreakdown = {}
+    contest.categories.forEach(category => {
+      category.scores.forEach(score => {
+        const contestantId = score.contestantId
+        if (!contestantBreakdown[contestantId]) {
+          contestantBreakdown[contestantId] = {
+            contestant: score.contestant,
+            categories: new Set(),
+            judges: new Set(),
+            scores: [],
+            totalScore: 0
+          }
+        }
+        contestantBreakdown[contestantId].scores.push({ ...score, categoryId: category.id, categoryName: category.name })
+        contestantBreakdown[contestantId].categories.add(category.id)
+        contestantBreakdown[contestantId].judges.add(score.judgeId)
+        if (score.score) {
+          contestantBreakdown[contestantId].totalScore += score.score
+        }
+      })
+    })
+
+    // Convert Sets to arrays for JSON
+    Object.values(contestantBreakdown).forEach(contestant => {
+      contestant.categories = Array.from(contestant.categories)
+      contestant.judges = Array.from(contestant.judges)
+    })
+
+    res.json({
+      contest: {
+        id: contest.id,
+        name: contest.name,
+        event: contest.event
+      },
+      summary: {
+        totalCategories: contest.categories.length,
+        uniqueJudges: Object.keys(judgeBreakdown).length,
+        uniqueContestants: Object.keys(contestantBreakdown).length,
+        totalScores: contest.categories.reduce((sum, cat) => sum + cat.scores.length, 0)
+      },
+      judgeBreakdown: Object.values(judgeBreakdown),
+      contestantBreakdown: Object.values(contestantBreakdown)
+    })
+  } catch (error) {
+    log.error('Get contest score review error', {
+      error: error.message,
+      stack: error.stack,
+      contestId: req.params.contestId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get contest-level certifications
+const getContestCertifications = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { contestId } = req.params
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get contest certifications requested', { contestId, userId, userRole })
+
+    const categories = await prisma.category.findMany({
+      where: { contestId },
+      include: {
+        contest: {
+          include: {
+            event: true
+          }
+        },
+        scores: {
+          include: {
+            judge: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                contestantNumber: true
+              }
+            }
+          }
+        },
+        certifications: true
+      }
+    })
+
+    const certificationsByJudge = {}
+    const certificationsByContestant = {}
+
+    categories.forEach(category => {
+      category.scores.forEach(score => {
+        // Group by judge
+        if (!certificationsByJudge[score.judgeId]) {
+          certificationsByJudge[score.judgeId] = {
+            judge: score.judge,
+            categories: new Set(),
+            certifiedScores: 0,
+            totalScores: 0
+          }
+        }
+        certificationsByJudge[score.judgeId].categories.add(category.id)
+        certificationsByJudge[score.judgeId].totalScores += 1
+        if (score.isCertified) {
+          certificationsByJudge[score.judgeId].certifiedScores += 1
+        }
+
+        // Group by contestant
+        if (!certificationsByContestant[score.contestantId]) {
+          certificationsByContestant[score.contestantId] = {
+            contestant: score.contestant,
+            categories: new Set(),
+            certifiedScores: 0,
+            totalScores: 0
+          }
+        }
+        certificationsByContestant[score.contestantId].categories.add(category.id)
+        certificationsByContestant[score.contestantId].totalScores += 1
+        if (score.isCertified) {
+          certificationsByContestant[score.contestantId].certifiedScores += 1
+        }
+      })
+    })
+
+    // Convert Sets to arrays
+    Object.values(certificationsByJudge).forEach(judge => {
+      judge.categories = Array.from(judge.categories)
+      judge.certificationRate = judge.totalScores > 0 ? (judge.certifiedScores / judge.totalScores * 100).toFixed(1) : 0
+    })
+
+    Object.values(certificationsByContestant).forEach(contestant => {
+      contestant.categories = Array.from(contestant.categories)
+      contestant.certificationRate = contestant.totalScores > 0 ? (contestant.certifiedScores / contestant.totalScores * 100).toFixed(1) : 0
+    })
+
+    res.json({
+      certificationsByJudge: Object.values(certificationsByJudge),
+      certificationsByContestant: Object.values(certificationsByContestant),
+      totalCategories: categories.length
+    })
+  } catch (error) {
+    log.error('Get contest certifications error', {
+      error: error.message,
+      stack: error.stack,
+      contestId: req.params.contestId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get detailed score drill-down by contestant
+const getContestantScores = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { contestantId, categoryId } = req.query
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get contestant scores requested', { contestantId, categoryId, userId, userRole })
+
+    const scores = await prisma.score.findMany({
+      where: {
+        contestantId,
+        categoryId
+      },
+      include: {
+        judge: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        contestant: {
+          select: {
+            id: true,
+            name: true,
+            contestantNumber: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        criterion: {
+          select: {
+            id: true,
+            name: true,
+            maxScore: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    log.info('Contestant scores fetched successfully', { contestantId, categoryId, count: scores.length, userId })
+    res.json(scores)
+  } catch (error) {
+    log.error('Get contestant scores error', {
+      error: error.message,
+      stack: error.stack,
+      contestantId: req.query?.contestantId,
+      categoryId: req.query?.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get detailed score drill-down by judge
+const getJudgeScores = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { judgeId, categoryId } = req.query
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get judge scores requested', { judgeId, categoryId, userId, userRole })
+
+    const scores = await prisma.score.findMany({
+      where: {
+        judgeId,
+        categoryId
+      },
+      include: {
+        judge: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        contestant: {
+          select: {
+            id: true,
+            name: true,
+            contestantNumber: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        criterion: {
+          select: {
+            id: true,
+            name: true,
+            maxScore: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    log.info('Judge scores fetched successfully', { judgeId, categoryId, count: scores.length, userId })
+    res.json(scores)
+  } catch (error) {
+    log.error('Get judge scores error', {
+      error: error.message,
+      stack: error.stack,
+      judgeId: req.query?.judgeId,
+      categoryId: req.query?.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Get judges from category's scores
+const getCategoryJudges = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { categoryId } = req.params
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Get category judges requested', { categoryId, userId, userRole })
+
+    // Validate RoleAssignment for TALLY_MASTER role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+    } catch (assignmentError) {
+      log.warn('Category assignment validation failed', { categoryId, userId, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        scores: {
+          include: {
+            judge: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      log.warn('Category not found', { categoryId, userId })
+      return res.status(404).json({ error: 'Category not found' })
+    }
+
+    // Get unique judges from scores
+    const uniqueJudgesMap = new Map()
+    category.scores.forEach(score => {
+      if (score.judge && !uniqueJudgesMap.has(score.judge.id)) {
+        uniqueJudgesMap.set(score.judge.id, score.judge)
+      }
+    })
+
+    const judges = Array.from(uniqueJudgesMap.values())
+
+    log.info('Category judges fetched successfully', { categoryId, judgeCount: judges.length, userId })
+    res.json(judges)
+  } catch (error) {
+    log.error('Get category judges error', {
+      error: error.message,
+      stack: error.stack,
+      categoryId: req.params?.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// Remove specific judge-contestant scores
+const removeJudgeContestantScores = async (req, res) => {
+  const log = createRequestLogger(req, 'tallyMaster')
+  try {
+    const { judgeId, contestantId, categoryId, reason } = req.body
+    const userId = req.user?.id
+    const userRole = req.user?.role
+
+    log.debug('Remove judge-contestant scores requested', { judgeId, contestantId, categoryId, reason, userId, userRole })
+
+    if (!categoryId) {
+      log.warn('Category ID missing for score removal', { judgeId, contestantId, userId })
+      return res.status(400).json({ error: 'Category ID is required' })
+    }
+
+    // Validate RoleAssignment for TALLY_MASTER role
+    const { validateCategoryAssignment } = require('../utils/roleAssignmentCheck')
+    try {
+      await validateCategoryAssignment(req.user.id, req.user.role, categoryId)
+    } catch (assignmentError) {
+      log.warn('Category assignment validation failed for score removal', { categoryId, userId, error: assignmentError.message })
+      return res.status(403).json({ error: assignmentError.message })
+    }
+
+    // Find all scores matching the criteria
+    const scores = await prisma.score.findMany({
+      where: {
+        judgeId,
+        contestantId,
+        categoryId
+      }
+    })
+
+    if (scores.length === 0) {
+      log.warn('No scores found for removal', { judgeId, contestantId, categoryId, userId })
+      return res.status(404).json({ error: 'No scores found matching criteria' })
+    }
+
+    log.info('Removing judge-contestant scores', { judgeId, contestantId, categoryId, scoreCount: scores.length, reason, userId })
+
+    // Delete the scores
+    await prisma.score.deleteMany({
+      where: {
+        judgeId,
+        contestantId,
+        categoryId
+      }
+    })
+
+    log.info('Judge-contestant scores removed successfully', { judgeId, contestantId, categoryId, removedCount: scores.length, userId })
+    res.json({ 
+      message: 'Scores removed successfully',
+      removedCount: scores.length,
+      removed: scores.map(s => ({
+        id: s.id,
+        judgeId: s.judgeId,
+        contestantId: s.contestantId,
+        categoryId: s.categoryId
+      }))
+    })
+  } catch (error) {
+    log.error('Remove judge contestant scores error', {
+      error: error.message,
+      stack: error.stack,
+      judgeId: req.body?.judgeId,
+      contestantId: req.body?.contestantId,
+      categoryId: req.body?.categoryId
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+module.exports = {
+  getStats,
+  getCertifications,
+  getCertificationQueue,
+  getPendingCertifications,
+  certifyTotals,
+  getScoreReview,
+  getContestScoreReview,
+  getContestCertifications,
+  getCertificationWorkflow,
+  getBiasCheckingTools,
+  getTallyMasterHistory,
+  requestScoreRemoval,
+  getScoreRemovalRequests,
+  approveScoreRemoval,
+  rejectScoreRemoval,
+  getContestantScores,
+  getJudgeScores,
+  getCategoryJudges,
+  removeJudgeContestantScores
+}
