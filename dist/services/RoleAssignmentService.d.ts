@@ -25,11 +25,11 @@ export declare class RoleAssignmentService extends BaseService {
     constructor(prisma: PrismaClient);
     getAll(filters: RoleAssignmentFilters): Promise<{
         id: string;
-        categoryId: string | null;
         role: string;
         isActive: boolean;
         tenantId: string | null;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         userId: string;
         assignedAt: Date;
@@ -38,11 +38,11 @@ export declare class RoleAssignmentService extends BaseService {
     }[]>;
     create(data: CreateRoleAssignmentDto): Promise<{
         id: string;
-        categoryId: string | null;
         role: string;
         isActive: boolean;
         tenantId: string | null;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         userId: string;
         assignedAt: Date;
@@ -51,11 +51,11 @@ export declare class RoleAssignmentService extends BaseService {
     }>;
     update(id: string, data: UpdateRoleAssignmentDto): Promise<{
         id: string;
-        categoryId: string | null;
         role: string;
         isActive: boolean;
         tenantId: string | null;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         userId: string;
         assignedAt: Date;

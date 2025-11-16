@@ -6,9 +6,9 @@ export declare class CommentaryController {
         judge: never;
     } & {
         id: string;
-        createdAt: Date;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -20,9 +20,9 @@ export declare class CommentaryController {
         criterion: never;
     } & {
         id: string;
-        createdAt: Date;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -35,9 +35,9 @@ export declare class CommentaryController {
         score: never;
     } & {
         id: string;
-        createdAt: Date;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -48,9 +48,9 @@ export declare class CommentaryController {
         judge: never;
     } & {
         id: string;
-        createdAt: Date;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -63,9 +63,9 @@ export declare const createComment: (req: Request, res: Response, next: NextFunc
     judge: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;
@@ -77,9 +77,9 @@ export declare const getCommentsForScore: (req: Request, res: Response, next: Ne
     criterion: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;
@@ -92,9 +92,9 @@ export declare const getCommentsByContestant: (req: Request, res: Response, next
     score: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;
@@ -105,9 +105,9 @@ export declare const updateComment: (req: Request, res: Response, next: NextFunc
     judge: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;
@@ -119,9 +119,9 @@ export declare const createScoreComment: (req: Request, res: Response, next: Nex
     judge: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;
@@ -133,9 +133,9 @@ export declare const getScoreComments: (req: Request, res: Response, next: NextF
     criterion: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;
@@ -146,9 +146,9 @@ export declare const updateScoreComment: (req: Request, res: Response, next: Nex
     judge: never;
 } & {
     id: string;
-    createdAt: Date;
     judgeId: string;
     contestantId: string;
+    createdAt: Date;
     updatedAt: Date;
     criterionId: string;
     comment: string;

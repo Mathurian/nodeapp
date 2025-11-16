@@ -6,12 +6,12 @@ export declare class ScoreRemovalController {
         category: never;
         judge: never;
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
+        id: string;
         judgeId: string;
+        createdAt: Date;
         updatedAt: Date;
+        categoryId: string;
         reason: string;
         requestedBy: string;
         requestedAt: Date;
@@ -30,12 +30,12 @@ export declare class ScoreRemovalController {
         judge: never;
         requestedByUser: never;
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
+        id: string;
         judgeId: string;
+        createdAt: Date;
         updatedAt: Date;
+        categoryId: string;
         reason: string;
         requestedBy: string;
         requestedAt: Date;
@@ -54,12 +54,12 @@ export declare class ScoreRemovalController {
         judge: never;
         requestedByUser: never;
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
+        id: string;
         judgeId: string;
+        createdAt: Date;
         updatedAt: Date;
+        categoryId: string;
         reason: string;
         requestedBy: string;
         requestedAt: Date;
@@ -78,12 +78,12 @@ export declare class ScoreRemovalController {
             category: never;
             judge: never;
         } & {
-            id: string;
-            categoryId: string;
-            createdAt: Date;
             status: import(".prisma/client").$Enums.RequestStatus;
+            id: string;
             judgeId: string;
+            createdAt: Date;
             updatedAt: Date;
+            categoryId: string;
             reason: string;
             requestedBy: string;
             requestedAt: Date;
@@ -107,12 +107,12 @@ export declare const createScoreRemovalRequest: (req: Request, res: Response, ne
     category: never;
     judge: never;
 } & {
-    id: string;
-    categoryId: string;
-    createdAt: Date;
     status: import(".prisma/client").$Enums.RequestStatus;
+    id: string;
     judgeId: string;
+    createdAt: Date;
     updatedAt: Date;
+    categoryId: string;
     reason: string;
     requestedBy: string;
     requestedAt: Date;
@@ -131,12 +131,12 @@ export declare const getScoreRemovalRequests: (req: Request, res: Response, next
     judge: never;
     requestedByUser: never;
 } & {
-    id: string;
-    categoryId: string;
-    createdAt: Date;
     status: import(".prisma/client").$Enums.RequestStatus;
+    id: string;
     judgeId: string;
+    createdAt: Date;
     updatedAt: Date;
+    categoryId: string;
     reason: string;
     requestedBy: string;
     requestedAt: Date;
@@ -155,12 +155,12 @@ export declare const getScoreRemovalRequest: (req: Request, res: Response, next:
     judge: never;
     requestedByUser: never;
 } & {
-    id: string;
-    categoryId: string;
-    createdAt: Date;
     status: import(".prisma/client").$Enums.RequestStatus;
+    id: string;
     judgeId: string;
+    createdAt: Date;
     updatedAt: Date;
+    categoryId: string;
     reason: string;
     requestedBy: string;
     requestedAt: Date;
@@ -179,12 +179,12 @@ export declare const signScoreRemovalRequest: (req: Request, res: Response, next
         category: never;
         judge: never;
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
+        id: string;
         judgeId: string;
+        createdAt: Date;
         updatedAt: Date;
+        categoryId: string;
         reason: string;
         requestedBy: string;
         requestedAt: Date;

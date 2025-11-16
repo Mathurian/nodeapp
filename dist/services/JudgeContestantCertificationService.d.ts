@@ -5,17 +5,17 @@ export declare class JudgeContestantCertificationService extends BaseService {
     constructor(prisma: PrismaClient);
     getCertifications(judgeId?: string, categoryId?: string, contestantId?: string): Promise<{
         id: string;
-        categoryId: string;
         judgeId: string;
         contestantId: string;
+        categoryId: string;
         certifiedAt: Date;
         comments: string | null;
     }[]>;
     certify(data: any): Promise<{
         id: string;
-        categoryId: string;
         judgeId: string;
         contestantId: string;
+        categoryId: string;
         certifiedAt: Date;
         comments: string | null;
     }>;
@@ -32,9 +32,9 @@ export declare class JudgeContestantCertificationService extends BaseService {
         certificationsByContestant: unknown[];
         allCertifications: {
             id: string;
-            categoryId: string;
             judgeId: string;
             contestantId: string;
+            categoryId: string;
             certifiedAt: Date;
             comments: string | null;
         }[];

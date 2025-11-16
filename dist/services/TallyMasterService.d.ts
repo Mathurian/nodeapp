@@ -14,8 +14,8 @@ export declare class TallyMasterService extends BaseService {
                 event: {
                     name: string;
                     id: string;
-                    createdAt: Date;
                     tenantId: string;
+                    createdAt: Date;
                     updatedAt: Date;
                     description: string | null;
                     startDate: Date;
@@ -33,9 +33,10 @@ export declare class TallyMasterService extends BaseService {
             } & {
                 name: string;
                 id: string;
-                createdAt: Date;
                 tenantId: string;
+                createdAt: Date;
                 updatedAt: Date;
+                eventId: string;
                 description: string | null;
                 contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
                 contestantViewRestricted: boolean;
@@ -44,14 +45,12 @@ export declare class TallyMasterService extends BaseService {
                 lockedAt: Date | null;
                 lockVerifiedBy: string | null;
                 archived: boolean;
-                eventId: string;
                 nextContestantNumber: number | null;
             };
             scores: ({
                 contestant: {
                     name: string;
                     id: string;
-                    createdAt: Date;
                     email: string | null;
                     gender: string | null;
                     pronouns: string | null;
@@ -59,31 +58,32 @@ export declare class TallyMasterService extends BaseService {
                     imagePath: string | null;
                     contestantNumber: number | null;
                     tenantId: string;
+                    createdAt: Date;
                     updatedAt: Date;
                 };
                 judge: {
                     name: string;
                     id: string;
-                    createdAt: Date;
-                    isHeadJudge: boolean;
                     email: string | null;
                     gender: string | null;
                     pronouns: string | null;
                     bio: string | null;
                     imagePath: string | null;
                     tenantId: string;
+                    createdAt: Date;
                     updatedAt: Date;
+                    isHeadJudge: boolean;
                 };
             } & {
-                id: string;
-                contestantId: string;
-                categoryId: string;
-                createdAt: Date;
                 score: number | null;
+                id: string;
                 judgeId: string;
+                contestantId: string;
+                createdAt: Date;
                 updatedAt: Date;
                 isLocked: boolean;
                 lockedAt: Date | null;
+                categoryId: string;
                 criterionId: string | null;
                 comment: string | null;
                 allowCommentEdit: boolean;
@@ -95,8 +95,8 @@ export declare class TallyMasterService extends BaseService {
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -134,8 +134,8 @@ export declare class TallyMasterService extends BaseService {
     certifyTotals(categoryId: string, userId: string, userRole: UserRole): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
         description: string | null;
         contestId: string;
@@ -186,8 +186,8 @@ export declare class TallyMasterService extends BaseService {
         categories: {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -211,8 +211,8 @@ export declare class TallyMasterService extends BaseService {
             event: {
                 name: string;
                 id: string;
-                createdAt: Date;
                 tenantId: string;
+                createdAt: Date;
                 updatedAt: Date;
                 description: string | null;
                 startDate: Date;
@@ -259,16 +259,16 @@ export declare class TallyMasterService extends BaseService {
             reviewedAt: any;
             reviewedById: any;
             category: {
-                name: string;
-                id: string;
                 contest: {
-                    name: string;
-                    id: string;
                     event: {
                         name: string;
                         id: string;
                     };
+                    name: string;
+                    id: string;
                 };
+                name: string;
+                id: string;
             };
             contestant: {
                 id: string;

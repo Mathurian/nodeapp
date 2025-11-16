@@ -32,16 +32,16 @@ export declare const createUserSchema: z.ZodObject<{
     lastName: z.ZodString;
     role: z.ZodEnum<["ADMIN", "EVENT_MANAGER", "JUDGE", "CONTESTANT", "EMCEE", "TALLY_MASTER", "AUDITOR", "BOARD_MEMBER"]>;
 }, "strip", z.ZodTypeAny, {
-    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     email?: string;
     password?: string;
+    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     username?: string;
     firstName?: string;
     lastName?: string;
 }, {
-    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     email?: string;
     password?: string;
+    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     username?: string;
     firstName?: string;
     lastName?: string;
@@ -54,15 +54,15 @@ export declare const updateUserSchema: z.ZodObject<{
     role: z.ZodOptional<z.ZodEnum<["ADMIN", "EVENT_MANAGER", "JUDGE", "CONTESTANT", "EMCEE", "TALLY_MASTER", "AUDITOR", "BOARD_MEMBER"]>>;
     isActive: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     email?: string;
+    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     isActive?: boolean;
     username?: string;
     firstName?: string;
     lastName?: string;
 }, {
-    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     email?: string;
+    role?: "ADMIN" | "JUDGE" | "CONTESTANT" | "EMCEE" | "TALLY_MASTER" | "AUDITOR" | "EVENT_MANAGER" | "BOARD_MEMBER";
     isActive?: boolean;
     username?: string;
     firstName?: string;
@@ -167,15 +167,15 @@ export declare const createScoreSchema: z.ZodObject<{
     contestId: z.ZodString;
     value: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    judgeId?: string;
     contestantId?: string;
     categoryId?: string;
-    judgeId?: string;
     contestId?: string;
     value?: number;
 }, {
+    judgeId?: string;
     contestantId?: string;
     categoryId?: string;
-    judgeId?: string;
     contestId?: string;
     value?: number;
 }>;
@@ -224,17 +224,17 @@ export declare const createContestSchema: z.ZodObject<{
     nextContestantNumber: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name?: string;
+    eventId?: string;
     description?: string;
     contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     archived?: boolean;
-    eventId?: string;
     nextContestantNumber?: number;
 }, {
     name?: string;
+    eventId?: string;
     description?: string;
     contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     archived?: boolean;
-    eventId?: string;
     nextContestantNumber?: number;
 }>;
 export declare const updateContestSchema: z.ZodObject<{

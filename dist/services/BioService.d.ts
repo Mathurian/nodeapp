@@ -22,12 +22,12 @@ export declare class BioService extends BaseService {
         contestantNumber: number;
         contestContestants: {
             contest: {
-                name: string;
-                id: string;
                 event: {
                     name: string;
                     id: string;
                 };
+                name: string;
+                id: string;
             };
         }[];
         categoryContestants: {
@@ -40,19 +40,19 @@ export declare class BioService extends BaseService {
     getJudgeBios(filters: BioQueryFilters): Promise<{
         name: string;
         id: string;
-        isHeadJudge: boolean;
         gender: string;
         pronouns: string;
         bio: string;
         imagePath: string;
+        isHeadJudge: boolean;
         contestJudges: {
             contest: {
-                name: string;
-                id: string;
                 event: {
                     name: string;
                     id: string;
                 };
+                name: string;
+                id: string;
             };
         }[];
         categoryJudges: {

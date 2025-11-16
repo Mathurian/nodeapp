@@ -6,18 +6,18 @@ export declare class ArchiveService extends BaseService {
     getAllArchives(): Promise<{
         name: string;
         id: string;
+        eventId: string;
         description: string | null;
         startDate: Date | null;
         endDate: Date | null;
-        eventId: string;
         archivedAt: Date;
         archivedById: string;
     }[]>;
     getActiveEvents(): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
         description: string | null;
         startDate: Date;
@@ -35,8 +35,8 @@ export declare class ArchiveService extends BaseService {
     getArchivedEvents(): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
         description: string | null;
         startDate: Date;
@@ -54,10 +54,10 @@ export declare class ArchiveService extends BaseService {
     archiveItem(id: string, reason?: string, userId?: string): Promise<{
         name: string;
         id: string;
+        eventId: string;
         description: string | null;
         startDate: Date | null;
         endDate: Date | null;
-        eventId: string;
         archivedAt: Date;
         archivedById: string;
     }>;
@@ -70,10 +70,10 @@ export declare class ArchiveService extends BaseService {
     archiveEvent(eventId: string, userId: string, reason?: string): Promise<{
         name: string;
         id: string;
+        eventId: string;
         description: string | null;
         startDate: Date | null;
         endDate: Date | null;
-        eventId: string;
         archivedAt: Date;
         archivedById: string;
     }>;

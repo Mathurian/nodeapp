@@ -19,13 +19,13 @@ export declare class ScoreRemovalService extends BaseService {
         category: never;
         judge: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
+        judgeId: string;
+        createdAt: Date;
+        updatedAt: Date;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        createdAt: Date;
-        judgeId: string;
-        updatedAt: Date;
         requestedBy: string;
         requestedAt: Date;
         tallySignature: string | null;
@@ -43,13 +43,13 @@ export declare class ScoreRemovalService extends BaseService {
         judge: never;
         requestedByUser: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
+        judgeId: string;
+        createdAt: Date;
+        updatedAt: Date;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        createdAt: Date;
-        judgeId: string;
-        updatedAt: Date;
         requestedBy: string;
         requestedAt: Date;
         tallySignature: string | null;
@@ -67,13 +67,13 @@ export declare class ScoreRemovalService extends BaseService {
         judge: never;
         requestedByUser: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
+        judgeId: string;
+        createdAt: Date;
+        updatedAt: Date;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        createdAt: Date;
-        judgeId: string;
-        updatedAt: Date;
         requestedBy: string;
         requestedAt: Date;
         tallySignature: string | null;
@@ -91,13 +91,13 @@ export declare class ScoreRemovalService extends BaseService {
             category: never;
             judge: never;
         } & {
+            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
+            judgeId: string;
+            createdAt: Date;
+            updatedAt: Date;
             categoryId: string;
             reason: string;
-            status: import(".prisma/client").$Enums.RequestStatus;
-            createdAt: Date;
-            judgeId: string;
-            updatedAt: Date;
             requestedBy: string;
             requestedAt: Date;
             tallySignature: string | null;

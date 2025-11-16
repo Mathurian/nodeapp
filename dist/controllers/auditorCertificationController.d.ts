@@ -14,11 +14,11 @@ export declare class AuditorCertificationController {
             missing: number;
             certifications: {
                 id: string;
-                userId: string;
-                categoryId: string;
                 role: string;
+                categoryId: string;
                 certifiedAt: Date;
                 comments: string | null;
+                userId: string;
                 signatureName: string | null;
             }[];
         };
@@ -35,11 +35,11 @@ export declare class AuditorCertificationController {
     }>, Record<string, any>>>;
     submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        userId: string;
-        categoryId: string;
         role: string;
+        categoryId: string;
         certifiedAt: Date;
         comments: string | null;
+        userId: string;
         signatureName: string | null;
     }>, Record<string, any>>>;
 }
@@ -55,11 +55,11 @@ export declare const getFinalCertificationStatus: (req: Request, res: Response, 
         missing: number;
         certifications: {
             id: string;
-            userId: string;
-            categoryId: string;
             role: string;
+            categoryId: string;
             certifiedAt: Date;
             comments: string | null;
+            userId: string;
             signatureName: string | null;
         }[];
     };
@@ -76,11 +76,11 @@ export declare const getFinalCertificationStatus: (req: Request, res: Response, 
 }>, Record<string, any>>>;
 export declare const submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    userId: string;
-    categoryId: string;
     role: string;
+    categoryId: string;
     certifiedAt: Date;
     comments: string | null;
+    userId: string;
     signatureName: string | null;
 }>, Record<string, any>>>;
 //# sourceMappingURL=auditorCertificationController.d.ts.map

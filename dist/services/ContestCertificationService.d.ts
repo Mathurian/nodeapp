@@ -12,18 +12,18 @@ export declare class ContestCertificationService extends BaseService {
         certifications: {
             id: string;
             role: string;
-            comments: string | null;
             certifiedAt: Date;
             contestId: string;
+            comments: string | null;
             userId: string;
         }[];
     }>;
     certifyContest(contestId: string, userId: string, userRole: string): Promise<{
         id: string;
         role: string;
-        comments: string | null;
         certifiedAt: Date;
         contestId: string;
+        comments: string | null;
         userId: string;
     }>;
 }

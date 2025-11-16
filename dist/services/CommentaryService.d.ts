@@ -19,9 +19,9 @@ export declare class CommentaryService extends BaseService {
         judge: never;
     } & {
         id: string;
+        judgeId: string;
         contestantId: string;
         createdAt: Date;
-        judgeId: string;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -33,9 +33,9 @@ export declare class CommentaryService extends BaseService {
         criterion: never;
     } & {
         id: string;
+        judgeId: string;
         contestantId: string;
         createdAt: Date;
-        judgeId: string;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -48,9 +48,9 @@ export declare class CommentaryService extends BaseService {
         score: never;
     } & {
         id: string;
+        judgeId: string;
         contestantId: string;
         createdAt: Date;
-        judgeId: string;
         updatedAt: Date;
         criterionId: string;
         comment: string;
@@ -61,9 +61,9 @@ export declare class CommentaryService extends BaseService {
         judge: never;
     } & {
         id: string;
+        judgeId: string;
         contestantId: string;
         createdAt: Date;
-        judgeId: string;
         updatedAt: Date;
         criterionId: string;
         comment: string;

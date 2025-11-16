@@ -27,9 +27,16 @@ export declare class WinnerService extends BaseService {
     getWinnersByContest(contestId: string, _userRole: string, includeCategoryBreakdown?: boolean): Promise<{
         contest: {
             event: {
-                id: string;
                 name: string;
+                id: string;
+                tenantId: string;
+                createdAt: Date;
+                updatedAt: Date;
                 description: string | null;
+                startDate: Date;
+                endDate: Date;
+                location: string | null;
+                maxContestants: number | null;
                 contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
                 contestantViewRestricted: boolean;
                 contestantViewReleaseDate: Date | null;
@@ -37,13 +44,6 @@ export declare class WinnerService extends BaseService {
                 lockedAt: Date | null;
                 lockVerifiedBy: string | null;
                 archived: boolean;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                startDate: Date;
-                endDate: Date;
-                location: string | null;
-                maxContestants: number | null;
             };
             categories: ({
                 criteria: {
@@ -51,12 +51,12 @@ export declare class WinnerService extends BaseService {
                     maxScore: number;
                 }[];
             } & {
-                id: string;
                 name: string;
-                description: string | null;
+                id: string;
                 tenantId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                description: string | null;
                 contestId: string;
                 scoreCap: number | null;
                 timeLimit: number | null;
@@ -65,21 +65,21 @@ export declare class WinnerService extends BaseService {
                 totalsCertified: boolean;
             })[];
         } & {
-            id: string;
             name: string;
+            id: string;
+            tenantId: string;
+            createdAt: Date;
+            updatedAt: Date;
             eventId: string;
             description: string | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-            nextContestantNumber: number | null;
             contestantViewRestricted: boolean;
             contestantViewReleaseDate: Date | null;
             isLocked: boolean;
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
             archived: boolean;
-            tenantId: string;
-            createdAt: Date;
-            updatedAt: Date;
+            nextContestantNumber: number | null;
         };
         categories: any[];
         contestants: {
@@ -124,9 +124,16 @@ export declare class WinnerService extends BaseService {
     getWinners(eventId?: string, contestId?: string): Promise<{
         contest: {
             event: {
-                id: string;
                 name: string;
+                id: string;
+                tenantId: string;
+                createdAt: Date;
+                updatedAt: Date;
                 description: string | null;
+                startDate: Date;
+                endDate: Date;
+                location: string | null;
+                maxContestants: number | null;
                 contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
                 contestantViewRestricted: boolean;
                 contestantViewReleaseDate: Date | null;
@@ -134,13 +141,6 @@ export declare class WinnerService extends BaseService {
                 lockedAt: Date | null;
                 lockVerifiedBy: string | null;
                 archived: boolean;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                startDate: Date;
-                endDate: Date;
-                location: string | null;
-                maxContestants: number | null;
             };
             categories: ({
                 criteria: {
@@ -148,12 +148,12 @@ export declare class WinnerService extends BaseService {
                     maxScore: number;
                 }[];
             } & {
-                id: string;
                 name: string;
-                description: string | null;
+                id: string;
                 tenantId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                description: string | null;
                 contestId: string;
                 scoreCap: number | null;
                 timeLimit: number | null;
@@ -162,21 +162,21 @@ export declare class WinnerService extends BaseService {
                 totalsCertified: boolean;
             })[];
         } & {
-            id: string;
             name: string;
+            id: string;
+            tenantId: string;
+            createdAt: Date;
+            updatedAt: Date;
             eventId: string;
             description: string | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-            nextContestantNumber: number | null;
             contestantViewRestricted: boolean;
             contestantViewReleaseDate: Date | null;
             isLocked: boolean;
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
             archived: boolean;
-            tenantId: string;
-            createdAt: Date;
-            updatedAt: Date;
+            nextContestantNumber: number | null;
         };
         categories: any[];
         contestants: {
@@ -195,12 +195,12 @@ export declare class WinnerService extends BaseService {
                         maxScore: number;
                     }[];
                 } & {
-                    id: string;
                     name: string;
-                    description: string | null;
+                    id: string;
                     tenantId: string;
                     createdAt: Date;
                     updatedAt: Date;
+                    description: string | null;
                     contestId: string;
                     scoreCap: number | null;
                     timeLimit: number | null;
@@ -209,26 +209,33 @@ export declare class WinnerService extends BaseService {
                     totalsCertified: boolean;
                 })[];
             } & {
-                id: string;
                 name: string;
+                id: string;
+                tenantId: string;
+                createdAt: Date;
+                updatedAt: Date;
                 eventId: string;
                 description: string | null;
                 contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                nextContestantNumber: number | null;
                 contestantViewRestricted: boolean;
                 contestantViewReleaseDate: Date | null;
                 isLocked: boolean;
                 lockedAt: Date | null;
                 lockVerifiedBy: string | null;
                 archived: boolean;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
+                nextContestantNumber: number | null;
             })[];
         } & {
-            id: string;
             name: string;
+            id: string;
+            tenantId: string;
+            createdAt: Date;
+            updatedAt: Date;
             description: string | null;
+            startDate: Date;
+            endDate: Date;
+            location: string | null;
+            maxContestants: number | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
             contestantViewReleaseDate: Date | null;
@@ -236,13 +243,6 @@ export declare class WinnerService extends BaseService {
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
             archived: boolean;
-            tenantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startDate: Date;
-            endDate: Date;
-            location: string | null;
-            maxContestants: number | null;
         };
         contests: any[];
         message: string;

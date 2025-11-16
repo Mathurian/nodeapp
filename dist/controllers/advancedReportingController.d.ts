@@ -6,10 +6,10 @@ export declare class AdvancedReportingController {
     generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         scores: ({
             category: {
-                name: string;
                 contest: {
                     name: string;
                 };
+                name: string;
             };
             contestant: {
                 name: string;
@@ -18,15 +18,15 @@ export declare class AdvancedReportingController {
                 name: string;
             };
         } & {
-            id: string;
-            categoryId: string;
-            createdAt: Date;
             score: number | null;
+            id: string;
             judgeId: string;
             contestantId: string;
+            createdAt: Date;
             updatedAt: Date;
             isLocked: boolean;
             lockedAt: Date | null;
+            categoryId: string;
             criterionId: string | null;
             comment: string | null;
             allowCommentEdit: boolean;
@@ -51,10 +51,10 @@ export declare class AdvancedReportingController {
 export declare const generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     scores: ({
         category: {
-            name: string;
             contest: {
                 name: string;
             };
+            name: string;
         };
         contestant: {
             name: string;
@@ -63,15 +63,15 @@ export declare const generateScoreReport: (req: Request, res: Response, next: Ne
             name: string;
         };
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;

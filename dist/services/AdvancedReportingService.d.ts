@@ -6,10 +6,10 @@ export declare class AdvancedReportingService extends BaseService {
     generateScoreReport(eventId?: string, contestId?: string, categoryId?: string): Promise<{
         scores: ({
             category: {
-                name: string;
                 contest: {
                     name: string;
                 };
+                name: string;
             };
             contestant: {
                 name: string;
@@ -18,15 +18,15 @@ export declare class AdvancedReportingService extends BaseService {
                 name: string;
             };
         } & {
-            id: string;
-            contestantId: string;
-            categoryId: string;
-            createdAt: Date;
             score: number | null;
+            id: string;
             judgeId: string;
+            contestantId: string;
+            createdAt: Date;
             updatedAt: Date;
             isLocked: boolean;
             lockedAt: Date | null;
+            categoryId: string;
             criterionId: string | null;
             comment: string | null;
             allowCommentEdit: boolean;

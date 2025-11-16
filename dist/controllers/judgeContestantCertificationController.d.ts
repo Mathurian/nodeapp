@@ -5,17 +5,17 @@ export declare class JudgeContestantCertificationController {
     constructor();
     getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        categoryId: string;
         judgeId: string;
         contestantId: string;
+        categoryId: string;
         certifiedAt: Date;
         comments: string | null;
     }[]>, Record<string, any>>>;
     certify: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        categoryId: string;
         judgeId: string;
         contestantId: string;
+        categoryId: string;
         certifiedAt: Date;
         comments: string | null;
     }>, Record<string, any>>>;
@@ -26,17 +26,17 @@ export declare class JudgeContestantCertificationController {
 }
 export declare const getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    categoryId: string;
     judgeId: string;
     contestantId: string;
+    categoryId: string;
     certifiedAt: Date;
     comments: string | null;
 }[]>, Record<string, any>>>;
 export declare const certify: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    categoryId: string;
     judgeId: string;
     contestantId: string;
+    categoryId: string;
     certifiedAt: Date;
     comments: string | null;
 }>, Record<string, any>>>;

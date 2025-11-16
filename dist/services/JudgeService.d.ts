@@ -19,12 +19,12 @@ export declare class JudgeService extends BaseService {
         totalScores: number;
     }>;
     getAssignments(userId: string, userRole: string): Promise<{
-        id: string;
-        categoryId: string | null;
         status: import(".prisma/client").$Enums.AssignmentStatus;
+        id: string;
         judgeId: string;
         tenantId: string;
         eventId: string;
+        categoryId: string | null;
         contestId: string;
         assignedAt: Date;
         assignedBy: string;
@@ -32,12 +32,12 @@ export declare class JudgeService extends BaseService {
         priority: number;
     }[]>;
     updateAssignmentStatus(assignmentId: string, status: string, userId: string, userRole: string): Promise<{
-        id: string;
-        categoryId: string | null;
         status: import(".prisma/client").$Enums.AssignmentStatus;
+        id: string;
         judgeId: string;
         tenantId: string;
         eventId: string;
+        categoryId: string | null;
         contestId: string;
         assignedAt: Date;
         assignedBy: string;
@@ -69,12 +69,12 @@ export declare class JudgeService extends BaseService {
     getCertificationWorkflow(categoryId: string, userId: string): Promise<{
         category: any;
         assignment: {
-            id: string;
-            categoryId: string | null;
             status: import(".prisma/client").$Enums.AssignmentStatus;
+            id: string;
             judgeId: string;
             tenantId: string;
             eventId: string;
+            categoryId: string | null;
             contestId: string;
             assignedAt: Date;
             assignedBy: string;
@@ -94,7 +94,6 @@ export declare class JudgeService extends BaseService {
             contestant: {
                 name: string;
                 id: string;
-                createdAt: Date;
                 email: string | null;
                 gender: string | null;
                 pronouns: string | null;
@@ -102,26 +101,27 @@ export declare class JudgeService extends BaseService {
                 imagePath: string | null;
                 contestantNumber: number | null;
                 tenantId: string;
+                createdAt: Date;
                 updatedAt: Date;
             };
             criterion: {
                 name: string;
                 id: string;
-                categoryId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                categoryId: string;
                 maxScore: number;
             };
         } & {
-            id: string;
-            contestantId: string;
-            categoryId: string;
-            createdAt: Date;
             score: number | null;
+            id: string;
             judgeId: string;
+            contestantId: string;
+            createdAt: Date;
             updatedAt: Date;
             isLocked: boolean;
             lockedAt: Date | null;
+            categoryId: string;
             criterionId: string | null;
             comment: string | null;
             allowCommentEdit: boolean;

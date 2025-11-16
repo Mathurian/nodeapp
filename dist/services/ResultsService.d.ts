@@ -36,17 +36,8 @@ export declare class ResultsService extends BaseService {
             certifiedAt: Date;
             totalEarned: number;
             totalPossible: number;
-            id: string;
-            contestantId: string;
-            categoryId: string;
-            createdAt: Date;
             category: {
-                name: string;
-                id: string;
                 contest: {
-                    name: string;
-                    id: string;
-                    createdAt: Date;
                     event: {
                         name: string;
                         id: string;
@@ -55,10 +46,15 @@ export declare class ResultsService extends BaseService {
                         startDate: Date;
                         endDate: Date;
                     };
+                    name: string;
+                    id: string;
+                    createdAt: Date;
                     updatedAt: Date;
-                    description: string;
                     eventId: string;
+                    description: string;
                 };
+                name: string;
+                id: string;
                 description: string;
                 contestId: string;
                 scoreCap: number;
@@ -78,14 +74,18 @@ export declare class ResultsService extends BaseService {
             criterion: {
                 name: string;
                 id: string;
-                categoryId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                categoryId: string;
                 maxScore: number;
             };
             score: number;
+            id: string;
             judgeId: string;
+            contestantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            categoryId: string;
             criterionId: string;
             comment: string;
             isCertified: boolean;
@@ -97,8 +97,8 @@ export declare class ResultsService extends BaseService {
             event: {
                 name: string;
                 id: string;
-                createdAt: Date;
                 tenantId: string;
+                createdAt: Date;
                 updatedAt: Date;
                 description: string | null;
                 startDate: Date;
@@ -116,9 +116,10 @@ export declare class ResultsService extends BaseService {
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            eventId: string;
             description: string | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
@@ -127,14 +128,13 @@ export declare class ResultsService extends BaseService {
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
             archived: boolean;
-            eventId: string;
             nextContestantNumber: number | null;
         };
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
         description: string | null;
         contestId: string;
@@ -150,8 +150,8 @@ export declare class ResultsService extends BaseService {
                 event: {
                     name: string;
                     id: string;
-                    createdAt: Date;
                     tenantId: string;
+                    createdAt: Date;
                     updatedAt: Date;
                     description: string | null;
                     startDate: Date;
@@ -169,9 +169,10 @@ export declare class ResultsService extends BaseService {
             } & {
                 name: string;
                 id: string;
-                createdAt: Date;
                 tenantId: string;
+                createdAt: Date;
                 updatedAt: Date;
+                eventId: string;
                 description: string | null;
                 contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
                 contestantViewRestricted: boolean;
@@ -180,14 +181,13 @@ export declare class ResultsService extends BaseService {
                 lockedAt: Date | null;
                 lockVerifiedBy: string | null;
                 archived: boolean;
-                eventId: string;
                 nextContestantNumber: number | null;
             };
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -200,26 +200,26 @@ export declare class ResultsService extends BaseService {
         judge: {
             name: string;
             id: string;
-            createdAt: Date;
-            isHeadJudge: boolean;
             email: string | null;
             gender: string | null;
             pronouns: string | null;
             bio: string | null;
             imagePath: string | null;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            isHeadJudge: boolean;
         };
     } & {
-        id: string;
-        contestantId: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
+        contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;
@@ -233,8 +233,8 @@ export declare class ResultsService extends BaseService {
         category: {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -247,7 +247,6 @@ export declare class ResultsService extends BaseService {
         contestant: {
             name: string;
             id: string;
-            createdAt: Date;
             email: string | null;
             gender: string | null;
             pronouns: string | null;
@@ -255,31 +254,32 @@ export declare class ResultsService extends BaseService {
             imagePath: string | null;
             contestantNumber: number | null;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
         };
         judge: {
             name: string;
             id: string;
-            createdAt: Date;
-            isHeadJudge: boolean;
             email: string | null;
             gender: string | null;
             pronouns: string | null;
             bio: string | null;
             imagePath: string | null;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            isHeadJudge: boolean;
         };
     } & {
-        id: string;
-        contestantId: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
+        contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;
@@ -293,9 +293,10 @@ export declare class ResultsService extends BaseService {
             contest: {
                 name: string;
                 id: string;
-                createdAt: Date;
                 tenantId: string;
+                createdAt: Date;
                 updatedAt: Date;
+                eventId: string;
                 description: string | null;
                 contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
                 contestantViewRestricted: boolean;
@@ -304,14 +305,13 @@ export declare class ResultsService extends BaseService {
                 lockedAt: Date | null;
                 lockVerifiedBy: string | null;
                 archived: boolean;
-                eventId: string;
                 nextContestantNumber: number | null;
             };
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -324,7 +324,6 @@ export declare class ResultsService extends BaseService {
         contestant: {
             name: string;
             id: string;
-            createdAt: Date;
             email: string | null;
             gender: string | null;
             pronouns: string | null;
@@ -332,31 +331,32 @@ export declare class ResultsService extends BaseService {
             imagePath: string | null;
             contestantNumber: number | null;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
         };
         judge: {
             name: string;
             id: string;
-            createdAt: Date;
-            isHeadJudge: boolean;
             email: string | null;
             gender: string | null;
             pronouns: string | null;
             bio: string | null;
             imagePath: string | null;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            isHeadJudge: boolean;
         };
     } & {
-        id: string;
-        contestantId: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
+        contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;

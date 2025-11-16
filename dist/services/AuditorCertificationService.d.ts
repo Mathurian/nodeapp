@@ -15,12 +15,12 @@ export declare class AuditorCertificationService extends BaseService {
             missing: number;
             certifications: {
                 id: string;
-                categoryId: string;
-                signatureName: string | null;
-                certifiedAt: Date;
                 role: string;
-                userId: string;
+                categoryId: string;
+                certifiedAt: Date;
                 comments: string | null;
+                userId: string;
+                signatureName: string | null;
             }[];
         };
         scoreStatus: {
@@ -36,12 +36,12 @@ export declare class AuditorCertificationService extends BaseService {
     }>;
     submitFinalCertification(categoryId: string, userId: string, userRole: string, confirmations: any): Promise<{
         id: string;
-        categoryId: string;
-        signatureName: string | null;
-        certifiedAt: Date;
         role: string;
-        userId: string;
+        categoryId: string;
+        certifiedAt: Date;
         comments: string | null;
+        userId: string;
+        signatureName: string | null;
     }>;
     private getFinalCertificationStatusInternal;
 }

@@ -22,12 +22,12 @@ export declare class CategoryCertificationService extends BaseService {
     }>;
     certifyCategory(categoryId: string, userId: string, userRole: string): Promise<{
         id: string;
-        categoryId: string;
         role: string;
-        comments: string | null;
+        categoryId: string;
         certifiedAt: Date;
-        signatureName: string | null;
+        comments: string | null;
         userId: string;
+        signatureName: string | null;
     }>;
 }
 //# sourceMappingURL=CategoryCertificationService.d.ts.map

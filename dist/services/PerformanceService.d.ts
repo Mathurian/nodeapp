@@ -113,18 +113,18 @@ export declare class PerformanceService extends BaseService {
     getPerformanceLogs(query: PerformanceLogsQuery): Promise<{
         logs: {
             id: string;
-            endpoint: string;
-            method: string;
-            responseTime: number;
-            statusCode: number;
-            userId: string | null;
-            ipAddress: string | null;
-            userAgent: string | null;
-            eventId: string | null;
-            contestId: string | null;
-            categoryId: string | null;
             tenantId: string | null;
             createdAt: Date;
+            eventId: string | null;
+            categoryId: string | null;
+            contestId: string | null;
+            userId: string | null;
+            method: string;
+            userAgent: string | null;
+            ipAddress: string | null;
+            endpoint: string;
+            responseTime: number;
+            statusCode: number;
         }[];
         pagination: {
             page: number;

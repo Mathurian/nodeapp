@@ -10,20 +10,20 @@ export declare class ContestCertificationController {
         organizer: boolean;
         certifications: {
             id: string;
-            userId: string;
-            contestId: string;
             role: string;
             certifiedAt: Date;
+            contestId: string;
             comments: string | null;
+            userId: string;
         }[];
     }>, Record<string, any>>>;
     certifyContest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        userId: string;
-        contestId: string;
         role: string;
         certifiedAt: Date;
+        contestId: string;
         comments: string | null;
+        userId: string;
     }>, Record<string, any>>>;
 }
 export declare const getContestCertificationProgress: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
@@ -34,19 +34,19 @@ export declare const getContestCertificationProgress: (req: Request, res: Respon
     organizer: boolean;
     certifications: {
         id: string;
-        userId: string;
-        contestId: string;
         role: string;
         certifiedAt: Date;
+        contestId: string;
         comments: string | null;
+        userId: string;
     }[];
 }>, Record<string, any>>>;
 export declare const certifyContest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    userId: string;
-    contestId: string;
     role: string;
     certifiedAt: Date;
+    contestId: string;
     comments: string | null;
+    userId: string;
 }>, Record<string, any>>>;
 //# sourceMappingURL=contestCertificationController.d.ts.map

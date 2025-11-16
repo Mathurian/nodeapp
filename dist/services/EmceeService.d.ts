@@ -15,15 +15,15 @@ export declare class EmceeService extends BaseService {
         categoryId?: string;
     }): Promise<{
         id: string;
-        categoryId: string | null;
         createdAt: Date;
         updatedAt: Date;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         title: string;
-        filePath: string | null;
-        order: number | null;
         content: string;
+        order: number | null;
+        filePath: string | null;
     }[]>;
     getScript(scriptId: string): Promise<{
         event: never;
@@ -32,15 +32,15 @@ export declare class EmceeService extends BaseService {
         author: never;
     } & {
         id: string;
-        categoryId: string | null;
         createdAt: Date;
         updatedAt: Date;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         title: string;
-        filePath: string | null;
-        order: number | null;
         content: string;
+        order: number | null;
+        filePath: string | null;
     }>;
     getContestantBios(filters: {
         eventId?: string;
@@ -54,15 +54,14 @@ export declare class EmceeService extends BaseService {
     }): Promise<{
         name: string;
         id: string;
-        contestantId: string | null;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.UserRole;
         preferredName: string | null;
         email: string;
         password: string;
+        role: import(".prisma/client").$Enums.UserRole;
         gender: string | null;
         pronouns: string | null;
         judgeId: string | null;
+        contestantId: string | null;
         isActive: boolean;
         lastLoginAt: Date | null;
         phone: string | null;
@@ -94,6 +93,7 @@ export declare class EmceeService extends BaseService {
         tenantId: string;
         isSuperAdmin: boolean;
         sessionVersion: number;
+        createdAt: Date;
         updatedAt: Date;
     }[]>;
     getEvents(): Promise<({
@@ -107,9 +107,10 @@ export declare class EmceeService extends BaseService {
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            eventId: string;
             description: string | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
@@ -118,14 +119,13 @@ export declare class EmceeService extends BaseService {
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
             archived: boolean;
-            eventId: string;
             nextContestantNumber: number | null;
         })[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
         description: string | null;
         startDate: Date;
@@ -151,9 +151,10 @@ export declare class EmceeService extends BaseService {
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
+            eventId: string;
             description: string | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
@@ -162,14 +163,13 @@ export declare class EmceeService extends BaseService {
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
             archived: boolean;
-            eventId: string;
             nextContestantNumber: number | null;
         })[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
         description: string | null;
         startDate: Date;
@@ -201,9 +201,10 @@ export declare class EmceeService extends BaseService {
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
+        eventId: string;
         description: string | null;
         contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
         contestantViewRestricted: boolean;
@@ -212,7 +213,6 @@ export declare class EmceeService extends BaseService {
         lockedAt: Date | null;
         lockVerifiedBy: string | null;
         archived: boolean;
-        eventId: string;
         nextContestantNumber: number | null;
     })[]>;
     getContest(contestId: string): Promise<{
@@ -232,9 +232,10 @@ export declare class EmceeService extends BaseService {
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         tenantId: string;
+        createdAt: Date;
         updatedAt: Date;
+        eventId: string;
         description: string | null;
         contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
         contestantViewRestricted: boolean;
@@ -243,21 +244,20 @@ export declare class EmceeService extends BaseService {
         lockedAt: Date | null;
         lockVerifiedBy: string | null;
         archived: boolean;
-        eventId: string;
         nextContestantNumber: number | null;
     }>;
     getEmceeHistory(page?: number, limit?: number): Promise<{
         scripts: {
             id: string;
-            categoryId: string | null;
             createdAt: Date;
             updatedAt: Date;
             eventId: string | null;
+            categoryId: string | null;
             contestId: string | null;
             title: string;
-            filePath: string | null;
-            order: number | null;
             content: string;
+            order: number | null;
+            filePath: string | null;
         }[];
         pagination: {
             page: number;
@@ -276,15 +276,15 @@ export declare class EmceeService extends BaseService {
         order?: number;
     }): Promise<{
         id: string;
-        categoryId: string | null;
         createdAt: Date;
         updatedAt: Date;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         title: string;
-        filePath: string | null;
-        order: number | null;
         content: string;
+        order: number | null;
+        filePath: string | null;
     }>;
     updateScript(id: string, data: {
         title?: string;
@@ -295,28 +295,28 @@ export declare class EmceeService extends BaseService {
         order?: number;
     }): Promise<{
         id: string;
-        categoryId: string | null;
         createdAt: Date;
         updatedAt: Date;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         title: string;
-        filePath: string | null;
-        order: number | null;
         content: string;
+        order: number | null;
+        filePath: string | null;
     }>;
     deleteScript(id: string): Promise<void>;
     getScriptFileInfo(scriptId: string): Promise<{
         id: string;
-        categoryId: string | null;
         createdAt: Date;
         updatedAt: Date;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         title: string;
-        filePath: string | null;
-        order: number | null;
         content: string;
+        order: number | null;
+        filePath: string | null;
     }>;
 }
 //# sourceMappingURL=EmceeService.d.ts.map

@@ -114,21 +114,21 @@ export declare class AdminController {
         };
     }[]>, Record<string, any>>>;
     getActiveUsers: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
-        id: string;
         name: string;
+        id: string;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
         lastLoginAt: Date;
     }[]>, Record<string, any>>>;
     getUsers: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         users: {
-            id: string;
-            createdAt: Date;
             name: string;
+            id: string;
             email: string;
             role: import(".prisma/client").$Enums.UserRole;
             isActive: boolean;
             lastLoginAt: Date;
+            createdAt: Date;
         }[];
         pagination: {
             page: number;
@@ -140,9 +140,9 @@ export declare class AdminController {
     }>, Record<string, any>>>;
     getEvents: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         events: {
+            name: string;
             id: string;
             createdAt: Date;
-            name: string;
             startDate: Date;
             endDate: Date;
             location: string;
@@ -159,16 +159,16 @@ export declare class AdminController {
     getContests: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         contests: ({
             event: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
+            name: string;
             id: string;
-            eventId: string;
             tenantId: string;
             createdAt: Date;
-            name: string;
             updatedAt: Date;
+            eventId: string;
             description: string | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
@@ -191,20 +191,20 @@ export declare class AdminController {
         categories: ({
             contest: {
                 event: {
-                    id: string;
                     name: string;
+                    id: string;
                 };
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
+            name: string;
             id: string;
-            contestId: string;
             tenantId: string;
             createdAt: Date;
-            name: string;
             updatedAt: Date;
             description: string | null;
+            contestId: string;
             scoreCap: number | null;
             timeLimit: number | null;
             contestantMin: number | null;
@@ -222,27 +222,27 @@ export declare class AdminController {
     getScores: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         scores: ({
             category: {
-                id: string;
                 name: string;
+                id: string;
             };
             contestant: {
-                id: string;
                 name: string;
+                id: string;
             };
             judge: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
-            id: string;
-            categoryId: string;
-            createdAt: Date;
             score: number | null;
+            id: string;
             judgeId: string;
             contestantId: string;
+            createdAt: Date;
             updatedAt: Date;
             isLocked: boolean;
             lockedAt: Date | null;
+            categoryId: string;
             criterionId: string | null;
             comment: string | null;
             allowCommentEdit: boolean;
@@ -313,36 +313,36 @@ export declare class AdminController {
     getContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         scores: ({
             category: {
-                id: string;
-                name: string;
                 contest: {
                     event: {
-                        id: string;
                         name: string;
+                        id: string;
                     };
-                    id: string;
                     name: string;
+                    id: string;
                 };
+                name: string;
+                id: string;
             };
             contestant: {
-                id: string;
                 name: string;
+                id: string;
                 contestantNumber: number;
             };
             judge: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
-            id: string;
-            categoryId: string;
-            createdAt: Date;
             score: number | null;
+            id: string;
             judgeId: string;
             contestantId: string;
+            createdAt: Date;
             updatedAt: Date;
             isLocked: boolean;
             lockedAt: Date | null;
+            categoryId: string;
             criterionId: string | null;
             comment: string | null;
             allowCommentEdit: boolean;
@@ -471,21 +471,21 @@ export declare const getLogs: (req: Request, res: Response, next: NextFunction) 
     };
 }[]>, Record<string, any>>>;
 export declare const getActiveUsers: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
-    id: string;
     name: string;
+    id: string;
     email: string;
     role: import(".prisma/client").$Enums.UserRole;
     lastLoginAt: Date;
 }[]>, Record<string, any>>>;
 export declare const getUsers: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     users: {
-        id: string;
-        createdAt: Date;
         name: string;
+        id: string;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
         isActive: boolean;
         lastLoginAt: Date;
+        createdAt: Date;
     }[];
     pagination: {
         page: number;
@@ -497,9 +497,9 @@ export declare const getUsers: (req: Request, res: Response, next: NextFunction)
 }>, Record<string, any>>>;
 export declare const getEvents: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     events: {
+        name: string;
         id: string;
         createdAt: Date;
-        name: string;
         startDate: Date;
         endDate: Date;
         location: string;
@@ -516,16 +516,16 @@ export declare const getEvents: (req: Request, res: Response, next: NextFunction
 export declare const getContests: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     contests: ({
         event: {
-            id: string;
             name: string;
+            id: string;
         };
     } & {
+        name: string;
         id: string;
-        eventId: string;
         tenantId: string;
         createdAt: Date;
-        name: string;
         updatedAt: Date;
+        eventId: string;
         description: string | null;
         contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
         contestantViewRestricted: boolean;
@@ -548,20 +548,20 @@ export declare const getCategories: (req: Request, res: Response, next: NextFunc
     categories: ({
         contest: {
             event: {
-                id: string;
                 name: string;
+                id: string;
             };
-            id: string;
             name: string;
+            id: string;
         };
     } & {
+        name: string;
         id: string;
-        contestId: string;
         tenantId: string;
         createdAt: Date;
-        name: string;
         updatedAt: Date;
         description: string | null;
+        contestId: string;
         scoreCap: number | null;
         timeLimit: number | null;
         contestantMin: number | null;
@@ -579,27 +579,27 @@ export declare const getCategories: (req: Request, res: Response, next: NextFunc
 export declare const getScores: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     scores: ({
         category: {
-            id: string;
             name: string;
+            id: string;
         };
         contestant: {
-            id: string;
             name: string;
+            id: string;
         };
         judge: {
-            id: string;
             name: string;
+            id: string;
         };
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;
@@ -670,36 +670,36 @@ export declare const forceLogoutUser: (req: Request, res: Response, next: NextFu
 export declare const getContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     scores: ({
         category: {
-            id: string;
-            name: string;
             contest: {
                 event: {
-                    id: string;
                     name: string;
+                    id: string;
                 };
-                id: string;
                 name: string;
+                id: string;
             };
+            name: string;
+            id: string;
         };
         contestant: {
-            id: string;
             name: string;
+            id: string;
             contestantNumber: number;
         };
         judge: {
-            id: string;
             name: string;
+            id: string;
         };
     } & {
-        id: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
         contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;

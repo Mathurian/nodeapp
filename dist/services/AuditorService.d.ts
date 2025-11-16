@@ -12,8 +12,8 @@ export declare class AuditorService extends BaseService {
         categories: {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -34,8 +34,8 @@ export declare class AuditorService extends BaseService {
         categories: {
             name: string;
             id: string;
-            createdAt: Date;
             tenantId: string;
+            createdAt: Date;
             updatedAt: Date;
             description: string | null;
             contestId: string;
@@ -56,12 +56,12 @@ export declare class AuditorService extends BaseService {
         message: string;
         certification: {
             id: string;
-            categoryId: string;
             role: string;
-            comments: string | null;
+            categoryId: string;
             certifiedAt: Date;
-            signatureName: string | null;
+            comments: string | null;
             userId: string;
+            signatureName: string | null;
         };
     }>;
     rejectAudit(categoryId: string, userId: string, reason: string): Promise<{
@@ -92,15 +92,15 @@ export declare class AuditorService extends BaseService {
         comments?: string;
         issues?: string;
     }): Promise<{
-        id: string;
-        contestantId: string;
-        categoryId: string;
-        createdAt: Date;
         score: number | null;
+        id: string;
         judgeId: string;
+        contestantId: string;
+        createdAt: Date;
         updatedAt: Date;
         isLocked: boolean;
         lockedAt: Date | null;
+        categoryId: string;
         criterionId: string | null;
         comment: string | null;
         allowCommentEdit: boolean;
@@ -170,9 +170,9 @@ export declare class AuditorService extends BaseService {
             user: {
                 name: string;
                 id: string;
-                role: import(".prisma/client").$Enums.UserRole;
                 preferredName: string;
                 email: string;
+                role: import(".prisma/client").$Enums.UserRole;
             };
         } & {
             id: string;

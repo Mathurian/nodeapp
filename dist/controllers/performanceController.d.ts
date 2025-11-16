@@ -71,18 +71,18 @@ export declare class PerformanceController {
     getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
         logs: {
             id: string;
-            endpoint: string;
-            method: string;
-            responseTime: number;
-            statusCode: number;
-            userId: string | null;
-            ipAddress: string | null;
-            userAgent: string | null;
-            eventId: string | null;
-            contestId: string | null;
-            categoryId: string | null;
             tenantId: string | null;
             createdAt: Date;
+            eventId: string | null;
+            categoryId: string | null;
+            contestId: string | null;
+            userId: string | null;
+            method: string;
+            userAgent: string | null;
+            ipAddress: string | null;
+            endpoint: string;
+            responseTime: number;
+            statusCode: number;
         }[];
         pagination: {
             page: number;
@@ -166,18 +166,18 @@ export declare const getSystemMetrics: (req: Request, res: Response, next: NextF
 export declare const getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
     logs: {
         id: string;
-        endpoint: string;
-        method: string;
-        responseTime: number;
-        statusCode: number;
-        userId: string | null;
-        ipAddress: string | null;
-        userAgent: string | null;
-        eventId: string | null;
-        contestId: string | null;
-        categoryId: string | null;
         tenantId: string | null;
         createdAt: Date;
+        eventId: string | null;
+        categoryId: string | null;
+        contestId: string | null;
+        userId: string | null;
+        method: string;
+        userAgent: string | null;
+        ipAddress: string | null;
+        endpoint: string;
+        responseTime: number;
+        statusCode: number;
     }[];
     pagination: {
         page: number;

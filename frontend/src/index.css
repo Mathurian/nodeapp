@@ -319,15 +319,42 @@
   }
 
   .fade-in {
-    @apply animate-in fade-in duration-300;
+    animation: fadeIn 0.3s ease-in-out;
   }
 
   .slide-in {
-    @apply animate-in slide-in-from-bottom-4 duration-300;
+    animation: slideIn 0.3s ease-in-out;
   }
 
   .scale-in {
-    @apply animate-in zoom-in-95 duration-200;
+    animation: scaleIn 0.2s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .mobile-menu {
@@ -352,6 +379,114 @@
 
   .touch-manipulation {
     @apply touch-manipulation;
+  }
+
+  /* Mobile Touch Target Utilities */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    @apply inline-flex items-center justify-center;
+  }
+
+  .touch-target-lg {
+    min-width: 48px;
+    min-height: 48px;
+    @apply inline-flex items-center justify-center;
+  }
+
+  .touch-target-sm {
+    min-width: 40px;
+    min-height: 40px;
+    @apply inline-flex items-center justify-center;
+  }
+
+  /* iOS Safe Area Support */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+
+  /* Mobile Modal Optimizations */
+  .modal-mobile {
+    position: fixed;
+    top: env(safe-area-inset-top, 0);
+    bottom: env(safe-area-inset-bottom, 0);
+    left: env(safe-area-inset-left, 0);
+    right: env(safe-area-inset-right, 0);
+    @apply flex items-end sm:items-center justify-center;
+  }
+
+  .modal-content-mobile {
+    position: relative;
+    width: 100%;
+    max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    @apply bg-background rounded-t-2xl sm:rounded-lg border shadow-lg;
+  }
+
+  /* Swipe Gesture Helpers */
+  .swipeable {
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .swipe-indicator {
+    @apply w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2;
+  }
+
+  /* Touch Feedback */
+  .touch-active:active {
+    @apply opacity-70 scale-95;
+    transition: opacity 0.1s, transform 0.1s;
+  }
+
+  .touch-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile-Optimized Inputs */
+  .input-mobile {
+    @apply input;
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  .textarea-mobile {
+    @apply input;
+    min-height: 88px;
+    font-size: 16px;
+    resize: vertical;
+  }
+
+  /* Mobile Scrollable Container */
+  .mobile-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Pull-to-Refresh Prevention */
+  .prevent-pull-refresh {
+    overscroll-behavior-y: contain;
   }
 
   .scrollbar-hide {
