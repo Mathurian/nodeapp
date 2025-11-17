@@ -116,8 +116,8 @@ module.exports = {
         resolveJsonModule: true,
         skipLibCheck: true
       }
-    }],
-    '^.+\\.js$': ['babel-jest']
+    }]
+    // Removed babel-jest transform to fix TypeError conflicts with ts-jest
   },
 
   transformIgnorePatterns: [
