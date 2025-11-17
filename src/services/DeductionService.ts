@@ -42,17 +42,22 @@ export class DeductionService extends BaseService {
       'categoryId',
       'amount',
       'reason',
-      'requestedBy'
+      'requestedBy',
+      'tenantId'
     ]);
 
     if (data.amount <= 0) {
       throw new ValidationError('Deduction amount must be greater than 0');
     }
 
-    // Verify contestant and category exist
+    // Verify contestant and category exist in tenant
     const [contestant, category] = await Promise.all([
-      prisma.contestant.findUnique({ where: { id: data.contestantId } }),
-      prisma.category.findUnique({ where: { id: data.categoryId } })
+      prisma.contestant.findFirst({
+        where: { id: data.contestantId, tenantId: data.tenantId }
+      }),
+      prisma.category.findFirst({
+        where: { id: data.categoryId, tenantId: data.tenantId }
+      })
     ]);
 
     if (!contestant) {
@@ -71,15 +76,16 @@ export class DeductionService extends BaseService {
    */
   async getPendingDeductions(
     userRole: string,
-    userId: string
+    userId: string,
+    tenantId: string
   ): Promise<Array<DeductionWithRelations & { approvalStatus: ApprovalStatus }>> {
     let categoryIds: string[] | undefined;
 
     // Role-based filtering
     if (userRole === 'JUDGE') {
       // Get categories assigned to this judge through CategoryJudge
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
+      const user = await prisma.user.findFirst({
+        where: { id: userId, tenantId },
         include: {
           judge: {
             include: {
@@ -98,7 +104,7 @@ export class DeductionService extends BaseService {
       }
     }
 
-    const deductions = await this.deductionRepo.findPendingWithRelations(categoryIds);
+    const deductions = await this.deductionRepo.findPendingWithRelations(tenantId, categoryIds);
 
     // Add approval status to each deduction
     return deductions.map(deduction => ({
@@ -114,6 +120,7 @@ export class DeductionService extends BaseService {
     id: string,
     approvedBy: string,
     userRole: string,
+    tenantId: string,
     signature: string,
     notes?: string
   ): Promise<{
@@ -128,7 +135,7 @@ export class DeductionService extends BaseService {
     ]);
 
     // Find deduction request
-    const deductionRequest = await this.deductionRepo.findByIdWithRelations(id);
+    const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
 
     if (!deductionRequest) {
       throw new NotFoundError('Deduction request', id);
@@ -139,7 +146,7 @@ export class DeductionService extends BaseService {
     }
 
     // Check if user has already approved
-    const hasApproved = await this.deductionRepo.hasUserApproved(id, approvedBy);
+    const hasApproved = await this.deductionRepo.hasUserApproved(id, approvedBy, tenantId);
     if (hasApproved) {
       throw new ValidationError('You have already approved this deduction');
     }
@@ -147,8 +154,8 @@ export class DeductionService extends BaseService {
     // Check if user is a head judge
     let isHeadJudge = false;
     if (userRole === 'JUDGE') {
-      const user = await prisma.user.findUnique({
-        where: { id: approvedBy },
+      const user = await prisma.user.findFirst({
+        where: { id: approvedBy, tenantId },
         include: { judge: true }
       });
       if (user?.judge) {
@@ -161,16 +168,17 @@ export class DeductionService extends BaseService {
       id,
       approvedBy,
       userRole,
+      tenantId,
       isHeadJudge
     );
 
     // Check if all required approvals are met
-    const allApprovals = await this.deductionRepo.getApprovals(id);
+    const allApprovals = await this.deductionRepo.getApprovals(id, tenantId);
     const approvalStatus = this.calculateApprovalStatus(allApprovals, approvedBy);
 
     if (approvalStatus.isFullyApproved) {
       // All approvals received, apply deduction
-      await this.deductionRepo.updateStatus(id, 'APPROVED');
+      await this.deductionRepo.updateStatus(id, 'APPROVED', tenantId);
 
       await this.deductionRepo.applyDeductionToScores(
         deductionRequest.contestantId,
@@ -193,11 +201,12 @@ export class DeductionService extends BaseService {
   async rejectDeduction(
     id: string,
     rejectedBy: string,
-    reason: string
+    reason: string,
+    tenantId: string
   ): Promise<void> {
     this.validateRequired({ id, reason }, ['id', 'reason']);
 
-    const deductionRequest = await this.deductionRepo.findById(id);
+    const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
 
     if (!deductionRequest) {
       throw new NotFoundError('Deduction request', id);
@@ -207,7 +216,7 @@ export class DeductionService extends BaseService {
       throw new ValidationError('Deduction request is not pending');
     }
 
-    await this.deductionRepo.updateStatus(id, 'REJECTED', {
+    await this.deductionRepo.updateStatus(id, 'REJECTED', tenantId, {
       rejectionReason: reason,
       rejectedBy,
       rejectedAt: new Date()
@@ -218,9 +227,10 @@ export class DeductionService extends BaseService {
    * Get approval status for a deduction
    */
   async getApprovalStatus(
-    id: string
+    id: string,
+    tenantId: string
   ): Promise<DeductionWithRelations & { approvalStatus: ApprovalStatus }> {
-    const deductionRequest = await this.deductionRepo.findByIdWithRelations(id);
+    const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
 
     if (!deductionRequest) {
       throw new NotFoundError('Deduction request', id);

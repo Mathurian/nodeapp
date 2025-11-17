@@ -42,12 +42,14 @@ export interface CreateDeductionData {
   amount: number;
   reason: string;
   requestedBy: string;
+  tenantId: string;
 }
 
 export interface DeductionFilters {
   status?: string;
   categoryId?: string;
   contestantId?: string;
+  tenantId: string;
 }
 
 @injectable()
@@ -63,8 +65,11 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Find all pending deductions with relations
    */
-  async findPendingWithRelations(categoryIds?: string[]): Promise<DeductionWithRelations[]> {
-    const whereClause: any = { status: 'PENDING' };
+  async findPendingWithRelations(tenantId: string, categoryIds?: string[]): Promise<DeductionWithRelations[]> {
+    const whereClause: any = {
+      status: 'PENDING',
+      tenantId
+    };
 
     if (categoryIds && categoryIds.length > 0) {
       whereClause.categoryId = { in: categoryIds };
@@ -97,9 +102,12 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Find deduction by ID with all relations
    */
-  async findByIdWithRelations(id: string): Promise<DeductionWithRelations | null> {
-    return this.getModel().findUnique({
-      where: { id },
+  async findByIdWithRelations(id: string, tenantId: string): Promise<DeductionWithRelations | null> {
+    return this.getModel().findFirst({
+      where: {
+        id,
+        tenantId
+      },
       include: {
         contestant: {
           select: { id: true, name: true, email: true }
@@ -133,7 +141,8 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
         amount: data.amount,
         reason: data.reason,
         requestedById: data.requestedBy,
-        status: 'PENDING'
+        status: 'PENDING',
+        tenantId: data.tenantId
       },
       include: {
         contestant: {
@@ -164,7 +173,9 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
     page: number,
     limit: number
   ): Promise<{ deductions: DeductionWithRelations[]; total: number }> {
-    const whereClause: any = {};
+    const whereClause: any = {
+      tenantId: filters.tenantId
+    };
 
     if (filters.status) whereClause.status = filters.status;
     if (filters.categoryId) whereClause.categoryId = filters.categoryId;
@@ -206,9 +217,12 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Get all approvals for a deduction request
    */
-  async getApprovals(requestId: string): Promise<DeductionApproval[]> {
+  async getApprovals(requestId: string, tenantId: string): Promise<DeductionApproval[]> {
     return prisma.deductionApproval.findMany({
-      where: { requestId },
+      where: {
+        requestId,
+        tenantId
+      },
       // include removed - no approver relation in schema
       orderBy: { approvedAt: 'asc' }
     }) as any;
@@ -221,6 +235,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
     requestId: string,
     approvedById: string,
     role: string,
+    tenantId: string,
     isHeadJudge?: boolean
   ): Promise<DeductionApproval> {
     return prisma.deductionApproval.create({
@@ -228,6 +243,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
         requestId,
         approvedById,
         role,
+        tenantId,
         isHeadJudge: isHeadJudge || false
       }
       // include removed - no approver relation in schema
@@ -237,11 +253,12 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Check if user already approved
    */
-  async hasUserApproved(requestId: string, userId: string): Promise<boolean> {
+  async hasUserApproved(requestId: string, userId: string, tenantId: string): Promise<boolean> {
     const approval = await prisma.deductionApproval.findFirst({
       where: {
         requestId,
-        approvedById: userId
+        approvedById: userId,
+        tenantId
       }
     });
     return !!approval;
@@ -250,7 +267,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Update deduction status
    */
-  async updateStatus(id: string, status: string, additionalData?: any): Promise<DeductionRequest> {
+  async updateStatus(id: string, status: string, tenantId: string, additionalData?: any): Promise<DeductionRequest> {
     return this.getModel().update({
       where: { id },
       data: {
