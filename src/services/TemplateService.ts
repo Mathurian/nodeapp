@@ -18,17 +18,17 @@ export class TemplateService extends BaseService {
   /**
    * Get all templates with criteria
    */
-  async getAllTemplates(): Promise<TemplateWithCriteria[]> {
-    return await this.templateRepo.findAllWithCriteria();
+  async getAllTemplates(tenantId: string): Promise<TemplateWithCriteria[]> {
+    return await this.templateRepo.findAllWithCriteria(tenantId);
   }
 
   /**
    * Get template by ID
    */
-  async getTemplateById(id: string): Promise<TemplateWithCriteria> {
+  async getTemplateById(id: string, tenantId: string): Promise<TemplateWithCriteria> {
     this.validateRequired({ id }, ['id']);
 
-    const template = await this.templateRepo.findByIdWithCriteria(id);
+    const template = await this.templateRepo.findByIdWithCriteria(id, tenantId);
 
     if (!template) {
       throw new NotFoundError('Template', id);
@@ -41,7 +41,7 @@ export class TemplateService extends BaseService {
    * Create new template
    */
   async createTemplate(data: CreateTemplateData): Promise<TemplateWithCriteria> {
-    this.validateRequired(data, ['name']);
+    this.validateRequired(data, ['name', 'tenantId']);
 
     return await this.templateRepo.createWithCriteria(data);
   }
@@ -49,23 +49,23 @@ export class TemplateService extends BaseService {
   /**
    * Update template
    */
-  async updateTemplate(id: string, data: UpdateTemplateData): Promise<TemplateWithCriteria> {
+  async updateTemplate(id: string, tenantId: string, data: UpdateTemplateData): Promise<TemplateWithCriteria> {
     this.validateRequired({ id }, ['id']);
 
     // Verify template exists
-    await this.getTemplateById(id);
+    await this.getTemplateById(id, tenantId);
 
-    return await this.templateRepo.updateWithCriteria(id, data);
+    return await this.templateRepo.updateWithCriteria(id, tenantId, data);
   }
 
   /**
    * Delete template
    */
-  async deleteTemplate(id: string): Promise<void> {
+  async deleteTemplate(id: string, tenantId: string): Promise<void> {
     this.validateRequired({ id }, ['id']);
 
     // Verify template exists
-    await this.getTemplateById(id);
+    await this.getTemplateById(id, tenantId);
 
     await this.templateRepo.delete(id);
   }
@@ -73,10 +73,10 @@ export class TemplateService extends BaseService {
   /**
    * Duplicate template
    */
-  async duplicateTemplate(id: string): Promise<TemplateWithCriteria> {
+  async duplicateTemplate(id: string, tenantId: string): Promise<TemplateWithCriteria> {
     this.validateRequired({ id }, ['id']);
 
-    const duplicated = await this.templateRepo.duplicateTemplate(id);
+    const duplicated = await this.templateRepo.duplicateTemplate(id, tenantId);
 
     if (!duplicated) {
       throw new NotFoundError('Template', id);

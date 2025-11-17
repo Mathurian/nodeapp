@@ -20,6 +20,7 @@ export interface TemplateWithCriteria extends CategoryTemplate {
 export interface CreateTemplateData {
   name: string;
   description?: string | null;
+  tenantId: string;
   criteria?: Array<{
     name: string;
     maxScore: number;
@@ -48,8 +49,9 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
   /**
    * Find all templates with criteria
    */
-  async findAllWithCriteria(): Promise<TemplateWithCriteria[]> {
+  async findAllWithCriteria(tenantId: string): Promise<TemplateWithCriteria[]> {
     return this.getModel().findMany({
+      where: { tenantId },
       include: {
         criteria: true
       },
@@ -60,9 +62,9 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
   /**
    * Find template by ID with criteria
    */
-  async findByIdWithCriteria(id: string): Promise<TemplateWithCriteria | null> {
-    return this.getModel().findUnique({
-      where: { id },
+  async findByIdWithCriteria(id: string, tenantId: string): Promise<TemplateWithCriteria | null> {
+    return this.getModel().findFirst({
+      where: { id, tenantId },
       include: {
         criteria: true
       }
@@ -77,10 +79,12 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       data: {
         name: data.name,
         description: data.description || null,
+        tenantId: data.tenantId,
         criteria: data.criteria ? {
           create: data.criteria.map(c => ({
             name: c.name,
-            maxScore: c.maxScore
+            maxScore: c.maxScore,
+            tenantId: data.tenantId
           }))
         } : undefined
       },
@@ -93,7 +97,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
   /**
    * Update template with criteria
    */
-  async updateWithCriteria(id: string, data: UpdateTemplateData): Promise<TemplateWithCriteria> {
+  async updateWithCriteria(id: string, tenantId: string, data: UpdateTemplateData): Promise<TemplateWithCriteria> {
     // If criteria are provided, handle them in transaction
     if (data.criteria) {
       return this.prisma.$transaction(async (tx) => {
@@ -108,7 +112,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
 
         // Delete old criteria
         await (tx as any).templateCriterion.deleteMany({
-          where: { templateId: id }
+          where: { templateId: id, tenantId }
         });
 
         // Create new criteria
@@ -116,6 +120,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
           await (tx as any).templateCriterion.createMany({
             data: data.criteria.map(c => ({
               templateId: id,
+              tenantId,
               name: c.name,
               maxScore: c.maxScore
             }))
@@ -123,8 +128,8 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
         }
 
         // Return updated template with criteria
-        return (tx as any).categoryTemplate.findUnique({
-          where: { id },
+        return (tx as any).categoryTemplate.findFirst({
+          where: { id, tenantId },
           include: {
             criteria: true
           }
@@ -148,8 +153,8 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
   /**
    * Duplicate template with criteria
    */
-  async duplicateTemplate(id: string): Promise<TemplateWithCriteria | null> {
-    const original = await this.findByIdWithCriteria(id);
+  async duplicateTemplate(id: string, tenantId: string): Promise<TemplateWithCriteria | null> {
+    const original = await this.findByIdWithCriteria(id, tenantId);
 
     if (!original) {
       return null;
@@ -159,10 +164,12 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       data: {
         name: `${original.name} (Copy)`,
         description: original.description,
+        tenantId,
         criteria: {
           create: original.criteria.map(c => ({
             name: c.name,
-            maxScore: c.maxScore
+            maxScore: c.maxScore,
+            tenantId
           }))
         }
       },
