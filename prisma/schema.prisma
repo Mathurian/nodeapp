@@ -360,7 +360,10 @@ model CategoryTemplate {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  tenantId    String
 
+  @@index([tenantId])
+  @@index([tenantId, name])
   @@map("category_templates")
 }
 
@@ -371,7 +374,11 @@ model TemplateCriterion {
   maxScore   Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  tenantId   String
 
+  @@index([tenantId])
+  @@index([tenantId, templateId])
+  @@index([templateId])
   @@map("template_criteria")
 }
 
@@ -683,8 +690,12 @@ model CustomFieldValue {
   value         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  tenantId      String
 
-  @@unique([customFieldId, entityId])
+  @@unique([tenantId, customFieldId, entityId])
+  @@index([tenantId])
+  @@index([tenantId, entityId])
+  @@index([customFieldId, entityId])
   @@index([entityId])
   @@map("custom_field_values")
 }
@@ -703,8 +714,12 @@ model CustomField {
   active       Boolean         @default(true)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+  tenantId     String
 
-  @@unique([key, entityType])
+  @@unique([tenantId, key, entityType])
+  @@index([tenantId])
+  @@index([tenantId, entityType, active])
+  @@index([key, entityType])
   @@index([entityType, active])
   @@map("custom_fields")
 }
@@ -864,7 +879,11 @@ model EmailTemplate {
   padding         String?
   margin          String?
   templateData    String?
+  tenantId        String
 
+  @@index([tenantId])
+  @@index([tenantId, eventId])
+  @@index([tenantId, type])
   @@index([eventId])
   @@index([type])
   @@map("email_templates")
@@ -905,7 +924,10 @@ model EventTemplate {
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  tenantId    String
 
+  @@index([tenantId])
+  @@index([tenantId, name])
   @@map("event_templates")
 }
 
@@ -999,7 +1021,11 @@ model NotificationDigest {
   nextSendAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  tenantId   String
 
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, nextSendAt])
   @@index([nextSendAt])
   @@index([userId])
   @@map("notification_digests")
@@ -1007,7 +1033,7 @@ model NotificationDigest {
 
 model NotificationPreference {
   id                   String   @id @default(cuid())
-  userId               String   @unique
+  userId               String
   emailEnabled         Boolean  @default(true)
   pushEnabled          Boolean  @default(true)
   inAppEnabled         Boolean  @default(true)
@@ -1019,13 +1045,17 @@ model NotificationPreference {
   quietHoursEnd        String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  tenantId             String
 
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
   @@map("notification_preferences")
 }
 
 model NotificationTemplate {
   id           String   @id @default(cuid())
-  name         String   @unique
+  name         String
   type         String
   title        String
   body         String
@@ -1035,7 +1065,12 @@ model NotificationTemplate {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  tenantId     String
 
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, type, isActive])
+  @@index([name])
   @@index([type, isActive])
   @@map("notification_templates")
 }
@@ -1080,7 +1115,12 @@ model ReportInstance {
   format        String
   name          String
   type          String
+  tenantId      String
 
+  @@index([tenantId])
+  @@index([tenantId, type])
+  @@index([tenantId, generatedAt])
+  @@index([type])
   @@map("report_instances")
 }
 
@@ -1092,7 +1132,11 @@ model ReportTemplate {
   parameters String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  tenantId   String
 
+  @@index([tenantId])
+  @@index([tenantId, type])
+  @@index([type])
   @@map("report_templates")
 }
 
@@ -1104,8 +1148,12 @@ model ReviewContestantCertification {
   reviewerRole String
   reviewedAt   DateTime @default(now())
   comments     String?
+  tenantId     String
 
-  @@unique([categoryId, contestantId, reviewedBy])
+  @@unique([tenantId, categoryId, contestantId, reviewedBy])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, contestantId, reviewedBy])
   @@map("review_contestant_certifications")
 }
 
@@ -1117,8 +1165,12 @@ model ReviewJudgeScoreCertification {
   reviewerRole String
   reviewedAt   DateTime @default(now())
   comments     String?
+  tenantId     String
 
-  @@unique([categoryId, judgeId, reviewedBy])
+  @@unique([tenantId, categoryId, judgeId, reviewedBy])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, judgeId, reviewedBy])
   @@map("review_judge_score_certifications")
 }
 
@@ -1133,8 +1185,13 @@ model RoleAssignment {
   assignedBy String
   notes      String?
   isActive   Boolean  @default(true)
+  tenantId   String
 
-  @@unique([userId, role, contestId, eventId, categoryId])
+  @@unique([tenantId, userId, role, contestId, eventId, categoryId])
+  @@index([tenantId])
+  @@index([tenantId, userId, role, isActive])
+  @@index([tenantId, categoryId, role, isActive])
+  @@index([userId, role, contestId, eventId, categoryId])
   @@index([categoryId, role, isActive])
   @@index([userId, role, isActive])
   @@map("role_assignments")
@@ -1150,7 +1207,11 @@ model SavedSearch {
   isPublic    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  tenantId    String
 
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, userId, isPublic])
   @@index([userId])
   @@index([userId, isPublic])
   @@map("saved_searches")
