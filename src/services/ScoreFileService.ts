@@ -12,6 +12,7 @@ export interface UploadScoreFileDTO {
   categoryId: string;
   judgeId: string;
   contestantId?: string;
+  tenantId: string;
   fileName: string;
   fileType: string;
   filePath: string;
@@ -53,28 +54,28 @@ export class ScoreFileService extends BaseService {
     data: UploadScoreFileDTO,
     uploadedById: string
   ): Promise<ScoreFile> {
-    // Verify category exists
-    const category = await this.prisma.category.findUnique({
-      where: { id: data.categoryId }
+    // Verify category exists in tenant
+    const category = await this.prisma.category.findFirst({
+      where: { id: data.categoryId, tenantId: data.tenantId }
     });
 
     if (!category) {
       throw this.createNotFoundError('Category not found');
     }
 
-    // Verify judge exists
-    const judge = await this.prisma.judge.findUnique({
-      where: { id: data.judgeId }
+    // Verify judge exists in tenant
+    const judge = await this.prisma.judge.findFirst({
+      where: { id: data.judgeId, tenantId: data.tenantId }
     });
 
     if (!judge) {
       throw this.createNotFoundError('Judge not found');
     }
 
-    // If contestantId provided, verify contestant exists
+    // If contestantId provided, verify contestant exists in tenant
     if (data.contestantId) {
-      const contestant = await this.prisma.contestant.findUnique({
-        where: { id: data.contestantId }
+      const contestant = await this.prisma.contestant.findFirst({
+        where: { id: data.contestantId, tenantId: data.tenantId }
       });
 
       if (!contestant) {
@@ -88,6 +89,7 @@ export class ScoreFileService extends BaseService {
         categoryId: data.categoryId,
         judgeId: data.judgeId,
         contestantId: data.contestantId || null,
+        tenantId: data.tenantId,
         fileName: data.fileName,
         fileType: data.fileType,
         filePath: data.filePath,
@@ -105,18 +107,18 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score file by ID
    */
-  async getScoreFileById(id: string): Promise<ScoreFile | null> {
-    return await this.prisma.scoreFile.findUnique({
-      where: { id }
+  async getScoreFileById(id: string, tenantId: string): Promise<ScoreFile | null> {
+    return await this.prisma.scoreFile.findFirst({
+      where: { id, tenantId }
     });
   }
 
   /**
    * Get score files for a category
    */
-  async getScoreFilesByCategory(categoryId: string): Promise<ScoreFile[]> {
+  async getScoreFilesByCategory(categoryId: string, tenantId: string): Promise<ScoreFile[]> {
     return await this.prisma.scoreFile.findMany({
-      where: { categoryId },
+      where: { categoryId, tenantId },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -124,9 +126,9 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score files for a judge
    */
-  async getScoreFilesByJudge(judgeId: string): Promise<ScoreFile[]> {
+  async getScoreFilesByJudge(judgeId: string, tenantId: string): Promise<ScoreFile[]> {
     return await this.prisma.scoreFile.findMany({
-      where: { judgeId },
+      where: { judgeId, tenantId },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -134,9 +136,9 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score files for a contestant
    */
-  async getScoreFilesByContestant(contestantId: string): Promise<ScoreFile[]> {
+  async getScoreFilesByContestant(contestantId: string, tenantId: string): Promise<ScoreFile[]> {
     return await this.prisma.scoreFile.findMany({
-      where: { contestantId },
+      where: { contestantId, tenantId },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -146,12 +148,13 @@ export class ScoreFileService extends BaseService {
    */
   async updateScoreFile(
     id: string,
+    tenantId: string,
     data: UpdateScoreFileDTO,
     _userId: string,
     userRole: string
   ): Promise<ScoreFile> {
-    const scoreFile = await this.prisma.scoreFile.findUnique({
-      where: { id }
+    const scoreFile = await this.prisma.scoreFile.findFirst({
+      where: { id, tenantId }
     });
 
     if (!scoreFile) {
@@ -182,11 +185,12 @@ export class ScoreFileService extends BaseService {
    */
   async deleteScoreFile(
     id: string,
+    tenantId: string,
     userId: string,
     userRole: string
   ): Promise<void> {
-    const scoreFile = await this.prisma.scoreFile.findUnique({
-      where: { id }
+    const scoreFile = await this.prisma.scoreFile.findFirst({
+      where: { id, tenantId }
     });
 
     if (!scoreFile) {
@@ -218,7 +222,7 @@ export class ScoreFileService extends BaseService {
   /**
    * Get all score files (with optional filters)
    */
-  async getAllScoreFiles(filters?: {
+  async getAllScoreFiles(tenantId: string, filters?: {
     categoryId?: string;
     judgeId?: string;
     contestantId?: string;
@@ -226,6 +230,7 @@ export class ScoreFileService extends BaseService {
   }): Promise<ScoreFile[]> {
     return await this.prisma.scoreFile.findMany({
       where: {
+        tenantId,
         categoryId: filters?.categoryId,
         judgeId: filters?.judgeId,
         contestantId: filters?.contestantId,
