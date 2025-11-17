@@ -14,10 +14,10 @@ import { maxFileSize } from '../utils/config';
 
 // Configure multer for bio image uploads
 const bioImageStorage = multer.diskStorage({
-  destination: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/bios/');
   },
-  filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+  filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'bio-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -26,7 +26,7 @@ const bioImageStorage = multer.diskStorage({
 const bioImageUpload = multer({
   storage: bioImageStorage,
   limits: { fileSize: maxFileSize },
-  fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     // Validate MIME types for images
     const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
     if (allowedMimeTypes.includes(file.mimetype)) {

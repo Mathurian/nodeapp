@@ -27,10 +27,10 @@ const router: Router = express.Router();
 
 // Configure multer for emcee script uploads
 const emceeScriptStorage = multer.diskStorage({
-  destination: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/emcee/');
   },
-  filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+  filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'script-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -39,7 +39,7 @@ const emceeScriptStorage = multer.diskStorage({
 const emceeScriptUpload = multer({
   storage: emceeScriptStorage,
   limits: { fileSize: maxFileSize },
-  fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     // Validate MIME types for documents
     const allowedMimeTypes = [
       'application/pdf',

@@ -21,10 +21,10 @@ const router: Router = express.Router();
 
 // Configure multer for user image uploads
 const userImageStorage = multer.diskStorage({
-  destination: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/users/');
   },
-  filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+  filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'image-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -33,7 +33,7 @@ const userImageStorage = multer.diskStorage({
 const userImageUpload = multer({
   storage: userImageStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -45,10 +45,10 @@ const userImageUpload = multer({
 
 // Configure multer for user bio file uploads
 const userBioStorage = multer.diskStorage({
-  destination: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/users/bios/');
   },
-  filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+  filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'bio-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -58,7 +58,7 @@ const userBioStorage = multer.diskStorage({
 const csvUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedMimeTypes = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
     if (allowedMimeTypes.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
       cb(null, true);
@@ -71,7 +71,7 @@ const csvUpload = multer({
 const userBioUpload = multer({
   storage: userBioStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     // Validate MIME types for bio files
     const allowedMimeTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (allowedMimeTypes.includes(file.mimetype)) {

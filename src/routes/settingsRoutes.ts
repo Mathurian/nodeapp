@@ -36,10 +36,10 @@ const router: Router = express.Router();
 
 // Configure multer for theme uploads (logo and favicon)
 const themeStorage = multer.diskStorage({
-  destination: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/theme/');
   },
-  filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+  filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const fieldname = file.fieldname === 'logo' ? 'logo' : 'favicon';
     cb(null, fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
@@ -49,7 +49,7 @@ const themeStorage = multer.diskStorage({
 const themeUpload = multer({
   storage: themeStorage,
   limits: { fileSize: maxFileSize },
-  fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     // Validate MIME types for images (logo and favicon)
     const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon']
     if (allowedMimeTypes.includes(file.mimetype)) {

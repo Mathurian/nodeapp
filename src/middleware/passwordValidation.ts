@@ -127,7 +127,7 @@ const validatePassword = async (req: Request, res: Response, next: NextFunction)
   }
 }
 
-const getPasswordPolicy = async (req: Request, res: Response): Promise<void> => {
+const getPasswordPolicy = async (_req: Request, res: Response): Promise<void> => {
   try {
     const policy = await prisma.passwordPolicy.findFirst({
       where: { isActive: true }
