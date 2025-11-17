@@ -19,7 +19,7 @@ export class CustomFieldController {
       const { active } = req.query;
 
       const activeOnly = active === 'true' || active === undefined;
-      const customFields = await customFieldService.getCustomFieldsByEntityType(entityType, activeOnly, req.user!.tenantId);
+      const customFields = await customFieldService.getCustomFieldsByEntityType(entityType, req.user!.tenantId, activeOnly);
 
       sendSuccess(res, customFields, 'Custom fields retrieved successfully');
     } catch (error: any) {
@@ -227,7 +227,7 @@ export class CustomFieldController {
         return;
       }
 
-      await customFieldService.bulkSetCustomFieldValues(entityId, values, req.user!.tenantId);
+      await customFieldService.bulkSetCustomFieldValues(entityId, req.user!.tenantId, values);
 
       sendSuccess(res, null, 'Custom field values set successfully');
     } catch (error: any) {

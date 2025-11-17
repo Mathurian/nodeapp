@@ -176,7 +176,7 @@ export class EmailTemplateController {
       const { id } = req.params;
       const { variables } = req.body;
 
-      const preview = await emailTemplateService.previewEmailTemplate(id, variables, req.user!.tenantId);
+      const preview = await emailTemplateService.previewEmailTemplate(id, req.user!.tenantId, variables);
 
       sendSuccess(res, preview, 'Email template preview generated successfully');
     } catch (error: any) {

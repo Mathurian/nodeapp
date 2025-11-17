@@ -76,7 +76,7 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
     const { entityType } = req.params;
     const activeOnly = req.query.activeOnly !== 'false';
 
-    const fields = await customFieldService.getCustomFieldsByEntityType(entityType, activeOnly);
+    const fields = await customFieldService.getCustomFieldsByEntityType(entityType, (req as any).user?.tenantId || 'default', activeOnly);
 
     res.json({
       success: true,
@@ -99,7 +99,7 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
   try {
     const { id } = req.params;
 
-    const field = await customFieldService.getCustomFieldById(id);
+    const field = await customFieldService.getCustomFieldById(id, (req as any).user?.tenantId || 'default');
 
     if (!field) {
       res.status(404).json({
@@ -131,7 +131,7 @@ export const updateCustomField = async (req: Request, res: Response): Promise<vo
     const { id } = req.params;
     const updateData = req.body;
 
-    const field = await customFieldService.updateCustomField(id, updateData);
+    const field = await customFieldService.updateCustomField(id, (req as any).user?.tenantId || 'default', updateData);
 
     logger.info(`Custom field updated: ${id}`, { userId: (req as any).user?.id });
 
@@ -156,7 +156,7 @@ export const deleteCustomField = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
 
-    await customFieldService.deleteCustomField(id);
+    await customFieldService.deleteCustomField(id, (req as any).user?.tenantId || 'default');
 
     logger.info(`Custom field deleted: ${id}`, { userId: (req as any).user?.id });
 
@@ -190,7 +190,7 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
     }
 
     // Get field for validation
-    const field = await customFieldService.getCustomFieldById(customFieldId);
+    const field = await customFieldService.getCustomFieldById(customFieldId, (req as any).user?.tenantId || 'default');
     if (!field) {
       res.status(404).json({
         success: false,
@@ -212,7 +212,8 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
     const fieldValue = await customFieldService.setCustomFieldValue({
       fieldId: customFieldId,
       entityId,
-      value
+      value,
+      tenantId: (req as any).user?.tenantId || 'default'
     });
 
     res.json({
@@ -244,7 +245,7 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
       return;
     }
 
-    await customFieldService.bulkSetCustomFieldValues(entityId, values);
+    await customFieldService.bulkSetCustomFieldValues(entityId, (req as any).user?.tenantId || 'default', values);
 
     res.json({
       success: true,
@@ -276,7 +277,7 @@ export const getCustomFieldValues = async (req: Request, res: Response): Promise
       return;
     }
 
-    const values = await customFieldService.getCustomFieldValues(entityId, entityType as string);
+    const values = await customFieldService.getCustomFieldValues(entityId, entityType as string, (req as any).user?.tenantId || 'default');
 
     res.json({
       success: true,
@@ -299,7 +300,7 @@ export const deleteCustomFieldValue = async (req: Request, res: Response): Promi
   try {
     const { customFieldId, entityId } = req.params;
 
-    await customFieldService.deleteCustomFieldValue(customFieldId, entityId);
+    await customFieldService.deleteCustomFieldValue(customFieldId, entityId, (req as any).user?.tenantId || 'default');
 
     res.json({
       success: true,
@@ -330,7 +331,7 @@ export const reorderCustomFields = async (req: Request, res: Response): Promise<
       return;
     }
 
-    await customFieldService.reorderCustomFields(fieldIds, entityType);
+    await customFieldService.reorderCustomFields(fieldIds, entityType, (req as any).user?.tenantId || 'default');
 
     res.json({
       success: true,
