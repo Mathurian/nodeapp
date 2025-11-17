@@ -18,6 +18,7 @@ export interface CreateNotificationDTO {
 
 export interface NotificationFilters {
   userId: string;
+  tenantId: string;
   read?: boolean;
   type?: NotificationType;
   limit?: number;
@@ -70,6 +71,7 @@ export class NotificationRepository {
   async findByUser(filters: NotificationFilters): Promise<Notification[]> {
     const where: Prisma.NotificationWhereInput = {
       userId: filters.userId,
+      tenantId: filters.tenantId,
     };
 
     if (filters.read !== undefined) {
@@ -93,10 +95,11 @@ export class NotificationRepository {
   /**
    * Get unread notification count
    */
-  async getUnreadCount(userId: string): Promise<number> {
+  async getUnreadCount(userId: string, tenantId: string): Promise<number> {
     return this.prisma.notification.count({
       where: {
         userId,
+        tenantId,
         read: false,
       },
     });
@@ -105,10 +108,10 @@ export class NotificationRepository {
   /**
    * Mark notification as read
    */
-  async markAsRead(id: string, userId: string): Promise<Notification> {
-    // Verify notification belongs to user
+  async markAsRead(id: string, userId: string, tenantId: string): Promise<Notification> {
+    // Verify notification belongs to user and tenant
     const notification = await this.prisma.notification.findFirst({
-      where: { id, userId },
+      where: { id, userId, tenantId },
     });
 
     if (!notification) {
@@ -127,10 +130,11 @@ export class NotificationRepository {
   /**
    * Mark all notifications as read for a user
    */
-  async markAllAsRead(userId: string): Promise<number> {
+  async markAllAsRead(userId: string, tenantId: string): Promise<number> {
     const result = await this.prisma.notification.updateMany({
       where: {
         userId,
+        tenantId,
         read: false,
       },
       data: {
@@ -145,10 +149,10 @@ export class NotificationRepository {
   /**
    * Delete a notification
    */
-  async delete(id: string, userId: string): Promise<Notification> {
-    // Verify notification belongs to user
+  async delete(id: string, userId: string, tenantId: string): Promise<Notification> {
+    // Verify notification belongs to user and tenant
     const notification = await this.prisma.notification.findFirst({
-      where: { id, userId },
+      where: { id, userId, tenantId },
     });
 
     if (!notification) {
@@ -163,13 +167,14 @@ export class NotificationRepository {
   /**
    * Delete old read notifications (cleanup)
    */
-  async deleteOldRead(userId: string, daysOld: number = 30): Promise<number> {
+  async deleteOldRead(userId: string, tenantId: string, daysOld: number = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
     const result = await this.prisma.notification.deleteMany({
       where: {
         userId,
+        tenantId,
         read: true,
         readAt: {
           lt: cutoffDate,
@@ -183,9 +188,9 @@ export class NotificationRepository {
   /**
    * Get notification by ID
    */
-  async findById(id: string): Promise<Notification | null> {
-    return this.prisma.notification.findUnique({
-      where: { id },
+  async findById(id: string, tenantId: string): Promise<Notification | null> {
+    return this.prisma.notification.findFirst({
+      where: { id, tenantId },
     });
   }
 }
