@@ -9,6 +9,7 @@ interface CreateScoreRemovalRequestDto {
   reason: string;
   requestedBy: string;
   userRole: string;
+  tenantId: string;
 }
 
 interface SignRequestDto {
@@ -24,17 +25,17 @@ export class ScoreRemovalService extends BaseService {
   }
 
   async createRequest(data: CreateScoreRemovalRequestDto) {
-    if (!data.judgeId || !data.categoryId || !data.reason) {
-      throw this.badRequestError('Judge ID, category ID, and reason are required');
+    if (!data.judgeId || !data.categoryId || !data.reason || !data.tenantId) {
+      throw this.badRequestError('Judge ID, category ID, reason, and tenant ID are required');
     }
 
-    const category = await this.prisma.category.findUnique({
-      where: { id: data.categoryId }
+    const category = await this.prisma.category.findFirst({
+      where: { id: data.categoryId, tenantId: data.tenantId }
     });
     if (!category) throw this.notFoundError('Category', data.categoryId);
 
-    const judge = await this.prisma.judge.findUnique({
-      where: { id: data.judgeId }
+    const judge = await this.prisma.judge.findFirst({
+      where: { id: data.judgeId, tenantId: data.tenantId }
     });
     if (!judge) throw this.notFoundError('Judge', data.judgeId);
 
@@ -48,6 +49,7 @@ export class ScoreRemovalService extends BaseService {
         categoryId: data.categoryId,
         reason: data.reason.trim(),
         requestedBy: data.requestedBy,
+        tenantId: data.tenantId,
         status: 'PENDING'
       },
       include: {
@@ -57,8 +59,8 @@ export class ScoreRemovalService extends BaseService {
     });
   }
 
-  async getAll(status?: string) {
-    const where: any = {};
+  async getAll(tenantId: string, status?: string) {
+    const where: any = { tenantId };
     if (status) where.status = status;
 
     return await this.prisma.scoreRemovalRequest.findMany({
@@ -76,9 +78,9 @@ export class ScoreRemovalService extends BaseService {
     });
   }
 
-  async getById(id: string) {
-    const request = await this.prisma.scoreRemovalRequest.findUnique({
-      where: { id },
+  async getById(id: string, tenantId: string) {
+    const request = await this.prisma.scoreRemovalRequest.findFirst({
+      where: { id, tenantId },
       include: {
         judge: { select: { id: true, name: true, email: true } },
         category: {
@@ -94,13 +96,13 @@ export class ScoreRemovalService extends BaseService {
     return request;
   }
 
-  async signRequest(id: string, data: SignRequestDto) {
+  async signRequest(id: string, tenantId: string, data: SignRequestDto) {
     if (!data.signatureName) {
       throw this.badRequestError('Signature name is required');
     }
 
-    const request = await this.prisma.scoreRemovalRequest.findUnique({
-      where: { id }
+    const request = await this.prisma.scoreRemovalRequest.findFirst({
+      where: { id, tenantId }
     });
 
     if (!request) throw this.notFoundError('Score removal request', id);
@@ -156,9 +158,9 @@ export class ScoreRemovalService extends BaseService {
     };
   }
 
-  async executeRemoval(id: string) {
-    const request = await this.prisma.scoreRemovalRequest.findUnique({
-      where: { id },
+  async executeRemoval(id: string, tenantId: string) {
+    const request = await this.prisma.scoreRemovalRequest.findFirst({
+      where: { id, tenantId },
       include: {
         judge: { select: { id: true } },
         category: { select: { id: true } }
@@ -174,7 +176,8 @@ export class ScoreRemovalService extends BaseService {
     const deletedScores = await this.prisma.score.deleteMany({
       where: {
         categoryId: request.categoryId,
-        judgeId: request.judgeId
+        judgeId: request.judgeId,
+        tenantId
       }
     });
 

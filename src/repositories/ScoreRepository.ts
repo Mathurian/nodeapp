@@ -25,11 +25,13 @@ export class ScoreRepository extends BaseRepository<Score> {
   /**
    * Find scores by event
    */
-  async findByEvent(eventId: string): Promise<ScoreWithRelations[]> {
+  async findByEvent(eventId: string, tenantId: string): Promise<ScoreWithRelations[]> {
     return this.getModel().findMany({
       where: {
+        tenantId,
         contest: {
-          eventId
+          eventId,
+          tenantId
         }
       },
       include: {
@@ -58,9 +60,9 @@ export class ScoreRepository extends BaseRepository<Score> {
   /**
    * Find scores by contest
    */
-  async findByContest(contestId: string): Promise<ScoreWithRelations[]> {
+  async findByContest(contestId: string, tenantId: string): Promise<ScoreWithRelations[]> {
     return this.getModel().findMany({
-      where: { contestId },
+      where: { contestId, tenantId },
       include: {
         judge: true,
         contestant: true,
@@ -73,9 +75,9 @@ export class ScoreRepository extends BaseRepository<Score> {
   /**
    * Find scores by category
    */
-  async findByCategory(categoryId: string): Promise<ScoreWithRelations[]> {
+  async findByCategory(categoryId: string, tenantId: string): Promise<ScoreWithRelations[]> {
     return this.getModel().findMany({
-      where: { categoryId },
+      where: { categoryId, tenantId },
       include: {
         judge: true,
         contestant: true,
@@ -88,9 +90,9 @@ export class ScoreRepository extends BaseRepository<Score> {
   /**
    * Find scores by judge
    */
-  async findByJudge(judgeId: string): Promise<ScoreWithRelations[]> {
+  async findByJudge(judgeId: string, tenantId: string): Promise<ScoreWithRelations[]> {
     return this.getModel().findMany({
-      where: { judgeId },
+      where: { judgeId, tenantId },
       include: {
         judge: true,
         contestant: true,
@@ -104,9 +106,9 @@ export class ScoreRepository extends BaseRepository<Score> {
   /**
    * Find scores by contestant
    */
-  async findByContestant(contestantId: string): Promise<ScoreWithRelations[]> {
+  async findByContestant(contestantId: string, tenantId: string): Promise<ScoreWithRelations[]> {
     return this.getModel().findMany({
-      where: { contestantId },
+      where: { contestantId, tenantId },
       include: {
         judge: true,
         contestant: true,
@@ -123,12 +125,14 @@ export class ScoreRepository extends BaseRepository<Score> {
   async findByJudgeContestantCategory(
     judgeId: string,
     contestantId: string,
-    categoryId: string
+    categoryId: string,
+    tenantId: string
   ): Promise<Score | null> {
     return this.findFirst({
       judgeId,
       contestantId,
-      categoryId
+      categoryId,
+      tenantId
     });
   }
 
@@ -137,12 +141,14 @@ export class ScoreRepository extends BaseRepository<Score> {
    */
   async getAverageScoreForContestantInCategory(
     contestantId: string,
-    categoryId: string
+    categoryId: string,
+    tenantId: string
   ): Promise<number> {
     const result = await this.getModel().aggregate({
       where: {
         contestantId,
-        categoryId
+        categoryId,
+        tenantId
       },
       _avg: {
         value: true
@@ -157,12 +163,14 @@ export class ScoreRepository extends BaseRepository<Score> {
    */
   async getTotalScoreForContestantInContest(
     contestantId: string,
-    contestId: string
+    contestId: string,
+    tenantId: string
   ): Promise<number> {
     const result = await this.getModel().aggregate({
       where: {
         contestantId,
-        contestId
+        contestId,
+        tenantId
       },
       _sum: {
         value: true
@@ -177,12 +185,14 @@ export class ScoreRepository extends BaseRepository<Score> {
    */
   async getContestantScoresByCategory(
     contestantId: string,
-    contestId: string
+    contestId: string,
+    tenantId: string
   ): Promise<Array<{ categoryId: string; categoryName: string; averageScore: number; judgeCount: number }>> {
     const scores = await this.getModel().findMany({
       where: {
         contestantId,
-        contestId
+        contestId,
+        tenantId
       },
       include: {
         category: true
@@ -213,11 +223,12 @@ export class ScoreRepository extends BaseRepository<Score> {
    * Get judge completion status for contest
    */
   async getJudgeCompletionStatus(
-    contestId: string
+    contestId: string,
+    tenantId: string
   ): Promise<Array<{ judgeId: string; judgeName: string; totalScores: number; expectedScores: number }>> {
     // Get all judges and contestants for the contest
-    const contest = await this.prisma.contest.findUnique({
-      where: { id: contestId },
+    const contest = await this.prisma.contest.findFirst({
+      where: { id: contestId, tenantId },
       include: {
         judges: {
           include: {
@@ -243,7 +254,8 @@ export class ScoreRepository extends BaseRepository<Score> {
       contest.judges.map(async (contestJudge: any) => {
         const scoreCount = await this.count({
           judgeId: contestJudge.judgeId,
-          contestId
+          contestId,
+          tenantId
         });
 
         return {
@@ -266,6 +278,7 @@ export class ScoreRepository extends BaseRepository<Score> {
     contestantId: string;
     categoryId: string;
     contestId: string;
+    tenantId: string;
     value: number;
   }>): Promise<number> {
     return this.createMany(scores);
@@ -274,21 +287,21 @@ export class ScoreRepository extends BaseRepository<Score> {
   /**
    * Delete scores by contest (for cleanup)
    */
-  async deleteByContest(contestId: string): Promise<number> {
-    return this.deleteMany({ contestId });
+  async deleteByContest(contestId: string, tenantId: string): Promise<number> {
+    return this.deleteMany({ contestId, tenantId });
   }
 
   /**
    * Get score statistics for contest
    */
-  async getContestScoreStats(contestId: string): Promise<{
+  async getContestScoreStats(contestId: string, tenantId: string): Promise<{
     totalScores: number;
     averageScore: number;
     highestScore: number;
     lowestScore: number;
   }> {
     const result = await this.getModel().aggregate({
-      where: { contestId },
+      where: { contestId, tenantId },
       _count: true,
       _avg: { value: true },
       _max: { value: true },
