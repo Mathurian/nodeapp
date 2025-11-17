@@ -13,7 +13,7 @@ export class JudgeContestantCertificationController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getCertifications = async (_req: Request, res: Response, next: NextFunction) => {
+  getCertifications = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, contestantId } = req.query;
       const certifications = await this.judgeContestantCertificationService.getCertifications(
@@ -27,7 +27,7 @@ export class JudgeContestantCertificationController {
     }
   };
 
-  certify = async (_req: Request, res: Response, next: NextFunction) => {
+  certify = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, contestantId } = req.body;
       const certification = await this.judgeContestantCertificationService.certify({
@@ -41,7 +41,7 @@ export class JudgeContestantCertificationController {
     }
   };
 
-  uncertify = async (_req: Request, res: Response, next: NextFunction) => {
+  uncertify = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       await this.judgeContestantCertificationService.uncertify(id);
@@ -51,7 +51,7 @@ export class JudgeContestantCertificationController {
     }
   };
 
-  certifyContestantScores = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  certifyContestantScores = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { contestantId, categoryId } = req.body;
 
@@ -83,7 +83,7 @@ export class JudgeContestantCertificationController {
     }
   };
 
-  getCategoryCertificationStatus = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCategoryCertificationStatus = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
       if (!categoryId) {
@@ -97,7 +97,7 @@ export class JudgeContestantCertificationController {
     }
   };
 
-  certifyCategory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  certifyCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
 

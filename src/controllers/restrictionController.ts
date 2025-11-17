@@ -19,7 +19,7 @@ export class RestrictionController {
   /**
    * Set contestant view restriction
    */
-  setContestantViewRestriction = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  setContestantViewRestriction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'restriction');
     try {
       const { eventId, contestId, restricted, releaseDate } = req.body;
@@ -45,7 +45,7 @@ export class RestrictionController {
   /**
    * Check if contestant can view
    */
-  canContestantView = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  canContestantView = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'restriction');
     try {
       const { eventId, contestId } = req.query;
@@ -65,7 +65,7 @@ export class RestrictionController {
   /**
    * Lock/unlock event or contest for editing
    */
-  lockEventContest = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  lockEventContest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'restriction');
     try {
       const { eventId, contestId, locked, verifiedBy } = req.body;
@@ -91,7 +91,7 @@ export class RestrictionController {
   /**
    * Check if event/contest is locked
    */
-  isLocked = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  isLocked = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'restriction');
     try {
       const { eventId, contestId } = req.query;

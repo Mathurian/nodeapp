@@ -13,7 +13,7 @@ export class TrackerController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getScoringProgressByContest = async (_req: Request, res: Response, next: NextFunction) => {
+  getScoringProgressByContest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
       const progress = await this.trackerService.getScoringProgressByContest(contestId);
@@ -23,7 +23,7 @@ export class TrackerController {
     }
   };
 
-  getScoringProgressByCategory = async (_req: Request, res: Response, next: NextFunction) => {
+  getScoringProgressByCategory = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { categoryId } = req.params;
       const progress = await this.trackerService.getScoringProgressByCategory(categoryId);
@@ -33,7 +33,7 @@ export class TrackerController {
     }
   };
 
-  getJudgeScoringProgress = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudgeScoringProgress = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { judgeId } = req.params;
       const eventId = req.query.eventId as string | undefined;
@@ -70,7 +70,7 @@ export class TrackerController {
     }
   };
 
-  getCertificationStatus = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCertificationStatus = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
 
@@ -108,7 +108,7 @@ export class TrackerController {
     }
   };
 
-  getPendingCertifications = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getPendingCertifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const role = req.query.role as string | undefined;
       const eventId = req.query.eventId as string | undefined;

@@ -13,7 +13,7 @@ export class SMSController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getSMSConfig = async (_req: Request, res: Response, next: NextFunction) => {
+  getSMSConfig = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = await this.smsService.getSettings();
       return sendSuccess(res, settings);
@@ -22,7 +22,7 @@ export class SMSController {
     }
   };
 
-  updateSMSConfig = async (_req: Request, res: Response, next: NextFunction) => {
+  updateSMSConfig = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { enabled, apiKey, apiSecret, fromNumber, provider } = req.body;
       await this.smsService.updateSettings(
@@ -35,7 +35,7 @@ export class SMSController {
     }
   };
 
-  sendSMS = async (_req: Request, res: Response, next: NextFunction) => {
+  sendSMS = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { to, message } = req.body;
       const result = await this.smsService.sendSMS(to, message);
@@ -45,7 +45,7 @@ export class SMSController {
     }
   };
 
-  sendBulkSMS = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendBulkSMS = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { recipients, message } = req.body;
 
@@ -76,7 +76,7 @@ export class SMSController {
     }
   };
 
-  sendNotificationSMS = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendNotificationSMS = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, userRole, message } = req.body;
 
@@ -115,7 +115,7 @@ export class SMSController {
     }
   };
 
-  getSMSHistory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getSMSHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;

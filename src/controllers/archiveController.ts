@@ -17,7 +17,7 @@ export class ArchiveController {
   /**
    * Get all archives
    */
-  getAllArchives = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAllArchives = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const archives = await this.archiveService.getAllArchives();
@@ -31,7 +31,7 @@ export class ArchiveController {
   /**
    * Get active events
    */
-  getActiveEvents = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getActiveEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const events = await this.archiveService.getActiveEvents();
@@ -45,7 +45,7 @@ export class ArchiveController {
   /**
    * Get archived events
    */
-  getArchivedEvents = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getArchivedEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const events = await this.archiveService.getArchivedEvents();
@@ -59,7 +59,7 @@ export class ArchiveController {
   /**
    * Archive an item
    */
-  archiveItem = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  archiveItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { type, id } = req.params;
@@ -82,7 +82,7 @@ export class ArchiveController {
   /**
    * Restore an item
    */
-  restoreItem = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  restoreItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { type, id } = req.params;
@@ -103,7 +103,7 @@ export class ArchiveController {
   /**
    * Delete an archived item
    */
-  deleteArchivedItem = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  deleteArchivedItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { type, id } = req.params;
@@ -124,7 +124,7 @@ export class ArchiveController {
   /**
    * Archive an event
    */
-  archiveEvent = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  archiveEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { eventId } = req.params;
@@ -147,7 +147,7 @@ export class ArchiveController {
   /**
    * Restore an event
    */
-  restoreEvent = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  restoreEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { eventId } = req.params;

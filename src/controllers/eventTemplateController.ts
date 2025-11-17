@@ -10,7 +10,7 @@ export class EventTemplateController {
     this.eventTemplateService = container.resolve(EventTemplateService);
   }
 
-  createTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  createTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { name, description, contests, categories } = req.body;
       const template = await this.eventTemplateService.create({
@@ -26,7 +26,7 @@ export class EventTemplateController {
     }
   };
 
-  getTemplates = async (_req: Request, res: Response, next: NextFunction) => {
+  getTemplates = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const templates = await this.eventTemplateService.getAll();
       return sendSuccess(res, templates);
@@ -35,7 +35,7 @@ export class EventTemplateController {
     }
   };
 
-  getTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  getTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const template = await this.eventTemplateService.getById(id);
@@ -45,7 +45,7 @@ export class EventTemplateController {
     }
   };
 
-  updateTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  updateTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const { name, description, contests, categories } = req.body;
@@ -61,7 +61,7 @@ export class EventTemplateController {
     }
   };
 
-  deleteTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  deleteTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       await this.eventTemplateService.delete(id);
@@ -71,7 +71,7 @@ export class EventTemplateController {
     }
   };
 
-  createEventFromTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  createEventFromTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { templateId, eventName, eventDescription, startDate, endDate } = req.body;
       const event = await this.eventTemplateService.createEventFromTemplate({

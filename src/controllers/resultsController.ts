@@ -18,7 +18,7 @@ export class ResultsController {
   /**
    * Get all results with role-based filtering and pagination
    */
-  getAllResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAllResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const userRole = req.user?.role as UserRole;
@@ -58,7 +58,7 @@ export class ResultsController {
   /**
    * Get all categories with related data
    */
-  getCategories = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const categories = await this.resultsService.getCategories();
@@ -72,7 +72,7 @@ export class ResultsController {
   /**
    * Get results for a specific contestant
    */
-  getContestantResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getContestantResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { contestantId } = req.params;
@@ -104,7 +104,7 @@ export class ResultsController {
   /**
    * Get results for a specific category with rankings
    */
-  getCategoryResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getCategoryResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { categoryId } = req.params;
@@ -142,7 +142,7 @@ export class ResultsController {
   /**
    * Get results for a specific contest
    */
-  getContestResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getContestResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { contestId } = req.params;
@@ -180,7 +180,7 @@ export class ResultsController {
   /**
    * Get results for a specific event
    */
-  getEventResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getEventResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { eventId } = req.params;

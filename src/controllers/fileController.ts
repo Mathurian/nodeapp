@@ -13,7 +13,7 @@ export class FileController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  listFiles = async (_req: Request, res: Response, next: NextFunction) => {
+  listFiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { directory } = req.query;
       const files = await this.fileService.listFiles(directory as string | undefined);
@@ -23,7 +23,7 @@ export class FileController {
     }
   };
 
-  downloadFile = async (_req: Request, res: Response, next: NextFunction) => {
+  downloadFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const filePath = await this.fileService.getFilePath(filename);
@@ -33,7 +33,7 @@ export class FileController {
     }
   };
 
-  deleteFile = async (_req: Request, res: Response, next: NextFunction) => {
+  deleteFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       await this.fileService.deleteFile(filename);
@@ -43,7 +43,7 @@ export class FileController {
     }
   };
 
-  getAllFiles = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -82,7 +82,7 @@ export class FileController {
     }
   };
 
-  uploadFiles = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  uploadFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
         return sendSuccess(res, {}, 'User not authenticated', 401);
@@ -125,7 +125,7 @@ export class FileController {
     }
   };
 
-  getFileById = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -144,7 +144,7 @@ export class FileController {
     }
   };
 
-  updateFile = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { category, isPublic, metadata } = req.body;
@@ -174,7 +174,7 @@ export class FileController {
     }
   };
 
-  getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const [
         totalFiles,
@@ -223,7 +223,7 @@ export class FileController {
     }
   };
 
-  upload = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  upload = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
         return sendSuccess(res, {}, 'User not authenticated', 401);

@@ -13,7 +13,7 @@ export class FileBackupController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  createBackup = async (_req: Request, res: Response, next: NextFunction) => {
+  createBackup = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.fileBackupService.createBackup();
       return sendSuccess(res, result, 'Backup created');
@@ -22,7 +22,7 @@ export class FileBackupController {
     }
   };
 
-  listBackups = async (_req: Request, res: Response, next: NextFunction) => {
+  listBackups = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const backups = await this.fileBackupService.listBackups();
       return sendSuccess(res, backups);
@@ -31,7 +31,7 @@ export class FileBackupController {
     }
   };
 
-  deleteBackup = async (_req: Request, res: Response, next: NextFunction) => {
+  deleteBackup = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { backupName } = req.params;
       await this.fileBackupService.deleteBackup(backupName);
@@ -41,7 +41,7 @@ export class FileBackupController {
     }
   };
 
-  createFileBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createFileBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { type, location } = req.body;
 
@@ -91,7 +91,7 @@ export class FileBackupController {
     }
   };
 
-  restoreFileBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  restoreFileBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -120,7 +120,7 @@ export class FileBackupController {
     }
   };
 
-  listFileBackups = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  listFileBackups = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -158,7 +158,7 @@ export class FileBackupController {
     }
   };
 
-  deleteFileBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  deleteFileBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -180,7 +180,7 @@ export class FileBackupController {
     }
   };
 
-  getBackupDetails = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getBackupDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -198,7 +198,7 @@ export class FileBackupController {
     }
   };
 
-  downloadBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  downloadBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 

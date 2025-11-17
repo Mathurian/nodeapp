@@ -13,7 +13,7 @@ export class ErrorHandlingController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  logError = async (_req: Request, res: Response, next: NextFunction) => {
+  logError = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error, context } = req.body;
       const result = this.errorHandlingService.logError(error, context);
@@ -23,7 +23,7 @@ export class ErrorHandlingController {
     }
   };
 
-  getErrorStats = async (_req: Request, res: Response, next: NextFunction) => {
+  getErrorStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = this.errorHandlingService.getErrorStats();
       return sendSuccess(res, stats);
@@ -32,7 +32,7 @@ export class ErrorHandlingController {
     }
   };
 
-  getErrorStatistics = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getErrorStatistics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -73,7 +73,7 @@ export class ErrorHandlingController {
     }
   };
 
-  getErrorDetails = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getErrorDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const page = parseInt(req.query.page as string) || 1;
@@ -136,7 +136,7 @@ export class ErrorHandlingController {
     }
   };
 
-  markErrorResolved = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  markErrorResolved = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { resolution } = req.body;
@@ -169,7 +169,7 @@ export class ErrorHandlingController {
     }
   };
 
-  getErrorTrends = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getErrorTrends = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -220,7 +220,7 @@ export class ErrorHandlingController {
     }
   };
 
-  cleanupErrorLogs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  cleanupErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { olderThanDays } = req.body;
 
@@ -246,7 +246,7 @@ export class ErrorHandlingController {
     }
   };
 
-  exportErrorLogs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  exportErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const format = (req.query.format as string) || 'json';
       const limit = parseInt(req.query.limit as string) || 1000;

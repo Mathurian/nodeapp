@@ -15,7 +15,7 @@ export class FileManagementController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getFileInfo = async (_req: Request, res: Response, next: NextFunction) => {
+  getFileInfo = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const info = await this.fileManagementService.getFileInfo(filename);
@@ -25,7 +25,7 @@ export class FileManagementController {
     }
   };
 
-  moveFile = async (_req: Request, res: Response, next: NextFunction) => {
+  moveFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const { newPath } = req.body;
@@ -36,7 +36,7 @@ export class FileManagementController {
     }
   };
 
-  copyFile = async (_req: Request, res: Response, next: NextFunction) => {
+  copyFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const { newPath } = req.body;
@@ -47,7 +47,7 @@ export class FileManagementController {
     }
   };
 
-  getFilesWithFilters = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFilesWithFilters = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -129,7 +129,7 @@ export class FileManagementController {
     }
   };
 
-  bulkFileOperations = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  bulkFileOperations = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { operation, fileIds, options } = req.body;
 
@@ -206,7 +206,7 @@ export class FileManagementController {
     }
   };
 
-  getFileSearchSuggestions = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileSearchSuggestions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { query } = req.query;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -242,7 +242,7 @@ export class FileManagementController {
     }
   };
 
-  getFileAnalytics = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -321,7 +321,7 @@ export class FileManagementController {
     }
   };
 
-  checkFileIntegrity = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  checkFileIntegrity = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -383,7 +383,7 @@ export class FileManagementController {
     }
   };
 
-  bulkCheckFileIntegrity = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  bulkCheckFileIntegrity = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { fileIds } = req.body;
 

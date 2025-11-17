@@ -10,7 +10,7 @@ export class ContestCertificationController {
     this.contestCertificationService = container.resolve(ContestCertificationService);
   }
 
-  getContestCertificationProgress = async (_req: Request, res: Response, next: NextFunction) => {
+  getContestCertificationProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
       const progress = await this.contestCertificationService.getCertificationProgress(contestId);
@@ -20,7 +20,7 @@ export class ContestCertificationController {
     }
   };
 
-  certifyContest = async (_req: Request, res: Response, next: NextFunction) => {
+  certifyContest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
       const certification = await this.contestCertificationService.certifyContest(

@@ -10,7 +10,7 @@ export class ScoreRemovalController {
     this.scoreRemovalService = container.resolve(ScoreRemovalService);
   }
 
-  createScoreRemovalRequest = async (_req: Request, res: Response, next: NextFunction) => {
+  createScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, reason } = req.body;
       const request = await this.scoreRemovalService.createRequest({
@@ -26,7 +26,7 @@ export class ScoreRemovalController {
     }
   };
 
-  getScoreRemovalRequests = async (_req: Request, res: Response, next: NextFunction) => {
+  getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
       const requests = await this.scoreRemovalService.getAll(status as string | undefined);
@@ -36,7 +36,7 @@ export class ScoreRemovalController {
     }
   };
 
-  getScoreRemovalRequest = async (_req: Request, res: Response, next: NextFunction) => {
+  getScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const request = await this.scoreRemovalService.getById(id);
@@ -46,7 +46,7 @@ export class ScoreRemovalController {
     }
   };
 
-  signScoreRemovalRequest = async (_req: Request, res: Response, next: NextFunction) => {
+  signScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const { signatureName } = req.body;
@@ -61,7 +61,7 @@ export class ScoreRemovalController {
     }
   };
 
-  executeScoreRemoval = async (_req: Request, res: Response, next: NextFunction) => {
+  executeScoreRemoval = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const result = await this.scoreRemovalService.executeRemoval(id);

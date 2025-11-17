@@ -10,7 +10,7 @@ export class NotificationsController {
     this.notificationService = container.resolve(NotificationService);
   }
 
-  getAllNotifications = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllNotifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const notifications = await this.notificationService.getUserNotifications(req.user!.id);
       return sendSuccess(res, notifications);
@@ -19,7 +19,7 @@ export class NotificationsController {
     }
   };
 
-  getNotificationById = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getNotificationById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       // NotificationService doesn't have getById, we can use the repository directly or return error
@@ -30,7 +30,7 @@ export class NotificationsController {
     }
   };
 
-  createNotification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const notification = await this.notificationService.createNotification({
         ...req.body,
@@ -42,7 +42,7 @@ export class NotificationsController {
     }
   };
 
-  updateNotification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       // NotificationService doesn't have update method
@@ -52,7 +52,7 @@ export class NotificationsController {
     }
   };
 
-  deleteNotification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  deleteNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       await this.notificationService.deleteNotification(id, req.user!.id);
@@ -62,7 +62,7 @@ export class NotificationsController {
     }
   };
 
-  markAsRead = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  markAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       await this.notificationService.markAsRead(id, req.user!.id);
@@ -72,7 +72,7 @@ export class NotificationsController {
     }
   };
 
-  markAllAsRead = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  markAllAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const count = await this.notificationService.markAllAsRead(req.user!.id);
       return sendSuccess(res, { count }, 'All notifications marked as read');

@@ -37,7 +37,7 @@ export class PerformanceController {
   /**
    * Get performance statistics
    */
-  getPerformanceStats = async (_req: Request, res: Response, next: NextFunction) => {
+  getPerformanceStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { timeRange, endpoint, method } = req.query;
 
@@ -56,7 +56,7 @@ export class PerformanceController {
   /**
    * Get system metrics
    */
-  getSystemMetrics = async (_req: Request, res: Response, next: NextFunction) => {
+  getSystemMetrics = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const metrics = await this.performanceService.getSystemMetrics();
       return sendSuccess(res, metrics);
@@ -68,7 +68,7 @@ export class PerformanceController {
   /**
    * Get performance logs with filtering
    */
-  getPerformanceLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  getPerformanceLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const {
         page,
@@ -105,7 +105,7 @@ export class PerformanceController {
   /**
    * Clear performance logs
    */
-  clearPerformanceLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  clearPerformanceLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { olderThan } = req.body;
       const result = await this.performanceService.clearPerformanceLogs(olderThan);
@@ -118,7 +118,7 @@ export class PerformanceController {
   /**
    * Health check endpoint
    */
-  getHealthCheck = async (_req: Request, res: Response, next: NextFunction) => {
+  getHealthCheck = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.performanceService.getHealthCheck();
       const statusCode = health.status === 'healthy' ? 200 : 503;

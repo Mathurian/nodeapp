@@ -10,7 +10,7 @@ export class RoleAssignmentController {
     this.roleAssignmentService = container.resolve(RoleAssignmentService);
   }
 
-  getAllRoleAssignments = async (_req: Request, res: Response, next: NextFunction) => {
+  getAllRoleAssignments = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { role, contestId, eventId, categoryId } = req.query;
       const assignments = await this.roleAssignmentService.getAll({
@@ -25,7 +25,7 @@ export class RoleAssignmentController {
     }
   };
 
-  createRoleAssignment = async (_req: Request, res: Response, next: NextFunction) => {
+  createRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId, role, contestId, eventId, categoryId, notes } = req.body;
       const assignment = await this.roleAssignmentService.create({
@@ -43,7 +43,7 @@ export class RoleAssignmentController {
     }
   };
 
-  updateRoleAssignment = async (_req: Request, res: Response, next: NextFunction) => {
+  updateRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const { notes, isActive } = req.body;
@@ -54,7 +54,7 @@ export class RoleAssignmentController {
     }
   };
 
-  deleteRoleAssignment = async (_req: Request, res: Response, next: NextFunction) => {
+  deleteRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       await this.roleAssignmentService.delete(id);

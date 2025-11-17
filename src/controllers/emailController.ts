@@ -13,7 +13,7 @@ export class EmailController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getConfig = async (_req: Request, res: Response, next: NextFunction) => {
+  getConfig = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const config = await this.emailService.getConfig();
       return sendSuccess(res, config);
@@ -22,7 +22,7 @@ export class EmailController {
     }
   };
 
-  sendEmail = async (_req: Request, res: Response, next: NextFunction) => {
+  sendEmail = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { to, subject, body } = req.body;
       const result = await this.emailService.sendEmail(to, subject, body);
@@ -32,7 +32,7 @@ export class EmailController {
     }
   };
 
-  sendBulkEmail = async (_req: Request, res: Response, next: NextFunction) => {
+  sendBulkEmail = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { recipients, subject, body } = req.body;
       const results = await this.emailService.sendBulkEmail(recipients, subject, body);
@@ -42,7 +42,7 @@ export class EmailController {
     }
   };
 
-  getTemplates = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -92,7 +92,7 @@ export class EmailController {
     }
   };
 
-  createTemplate = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { name, subject, body, type, eventId, variables } = req.body;
 
@@ -120,7 +120,7 @@ export class EmailController {
     }
   };
 
-  updateTemplate = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { name, subject, body, type, eventId, variables } = req.body;
@@ -152,7 +152,7 @@ export class EmailController {
     }
   };
 
-  deleteTemplate = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -174,7 +174,7 @@ export class EmailController {
     }
   };
 
-  getCampaigns = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCampaigns = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Email campaigns would be tracked through email logs
       const limit = parseInt(req.query.limit as string) || 50;
@@ -195,7 +195,7 @@ export class EmailController {
     }
   };
 
-  createCampaign = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createCampaign = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { name, templateId, recipientList } = req.body;
 
@@ -214,7 +214,7 @@ export class EmailController {
     }
   };
 
-  sendCampaign = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendCampaign = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { campaignId } = req.params;
       const { recipients, templateId, subject, body } = req.body;
@@ -244,7 +244,7 @@ export class EmailController {
     }
   };
 
-  getLogs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 100;
@@ -280,7 +280,7 @@ export class EmailController {
     }
   };
 
-  sendMultipleEmails = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendMultipleEmails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { emails } = req.body;
 
@@ -307,7 +307,7 @@ export class EmailController {
     }
   };
 
-  sendEmailByRole = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendEmailByRole = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { role, subject, body } = req.body;
 

@@ -13,7 +13,7 @@ export class AdminController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getDashboard = async (_req: Request, res: Response, next: NextFunction) => {
+  getDashboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
@@ -22,7 +22,7 @@ export class AdminController {
     }
   };
 
-  getSystemHealth = async (_req: Request, res: Response, next: NextFunction) => {
+  getSystemHealth = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
@@ -31,7 +31,7 @@ export class AdminController {
     }
   };
 
-  clearCache = async (_req: Request, res: Response, next: NextFunction) => {
+  clearCache = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.adminService.clearCache();
       return sendSuccess(res, result, 'Cache cleared');
@@ -40,7 +40,7 @@ export class AdminController {
     }
   };
 
-  getDatabaseTables = async (_req: Request, res: Response, next: NextFunction) => {
+  getDatabaseTables = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.adminService.getDatabaseTables();
       return sendSuccess(res, tables);
@@ -49,7 +49,7 @@ export class AdminController {
     }
   };
 
-  getTableStructure = async (_req: Request, res: Response, next: NextFunction) => {
+  getTableStructure = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const structure = await this.adminService.getTableStructure(tableName);
@@ -59,7 +59,7 @@ export class AdminController {
     }
   };
 
-  getTableData = async (_req: Request, res: Response, next: NextFunction) => {
+  getTableData = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const { page = '1', limit = '50', orderBy, orderDirection = 'asc' } = req.query;
@@ -76,7 +76,7 @@ export class AdminController {
     }
   };
 
-  executeDatabaseQuery = async (_req: Request, res: Response, next: NextFunction) => {
+  executeDatabaseQuery = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { query, limit = 100 } = req.body;
       const result = await this.adminService.executeDatabaseQuery(query, parseInt(limit));
@@ -86,7 +86,7 @@ export class AdminController {
     }
   };
 
-  getStats = async (_req: Request, res: Response, next: NextFunction) => {
+  getStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
@@ -95,7 +95,7 @@ export class AdminController {
     }
   };
 
-  getLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  getLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const logs = await this.adminService.getActivityLogs(limit);
@@ -105,7 +105,7 @@ export class AdminController {
     }
   };
 
-  getActiveUsers = async (_req: Request, res: Response, next: NextFunction) => {
+  getActiveUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const hours = parseInt(req.query.hours as string) || 24;
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
@@ -134,7 +134,7 @@ export class AdminController {
     }
   };
 
-  getUsers = async (_req: Request, res: Response, next: NextFunction) => {
+  getUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -188,7 +188,7 @@ export class AdminController {
     }
   };
 
-  getEvents = async (_req: Request, res: Response, next: NextFunction) => {
+  getEvents = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -235,7 +235,7 @@ export class AdminController {
     }
   };
 
-  getContests = async (_req: Request, res: Response, next: NextFunction) => {
+  getContests = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -281,7 +281,7 @@ export class AdminController {
     }
   };
 
-  getCategories = async (_req: Request, res: Response, next: NextFunction) => {
+  getCategories = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -333,7 +333,7 @@ export class AdminController {
     }
   };
 
-  getScores = async (_req: Request, res: Response, next: NextFunction) => {
+  getScores = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -395,7 +395,7 @@ export class AdminController {
     }
   };
 
-  getActivityLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  getActivityLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const logs = await this.adminService.getActivityLogs(limit);
@@ -405,7 +405,7 @@ export class AdminController {
     }
   };
 
-  getAuditLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  getAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const logs = await this.adminService.getAuditLogs(limit);
@@ -415,7 +415,7 @@ export class AdminController {
     }
   };
 
-  exportAuditLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  exportAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const format = (req.query.format as string) || 'json';
       const limit = parseInt(req.query.limit as string) || 1000;
@@ -454,7 +454,7 @@ export class AdminController {
     }
   };
 
-  testConnection = async (_req: Request, res: Response, next: NextFunction) => {
+  testConnection = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
@@ -463,7 +463,7 @@ export class AdminController {
     }
   };
 
-  forceLogoutAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
+  forceLogoutAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Increment sessionVersion for all users to invalidate their tokens
       await this.prisma.user.updateMany({
@@ -486,7 +486,7 @@ export class AdminController {
     }
   };
 
-  forceLogoutUser = async (_req: Request, res: Response, next: NextFunction) => {
+  forceLogoutUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId } = req.params;
 
@@ -522,7 +522,7 @@ export class AdminController {
     }
   };
 
-  getContestantScores = async (_req: Request, res: Response, next: NextFunction) => {
+  getContestantScores = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestantId } = req.params;
       const categoryId = req.query.categoryId as string | undefined;

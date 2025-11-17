@@ -13,7 +13,7 @@ export class DatabaseBrowserController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getTables = async (_req: Request, res: Response, next: NextFunction) => {
+  getTables = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.databaseBrowserService.getTables();
       return sendSuccess(res, tables);
@@ -22,7 +22,7 @@ export class DatabaseBrowserController {
     }
   };
 
-  getTableData = async (_req: Request, res: Response, next: NextFunction) => {
+  getTableData = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const { page, limit } = req.query;
@@ -37,7 +37,7 @@ export class DatabaseBrowserController {
     }
   };
 
-  getTableSchema = async (_req: Request, res: Response, next: NextFunction) => {
+  getTableSchema = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const schema = await this.databaseBrowserService.getTableSchema(tableName);
@@ -47,7 +47,7 @@ export class DatabaseBrowserController {
     }
   };
 
-  executeQuery = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  executeQuery = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { query } = req.body;
 
@@ -84,7 +84,7 @@ export class DatabaseBrowserController {
     }
   };
 
-  getQueryHistory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getQueryHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;

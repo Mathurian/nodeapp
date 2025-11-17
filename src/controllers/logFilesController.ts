@@ -10,7 +10,7 @@ export class LogFilesController {
     this.logFilesService = container.resolve(LogFilesService);
   }
 
-  getLogFiles = async (_req: Request, res: Response, next: NextFunction) => {
+  getLogFiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.logFilesService.getLogFiles();
       return sendSuccess(res, result);
@@ -19,7 +19,7 @@ export class LogFilesController {
     }
   };
 
-  getLogFileContents = async (_req: Request, res: Response, next: NextFunction) => {
+  getLogFileContents = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const { lines } = req.query;
@@ -33,7 +33,7 @@ export class LogFilesController {
     }
   };
 
-  downloadLogFile = async (_req: Request, res: Response, next: NextFunction) => {
+  downloadLogFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const filePath = await this.logFilesService.getLogFilePath(filename);
@@ -43,7 +43,7 @@ export class LogFilesController {
     }
   };
 
-  cleanupOldLogs = async (_req: Request, res: Response, next: NextFunction) => {
+  cleanupOldLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { daysToKeep } = req.body;
       const result = await this.logFilesService.cleanupOldLogs(daysToKeep);
@@ -53,7 +53,7 @@ export class LogFilesController {
     }
   };
 
-  deleteLogFile = async (_req: Request, res: Response, next: NextFunction) => {
+  deleteLogFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       await this.logFilesService.deleteLogFile(filename);
