@@ -3,7 +3,6 @@ import { container } from '../config/container';
 import { AssignmentService, AssignmentFilters } from '../services/AssignmentService';
 import { sendSuccess, successResponse, sendError } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
-import { PrismaClient } from '@prisma/client';
 
 /**
  * Assignments Controller
@@ -11,11 +10,9 @@ import { PrismaClient } from '@prisma/client';
  */
 export class AssignmentsController {
   private assignmentService: AssignmentService;
-  private prisma: PrismaClient;
 
   constructor() {
     this.assignmentService = container.resolve(AssignmentService);
-    this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
   /**
