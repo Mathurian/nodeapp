@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import BackupMonitoringService from '../services/BackupMonitoringService';
+import { exec } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 

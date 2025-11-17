@@ -92,7 +92,7 @@ const getCsrfToken = (req: Request, res: Response): void => {
  * Middleware to validate CSRF token on state-changing requests
  * Use this to protect POST/PUT/DELETE/PATCH routes
  */
-const csrfProtection = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+const csrfProtection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // Skip CSRF validation for GET, HEAD, OPTIONS requests
   const method = req.method.toUpperCase()
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
@@ -159,7 +159,7 @@ const csrfProtection = async (_req: Request, res: Response, next: NextFunction):
 /**
  * Error handler for CSRF token validation failures
  */
-const csrfErrorHandler = (err: any, _req: Request, res: Response, next: NextFunction): void => {
+const csrfErrorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
   if (err && err.code === 'EBADCSRFTOKEN') {
     res.status(403).json({ 
       error: 'CSRF token validation failed',

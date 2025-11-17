@@ -7,7 +7,7 @@ import { userCache } from '../utils/cache';
 
 const JWT_SECRET = jwtSecret;
 
-const authenticateToken = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // Read token from httpOnly cookie instead of Authorization header
   const token = req.cookies?.access_token;
 

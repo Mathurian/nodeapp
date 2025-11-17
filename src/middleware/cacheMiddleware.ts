@@ -24,7 +24,7 @@ export const cacheMiddleware = (options: CacheMiddlewareOptions = {}) => {
   const ttl = options.ttl || CacheTTL.MEDIUM;
   const namespace = options.namespace || 'http';
 
-  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Skip caching for non-GET requests
     if (req.method !== 'GET') {
       next();
@@ -147,7 +147,7 @@ export const cachePaginated = (options: CacheMiddlewareOptions = {}) => {
 export const invalidateCache = (patterns: string | string[], namespace?: string) => {
   const cacheService = getCacheService();
 
-  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Store original json method
     const originalJson = res.json.bind(res);
 
@@ -179,7 +179,7 @@ export const invalidateCache = (patterns: string | string[], namespace?: string)
 export const invalidateCacheTag = (tag: string | string[]) => {
   const cacheService = getCacheService();
 
-  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Store original json method
     const originalJson = res.json.bind(res);
 
@@ -208,7 +208,7 @@ export const invalidateCacheTag = (tag: string | string[]) => {
 /**
  * No-cache middleware - bypass cache for this request
  */
-export const noCache = (_req: Request, res: Response, next: NextFunction): void => {
+export const noCache = (req: Request, res: Response, next: NextFunction): void => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
