@@ -57,10 +57,10 @@ export class WorkflowService {
   /**
    * Get workflow template by ID
    */
-  static async getTemplate(id: string): Promise<any> {
+  static async getTemplate(id: string, tenantId: string): Promise<any> {
     try {
-      return await prisma.workflowTemplate.findUnique({
-        where: { id }
+      return await prisma.workflowTemplate.findFirst({
+        where: { id, tenantId }
       });
     } catch (error) {
       logger.error('Error getting workflow template:', error);
@@ -71,11 +71,11 @@ export class WorkflowService {
   /**
    * List workflow templates
    */
-  static async listTemplates(tenantId?: string, type?: string): Promise<any[]> {
+  static async listTemplates(tenantId: string, type?: string): Promise<any[]> {
     try {
       return await prisma.workflowTemplate.findMany({
         where: {
-          ...(tenantId && { tenantId }),
+          tenantId,
           isActive: true
         },
         orderBy: { createdAt: 'desc' }
@@ -126,13 +126,14 @@ export class WorkflowService {
    */
   static async advanceWorkflow(
     instanceId: string,
+    tenantId: string,
     _userId: string,
     approvalStatus: 'approved' | 'rejected',
     _comments?: string
   ): Promise<any> {
     try {
-      const instance = await prisma.workflowInstance.findUnique({
-        where: { id: instanceId }
+      const instance = await prisma.workflowInstance.findFirst({
+        where: { id: instanceId, tenantId }
       });
 
       if (!instance) {
@@ -170,10 +171,10 @@ export class WorkflowService {
   /**
    * Get workflow instance
    */
-  static async getInstance(id: string): Promise<any> {
+  static async getInstance(id: string, tenantId: string): Promise<any> {
     try {
-      return await prisma.workflowInstance.findUnique({
-        where: { id }
+      return await prisma.workflowInstance.findFirst({
+        where: { id, tenantId }
       });
     } catch (error) {
       logger.error('Error getting workflow instance:', error);
