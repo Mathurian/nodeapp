@@ -17,7 +17,7 @@ export class EmailTemplateController {
     try {
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getAllEmailTemplates(eventId as string);
+      const templates = await emailTemplateService.getAllEmailTemplates(eventId as string, req.user!.tenantId);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: any) {
@@ -34,7 +34,7 @@ export class EmailTemplateController {
     try {
       const { id } = req.params;
 
-      const template = await emailTemplateService.getEmailTemplateById(id);
+      const template = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
 
       if (!template) {
         sendError(res, 'Email template not found', 404);
@@ -57,7 +57,7 @@ export class EmailTemplateController {
       const { type } = req.params;
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string);
+      const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string, req.user!.tenantId);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: any) {
@@ -86,6 +86,7 @@ export class EmailTemplateController {
       }
 
       data.createdBy = userId;
+      data.tenantId = req.user!.tenantId;
 
       const template = await emailTemplateService.createEmailTemplate(data);
 
@@ -105,13 +106,13 @@ export class EmailTemplateController {
       const { id } = req.params;
       const data = req.body;
 
-      const existing = await emailTemplateService.getEmailTemplateById(id);
+      const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
       if (!existing) {
         sendError(res, 'Email template not found', 404);
         return;
       }
 
-      const template = await emailTemplateService.updateEmailTemplate(id, data);
+      const template = await emailTemplateService.updateEmailTemplate(id, req.user!.tenantId, data);
 
       sendSuccess(res, template, 'Email template updated successfully');
     } catch (error: any) {
@@ -128,13 +129,13 @@ export class EmailTemplateController {
     try {
       const { id } = req.params;
 
-      const existing = await emailTemplateService.getEmailTemplateById(id);
+      const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
       if (!existing) {
         sendError(res, 'Email template not found', 404);
         return;
       }
 
-      await emailTemplateService.deleteEmailTemplate(id);
+      await emailTemplateService.deleteEmailTemplate(id, req.user!.tenantId);
 
       sendSuccess(res, null, 'Email template deleted successfully');
     } catch (error: any) {
@@ -157,7 +158,7 @@ export class EmailTemplateController {
         return;
       }
 
-      const cloned = await emailTemplateService.cloneEmailTemplate(id, userId);
+      const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, req.user!.tenantId);
 
       sendSuccess(res, cloned, 'Email template cloned successfully', 201);
     } catch (error: any) {
@@ -175,7 +176,7 @@ export class EmailTemplateController {
       const { id } = req.params;
       const { variables } = req.body;
 
-      const preview = await emailTemplateService.previewEmailTemplate(id, variables);
+      const preview = await emailTemplateService.previewEmailTemplate(id, variables, req.user!.tenantId);
 
       sendSuccess(res, preview, 'Email template preview generated successfully');
     } catch (error: any) {

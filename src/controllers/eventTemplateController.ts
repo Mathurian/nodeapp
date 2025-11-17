@@ -18,7 +18,8 @@ export class EventTemplateController {
         description,
         contests,
         categories,
-        createdBy: req.user!.id
+        createdBy: req.user!.id,
+        tenantId: req.user!.tenantId
       });
       return sendSuccess(res, template, 'Template created', 201);
     } catch (error) {
@@ -26,9 +27,9 @@ export class EventTemplateController {
     }
   };
 
-  getTemplates = async (_req: Request, res: Response, next: NextFunction) => {
+  getTemplates = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const templates = await this.eventTemplateService.getAll();
+      const templates = await this.eventTemplateService.getAll(req.user!.tenantId);
       return sendSuccess(res, templates);
     } catch (error) {
       return next(error);
@@ -38,7 +39,7 @@ export class EventTemplateController {
   getTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const template = await this.eventTemplateService.getById(id);
+      const template = await this.eventTemplateService.getById(id, req.user!.tenantId);
       return sendSuccess(res, template);
     } catch (error) {
       return next(error);
@@ -49,7 +50,7 @@ export class EventTemplateController {
     try {
       const { id } = req.params;
       const { name, description, contests, categories } = req.body;
-      const template = await this.eventTemplateService.update(id, {
+      const template = await this.eventTemplateService.update(id, req.user!.tenantId, {
         name,
         description,
         contests,
@@ -64,7 +65,7 @@ export class EventTemplateController {
   deleteTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      await this.eventTemplateService.delete(id);
+      await this.eventTemplateService.delete(id, req.user!.tenantId);
       return sendSuccess(res, null, 'Template deleted');
     } catch (error) {
       return next(error);
@@ -79,7 +80,8 @@ export class EventTemplateController {
         eventName,
         eventDescription,
         startDate,
-        endDate
+        endDate,
+        tenantId: req.user!.tenantId
       });
       return sendSuccess(res, event, 'Event created from template', 201);
     } catch (error) {
