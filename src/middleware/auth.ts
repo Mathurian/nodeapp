@@ -8,14 +8,8 @@ import { userCache } from '../utils/cache';
 const JWT_SECRET = jwtSecret;
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  // Try to get token from Authorization header first, then from httpOnly cookie
-  const authHeader = req.headers['authorization'];
-  let token = authHeader && authHeader.split(' ')[1];
-
-  // Fallback to httpOnly cookie if no Authorization header
-  if (!token && req.cookies && req.cookies.auth_token) {
-    token = req.cookies.auth_token;
-  }
+  // Read token from httpOnly cookie instead of Authorization header
+  const token = req.cookies?.access_token;
 
   if (!token) {
     // Enhanced logging for sensitive endpoints that frequently have issues
@@ -31,8 +25,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         method: req.method,
         originalUrl: req.originalUrl,
         url: req.url,
-        hasAuthHeader: !!req.headers['authorization'],
-        authHeaderValue: req.headers['authorization'] ? 'present' : 'missing'
+        hasCookie: !!req.cookies?.access_token
       });
     }
     res.status(401).json({ error: 'Access token required' });
@@ -84,6 +77,15 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         dbVersion: dbSessionVersion,
         fromCache
       });
+
+      // Clear the invalid cookie
+      res.clearCookie('access_token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+      });
+
       res.status(401).json({
         error: 'Session expired',
         message: 'Your session has been invalidated. Please log in again.',
@@ -125,7 +127,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       console.error('authenticateToken: Authentication failed for sensitive endpoint', {
         error: errorObj.message,
         errorName: errorObj.name,
-        hasToken: !!req.headers['authorization'],
+        hasCookie: !!req.cookies?.access_token,
         path: req.path,
         method: req.method,
         originalUrl: req.originalUrl,
@@ -136,23 +138,31 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       console.warn('Authentication failed:', {
         error: errorObj.message,
         errorName: errorObj.name,
-        hasToken: !!req.headers['authorization'],
+        hasCookie: !!req.cookies?.access_token,
         path: req.path,
         method: req.method
       });
     }
-    
+
+    // Clear the invalid cookie
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
     // Return 401 for authentication failures (invalid/expired token)
     // Always return 401 for token errors - 403 should only be for permission issues after successful auth
     if (errorObj.name === 'TokenExpiredError' || errorObj.name === 'JsonWebTokenError') {
-      res.status(401).json({ 
+      res.status(401).json({
         error: 'Invalid or expired token',
         code: errorObj.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
       });
       return;
     }
     // For other errors, still return 401 as it's an authentication issue
-    res.status(401).json({ 
+    res.status(401).json({
       error: 'Authentication failed',
       code: 'AUTH_ERROR'
     });
@@ -166,8 +176,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       console.error('requireRole: CRITICAL - No user object found (authenticateToken may have failed)', {
         path: req.path,
         method: req.method,
-        hasAuthHeader: !!req.headers['authorization'],
-        authHeaderPresent: req.headers['authorization'] ? 'yes' : 'no',
+        hasCookie: !!req.cookies?.access_token,
         originalUrl: req.originalUrl,
         url: req.url,
         timestamp: new Date().toISOString()

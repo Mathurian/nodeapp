@@ -15,7 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
   isAuthenticated: boolean
 }
@@ -47,7 +47,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Just try to fetch profile, cookie will be sent automatically
       try {
         const response = await api.get('/auth/profile')
-        setUser(response.data)
+        // Backend wraps response in { success, message, data, timestamp }
+        const profileData = response.data.data || response.data
+        setUser(profileData)
       } catch (error) {
         // Cookie might be expired or invalid, user is not authenticated
         setUser(null)
@@ -64,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const csrfResponse = await api.get('/csrf-token')
       const csrfToken = csrfResponse.data.csrfToken || csrfResponse.data.token
 
-      // Step 2: Login with CSRF token
+      // Step 2: Login with CSRF token (token will be set as httpOnly cookie by backend)
       const response = await api.post('/auth/login',
         { email, password },
         {
