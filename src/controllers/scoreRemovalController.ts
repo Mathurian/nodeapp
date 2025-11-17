@@ -51,11 +51,11 @@ export class ScoreRemovalController {
     try {
       const { id } = req.params;
       const { signatureName } = req.body;
-      const result = await this.scoreRemovalService.signRequest(id, {
+      const result = await this.scoreRemovalService.signRequest(id, req.user!.tenantId, {
         signatureName,
         userId: req.user!.id,
         userRole: req.user!.role
-      }, req.user!.tenantId);
+      });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
       return next(error);
