@@ -21,7 +21,7 @@ const router: Router = express.Router();
 
 // Configure multer for user image uploads
 const userImageStorage = multer.diskStorage({
-  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/users/');
   },
   filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
@@ -45,7 +45,7 @@ const userImageUpload = multer({
 
 // Configure multer for user bio file uploads
 const userBioStorage = multer.diskStorage({
-  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/users/bios/');
   },
   filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {

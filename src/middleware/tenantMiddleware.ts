@@ -321,7 +321,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
     query: {
       // Add tenant filter to all models that have tenantId
       $allModels: {
-        async findMany({ model, operation, args, query }: any) {
+        async findMany({ model, args, query }: any) {
           // Check if model has tenantId field
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
@@ -329,77 +329,77 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
           }
           return query(args);
         },
-        async findFirst({ model, operation, args, query }: any) {
+        async findFirst({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async findUnique({ model, operation, args, query }: any) {
+        async findUnique({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async findUniqueOrThrow({ model, operation, args, query }: any) {
+        async findUniqueOrThrow({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async count({ model, operation, args, query }: any) {
+        async count({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async aggregate({ model, operation, args, query }: any) {
+        async aggregate({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async groupBy({ model, operation, args, query }: any) {
+        async groupBy({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async create({ model, operation, args, query }: any) {
+        async create({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.data = { ...args.data, tenantId };
           }
           return query(args);
         },
-        async createMany({ model, operation, args, query }: any) {
+        async createMany({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields && Array.isArray(args.data)) {
             args.data = args.data.map((item: any) => ({ ...item, tenantId }));
           }
           return query(args);
         },
-        async update({ model, operation, args, query }: any) {
+        async update({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async updateMany({ model, operation, args, query }: any) {
+        async updateMany({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async upsert({ model, operation, args, query }: any) {
+        async upsert({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
@@ -407,14 +407,14 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
           }
           return query(args);
         },
-        async delete({ model, operation, args, query }: any) {
+        async delete({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };
           }
           return query(args);
         },
-        async deleteMany({ model, operation, args, query }: any) {
+        async deleteMany({ model, args, query }: any) {
           const modelFields = (prisma as any)[model]?.fields;
           if (modelFields && 'tenantId' in modelFields) {
             args.where = { ...args.where, tenantId };

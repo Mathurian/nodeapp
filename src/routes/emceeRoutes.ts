@@ -27,7 +27,7 @@ const router: Router = express.Router();
 
 // Configure multer for emcee script uploads
 const emceeScriptStorage = multer.diskStorage({
-  destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, 'uploads/emcee/');
   },
   filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
