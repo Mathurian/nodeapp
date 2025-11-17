@@ -32,7 +32,7 @@ export class RestrictionService extends BaseService {
    */
   async setContestantViewRestriction(
     dto: SetContestantViewRestrictionDTO,
-    userId: string,
+    _userId: string,
     userRole: string
   ): Promise<void> {
     // Only admin, organizer, or board can set restrictions

@@ -28,7 +28,6 @@ const getSettingsService = (): SettingsService => {
 export const createBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { type = 'FULL' } = req.body;
-    const userId = (req as any).user?.id;
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `backup-${type.toLowerCase()}-${timestamp}.sql`;
@@ -279,8 +278,6 @@ export const getBackupSettings = async (_req: Request, res: Response, next: Next
  */
 export const createBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const settingsService = getSettingsService();
-    const userId = (req as any).user?.id;
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting created');
   } catch (error: any) {
