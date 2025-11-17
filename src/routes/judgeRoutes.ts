@@ -2,12 +2,10 @@ import express, { Router } from 'express';
 import {
   getStats,
   getAssignments,
-  updateAssignmentStatus,
   getScoringInterface,
   submitScore,
   getCertificationWorkflow,
   getContestantBios,
-  getJudgeHistory,
   getContestantBio
 } from '../controllers/judgeController';
 import { authenticateToken, requireRole } from '../middleware/auth';

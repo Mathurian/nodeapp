@@ -5,8 +5,6 @@ import {
   exportToCSV,
   getTemplates,
   createTemplate,
-  updateTemplate,
-  deleteTemplate,
   generateReport,
   sendReportEmail,
   getReportInstances,

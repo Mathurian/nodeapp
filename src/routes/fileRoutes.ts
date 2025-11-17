@@ -5,8 +5,7 @@ import {
   getAllFiles,
   getFileStats
 } from '../controllers/fileController';
-import { authenticateToken, requireRole } from '../middleware/auth';
-import { logActivity } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

@@ -2,8 +2,6 @@ import express, { Router } from 'express';
 import {
   getPrintTemplates,
   createPrintTemplate,
-  updatePrintTemplate,
-  deletePrintTemplate,
   printEventReport,
   printContestResults,
   printJudgePerformance,

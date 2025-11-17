@@ -2,12 +2,9 @@ import express, { Router } from 'express';
 import {
   getPerformanceStats,
   getSystemMetrics,
-  getPerformanceLogs,
-  clearPerformanceLogs,
   getHealthCheck
 } from '../controllers/performanceController';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
 

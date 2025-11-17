@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { createTemplate, getTemplates, getTemplate, createEventFromTemplate } from '../controllers/eventTemplateController';
+import { createTemplate, getTemplates, getTemplate } from '../controllers/eventTemplateController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 

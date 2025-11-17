@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import multer from 'multer';
-import { uploadFile, uploadImage, deleteFile, getFiles } from '../controllers/uploadController';
+import { uploadFile, uploadImage, getFiles } from '../controllers/uploadController';
 import { authenticateToken } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
