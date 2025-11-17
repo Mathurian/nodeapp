@@ -32,7 +32,8 @@ export class DeductionController {
         categoryId,
         amount: parseFloat(amount),
         reason,
-        requestedBy
+        requestedBy,
+        tenantId: req.user!.tenantId
       });
 
       sendCreated(res, deduction, 'Deduction request created successfully');
@@ -55,7 +56,8 @@ export class DeductionController {
 
       const deductions = await this.deductionService.getPendingDeductions(
         userRole,
-        userId
+        userId,
+        req.user!.tenantId
       );
 
       sendSuccess(res, deductions, 'Pending deductions retrieved successfully');
@@ -105,7 +107,7 @@ export class DeductionController {
       const { reason } = req.body;
       const rejectedBy = req.user!.id;
 
-      await this.deductionService.rejectDeduction(id, rejectedBy, reason);
+      await this.deductionService.rejectDeduction(id, rejectedBy, reason, req.user!.tenantId);
 
       sendSuccess(res, null, 'Deduction rejected successfully');
     } catch (error) {
@@ -124,7 +126,7 @@ export class DeductionController {
     try {
       const id = req.params.id as string;
 
-      const status = await this.deductionService.getApprovalStatus(id);
+      const status = await this.deductionService.getApprovalStatus(id, req.user!.tenantId);
 
       sendSuccess(res, status, 'Approval status retrieved successfully');
     } catch (error) {
@@ -147,7 +149,8 @@ export class DeductionController {
         {
           status: status as string,
           categoryId: categoryId as string,
-          contestantId: contestantId as string
+          contestantId: contestantId as string,
+          tenantId: req.user!.tenantId
         },
         parseInt(page as string),
         parseInt(limit as string)
