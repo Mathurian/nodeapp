@@ -40,39 +40,40 @@ let NotificationService = class NotificationService {
         }
         return count;
     }
-    async getUserNotifications(userId, limit = 50, offset = 0) {
+    async getUserNotifications(userId, tenantId, limit = 50, offset = 0) {
         return this.notificationRepository.findByUser({
             userId,
+            tenantId,
             limit,
             offset,
         });
     }
-    async getUnreadCount(userId) {
-        return this.notificationRepository.getUnreadCount(userId);
+    async getUnreadCount(userId, tenantId) {
+        return this.notificationRepository.getUnreadCount(userId, tenantId);
     }
-    async markAsRead(id, userId) {
-        const notification = await this.notificationRepository.markAsRead(id, userId);
+    async markAsRead(id, userId, tenantId) {
+        const notification = await this.notificationRepository.markAsRead(id, userId, tenantId);
         if (this.io) {
             this.io.to(`user:${userId}`).emit('notification:read', { id });
         }
         return notification;
     }
-    async markAllAsRead(userId) {
-        const count = await this.notificationRepository.markAllAsRead(userId);
+    async markAllAsRead(userId, tenantId) {
+        const count = await this.notificationRepository.markAllAsRead(userId, tenantId);
         if (this.io) {
             this.io.to(`user:${userId}`).emit('notification:read-all');
         }
         return count;
     }
-    async deleteNotification(id, userId) {
-        const notification = await this.notificationRepository.delete(id, userId);
+    async deleteNotification(id, userId, tenantId) {
+        const notification = await this.notificationRepository.delete(id, userId, tenantId);
         if (this.io) {
             this.io.to(`user:${userId}`).emit('notification:deleted', { id });
         }
         return notification;
     }
-    async cleanupOldNotifications(userId, daysOld = 30) {
-        return this.notificationRepository.deleteOldRead(userId, daysOld);
+    async cleanupOldNotifications(userId, tenantId, daysOld = 30) {
+        return this.notificationRepository.deleteOldRead(userId, tenantId, daysOld);
     }
     async notifyScoreSubmitted(tenantId, userId, contestantName, categoryName) {
         return this.createNotification({

@@ -3,13 +3,12 @@ export declare class CommentaryController {
     private commentaryService;
     constructor();
     createComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        judge: never;
-    } & {
         id: string;
         judgeId: string;
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -24,6 +23,7 @@ export declare class CommentaryController {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -39,6 +39,7 @@ export declare class CommentaryController {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -52,6 +53,7 @@ export declare class CommentaryController {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -60,13 +62,12 @@ export declare class CommentaryController {
     deleteComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 }
 export declare const createComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    judge: never;
-} & {
     id: string;
     judgeId: string;
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;
@@ -81,6 +82,7 @@ export declare const getCommentsForScore: (req: Request, res: Response, next: Ne
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;
@@ -96,6 +98,7 @@ export declare const getCommentsByContestant: (req: Request, res: Response, next
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;
@@ -109,6 +112,7 @@ export declare const updateComment: (req: Request, res: Response, next: NextFunc
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;
@@ -116,13 +120,12 @@ export declare const updateComment: (req: Request, res: Response, next: NextFunc
 }>, Record<string, any>>>;
 export declare const deleteComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 export declare const createScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    judge: never;
-} & {
     id: string;
     judgeId: string;
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;
@@ -137,6 +140,7 @@ export declare const getScoreComments: (req: Request, res: Response, next: NextF
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;
@@ -150,6 +154,7 @@ export declare const updateScoreComment: (req: Request, res: Response, next: Nex
     contestantId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     criterionId: string;
     comment: string;
     scoreId: string;

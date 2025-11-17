@@ -13,11 +13,13 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
     getModelName() {
         return 'score';
     }
-    async findByEvent(eventId) {
+    async findByEvent(eventId, tenantId) {
         return this.getModel().findMany({
             where: {
+                tenantId,
                 contest: {
-                    eventId
+                    eventId,
+                    tenantId
                 }
             },
             include: {
@@ -42,9 +44,9 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
             }
         });
     }
-    async findByContest(contestId) {
+    async findByContest(contestId, tenantId) {
         return this.getModel().findMany({
-            where: { contestId },
+            where: { contestId, tenantId },
             include: {
                 judge: true,
                 contestant: true,
@@ -53,9 +55,9 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
             }
         });
     }
-    async findByCategory(categoryId) {
+    async findByCategory(categoryId, tenantId) {
         return this.getModel().findMany({
-            where: { categoryId },
+            where: { categoryId, tenantId },
             include: {
                 judge: true,
                 contestant: true,
@@ -64,9 +66,9 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
             }
         });
     }
-    async findByJudge(judgeId) {
+    async findByJudge(judgeId, tenantId) {
         return this.getModel().findMany({
-            where: { judgeId },
+            where: { judgeId, tenantId },
             include: {
                 judge: true,
                 contestant: true,
@@ -76,9 +78,9 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
             orderBy: { createdAt: 'desc' }
         });
     }
-    async findByContestant(contestantId) {
+    async findByContestant(contestantId, tenantId) {
         return this.getModel().findMany({
-            where: { contestantId },
+            where: { contestantId, tenantId },
             include: {
                 judge: true,
                 contestant: true,
@@ -88,18 +90,20 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
             orderBy: { createdAt: 'desc' }
         });
     }
-    async findByJudgeContestantCategory(judgeId, contestantId, categoryId) {
+    async findByJudgeContestantCategory(judgeId, contestantId, categoryId, tenantId) {
         return this.findFirst({
             judgeId,
             contestantId,
-            categoryId
+            categoryId,
+            tenantId
         });
     }
-    async getAverageScoreForContestantInCategory(contestantId, categoryId) {
+    async getAverageScoreForContestantInCategory(contestantId, categoryId, tenantId) {
         const result = await this.getModel().aggregate({
             where: {
                 contestantId,
-                categoryId
+                categoryId,
+                tenantId
             },
             _avg: {
                 value: true
@@ -107,11 +111,12 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
         });
         return result._avg.value || 0;
     }
-    async getTotalScoreForContestantInContest(contestantId, contestId) {
+    async getTotalScoreForContestantInContest(contestantId, contestId, tenantId) {
         const result = await this.getModel().aggregate({
             where: {
                 contestantId,
-                contestId
+                contestId,
+                tenantId
             },
             _sum: {
                 value: true
@@ -119,11 +124,12 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
         });
         return result._sum.value || 0;
     }
-    async getContestantScoresByCategory(contestantId, contestId) {
+    async getContestantScoresByCategory(contestantId, contestId, tenantId) {
         const scores = await this.getModel().findMany({
             where: {
                 contestantId,
-                contestId
+                contestId,
+                tenantId
             },
             include: {
                 category: true
@@ -146,9 +152,9 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
             judgeCount: data.scores.length
         }));
     }
-    async getJudgeCompletionStatus(contestId) {
-        const contest = await this.prisma.contest.findUnique({
-            where: { id: contestId },
+    async getJudgeCompletionStatus(contestId, tenantId) {
+        const contest = await this.prisma.contest.findFirst({
+            where: { id: contestId, tenantId },
             include: {
                 judges: {
                     include: {
@@ -170,7 +176,8 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
         const judgeStatus = await Promise.all(contest.judges.map(async (contestJudge) => {
             const scoreCount = await this.count({
                 judgeId: contestJudge.judgeId,
-                contestId
+                contestId,
+                tenantId
             });
             return {
                 judgeId: contestJudge.judgeId,
@@ -184,12 +191,12 @@ let ScoreRepository = class ScoreRepository extends BaseRepository_1.BaseReposit
     async bulkCreateScores(scores) {
         return this.createMany(scores);
     }
-    async deleteByContest(contestId) {
-        return this.deleteMany({ contestId });
+    async deleteByContest(contestId, tenantId) {
+        return this.deleteMany({ contestId, tenantId });
     }
-    async getContestScoreStats(contestId) {
+    async getContestScoreStats(contestId, tenantId) {
         const result = await this.getModel().aggregate({
-            where: { contestId },
+            where: { contestId, tenantId },
             _count: true,
             _avg: { value: true },
             _max: { value: true },

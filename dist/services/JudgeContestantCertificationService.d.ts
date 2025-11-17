@@ -7,6 +7,7 @@ export declare class JudgeContestantCertificationService extends BaseService {
         id: string;
         judgeId: string;
         contestantId: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
         comments: string | null;
@@ -15,6 +16,7 @@ export declare class JudgeContestantCertificationService extends BaseService {
         id: string;
         judgeId: string;
         contestantId: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
         comments: string | null;
@@ -34,6 +36,7 @@ export declare class JudgeContestantCertificationService extends BaseService {
             id: string;
             judgeId: string;
             contestantId: string;
+            tenantId: string;
             categoryId: string;
             certifiedAt: Date;
             comments: string | null;

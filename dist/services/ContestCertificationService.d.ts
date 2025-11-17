@@ -12,19 +12,21 @@ export declare class ContestCertificationService extends BaseService {
         certifications: {
             id: string;
             role: string;
+            tenantId: string;
             certifiedAt: Date;
             contestId: string;
-            comments: string | null;
             userId: string;
+            comments: string | null;
         }[];
     }>;
     certifyContest(contestId: string, userId: string, userRole: string): Promise<{
         id: string;
         role: string;
+        tenantId: string;
         certifiedAt: Date;
         contestId: string;
-        comments: string | null;
         userId: string;
+        comments: string | null;
     }>;
 }
 //# sourceMappingURL=ContestCertificationService.d.ts.map

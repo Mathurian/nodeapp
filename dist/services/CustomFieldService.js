@@ -16,6 +16,7 @@ class CustomFieldService {
                     key: data.key,
                     type: data.type,
                     entityType: data.entityType,
+                    tenantId: data.tenantId,
                     required: data.required ?? false,
                     defaultValue: data.defaultValue,
                     options: data.options ? JSON.stringify(data.options) : undefined,
@@ -32,9 +33,9 @@ class CustomFieldService {
             throw new Error('Failed to create custom field');
         }
     }
-    async getCustomFieldsByEntityType(entityType, activeOnly = true) {
+    async getCustomFieldsByEntityType(entityType, tenantId, activeOnly = true) {
         try {
-            const where = { entityType };
+            const where = { entityType, tenantId };
             if (activeOnly) {
                 where.active = true;
             }
@@ -49,10 +50,10 @@ class CustomFieldService {
             throw new Error('Failed to fetch custom fields');
         }
     }
-    async getCustomFieldById(id) {
+    async getCustomFieldById(id, tenantId) {
         try {
-            const field = await this.prisma.customField.findUnique({
-                where: { id },
+            const field = await this.prisma.customField.findFirst({
+                where: { id, tenantId },
             });
             return field;
         }
@@ -61,12 +62,13 @@ class CustomFieldService {
             throw new Error('Failed to fetch custom field');
         }
     }
-    async getCustomFieldByKey(key, entityType) {
+    async getCustomFieldByKey(key, entityType, tenantId) {
         try {
             const field = await this.prisma.customField.findFirst({
                 where: {
                     key,
                     entityType,
+                    tenantId,
                 },
             });
             return field;
@@ -76,8 +78,14 @@ class CustomFieldService {
             throw new Error('Failed to fetch custom field');
         }
     }
-    async updateCustomField(id, data) {
+    async updateCustomField(id, tenantId, data) {
         try {
+            const existing = await this.prisma.customField.findFirst({
+                where: { id, tenantId }
+            });
+            if (!existing) {
+                throw new Error('Custom field not found');
+            }
             const updateData = {};
             if (data.name !== undefined)
                 updateData.name = data.name;
@@ -107,8 +115,14 @@ class CustomFieldService {
             throw new Error('Failed to update custom field');
         }
     }
-    async deleteCustomField(id) {
+    async deleteCustomField(id, tenantId) {
         try {
+            const existing = await this.prisma.customField.findFirst({
+                where: { id, tenantId }
+            });
+            if (!existing) {
+                throw new Error('Custom field not found');
+            }
             await this.prisma.customField.delete({
                 where: { id },
             });
@@ -121,6 +135,12 @@ class CustomFieldService {
     }
     async setCustomFieldValue(data) {
         try {
+            const field = await this.prisma.customField.findFirst({
+                where: { id: data.fieldId, tenantId: data.tenantId }
+            });
+            if (!field) {
+                throw new Error('Custom field not found');
+            }
             const value = await this.prisma.customFieldValue.upsert({
                 where: {
                     customFieldId_entityId: {
@@ -131,6 +151,7 @@ class CustomFieldService {
                 create: {
                     customFieldId: data.fieldId,
                     entityId: data.entityId,
+                    tenantId: data.tenantId,
                     value: data.value,
                 },
                 update: {
@@ -145,11 +166,12 @@ class CustomFieldService {
             throw new Error('Failed to set custom field value');
         }
     }
-    async getCustomFieldValues(entityId, entityType) {
+    async getCustomFieldValues(entityId, entityType, tenantId) {
         try {
             const fields = await this.prisma.customField.findMany({
                 where: {
                     entityType,
+                    tenantId,
                     active: true,
                 },
             });
@@ -157,6 +179,7 @@ class CustomFieldService {
             const values = await this.prisma.customFieldValue.findMany({
                 where: {
                     entityId,
+                    tenantId,
                     customFieldId: { in: fieldIds },
                 },
             });
@@ -167,14 +190,13 @@ class CustomFieldService {
             throw new Error('Failed to fetch custom field values');
         }
     }
-    async getCustomFieldValue(fieldId, entityId) {
+    async getCustomFieldValue(fieldId, entityId, tenantId) {
         try {
-            const value = await this.prisma.customFieldValue.findUnique({
+            const value = await this.prisma.customFieldValue.findFirst({
                 where: {
-                    customFieldId_entityId: {
-                        customFieldId: fieldId,
-                        entityId,
-                    },
+                    customFieldId: fieldId,
+                    entityId,
+                    tenantId,
                 },
             });
             return value;
@@ -184,8 +206,18 @@ class CustomFieldService {
             throw new Error('Failed to fetch custom field value');
         }
     }
-    async deleteCustomFieldValue(fieldId, entityId) {
+    async deleteCustomFieldValue(fieldId, entityId, tenantId) {
         try {
+            const value = await this.prisma.customFieldValue.findFirst({
+                where: {
+                    customFieldId: fieldId,
+                    entityId,
+                    tenantId,
+                },
+            });
+            if (!value) {
+                throw new Error('Custom field value not found');
+            }
             await this.prisma.customFieldValue.delete({
                 where: {
                     customFieldId_entityId: {
@@ -201,12 +233,13 @@ class CustomFieldService {
             throw new Error('Failed to delete custom field value');
         }
     }
-    async bulkSetCustomFieldValues(entityId, values) {
+    async bulkSetCustomFieldValues(entityId, tenantId, values) {
         try {
             for (const [fieldId, value] of Object.entries(values)) {
                 await this.setCustomFieldValue({
                     fieldId,
                     entityId,
+                    tenantId,
                     value,
                 });
             }
@@ -307,8 +340,18 @@ class CustomFieldService {
             return { valid: false, error: 'Validation error' };
         }
     }
-    async reorderCustomFields(fieldIds, entityType) {
+    async reorderCustomFields(fieldIds, entityType, tenantId) {
         try {
+            const fields = await this.prisma.customField.findMany({
+                where: {
+                    id: { in: fieldIds },
+                    tenantId,
+                    entityType,
+                },
+            });
+            if (fields.length !== fieldIds.length) {
+                throw new Error('Some fields not found or do not belong to tenant');
+            }
             for (let i = 0; i < fieldIds.length; i++) {
                 await this.prisma.customField.update({
                     where: { id: fieldIds[i] },

@@ -11,6 +11,7 @@ export interface TemplateWithCriteria extends CategoryTemplate {
 export interface CreateTemplateData {
     name: string;
     description?: string | null;
+    tenantId: string;
     criteria?: Array<{
         name: string;
         maxScore: number;
@@ -27,10 +28,10 @@ export interface UpdateTemplateData {
 export declare class TemplateRepository extends BaseRepository<CategoryTemplate> {
     constructor();
     protected getModelName(): string;
-    findAllWithCriteria(): Promise<TemplateWithCriteria[]>;
-    findByIdWithCriteria(id: string): Promise<TemplateWithCriteria | null>;
+    findAllWithCriteria(tenantId: string): Promise<TemplateWithCriteria[]>;
+    findByIdWithCriteria(id: string, tenantId: string): Promise<TemplateWithCriteria | null>;
     createWithCriteria(data: CreateTemplateData): Promise<TemplateWithCriteria>;
-    updateWithCriteria(id: string, data: UpdateTemplateData): Promise<TemplateWithCriteria>;
-    duplicateTemplate(id: string): Promise<TemplateWithCriteria | null>;
+    updateWithCriteria(id: string, tenantId: string, data: UpdateTemplateData): Promise<TemplateWithCriteria>;
+    duplicateTemplate(id: string, tenantId: string): Promise<TemplateWithCriteria | null>;
 }
 //# sourceMappingURL=TemplateRepository.d.ts.map

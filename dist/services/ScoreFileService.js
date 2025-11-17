@@ -24,21 +24,21 @@ let ScoreFileService = class ScoreFileService extends BaseService_1.BaseService 
         this.prisma = prisma;
     }
     async uploadScoreFile(data, uploadedById) {
-        const category = await this.prisma.category.findUnique({
-            where: { id: data.categoryId }
+        const category = await this.prisma.category.findFirst({
+            where: { id: data.categoryId, tenantId: data.tenantId }
         });
         if (!category) {
             throw this.createNotFoundError('Category not found');
         }
-        const judge = await this.prisma.judge.findUnique({
-            where: { id: data.judgeId }
+        const judge = await this.prisma.judge.findFirst({
+            where: { id: data.judgeId, tenantId: data.tenantId }
         });
         if (!judge) {
             throw this.createNotFoundError('Judge not found');
         }
         if (data.contestantId) {
-            const contestant = await this.prisma.contestant.findUnique({
-                where: { id: data.contestantId }
+            const contestant = await this.prisma.contestant.findFirst({
+                where: { id: data.contestantId, tenantId: data.tenantId }
             });
             if (!contestant) {
                 throw this.createNotFoundError('Contestant not found');
@@ -49,6 +49,7 @@ let ScoreFileService = class ScoreFileService extends BaseService_1.BaseService 
                 categoryId: data.categoryId,
                 judgeId: data.judgeId,
                 contestantId: data.contestantId || null,
+                tenantId: data.tenantId,
                 fileName: data.fileName,
                 fileType: data.fileType,
                 filePath: data.filePath,
@@ -61,32 +62,32 @@ let ScoreFileService = class ScoreFileService extends BaseService_1.BaseService 
         });
         return scoreFile;
     }
-    async getScoreFileById(id) {
-        return await this.prisma.scoreFile.findUnique({
-            where: { id }
+    async getScoreFileById(id, tenantId) {
+        return await this.prisma.scoreFile.findFirst({
+            where: { id, tenantId }
         });
     }
-    async getScoreFilesByCategory(categoryId) {
+    async getScoreFilesByCategory(categoryId, tenantId) {
         return await this.prisma.scoreFile.findMany({
-            where: { categoryId },
+            where: { categoryId, tenantId },
             orderBy: { createdAt: 'desc' }
         });
     }
-    async getScoreFilesByJudge(judgeId) {
+    async getScoreFilesByJudge(judgeId, tenantId) {
         return await this.prisma.scoreFile.findMany({
-            where: { judgeId },
+            where: { judgeId, tenantId },
             orderBy: { createdAt: 'desc' }
         });
     }
-    async getScoreFilesByContestant(contestantId) {
+    async getScoreFilesByContestant(contestantId, tenantId) {
         return await this.prisma.scoreFile.findMany({
-            where: { contestantId },
+            where: { contestantId, tenantId },
             orderBy: { createdAt: 'desc' }
         });
     }
-    async updateScoreFile(id, data, _userId, userRole) {
-        const scoreFile = await this.prisma.scoreFile.findUnique({
-            where: { id }
+    async updateScoreFile(id, tenantId, data, _userId, userRole) {
+        const scoreFile = await this.prisma.scoreFile.findFirst({
+            where: { id, tenantId }
         });
         if (!scoreFile) {
             throw this.createNotFoundError('Score file not found');
@@ -105,9 +106,9 @@ let ScoreFileService = class ScoreFileService extends BaseService_1.BaseService 
         });
         return updated;
     }
-    async deleteScoreFile(id, userId, userRole) {
-        const scoreFile = await this.prisma.scoreFile.findUnique({
-            where: { id }
+    async deleteScoreFile(id, tenantId, userId, userRole) {
+        const scoreFile = await this.prisma.scoreFile.findFirst({
+            where: { id, tenantId }
         });
         if (!scoreFile) {
             throw this.createNotFoundError('Score file not found');
@@ -127,9 +128,10 @@ let ScoreFileService = class ScoreFileService extends BaseService_1.BaseService 
             where: { id }
         });
     }
-    async getAllScoreFiles(filters) {
+    async getAllScoreFiles(tenantId, filters) {
         return await this.prisma.scoreFile.findMany({
             where: {
+                tenantId,
                 categoryId: filters?.categoryId,
                 judgeId: filters?.judgeId,
                 contestantId: filters?.contestantId,

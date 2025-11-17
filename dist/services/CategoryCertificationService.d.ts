@@ -23,10 +23,11 @@ export declare class CategoryCertificationService extends BaseService {
     certifyCategory(categoryId: string, userId: string, userRole: string): Promise<{
         id: string;
         role: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
-        comments: string | null;
         userId: string;
+        comments: string | null;
         signatureName: string | null;
     }>;
 }

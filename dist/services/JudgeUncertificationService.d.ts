@@ -11,9 +11,9 @@ export declare class JudgeUncertificationService extends BaseService {
         status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
-        tenantId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
         approvedAt: Date | null;
@@ -25,15 +25,12 @@ export declare class JudgeUncertificationService extends BaseService {
         rejectedAt: Date | null;
     })[]>;
     createUncertificationRequest(data: any): Promise<{
-        category: never;
-        judge: never;
-    } & {
         status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
-        tenantId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
         approvedAt: Date | null;
@@ -52,9 +49,9 @@ export declare class JudgeUncertificationService extends BaseService {
             status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
             judgeId: string;
-            tenantId: string | null;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             categoryId: string;
             reason: string;
             approvedAt: Date | null;

@@ -46,13 +46,13 @@ class EmailTemplateService {
             throw new Error('Failed to create email template');
         }
     }
-    async getAllEmailTemplates(eventId) {
+    async getAllEmailTemplates(tenantId, eventId) {
         try {
-            const where = {};
+            const where = { tenantId };
             if (eventId) {
                 where.OR = [
-                    { eventId },
-                    { eventId: null },
+                    { eventId, tenantId },
+                    { eventId: null, tenantId },
                 ];
             }
             const templates = await this.prisma.emailTemplate.findMany({
@@ -62,29 +62,29 @@ class EmailTemplateService {
             return templates;
         }
         catch (error) {
-            logger.error('Error fetching email templates', { error, eventId });
+            logger.error('Error fetching email templates', { error, tenantId, eventId });
             throw new Error('Failed to fetch email templates');
         }
     }
-    async getEmailTemplateById(id) {
+    async getEmailTemplateById(id, tenantId) {
         try {
-            const template = await this.prisma.emailTemplate.findUnique({
-                where: { id },
+            const template = await this.prisma.emailTemplate.findFirst({
+                where: { id, tenantId },
             });
             return template;
         }
         catch (error) {
-            logger.error('Error fetching email template', { error, id });
+            logger.error('Error fetching email template', { error, id, tenantId });
             throw new Error('Failed to fetch email template');
         }
     }
-    async getEmailTemplatesByType(type, eventId) {
+    async getEmailTemplatesByType(type, tenantId, eventId) {
         try {
-            const where = { type };
+            const where = { type, tenantId };
             if (eventId) {
                 where.OR = [
-                    { eventId },
-                    { eventId: null },
+                    { eventId, tenantId },
+                    { eventId: null, tenantId },
                 ];
             }
             const templates = await this.prisma.emailTemplate.findMany({
@@ -94,12 +94,18 @@ class EmailTemplateService {
             return templates;
         }
         catch (error) {
-            logger.error('Error fetching email templates by type', { error, type, eventId });
+            logger.error('Error fetching email templates by type', { error, type, tenantId, eventId });
             throw new Error('Failed to fetch email templates');
         }
     }
-    async updateEmailTemplate(id, data) {
+    async updateEmailTemplate(id, tenantId, data) {
         try {
+            const existing = await this.prisma.emailTemplate.findFirst({
+                where: { id, tenantId }
+            });
+            if (!existing) {
+                throw new Error('Email template not found');
+            }
             const updateData = {};
             if (data.name !== undefined)
                 updateData.name = data.name;
@@ -147,23 +153,29 @@ class EmailTemplateService {
                 where: { id },
                 data: updateData,
             });
-            logger.info('Email template updated', { id });
+            logger.info('Email template updated', { id, tenantId });
             return template;
         }
         catch (error) {
-            logger.error('Error updating email template', { error, id, data });
+            logger.error('Error updating email template', { error, id, tenantId, data });
             throw new Error('Failed to update email template');
         }
     }
-    async deleteEmailTemplate(id) {
+    async deleteEmailTemplate(id, tenantId) {
         try {
+            const existing = await this.prisma.emailTemplate.findFirst({
+                where: { id, tenantId }
+            });
+            if (!existing) {
+                throw new Error('Email template not found');
+            }
             await this.prisma.emailTemplate.delete({
                 where: { id },
             });
-            logger.info('Email template deleted', { id });
+            logger.info('Email template deleted', { id, tenantId });
         }
         catch (error) {
-            logger.error('Error deleting email template', { error, id });
+            logger.error('Error deleting email template', { error, id, tenantId });
             throw new Error('Failed to delete email template');
         }
     }
@@ -291,9 +303,9 @@ class EmailTemplateService {
         };
         return [...commonVariables, ...(typeSpecificVariables[type] || [])];
     }
-    async cloneEmailTemplate(id, userId) {
+    async cloneEmailTemplate(id, userId, tenantId) {
         try {
-            const original = await this.getEmailTemplateById(id);
+            const original = await this.getEmailTemplateById(id, tenantId);
             if (!original) {
                 throw new Error('Template not found');
             }
@@ -301,19 +313,20 @@ class EmailTemplateService {
                 ...original,
                 name: `${original.name} (Copy)`,
                 createdBy: userId,
+                tenantId,
                 variables: original.variables ? (typeof original.variables === 'string' ? JSON.parse(original.variables) : original.variables) : undefined,
             });
-            logger.info('Email template cloned', { originalId: id, clonedId: cloned.id });
+            logger.info('Email template cloned', { originalId: id, clonedId: cloned.id, tenantId });
             return cloned;
         }
         catch (error) {
-            logger.error('Error cloning email template', { error, id });
+            logger.error('Error cloning email template', { error, id, tenantId });
             throw new Error('Failed to clone email template');
         }
     }
-    async previewEmailTemplate(id, sampleVariables) {
+    async previewEmailTemplate(id, tenantId, sampleVariables) {
         try {
-            const template = await this.getEmailTemplateById(id);
+            const template = await this.getEmailTemplateById(id, tenantId);
             if (!template) {
                 throw new Error('Template not found');
             }
@@ -328,7 +341,7 @@ class EmailTemplateService {
             return this.renderTemplate(template, variables);
         }
         catch (error) {
-            logger.error('Error previewing email template', { error, id });
+            logger.error('Error previewing email template', { error, id, tenantId });
             throw new Error('Failed to preview email template');
         }
     }

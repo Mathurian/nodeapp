@@ -20,11 +20,11 @@ export interface WorkflowStepInput {
 }
 export declare class WorkflowService {
     static createTemplate(input: WorkflowTemplateInput): Promise<any>;
-    static getTemplate(id: string): Promise<any>;
-    static listTemplates(tenantId?: string, type?: string): Promise<any[]>;
+    static getTemplate(id: string, tenantId: string): Promise<any>;
+    static listTemplates(tenantId: string, type?: string): Promise<any[]>;
     static startWorkflow(workflowId: string, tenantId: string, entityType: string, entityId: string): Promise<any>;
-    static advanceWorkflow(instanceId: string, _userId: string, approvalStatus: 'approved' | 'rejected', _comments?: string): Promise<any>;
-    static getInstance(id: string): Promise<any>;
+    static advanceWorkflow(instanceId: string, tenantId: string, _userId: string, approvalStatus: 'approved' | 'rejected', _comments?: string): Promise<any>;
+    static getInstance(id: string, tenantId: string): Promise<any>;
     static listInstancesForEntity(tenantId: string, entityType: string, entityId: string): Promise<any[]>;
 }
 export default WorkflowService;

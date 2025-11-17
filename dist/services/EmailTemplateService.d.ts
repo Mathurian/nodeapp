@@ -52,19 +52,19 @@ export declare class EmailTemplateService {
     private prisma;
     constructor(prisma: PrismaClient);
     createEmailTemplate(data: CreateEmailTemplateDTO): Promise<EmailTemplate>;
-    getAllEmailTemplates(eventId?: string): Promise<EmailTemplate[]>;
-    getEmailTemplateById(id: string): Promise<EmailTemplate | null>;
-    getEmailTemplatesByType(type: string, eventId?: string): Promise<EmailTemplate[]>;
-    updateEmailTemplate(id: string, data: UpdateEmailTemplateDTO): Promise<EmailTemplate>;
-    deleteEmailTemplate(id: string): Promise<void>;
+    getAllEmailTemplates(tenantId: string, eventId?: string): Promise<EmailTemplate[]>;
+    getEmailTemplateById(id: string, tenantId: string): Promise<EmailTemplate | null>;
+    getEmailTemplatesByType(type: string, tenantId: string, eventId?: string): Promise<EmailTemplate[]>;
+    updateEmailTemplate(id: string, tenantId: string, data: UpdateEmailTemplateDTO): Promise<EmailTemplate>;
+    deleteEmailTemplate(id: string, tenantId: string): Promise<void>;
     renderTemplate(template: EmailTemplate, variables: Record<string, string>): {
         subject: string;
         html: string;
     };
     private buildHtmlEmail;
     getAvailableVariables(type: string): string[];
-    cloneEmailTemplate(id: string, userId: string): Promise<EmailTemplate>;
-    previewEmailTemplate(id: string, sampleVariables?: Record<string, string>): Promise<{
+    cloneEmailTemplate(id: string, userId: string, tenantId: string): Promise<EmailTemplate>;
+    previewEmailTemplate(id: string, tenantId: string, sampleVariables?: Record<string, string>): Promise<{
         subject: string;
         html: string;
     }>;

@@ -45,10 +45,10 @@ export declare class AdminService extends BaseService {
         userAgent: string;
         createdAt: string;
         user: {
-            id: string;
-            name: string;
-            email: string;
-            role: import(".prisma/client").$Enums.UserRole;
+            id: any;
+            name: any;
+            email: any;
+            role: any;
         };
     }[]>;
     getAuditLogs(limit?: number): Promise<{
@@ -63,10 +63,10 @@ export declare class AdminService extends BaseService {
         userAgent: string;
         createdAt: string;
         user: {
-            id: string;
-            name: string;
-            email: string;
-            role: import(".prisma/client").$Enums.UserRole;
+            id: any;
+            name: any;
+            email: any;
+            role: any;
         };
     }[]>;
     getDatabaseTables(): Promise<{

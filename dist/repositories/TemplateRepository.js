@@ -20,17 +20,18 @@ let TemplateRepository = class TemplateRepository extends BaseRepository_1.BaseR
     getModelName() {
         return 'categoryTemplate';
     }
-    async findAllWithCriteria() {
+    async findAllWithCriteria(tenantId) {
         return this.getModel().findMany({
+            where: { tenantId },
             include: {
                 criteria: true
             },
             orderBy: { createdAt: 'desc' }
         });
     }
-    async findByIdWithCriteria(id) {
-        return this.getModel().findUnique({
-            where: { id },
+    async findByIdWithCriteria(id, tenantId) {
+        return this.getModel().findFirst({
+            where: { id, tenantId },
             include: {
                 criteria: true
             }
@@ -41,10 +42,12 @@ let TemplateRepository = class TemplateRepository extends BaseRepository_1.BaseR
             data: {
                 name: data.name,
                 description: data.description || null,
+                tenantId: data.tenantId,
                 criteria: data.criteria ? {
                     create: data.criteria.map(c => ({
                         name: c.name,
-                        maxScore: c.maxScore
+                        maxScore: c.maxScore,
+                        tenantId: data.tenantId
                     }))
                 } : undefined
             },
@@ -53,7 +56,7 @@ let TemplateRepository = class TemplateRepository extends BaseRepository_1.BaseR
             }
         });
     }
-    async updateWithCriteria(id, data) {
+    async updateWithCriteria(id, tenantId, data) {
         if (data.criteria) {
             return this.prisma.$transaction(async (tx) => {
                 await tx.categoryTemplate.update({
@@ -64,19 +67,20 @@ let TemplateRepository = class TemplateRepository extends BaseRepository_1.BaseR
                     }
                 });
                 await tx.templateCriterion.deleteMany({
-                    where: { templateId: id }
+                    where: { templateId: id, tenantId }
                 });
                 if (data.criteria && data.criteria.length > 0) {
                     await tx.templateCriterion.createMany({
                         data: data.criteria.map(c => ({
                             templateId: id,
+                            tenantId,
                             name: c.name,
                             maxScore: c.maxScore
                         }))
                     });
                 }
-                return tx.categoryTemplate.findUnique({
-                    where: { id },
+                return tx.categoryTemplate.findFirst({
+                    where: { id, tenantId },
                     include: {
                         criteria: true
                     }
@@ -94,8 +98,8 @@ let TemplateRepository = class TemplateRepository extends BaseRepository_1.BaseR
             }
         });
     }
-    async duplicateTemplate(id) {
-        const original = await this.findByIdWithCriteria(id);
+    async duplicateTemplate(id, tenantId) {
+        const original = await this.findByIdWithCriteria(id, tenantId);
         if (!original) {
             return null;
         }
@@ -103,10 +107,12 @@ let TemplateRepository = class TemplateRepository extends BaseRepository_1.BaseR
             data: {
                 name: `${original.name} (Copy)`,
                 description: original.description,
+                tenantId,
                 criteria: {
                     create: original.criteria.map(c => ({
                         name: c.name,
-                        maxScore: c.maxScore
+                        maxScore: c.maxScore,
+                        tenantId
                     }))
                 }
             },

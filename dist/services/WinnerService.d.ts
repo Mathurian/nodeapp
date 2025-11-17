@@ -26,59 +26,23 @@ export declare class WinnerService extends BaseService {
     }>;
     getWinnersByContest(contestId: string, _userRole: string, includeCategoryBreakdown?: boolean): Promise<{
         contest: {
-            event: {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                description: string | null;
-                startDate: Date;
-                endDate: Date;
-                location: string | null;
-                maxContestants: number | null;
-                contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                contestantViewRestricted: boolean;
-                contestantViewReleaseDate: Date | null;
-                isLocked: boolean;
-                lockedAt: Date | null;
-                lockVerifiedBy: string | null;
-                archived: boolean;
-            };
-            categories: ({
-                criteria: {
-                    id: string;
-                    maxScore: number;
-                }[];
-            } & {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                description: string | null;
-                contestId: string;
-                scoreCap: number | null;
-                timeLimit: number | null;
-                contestantMin: number | null;
-                contestantMax: number | null;
-                totalsCertified: boolean;
-            })[];
+            event: never;
+            categories: never;
         } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             eventId: string;
             description: string | null;
+            archived: boolean;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
-            contestantViewReleaseDate: Date | null;
             isLocked: boolean;
+            contestantViewReleaseDate: Date | null;
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
-            archived: boolean;
             nextContestantNumber: number | null;
         };
         categories: any[];
@@ -123,59 +87,23 @@ export declare class WinnerService extends BaseService {
     }>;
     getWinners(eventId?: string, contestId?: string): Promise<{
         contest: {
-            event: {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                description: string | null;
-                startDate: Date;
-                endDate: Date;
-                location: string | null;
-                maxContestants: number | null;
-                contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                contestantViewRestricted: boolean;
-                contestantViewReleaseDate: Date | null;
-                isLocked: boolean;
-                lockedAt: Date | null;
-                lockVerifiedBy: string | null;
-                archived: boolean;
-            };
-            categories: ({
-                criteria: {
-                    id: string;
-                    maxScore: number;
-                }[];
-            } & {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                description: string | null;
-                contestId: string;
-                scoreCap: number | null;
-                timeLimit: number | null;
-                contestantMin: number | null;
-                contestantMax: number | null;
-                totalsCertified: boolean;
-            })[];
+            event: never;
+            categories: never;
         } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             eventId: string;
             description: string | null;
+            archived: boolean;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
-            contestantViewReleaseDate: Date | null;
             isLocked: boolean;
+            contestantViewReleaseDate: Date | null;
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
-            archived: boolean;
             nextContestantNumber: number | null;
         };
         categories: any[];
@@ -188,61 +116,25 @@ export declare class WinnerService extends BaseService {
         message: string;
     } | {
         event: {
-            contests: ({
-                categories: ({
-                    criteria: {
-                        id: string;
-                        maxScore: number;
-                    }[];
-                } & {
-                    name: string;
-                    id: string;
-                    tenantId: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    description: string | null;
-                    contestId: string;
-                    scoreCap: number | null;
-                    timeLimit: number | null;
-                    contestantMin: number | null;
-                    contestantMax: number | null;
-                    totalsCertified: boolean;
-                })[];
-            } & {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                eventId: string;
-                description: string | null;
-                contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                contestantViewRestricted: boolean;
-                contestantViewReleaseDate: Date | null;
-                isLocked: boolean;
-                lockedAt: Date | null;
-                lockVerifiedBy: string | null;
-                archived: boolean;
-                nextContestantNumber: number | null;
-            })[];
+            contests: never;
         } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             description: string | null;
             startDate: Date;
             endDate: Date;
+            archived: boolean;
             location: string | null;
             maxContestants: number | null;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
             contestantViewRestricted: boolean;
-            contestantViewReleaseDate: Date | null;
             isLocked: boolean;
+            contestantViewReleaseDate: Date | null;
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
-            archived: boolean;
         };
         contests: any[];
         message: string;

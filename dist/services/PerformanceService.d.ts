@@ -113,7 +113,6 @@ export declare class PerformanceService extends BaseService {
     getPerformanceLogs(query: PerformanceLogsQuery): Promise<{
         logs: {
             id: string;
-            tenantId: string | null;
             createdAt: Date;
             eventId: string | null;
             categoryId: string | null;

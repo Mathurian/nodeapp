@@ -6,6 +6,7 @@ interface CreateTemplateDto {
     contests: any;
     categories: any;
     createdBy: string;
+    tenantId: string;
 }
 interface UpdateTemplateDto {
     name: string;
@@ -19,6 +20,7 @@ interface CreateEventFromTemplateDto {
     eventDescription?: string;
     startDate: Date;
     endDate: Date;
+    tenantId: string;
 }
 export declare class EventTemplateService extends BaseService {
     private prisma;
@@ -31,7 +33,7 @@ export declare class EventTemplateService extends BaseService {
         categories: any;
         createdAt: Date;
     }>;
-    getAll(): Promise<{
+    getAll(tenantId: string): Promise<{
         id: string;
         name: string;
         description: string;
@@ -41,7 +43,7 @@ export declare class EventTemplateService extends BaseService {
         createdAt: Date;
         updatedAt: Date;
     }[]>;
-    getById(id: string): Promise<{
+    getById(id: string, tenantId: string): Promise<{
         id: string;
         name: string;
         description: string;
@@ -51,7 +53,7 @@ export declare class EventTemplateService extends BaseService {
         createdAt: Date;
         updatedAt: Date;
     }>;
-    update(id: string, data: UpdateTemplateDto): Promise<{
+    update(id: string, tenantId: string, data: UpdateTemplateDto): Promise<{
         id: string;
         name: string;
         description: string;
@@ -59,7 +61,7 @@ export declare class EventTemplateService extends BaseService {
         categories: any;
         updatedAt: Date;
     }>;
-    delete(id: string): Promise<void>;
+    delete(id: string, tenantId: string): Promise<void>;
     createEventFromTemplate(data: CreateEventFromTemplateDto): Promise<{
         id: string;
         name: string;

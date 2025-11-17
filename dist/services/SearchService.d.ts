@@ -1,6 +1,7 @@
 import { SearchRepository, SearchOptions, SearchResult, CreateSavedSearchDTO } from '../repositories/SearchRepository';
 import { SavedSearch, SearchHistory, SearchAnalytic } from '@prisma/client';
 export interface FacetedSearchOptions {
+    tenantId: string;
     query?: string;
     filters?: Record<string, any>;
     entityTypes?: string[];
@@ -49,11 +50,11 @@ export declare class SearchService {
     private calculateRoleFacets;
     private calculateStatusFacets;
     saveSearch(data: CreateSavedSearchDTO): Promise<SavedSearch>;
-    getSavedSearches(userId: string, includePublic?: boolean): Promise<SavedSearch[]>;
-    deleteSavedSearch(id: string, userId: string): Promise<SavedSearch>;
-    executeSavedSearch(userId: string, savedSearchId: string): Promise<SearchResponse>;
-    getSearchHistory(userId: string, limit?: number): Promise<SearchHistory[]>;
-    clearSearchHistory(userId: string): Promise<number>;
+    getSavedSearches(userId: string, tenantId: string, includePublic?: boolean): Promise<SavedSearch[]>;
+    deleteSavedSearch(id: string, userId: string, tenantId: string): Promise<SavedSearch>;
+    executeSavedSearch(userId: string, tenantId: string, savedSearchId: string): Promise<SearchResponse>;
+    getSearchHistory(userId: string, tenantId: string, limit?: number): Promise<SearchHistory[]>;
+    clearSearchHistory(userId: string, tenantId: string): Promise<number>;
     getSearchSuggestions(prefix: string, limit?: number): Promise<string[]>;
     getPopularSearches(limit?: number): Promise<SearchAnalytic[]>;
     getTrendingSearches(limit?: number): Promise<SearchAnalytic[]>;

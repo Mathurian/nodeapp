@@ -7,6 +7,7 @@ export declare class JudgeContestantCertificationController {
         id: string;
         judgeId: string;
         contestantId: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
         comments: string | null;
@@ -15,6 +16,7 @@ export declare class JudgeContestantCertificationController {
         id: string;
         judgeId: string;
         contestantId: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
         comments: string | null;
@@ -28,6 +30,7 @@ export declare const getCertifications: (req: Request, res: Response, next: Next
     id: string;
     judgeId: string;
     contestantId: string;
+    tenantId: string;
     categoryId: string;
     certifiedAt: Date;
     comments: string | null;
@@ -36,6 +39,7 @@ export declare const certify: (req: Request, res: Response, next: NextFunction) 
     id: string;
     judgeId: string;
     contestantId: string;
+    tenantId: string;
     categoryId: string;
     certifiedAt: Date;
     comments: string | null;

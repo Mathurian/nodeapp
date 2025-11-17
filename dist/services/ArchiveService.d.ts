@@ -6,6 +6,7 @@ export declare class ArchiveService extends BaseService {
     getAllArchives(): Promise<{
         name: string;
         id: string;
+        tenantId: string;
         eventId: string;
         description: string | null;
         startDate: Date | null;
@@ -13,47 +14,58 @@ export declare class ArchiveService extends BaseService {
         archivedAt: Date;
         archivedById: string;
     }[]>;
-    getActiveEvents(): Promise<{
+    getActiveEvents(): Promise<({
+        _count: {
+            contests: number;
+            contestants: number;
+        };
+    } & {
         name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         description: string | null;
         startDate: Date;
         endDate: Date;
+        archived: boolean;
         location: string | null;
         maxContestants: number | null;
         contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
         contestantViewRestricted: boolean;
-        contestantViewReleaseDate: Date | null;
         isLocked: boolean;
+        contestantViewReleaseDate: Date | null;
         lockedAt: Date | null;
         lockVerifiedBy: string | null;
-        archived: boolean;
-    }[]>;
-    getArchivedEvents(): Promise<{
+    })[]>;
+    getArchivedEvents(): Promise<({
+        _count: {
+            contests: number;
+            contestants: number;
+        };
+    } & {
         name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         description: string | null;
         startDate: Date;
         endDate: Date;
+        archived: boolean;
         location: string | null;
         maxContestants: number | null;
         contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
         contestantViewRestricted: boolean;
-        contestantViewReleaseDate: Date | null;
         isLocked: boolean;
+        contestantViewReleaseDate: Date | null;
         lockedAt: Date | null;
         lockVerifiedBy: string | null;
-        archived: boolean;
-    }[]>;
+    })[]>;
     archiveItem(id: string, reason?: string, userId?: string): Promise<{
         name: string;
         id: string;
+        tenantId: string;
         eventId: string;
         description: string | null;
         startDate: Date | null;
@@ -70,6 +82,7 @@ export declare class ArchiveService extends BaseService {
     archiveEvent(eventId: string, userId: string, reason?: string): Promise<{
         name: string;
         id: string;
+        tenantId: string;
         eventId: string;
         description: string | null;
         startDate: Date | null;

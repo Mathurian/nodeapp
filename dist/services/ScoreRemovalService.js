@@ -23,16 +23,16 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
         this.prisma = prisma;
     }
     async createRequest(data) {
-        if (!data.judgeId || !data.categoryId || !data.reason) {
-            throw this.badRequestError('Judge ID, category ID, and reason are required');
+        if (!data.judgeId || !data.categoryId || !data.reason || !data.tenantId) {
+            throw this.badRequestError('Judge ID, category ID, reason, and tenant ID are required');
         }
-        const category = await this.prisma.category.findUnique({
-            where: { id: data.categoryId }
+        const category = await this.prisma.category.findFirst({
+            where: { id: data.categoryId, tenantId: data.tenantId }
         });
         if (!category)
             throw this.notFoundError('Category', data.categoryId);
-        const judge = await this.prisma.judge.findUnique({
-            where: { id: data.judgeId }
+        const judge = await this.prisma.judge.findFirst({
+            where: { id: data.judgeId, tenantId: data.tenantId }
         });
         if (!judge)
             throw this.notFoundError('Judge', data.judgeId);
@@ -45,6 +45,7 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
                 categoryId: data.categoryId,
                 reason: data.reason.trim(),
                 requestedBy: data.requestedBy,
+                tenantId: data.tenantId,
                 status: 'PENDING'
             },
             include: {
@@ -53,8 +54,8 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
             }
         });
     }
-    async getAll(status) {
-        const where = {};
+    async getAll(tenantId, status) {
+        const where = { tenantId };
         if (status)
             where.status = status;
         return await this.prisma.scoreRemovalRequest.findMany({
@@ -71,9 +72,9 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
             orderBy: { createdAt: 'desc' }
         });
     }
-    async getById(id) {
-        const request = await this.prisma.scoreRemovalRequest.findUnique({
-            where: { id },
+    async getById(id, tenantId) {
+        const request = await this.prisma.scoreRemovalRequest.findFirst({
+            where: { id, tenantId },
             include: {
                 judge: { select: { id: true, name: true, email: true } },
                 category: {
@@ -88,12 +89,12 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
             throw this.notFoundError('Score removal request', id);
         return request;
     }
-    async signRequest(id, data) {
+    async signRequest(id, tenantId, data) {
         if (!data.signatureName) {
             throw this.badRequestError('Signature name is required');
         }
-        const request = await this.prisma.scoreRemovalRequest.findUnique({
-            where: { id }
+        const request = await this.prisma.scoreRemovalRequest.findFirst({
+            where: { id, tenantId }
         });
         if (!request)
             throw this.notFoundError('Score removal request', id);
@@ -144,9 +145,9 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
             allSigned: updateData.status === 'APPROVED'
         };
     }
-    async executeRemoval(id) {
-        const request = await this.prisma.scoreRemovalRequest.findUnique({
-            where: { id },
+    async executeRemoval(id, tenantId) {
+        const request = await this.prisma.scoreRemovalRequest.findFirst({
+            where: { id, tenantId },
             include: {
                 judge: { select: { id: true } },
                 category: { select: { id: true } }
@@ -160,7 +161,8 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
         const deletedScores = await this.prisma.score.deleteMany({
             where: {
                 categoryId: request.categoryId,
-                judgeId: request.judgeId
+                judgeId: request.judgeId,
+                tenantId
             }
         });
         await this.prisma.scoreRemovalRequest.update({

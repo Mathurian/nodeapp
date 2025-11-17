@@ -6,15 +6,16 @@ export declare class ScoreRemovalController {
         category: never;
         judge: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
         requestedBy: string;
+        requestedAt: Date;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -30,15 +31,16 @@ export declare class ScoreRemovalController {
         judge: never;
         requestedByUser: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
         requestedBy: string;
+        requestedAt: Date;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -54,15 +56,16 @@ export declare class ScoreRemovalController {
         judge: never;
         requestedByUser: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
         requestedBy: string;
+        requestedAt: Date;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -78,15 +81,16 @@ export declare class ScoreRemovalController {
             category: never;
             judge: never;
         } & {
+            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
             judgeId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             categoryId: string;
             reason: string;
-            status: import(".prisma/client").$Enums.RequestStatus;
-            requestedAt: Date;
             requestedBy: string;
+            requestedAt: Date;
             tallySignature: string | null;
             tallySignedAt: Date | null;
             tallySignedBy: string | null;
@@ -107,15 +111,16 @@ export declare const createScoreRemovalRequest: (req: Request, res: Response, ne
     category: never;
     judge: never;
 } & {
+    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     categoryId: string;
     reason: string;
-    status: import(".prisma/client").$Enums.RequestStatus;
-    requestedAt: Date;
     requestedBy: string;
+    requestedAt: Date;
     tallySignature: string | null;
     tallySignedAt: Date | null;
     tallySignedBy: string | null;
@@ -131,15 +136,16 @@ export declare const getScoreRemovalRequests: (req: Request, res: Response, next
     judge: never;
     requestedByUser: never;
 } & {
+    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     categoryId: string;
     reason: string;
-    status: import(".prisma/client").$Enums.RequestStatus;
-    requestedAt: Date;
     requestedBy: string;
+    requestedAt: Date;
     tallySignature: string | null;
     tallySignedAt: Date | null;
     tallySignedBy: string | null;
@@ -155,15 +161,16 @@ export declare const getScoreRemovalRequest: (req: Request, res: Response, next:
     judge: never;
     requestedByUser: never;
 } & {
+    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
     categoryId: string;
     reason: string;
-    status: import(".prisma/client").$Enums.RequestStatus;
-    requestedAt: Date;
     requestedBy: string;
+    requestedAt: Date;
     tallySignature: string | null;
     tallySignedAt: Date | null;
     tallySignedBy: string | null;
@@ -179,15 +186,16 @@ export declare const signScoreRemovalRequest: (req: Request, res: Response, next
         category: never;
         judge: never;
     } & {
+        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
         requestedBy: string;
+        requestedAt: Date;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
