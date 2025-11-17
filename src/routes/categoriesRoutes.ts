@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getAllCategories, getCategoryById, getCategoriesByContest, createCategory, updateCategory, deleteCategory, getCategoryCriteria, createCriterion, updateCriterion, deleteCriterion, updateCategoryWithTimeLimit, bulkDeleteCategories, bulkUpdateCategories, bulkDeleteCriteria, bulkUpdateCriteria } from '../controllers/categoriesController';
+import { getAllCategories, getCategoryById, getCategoriesByContest, createCategory, updateCategory, deleteCategory, getCategoryCriteria, createCriterion, updateCriterion, deleteCriterion, updateCategoryWithTimeLimit, bulkDeleteCriteria, bulkUpdateCriteria } from '../controllers/categoriesController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validate, createCategorySchema, updateCategorySchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';

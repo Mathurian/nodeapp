@@ -11,7 +11,6 @@ import {
   getEvent,
   getContests,
   getContest,
-  getEmceeHistory,
   uploadScript,
   updateScript,
   deleteScript,

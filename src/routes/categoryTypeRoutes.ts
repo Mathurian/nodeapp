@@ -2,7 +2,6 @@ import express, { Router } from 'express';
 import {
   getAllCategoryTypes,
   createCategoryType,
-  updateCategoryType,
   deleteCategoryType
 } from '../controllers/categoryTypeController';
 import { authenticateToken, requireRole } from '../middleware/auth';

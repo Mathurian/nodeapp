@@ -3,11 +3,6 @@ import multer from 'multer';
 import path from 'path';
 import {
   getAllFiles,
-  uploadFiles,
-  getFileById,
-  downloadFile,
-  updateFile,
-  deleteFile,
   getFileStats
 } from '../controllers/fileController';
 import { authenticateToken, requireRole } from '../middleware/auth';
