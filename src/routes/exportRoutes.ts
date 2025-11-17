@@ -1,9 +1,6 @@
 import express, { Router } from 'express';
 import {
   exportEventToExcel,
-  exportContestResultsToCSV,
-  exportJudgePerformanceToXML,
-  exportSystemAnalyticsToPDF,
   getExportHistory
 } from '../controllers/exportController';
 import { authenticateToken, requireRole } from '../middleware/auth';

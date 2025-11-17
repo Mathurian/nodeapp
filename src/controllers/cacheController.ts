@@ -25,7 +25,7 @@ export class CacheController {
       res.json(stats);
     } catch (error) {
       log.error('Get cache stats error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -49,7 +49,7 @@ export class CacheController {
       }
     } catch (error) {
       log.error('Flush cache error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -80,7 +80,7 @@ export class CacheController {
       }
     } catch (error) {
       log.error('Delete cache key error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -111,7 +111,7 @@ export class CacheController {
       }
     } catch (error) {
       log.error('Delete cache pattern error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -128,7 +128,7 @@ export class CacheController {
       });
     } catch (error) {
       log.error('Get cache status error:', error);
-      next(error);
+      return next(error);
     }
   };
 }

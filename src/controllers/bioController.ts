@@ -22,7 +22,7 @@ export class BioController {
 
       return sendSuccess(res, contestants);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -38,7 +38,7 @@ export class BioController {
 
       return sendSuccess(res, judges);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -60,7 +60,7 @@ export class BioController {
 
       return sendSuccess(res, contestant, 'Contestant bio updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -82,7 +82,7 @@ export class BioController {
 
       return sendSuccess(res, judge, 'Judge bio updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

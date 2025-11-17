@@ -5,9 +5,8 @@
 
 import { PrismaClient, ScoreFile } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, NotFoundError, ValidationError, ForbiddenError } from './BaseService';
+import { BaseService } from './BaseService';
 import { promises as fs } from 'fs';
-import * as path from 'path';
 
 export interface UploadScoreFileDTO {
   categoryId: string;
@@ -148,7 +147,7 @@ export class ScoreFileService extends BaseService {
   async updateScoreFile(
     id: string,
     data: UpdateScoreFileDTO,
-    userId: string,
+    _userId: string,
     userRole: string
   ): Promise<ScoreFile> {
     const scoreFile = await this.prisma.scoreFile.findUnique({

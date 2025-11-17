@@ -6,7 +6,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, User } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
@@ -115,7 +115,7 @@ export class MFAService extends BaseService {
   /**
    * Disable MFA for a user
    */
-  async disableMFA(userId: string, password: string): Promise<{ success: boolean; message: string }> {
+  async disableMFA(userId: string, _password: string): Promise<{ success: boolean; message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { password: true, mfaEnabled: true }

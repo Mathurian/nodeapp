@@ -8,7 +8,7 @@
  */
 
 import Redis, { RedisOptions } from 'ioredis';
-import { getRedisOptions, getRedisConfig, CacheTTL, CacheNamespace } from '../config/redis.config';
+import { getRedisOptions, getRedisConfig, CacheTTL } from '../config/redis.config';
 
 export interface CacheOptions {
   ttl?: number;
@@ -715,7 +715,7 @@ export class RedisCacheService {
   /**
    * Handle cache invalidation messages
    */
-  private handleCacheInvalidation(channel: string, message: string): void {
+  private handleCacheInvalidation(_channel: string, message: string): void {
     try {
       const data = JSON.parse(message);
       if (data.pattern) {

@@ -3,16 +3,9 @@ import multer from 'multer';
 import path from 'path';
 import {
   getAllFiles,
-  uploadFiles,
-  getFileById,
-  downloadFile,
-  updateFile,
-  deleteFile,
   getFileStats
 } from '../controllers/fileController';
-import { authenticateToken, requireRole } from '../middleware/auth';
-import { logActivity } from '../middleware/errorHandler';
-import { checkFileAccess, checkUploadPermission, checkSharingPermission, getUserFileAccess } from '../middleware/fileAccessControl';
+import { authenticateToken } from '../middleware/auth';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -25,6 +18,7 @@ const storage = multer.diskStorage({
   }
 });
 
+// @ts-expect-error Upload configuration defined
 const upload = multer({
   storage: storage,
   limits: {

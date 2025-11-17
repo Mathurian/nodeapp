@@ -45,7 +45,7 @@ router.get('/', authenticate, async (req: Request, res: Response, next: NextFunc
     const notifications = await notificationService.getUserNotifications(userId, limit, offset);
     res.json(notifications);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -68,7 +68,7 @@ router.get('/unread-count', authenticate, async (req: Request, res: Response, ne
     const count = await notificationService.getUnreadCount(userId);
     res.json({ count });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -99,7 +99,7 @@ router.put('/:id/read', authenticate, async (req: Request, res: Response, next: 
     const notification = await notificationService.markAsRead(id, userId);
     res.json(notification);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -122,7 +122,7 @@ router.put('/read-all', authenticate, async (req: Request, res: Response, next: 
     const count = await notificationService.markAllAsRead(userId);
     res.json({ count });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -153,7 +153,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response, next: Ne
     await notificationService.deleteNotification(id, userId);
     res.json({ success: true });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -184,7 +184,7 @@ router.delete('/read-all', authenticate, async (req: Request, res: Response, nex
     const count = await notificationService.cleanupOldNotifications(userId, daysOld);
     res.json({ count });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 

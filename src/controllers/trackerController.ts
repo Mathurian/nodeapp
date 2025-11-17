@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { TrackerService } from '../services/TrackerService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class TrackerController {
@@ -19,7 +19,7 @@ export class TrackerController {
       const progress = await this.trackerService.getScoringProgressByContest(contestId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -29,7 +29,7 @@ export class TrackerController {
       const progress = await this.trackerService.getScoringProgressByCategory(categoryId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -66,7 +66,7 @@ export class TrackerController {
 
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -104,7 +104,7 @@ export class TrackerController {
 
       return sendSuccess(res, status);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -145,7 +145,7 @@ export class TrackerController {
         certifications: pendingCertifications
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, ForbiddenError } from './BaseService';
+import { BaseService } from './BaseService';
 
 @injectable()
 export class DataWipeService extends BaseService {

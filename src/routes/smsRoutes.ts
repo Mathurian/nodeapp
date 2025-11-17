@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { sendSMS, sendBulkSMS, sendNotificationSMS, getSMSHistory, getSMSConfig, updateSMSConfig } from '../controllers/smsController';
+import { sendSMS, getSMSConfig, updateSMSConfig } from '../controllers/smsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 

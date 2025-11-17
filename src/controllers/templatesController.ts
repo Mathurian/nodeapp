@@ -23,7 +23,7 @@ export class TemplatesController {
       const templates = await this.templateService.getAllTemplates();
       sendSuccess(res, templates, 'Templates retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -36,7 +36,7 @@ export class TemplatesController {
       const template = await this.templateService.getTemplateById(id);
       sendSuccess(res, template, 'Template retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -55,7 +55,7 @@ export class TemplatesController {
 
       sendCreated(res, template, 'Template created successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -75,7 +75,7 @@ export class TemplatesController {
 
       sendSuccess(res, template, 'Template updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -88,7 +88,7 @@ export class TemplatesController {
       await this.templateService.deleteTemplate(id);
       sendNoContent(res);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -101,7 +101,7 @@ export class TemplatesController {
       const template = await this.templateService.duplicateTemplate(id);
       sendCreated(res, template, 'Template duplicated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

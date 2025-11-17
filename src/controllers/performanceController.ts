@@ -49,19 +49,19 @@ export class PerformanceController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get system metrics
    */
-  getSystemMetrics = async (req: Request, res: Response, next: NextFunction) => {
+  getSystemMetrics = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const metrics = await this.performanceService.getSystemMetrics();
       return sendSuccess(res, metrics);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -98,7 +98,7 @@ export class PerformanceController {
 
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -111,14 +111,14 @@ export class PerformanceController {
       const result = await this.performanceService.clearPerformanceLogs(olderThan);
       return sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Health check endpoint
    */
-  getHealthCheck = async (req: Request, res: Response, next: NextFunction) => {
+  getHealthCheck = async (_req: Request, res: Response, _next: NextFunction) => {
     try {
       const health = await this.performanceService.getHealthCheck();
       const statusCode = health.status === 'healthy' ? 200 : 503;

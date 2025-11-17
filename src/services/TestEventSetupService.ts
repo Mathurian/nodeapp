@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, ForbiddenError, ValidationError } from './BaseService';
+import { BaseService } from './BaseService';
 import * as bcrypt from 'bcryptjs';
 
 export interface TestEventConfig {

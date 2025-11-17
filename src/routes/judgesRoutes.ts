@@ -42,7 +42,7 @@ router.get('/', async (req, res, next) => {
     const judges = await assignmentService.getJudges();
     return sendSuccess(res, judges, 'Judges retrieved successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -55,7 +55,7 @@ router.post('/',
       const judge = await assignmentService.createJudge(req.body);
       return sendSuccess(res, judge, 'Judge created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );
@@ -69,7 +69,7 @@ router.put('/:id',
       const judge = await assignmentService.updateJudge(req.params.id, req.body);
       return sendSuccess(res, judge, 'Judge updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );
@@ -87,7 +87,7 @@ router.post('/bulk-delete',
       const result = await assignmentService.bulkDeleteJudges(judgeIds);
       return sendSuccess(res, result, `${result.deletedCount} judge(s) deleted successfully`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );
@@ -101,7 +101,7 @@ router.delete('/:id',
       await assignmentService.deleteJudge(req.params.id);
       return sendSuccess(res, null, 'Judge deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );

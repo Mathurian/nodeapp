@@ -18,7 +18,7 @@ export class SettingsController {
    * Get all settings
    */
   getAllSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -26,7 +26,7 @@ export class SettingsController {
       const settings = await this.settingsService.getAllSettings();
       res.json(settings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -34,7 +34,7 @@ export class SettingsController {
    * Get settings (alias for getAllSettings)
    */
   getSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -42,7 +42,7 @@ export class SettingsController {
       const settings = await this.settingsService.getAllSettings();
       res.json(settings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -50,9 +50,9 @@ export class SettingsController {
    * Get app name and subtitle
    */
   getAppName = async (
-    req: Request,
+    _req: Request,
     res: Response,
-    next: NextFunction
+    _next: NextFunction
   ): Promise<void> => {
     try {
       const appNameSettings = await this.settingsService.getAppName();
@@ -67,7 +67,7 @@ export class SettingsController {
    * Get public settings (no authentication required)
    */
   getPublicSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -75,7 +75,7 @@ export class SettingsController {
       const publicSettings = await this.settingsService.getPublicSettings();
       res.json(publicSettings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -102,7 +102,7 @@ export class SettingsController {
         'Settings updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -129,7 +129,7 @@ export class SettingsController {
         res.status(400).json({ error: 'Invalid test type' });
       }
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -137,7 +137,7 @@ export class SettingsController {
    * Get logging levels
    */
   getLoggingLevels = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -145,7 +145,7 @@ export class SettingsController {
       const loggingLevels = await this.settingsService.getLoggingLevels();
       res.json(loggingLevels);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -168,7 +168,7 @@ export class SettingsController {
 
       successResponse(res, setting, 'Logging level updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -176,7 +176,7 @@ export class SettingsController {
    * Get security settings
    */
   getSecuritySettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -185,7 +185,7 @@ export class SettingsController {
         await this.settingsService.getSecuritySettings();
       res.json(securitySettings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -213,7 +213,7 @@ export class SettingsController {
         'Security settings updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -221,7 +221,7 @@ export class SettingsController {
    * Get backup settings
    */
   getBackupSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -229,7 +229,7 @@ export class SettingsController {
       const backupSettings = await this.settingsService.getBackupSettings();
       res.json(backupSettings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -256,7 +256,7 @@ export class SettingsController {
         'Backup settings updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -264,7 +264,7 @@ export class SettingsController {
    * Get email settings
    */
   getEmailSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -272,7 +272,7 @@ export class SettingsController {
       const emailSettings = await this.settingsService.getEmailSettings();
       res.json(emailSettings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -299,7 +299,7 @@ export class SettingsController {
         'Email settings updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -307,7 +307,7 @@ export class SettingsController {
    * Get password policy
    */
   getPasswordPolicy = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -315,7 +315,7 @@ export class SettingsController {
       const passwordPolicy = await this.settingsService.getPasswordPolicy();
       res.json(passwordPolicy);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -342,7 +342,7 @@ export class SettingsController {
         'Password policy updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -350,7 +350,7 @@ export class SettingsController {
    * Get JWT configuration
    */
   getJWTConfig = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -358,7 +358,7 @@ export class SettingsController {
       const jwtConfig = await this.settingsService.getJWTConfig();
       res.json(jwtConfig);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -385,7 +385,7 @@ export class SettingsController {
         'JWT configuration updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -393,7 +393,7 @@ export class SettingsController {
    * Get theme settings
    */
   getThemeSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -401,7 +401,7 @@ export class SettingsController {
       const themeSettings = await this.settingsService.getThemeSettings();
       res.json(themeSettings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -428,7 +428,7 @@ export class SettingsController {
         'Theme settings updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -458,7 +458,7 @@ export class SettingsController {
 
       successResponse(res, { logoPath }, 'Logo uploaded successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -488,7 +488,7 @@ export class SettingsController {
 
       successResponse(res, { faviconPath }, 'Favicon uploaded successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -496,7 +496,7 @@ export class SettingsController {
    * Get database connection info
    */
   getDatabaseConnectionInfo = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -504,7 +504,7 @@ export class SettingsController {
       const info = await this.settingsService.getDatabaseConnectionInfo();
       res.json(info);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -512,7 +512,7 @@ export class SettingsController {
    * Get contestant visibility settings
    */
   getContestantVisibilitySettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -531,7 +531,7 @@ export class SettingsController {
       
       successResponse(res, transformed, 'Contestant visibility settings retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -559,7 +559,7 @@ export class SettingsController {
         'Contestant visibility settings updated successfully'
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

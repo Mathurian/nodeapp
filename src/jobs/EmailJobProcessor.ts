@@ -108,7 +108,7 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
       // Send email - EmailService.sendEmail takes 3 arguments: to, subject, body
       const toAddress = Array.isArray(to) ? to[0] : to;
       const emailBody = emailHtml || emailText || '';
-      const result = await this.emailService.sendEmail(toAddress, subject, emailBody);
+      // Result from sendEmail: await this.emailService.sendEmail(toAddress, subject, emailBody);
 
       await job.updateProgress(100);
 

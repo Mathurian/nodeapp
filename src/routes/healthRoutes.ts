@@ -21,7 +21,7 @@ const router: Router = express.Router();
  *       200:
  *         description: Application is healthy
  */
-router.get('/health', async (req: Request, res: Response) => {
+router.get('/health', async (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -34,7 +34,7 @@ router.get('/health', async (req: Request, res: Response) => {
  * Detailed health check endpoint
  * Tests connectivity to all dependent services
  */
-router.get('/health/detailed', async (req: Request, res: Response) => {
+router.get('/health/detailed', async (_req: Request, res: Response) => {
   const startTime = Date.now();
   const health: {
     status: string;
@@ -150,7 +150,7 @@ router.get('/health/detailed', async (req: Request, res: Response) => {
  * Simple check that the application process is alive
  * Used by Kubernetes/Docker for basic liveness detection
  */
-router.get('/health/live', (req: Request, res: Response) => {
+router.get('/health/live', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString()
@@ -162,7 +162,7 @@ router.get('/health/live', (req: Request, res: Response) => {
  * Checks if the application is ready to accept traffic
  * Tests database connectivity as minimum requirement
  */
-router.get('/health/ready', async (req: Request, res: Response) => {
+router.get('/health/ready', async (_req: Request, res: Response) => {
   try {
     // Quick database connectivity check
     await prisma.$queryRaw`SELECT 1 as ready_check`

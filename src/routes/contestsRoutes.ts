@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getContestById, getContestsByEvent, createContest, updateContest, deleteContest, archiveContest, reactivateContest, getArchivedContests } from '../controllers/contestsController';
+import { getContestById, getContestsByEvent, createContest, updateContest, deleteContest, archiveContest, reactivateContest } from '../controllers/contestsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validate, createContestSchema, updateContestSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';

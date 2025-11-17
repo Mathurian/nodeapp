@@ -19,7 +19,7 @@ export class CertificationController {
       const status = await this.certificationService.getOverallStatus(eventId);
       return sendSuccess(res, status);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -29,7 +29,7 @@ export class CertificationController {
       const result = await this.certificationService.certifyAll(eventId, req.user!.id, req.user!.role);
       return sendSuccess(res, result, 'All categories certified');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -72,7 +72,7 @@ export class CertificationController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -134,7 +134,7 @@ export class CertificationController {
 
       return sendSuccess(res, certification, 'Certification created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -164,7 +164,7 @@ export class CertificationController {
 
       return sendSuccess(res, certification, 'Certification updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -186,7 +186,7 @@ export class CertificationController {
 
       return sendSuccess(res, {}, 'Certification deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -205,7 +205,7 @@ export class CertificationController {
 
       return sendSuccess(res, certification);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -239,7 +239,7 @@ export class CertificationController {
 
       return sendSuccess(res, updated, 'Judge certification completed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -277,7 +277,7 @@ export class CertificationController {
 
       return sendSuccess(res, updated, 'Tally Master certification completed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -315,7 +315,7 @@ export class CertificationController {
 
       return sendSuccess(res, updated, 'Auditor certification completed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -354,7 +354,7 @@ export class CertificationController {
 
       return sendSuccess(res, updated, 'Board approval completed - Certification finalized');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -391,7 +391,7 @@ export class CertificationController {
 
       return sendSuccess(res, updated, 'Certification rejected');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -449,7 +449,7 @@ export class CertificationController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

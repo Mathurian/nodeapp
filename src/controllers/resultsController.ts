@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ResultsService } from '../services/ResultsService';
-import { successResponse } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { UserRole } from '@prisma/client';
 
@@ -52,7 +51,7 @@ export class ResultsController {
       });
     } catch (error) {
       log.error('Get results error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -66,7 +65,7 @@ export class ResultsController {
       res.json(categories);
     } catch (error) {
       log.error('Get categories error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -98,7 +97,7 @@ export class ResultsController {
         res.status(403).json({ error: error.message });
         return;
       }
-      next(error);
+      return next(error);
     }
   };
 
@@ -136,7 +135,7 @@ export class ResultsController {
           return;
         }
       }
-      next(error);
+      return next(error);
     }
   };
 
@@ -174,7 +173,7 @@ export class ResultsController {
           return;
         }
       }
-      next(error);
+      return next(error);
     }
   };
 
@@ -212,7 +211,7 @@ export class ResultsController {
           return;
         }
       }
-      next(error);
+      return next(error);
     }
   };
 }

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { JudgeUncertificationService } from '../services/JudgeUncertificationService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class JudgeUncertificationController {
@@ -19,7 +19,7 @@ export class JudgeUncertificationController {
       const requests = await this.judgeUncertificationService.getUncertificationRequests(status as string | undefined);
       return sendSuccess(res, requests);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -35,7 +35,7 @@ export class JudgeUncertificationController {
       });
       return sendSuccess(res, request, 'Uncertification request created. Awaiting co-signatures.');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -50,7 +50,7 @@ export class JudgeUncertificationController {
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -60,7 +60,7 @@ export class JudgeUncertificationController {
       const result = await this.judgeUncertificationService.executeUncertification(id);
       return sendSuccess(res, result, 'Uncertification executed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -108,7 +108,7 @@ export class JudgeUncertificationController {
 
       return sendSuccess(res, request, 'Uncertification request created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -159,7 +159,7 @@ export class JudgeUncertificationController {
 
       return sendSuccess(res, approved, 'Uncertification request approved and scores uncertified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -202,7 +202,7 @@ export class JudgeUncertificationController {
 
       return sendSuccess(res, rejected, 'Uncertification request rejected successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -242,7 +242,7 @@ export class JudgeUncertificationController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

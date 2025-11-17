@@ -8,7 +8,6 @@ import { container } from 'tsyringe';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { sendSuccess, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
-import * as path from 'path';
 import { promises as fs } from 'fs';
 
 export class ScoreFileController {
@@ -48,7 +47,7 @@ export class ScoreFileController {
       sendSuccess(res, scoreFile, 'Score file uploaded successfully');
     } catch (error) {
       log.error('Upload score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -71,7 +70,7 @@ export class ScoreFileController {
       sendSuccess(res, file);
     } catch (error) {
       log.error('Get score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -89,7 +88,7 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get score files by category error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -107,7 +106,7 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get score files by judge error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -125,7 +124,7 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get score files by contestant error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -148,7 +147,7 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get all score files error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -176,7 +175,7 @@ export class ScoreFileController {
       sendSuccess(res, scoreFile, 'Score file updated successfully');
     } catch (error) {
       log.error('Update score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -202,7 +201,7 @@ export class ScoreFileController {
       sendNoContent(res);
     } catch (error) {
       log.error('Delete score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -236,7 +235,7 @@ export class ScoreFileController {
       log.info('Score file downloaded', { id });
     } catch (error) {
       log.error('Download score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

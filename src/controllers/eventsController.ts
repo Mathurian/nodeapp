@@ -67,7 +67,7 @@ export class EventsController {
 
       sendSuccess(res, eventsWithStatus);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -83,7 +83,7 @@ export class EventsController {
       const event = await this.eventService.getEventById(id);
       return sendSuccess(res, event);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -99,7 +99,7 @@ export class EventsController {
       const event = await this.eventService.getEventWithDetails(id);
       return sendSuccess(res, event);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -111,7 +111,7 @@ export class EventsController {
       const events = await this.eventService.getUpcomingEvents();
       return sendSuccess(res, events);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -123,7 +123,7 @@ export class EventsController {
       const events = await this.eventService.getOngoingEvents();
       return sendSuccess(res, events);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -135,7 +135,7 @@ export class EventsController {
       const events = await this.eventService.getPastEvents();
       return sendSuccess(res, events);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -147,7 +147,7 @@ export class EventsController {
       const event = await this.eventService.createEvent(req.body);
       successResponse(res, event, 'Event created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -163,7 +163,7 @@ export class EventsController {
       const event = await this.eventService.updateEvent(id, req.body);
       return sendSuccess(res, event, 'Event updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -179,7 +179,7 @@ export class EventsController {
       await this.eventService.deleteEvent(id);
       return sendSuccess(res, null, 'Event deleted successfully', 204);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -195,7 +195,7 @@ export class EventsController {
       const event = await this.eventService.archiveEvent(id);
       return sendSuccess(res, event, 'Event archived successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -211,7 +211,7 @@ export class EventsController {
       const event = await this.eventService.unarchiveEvent(id);
       return sendSuccess(res, event, 'Event unarchived successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -227,7 +227,7 @@ export class EventsController {
       const stats = await this.eventService.getEventStats(id);
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -245,7 +245,7 @@ export class EventsController {
       const events = await this.eventService.searchEvents(q);
       return sendSuccess(res, events);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

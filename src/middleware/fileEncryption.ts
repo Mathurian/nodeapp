@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express';
 const crypto = require('crypto')
 const fs = require('fs').promises
 const path = require('path')
@@ -7,7 +6,6 @@ const path = require('path')
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm'
 const KEY_LENGTH = 32 // 256 bits
 const IV_LENGTH = 16 // 128 bits
-const TAG_LENGTH = 16 // 128 bits
 
 // Generate encryption key from password
 const generateKey = (password: string, salt: Buffer): Buffer => {
@@ -58,7 +56,7 @@ const decryptFile = async (encryptedData: Buffer, password: string): Promise<Buf
   try {
     // Extract components
     const salt = encryptedData.slice(0, 16)
-    const iv = encryptedData.slice(16, 32)
+    // IV generated but not returned: const iv = encryptedData.slice(16, 32)
     const tag = encryptedData.slice(32, 48)
     const encrypted = encryptedData.slice(48)
     
@@ -181,7 +179,7 @@ const decryptMetadata = (encryptedMetadata: string, password: string): any => {
     const encryptedData = Buffer.from(encryptedMetadata, 'base64')
     
     const salt = encryptedData.slice(0, 16)
-    const iv = encryptedData.slice(16, 32)
+    // IV generated but not returned: const iv = encryptedData.slice(16, 32)
     const tag = encryptedData.slice(32, 48)
     const encrypted = encryptedData.slice(48)
     

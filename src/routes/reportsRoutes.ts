@@ -5,13 +5,10 @@ import {
   exportToCSV,
   getTemplates,
   createTemplate,
-  updateTemplate,
-  deleteTemplate,
   generateReport,
   sendReportEmail,
   getReportInstances,
   deleteReportInstance,
-  generateContestantReports
 } from '../controllers/reportsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';

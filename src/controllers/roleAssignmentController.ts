@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { RoleAssignmentService } from '../services/RoleAssignmentService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class RoleAssignmentController {
   private roleAssignmentService: RoleAssignmentService;
@@ -21,7 +21,7 @@ export class RoleAssignmentController {
       });
       return sendSuccess(res, assignments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -39,7 +39,7 @@ export class RoleAssignmentController {
       });
       return sendSuccess(res, assignment, 'Role assignment created', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -50,7 +50,7 @@ export class RoleAssignmentController {
       const assignment = await this.roleAssignmentService.update(id, { notes, isActive });
       return sendSuccess(res, assignment, 'Role assignment updated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -60,7 +60,7 @@ export class RoleAssignmentController {
       await this.roleAssignmentService.delete(id);
       return sendSuccess(res, null, 'Role assignment deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

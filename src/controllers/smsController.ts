@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { SMSService } from '../services/SMSService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class SMSController {
@@ -13,12 +13,12 @@ export class SMSController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getSMSConfig = async (req: Request, res: Response, next: NextFunction) => {
+  getSMSConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = await this.smsService.getSettings();
       return sendSuccess(res, settings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -31,7 +31,7 @@ export class SMSController {
       );
       return sendSuccess(res, null, 'SMS settings updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -41,7 +41,7 @@ export class SMSController {
       const result = await this.smsService.sendSMS(to, message);
       return sendSuccess(res, result, 'SMS sent successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -72,7 +72,7 @@ export class SMSController {
         total: recipients.length
       }, `Bulk SMS sent: ${successful} succeeded, ${failed} failed`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -111,7 +111,7 @@ export class SMSController {
         total: users.length
       }, `Notification SMS sent to ${successful} users`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -147,7 +147,7 @@ export class SMSController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

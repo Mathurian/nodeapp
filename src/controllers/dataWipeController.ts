@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { DataWipeService } from '../services/DataWipeService';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 
 export class DataWipeController {
@@ -38,7 +38,7 @@ export class DataWipeController {
       sendSuccess(res, null, 'All data wiped successfully');
     } catch (error) {
       log.error('Wipe all data error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -64,7 +64,7 @@ export class DataWipeController {
       sendSuccess(res, null, 'Event data wiped successfully');
     } catch (error) {
       log.error('Wipe event data error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

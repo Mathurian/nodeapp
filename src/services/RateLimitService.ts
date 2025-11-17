@@ -34,7 +34,7 @@ export class RateLimitService {
   private log = createLogger('rate-limit');
 
   constructor(
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private _prisma: PrismaClient
   ) {
     this.initializeRedis();
     this.initializeDefaultConfigs();
@@ -155,7 +155,7 @@ export class RateLimitService {
    * Create rate limiter middleware for a specific tier
    */
   createLimiter(tier: string, customConfig?: Partial<RateLimitConfig>) {
-    return async (req: Request): Promise<RateLimitConfig> => {
+    return async (_req: Request): Promise<RateLimitConfig> => {
       const config = customConfig 
         ? { ...await this.getConfig(tier), ...customConfig }
         : await this.getConfig(tier);
@@ -201,7 +201,7 @@ export class RateLimitService {
 
     const windowSeconds = Math.ceil(windowMs / 1000);
     const redis = this.redis;
-    const log = this.log;
+    // Log created but unused: const log = this.log;
 
     // Custom Redis store adapter for express-rate-limit v7
     return {
@@ -268,7 +268,7 @@ export class RateLimitService {
         // Skip for health checks
         return req.path === '/health' || req.path === '/api/health';
       },
-      handler: (req: Request, res: any) => {
+      handler: (_req: Request, res: any) => {
         const resetAt = new Date(Date.now() + (config.duration || 60) * 1000);
         res.status(429).json({
           success: false,

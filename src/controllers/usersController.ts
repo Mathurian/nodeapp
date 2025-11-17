@@ -35,7 +35,7 @@ export class UsersController {
       sendSuccess(res, { data: users });
     } catch (error) {
       log.error('Get users error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -60,7 +60,7 @@ export class UsersController {
       sendSuccess(res, { data: user });
     } catch (error) {
       log.error('Get user error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -197,7 +197,7 @@ export class UsersController {
       if ((error as any).code === 'P2002') {
         sendError(res, 'User with this email already exists', 400);
       } else {
-        next(error);
+        return next(error);
       }
     }
   };
@@ -287,7 +287,7 @@ export class UsersController {
       sendSuccess(res, user);
     } catch (error) {
       log.error('Update user error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -319,7 +319,7 @@ export class UsersController {
       sendNoContent(res);
     } catch (error) {
       log.error('Delete user error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -343,7 +343,7 @@ export class UsersController {
       sendSuccess(res, null, 'Password reset successfully');
     } catch (error) {
       log.error('Reset password error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -374,7 +374,7 @@ export class UsersController {
       sendSuccess(res, users);
     } catch (error) {
       log.error('Get users by role error', { error: (error as Error).message, role: req.params.role });
-      next(error);
+      return next(error);
     }
   };
 
@@ -399,7 +399,7 @@ export class UsersController {
       if ((error as any).code === 'P2025') {
         sendNotFound(res, 'User not found');
       } else {
-        next(error);
+        return next(error);
       }
     }
   };
@@ -426,7 +426,7 @@ export class UsersController {
       });
     } catch (error) {
       log.error('Bulk remove users error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -447,7 +447,7 @@ export class UsersController {
       });
     } catch (error) {
       log.error('Remove all users by role error', { error: (error as Error).message, role: req.params.role });
-      next(error);
+      return next(error);
     }
   };
 
@@ -463,7 +463,7 @@ export class UsersController {
       sendSuccess(res, stats);
     } catch (error) {
       log.error('Get user stats error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -520,7 +520,7 @@ export class UsersController {
       });
     } catch (error) {
       log.error('Upload user image error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -529,7 +529,7 @@ export class UsersController {
       // This is an alias for bulkUploadUsers - delegate to that method
       return this.bulkUploadUsers(req, res, next);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -538,7 +538,7 @@ export class UsersController {
       // This is an alias for getBulkUploadTemplate - delegate to that method
       return this.getBulkUploadTemplate(req, res, next);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -633,7 +633,7 @@ export class UsersController {
     } catch (error) {
       const log = createRequestLogger(req, 'users');
       log.error('Update user role fields error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -728,7 +728,7 @@ export class UsersController {
     } catch (error) {
       const log = createRequestLogger(req, 'users');
       log.error('Upload user bio file error', { error: (error as Error).message, userId: req.params.id });
-      next(error);
+      return next(error);
     }
   };
 
@@ -1045,7 +1045,7 @@ export class UsersController {
     } catch (error) {
       const log = createRequestLogger(req, 'users');
       log.error('Bulk upload error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -1109,7 +1109,7 @@ export class UsersController {
     } catch (error: any) {
       const log = createRequestLogger(req, 'users');
       log.error('Bulk delete failed', { error: error.message, stack: error.stack });
-      next(error);
+      return next(error);
     }
   };
 
@@ -1191,7 +1191,7 @@ export class UsersController {
     } catch (error) {
       const log = createRequestLogger(req, 'users');
       log.error('Get bulk upload template error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

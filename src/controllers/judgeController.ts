@@ -19,7 +19,7 @@ export class JudgeController {
       const stats = await this.judgeService.getStats(user.id);
       sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -35,7 +35,7 @@ export class JudgeController {
       );
       sendSuccess(res, assignments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -66,7 +66,7 @@ export class JudgeController {
 
       sendSuccess(res, assignment, 'Assignment status updated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -94,7 +94,7 @@ export class JudgeController {
 
       sendSuccess(res, scoringData);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -119,7 +119,7 @@ export class JudgeController {
 
       sendSuccess(res, scoreRecord, 'Score submitted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -147,7 +147,7 @@ export class JudgeController {
 
       sendSuccess(res, certificationData);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -175,7 +175,7 @@ export class JudgeController {
 
       sendSuccess(res, contestants);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -203,7 +203,7 @@ export class JudgeController {
 
       sendSuccess(res, contestant);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -216,7 +216,7 @@ export class JudgeController {
       const result = await this.judgeService.getJudgeHistory(user.id, req.query);
       sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

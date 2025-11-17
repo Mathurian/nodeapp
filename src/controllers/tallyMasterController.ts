@@ -28,7 +28,7 @@ export class TallyMasterController {
       res.json(stats);
     } catch (error) {
       log.error('Get tally master stats error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -45,7 +45,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get certifications error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -62,7 +62,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get certification queue error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -79,7 +79,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get pending certifications error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -102,7 +102,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Certify totals error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -121,7 +121,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get score review error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -155,7 +155,7 @@ export class TallyMasterController {
       });
     } catch (error) {
       log.error('Get certification workflow error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -174,7 +174,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get bias checking tools error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -191,7 +191,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get tally master history error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -286,7 +286,7 @@ export class TallyMasterController {
       }
     } catch (error) {
       log.error('Request score removal error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -306,7 +306,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get score removal requests error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -319,7 +319,7 @@ export class TallyMasterController {
       res.status(501).json({ error: 'Score removal approval to be implemented in ScoreRemovalService' });
     } catch (error) {
       log.error('Approve score removal error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -332,7 +332,7 @@ export class TallyMasterController {
       res.status(501).json({ error: 'Score removal rejection to be implemented in ScoreRemovalService' });
     } catch (error) {
       log.error('Reject score removal error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -345,7 +345,7 @@ export class TallyMasterController {
       res.status(501).json({ error: 'Get contestant scores to be implemented' });
     } catch (error) {
       log.error('Get contestant scores error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -358,7 +358,7 @@ export class TallyMasterController {
       res.status(501).json({ error: 'Get judge scores to be implemented' });
     } catch (error) {
       log.error('Get judge scores error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -377,7 +377,7 @@ export class TallyMasterController {
       res.json(judges);
     } catch (error) {
       log.error('Get category judges error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -390,7 +390,7 @@ export class TallyMasterController {
       res.status(501).json({ error: 'Remove judge contestant scores to be implemented' });
     } catch (error) {
       log.error('Remove judge contestant scores error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -409,7 +409,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get contest score review error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -429,7 +429,7 @@ export class TallyMasterController {
       res.json(result);
     } catch (error) {
       log.error('Get contest certifications error', error);
-      next(error);
+      return next(error);
     }
   };
 }

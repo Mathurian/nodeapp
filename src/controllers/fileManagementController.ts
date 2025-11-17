@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileManagementService } from '../services/FileManagementService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as path from 'path';
 
 export class FileManagementController {
   private fileManagementService: FileManagementService;
@@ -22,7 +21,7 @@ export class FileManagementController {
       const info = await this.fileManagementService.getFileInfo(filename);
       return sendSuccess(res, info);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -33,7 +32,7 @@ export class FileManagementController {
       const result = await this.fileManagementService.moveFile(filename, newPath);
       return sendSuccess(res, result, 'File moved');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -44,7 +43,7 @@ export class FileManagementController {
       const result = await this.fileManagementService.copyFile(filename, newPath);
       return sendSuccess(res, result, 'File copied');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -126,7 +125,7 @@ export class FileManagementController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -203,7 +202,7 @@ export class FileManagementController {
 
       return sendSuccess(res, result, `Bulk ${operation} operation completed`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -239,7 +238,7 @@ export class FileManagementController {
 
       return sendSuccess(res, suggestions);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -318,7 +317,7 @@ export class FileManagementController {
 
       return sendSuccess(res, analytics);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -380,7 +379,7 @@ export class FileManagementController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -469,7 +468,7 @@ export class FileManagementController {
         results: processedResults
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

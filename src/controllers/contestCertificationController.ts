@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ContestCertificationService } from '../services/ContestCertificationService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class ContestCertificationController {
   private contestCertificationService: ContestCertificationService;
@@ -16,7 +16,7 @@ export class ContestCertificationController {
       const progress = await this.contestCertificationService.getCertificationProgress(contestId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -30,7 +30,7 @@ export class ContestCertificationController {
       );
       return sendSuccess(res, certification, 'Contest certified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -35,7 +35,7 @@ export function validate(schema: ZodSchema, target: ValidationTarget = 'body') {
         return;
       }
 
-      next(error);
+      return next(error);
     }
   };
 }
@@ -72,7 +72,7 @@ export function validateMultiple(schemas: {
         return;
       }
 
-      next(error);
+      return next(error);
     }
   };
 }

@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, NotFoundError, ValidationError, ForbiddenError } from './BaseService';
+import { BaseService } from './BaseService';
 
 export interface SetContestantViewRestrictionDTO {
   eventId?: string;
@@ -32,7 +32,7 @@ export class RestrictionService extends BaseService {
    */
   async setContestantViewRestriction(
     dto: SetContestantViewRestrictionDTO,
-    userId: string,
+    _userId: string,
     userRole: string
   ): Promise<void> {
     // Only admin, organizer, or board can set restrictions

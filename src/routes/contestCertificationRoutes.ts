@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { getContestCertificationProgress, certifyContest } from '../controllers/contestCertificationController';
+import { getContestCertificationProgress } from '../controllers/contestCertificationController';
 
 const router: Router = express.Router();
 

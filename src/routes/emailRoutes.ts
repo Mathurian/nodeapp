@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate, getCampaigns, createCampaign, sendCampaign, getLogs, sendMultipleEmails, sendEmailByRole } from '../controllers/emailController';
+import { getTemplates, createTemplate, getCampaigns, createCampaign, getLogs, sendMultipleEmails, sendEmailByRole } from '../controllers/emailController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 

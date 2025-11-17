@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { EmailService } from '../services/EmailService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class EmailController {
@@ -13,12 +13,12 @@ export class EmailController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getConfig = async (req: Request, res: Response, next: NextFunction) => {
+  getConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const config = await this.emailService.getConfig();
       return sendSuccess(res, config);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -28,7 +28,7 @@ export class EmailController {
       const result = await this.emailService.sendEmail(to, subject, body);
       return sendSuccess(res, result, 'Email sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -38,7 +38,7 @@ export class EmailController {
       const results = await this.emailService.sendBulkEmail(recipients, subject, body);
       return sendSuccess(res, results, 'Bulk email sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -88,7 +88,7 @@ export class EmailController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -116,7 +116,7 @@ export class EmailController {
 
       return sendSuccess(res, template, 'Template created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -148,7 +148,7 @@ export class EmailController {
 
       return sendSuccess(res, template, 'Template updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -170,7 +170,7 @@ export class EmailController {
 
       return sendSuccess(res, {}, 'Template deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -191,7 +191,7 @@ export class EmailController {
 
       return sendSuccess(res, { campaigns: logs });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -210,7 +210,7 @@ export class EmailController {
         createdAt: new Date().toISOString()
       }, 'Campaign created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -240,7 +240,7 @@ export class EmailController {
         total: recipients.length
       }, 'Campaign sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -276,7 +276,7 @@ export class EmailController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -303,7 +303,7 @@ export class EmailController {
         total: emails.length
       }, 'Multiple emails sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -340,7 +340,7 @@ export class EmailController {
         role
       }, `Emails sent to users with role: ${role}`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

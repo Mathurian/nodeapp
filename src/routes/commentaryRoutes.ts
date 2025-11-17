@@ -1,9 +1,6 @@
 import express, { Router } from 'express';
 import {
   createScoreComment,
-  getScoreComments,
-  updateScoreComment,
-  deleteScoreComment,
   createComment,
   getCommentsForScore,
   updateComment,

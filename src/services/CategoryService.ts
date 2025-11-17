@@ -7,7 +7,7 @@ import { Category } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
-import CacheServiceInstance, { CacheService } from './cacheService';
+import { CacheService } from './cacheService';
 
 interface CreateCategoryDto {
   contestId: string;

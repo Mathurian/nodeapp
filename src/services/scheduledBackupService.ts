@@ -2,10 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+// exec imported but not used
 
-const execAsync = promisify(exec);
 
 class ScheduledBackupService {
   private prisma: PrismaClient;

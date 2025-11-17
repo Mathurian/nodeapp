@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { RestrictionService } from '../services/RestrictionService';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 
 export class RestrictionController {
@@ -38,7 +38,7 @@ export class RestrictionController {
       sendSuccess(res, null, 'Contestant view restriction updated successfully');
     } catch (error) {
       log.error('Set contestant view restriction error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -58,7 +58,7 @@ export class RestrictionController {
       sendSuccess(res, { canView });
     } catch (error) {
       log.error('Check contestant view error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -84,7 +84,7 @@ export class RestrictionController {
       sendSuccess(res, null, locked ? 'Event/contest locked successfully' : 'Event/contest unlocked successfully');
     } catch (error) {
       log.error('Lock event/contest error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -104,7 +104,7 @@ export class RestrictionController {
       sendSuccess(res, { locked });
     } catch (error) {
       log.error('Check lock status error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

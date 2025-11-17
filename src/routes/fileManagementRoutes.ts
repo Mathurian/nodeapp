@@ -1,7 +1,6 @@
 import express, { Router } from 'express';
 import {
   getFilesWithFilters,
-  bulkFileOperations,
   getFileSearchSuggestions,
   getFileAnalytics,
   checkFileIntegrity,

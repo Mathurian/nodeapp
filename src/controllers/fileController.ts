@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileService } from '../services/FileService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class FileController {
@@ -19,7 +19,7 @@ export class FileController {
       const files = await this.fileService.listFiles(directory as string | undefined);
       return sendSuccess(res, files);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -29,7 +29,7 @@ export class FileController {
       const filePath = await this.fileService.getFilePath(filename);
       res.download(filePath, filename);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -39,7 +39,7 @@ export class FileController {
       await this.fileService.deleteFile(filename);
       return sendSuccess(res, null, 'File deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -78,7 +78,7 @@ export class FileController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -121,7 +121,7 @@ export class FileController {
         count: uploadedFiles.length
       }, 'Files uploaded successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -140,7 +140,7 @@ export class FileController {
 
       return sendSuccess(res, file);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -170,11 +170,11 @@ export class FileController {
 
       return sendSuccess(res, file, 'File updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getFileStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const [
         totalFiles,
@@ -219,7 +219,7 @@ export class FileController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -254,7 +254,7 @@ export class FileController {
 
       return sendSuccess(res, uploadedFile, 'File uploaded successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -34,7 +34,7 @@ export class WinnersController {
 
       sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -64,7 +64,7 @@ export class WinnersController {
 
       sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -93,7 +93,7 @@ export class WinnersController {
 
       sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -118,7 +118,7 @@ export class WinnersController {
 
       sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -142,7 +142,7 @@ export class WinnersController {
 
       sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -169,7 +169,7 @@ export class WinnersController {
 
       sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -194,7 +194,7 @@ export class WinnersController {
 
       sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -212,7 +212,7 @@ export class WinnersController {
 
       sendSuccess(res, result, result.message || 'Winners retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -91,7 +91,7 @@ export class AuthController {
         return sendUnauthorized(res, 'Account is inactive');
       }
 
-      next(error);
+      return next(error);
     }
   };
 
@@ -126,7 +126,7 @@ export class AuthController {
         return sendNotFound(res, 'User not found');
       }
 
-      next(error);
+      return next(error);
     }
   };
 
@@ -161,7 +161,7 @@ export class AuthController {
         return sendNotFound(res, 'User not found');
       }
 
-      next(error);
+      return next(error);
     }
   };
 
@@ -233,7 +233,7 @@ export class AuthController {
         return sendBadRequest(res, 'Invalid or expired reset token');
       }
 
-      next(error);
+      return next(error);
     }
   };
 
@@ -272,7 +272,7 @@ export class AuthController {
         return sendBadRequest(res, 'Current password is incorrect');
       }
 
-      next(error);
+      return next(error);
     }
   };
 
@@ -325,7 +325,7 @@ export class AuthController {
       return sendSuccess(res, {}, 'Logged out successfully');
     } catch (error: any) {
       log.error('Logout error', { error: error.message });
-      next(error);
+      return next(error);
     }
   };
 }

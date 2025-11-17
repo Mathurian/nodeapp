@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ErrorHandlingService } from '../services/ErrorHandlingService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class ErrorHandlingController {
@@ -19,16 +19,16 @@ export class ErrorHandlingController {
       const result = this.errorHandlingService.logError(error, context);
       return sendSuccess(res, result, 'Error logged');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getErrorStats = async (req: Request, res: Response, next: NextFunction) => {
+  getErrorStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = this.errorHandlingService.getErrorStats();
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -69,7 +69,7 @@ export class ErrorHandlingController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -132,7 +132,7 @@ export class ErrorHandlingController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -165,7 +165,7 @@ export class ErrorHandlingController {
 
       return sendSuccess(res, errorLog, 'Error marked as resolved');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -216,7 +216,7 @@ export class ErrorHandlingController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -242,7 +242,7 @@ export class ErrorHandlingController {
         cutoffDate
       }, `Deleted ${result.count} error logs older than ${olderThanDays} days`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -296,7 +296,7 @@ export class ErrorHandlingController {
       res.setHeader('Content-Disposition', `attachment; filename="error-logs-${Date.now()}.json"`);
       return res.send(JSON.stringify(errorLogs, null, 2));
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

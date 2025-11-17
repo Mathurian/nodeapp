@@ -28,7 +28,6 @@ const getSettingsService = (): SettingsService => {
 export const createBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { type = 'FULL' } = req.body;
-    const userId = (req as any).user?.id;
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `backup-${type.toLowerCase()}-${timestamp}.sql`;
@@ -83,7 +82,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Execute backup
-    exec(command, async (error, stdout, stderr) => {
+    exec(command, async (error, _stdout, _stderr) => {
       if (error) {
         await prisma.backupLog.update({
           where: { id: backupLog.id },
@@ -117,14 +116,14 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
       }, 'Backup created successfully');
     });
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * List all backups
  */
-export const listBackups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const listBackups = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backups = await prisma.backupLog.findMany({
       orderBy: { createdAt: 'desc' }
@@ -139,7 +138,7 @@ export const listBackups = async (req: Request, res: Response, next: NextFunctio
 
     sendSuccess(res, transformedBackups);
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -165,7 +164,7 @@ export const downloadBackup = async (req: Request, res: Response, next: NextFunc
 
     res.download(backup.location, path.basename(backup.location));
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -189,7 +188,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
 
     const command = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f ${file.path}`;
 
-    exec(command, async (error, stdout, stderr) => {
+    exec(command, async (error, _stdout, _stderr) => {
       if (error) {
         res.status(500).json({ error: `Restore failed: ${error.message}` });
         return;
@@ -201,7 +200,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
       sendSuccess(res, null, 'Backup restored successfully');
     });
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -228,14 +227,14 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
 
     sendSuccess(res, null, 'Backup deleted successfully');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Get backup settings
  */
-export const getBackupSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backupService = getScheduledBackupService();
     
@@ -270,21 +269,19 @@ export const getBackupSettings = async (req: Request, res: Response, next: NextF
       });
       return;
     }
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Create backup setting
  */
-export const createBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const createBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const settingsService = getSettingsService();
-    const userId = (req as any).user?.id;
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting created');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -293,14 +290,14 @@ export const createBackupSetting = async (req: Request, res: Response, next: Nex
  */
 export const updateBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    // id from params not currently used
     const settings = req.body;
     const userId = (req as any).user?.id;
     const settingsService = getSettingsService();
     await settingsService.updateBackupSettings(settings, userId);
     sendSuccess(res, {}, 'Backup settings updated');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -309,11 +306,11 @@ export const updateBackupSetting = async (req: Request, res: Response, next: Nex
  */
 export const deleteBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    // id from params not currently used
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting deleted');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -332,27 +329,27 @@ export const runScheduledBackup = async (req: Request, res: Response, next: Next
       res.status(500).json({ error: result.error || 'Backup failed' });
     }
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Get active backup schedules
  */
-export const getActiveSchedules = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getActiveSchedules = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backupService = getScheduledBackupService();
     const schedules = backupService.getActiveSchedules();
     sendSuccess(res, schedules);
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Debug backup settings
  */
-export const debugBackupSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const debugBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const settingsService = getSettingsService();
     const settings = await settingsService.getBackupSettings();
@@ -365,6 +362,6 @@ export const debugBackupSettings = async (req: Request, res: Response, next: Nex
       databaseUrl: process.env.DATABASE_URL ? 'configured' : 'not configured'
     });
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };

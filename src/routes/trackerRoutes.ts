@@ -2,7 +2,6 @@ import express, { Router } from 'express';
 import {
   getScoringProgressByContest,
   getScoringProgressByCategory,
-  getJudgeScoringProgress,
   getCertificationStatus,
   getPendingCertifications
 } from '../controllers/trackerController';

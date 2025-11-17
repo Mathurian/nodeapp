@@ -12,7 +12,7 @@ export class VirusScanAdminController {
   /**
    * Check ClamAV availability
    */
-  public static async healthCheck(req: Request, res: Response): Promise<void> {
+  public static async healthCheck(_req: Request, res: Response): Promise<void> {
     try {
       const virusScanService = getVirusScanService();
       const isAvailable = await virusScanService.isAvailable();
@@ -36,7 +36,7 @@ export class VirusScanAdminController {
   /**
    * Get virus scan statistics
    */
-  public static async getStatistics(req: Request, res: Response): Promise<void> {
+  public static async getStatistics(_req: Request, res: Response): Promise<void> {
     try {
       const virusScanService = getVirusScanService();
       const stats = virusScanService.getStatistics();
@@ -57,7 +57,7 @@ export class VirusScanAdminController {
   /**
    * List quarantined files
    */
-  public static async listQuarantinedFiles(req: Request, res: Response): Promise<void> {
+  public static async listQuarantinedFiles(_req: Request, res: Response): Promise<void> {
     try {
       const virusScanService = getVirusScanService();
       const files = virusScanService.listQuarantinedFiles();
@@ -236,7 +236,7 @@ export class VirusScanAdminController {
   /**
    * Clear scan cache
    */
-  public static async clearCache(req: Request, res: Response): Promise<void> {
+  public static async clearCache(_req: Request, res: Response): Promise<void> {
     try {
       const virusScanService = getVirusScanService();
       virusScanService.clearCache();

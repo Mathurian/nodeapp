@@ -6,8 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { RateLimitService } from '../services/RateLimitService';
-import { sendSuccess, sendBadRequest, sendUnauthorized } from '../utils/responseHelpers';
-import { requireRole } from '../middleware/auth';
+import { sendSuccess, sendBadRequest } from '../utils/responseHelpers';
 
 export class RateLimitController {
   private rateLimitService: RateLimitService;
@@ -19,12 +18,12 @@ export class RateLimitController {
   /**
    * Get all rate limit configurations
    */
-  getAllConfigs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllConfigs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const configs = await this.rateLimitService.getAllConfigs();
       return sendSuccess(res, configs, 'Rate limit configurations retrieved');
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -41,7 +40,7 @@ export class RateLimitController {
       const config = await this.rateLimitService.getConfig(tier);
       return sendSuccess(res, config, `Rate limit configuration for tier: ${tier}`);
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -69,7 +68,7 @@ export class RateLimitController {
       const updated = await this.rateLimitService.updateConfig(tier, updates);
       return sendSuccess(res, updated, `Rate limit configuration updated for tier: ${tier}`);
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -88,7 +87,7 @@ export class RateLimitController {
         blockDuration: config.blockDuration,
       }, 'Rate limit status retrieved');
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 }

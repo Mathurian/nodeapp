@@ -1,11 +1,9 @@
 import { Request, Response } from 'express';
 import BackupMonitoringService from '../services/BackupMonitoringService';
 import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
 
-const execAsync = promisify(exec);
 const backupMonitoringService = BackupMonitoringService.getInstance();
 
 export class BackupAdminController {
@@ -131,7 +129,7 @@ export class BackupAdminController {
    * GET /api/admin/backups/health
    * Get backup health status
    */
-  async getHealth(req: Request, res: Response): Promise<void> {
+  async getHealth(_req: Request, res: Response): Promise<void> {
     try {
       const health = await backupMonitoringService.checkBackupHealth();
 
@@ -152,7 +150,7 @@ export class BackupAdminController {
    * POST /api/admin/backups/verify
    * Trigger backup verification
    */
-  async verifyBackups(req: Request, res: Response): Promise<void> {
+  async verifyBackups(_req: Request, res: Response): Promise<void> {
     try {
       const scriptPath = '/var/www/event-manager/scripts/backup-verify.sh';
 
@@ -168,11 +166,11 @@ export class BackupAdminController {
       }
 
       // Execute verification script in background
-      exec(scriptPath, (error, stdout, stderr) => {
+      exec(scriptPath, (error, _stdout, _stderr) => {
         if (error) {
           console.error('Backup verification failed:', error);
         } else {
-          console.log('Backup verification completed:', stdout);
+          console.log('Backup verification completed:', _stdout);
         }
       });
 
@@ -193,7 +191,7 @@ export class BackupAdminController {
    * POST /api/admin/backups/full
    * Trigger manual full backup
    */
-  async triggerFullBackup(req: Request, res: Response): Promise<void> {
+  async triggerFullBackup(_req: Request, res: Response): Promise<void> {
     try {
       const scriptPath = '/var/www/event-manager/scripts/backup-full.sh';
 
@@ -209,11 +207,11 @@ export class BackupAdminController {
       }
 
       // Execute backup script in background
-      exec(scriptPath, (error, stdout, stderr) => {
+      exec(scriptPath, (error, _stdout, _stderr) => {
         if (error) {
           console.error('Full backup failed:', error);
         } else {
-          console.log('Full backup completed:', stdout);
+          console.log('Full backup completed:', _stdout);
         }
       });
 
@@ -256,7 +254,7 @@ export class BackupAdminController {
    * GET /api/admin/backups/files
    * List backup files on disk
    */
-  async listBackupFiles(req: Request, res: Response): Promise<void> {
+  async listBackupFiles(_req: Request, res: Response): Promise<void> {
     try {
       const backupDir = '/var/backups/event-manager/full';
 

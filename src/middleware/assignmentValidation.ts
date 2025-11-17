@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-const { PrismaClient } = require('@prisma/client')
 
 const prisma = require('../utils/prisma')
 
@@ -206,7 +205,7 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
 const validateAssignmentUpdate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const assignmentId = req.params.id || req.params.assignmentId
-    const { status, notes } = req.body
+    const { status } = req.body
 
     // Check if assignment exists
     const assignment = await prisma.assignment.findUnique({

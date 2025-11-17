@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request } from 'express';
 const rateLimit = require('express-rate-limit')
 
 // General API rate limiter

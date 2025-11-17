@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { JudgeContestantCertificationService } from '../services/JudgeContestantCertificationService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class JudgeContestantCertificationController {
@@ -23,7 +23,7 @@ export class JudgeContestantCertificationController {
       );
       return sendSuccess(res, certifications);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -37,7 +37,7 @@ export class JudgeContestantCertificationController {
       });
       return sendSuccess(res, certification, 'Certification created', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -47,7 +47,7 @@ export class JudgeContestantCertificationController {
       await this.judgeContestantCertificationService.uncertify(id);
       return sendSuccess(res, null, 'Certification deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -79,7 +79,7 @@ export class JudgeContestantCertificationController {
         certifiedCount: result.count
       }, `Certified ${result.count} scores for contestant in category`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -93,7 +93,7 @@ export class JudgeContestantCertificationController {
       const status = await this.judgeContestantCertificationService.getCategoryCertificationStatus(categoryId);
       return sendSuccess(res, status, 'Category certification status retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -123,7 +123,7 @@ export class JudgeContestantCertificationController {
         certifiedCount: result.count
       }, `Certified ${result.count} scores in category`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

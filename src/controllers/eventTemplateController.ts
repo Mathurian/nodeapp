@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { EventTemplateService } from '../services/EventTemplateService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class EventTemplateController {
   private eventTemplateService: EventTemplateService;
@@ -22,16 +22,16 @@ export class EventTemplateController {
       });
       return sendSuccess(res, template, 'Template created', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getTemplates = async (req: Request, res: Response, next: NextFunction) => {
+  getTemplates = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const templates = await this.eventTemplateService.getAll();
       return sendSuccess(res, templates);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -41,7 +41,7 @@ export class EventTemplateController {
       const template = await this.eventTemplateService.getById(id);
       return sendSuccess(res, template);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -57,7 +57,7 @@ export class EventTemplateController {
       });
       return sendSuccess(res, template, 'Template updated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -67,7 +67,7 @@ export class EventTemplateController {
       await this.eventTemplateService.delete(id);
       return sendSuccess(res, null, 'Template deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -83,7 +83,7 @@ export class EventTemplateController {
       });
       return sendSuccess(res, event, 'Event created from template', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

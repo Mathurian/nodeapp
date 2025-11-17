@@ -13,39 +13,39 @@ export class AdminController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getDashboard = async (req: Request, res: Response, next: NextFunction) => {
+  getDashboard = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getSystemHealth = async (req: Request, res: Response, next: NextFunction) => {
+  getSystemHealth = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  clearCache = async (req: Request, res: Response, next: NextFunction) => {
+  clearCache = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.adminService.clearCache();
       return sendSuccess(res, result, 'Cache cleared');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getDatabaseTables = async (req: Request, res: Response, next: NextFunction) => {
+  getDatabaseTables = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.adminService.getDatabaseTables();
       return sendSuccess(res, tables);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -55,7 +55,7 @@ export class AdminController {
       const structure = await this.adminService.getTableStructure(tableName);
       return sendSuccess(res, structure);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -72,7 +72,7 @@ export class AdminController {
       );
       return sendSuccess(res, data);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -82,16 +82,16 @@ export class AdminController {
       const result = await this.adminService.executeDatabaseQuery(query, parseInt(limit));
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getStats = async (req: Request, res: Response, next: NextFunction) => {
+  getStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -101,7 +101,7 @@ export class AdminController {
       const logs = await this.adminService.getActivityLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -130,7 +130,7 @@ export class AdminController {
 
       return sendSuccess(res, activeUsers);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -184,7 +184,7 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -231,7 +231,7 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -277,7 +277,7 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -329,7 +329,7 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -391,7 +391,7 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -401,7 +401,7 @@ export class AdminController {
       const logs = await this.adminService.getActivityLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -411,7 +411,7 @@ export class AdminController {
       const logs = await this.adminService.getAuditLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -450,20 +450,20 @@ export class AdminController {
       res.setHeader('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.json"`);
       return res.send(JSON.stringify(logs, null, 2));
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  testConnection = async (req: Request, res: Response, next: NextFunction) => {
+  testConnection = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  forceLogoutAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+  forceLogoutAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       // Increment sessionVersion for all users to invalidate their tokens
       await this.prisma.user.updateMany({
@@ -482,7 +482,7 @@ export class AdminController {
         usersAffected: count
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -518,7 +518,7 @@ export class AdminController {
         userId: user.id
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -592,7 +592,7 @@ export class AdminController {
         stats
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

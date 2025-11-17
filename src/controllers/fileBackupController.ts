@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileBackupService } from '../services/FileBackupService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class FileBackupController {
@@ -13,21 +13,21 @@ export class FileBackupController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  createBackup = async (req: Request, res: Response, next: NextFunction) => {
+  createBackup = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.fileBackupService.createBackup();
       return sendSuccess(res, result, 'Backup created');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  listBackups = async (req: Request, res: Response, next: NextFunction) => {
+  listBackups = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const backups = await this.fileBackupService.listBackups();
       return sendSuccess(res, backups);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -37,7 +37,7 @@ export class FileBackupController {
       await this.fileBackupService.deleteBackup(backupName);
       return sendSuccess(res, null, 'Backup deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -61,7 +61,7 @@ export class FileBackupController {
 
       // Use the file backup service to actually create the backup
       try {
-        const result = await this.fileBackupService.createBackup();
+        // Result stored but not used: await this.fileBackupService.createBackup();
 
         // Update the backup log on success
         const completed = await this.prisma.backupLog.update({
@@ -87,7 +87,7 @@ export class FileBackupController {
         throw backupError;
       }
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -116,7 +116,7 @@ export class FileBackupController {
         message: 'File backup restoration initiated'
       }, 'Backup restore initiated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -154,7 +154,7 @@ export class FileBackupController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -176,7 +176,7 @@ export class FileBackupController {
 
       return sendSuccess(res, {}, 'Backup deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -194,7 +194,7 @@ export class FileBackupController {
 
       return sendSuccess(res, backup);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -222,7 +222,7 @@ export class FileBackupController {
         size: backup.size?.toString() || '0'
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

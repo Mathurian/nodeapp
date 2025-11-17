@@ -38,7 +38,7 @@ export class ReportsController {
       const templates = await this.templateService.getAllTemplates();
       res.json({ data: templates });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -56,7 +56,7 @@ export class ReportsController {
       });
       res.status(201).json(reportTemplate);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -74,7 +74,7 @@ export class ReportsController {
       const updated = await this.templateService.updateTemplate(id, updates);
       res.json(updated);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -91,7 +91,7 @@ export class ReportsController {
       await this.templateService.deleteTemplate(id);
       res.status(204).send();
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -117,7 +117,7 @@ export class ReportsController {
 
       res.status(201).json(reportData);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -138,7 +138,7 @@ export class ReportsController {
         data: reportData
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -158,7 +158,7 @@ export class ReportsController {
 
       res.json({ data: instances });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -175,7 +175,7 @@ export class ReportsController {
       await this.instanceService.deleteInstance(id);
       res.status(204).send();
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -197,7 +197,7 @@ export class ReportsController {
       res.setHeader('Content-Disposition', `attachment; filename=report-${id}.pdf`);
       res.send(buffer);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -219,7 +219,7 @@ export class ReportsController {
       res.setHeader('Content-Disposition', `attachment; filename=report-${id}.xlsx`);
       res.send(buffer);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -241,7 +241,7 @@ export class ReportsController {
       res.setHeader('Content-Disposition', `attachment; filename=report-${id}.csv`);
       res.send(buffer);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -280,7 +280,7 @@ export class ReportsController {
 
       res.json({ message: 'Report emailed successfully' });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

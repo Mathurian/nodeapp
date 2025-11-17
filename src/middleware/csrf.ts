@@ -3,7 +3,6 @@ import { randomBytes, timingSafeEqual } from 'crypto';
 import { csrfSecret } from '../utils/config';
 
 // CSRF secret for token generation
-const CSRF_SECRET = csrfSecret
 
 /**
  * Simple CSRF token generation
@@ -159,7 +158,7 @@ const csrfProtection = async (req: Request, res: Response, next: NextFunction): 
 /**
  * Error handler for CSRF token validation failures
  */
-const csrfErrorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
+const csrfErrorHandler = (err: any, _req: Request, res: Response, next: NextFunction): void => {
   if (err && err.code === 'EBADCSRFTOKEN') {
     res.status(403).json({ 
       error: 'CSRF token validation failed',

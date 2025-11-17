@@ -24,7 +24,7 @@ export class ArchiveController {
       res.json(archives);
     } catch (error) {
       log.error('Get archives error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -38,7 +38,7 @@ export class ArchiveController {
       res.json(events);
     } catch (error) {
       log.error('Get active events error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -52,7 +52,7 @@ export class ArchiveController {
       res.json(events);
     } catch (error) {
       log.error('Get archived events error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -62,7 +62,7 @@ export class ArchiveController {
   archiveItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const { type, id } = req.params;
+      const { id } = req.params;
       const { reason } = req.body;
       const userId = req.user?.id;
 
@@ -75,7 +75,7 @@ export class ArchiveController {
       res.json(archive);
     } catch (error) {
       log.error('Archive item error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -85,7 +85,7 @@ export class ArchiveController {
   restoreItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const { type, id } = req.params;
+      const { id } = req.params;
 
       if (!id) {
         res.status(400).json({ error: 'Item ID required' });
@@ -96,7 +96,7 @@ export class ArchiveController {
       res.json(result);
     } catch (error) {
       log.error('Restore item error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -106,7 +106,7 @@ export class ArchiveController {
   deleteArchivedItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const { type, id } = req.params;
+      const { id } = req.params;
 
       if (!id) {
         res.status(400).json({ error: 'Item ID required' });
@@ -117,7 +117,7 @@ export class ArchiveController {
       res.json(result);
     } catch (error) {
       log.error('Delete archived item error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -140,7 +140,7 @@ export class ArchiveController {
       res.json(archive);
     } catch (error) {
       log.error('Archive event error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -161,7 +161,7 @@ export class ArchiveController {
       res.json(result);
     } catch (error) {
       log.error('Restore event error:', error);
-      next(error);
+      return next(error);
     }
   };
 }

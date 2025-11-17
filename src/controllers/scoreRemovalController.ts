@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ScoreRemovalService } from '../services/ScoreRemovalService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class ScoreRemovalController {
   private scoreRemovalService: ScoreRemovalService;
@@ -22,7 +22,7 @@ export class ScoreRemovalController {
       });
       return sendSuccess(res, request, 'Score removal request created. Awaiting co-signatures.');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -32,7 +32,7 @@ export class ScoreRemovalController {
       const requests = await this.scoreRemovalService.getAll(status as string | undefined);
       return sendSuccess(res, requests);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -42,7 +42,7 @@ export class ScoreRemovalController {
       const request = await this.scoreRemovalService.getById(id);
       return sendSuccess(res, request);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -57,7 +57,7 @@ export class ScoreRemovalController {
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -67,7 +67,7 @@ export class ScoreRemovalController {
       const result = await this.scoreRemovalService.executeRemoval(id);
       return sendSuccess(res, result, 'Score removal executed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

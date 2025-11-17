@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { DatabaseBrowserService } from '../services/DatabaseBrowserService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class DatabaseBrowserController {
@@ -13,12 +13,12 @@ export class DatabaseBrowserController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getTables = async (req: Request, res: Response, next: NextFunction) => {
+  getTables = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.databaseBrowserService.getTables();
       return sendSuccess(res, tables);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -33,7 +33,7 @@ export class DatabaseBrowserController {
       );
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -43,7 +43,7 @@ export class DatabaseBrowserController {
       const schema = await this.databaseBrowserService.getTableSchema(tableName);
       return sendSuccess(res, schema);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -80,7 +80,7 @@ export class DatabaseBrowserController {
         count: Array.isArray(result) ? result.length : 0
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -124,7 +124,7 @@ export class DatabaseBrowserController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }
