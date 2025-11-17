@@ -12,6 +12,7 @@ import NodeCache from 'node-cache';
 import { PrismaClient } from '@prisma/client';
 import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissions';
 import { userCache } from '../utils/cache';
+import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -244,6 +245,29 @@ export class AuthService {
       throw new Error('Invalid or expired reset token');
     }
 
+    // Get user info for password similarity check
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Validate password complexity
+    const validation = validatePassword(newPassword);
+    if (!validation.isValid) {
+      throw new Error(`Password does not meet complexity requirements: ${validation.errors.join(', ')}`);
+    }
+
+    // Check if password is too similar to user information
+    if (isPasswordSimilarToUserInfo(newPassword, {
+      name: user.name,
+      email: user.email
+    })) {
+      throw new Error('Password is too similar to your personal information');
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await this.prisma.user.update({
@@ -274,6 +298,25 @@ export class AuthService {
     // Verify current password
     if (!await bcrypt.compare(currentPassword, user.password)) {
       throw new Error('Current password is incorrect');
+    }
+
+    // Validate password complexity
+    const validation = validatePassword(newPassword);
+    if (!validation.isValid) {
+      throw new Error(`Password does not meet complexity requirements: ${validation.errors.join(', ')}`);
+    }
+
+    // Check if password is too similar to user information
+    if (isPasswordSimilarToUserInfo(newPassword, {
+      name: user.name,
+      email: user.email
+    })) {
+      throw new Error('Password is too similar to your personal information');
+    }
+
+    // Check if new password is the same as current password
+    if (await bcrypt.compare(newPassword, user.password)) {
+      throw new Error('New password must be different from current password');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);

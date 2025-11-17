@@ -48,6 +48,15 @@ export class AuthController {
         role: result.user.role
       });
 
+      // Set httpOnly cookie for secure token storage
+      res.cookie('auth_token', result.token, {
+        httpOnly: true, // Prevents XSS attacks by making cookie inaccessible to JavaScript
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        sameSite: 'strict', // CSRF protection
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/'
+      });
+
       return sendSuccess(res, result, 'Login successful');
     } catch (error: any) {
       log.error('Login error', {
@@ -303,6 +312,14 @@ export class AuthController {
 
         log.info('User logged out successfully', { userId });
       }
+
+      // Clear httpOnly cookie
+      res.clearCookie('auth_token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/'
+      });
 
       return sendSuccess(res, {}, 'Logged out successfully');
     } catch (error: any) {

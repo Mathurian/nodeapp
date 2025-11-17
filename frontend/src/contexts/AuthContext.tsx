@@ -43,16 +43,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token')
-      if (token) {
-        try {
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-          const response = await api.get('/auth/profile')
-          setUser(response.data)
-        } catch (error) {
-          localStorage.removeItem('token')
-          delete api.defaults.headers.common['Authorization']
-        }
+      // No need to check localStorage - httpOnly cookies are automatically sent
+      // Just try to fetch profile, cookie will be sent automatically
+      try {
+        const response = await api.get('/auth/profile')
+        setUser(response.data)
+      } catch (error) {
+        // Cookie might be expired or invalid, user is not authenticated
+        setUser(null)
       }
       setIsLoading(false)
     }
@@ -78,10 +76,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Backend wraps response in { success, message, data, timestamp }
       const loginData = response.data.data || response.data
-      const { token, user: userData } = loginData
+      const { user: userData } = loginData
 
-      localStorage.setItem('token', token)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      // No need to store token - it's in httpOnly cookie
+      // Cookie is automatically sent with subsequent requests
       setUser(userData)
 
       // Navigate to dashboard after successful login
@@ -91,9 +89,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('token')
-    delete api.defaults.headers.common['Authorization']
+  const logout = async () => {
+    try {
+      // Call logout endpoint to clear httpOnly cookie on server
+      await api.post('/auth/logout')
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+    // Cookie is cleared by server, just update local state
     setUser(null)
     navigate('/login')
   }
