@@ -3,10 +3,10 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 10000,
+  withCredentials: true, // CRITICAL: Send httpOnly cookies with requests
   headers: {
     'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Enable cookies to be sent with requests
+  }
 })
 
 // Public API instance (no auth required)

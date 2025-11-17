@@ -3,7 +3,7 @@
  * Sanitizes HTML content to prevent XSS attacks
  */
 
-import DOMPurify from 'dompurify'
+import DOMPurify from 'dompurify';
 
 /**
  * Sanitize HTML string to prevent XSS attacks
@@ -16,7 +16,7 @@ export const sanitizeHtml = (
   options?: DOMPurify.Config
 ): string => {
   if (!dirty || typeof dirty !== 'string') {
-    return ''
+    return '';
   }
 
   const defaultOptions: DOMPurify.Config = {
@@ -34,10 +34,10 @@ export const sanitizeHtml = (
     KEEP_CONTENT: true,
     RETURN_TRUSTED_TYPE: false,
     ...options
-  }
+  };
 
-  return DOMPurify.sanitize(dirty, defaultOptions)
-}
+  return DOMPurify.sanitize(dirty, defaultOptions);
+};
 
 /**
  * Sanitize text content (removes all HTML)
@@ -46,14 +46,14 @@ export const sanitizeHtml = (
  */
 export const sanitizeText = (dirty: string): string => {
   if (!dirty || typeof dirty !== 'string') {
-    return ''
+    return '';
   }
 
   return DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: [],
     KEEP_CONTENT: true
-  })
-}
+  });
+};
 
 /**
  * Sanitize user input for display (allows basic formatting)
@@ -62,7 +62,7 @@ export const sanitizeText = (dirty: string): string => {
  */
 export const sanitizeUserInput = (dirty: string): string => {
   if (!dirty || typeof dirty !== 'string') {
-    return ''
+    return '';
   }
 
   return DOMPurify.sanitize(dirty, {
@@ -71,8 +71,29 @@ export const sanitizeUserInput = (dirty: string): string => {
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
     KEEP_CONTENT: true
-  })
-}
+  });
+};
+
+/**
+ * Sanitize rich text content (e.g., from WYSIWYG editors)
+ * Allows more HTML tags for formatted content
+ * @param dirty - Unsanitized HTML from rich text editor
+ * @returns Sanitized HTML with rich formatting preserved
+ */
+export const sanitizeRichText = (dirty: string): string => {
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: [
+      'b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre',
+      'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'span', 'div'
+    ],
+    ALLOWED_ATTR: [
+      'href', 'target', 'rel', 'class', 'id', 'src', 'alt', 'title',
+      'width', 'height', 'style'
+    ],
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  });
+};
 
 /**
  * React component helper: Sanitize and create props for dangerouslySetInnerHTML
@@ -86,8 +107,26 @@ export const createSafeMarkup = (
 ): { __html: string } => {
   return {
     __html: sanitizeHtml(html, options)
-  }
-}
+  };
+};
+
+/**
+ * React hook for sanitizing HTML in components
+ * Returns an object that can be spread into dangerouslySetInnerHTML
+ * @param html - HTML content to sanitize
+ * @param options - Optional DOMPurify configuration
+ * @returns Object with __html property containing sanitized content
+ * @example
+ * <div {...useSanitizedHTML(userContent)} />
+ */
+export const useSanitizedHTML = (
+  html: string,
+  options?: DOMPurify.Config
+): { __html: string } => {
+  return {
+    __html: sanitizeHtml(html, options)
+  };
+};
 
 /**
  * Sanitize URL to prevent javascript: protocol attacks
@@ -96,22 +135,22 @@ export const createSafeMarkup = (
  */
 export const sanitizeUrl = (url: string): string => {
   if (!url || typeof url !== 'string') {
-    return ''
+    return '';
   }
 
   // Remove dangerous protocols
-  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:']
-  const lowerUrl = url.toLowerCase().trim()
+  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:'];
+  const lowerUrl = url.toLowerCase().trim();
 
   for (const protocol of dangerousProtocols) {
     if (lowerUrl.startsWith(protocol)) {
-      console.warn(`Blocked dangerous URL protocol: ${protocol}`)
-      return ''
+      console.warn(`Blocked dangerous URL protocol: ${protocol}`);
+      return '';
     }
   }
 
-  return url
-}
+  return url;
+};
 
 /**
  * Escape HTML special characters to prevent XSS
@@ -121,7 +160,7 @@ export const sanitizeUrl = (url: string): string => {
  */
 export const escapeHtml = (text: string): string => {
   if (!text || typeof text !== 'string') {
-    return ''
+    return '';
   }
 
   const map: Record<string, string> = {
@@ -130,16 +169,18 @@ export const escapeHtml = (text: string): string => {
     '>': '&gt;',
     '"': '&quot;',
     "'": '&#039;'
-  }
+  };
 
-  return text.replace(/[&<>"']/g, (char) => map[char] || char)
-}
+  return text.replace(/[&<>"']/g, (char) => map[char] || char);
+};
 
 export default {
   sanitizeHtml,
   sanitizeText,
   sanitizeUserInput,
+  sanitizeRichText,
   createSafeMarkup,
+  useSanitizedHTML,
   sanitizeUrl,
   escapeHtml
-}
+};

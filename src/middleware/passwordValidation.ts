@@ -1,6 +1,72 @@
 import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 const prisma = require('../utils/prisma')
 
+/**
+ * Zod-based password validation schema (static, always enforced)
+ * Provides immediate validation without database lookups
+ */
+export const passwordSchema = z.string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+
+/**
+ * Static password validation using Zod schema
+ * Returns validation result without requiring database access
+ */
+export const validatePasswordStatic = (password: string): { valid: boolean; errors: string[] } => {
+  try {
+    passwordSchema.parse(password);
+    return { valid: true, errors: [] };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        valid: false,
+        errors: error.errors.map(e => e.message)
+      };
+    }
+    return { valid: false, errors: ['Invalid password'] };
+  }
+};
+
+/**
+ * Express middleware for static password validation (Zod-based)
+ * Use this for immediate validation without database policy lookups
+ */
+export const validatePasswordStaticMiddleware = (passwordField: string = 'password') => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const password = req.body[passwordField];
+
+    if (!password) {
+      res.status(400).json({
+        success: false,
+        error: `${passwordField} is required`
+      });
+      return;
+    }
+
+    const validation = validatePasswordStatic(password);
+
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        error: 'Password does not meet security requirements',
+        details: validation.errors
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+/**
+ * Database-based password validation middleware (original)
+ * Validates password against active database policy
+ */
 const validatePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { password } = req.body
@@ -131,7 +197,7 @@ const updatePasswordPolicy = async (req: Request, res: Response): Promise<void> 
   }
 }
 
-export { 
+export {
   validatePassword,
   getPasswordPolicy,
   updatePasswordPolicy
