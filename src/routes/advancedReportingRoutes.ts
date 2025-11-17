@@ -1,8 +1,6 @@
 import express, { Router } from 'express';
 import {
   generateEventReport,
-  generateJudgePerformanceReport,
-  generateSystemAnalyticsReport,
   generateContestResultsReport
 } from '../controllers/advancedReportingController';
 import { authenticateToken, requireRole } from '../middleware/auth';

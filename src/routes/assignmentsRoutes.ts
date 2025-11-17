@@ -2,9 +2,6 @@ import express, { Router } from 'express';
 import {
   getAllAssignments,
   createAssignment,
-  updateAssignment,
-  deleteAssignment,
-  getJudgeAssignments,
   getJudges,
   getCategories,
   assignJudge,
@@ -17,7 +14,7 @@ import {
 } from '../controllers/assignmentsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import { validateAssignmentCreation, validateAssignmentUpdate, validateAssignmentDeletion, validateBulkAssignmentOperation, validateAssignmentQuery } from '../middleware/assignmentValidation';
+import { validateAssignmentCreation, validateAssignmentQuery } from '../middleware/assignmentValidation';
 
 const router: Router = express.Router();
 

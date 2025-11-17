@@ -12,7 +12,6 @@ import {
   getContests,
   getCategories,
   getScores,
-  getActivityLogs,
   getAuditLogs,
   exportAuditLogs,
   testConnection,
@@ -23,9 +22,6 @@ import {
 import {
   getSettings,
   updateSettings,
-  testSettings,
-  updateJWTConfig,
-  getJWTConfig,
   getLoggingLevels,
   updateLoggingLevel,
   getSecuritySettings,

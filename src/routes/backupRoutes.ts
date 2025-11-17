@@ -3,9 +3,7 @@ import multer from 'multer';
 import {
   createBackup,
   restoreBackup,
-  downloadBackup,
   listBackups,
-  deleteBackup,
   getBackupSettings,
   createBackupSetting,
   updateBackupSetting,
