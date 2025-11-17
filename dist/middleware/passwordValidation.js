@@ -1,7 +1,53 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updatePasswordPolicy = exports.getPasswordPolicy = exports.validatePassword = void 0;
+exports.updatePasswordPolicy = exports.getPasswordPolicy = exports.validatePassword = exports.validatePasswordStaticMiddleware = exports.validatePasswordStatic = exports.passwordSchema = void 0;
+const zod_1 = require("zod");
 const prisma = require('../utils/prisma');
+exports.passwordSchema = zod_1.z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+const validatePasswordStatic = (password) => {
+    try {
+        exports.passwordSchema.parse(password);
+        return { valid: true, errors: [] };
+    }
+    catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return {
+                valid: false,
+                errors: error.errors.map(e => e.message)
+            };
+        }
+        return { valid: false, errors: ['Invalid password'] };
+    }
+};
+exports.validatePasswordStatic = validatePasswordStatic;
+const validatePasswordStaticMiddleware = (passwordField = 'password') => {
+    return (req, res, next) => {
+        const password = req.body[passwordField];
+        if (!password) {
+            res.status(400).json({
+                success: false,
+                error: `${passwordField} is required`
+            });
+            return;
+        }
+        const validation = (0, exports.validatePasswordStatic)(password);
+        if (!validation.valid) {
+            res.status(400).json({
+                success: false,
+                error: 'Password does not meet security requirements',
+                details: validation.errors
+            });
+            return;
+        }
+        next();
+    };
+};
+exports.validatePasswordStaticMiddleware = validatePasswordStaticMiddleware;
 const validatePassword = async (req, res, next) => {
     try {
         const { password } = req.body;

@@ -11,8 +11,7 @@ const prisma_1 = __importDefault(require("../utils/prisma"));
 const cache_1 = require("../utils/cache");
 const JWT_SECRET = config_1.jwtSecret;
 const authenticateToken = async (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = req.cookies?.access_token;
     if (!token) {
         const isSensitiveEndpoint = req.path && (req.path.includes('/cache/') ||
             req.path.includes('/log-files/') ||
@@ -23,8 +22,7 @@ const authenticateToken = async (req, res, next) => {
                 method: req.method,
                 originalUrl: req.originalUrl,
                 url: req.url,
-                hasAuthHeader: !!req.headers['authorization'],
-                authHeaderValue: req.headers['authorization'] ? 'present' : 'missing'
+                hasCookie: !!req.cookies?.access_token
             });
         }
         res.status(401).json({ error: 'Access token required' });
@@ -64,6 +62,12 @@ const authenticateToken = async (req, res, next) => {
                 dbVersion: dbSessionVersion,
                 fromCache
             });
+            res.clearCookie('access_token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/',
+            });
             res.status(401).json({
                 error: 'Session expired',
                 message: 'Your session has been invalidated. Please log in again.',
@@ -95,7 +99,7 @@ const authenticateToken = async (req, res, next) => {
             console.error('authenticateToken: Authentication failed for sensitive endpoint', {
                 error: errorObj.message,
                 errorName: errorObj.name,
-                hasToken: !!req.headers['authorization'],
+                hasCookie: !!req.cookies?.access_token,
                 path: req.path,
                 method: req.method,
                 originalUrl: req.originalUrl,
@@ -107,11 +111,17 @@ const authenticateToken = async (req, res, next) => {
             console.warn('Authentication failed:', {
                 error: errorObj.message,
                 errorName: errorObj.name,
-                hasToken: !!req.headers['authorization'],
+                hasCookie: !!req.cookies?.access_token,
                 path: req.path,
                 method: req.method
             });
         }
+        res.clearCookie('access_token', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            path: '/',
+        });
         if (errorObj.name === 'TokenExpiredError' || errorObj.name === 'JsonWebTokenError') {
             res.status(401).json({
                 error: 'Invalid or expired token',
@@ -132,8 +142,7 @@ const requireRole = (roles) => {
             console.error('requireRole: CRITICAL - No user object found (authenticateToken may have failed)', {
                 path: req.path,
                 method: req.method,
-                hasAuthHeader: !!req.headers['authorization'],
-                authHeaderPresent: req.headers['authorization'] ? 'yes' : 'no',
+                hasCookie: !!req.cookies?.access_token,
                 originalUrl: req.originalUrl,
                 url: req.url,
                 timestamp: new Date().toISOString()

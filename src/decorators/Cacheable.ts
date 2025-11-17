@@ -20,8 +20,16 @@
  * ```
  */
 
-import { redisClient } from '../config/redis.config';
-import logger from '../utils/logger';
+import Redis from 'ioredis';
+import { logger } from '../utils/logger';
+
+// Create dedicated Redis client for caching decorator
+const redisClient = new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  retryStrategy: (times) => Math.min(times * 50, 2000)
+});
 
 export interface CacheableOptions {
   /**

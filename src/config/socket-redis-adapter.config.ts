@@ -24,9 +24,8 @@
  */
 
 import { Server as SocketIOServer } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
-import logger from '../utils/logger';
+import { logger } from '../utils/logger';
 
 /**
  * Redis clients for Socket.IO adapter
@@ -84,23 +83,33 @@ export async function setupRedisAdapter(io: SocketIOServer): Promise<void> {
 
     logger.info('✓ Redis pub/sub clients connected');
 
-    // Create and attach adapter
-    const adapter = createAdapter(pubClient, subClient, {
-      // Optional: customize the key prefix
-      key: 'socket.io',
+    // Dynamically import adapter (package may not be installed)
+    try {
+      // Use dynamic require to avoid compile-time error if package not installed
+      // @ts-ignore - Package is optional and loaded dynamically
+      const { createAdapter } = require('@socket.io/redis-adapter');
 
-      // Optional: enable request/response mode for ACKs across servers
-      requestsTimeout: 5000
-    });
+      const adapter = createAdapter(pubClient, subClient, {
+        // Optional: customize the key prefix
+        key: 'socket.io',
 
-    io.adapter(adapter);
+        // Optional: enable request/response mode for ACKs across servers
+        requestsTimeout: 5000
+      });
 
-    logger.info('✓ Socket.IO Redis adapter configured for clustering');
+      io.adapter(adapter);
 
-    // Log adapter events for debugging
-    adapter.on('error', (err) => {
-      logger.error('Socket.IO adapter error:', err);
-    });
+      logger.info('✓ Socket.IO Redis adapter configured for clustering');
+
+      // Log adapter events for debugging
+      adapter.on('error', (err: Error) => {
+        logger.error('Socket.IO adapter error:', err);
+      });
+    } catch (importError) {
+      logger.error('@socket.io/redis-adapter not installed. Install with: npm install @socket.io/redis-adapter');
+      logger.warn('Socket.IO will run in single-instance mode');
+      throw new Error('Socket.IO Redis adapter not available. Install @socket.io/redis-adapter package.');
+    }
 
   } catch (error) {
     logger.error('Failed to setup Socket.IO Redis adapter:', error);
