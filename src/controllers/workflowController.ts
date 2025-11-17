@@ -17,7 +17,7 @@ export const createTemplate = async (req: Request, res: Response, next: NextFunc
 
 export const getTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const template = await WorkflowService.getTemplate(req.params.id);
+    const template = await WorkflowService.getTemplate(req.params.id, req.tenantId);
     sendSuccess(res, template);
   } catch (error) {
     return next(error);
@@ -58,7 +58,7 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
 
 export const getInstance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const instance = await WorkflowService.getInstance(req.params.id);
+    const instance = await WorkflowService.getInstance(req.params.id, req.tenantId);
     sendSuccess(res, instance);
   } catch (error) {
     return next(error);

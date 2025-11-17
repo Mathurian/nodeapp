@@ -12,7 +12,7 @@ export class NotificationsController {
 
   getAllNotifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const notifications = await this.notificationService.getUserNotifications(req.user!.id);
+      const notifications = await this.notificationService.getUserNotifications(req.user!.id, req.user!.tenantId);
       return sendSuccess(res, notifications);
     } catch (error) {
       return next(error);
@@ -55,7 +55,7 @@ export class NotificationsController {
   deleteNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      await this.notificationService.deleteNotification(id, req.user!.id);
+      await this.notificationService.deleteNotification(id, req.user!.id, req.user!.tenantId);
       return res.status(204).send();
     } catch (error) {
       return next(error);
@@ -65,7 +65,7 @@ export class NotificationsController {
   markAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      await this.notificationService.markAsRead(id, req.user!.id);
+      await this.notificationService.markAsRead(id, req.user!.id, req.user!.tenantId);
       return sendSuccess(res, null, 'Notification marked as read');
     } catch (error) {
       return next(error);
@@ -74,7 +74,7 @@ export class NotificationsController {
 
   markAllAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const count = await this.notificationService.markAllAsRead(req.user!.id);
+      const count = await this.notificationService.markAllAsRead(req.user!.id, req.user!.tenantId);
       return sendSuccess(res, { count }, 'All notifications marked as read');
     } catch (error) {
       return next(error);
