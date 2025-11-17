@@ -8,8 +8,14 @@ import { userCache } from '../utils/cache';
 const JWT_SECRET = jwtSecret;
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  // Try to get token from Authorization header first, then from httpOnly cookie
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  // Fallback to httpOnly cookie if no Authorization header
+  if (!token && req.cookies && req.cookies.auth_token) {
+    token = req.cookies.auth_token;
+  }
 
   if (!token) {
     // Enhanced logging for sensitive endpoints that frequently have issues

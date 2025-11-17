@@ -6,6 +6,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable cookies to be sent with requests
 })
 
 // Public API instance (no auth required)
@@ -15,15 +16,15 @@ const publicApi = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable cookies for public API as well
 })
 
-// Request interceptor to add auth token
+// Request interceptor (no longer needed for auth - cookies are sent automatically)
+// Keeping for future custom logic if needed
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+    // Cookies with httpOnly are automatically sent with requests
+    // No need to manually add Authorization header
     return config
   },
   (error) => {
@@ -36,7 +37,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
+      // Cookie expired or invalid - redirect to login
+      // No need to clear localStorage (we're not using it anymore)
       window.location.href = '/login'
     }
     return Promise.reject(error)

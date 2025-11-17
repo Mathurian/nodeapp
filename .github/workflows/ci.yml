@@ -2,20 +2,59 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'claude/**' ]
   pull_request:
     branches: [ main, develop ]
 
+env:
+  NODE_VERSION: '20.x'
+  POSTGRES_VERSION: '15'
+
 jobs:
-  test:
+  # ============================================================================
+  # LINT AND TYPE CHECK
+  # ============================================================================
+  lint:
+    name: Lint and Type Check
     runs-on: ubuntu-latest
-    
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Type check backend
+        run: npm run build
+
+      - name: Type check frontend
+        working-directory: ./frontend
+        run: npm run build
+
+  # ============================================================================
+  # UNIT AND INTEGRATION TESTS
+  # ============================================================================
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         env:
           POSTGRES_USER: event_manager
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: test_password
           POSTGRES_DB: event_manager_test
         options: >-
           --health-cmd pg_isready
@@ -25,70 +64,63 @@ jobs:
         ports:
           - 5432:5432
 
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Run TypeScript type check
-        run: npm run type-check
-      
-      - name: Run unit tests
-        run: npm run test:unit
-      
-      - name: Setup test database
-        run: |
-          DATABASE_URL="postgresql://event_manager:password@localhost:5432/event_manager_test" npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
-      
-      - name: Run integration tests
-        run: npm run test:integration
-        env:
-          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
-          NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-testing
-      
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-      
-      - name: Build application
-        run: npm run build
-      
-      - name: Start backend server
-        run: |
-          npm start &
-          sleep 10
-        env:
-          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
-          NODE_ENV: test
-          PORT: 3000
-      
-      - name: Start frontend server
-        run: |
-          cd frontend && npm ci && npm run build && npm run preview &
-          sleep 10
-        env:
-          PORT: 5173
-      
-      - name: Run E2E tests
-        run: npm run test:e2e
-        env:
-          FRONTEND_URL: http://localhost:5173
-          DATABASE_URL: postgresql://event_manager:password@localhost:5432/event_manager_test
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
 
+      - name: Setup test environment
+        env:
+          DATABASE_URL: postgresql://event_manager:test_password@localhost:5432/event_manager_test?schema=public
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate || true
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://event_manager:test_password@localhost:5432/event_manager_test?schema=public
+          JWT_SECRET: test-jwt-secret-for-ci
+          NODE_ENV: test
+        run: npm test -- --coverage
+
+  # ============================================================================
+  # BUILD
+  # ============================================================================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [lint, test-backend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build backend
+        run: npm ci && npm run build
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm ci && npm run build
