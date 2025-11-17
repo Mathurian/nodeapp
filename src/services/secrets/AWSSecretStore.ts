@@ -111,7 +111,7 @@ export class AWSSecretStore implements ISecretProvider {
       const {
         CreateSecretCommand,
         UpdateSecretCommand,
-        ResourceExistsException,
+        // ResourceExistsException,
       } = require('@aws-sdk/client-secrets-manager');
 
       const secretName = this.getSecretName(key);

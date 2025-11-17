@@ -26,8 +26,8 @@ export class AdminService extends BaseService {
         totalCategories,
         totalScores,
         activeUsers,
-        contests,
-        categories,
+        // contests,
+        // categories,
         lastBackupRecord
       ] = await Promise.all([
         this.prisma.user.count(),
