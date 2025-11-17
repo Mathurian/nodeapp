@@ -78,7 +78,7 @@ export class SMSController {
 
   sendNotificationSMS = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { eventId, userRole, message } = req.body;
+      const { userRole, message } = req.body;
 
       if (!message) {
         return sendSuccess(res, {}, 'Message is required', 400);
