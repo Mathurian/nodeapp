@@ -26,7 +26,7 @@ export class EventTemplateController {
     }
   };
 
-  getTemplates = async (req: Request, res: Response, next: NextFunction) => {
+  getTemplates = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const templates = await this.eventTemplateService.getAll();
       return sendSuccess(res, templates);

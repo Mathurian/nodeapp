@@ -106,7 +106,7 @@ export class EventsController {
   /**
    * Get upcoming events
    */
-  getUpcomingEvents = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getUpcomingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const events = await this.eventService.getUpcomingEvents();
       return sendSuccess(res, events);
@@ -118,7 +118,7 @@ export class EventsController {
   /**
    * Get ongoing events
    */
-  getOngoingEvents = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getOngoingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const events = await this.eventService.getOngoingEvents();
       return sendSuccess(res, events);
@@ -130,7 +130,7 @@ export class EventsController {
   /**
    * Get past events
    */
-  getPastEvents = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getPastEvents = async (_req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const events = await this.eventService.getPastEvents();
       return sendSuccess(res, events);

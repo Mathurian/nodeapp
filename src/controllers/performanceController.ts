@@ -56,7 +56,7 @@ export class PerformanceController {
   /**
    * Get system metrics
    */
-  getSystemMetrics = async (req: Request, res: Response, next: NextFunction) => {
+  getSystemMetrics = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const metrics = await this.performanceService.getSystemMetrics();
       return sendSuccess(res, metrics);
@@ -118,7 +118,7 @@ export class PerformanceController {
   /**
    * Health check endpoint
    */
-  getHealthCheck = async (req: Request, res: Response, next: NextFunction) => {
+  getHealthCheck = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.performanceService.getHealthCheck();
       const statusCode = health.status === 'healthy' ? 200 : 503;

@@ -18,7 +18,7 @@ export class TemplatesController {
   /**
    * Get all templates
    */
-  getAllTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAllTemplates = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const templates = await this.templateService.getAllTemplates();
       sendSuccess(res, templates, 'Templates retrieved successfully');

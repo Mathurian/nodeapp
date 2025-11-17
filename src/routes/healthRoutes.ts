@@ -150,7 +150,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
  * Simple check that the application process is alive
  * Used by Kubernetes/Docker for basic liveness detection
  */
-router.get('/health/live', (req: Request, res: Response) => {
+router.get('/health/live', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString()

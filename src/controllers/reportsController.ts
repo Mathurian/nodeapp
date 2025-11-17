@@ -33,7 +33,7 @@ export class ReportsController {
   /**
    * Get all report templates
    */
-  getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTemplates = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const templates = await this.templateService.getAllTemplates();
       res.json({ data: templates });

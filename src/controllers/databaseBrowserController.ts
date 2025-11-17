@@ -13,7 +13,7 @@ export class DatabaseBrowserController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getTables = async (req: Request, res: Response, next: NextFunction) => {
+  getTables = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.databaseBrowserService.getTables();
       return sendSuccess(res, tables);

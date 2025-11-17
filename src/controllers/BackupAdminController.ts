@@ -128,7 +128,7 @@ export class BackupAdminController {
    * GET /api/admin/backups/health
    * Get backup health status
    */
-  async getHealth(req: Request, res: Response): Promise<void> {
+  async getHealth(_req: Request, res: Response): Promise<void> {
     try {
       const health = await backupMonitoringService.checkBackupHealth();
 
@@ -149,7 +149,7 @@ export class BackupAdminController {
    * POST /api/admin/backups/verify
    * Trigger backup verification
    */
-  async verifyBackups(req: Request, res: Response): Promise<void> {
+  async verifyBackups(_req: Request, res: Response): Promise<void> {
     try {
       const scriptPath = '/var/www/event-manager/scripts/backup-verify.sh';
 
@@ -190,7 +190,7 @@ export class BackupAdminController {
    * POST /api/admin/backups/full
    * Trigger manual full backup
    */
-  async triggerFullBackup(req: Request, res: Response): Promise<void> {
+  async triggerFullBackup(_req: Request, res: Response): Promise<void> {
     try {
       const scriptPath = '/var/www/event-manager/scripts/backup-full.sh';
 
@@ -253,7 +253,7 @@ export class BackupAdminController {
    * GET /api/admin/backups/files
    * List backup files on disk
    */
-  async listBackupFiles(req: Request, res: Response): Promise<void> {
+  async listBackupFiles(_req: Request, res: Response): Promise<void> {
     try {
       const backupDir = '/var/backups/event-manager/full';
 

@@ -11,7 +11,7 @@ export class CacheAdminController {
   /**
    * Get cache statistics
    */
-  public static async getStatistics(req: Request, res: Response): Promise<void> {
+  public static async getStatistics(_req: Request, res: Response): Promise<void> {
     try {
       const cacheService = getCacheService();
       const stats = await cacheService.getStatistics();
@@ -32,7 +32,7 @@ export class CacheAdminController {
   /**
    * Health check
    */
-  public static async healthCheck(req: Request, res: Response): Promise<void> {
+  public static async healthCheck(_req: Request, res: Response): Promise<void> {
     try {
       const cacheService = getCacheService();
       const isHealthy = await cacheService.healthCheck();
@@ -93,7 +93,7 @@ export class CacheAdminController {
   /**
    * Clear entire cache (dangerous!)
    */
-  public static async clearAll(req: Request, res: Response): Promise<void> {
+  public static async clearAll(_req: Request, res: Response): Promise<void> {
     try {
       const cacheService = getCacheService();
       const success = await cacheService.clear();
@@ -175,7 +175,7 @@ export class CacheAdminController {
   /**
    * Warm cache for common queries
    */
-  public static async warmCache(req: Request, res: Response): Promise<void> {
+  public static async warmCache(_req: Request, res: Response): Promise<void> {
     try {
       // TODO: Implement cache warming logic
       // This would pre-load frequently accessed data into cache
@@ -196,7 +196,7 @@ export class CacheAdminController {
   /**
    * Reset cache statistics
    */
-  public static async resetStatistics(req: Request, res: Response): Promise<void> {
+  public static async resetStatistics(_req: Request, res: Response): Promise<void> {
     try {
       const cacheService = getCacheService();
       cacheService.resetStatistics();

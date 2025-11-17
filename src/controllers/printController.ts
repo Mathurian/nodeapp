@@ -24,7 +24,7 @@ export class PrintController {
    * Get all print templates
    */
   getPrintTemplates = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {

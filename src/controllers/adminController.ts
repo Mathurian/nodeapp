@@ -13,7 +13,7 @@ export class AdminController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getDashboard = async (req: Request, res: Response, next: NextFunction) => {
+  getDashboard = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
@@ -22,7 +22,7 @@ export class AdminController {
     }
   };
 
-  getSystemHealth = async (req: Request, res: Response, next: NextFunction) => {
+  getSystemHealth = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
@@ -31,7 +31,7 @@ export class AdminController {
     }
   };
 
-  clearCache = async (req: Request, res: Response, next: NextFunction) => {
+  clearCache = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.adminService.clearCache();
       return sendSuccess(res, result, 'Cache cleared');
@@ -40,7 +40,7 @@ export class AdminController {
     }
   };
 
-  getDatabaseTables = async (req: Request, res: Response, next: NextFunction) => {
+  getDatabaseTables = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.adminService.getDatabaseTables();
       return sendSuccess(res, tables);
@@ -86,7 +86,7 @@ export class AdminController {
     }
   };
 
-  getStats = async (req: Request, res: Response, next: NextFunction) => {
+  getStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
@@ -454,7 +454,7 @@ export class AdminController {
     }
   };
 
-  testConnection = async (req: Request, res: Response, next: NextFunction) => {
+  testConnection = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
@@ -463,7 +463,7 @@ export class AdminController {
     }
   };
 
-  forceLogoutAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+  forceLogoutAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       // Increment sessionVersion for all users to invalidate their tokens
       await this.prisma.user.updateMany({

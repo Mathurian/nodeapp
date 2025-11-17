@@ -13,7 +13,7 @@ export class FileBackupController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  createBackup = async (req: Request, res: Response, next: NextFunction) => {
+  createBackup = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.fileBackupService.createBackup();
       return sendSuccess(res, result, 'Backup created');
@@ -22,7 +22,7 @@ export class FileBackupController {
     }
   };
 
-  listBackups = async (req: Request, res: Response, next: NextFunction) => {
+  listBackups = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const backups = await this.fileBackupService.listBackups();
       return sendSuccess(res, backups);

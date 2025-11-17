@@ -210,7 +210,7 @@ export class AssignmentsController {
     }
   };
 
-  getJudges = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudges = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const judges = await this.assignmentService.getJudges();
       return sendSuccess(res, judges, 'Judges retrieved successfully');
@@ -219,7 +219,7 @@ export class AssignmentsController {
     }
   };
 
-  getCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCategories = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const categories = await this.assignmentService.getCategories();
       return sendSuccess(res, categories, 'Categories retrieved successfully');
@@ -246,7 +246,7 @@ export class AssignmentsController {
     }
   };
 
-  getContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getContestants = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const contestants = await this.assignmentService.getContestants();
       return sendSuccess(res, contestants, 'Contestants retrieved successfully');

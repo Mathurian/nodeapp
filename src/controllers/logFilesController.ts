@@ -10,7 +10,7 @@ export class LogFilesController {
     this.logFilesService = container.resolve(LogFilesService);
   }
 
-  getLogFiles = async (req: Request, res: Response, next: NextFunction) => {
+  getLogFiles = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.logFilesService.getLogFiles();
       return sendSuccess(res, result);

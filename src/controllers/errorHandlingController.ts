@@ -23,7 +23,7 @@ export class ErrorHandlingController {
     }
   };
 
-  getErrorStats = async (req: Request, res: Response, next: NextFunction) => {
+  getErrorStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = this.errorHandlingService.getErrorStats();
       return sendSuccess(res, stats);

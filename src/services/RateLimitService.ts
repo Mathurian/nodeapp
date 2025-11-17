@@ -268,7 +268,7 @@ export class RateLimitService {
         // Skip for health checks
         return req.path === '/health' || req.path === '/api/health';
       },
-      handler: (req: Request, res: any) => {
+      handler: (_req: Request, res: any) => {
         const resetAt = new Date(Date.now() + (config.duration || 60) * 1000);
         res.status(429).json({
           success: false,

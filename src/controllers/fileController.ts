@@ -174,7 +174,7 @@ export class FileController {
     }
   };
 
-  getFileStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const [
         totalFiles,

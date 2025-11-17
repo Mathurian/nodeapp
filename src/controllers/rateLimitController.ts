@@ -18,7 +18,7 @@ export class RateLimitController {
   /**
    * Get all rate limit configurations
    */
-  getAllConfigs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllConfigs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const configs = await this.rateLimitService.getAllConfigs();
       return sendSuccess(res, configs, 'Rate limit configurations retrieved');

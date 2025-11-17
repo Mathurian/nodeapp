@@ -124,7 +124,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
 /**
  * List all backups
  */
-export const listBackups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const listBackups = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backups = await prisma.backupLog.findMany({
       orderBy: { createdAt: 'desc' }
@@ -235,7 +235,7 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
 /**
  * Get backup settings
  */
-export const getBackupSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backupService = getScheduledBackupService();
     
@@ -339,7 +339,7 @@ export const runScheduledBackup = async (req: Request, res: Response, next: Next
 /**
  * Get active backup schedules
  */
-export const getActiveSchedules = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getActiveSchedules = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backupService = getScheduledBackupService();
     const schedules = backupService.getActiveSchedules();
@@ -352,7 +352,7 @@ export const getActiveSchedules = async (req: Request, res: Response, next: Next
 /**
  * Debug backup settings
  */
-export const debugBackupSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const debugBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const settingsService = getSettingsService();
     const settings = await settingsService.getBackupSettings();

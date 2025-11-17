@@ -280,7 +280,7 @@ export class BulkUserController {
    * GET /api/bulk/users/template
    * Download CSV import template
    */
-  async getImportTemplate(req: Request, res: Response): Promise<void> {
+  async getImportTemplate(_req: Request, res: Response): Promise<void> {
     try {
       const template = this.csvService.generateTemplate('users');
 

@@ -13,7 +13,7 @@ export class SMSController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getSMSConfig = async (req: Request, res: Response, next: NextFunction) => {
+  getSMSConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = await this.smsService.getSettings();
       return sendSuccess(res, settings);

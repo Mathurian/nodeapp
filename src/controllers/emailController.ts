@@ -13,7 +13,7 @@ export class EmailController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getConfig = async (req: Request, res: Response, next: NextFunction) => {
+  getConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const config = await this.emailService.getConfig();
       return sendSuccess(res, config);

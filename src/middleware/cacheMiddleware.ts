@@ -208,7 +208,7 @@ export const invalidateCacheTag = (tag: string | string[]) => {
 /**
  * No-cache middleware - bypass cache for this request
  */
-export const noCache = (req: Request, res: Response, next: NextFunction): void => {
+export const noCache = (_req: Request, res: Response, next: NextFunction): void => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');

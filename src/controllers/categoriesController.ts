@@ -21,7 +21,7 @@ export class CategoriesController {
   /**
    * Get all categories - Note: For full list, query by contest is recommended
    */
-  getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllCategories = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Return empty array or implement pagination - CategoryService doesn't have getAllCategories
       // In production, this should require a contest filter or implement pagination

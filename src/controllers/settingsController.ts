@@ -18,7 +18,7 @@ export class SettingsController {
    * Get all settings
    */
   getAllSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -34,7 +34,7 @@ export class SettingsController {
    * Get settings (alias for getAllSettings)
    */
   getSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -50,7 +50,7 @@ export class SettingsController {
    * Get app name and subtitle
    */
   getAppName = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -67,7 +67,7 @@ export class SettingsController {
    * Get public settings (no authentication required)
    */
   getPublicSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -137,7 +137,7 @@ export class SettingsController {
    * Get logging levels
    */
   getLoggingLevels = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -176,7 +176,7 @@ export class SettingsController {
    * Get security settings
    */
   getSecuritySettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -221,7 +221,7 @@ export class SettingsController {
    * Get backup settings
    */
   getBackupSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -264,7 +264,7 @@ export class SettingsController {
    * Get email settings
    */
   getEmailSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -307,7 +307,7 @@ export class SettingsController {
    * Get password policy
    */
   getPasswordPolicy = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -350,7 +350,7 @@ export class SettingsController {
    * Get JWT configuration
    */
   getJWTConfig = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -393,7 +393,7 @@ export class SettingsController {
    * Get theme settings
    */
   getThemeSettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -496,7 +496,7 @@ export class SettingsController {
    * Get database connection info
    */
   getDatabaseConnectionInfo = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -512,7 +512,7 @@ export class SettingsController {
    * Get contestant visibility settings
    */
   getContestantVisibilitySettings = async (
-    req: Request,
+    _req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
