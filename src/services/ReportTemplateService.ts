@@ -12,6 +12,7 @@ export interface CreateReportTemplateDTO {
   type: string;
   template: string;
   parameters?: string;
+  tenantId: string;
 }
 
 export interface UpdateReportTemplateDTO {
@@ -32,11 +33,11 @@ export class ReportTemplateService extends BaseService {
   /**
    * Get all report templates
    */
-  async getAllTemplates(filters?: {
+  async getAllTemplates(tenantId: string, filters?: {
     type?: string;
   }): Promise<ReportTemplate[]> {
     try {
-      const where: any = {};
+      const where: any = { tenantId };
 
       if (filters?.type) {
         where.type = filters.type;
@@ -49,24 +50,24 @@ export class ReportTemplateService extends BaseService {
 
       return templates;
     } catch (error) {
-      this.handleError(error, { method: 'getAllTemplates', filters });
+      this.handleError(error, { method: 'getAllTemplates', tenantId, filters });
     }
   }
 
   /**
    * Get template by ID
    */
-  async getTemplateById(templateId: string): Promise<ReportTemplate> {
+  async getTemplateById(templateId: string, tenantId: string): Promise<ReportTemplate> {
     try {
-      const template = await this.prisma.reportTemplate.findUnique({
-        where: { id: templateId }
+      const template = await this.prisma.reportTemplate.findFirst({
+        where: { id: templateId, tenantId }
       });
 
       this.assertExists(template, 'ReportTemplate', templateId);
 
       return template;
     } catch (error) {
-      this.handleError(error, { method: 'getTemplateById', templateId });
+      this.handleError(error, { method: 'getTemplateById', templateId, tenantId });
     }
   }
 
@@ -75,22 +76,23 @@ export class ReportTemplateService extends BaseService {
    */
   async createTemplate(data: CreateReportTemplateDTO): Promise<ReportTemplate> {
     try {
-      this.validateRequired(data, ['name', 'type', 'template']);
+      this.validateRequired(data, ['name', 'type', 'template', 'tenantId']);
 
       const template = await this.prisma.reportTemplate.create({
         data: {
           name: data.name,
           type: data.type,
           template: data.template,
-          parameters: data.parameters
+          parameters: data.parameters,
+          tenantId: data.tenantId
         }
       });
 
-      this.logInfo('Report template created', { templateId: template.id, name: template.name });
+      this.logInfo('Report template created', { templateId: template.id, name: template.name, tenantId: data.tenantId });
 
       return template;
     } catch (error) {
-      this.handleError(error, { method: 'createTemplate', name: data.name });
+      this.handleError(error, { method: 'createTemplate', name: data.name, tenantId: data.tenantId });
     }
   }
 
@@ -99,12 +101,13 @@ export class ReportTemplateService extends BaseService {
    */
   async updateTemplate(
     templateId: string,
+    tenantId: string,
     data: UpdateReportTemplateDTO
   ): Promise<ReportTemplate> {
     try {
-      // Check if template exists
-      const existing = await this.prisma.reportTemplate.findUnique({
-        where: { id: templateId }
+      // Check if template exists and belongs to tenant
+      const existing = await this.prisma.reportTemplate.findFirst({
+        where: { id: templateId, tenantId }
       });
 
       this.assertExists(existing, 'ReportTemplate', templateId);
@@ -120,21 +123,21 @@ export class ReportTemplateService extends BaseService {
         }
       });
 
-      this.logInfo('Report template updated', { templateId, name: template.name });
+      this.logInfo('Report template updated', { templateId, name: template.name, tenantId });
 
       return template;
     } catch (error) {
-      this.handleError(error, { method: 'updateTemplate', templateId });
+      this.handleError(error, { method: 'updateTemplate', templateId, tenantId });
     }
   }
 
   /**
    * Delete a report template
    */
-  async deleteTemplate(templateId: string): Promise<void> {
+  async deleteTemplate(templateId: string, tenantId: string): Promise<void> {
     try {
-      const template = await this.prisma.reportTemplate.findUnique({
-        where: { id: templateId }
+      const template = await this.prisma.reportTemplate.findFirst({
+        where: { id: templateId, tenantId }
       });
 
       this.assertExists(template, 'ReportTemplate', templateId);
@@ -143,25 +146,26 @@ export class ReportTemplateService extends BaseService {
         where: { id: templateId }
       });
 
-      this.logInfo('Report template deleted', { templateId, name: template.name });
+      this.logInfo('Report template deleted', { templateId, name: template.name, tenantId });
     } catch (error) {
-      this.handleError(error, { method: 'deleteTemplate', templateId });
+      this.handleError(error, { method: 'deleteTemplate', templateId, tenantId });
     }
   }
 
   /**
    * Get templates by type
    */
-  async getTemplatesByType(type: string): Promise<ReportTemplate[]> {
+  async getTemplatesByType(type: string, tenantId: string): Promise<ReportTemplate[]> {
     try {
       return await this.prisma.reportTemplate.findMany({
         where: {
-          type
+          type,
+          tenantId
         },
         orderBy: { createdAt: 'desc' }
       });
     } catch (error) {
-      this.handleError(error, { method: 'getTemplatesByType', type });
+      this.handleError(error, { method: 'getTemplatesByType', type, tenantId });
     }
   }
 }
