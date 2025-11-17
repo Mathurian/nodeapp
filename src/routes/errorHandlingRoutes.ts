@@ -1,7 +1,6 @@
 import express, { Router } from 'express';
 import {
   getErrorStatistics,
-  exportErrorLogs
 } from '../controllers/errorHandlingController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 

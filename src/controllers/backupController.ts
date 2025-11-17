@@ -276,7 +276,7 @@ export const getBackupSettings = async (_req: Request, res: Response, next: Next
 /**
  * Create backup setting
  */
-export const createBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const createBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting created');
@@ -290,7 +290,7 @@ export const createBackupSetting = async (req: Request, res: Response, next: Nex
  */
 export const updateBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    // id from params not currently used
     const settings = req.body;
     const userId = (req as any).user?.id;
     const settingsService = getSettingsService();
@@ -306,7 +306,7 @@ export const updateBackupSetting = async (req: Request, res: Response, next: Nex
  */
 export const deleteBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    // id from params not currently used
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting deleted');
   } catch (error: any) {

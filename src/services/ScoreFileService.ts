@@ -147,7 +147,7 @@ export class ScoreFileService extends BaseService {
   async updateScoreFile(
     id: string,
     data: UpdateScoreFileDTO,
-    userId: string,
+    _userId: string,
     userRole: string
   ): Promise<ScoreFile> {
     const scoreFile = await this.prisma.scoreFile.findUnique({

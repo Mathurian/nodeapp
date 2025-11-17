@@ -219,7 +219,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
    * Fetch scoring report data
    */
   private async fetchScoringReportData(parameters: Record<string, any>) {
-    const { categoryId, contestId } = parameters;
+    const { categoryId, _contestId } = parameters;
 
     if (!categoryId) {
       throw new Error('Category ID is required for scoring report');

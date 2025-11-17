@@ -21,7 +21,7 @@ export class NotificationsController {
 
   getNotificationById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { id } = req.params;
+      // id from params not currently used
       // NotificationService doesn't have getById, we can use the repository directly or return error
       // For now, return a not implemented error
       return res.status(501).json({ error: 'Not implemented' });
@@ -44,7 +44,7 @@ export class NotificationsController {
 
   updateNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { id } = req.params;
+      // id from params not currently used
       // NotificationService doesn't have update method
       return res.status(501).json({ error: 'Not implemented' });
     } catch (error) {

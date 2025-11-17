@@ -118,7 +118,7 @@ export class PerformanceController {
   /**
    * Health check endpoint
    */
-  getHealthCheck = async (_req: Request, res: Response, next: NextFunction) => {
+  getHealthCheck = async (_req: Request, res: Response, _next: NextFunction) => {
     try {
       const health = await this.performanceService.getHealthCheck();
       const statusCode = health.status === 'healthy' ? 200 : 503;

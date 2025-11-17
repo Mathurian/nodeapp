@@ -201,7 +201,7 @@ export class RateLimitService {
 
     const windowSeconds = Math.ceil(windowMs / 1000);
     const redis = this.redis;
-    const log = this.log;
+    // Log created but unused: const log = this.log;
 
     // Custom Redis store adapter for express-rate-limit v7
     return {

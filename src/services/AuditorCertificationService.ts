@@ -87,7 +87,7 @@ export class AuditorCertificationService extends BaseService {
     };
   }
 
-  async submitFinalCertification(categoryId: string, userId: string, userRole: string, confirmations: any) {
+  async submitFinalCertification(categoryId: string, userId: string, _userRole: string, confirmations: any) {
     if (!confirmations.confirmation1 || !confirmations.confirmation2) {
       throw this.badRequestError('Both confirmations are required');
     }

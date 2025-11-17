@@ -751,7 +751,7 @@ export class DRAutomationService {
   /**
    * Replicate backup to multiple targets
    */
-  private static async replicateToTargets(backupId: string, filepath: string, targetIds: string[]): Promise<void> {
+  private static async replicateToTargets(_backupId: string, filepath: string, targetIds: string[]): Promise<void> {
     try {
       const targets = await prisma.backupTarget.findMany({
         where: {

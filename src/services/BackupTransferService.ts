@@ -202,7 +202,7 @@ export class BackupTransferService {
   private static async uploadToFTP(
     filepath: string,
     target: BackupTarget,
-    checksum: string
+    // checksum: string
   ): Promise<TransferResult> {
     const { host, port = 21, user, password, remotePath = '/' } = target.config;
 
@@ -257,7 +257,7 @@ export class BackupTransferService {
   private static async uploadToSFTP(
     filepath: string,
     target: BackupTarget,
-    checksum: string
+    // checksum: string
   ): Promise<TransferResult> {
     const {
       host,

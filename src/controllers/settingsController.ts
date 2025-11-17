@@ -52,7 +52,7 @@ export class SettingsController {
   getAppName = async (
     _req: Request,
     res: Response,
-    next: NextFunction
+    _next: NextFunction
   ): Promise<void> => {
     try {
       const appNameSettings = await this.settingsService.getAppName();

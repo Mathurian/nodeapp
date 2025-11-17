@@ -1,7 +1,6 @@
 import express, { Router } from 'express';
 import {
   generateEventReport,
-  generateContestResultsReport
 } from '../controllers/advancedReportingController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';

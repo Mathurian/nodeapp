@@ -2,7 +2,6 @@ import express, { Router } from 'express';
 import {
   createFileBackup,
   listFileBackups,
-  downloadBackup
 } from '../controllers/fileBackupController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';

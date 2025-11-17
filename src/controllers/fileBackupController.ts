@@ -61,7 +61,7 @@ export class FileBackupController {
 
       // Use the file backup service to actually create the backup
       try {
-        const result = await this.fileBackupService.createBackup();
+        // Result stored but not used: await this.fileBackupService.createBackup();
 
         // Update the backup log on success
         const completed = await this.prisma.backupLog.update({

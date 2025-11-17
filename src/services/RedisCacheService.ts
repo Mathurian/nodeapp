@@ -715,7 +715,7 @@ export class RedisCacheService {
   /**
    * Handle cache invalidation messages
    */
-  private handleCacheInvalidation(channel: string, message: string): void {
+  private handleCacheInvalidation(_channel: string, message: string): void {
     try {
       const data = JSON.parse(message);
       if (data.pattern) {

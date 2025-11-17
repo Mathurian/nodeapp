@@ -76,7 +76,7 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
   }
 }
 
-const errorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
+const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction): void => {
   // Enhanced error tracking and monitoring
   const errorDetails = {
     message: err.message,

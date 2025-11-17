@@ -126,9 +126,9 @@ export class WorkflowService {
    */
   static async advanceWorkflow(
     instanceId: string,
-    userId: string,
+    _userId: string,
     approvalStatus: 'approved' | 'rejected',
-    comments?: string
+    _comments?: string
   ): Promise<any> {
     try {
       const instance = await prisma.workflowInstance.findUnique({

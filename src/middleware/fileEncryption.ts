@@ -56,7 +56,7 @@ const decryptFile = async (encryptedData: Buffer, password: string): Promise<Buf
   try {
     // Extract components
     const salt = encryptedData.slice(0, 16)
-    const iv = encryptedData.slice(16, 32)
+    // IV generated but not returned: const iv = encryptedData.slice(16, 32)
     const tag = encryptedData.slice(32, 48)
     const encrypted = encryptedData.slice(48)
     
@@ -179,7 +179,7 @@ const decryptMetadata = (encryptedMetadata: string, password: string): any => {
     const encryptedData = Buffer.from(encryptedMetadata, 'base64')
     
     const salt = encryptedData.slice(0, 16)
-    const iv = encryptedData.slice(16, 32)
+    // IV generated but not returned: const iv = encryptedData.slice(16, 32)
     const tag = encryptedData.slice(32, 48)
     const encrypted = encryptedData.slice(48)
     
