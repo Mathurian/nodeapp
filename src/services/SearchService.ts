@@ -14,6 +14,7 @@ import {
 import { SavedSearch, SearchHistory, SearchAnalytic } from '@prisma/client';
 
 export interface FacetedSearchOptions {
+  tenantId: string;
   query?: string;
   filters?: Record<string, any>;
   entityTypes?: string[];
@@ -64,6 +65,7 @@ export class SearchService {
     // Record search history
     await this.searchRepository.createSearchHistory({
       userId,
+      tenantId: options.tenantId,
       query: options.query,
       filters: options.filters,
       entityTypes: options.entityTypes,
@@ -121,6 +123,7 @@ export class SearchService {
 
     await this.searchRepository.createSearchHistory({
       userId,
+      tenantId: options.tenantId,
       query: options.query,
       filters: options.filters,
       entityTypes: [entityType],
@@ -240,22 +243,22 @@ export class SearchService {
   /**
    * Get saved searches
    */
-  async getSavedSearches(userId: string, includePublic = false): Promise<SavedSearch[]> {
-    return this.searchRepository.getSavedSearches(userId, includePublic);
+  async getSavedSearches(userId: string, tenantId: string, includePublic = false): Promise<SavedSearch[]> {
+    return this.searchRepository.getSavedSearches(userId, tenantId, includePublic);
   }
 
   /**
    * Delete saved search
    */
-  async deleteSavedSearch(id: string, userId: string): Promise<SavedSearch> {
-    return this.searchRepository.deleteSavedSearch(id, userId);
+  async deleteSavedSearch(id: string, userId: string, tenantId: string): Promise<SavedSearch> {
+    return this.searchRepository.deleteSavedSearch(id, userId, tenantId);
   }
 
   /**
    * Execute saved search
    */
-  async executeSavedSearch(userId: string, savedSearchId: string): Promise<SearchResponse> {
-    const savedSearch = await this.searchRepository.getSavedSearches(userId);
+  async executeSavedSearch(userId: string, tenantId: string, savedSearchId: string): Promise<SearchResponse> {
+    const savedSearch = await this.searchRepository.getSavedSearches(userId, tenantId);
     const search = savedSearch.find((s) => s.id === savedSearchId);
 
     if (!search) {
@@ -263,6 +266,7 @@ export class SearchService {
     }
 
     const options: FacetedSearchOptions = {
+      tenantId,
       query: search.query,
       filters: search.filters ? JSON.parse(search.filters) : undefined,
       entityTypes: search.entityTypes ? search.entityTypes.split(',') : undefined,
@@ -276,15 +280,15 @@ export class SearchService {
   /**
    * Get search history for user
    */
-  async getSearchHistory(userId: string, limit = 10): Promise<SearchHistory[]> {
-    return this.searchRepository.getSearchHistory(userId, limit);
+  async getSearchHistory(userId: string, tenantId: string, limit = 10): Promise<SearchHistory[]> {
+    return this.searchRepository.getSearchHistory(userId, tenantId, limit);
   }
 
   /**
    * Clear search history
    */
-  async clearSearchHistory(userId: string): Promise<number> {
-    return this.searchRepository.clearSearchHistory(userId);
+  async clearSearchHistory(userId: string, tenantId: string): Promise<number> {
+    return this.searchRepository.clearSearchHistory(userId, tenantId);
   }
 
   // ==================== Search Suggestions ====================
