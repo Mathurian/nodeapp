@@ -2,15 +2,19 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useSocket } from '../contexts/SocketContext'
-import AccordionNav from './AccordionNav'
+import { useCommands, getModifierKeySymbol } from '../hooks'
 import {
   UserIcon,
-  Bars3Icon,
-  XMarkIcon,
   BellIcon,
   ArrowRightOnRectangleIcon,
   MagnifyingGlassIcon,
   CogIcon,
+  CommandLineIcon,
+  StarIcon,
+  ClockIcon,
+  LightBulbIcon,
+  SunIcon,
+  MoonIcon
 } from '@heroicons/react/24/outline'
 
 interface LayoutProps {
@@ -19,26 +23,35 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
-  const [navOpen, setNavOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const { user, logout } = useAuth()
   const { isConnected } = useSocket()
+  const { getRecentCommands, getFavoriteCommands } = useCommands({
+    enableKeyboardShortcuts: false // Global shortcuts handled elsewhere
+  })
+
+  const recentCommands = getRecentCommands().slice(0, 3)
+  const favoriteCommands = getFavoriteCommands().slice(0, 3)
+  const modifierKey = getModifierKeySymbol()
 
   const getRoleColor = (role: string) => {
     const colors = {
-      ORGANIZER: 'role-organizer',
-      JUDGE: 'role-judge',
-      CONTESTANT: 'role-contestant',
-      EMCEE: 'role-emcee',
-      TALLY_MASTER: 'role-tally-master',
-      AUDITOR: 'role-auditor',
-      BOARD: 'role-board',
+      ADMIN: 'text-purple-600 bg-purple-50',
+      ORGANIZER: 'text-blue-600 bg-blue-50',
+      JUDGE: 'text-green-600 bg-green-50',
+      CONTESTANT: 'text-orange-600 bg-orange-50',
+      EMCEE: 'text-pink-600 bg-pink-50',
+      TALLY_MASTER: 'text-indigo-600 bg-indigo-50',
+      AUDITOR: 'text-red-600 bg-red-50',
+      BOARD: 'text-gray-600 bg-gray-50',
     }
-    return colors[role as keyof typeof colors] || 'role-board'
+    return colors[role as keyof typeof colors] || 'text-gray-600 bg-gray-50'
   }
 
   const getRoleDisplayName = (role: string) => {
     const names = {
+      ADMIN: 'Admin',
       ORGANIZER: 'Organizer',
       JUDGE: 'Judge',
       CONTESTANT: 'Contestant',
@@ -50,118 +63,258 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     return names[role as keyof typeof names] || role
   }
 
+  const toggleTheme = () => {
+    const html = document.documentElement
+    const currentTheme = html.classList.contains('dark') ? 'dark' : 'light'
+    if (currentTheme === 'dark') {
+      html.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    } else {
+      html.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    }
+  }
+
+  const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top header with logo and command palette */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* Logo and Navigation Toggle */}
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-indigo-600">Event Manager</h1>
-            <button
-              onClick={() => setNavOpen(!navOpen)}
-              className="btn btn-ghost btn-sm"
-              title="Toggle Navigation"
-            >
-              {navOpen ? (
-                <XMarkIcon className="h-5 w-5" />
-              ) : (
-                <Bars3Icon className="h-5 w-5" />
-              )}
-            </button>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Minimal Top Bar - Command Palette First */}
+      <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="flex items-center justify-between px-4 lg:px-6 py-3">
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <CommandLineIcon className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+              Event Manager
+            </h1>
           </div>
 
-          {/* Right side: Command Palette, Notifications, Profile */}
-          <div className="flex items-center space-x-4">
-            {/* Command Palette Trigger */}
+          {/* Center: Command Palette Trigger - Prominent */}
+          <button
+            onClick={onOpenCommandPalette}
+            className="hidden md:flex items-center space-x-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 transition-all hover:scale-105 hover:shadow-md"
+            title={`Search everything... (${modifierKey}+K)`}
+          >
+            <MagnifyingGlassIcon className="h-4 w-4" />
+            <span className="hidden lg:inline text-gray-500 dark:text-gray-400">
+              Search pages, actions, commands...
+            </span>
+            <span className="lg:hidden text-gray-500 dark:text-gray-400">
+              Search...
+            </span>
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 text-xs font-mono bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-sm">
+              <span>{modifierKey}</span>
+              <span className="text-[10px]">+</span>
+              <span>K</span>
+            </kbd>
+          </button>
+
+          {/* Right side: Theme, Notifications, Profile */}
+          <div className="flex items-center space-x-2 lg:space-x-3">
+            {/* Theme Toggle */}
             <button
-              onClick={onOpenCommandPalette}
-              className="hidden md:flex items-center space-x-2 px-3 py-1.5 text-sm text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition-colors"
-              title="Search (Cmd+K or Ctrl+K)"
+              onClick={toggleTheme}
+              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode (${modifierKey}+Shift+D)`}
             >
-              <MagnifyingGlassIcon className="h-4 w-4" />
-              <span className="text-xs">Search...</span>
-              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs font-mono bg-white border border-gray-300 rounded">
-                ⌘K
-              </kbd>
+              {isDarkMode ? (
+                <SunIcon className="h-5 w-5" />
+              ) : (
+                <MoonIcon className="h-5 w-5" />
+              )}
+            </button>
+
+            {/* Quick Actions Toggle */}
+            <button
+              onClick={() => setQuickActionsOpen(!quickActionsOpen)}
+              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Quick actions"
+            >
+              <LightBulbIcon className="h-5 w-5" />
+              {(recentCommands.length > 0 || favoriteCommands.length > 0) && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full"></span>
+              )}
             </button>
 
             {/* Notifications */}
-            <Link to="/notifications" className="btn btn-ghost btn-sm relative">
+            <Link
+              to="/notifications"
+              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Notifications"
+            >
               <BellIcon className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs"></span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </Link>
 
             {/* Connection Status */}
-            <div className="hidden md:flex items-center space-x-2 text-xs text-gray-600">
+            <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+              <span className="text-xs text-gray-600 dark:text-gray-300">
+                {isConnected ? 'Live' : 'Offline'}
+              </span>
             </div>
 
-            {/* Profile menu */}
+            {/* Profile Menu */}
             <div className="relative">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="flex items-center space-x-2 btn btn-ghost"
+                className="flex items-center space-x-2 pl-1 pr-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-md">
                   {user?.name?.charAt(0).toUpperCase()}
                 </div>
-                <div className="hidden md:block text-left">
-                  <div className="text-sm font-medium">{user?.preferredName || user?.name}</div>
-                  <div className={`text-xs ${getRoleColor(user?.role || '')}`}>
+                <div className="hidden xl:block text-left">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {user?.preferredName || user?.name}
+                  </div>
+                  <div className={`text-xs px-2 py-0.5 rounded-full ${getRoleColor(user?.role || '')}`}>
                     {getRoleDisplayName(user?.role || '')}
                   </div>
                 </div>
               </button>
 
+              {/* Profile Dropdown */}
               {profileMenuOpen && (
-                <div className="dropdown-menu absolute right-0 mt-2 w-48">
-                  <Link
-                    to="/profile"
-                    className="dropdown-menu-item"
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
                     onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <UserIcon className="h-4 w-4 mr-2" />
-                    Profile
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className="dropdown-menu-item"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <CogIcon className="h-4 w-4 mr-2" />
-                    Settings
-                  </Link>
-                  <hr className="my-1" />
-                  <button
-                    onClick={() => {
-                      logout()
-                      setProfileMenuOpen(false)
-                    }}
-                    className="dropdown-menu-item w-full text-left"
-                  >
-                    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-2" />
-                    Sign out
-                  </button>
-                </div>
+                  />
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
+                    <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {user?.preferredName || user?.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {user?.email}
+                      </div>
+                    </div>
+                    <Link
+                      to="/profile"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      <UserIcon className="h-4 w-4 mr-3 text-gray-400" />
+                      My Profile
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      <CogIcon className="h-4 w-4 mr-3 text-gray-400" />
+                      Settings
+                    </Link>
+                    <div className="border-t border-gray-100 dark:border-gray-700">
+                      <button
+                        onClick={() => {
+                          logout()
+                          setProfileMenuOpen(false)
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Accordion Navigation - Collapsible */}
-        {navOpen && (
-          <div className="border-t border-gray-200 max-h-96 overflow-y-auto">
-            <AccordionNav />
-          </div>
+        {/* Quick Actions Panel */}
+        {quickActionsOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setQuickActionsOpen(false)}
+            />
+            <div className="absolute right-4 lg:right-6 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
+              {/* Favorites Section */}
+              {favoriteCommands.length > 0 && (
+                <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    <StarIcon className="h-3.5 w-3.5 text-yellow-500" />
+                    Favorites
+                  </div>
+                  {favoriteCommands.map(cmd => (
+                    <button
+                      key={cmd.id}
+                      onClick={() => {
+                        cmd.action?.()
+                        setQuickActionsOpen(false)
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      {cmd.icon && <cmd.icon className="h-4 w-4 text-gray-400" />}
+                      <span className="truncate">{cmd.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Recent Section */}
+              {recentCommands.length > 0 && (
+                <div className="p-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    <ClockIcon className="h-3.5 w-3.5" />
+                    Recent
+                  </div>
+                  {recentCommands.map(cmd => (
+                    <button
+                      key={cmd.id}
+                      onClick={() => {
+                        cmd.action?.()
+                        setQuickActionsOpen(false)
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors"
+                    >
+                      {cmd.icon && <cmd.icon className="h-4 w-4 text-gray-400" />}
+                      <span className="truncate">{cmd.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Empty State */}
+              {favoriteCommands.length === 0 && recentCommands.length === 0 && (
+                <div className="p-6 text-center">
+                  <LightBulbIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Your recent and favorite commands will appear here
+                  </p>
+                  <button
+                    onClick={() => {
+                      onOpenCommandPalette?.()
+                      setQuickActionsOpen(false)
+                    }}
+                    className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    Open Command Palette
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Main content - No sidebar, full width */}
-      <main className="p-6">
+      {/* Main Content - Full Width, No Sidebar */}
+      <main className="p-4 lg:p-6 max-w-[1920px] mx-auto">
         {children}
       </main>
+
+      {/* Floating Command Palette Hint - Mobile */}
+      <button
+        onClick={onOpenCommandPalette}
+        className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all z-40 flex items-center justify-center"
+        title="Open Command Palette"
+      >
+        <MagnifyingGlassIcon className="h-6 w-6" />
+      </button>
     </div>
   )
 }

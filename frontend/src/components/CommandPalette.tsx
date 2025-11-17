@@ -1,36 +1,18 @@
 import React, { useState, useEffect, useRef, Fragment } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Dialog, Transition } from '@headlessui/react'
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import {
-  HomeIcon,
-  CalendarIcon,
-  TrophyIcon,
-  UsersIcon,
-  CogIcon,
-  UserIcon,
-  MicrophoneIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
-  ArchiveBoxIcon,
-  ShieldCheckIcon,
-  ClipboardDocumentCheckIcon,
-  CalculatorIcon,
-  EnvelopeIcon,
-  BellIcon,
+  MagnifyingGlassIcon,
+  ClockIcon,
+  StarIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
-
-interface CommandItem {
-  id: string
-  name: string
-  description?: string
-  icon: typeof HomeIcon
-  href: string
-  category: string
-  roles: string[]
-  keywords?: string[]
-}
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
+import { CommandRegistry } from '../lib/commands/CommandRegistry'
+import { createNavigationCommands } from '../lib/commands/definitions/navigationCommands'
+import { createActionCommands } from '../lib/commands/definitions/actionCommands'
+import type { Command } from '../lib/commands/CommandRegistry'
 
 interface CommandPaletteProps {
   isOpen: boolean
@@ -40,267 +22,100 @@ interface CommandPaletteProps {
 const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [registry] = useState(() => new CommandRegistry())
+  const [displayedCommands, setDisplayedCommands] = useState<Command[]>([])
+  const [showRecent, setShowRecent] = useState(true)
+  const [showFavorites, setShowFavorites] = useState(true)
+
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const location = useLocation()
+  const { user, logout } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const allCommands: CommandItem[] = [
-    // Dashboard
-    {
-      id: 'dashboard',
-      name: 'Dashboard',
-      description: 'Go to dashboard',
-      icon: HomeIcon,
-      href: '/dashboard',
-      category: 'Navigation',
-      roles: ['ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'],
-      keywords: ['home', 'overview']
-    },
+  // Initialize registry with commands
+  useEffect(() => {
+    // Create navigation commands
+    const navigationCommands = createNavigationCommands((path: string) => {
+      navigate(path)
+    })
 
-    // Events
-    {
-      id: 'events',
-      name: 'Events',
-      description: 'Manage events',
-      icon: CalendarIcon,
-      href: '/events',
-      category: 'Events',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['competitions', 'contests']
-    },
-    {
-      id: 'events-create',
-      name: 'Create Event',
-      description: 'Create a new event',
-      icon: CalendarIcon,
-      href: '/events/new',
-      category: 'Events',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['add', 'new']
-    },
+    // Create action commands with handlers
+    const actionCommands = createActionCommands({
+      logout: async () => {
+        await logout()
+      },
+      toggleTheme: () => {
+        // Theme toggle logic - to be implemented with theme context
+        const html = document.documentElement
+        const currentTheme = html.classList.contains('dark') ? 'dark' : 'light'
+        if (currentTheme === 'dark') {
+          html.classList.remove('dark')
+          localStorage.setItem('theme', 'light')
+        } else {
+          html.classList.add('dark')
+          localStorage.setItem('theme', 'dark')
+        }
+      },
+      refreshPage: () => {
+        window.location.reload()
+      },
+      navigate: (path: string) => {
+        navigate(path)
+      }
+    })
 
-    // Scoring
-    {
-      id: 'scoring',
-      name: 'Scoring',
-      description: 'Judge scoring interface',
-      icon: TrophyIcon,
-      href: '/scoring',
-      category: 'Scoring',
-      roles: ['JUDGE'],
-      keywords: ['judge', 'scores', 'rating']
-    },
-    {
-      id: 'tally',
-      name: 'Tally Master',
-      description: 'Tally master dashboard',
-      icon: CalculatorIcon,
-      href: '/tally-master',
-      category: 'Scoring',
-      roles: ['TALLY_MASTER'],
-      keywords: ['calculate', 'totals', 'certification']
-    },
-    {
-      id: 'auditor',
-      name: 'Auditor',
-      description: 'Auditor dashboard',
-      icon: ClipboardDocumentCheckIcon,
-      href: '/auditor',
-      category: 'Scoring',
-      roles: ['AUDITOR'],
-      keywords: ['review', 'verify', 'audit']
-    },
+    // Register all commands
+    registry.registerCommands([...navigationCommands, ...actionCommands])
+  }, [navigate, logout, registry])
 
-    // Results
-    {
-      id: 'results',
-      name: 'Results',
-      description: 'View competition results',
-      icon: ChartBarIcon,
-      href: '/results',
-      category: 'Results',
-      roles: ['ORGANIZER', 'JUDGE', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR', 'BOARD'],
-      keywords: ['scores', 'winners', 'standings']
-    },
-
-    // Users
-    {
-      id: 'users',
-      name: 'Users',
-      description: 'Manage users',
-      icon: UsersIcon,
-      href: '/users',
-      category: 'Admin',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['people', 'accounts', 'judges', 'contestants']
-    },
-    {
-      id: 'users-create',
-      name: 'Create User',
-      description: 'Add a new user',
-      icon: UserIcon,
-      href: '/users/new',
-      category: 'Admin',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['add', 'new', 'person']
-    },
-
-    // Admin
-    {
-      id: 'admin',
-      name: 'Admin',
-      description: 'System administration',
-      icon: CogIcon,
-      href: '/admin',
-      category: 'Admin',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['settings', 'configuration', 'system']
-    },
-    {
-      id: 'admin-settings',
-      name: 'Settings',
-      description: 'System settings',
-      icon: CogIcon,
-      href: '/admin/settings',
-      category: 'Admin',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['configuration', 'preferences']
-    },
-    {
-      id: 'admin-security',
-      name: 'Security Settings',
-      description: 'Configure security',
-      icon: ShieldCheckIcon,
-      href: '/admin/security',
-      category: 'Admin',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['password', 'authentication', 'access']
-    },
-
-    // Emcee
-    {
-      id: 'emcee',
-      name: 'Emcee',
-      description: 'Emcee dashboard',
-      icon: MicrophoneIcon,
-      href: '/emcee',
-      category: 'Events',
-      roles: ['EMCEE'],
-      keywords: ['scripts', 'announcements', 'host']
-    },
-
-    // Templates
-    {
-      id: 'templates',
-      name: 'Templates',
-      description: 'Event templates',
-      icon: DocumentTextIcon,
-      href: '/templates',
-      category: 'Events',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['event', 'category', 'preset']
-    },
-
-    // Reports
-    {
-      id: 'reports',
-      name: 'Reports',
-      description: 'Generate reports',
-      icon: ChartBarIcon,
-      href: '/reports',
-      category: 'Reports',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['analytics', 'export', 'pdf']
-    },
-
-    // Archive
-    {
-      id: 'archive',
-      name: 'Archive',
-      description: 'Archived events',
-      icon: ArchiveBoxIcon,
-      href: '/archive',
-      category: 'Events',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['old', 'past', 'history']
-    },
-
-    // Notifications
-    {
-      id: 'notifications',
-      name: 'Notifications',
-      description: 'View notifications',
-      icon: BellIcon,
-      href: '/notifications',
-      category: 'Navigation',
-      roles: ['ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'],
-      keywords: ['alerts', 'messages']
-    },
-
-    // Email
-    {
-      id: 'email',
-      name: 'Email',
-      description: 'Email management',
-      icon: EnvelopeIcon,
-      href: '/email',
-      category: 'Communication',
-      roles: ['ORGANIZER', 'BOARD'],
-      keywords: ['messages', 'templates', 'campaigns']
-    },
-
-    // Profile
-    {
-      id: 'profile',
-      name: 'My Profile',
-      description: 'View and edit your profile',
-      icon: UserIcon,
-      href: '/profile',
-      category: 'Account',
-      roles: ['ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'],
-      keywords: ['account', 'settings', 'personal']
-    },
-  ]
-
-  // Filter commands based on user role and search query
-  const filteredCommands = allCommands.filter(command => {
-    // Filter by role
-    if (!user || !command.roles.includes(user.role)) {
-      return false
+  // Update displayed commands based on query
+  useEffect(() => {
+    if (!user) {
+      setDisplayedCommands([])
+      return
     }
 
-    // Filter by search query
-    if (!query) {
-      return true
+    if (query.trim()) {
+      // Search mode
+      const results = registry.search(query, {
+        role: user.role,
+        context: location.pathname
+      })
+      setDisplayedCommands(results)
+      setShowRecent(false)
+      setShowFavorites(false)
+    } else {
+      // Default mode: show recent and favorites
+      const recentCommands = registry.getRecentCommands()
+      const favoriteCommands = registry.getFavoriteCommands()
+      const allCommands = registry.getAllCommands({
+        role: user.role,
+        context: location.pathname,
+        limit: 10
+      })
+
+      // Combine unique commands (favorites + recent + popular)
+      const commandMap = new Map<string, Command>()
+
+      favoriteCommands.forEach(cmd => commandMap.set(cmd.id, cmd))
+      recentCommands.forEach(cmd => commandMap.set(cmd.id, cmd))
+      allCommands.slice(0, 5).forEach(cmd => commandMap.set(cmd.id, cmd))
+
+      setDisplayedCommands(Array.from(commandMap.values()))
+      setShowRecent(recentCommands.length > 0)
+      setShowFavorites(favoriteCommands.length > 0)
     }
+  }, [query, user, registry, location.pathname])
 
-    const searchTerm = query.toLowerCase()
-    return (
-      command.name.toLowerCase().includes(searchTerm) ||
-      command.description?.toLowerCase().includes(searchTerm) ||
-      command.category.toLowerCase().includes(searchTerm) ||
-      command.keywords?.some(keyword => keyword.toLowerCase().includes(searchTerm))
-    )
-  })
-
-  // Group commands by category
-  const groupedCommands = filteredCommands.reduce((acc, command) => {
-    const category = command.category
-    if (!acc[category]) {
-      acc[category] = []
-    }
-    acc[category].push(command)
-    return acc
-  }, {} as Record<string, CommandItem[]>)
-
-  // Reset selected index when filtered commands change
+  // Reset selected index when displayed commands change
   useEffect(() => {
     setSelectedIndex(0)
-  }, [query])
+  }, [displayedCommands])
 
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
+      setQuery('')
       setTimeout(() => {
         inputRef.current?.focus()
       }, 100)
@@ -314,26 +129,85 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSelectedIndex(prev => (prev + 1) % filteredCommands.length)
+        setSelectedIndex(prev => (prev + 1) % displayedCommands.length)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSelectedIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length)
+        setSelectedIndex(prev => (prev - 1 + displayedCommands.length) % displayedCommands.length)
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        if (filteredCommands[selectedIndex]) {
-          handleSelect(filteredCommands[selectedIndex])
+        if (displayedCommands[selectedIndex]) {
+          handleSelect(displayedCommands[selectedIndex])
         }
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, selectedIndex, filteredCommands])
+  }, [isOpen, selectedIndex, displayedCommands])
 
-  const handleSelect = (command: CommandItem) => {
-    navigate(command.href)
+  const handleSelect = (command: Command) => {
+    registry.executeCommand(command.id, user?.role)
     onClose()
     setQuery('')
+  }
+
+  const handleToggleFavorite = (e: React.MouseEvent, commandId: string) => {
+    e.stopPropagation()
+    const isFavorite = registry.isFavorite(commandId)
+    if (isFavorite) {
+      registry.removeFavorite(commandId)
+    } else {
+      registry.addFavorite(commandId)
+    }
+    // Force re-render
+    setDisplayedCommands([...displayedCommands])
+  }
+
+  // Group commands by category or by section (recent/favorites/all)
+  const groupCommands = () => {
+    if (query.trim()) {
+      // Search results: group by category
+      return displayedCommands.reduce((acc, command) => {
+        const group = command.group || command.category || 'Other'
+        if (!acc[group]) {
+          acc[group] = []
+        }
+        acc[group].push(command)
+        return acc
+      }, {} as Record<string, Command[]>)
+    } else {
+      // Default view: group by section
+      const groups: Record<string, Command[]> = {}
+
+      const favoriteCommands = displayedCommands.filter(cmd => registry.isFavorite(cmd.id))
+      const recentCommands = registry.getRecentCommands().filter(cmd =>
+        !registry.isFavorite(cmd.id) && displayedCommands.some(c => c.id === cmd.id)
+      )
+      const suggestedCommands = displayedCommands.filter(cmd =>
+        !registry.isFavorite(cmd.id) &&
+        !recentCommands.some(c => c.id === cmd.id)
+      )
+
+      if (favoriteCommands.length > 0) {
+        groups['Favorites'] = favoriteCommands
+      }
+      if (recentCommands.length > 0) {
+        groups['Recent'] = recentCommands
+      }
+      if (suggestedCommands.length > 0) {
+        groups['Suggested'] = suggestedCommands
+      }
+
+      return groups
+    }
+  }
+
+  const groupedCommands = groupCommands()
+
+  const getSectionIcon = (sectionName: string) => {
+    if (sectionName === 'Favorites') return StarIconSolid
+    if (sectionName === 'Recent') return ClockIcon
+    return SparklesIcon
   }
 
   return (
@@ -348,7 +222,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-25 transition-opacity" />
+          <div className="fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20">
@@ -361,65 +235,110 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="mx-auto max-w-2xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
+            <Dialog.Panel className="mx-auto max-w-3xl transform divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all">
               {/* Search Input */}
               <div className="relative">
                 <MagnifyingGlassIcon
-                  className="pointer-events-none absolute top-3.5 left-4 h-5 w-5 text-gray-400"
+                  className="pointer-events-none absolute top-3.5 left-4 h-5 w-5 text-gray-400 dark:text-gray-500"
                   aria-hidden="true"
                 />
                 <input
                   ref={inputRef}
                   type="text"
-                  className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
-                  placeholder="Search pages... (Cmd+K or Ctrl+K)"
+                  className="h-14 w-full border-0 bg-transparent pl-12 pr-4 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-0 text-base"
+                  placeholder="Search commands, pages, and actions... (Cmd+K)"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
 
               {/* Results */}
-              {filteredCommands.length > 0 && (
-                <div className="max-h-96 overflow-y-auto py-2">
-                  {Object.entries(groupedCommands).map(([category, commands]) => (
-                    <div key={category}>
-                      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {category}
+              {displayedCommands.length > 0 && (
+                <div className="max-h-[28rem] overflow-y-auto py-2 scroll-smooth">
+                  {Object.entries(groupedCommands).map(([groupName, commands]) => (
+                    <div key={groupName} className="mb-1">
+                      <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        {React.createElement(getSectionIcon(groupName), {
+                          className: 'h-3.5 w-3.5'
+                        })}
+                        <span>{groupName}</span>
                       </div>
-                      {commands.map((command, index) => {
-                        const globalIndex = filteredCommands.indexOf(command)
+                      {commands.map((command) => {
+                        const globalIndex = displayedCommands.indexOf(command)
                         const isSelected = globalIndex === selectedIndex
+                        const isFavorite = registry.isFavorite(command.id)
 
                         return (
                           <button
                             key={command.id}
                             onClick={() => handleSelect(command)}
                             onMouseEnter={() => setSelectedIndex(globalIndex)}
-                            className={`w-full flex items-center px-4 py-3 cursor-pointer transition-colors ${
+                            className={`w-full flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-indigo-600 text-white'
-                                : 'hover:bg-gray-100'
+                                ? 'bg-indigo-600 dark:bg-indigo-500 text-white'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                             }`}
                           >
-                            <command.icon
-                              className={`h-5 w-5 mr-3 flex-shrink-0 ${
-                                isSelected ? 'text-white' : 'text-gray-400'
-                              }`}
-                              aria-hidden="true"
-                            />
-                            <div className="flex-1 text-left">
-                              <div className={`text-sm font-medium ${
-                                isSelected ? 'text-white' : 'text-gray-900'
+                            {/* Icon */}
+                            {command.icon && (
+                              <command.icon
+                                className={`h-5 w-5 flex-shrink-0 ${
+                                  isSelected ? 'text-white' : 'text-gray-400 dark:text-gray-500'
+                                }`}
+                                aria-hidden="true"
+                              />
+                            )}
+
+                            {/* Name & Description */}
+                            <div className="flex-1 text-left min-w-0">
+                              <div className={`text-sm font-medium truncate ${
+                                isSelected ? 'text-white' : 'text-gray-900 dark:text-gray-100'
                               }`}>
                                 {command.name}
                               </div>
                               {command.description && (
-                                <div className={`text-xs ${
-                                  isSelected ? 'text-indigo-200' : 'text-gray-500'
+                                <div className={`text-xs truncate ${
+                                  isSelected ? 'text-indigo-100' : 'text-gray-500 dark:text-gray-400'
                                 }`}>
                                   {command.description}
                                 </div>
                               )}
+                            </div>
+
+                            {/* Shortcut & Favorite */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {command.shortcut && (
+                                <kbd className={`hidden sm:inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-xs ${
+                                  isSelected
+                                    ? 'border-indigo-400 text-indigo-100'
+                                    : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                                }`}>
+                                  {command.shortcut.split('+').map((key, i, arr) => (
+                                    <React.Fragment key={i}>
+                                      <span>{key}</span>
+                                      {i < arr.length - 1 && <span className="text-[10px]">+</span>}
+                                    </React.Fragment>
+                                  ))}
+                                </kbd>
+                              )}
+
+                              <button
+                                onClick={(e) => handleToggleFavorite(e, command.id)}
+                                className={`p-1 rounded hover:bg-white/20 transition-colors ${
+                                  isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                }`}
+                                aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                              >
+                                {isFavorite ? (
+                                  <StarIconSolid className={`h-4 w-4 ${
+                                    isSelected ? 'text-yellow-300' : 'text-yellow-500'
+                                  }`} />
+                                ) : (
+                                  <StarIcon className={`h-4 w-4 ${
+                                    isSelected ? 'text-white' : 'text-gray-400'
+                                  }`} />
+                                )}
+                              </button>
                             </div>
                           </button>
                         )
@@ -430,33 +349,59 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
               )}
 
               {/* No Results */}
-              {query && filteredCommands.length === 0 && (
+              {query && displayedCommands.length === 0 && (
                 <div className="py-14 px-6 text-center text-sm sm:px-14">
-                  <p className="text-gray-900 font-semibold">No results found</p>
-                  <p className="mt-2 text-gray-500">
-                    Try searching for something else
+                  <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                  <p className="text-gray-900 dark:text-gray-100 font-semibold text-base mb-1">
+                    No results found
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Try searching for pages, actions, or features
                   </p>
                 </div>
               )}
 
-              {/* Help Text */}
-              <div className="flex items-center justify-between px-4 py-2 text-xs text-gray-500 bg-gray-50">
-                <div className="flex items-center space-x-4">
-                  <span>
-                    <kbd className="inline-flex items-center rounded border border-gray-200 px-1.5 py-0.5 font-mono text-xs">
+              {/* Empty State */}
+              {!query && displayedCommands.length === 0 && (
+                <div className="py-14 px-6 text-center text-sm sm:px-14">
+                  <SparklesIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                  <p className="text-gray-900 dark:text-gray-100 font-semibold text-base mb-1">
+                    Start typing to search
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Search for pages, create actions, or system commands
+                  </p>
+                </div>
+              )}
+
+              {/* Help Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="flex items-center gap-1">
+                    <kbd className="inline-flex items-center rounded border border-gray-200 dark:border-gray-600 px-1.5 py-0.5 font-mono text-[10px]">
                       ↑↓
-                    </kbd> Navigate
+                    </kbd>
+                    <span className="hidden sm:inline">Navigate</span>
                   </span>
-                  <span>
-                    <kbd className="inline-flex items-center rounded border border-gray-200 px-1.5 py-0.5 font-mono text-xs">
+                  <span className="flex items-center gap-1">
+                    <kbd className="inline-flex items-center rounded border border-gray-200 dark:border-gray-600 px-1.5 py-0.5 font-mono text-[10px]">
                       Enter
-                    </kbd> Select
+                    </kbd>
+                    <span className="hidden sm:inline">Select</span>
                   </span>
-                  <span>
-                    <kbd className="inline-flex items-center rounded border border-gray-200 px-1.5 py-0.5 font-mono text-xs">
+                  <span className="flex items-center gap-1">
+                    <kbd className="inline-flex items-center rounded border border-gray-200 dark:border-gray-600 px-1.5 py-0.5 font-mono text-[10px]">
                       Esc
-                    </kbd> Close
+                    </kbd>
+                    <span className="hidden sm:inline">Close</span>
                   </span>
+                  <span className="flex items-center gap-1">
+                    <StarIcon className="h-3 w-3" />
+                    <span className="hidden sm:inline">Favorite</span>
+                  </span>
+                </div>
+                <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                  {displayedCommands.length} command{displayedCommands.length !== 1 ? 's' : ''}
                 </div>
               </div>
             </Dialog.Panel>
