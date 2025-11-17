@@ -11,7 +11,7 @@ export const createTemplate = async (req: Request, res: Response, next: NextFunc
     const template = await WorkflowService.createTemplate({ ...req.body, tenantId: req.tenantId });
     sendSuccess(res, template, 'Workflow template created', 201);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -20,7 +20,7 @@ export const getTemplate = async (req: Request, res: Response, next: NextFunctio
     const template = await WorkflowService.getTemplate(req.params.id);
     sendSuccess(res, template);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -30,7 +30,7 @@ export const listTemplates = async (req: Request, res: Response, next: NextFunct
     const templates = await WorkflowService.listTemplates(req.tenantId, type as string);
     sendSuccess(res, templates);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -40,7 +40,7 @@ export const startWorkflow = async (req: Request, res: Response, next: NextFunct
     const instance = await WorkflowService.startWorkflow(templateId, req.tenantId!, entityType, entityId);
     sendSuccess(res, instance, 'Workflow started', 201);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -52,7 +52,7 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
     const instance = await WorkflowService.advanceWorkflow(id, userId, approvalStatus, comments);
     sendSuccess(res, instance, 'Workflow advanced');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -61,7 +61,7 @@ export const getInstance = async (req: Request, res: Response, next: NextFunctio
     const instance = await WorkflowService.getInstance(req.params.id);
     sendSuccess(res, instance);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -71,6 +71,6 @@ export const listInstancesForEntity = async (req: Request, res: Response, next: 
     const instances = await WorkflowService.listInstancesForEntity(req.tenantId!, entityType, entityId);
     sendSuccess(res, instances);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };

@@ -16,7 +16,7 @@ export const getDRConfig = async (req: Request, res: Response, next: NextFunctio
     const config = await DRAutomationService.getDRConfig(tenantId);
     sendSuccess(res, config);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -29,7 +29,7 @@ export const updateDRConfig = async (req: Request, res: Response, next: NextFunc
     const config = await DRAutomationService.updateDRConfig(id, req.body);
     sendSuccess(res, config, 'DR configuration updated successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -45,7 +45,7 @@ export const createBackupSchedule = async (req: Request, res: Response, next: Ne
     });
     sendSuccess(res, schedule, 'Backup schedule created successfully', 201);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -58,7 +58,7 @@ export const updateBackupSchedule = async (req: Request, res: Response, next: Ne
     const schedule = await DRAutomationService.updateBackupSchedule(id, req.body);
     sendSuccess(res, schedule, 'Backup schedule updated successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -71,7 +71,7 @@ export const deleteBackupSchedule = async (req: Request, res: Response, next: Ne
     await DRAutomationService.deleteBackupSchedule(id);
     sendSuccess(res, null, 'Backup schedule deleted successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -84,7 +84,7 @@ export const listBackupSchedules = async (req: Request, res: Response, next: Nex
     const schedules = await DRAutomationService.listBackupSchedules(tenantId);
     sendSuccess(res, schedules);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -100,7 +100,7 @@ export const createBackupTarget = async (req: Request, res: Response, next: Next
     });
     sendSuccess(res, target, 'Backup target created successfully', 201);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -113,7 +113,7 @@ export const updateBackupTarget = async (req: Request, res: Response, next: Next
     const target = await DRAutomationService.updateBackupTarget(id, req.body);
     sendSuccess(res, target, 'Backup target updated successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -126,7 +126,7 @@ export const deleteBackupTarget = async (req: Request, res: Response, next: Next
     await DRAutomationService.deleteBackupTarget(id);
     sendSuccess(res, null, 'Backup target deleted successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -139,7 +139,7 @@ export const listBackupTargets = async (req: Request, res: Response, next: NextF
     const targets = await DRAutomationService.listBackupTargets(tenantId);
     sendSuccess(res, targets);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -152,7 +152,7 @@ export const verifyBackupTarget = async (req: Request, res: Response, next: Next
     const verified = await DRAutomationService.verifyBackupTarget(id);
     sendSuccess(res, { verified }, verified ? 'Backup target verified successfully' : 'Backup target verification failed');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -170,7 +170,7 @@ export const executeBackup = async (req: Request, res: Response, next: NextFunct
       res.status(500).json({ error: result.error || 'Backup failed' });
     }
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -183,7 +183,7 @@ export const executeDRTest = async (req: Request, res: Response, next: NextFunct
     const result = await DRAutomationService.executeDRTest(backupId, testType);
     sendSuccess(res, result, 'DR test executed successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -201,7 +201,7 @@ export const getDRMetrics = async (req: Request, res: Response, next: NextFuncti
     );
     sendSuccess(res, metrics);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -214,7 +214,7 @@ export const getDRDashboard = async (req: Request, res: Response, next: NextFunc
     const dashboard = await DRAutomationService.getDRDashboard(tenantId);
     sendSuccess(res, dashboard);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -227,6 +227,6 @@ export const checkRTORPO = async (req: Request, res: Response, next: NextFunctio
     const violations = await DRAutomationService.checkRTORPOViolations(tenantId);
     sendSuccess(res, violations);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };

@@ -13,16 +13,16 @@ export class SMSController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getSMSConfig = async (req: Request, res: Response, next: NextFunction) => {
+  getSMSConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = await this.smsService.getSettings();
       return sendSuccess(res, settings);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  updateSMSConfig = async (req: Request, res: Response, next: NextFunction) => {
+  updateSMSConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { enabled, apiKey, apiSecret, fromNumber, provider } = req.body;
       await this.smsService.updateSettings(
@@ -31,21 +31,21 @@ export class SMSController {
       );
       return sendSuccess(res, null, 'SMS settings updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendSMS = async (req: Request, res: Response, next: NextFunction) => {
+  sendSMS = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { to, message } = req.body;
       const result = await this.smsService.sendSMS(to, message);
       return sendSuccess(res, result, 'SMS sent successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendBulkSMS = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendBulkSMS = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { recipients, message } = req.body;
 
@@ -72,11 +72,11 @@ export class SMSController {
         total: recipients.length
       }, `Bulk SMS sent: ${successful} succeeded, ${failed} failed`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendNotificationSMS = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendNotificationSMS = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, userRole, message } = req.body;
 
@@ -111,11 +111,11 @@ export class SMSController {
         total: users.length
       }, `Notification SMS sent to ${successful} users`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getSMSHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getSMSHistory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -147,7 +147,7 @@ export class SMSController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

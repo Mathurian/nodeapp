@@ -17,49 +17,49 @@ export class ArchiveController {
   /**
    * Get all archives
    */
-  getAllArchives = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAllArchives = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const archives = await this.archiveService.getAllArchives();
       res.json(archives);
     } catch (error) {
       log.error('Get archives error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get active events
    */
-  getActiveEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getActiveEvents = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const events = await this.archiveService.getActiveEvents();
       res.json(events);
     } catch (error) {
       log.error('Get active events error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get archived events
    */
-  getArchivedEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getArchivedEvents = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const events = await this.archiveService.getArchivedEvents();
       res.json(events);
     } catch (error) {
       log.error('Get archived events error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Archive an item
    */
-  archiveItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  archiveItem = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { type, id } = req.params;
@@ -75,14 +75,14 @@ export class ArchiveController {
       res.json(archive);
     } catch (error) {
       log.error('Archive item error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Restore an item
    */
-  restoreItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  restoreItem = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { type, id } = req.params;
@@ -96,14 +96,14 @@ export class ArchiveController {
       res.json(result);
     } catch (error) {
       log.error('Restore item error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Delete an archived item
    */
-  deleteArchivedItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  deleteArchivedItem = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { type, id } = req.params;
@@ -117,14 +117,14 @@ export class ArchiveController {
       res.json(result);
     } catch (error) {
       log.error('Delete archived item error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Archive an event
    */
-  archiveEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  archiveEvent = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { eventId } = req.params;
@@ -140,14 +140,14 @@ export class ArchiveController {
       res.json(archive);
     } catch (error) {
       log.error('Archive event error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Restore an event
    */
-  restoreEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  restoreEvent = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
       const { eventId } = req.params;
@@ -161,7 +161,7 @@ export class ArchiveController {
       res.json(result);
     } catch (error) {
       log.error('Restore event error:', error);
-      next(error);
+      return next(error);
     }
   };
 }

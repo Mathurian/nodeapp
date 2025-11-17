@@ -16,39 +16,39 @@ export class FileManagementController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getFileInfo = async (req: Request, res: Response, next: NextFunction) => {
+  getFileInfo = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const info = await this.fileManagementService.getFileInfo(filename);
       return sendSuccess(res, info);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  moveFile = async (req: Request, res: Response, next: NextFunction) => {
+  moveFile = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const { newPath } = req.body;
       const result = await this.fileManagementService.moveFile(filename, newPath);
       return sendSuccess(res, result, 'File moved');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  copyFile = async (req: Request, res: Response, next: NextFunction) => {
+  copyFile = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const { newPath } = req.body;
       const result = await this.fileManagementService.copyFile(filename, newPath);
       return sendSuccess(res, result, 'File copied');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getFilesWithFilters = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFilesWithFilters = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -126,11 +126,11 @@ export class FileManagementController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  bulkFileOperations = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  bulkFileOperations = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { operation, fileIds, options } = req.body;
 
@@ -203,11 +203,11 @@ export class FileManagementController {
 
       return sendSuccess(res, result, `Bulk ${operation} operation completed`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getFileSearchSuggestions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileSearchSuggestions = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { query } = req.query;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -239,11 +239,11 @@ export class FileManagementController {
 
       return sendSuccess(res, suggestions);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getFileAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileAnalytics = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -318,11 +318,11 @@ export class FileManagementController {
 
       return sendSuccess(res, analytics);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  checkFileIntegrity = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  checkFileIntegrity = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -380,11 +380,11 @@ export class FileManagementController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  bulkCheckFileIntegrity = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  bulkCheckFileIntegrity = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { fileIds } = req.body;
 
@@ -469,7 +469,7 @@ export class FileManagementController {
         results: processedResults
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -24,7 +24,7 @@ export const cacheMiddleware = (options: CacheMiddlewareOptions = {}) => {
   const ttl = options.ttl || CacheTTL.MEDIUM;
   const namespace = options.namespace || 'http';
 
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Skip caching for non-GET requests
     if (req.method !== 'GET') {
       next();
@@ -147,7 +147,7 @@ export const cachePaginated = (options: CacheMiddlewareOptions = {}) => {
 export const invalidateCache = (patterns: string | string[], namespace?: string) => {
   const cacheService = getCacheService();
 
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Store original json method
     const originalJson = res.json.bind(res);
 
@@ -179,7 +179,7 @@ export const invalidateCache = (patterns: string | string[], namespace?: string)
 export const invalidateCacheTag = (tag: string | string[]) => {
   const cacheService = getCacheService();
 
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Store original json method
     const originalJson = res.json.bind(res);
 

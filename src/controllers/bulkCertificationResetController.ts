@@ -38,7 +38,7 @@ export class BulkCertificationResetController {
       sendSuccess(res, result, result.message);
     } catch (error) {
       log.error('Reset certifications error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

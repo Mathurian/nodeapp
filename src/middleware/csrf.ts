@@ -92,7 +92,7 @@ const getCsrfToken = (req: Request, res: Response): void => {
  * Middleware to validate CSRF token on state-changing requests
  * Use this to protect POST/PUT/DELETE/PATCH routes
  */
-const csrfProtection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const csrfProtection = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   // Skip CSRF validation for GET, HEAD, OPTIONS requests
   const method = req.method.toUpperCase()
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {

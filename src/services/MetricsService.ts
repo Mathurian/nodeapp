@@ -5,7 +5,6 @@
 
 import { injectable } from 'tsyringe';
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
-import { Request, Response } from 'express';
 import { createLogger } from '../utils/logger';
 
 @injectable()

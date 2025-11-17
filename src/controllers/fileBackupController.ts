@@ -13,35 +13,35 @@ export class FileBackupController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  createBackup = async (req: Request, res: Response, next: NextFunction) => {
+  createBackup = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.fileBackupService.createBackup();
       return sendSuccess(res, result, 'Backup created');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  listBackups = async (req: Request, res: Response, next: NextFunction) => {
+  listBackups = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const backups = await this.fileBackupService.listBackups();
       return sendSuccess(res, backups);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  deleteBackup = async (req: Request, res: Response, next: NextFunction) => {
+  deleteBackup = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { backupName } = req.params;
       await this.fileBackupService.deleteBackup(backupName);
       return sendSuccess(res, null, 'Backup deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  createFileBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createFileBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { type, location } = req.body;
 
@@ -87,11 +87,11 @@ export class FileBackupController {
         throw backupError;
       }
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  restoreFileBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  restoreFileBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -116,11 +116,11 @@ export class FileBackupController {
         message: 'File backup restoration initiated'
       }, 'Backup restore initiated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  listFileBackups = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  listFileBackups = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -154,11 +154,11 @@ export class FileBackupController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  deleteFileBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  deleteFileBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -176,11 +176,11 @@ export class FileBackupController {
 
       return sendSuccess(res, {}, 'Backup deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getBackupDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getBackupDetails = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -194,11 +194,11 @@ export class FileBackupController {
 
       return sendSuccess(res, backup);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  downloadBackup = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  downloadBackup = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { backupId } = req.params;
 
@@ -222,7 +222,7 @@ export class FileBackupController {
         size: backup.size?.toString() || '0'
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -13,36 +13,36 @@ export class EmailController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getConfig = async (req: Request, res: Response, next: NextFunction) => {
+  getConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const config = await this.emailService.getConfig();
       return sendSuccess(res, config);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendEmail = async (req: Request, res: Response, next: NextFunction) => {
+  sendEmail = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { to, subject, body } = req.body;
       const result = await this.emailService.sendEmail(to, subject, body);
       return sendSuccess(res, result, 'Email sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendBulkEmail = async (req: Request, res: Response, next: NextFunction) => {
+  sendBulkEmail = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { recipients, subject, body } = req.body;
       const results = await this.emailService.sendBulkEmail(recipients, subject, body);
       return sendSuccess(res, results, 'Bulk email sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getTemplates = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -88,11 +88,11 @@ export class EmailController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createTemplate = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { name, subject, body, type, eventId, variables } = req.body;
 
@@ -116,11 +116,11 @@ export class EmailController {
 
       return sendSuccess(res, template, 'Template created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateTemplate = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { name, subject, body, type, eventId, variables } = req.body;
@@ -148,11 +148,11 @@ export class EmailController {
 
       return sendSuccess(res, template, 'Template updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  deleteTemplate = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -170,11 +170,11 @@ export class EmailController {
 
       return sendSuccess(res, {}, 'Template deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getCampaigns = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCampaigns = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Email campaigns would be tracked through email logs
       const limit = parseInt(req.query.limit as string) || 50;
@@ -191,11 +191,11 @@ export class EmailController {
 
       return sendSuccess(res, { campaigns: logs });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  createCampaign = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  createCampaign = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { name, templateId, recipientList } = req.body;
 
@@ -210,11 +210,11 @@ export class EmailController {
         createdAt: new Date().toISOString()
       }, 'Campaign created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendCampaign = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendCampaign = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { campaignId } = req.params;
       const { recipients, templateId, subject, body } = req.body;
@@ -240,11 +240,11 @@ export class EmailController {
         total: recipients.length
       }, 'Campaign sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getLogs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 100;
@@ -276,11 +276,11 @@ export class EmailController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendMultipleEmails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendMultipleEmails = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { emails } = req.body;
 
@@ -303,11 +303,11 @@ export class EmailController {
         total: emails.length
       }, 'Multiple emails sent');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  sendEmailByRole = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  sendEmailByRole = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { role, subject, body } = req.body;
 
@@ -340,7 +340,7 @@ export class EmailController {
         role
       }, `Emails sent to users with role: ${role}`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

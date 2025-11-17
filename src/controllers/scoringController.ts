@@ -36,7 +36,7 @@ export class ScoringController {
       sendSuccess(res, scores);
     } catch (error) {
       log.error('Get scores error', { error: (error as Error).message, categoryId: req.params.categoryId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -78,7 +78,7 @@ export class ScoringController {
       sendCreated(res, newScore);
     } catch (error) {
       log.error('Submit score error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
@@ -104,7 +104,7 @@ export class ScoringController {
       sendSuccess(res, updatedScore);
     } catch (error) {
       log.error('Update score error', { error: (error as Error).message, scoreId: req.params.scoreId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -124,7 +124,7 @@ export class ScoringController {
       sendNoContent(res);
     } catch (error) {
       log.error('Delete score error', { error: (error as Error).message, scoreId: req.params.scoreId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -149,7 +149,7 @@ export class ScoringController {
       sendSuccess(res, certifiedScore);
     } catch (error) {
       log.error('Certify score error', { error: (error as Error).message, scoreId: req.params.scoreId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -174,7 +174,7 @@ export class ScoringController {
       sendSuccess(res, result);
     } catch (error) {
       log.error('Certify scores error', { error: (error as Error).message, categoryId: req.params.categoryId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -194,7 +194,7 @@ export class ScoringController {
       sendSuccess(res, unsignedScore);
     } catch (error) {
       log.error('Unsign score error', { error: (error as Error).message, scoreId: req.params.scoreId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -214,7 +214,7 @@ export class ScoringController {
       sendSuccess(res, scores);
     } catch (error) {
       log.error('Get scores by judge error', { error: (error as Error).message, judgeId: req.params.judgeId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -237,7 +237,7 @@ export class ScoringController {
         error: (error as Error).message,
         contestantId: req.params.contestantId
       });
-      next(error);
+      return next(error);
     }
   };
 
@@ -257,7 +257,7 @@ export class ScoringController {
       sendSuccess(res, scores);
     } catch (error) {
       log.error('Get scores by contest error', { error: (error as Error).message, contestId: req.params.contestId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -277,7 +277,7 @@ export class ScoringController {
       sendSuccess(res, stats);
     } catch (error) {
       log.error('Get contest stats error', { error: (error as Error).message, contestId: req.params.contestId });
-      next(error);
+      return next(error);
     }
   };
 
@@ -321,7 +321,7 @@ export class ScoringController {
 
       return sendSuccess(res, categories);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -369,7 +369,7 @@ export class ScoringController {
 
       return sendSuccess(res, certification, 'Totals certified successfully by Tally Master');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -431,7 +431,7 @@ export class ScoringController {
 
       return sendSuccess(res, certification, 'Final certification completed by Auditor');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -474,7 +474,7 @@ export class ScoringController {
 
       return sendSuccess(res, deductionRequest, 'Deduction request created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -518,7 +518,7 @@ export class ScoringController {
 
       return sendSuccess(res, updated, 'Deduction request approved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -550,7 +550,7 @@ export class ScoringController {
 
       return sendSuccess(res, updated, 'Deduction request rejected');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -573,7 +573,7 @@ export class ScoringController {
 
       return sendSuccess(res, deductions);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -632,7 +632,7 @@ export class ScoringController {
         certifiedAt: new Date()
       }, `Certified ${result.count} scores for judge in contest`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -677,7 +677,7 @@ export class ScoringController {
         uncertifiedScores: uncertifiedScores.count
       }, 'Category uncertified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

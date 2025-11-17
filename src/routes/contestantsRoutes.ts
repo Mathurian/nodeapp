@@ -42,7 +42,7 @@ router.get('/', async (req, res, next) => {
     const contestants = await assignmentService.getContestants();
     return sendSuccess(res, contestants, 'Contestants retrieved successfully');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -55,7 +55,7 @@ router.post('/',
       const contestant = await assignmentService.createContestant(req.body);
       return sendSuccess(res, contestant, 'Contestant created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );
@@ -69,7 +69,7 @@ router.put('/:id',
       const contestant = await assignmentService.updateContestant(req.params.id, req.body);
       return sendSuccess(res, contestant, 'Contestant updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );
@@ -87,7 +87,7 @@ router.post('/bulk-delete',
       const result = await assignmentService.bulkDeleteContestants(contestantIds);
       return sendSuccess(res, result, `${result.deletedCount} contestant(s) deleted successfully`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );
@@ -101,7 +101,7 @@ router.delete('/:id',
       await assignmentService.deleteContestant(req.params.id);
       return sendSuccess(res, null, 'Contestant deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 );

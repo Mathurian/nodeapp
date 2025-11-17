@@ -10,7 +10,7 @@ export class ScoreRemovalController {
     this.scoreRemovalService = container.resolve(ScoreRemovalService);
   }
 
-  createScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
+  createScoreRemovalRequest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, reason } = req.body;
       const request = await this.scoreRemovalService.createRequest({
@@ -22,31 +22,31 @@ export class ScoreRemovalController {
       });
       return sendSuccess(res, request, 'Score removal request created. Awaiting co-signatures.');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction) => {
+  getScoreRemovalRequests = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
       const requests = await this.scoreRemovalService.getAll(status as string | undefined);
       return sendSuccess(res, requests);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
+  getScoreRemovalRequest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const request = await this.scoreRemovalService.getById(id);
       return sendSuccess(res, request);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  signScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
+  signScoreRemovalRequest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const { signatureName } = req.body;
@@ -57,17 +57,17 @@ export class ScoreRemovalController {
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  executeScoreRemoval = async (req: Request, res: Response, next: NextFunction) => {
+  executeScoreRemoval = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const result = await this.scoreRemovalService.executeRemoval(id);
       return sendSuccess(res, result, 'Score removal executed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -13,16 +13,16 @@ export class DatabaseBrowserController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getTables = async (req: Request, res: Response, next: NextFunction) => {
+  getTables = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.databaseBrowserService.getTables();
       return sendSuccess(res, tables);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getTableData = async (req: Request, res: Response, next: NextFunction) => {
+  getTableData = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const { page, limit } = req.query;
@@ -33,21 +33,21 @@ export class DatabaseBrowserController {
       );
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getTableSchema = async (req: Request, res: Response, next: NextFunction) => {
+  getTableSchema = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const schema = await this.databaseBrowserService.getTableSchema(tableName);
       return sendSuccess(res, schema);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  executeQuery = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  executeQuery = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { query } = req.body;
 
@@ -80,11 +80,11 @@ export class DatabaseBrowserController {
         count: Array.isArray(result) ? result.length : 0
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getQueryHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getQueryHistory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -124,7 +124,7 @@ export class DatabaseBrowserController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

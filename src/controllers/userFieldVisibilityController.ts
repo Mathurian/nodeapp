@@ -24,7 +24,7 @@ export class UserFieldVisibilityController {
       res.json(settings);
     } catch (error) {
       log.error('Get field visibility settings error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -47,7 +47,7 @@ export class UserFieldVisibilityController {
       res.json(result);
     } catch (error) {
       log.error('Update field visibility error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -61,7 +61,7 @@ export class UserFieldVisibilityController {
       res.json(result);
     } catch (error) {
       log.error('Reset field visibility error:', error);
-      next(error);
+      return next(error);
     }
   };
 }

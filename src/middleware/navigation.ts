@@ -365,7 +365,7 @@ const checkNavigationPermission = (req: Request, res: Response, next: NextFuncti
 }
 
 // Get navigation data for frontend
-const getNavigationData = async (req: Request, res: Response): Promise<void> => {
+const getNavigationData = async (_req: Request, res: Response): Promise<void> => {
   try {
     const userRole = req.user?.role
 

@@ -32,7 +32,7 @@ export const listEventLogs = async (req: Request, res: Response, next: NextFunct
 
     sendSuccess(res, { logs, total, limit, offset });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -43,7 +43,7 @@ export const getEventLog = async (req: Request, res: Response, next: NextFunctio
     });
     sendSuccess(res, log);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -54,7 +54,7 @@ export const listWebhooks = async (req: Request, res: Response, next: NextFuncti
     });
     sendSuccess(res, webhooks);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -68,7 +68,7 @@ export const createWebhook = async (req: Request, res: Response, next: NextFunct
     });
     sendSuccess(res, webhook, 'Webhook created', 201);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -80,7 +80,7 @@ export const updateWebhook = async (req: Request, res: Response, next: NextFunct
     });
     sendSuccess(res, webhook, 'Webhook updated');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -91,6 +91,6 @@ export const deleteWebhook = async (req: Request, res: Response, next: NextFunct
     });
     sendSuccess(res, null, 'Webhook deleted');
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };

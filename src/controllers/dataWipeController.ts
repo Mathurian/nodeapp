@@ -19,7 +19,7 @@ export class DataWipeController {
   /**
    * Wipe all event/contest/user data
    */
-  wipeAllData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  wipeAllData = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'dataWipe');
     try {
       const { confirmation } = req.body;
@@ -38,14 +38,14 @@ export class DataWipeController {
       sendSuccess(res, null, 'All data wiped successfully');
     } catch (error) {
       log.error('Wipe all data error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Wipe data for a specific event
    */
-  wipeEventData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  wipeEventData = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'dataWipe');
     try {
       const { eventId } = req.params;
@@ -64,7 +64,7 @@ export class DataWipeController {
       sendSuccess(res, null, 'Event data wiped successfully');
     } catch (error) {
       log.error('Wipe event data error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

@@ -25,7 +25,7 @@ export class EmceeController {
       res.json(stats);
     } catch (error) {
       log.error('Get emcee stats error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -46,7 +46,7 @@ export class EmceeController {
       res.json(scripts);
     } catch (error) {
       log.error('Get scripts error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -65,7 +65,7 @@ export class EmceeController {
       res.json(script);
     } catch (error) {
       log.error('Get script error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -86,7 +86,7 @@ export class EmceeController {
       sendSuccess(res, contestants, 'Contestant bios retrieved successfully');
     } catch (error) {
       log.error('Get contestant bios error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -107,7 +107,7 @@ export class EmceeController {
       sendSuccess(res, judges, 'Judge bios retrieved successfully');
     } catch (error) {
       log.error('Get judge bios error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -121,7 +121,7 @@ export class EmceeController {
       res.json(events);
     } catch (error) {
       log.error('Get events error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -140,7 +140,7 @@ export class EmceeController {
       res.json(event);
     } catch (error) {
       log.error('Get event error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -155,7 +155,7 @@ export class EmceeController {
       res.json(contests);
     } catch (error) {
       log.error('Get contests error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -174,7 +174,7 @@ export class EmceeController {
       res.json(contest);
     } catch (error) {
       log.error('Get contest error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -191,7 +191,7 @@ export class EmceeController {
       res.json(history);
     } catch (error) {
       log.error('Get emcee history error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -221,7 +221,7 @@ export class EmceeController {
       res.status(201).json(script);
     } catch (error) {
       log.error('Upload script error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -250,7 +250,7 @@ export class EmceeController {
       res.json(script);
     } catch (error) {
       log.error('Update script error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -269,7 +269,7 @@ export class EmceeController {
       res.status(204).send();
     } catch (error) {
       log.error('Delete script error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -288,7 +288,7 @@ export class EmceeController {
       res.json(script);
     } catch (error) {
       log.error('Toggle script error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -319,7 +319,7 @@ export class EmceeController {
       fileStream.pipe(res);
     } catch (error) {
       log.error('Serve script file error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -340,7 +340,7 @@ export class EmceeController {
       res.json({ viewUrl, expiresIn: 300 });
     } catch (error) {
       log.error('Get file view URL error:', error);
-      next(error);
+      return next(error);
     }
   };
 }

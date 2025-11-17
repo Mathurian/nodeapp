@@ -67,7 +67,7 @@ export const validatePasswordStaticMiddleware = (passwordField: string = 'passwo
  * Database-based password validation middleware (original)
  * Validates password against active database policy
  */
-const validatePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const validatePassword = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { password } = req.body
 
@@ -127,7 +127,7 @@ const validatePassword = async (req: Request, res: Response, next: NextFunction)
   }
 }
 
-const getPasswordPolicy = async (req: Request, res: Response): Promise<void> => {
+const getPasswordPolicy = async (_req: Request, res: Response): Promise<void> => {
   try {
     const policy = await prisma.passwordPolicy.findFirst({
       where: { isActive: true }
@@ -159,7 +159,7 @@ const getPasswordPolicy = async (req: Request, res: Response): Promise<void> => 
   }
 }
 
-const updatePasswordPolicy = async (req: Request, res: Response): Promise<void> => {
+const updatePasswordPolicy = async (_req: Request, res: Response): Promise<void> => {
   try {
     const { minLength, requireUppercase, requireLowercase, requireNumbers, requireSpecialChars, isActive } = req.body
 

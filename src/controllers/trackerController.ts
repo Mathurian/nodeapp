@@ -13,27 +13,27 @@ export class TrackerController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getScoringProgressByContest = async (req: Request, res: Response, next: NextFunction) => {
+  getScoringProgressByContest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
       const progress = await this.trackerService.getScoringProgressByContest(contestId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getScoringProgressByCategory = async (req: Request, res: Response, next: NextFunction) => {
+  getScoringProgressByCategory = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { categoryId } = req.params;
       const progress = await this.trackerService.getScoringProgressByCategory(categoryId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getJudgeScoringProgress = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudgeScoringProgress = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { judgeId } = req.params;
       const eventId = req.query.eventId as string | undefined;
@@ -66,11 +66,11 @@ export class TrackerController {
 
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getCertificationStatus = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCertificationStatus = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
 
@@ -104,11 +104,11 @@ export class TrackerController {
 
       return sendSuccess(res, status);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getPendingCertifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getPendingCertifications = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const role = req.query.role as string | undefined;
       const eventId = req.query.eventId as string | undefined;
@@ -145,7 +145,7 @@ export class TrackerController {
         certifications: pendingCertifications
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

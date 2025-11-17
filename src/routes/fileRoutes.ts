@@ -12,7 +12,6 @@ import {
 } from '../controllers/fileController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import { checkFileAccess, checkUploadPermission, checkSharingPermission, getUserFileAccess } from '../middleware/fileAccessControl';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

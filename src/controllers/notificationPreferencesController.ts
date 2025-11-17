@@ -34,7 +34,7 @@ export class NotificationPreferencesController {
 
       return sendSuccess(res, parsed);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -79,7 +79,7 @@ export class NotificationPreferencesController {
 
       return sendSuccess(res, parsed, 'Notification preferences updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -104,7 +104,7 @@ export class NotificationPreferencesController {
 
       return sendSuccess(res, parsed, 'Notification preferences reset to defaults');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -21,7 +21,7 @@ export class ScoreFileController {
   /**
    * Upload a score file
    */
-  uploadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  uploadScoreFile = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { categoryId, judgeId, contestantId, fileName, fileType, filePath, fileSize, notes } = req.body;
@@ -48,14 +48,14 @@ export class ScoreFileController {
       sendSuccess(res, scoreFile, 'Score file uploaded successfully');
     } catch (error) {
       log.error('Upload score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get score file by ID
    */
-  getScoreFileById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getScoreFileById = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { id } = req.params;
@@ -71,14 +71,14 @@ export class ScoreFileController {
       sendSuccess(res, file);
     } catch (error) {
       log.error('Get score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get score files by category
    */
-  getScoreFilesByCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getScoreFilesByCategory = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { categoryId } = req.params;
@@ -89,14 +89,14 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get score files by category error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get score files by judge
    */
-  getScoreFilesByJudge = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getScoreFilesByJudge = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { judgeId } = req.params;
@@ -107,14 +107,14 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get score files by judge error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get score files by contestant
    */
-  getScoreFilesByContestant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getScoreFilesByContestant = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { contestantId } = req.params;
@@ -125,14 +125,14 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get score files by contestant error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get all score files with optional filters
    */
-  getAllScoreFiles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAllScoreFiles = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { categoryId, judgeId, contestantId, status } = req.query;
@@ -148,14 +148,14 @@ export class ScoreFileController {
       sendSuccess(res, files);
     } catch (error) {
       log.error('Get all score files error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Update score file status/notes
    */
-  updateScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateScoreFile = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { id } = req.params;
@@ -176,14 +176,14 @@ export class ScoreFileController {
       sendSuccess(res, scoreFile, 'Score file updated successfully');
     } catch (error) {
       log.error('Update score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Delete score file
    */
-  deleteScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  deleteScoreFile = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { id } = req.params;
@@ -202,14 +202,14 @@ export class ScoreFileController {
       sendNoContent(res);
     } catch (error) {
       log.error('Delete score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Download a score file
    */
-  downloadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  downloadScoreFile = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
       const { id } = req.params;
@@ -236,7 +236,7 @@ export class ScoreFileController {
       log.info('Score file downloaded', { id });
     } catch (error) {
       log.error('Download score file error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

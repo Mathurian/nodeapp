@@ -24,7 +24,7 @@ export class BoardController {
       res.json(stats);
     } catch (error) {
       log.error('Get board stats error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -38,7 +38,7 @@ export class BoardController {
       res.json(certifications);
     } catch (error) {
       log.error('Get certifications error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -58,7 +58,7 @@ export class BoardController {
       res.json(result);
     } catch (error) {
       log.error('Approve certification error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -80,7 +80,7 @@ export class BoardController {
       res.json(result);
     } catch (error) {
       log.error('Reject certification error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -94,7 +94,7 @@ export class BoardController {
       res.json(status);
     } catch (error) {
       log.error('Get certification status error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -108,7 +108,7 @@ export class BoardController {
       res.json(scripts);
     } catch (error) {
       log.error('Get emcee scripts error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -141,7 +141,7 @@ export class BoardController {
       res.status(201).json(script);
     } catch (error) {
       log.error('Create emcee script error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -174,7 +174,7 @@ export class BoardController {
       res.json(script);
     } catch (error) {
       log.error('Update emcee script error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -195,7 +195,7 @@ export class BoardController {
       res.json(result);
     } catch (error) {
       log.error('Delete emcee script error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -211,7 +211,7 @@ export class BoardController {
       res.status(501).json({ error: 'Report generation to be implemented in ReportGenerationService' });
     } catch (error) {
       log.error('Generate report error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -229,7 +229,7 @@ export class BoardController {
       res.json(result);
     } catch (error) {
       log.error('Get score removal requests error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -252,7 +252,7 @@ export class BoardController {
       res.json(result);
     } catch (error) {
       log.error('Approve score removal error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -275,7 +275,7 @@ export class BoardController {
       res.json(result);
     } catch (error) {
       log.error('Reject score removal error', error);
-      next(error);
+      return next(error);
     }
   };
 }

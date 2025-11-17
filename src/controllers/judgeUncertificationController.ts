@@ -13,17 +13,17 @@ export class JudgeUncertificationController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getUncertificationRequests = async (req: Request, res: Response, next: NextFunction) => {
+  getUncertificationRequests = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
       const requests = await this.judgeUncertificationService.getUncertificationRequests(status as string | undefined);
       return sendSuccess(res, requests);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  createUncertificationRequest = async (req: Request, res: Response, next: NextFunction) => {
+  createUncertificationRequest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, reason } = req.body;
       const request = await this.judgeUncertificationService.createUncertificationRequest({
@@ -35,11 +35,11 @@ export class JudgeUncertificationController {
       });
       return sendSuccess(res, request, 'Uncertification request created. Awaiting co-signatures.');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  signUncertificationRequest = async (req: Request, res: Response, next: NextFunction) => {
+  signUncertificationRequest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const { signatureName } = req.body;
@@ -50,21 +50,21 @@ export class JudgeUncertificationController {
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  executeUncertification = async (req: Request, res: Response, next: NextFunction) => {
+  executeUncertification = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const result = await this.judgeUncertificationService.executeUncertification(id);
       return sendSuccess(res, result, 'Uncertification executed successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  requestUncertification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  requestUncertification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { judgeId, categoryId, reason } = req.body;
 
@@ -108,11 +108,11 @@ export class JudgeUncertificationController {
 
       return sendSuccess(res, request, 'Uncertification request created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  approveUncertification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  approveUncertification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -159,11 +159,11 @@ export class JudgeUncertificationController {
 
       return sendSuccess(res, approved, 'Uncertification request approved and scores uncertified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  rejectUncertification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  rejectUncertification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { rejectionReason } = req.body;
@@ -202,11 +202,11 @@ export class JudgeUncertificationController {
 
       return sendSuccess(res, rejected, 'Uncertification request rejected successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getJudgeUncertificationRequests = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudgeUncertificationRequests = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { judgeId } = req.params;
       const page = parseInt(req.query.page as string) || 1;
@@ -242,7 +242,7 @@ export class JudgeUncertificationController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -27,7 +27,7 @@ export class ContestsController {
       const contest = await this.contestService.getContestWithDetails(id);
       return sendSuccess(res, contest, 'Contest retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -49,7 +49,7 @@ export class ContestsController {
       );
       return sendSuccess(res, contests, 'Contests retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -73,7 +73,7 @@ export class ContestsController {
 
       return sendCreated(res, contest, 'Contest created successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -96,7 +96,7 @@ export class ContestsController {
 
       return sendSuccess(res, contest, 'Contest updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -112,7 +112,7 @@ export class ContestsController {
       await this.contestService.deleteContest(id);
       return sendNoContent(res);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -128,7 +128,7 @@ export class ContestsController {
       const contest = await this.contestService.archiveContest(id);
       return sendSuccess(res, contest, 'Contest archived successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -144,7 +144,7 @@ export class ContestsController {
       const contest = await this.contestService.unarchiveContest(id);
       return sendSuccess(res, contest, 'Contest reactivated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -160,7 +160,7 @@ export class ContestsController {
 
       return sendSuccess(res, contests, 'Archived contests retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -176,7 +176,7 @@ export class ContestsController {
       const stats = await this.contestService.getContestStats(id);
       return sendSuccess(res, stats, 'Contest statistics retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -192,7 +192,7 @@ export class ContestsController {
       const contests = await this.contestService.searchContests(query);
       return sendSuccess(res, contests, 'Search results retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

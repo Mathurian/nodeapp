@@ -10,16 +10,16 @@ export class LogFilesController {
     this.logFilesService = container.resolve(LogFilesService);
   }
 
-  getLogFiles = async (req: Request, res: Response, next: NextFunction) => {
+  getLogFiles = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.logFilesService.getLogFiles();
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getLogFileContents = async (req: Request, res: Response, next: NextFunction) => {
+  getLogFileContents = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const { lines } = req.query;
@@ -29,37 +29,37 @@ export class LogFilesController {
       );
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  downloadLogFile = async (req: Request, res: Response, next: NextFunction) => {
+  downloadLogFile = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const filePath = await this.logFilesService.getLogFilePath(filename);
       res.download(filePath, filename);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  cleanupOldLogs = async (req: Request, res: Response, next: NextFunction) => {
+  cleanupOldLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { daysToKeep } = req.body;
       const result = await this.logFilesService.cleanupOldLogs(daysToKeep);
       return sendSuccess(res, result, `Deleted ${result.deletedCount} log file(s)`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  deleteLogFile = async (req: Request, res: Response, next: NextFunction) => {
+  deleteLogFile = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       await this.logFilesService.deleteLogFile(filename);
       return sendSuccess(res, null, `Log file "${filename}" deleted successfully`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

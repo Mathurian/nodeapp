@@ -19,7 +19,7 @@ export class ResultsController {
   /**
    * Get all results with role-based filtering and pagination
    */
-  getAllResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAllResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const userRole = req.user?.role as UserRole;
@@ -52,28 +52,28 @@ export class ResultsController {
       });
     } catch (error) {
       log.error('Get results error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get all categories with related data
    */
-  getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getCategories = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const categories = await this.resultsService.getCategories();
       res.json(categories);
     } catch (error) {
       log.error('Get categories error:', error);
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get results for a specific contestant
    */
-  getContestantResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getContestantResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { contestantId } = req.params;
@@ -98,14 +98,14 @@ export class ResultsController {
         res.status(403).json({ error: error.message });
         return;
       }
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get results for a specific category with rankings
    */
-  getCategoryResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getCategoryResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { categoryId } = req.params;
@@ -136,14 +136,14 @@ export class ResultsController {
           return;
         }
       }
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get results for a specific contest
    */
-  getContestResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getContestResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { contestId } = req.params;
@@ -174,14 +174,14 @@ export class ResultsController {
           return;
         }
       }
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get results for a specific event
    */
-  getEventResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getEventResults = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
       const { eventId } = req.params;
@@ -212,7 +212,7 @@ export class ResultsController {
           return;
         }
       }
-      next(error);
+      return next(error);
     }
   };
 }

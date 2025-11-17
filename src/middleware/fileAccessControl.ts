@@ -5,7 +5,7 @@ const prisma = require('../utils/prisma')
 
 // File access control middleware
 const checkFileAccess = (requiredPermission = 'READ') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { fileId } = req.params;
       if (!req.user) {
@@ -141,7 +141,7 @@ const getRoleFilePermissions = async (userRole: string, fileCategory: string): P
 }
 
 // Check if user can upload files of a specific category
-const checkUploadPermission = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const checkUploadPermission = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { category } = req.body;
     if (!req.user) {
@@ -177,7 +177,7 @@ const checkUploadPermission = async (req: Request, res: Response, next: NextFunc
 }
 
 // Check file sharing permissions
-const checkSharingPermission = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const checkSharingPermission = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { fileId } = req.params;
     const { isPublic } = req.body;
@@ -217,7 +217,7 @@ const checkSharingPermission = async (req: Request, res: Response, next: NextFun
 }
 
 // Get user's file access summary
-const getUserFileAccess = async (req: Request, res: Response): Promise<void> => {
+const getUserFileAccess = async (_req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });

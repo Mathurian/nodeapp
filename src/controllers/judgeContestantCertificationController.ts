@@ -13,7 +13,7 @@ export class JudgeContestantCertificationController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getCertifications = async (req: Request, res: Response, next: NextFunction) => {
+  getCertifications = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, contestantId } = req.query;
       const certifications = await this.judgeContestantCertificationService.getCertifications(
@@ -23,11 +23,11 @@ export class JudgeContestantCertificationController {
       );
       return sendSuccess(res, certifications);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  certify = async (req: Request, res: Response, next: NextFunction) => {
+  certify = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { judgeId, categoryId, contestantId } = req.body;
       const certification = await this.judgeContestantCertificationService.certify({
@@ -37,21 +37,21 @@ export class JudgeContestantCertificationController {
       });
       return sendSuccess(res, certification, 'Certification created', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  uncertify = async (req: Request, res: Response, next: NextFunction) => {
+  uncertify = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       await this.judgeContestantCertificationService.uncertify(id);
       return sendSuccess(res, null, 'Certification deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  certifyContestantScores = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  certifyContestantScores = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { contestantId, categoryId } = req.body;
 
@@ -79,11 +79,11 @@ export class JudgeContestantCertificationController {
         certifiedCount: result.count
       }, `Certified ${result.count} scores for contestant in category`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getCategoryCertificationStatus = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCategoryCertificationStatus = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
       if (!categoryId) {
@@ -93,11 +93,11 @@ export class JudgeContestantCertificationController {
       const status = await this.judgeContestantCertificationService.getCategoryCertificationStatus(categoryId);
       return sendSuccess(res, status, 'Category certification status retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  certifyCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  certifyCategory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
 
@@ -123,7 +123,7 @@ export class JudgeContestantCertificationController {
         certifiedCount: result.count
       }, `Certified ${result.count} scores in category`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

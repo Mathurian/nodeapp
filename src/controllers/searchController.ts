@@ -47,7 +47,7 @@ export class SearchController {
 
       return sendSuccess(res, results);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -75,7 +75,7 @@ export class SearchController {
 
       return sendSuccess(res, results);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -94,7 +94,7 @@ export class SearchController {
 
       return sendSuccess(res, suggestions);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -108,7 +108,7 @@ export class SearchController {
 
       return sendSuccess(res, searches);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -122,7 +122,7 @@ export class SearchController {
 
       return sendSuccess(res, searches);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -151,7 +151,7 @@ export class SearchController {
 
       return sendSuccess(res, savedSearch, 'Search saved successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -177,7 +177,7 @@ export class SearchController {
 
       return sendSuccess(res, parsed);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -193,7 +193,7 @@ export class SearchController {
 
       return res.status(204).send();
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -209,7 +209,7 @@ export class SearchController {
 
       return sendSuccess(res, results);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -234,7 +234,7 @@ export class SearchController {
 
       return sendSuccess(res, parsed);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -248,7 +248,7 @@ export class SearchController {
 
       return sendSuccess(res, { count }, 'Search history cleared successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

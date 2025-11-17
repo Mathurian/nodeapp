@@ -10,17 +10,17 @@ export class ContestCertificationController {
     this.contestCertificationService = container.resolve(ContestCertificationService);
   }
 
-  getContestCertificationProgress = async (req: Request, res: Response, next: NextFunction) => {
+  getContestCertificationProgress = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
       const progress = await this.contestCertificationService.getCertificationProgress(contestId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  certifyContest = async (req: Request, res: Response, next: NextFunction) => {
+  certifyContest = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
       const certification = await this.contestCertificationService.certifyContest(
@@ -30,7 +30,7 @@ export class ContestCertificationController {
       );
       return sendSuccess(res, certification, 'Contest certified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

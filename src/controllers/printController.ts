@@ -32,7 +32,7 @@ export class PrintController {
       const templates = await this.printService.getPrintTemplates();
       successResponse(res, { templates }, 'Print templates retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -56,7 +56,7 @@ export class PrintController {
       const template = await this.printService.createPrintTemplate(data, userId);
       successResponse(res, { template }, 'Print template created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -75,7 +75,7 @@ export class PrintController {
       const template = await this.printService.updatePrintTemplate(id, data);
       successResponse(res, { template }, 'Print template updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -92,7 +92,7 @@ export class PrintController {
       await this.printService.deletePrintTemplate(id);
       successResponse(res, null, 'Print template deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -117,7 +117,7 @@ export class PrintController {
       );
       res.send(output.content);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -142,7 +142,7 @@ export class PrintController {
       );
       res.send(output.content);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -167,7 +167,7 @@ export class PrintController {
       );
       res.send(output.content);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -184,7 +184,7 @@ export class PrintController {
       const contestant = await this.printService.getContestantReport(id);
       successResponse(res, contestant, 'Contestant report retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -201,7 +201,7 @@ export class PrintController {
       const judge = await this.printService.getJudgeReport(id);
       successResponse(res, judge, 'Judge report retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -218,7 +218,7 @@ export class PrintController {
       const category = await this.printService.getCategoryReport(id);
       successResponse(res, category, 'Category report retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -235,7 +235,7 @@ export class PrintController {
       const contest = await this.printService.getContestReport(id);
       successResponse(res, contest, 'Contest report retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -252,7 +252,7 @@ export class PrintController {
       const contest = await this.printService.getArchivedContestReport(id);
       successResponse(res, contest, 'Archived contest report retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

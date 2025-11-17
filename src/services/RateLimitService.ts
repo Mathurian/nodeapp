@@ -34,7 +34,7 @@ export class RateLimitService {
   private log = createLogger('rate-limit');
 
   constructor(
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private _prisma: PrismaClient
   ) {
     this.initializeRedis();
     this.initializeDefaultConfigs();
@@ -155,7 +155,7 @@ export class RateLimitService {
    * Create rate limiter middleware for a specific tier
    */
   createLimiter(tier: string, customConfig?: Partial<RateLimitConfig>) {
-    return async (req: Request): Promise<RateLimitConfig> => {
+    return async (_req: Request): Promise<RateLimitConfig> => {
       const config = customConfig 
         ? { ...await this.getConfig(tier), ...customConfig }
         : await this.getConfig(tier);

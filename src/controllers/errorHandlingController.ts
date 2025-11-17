@@ -13,26 +13,26 @@ export class ErrorHandlingController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  logError = async (req: Request, res: Response, next: NextFunction) => {
+  logError = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { error, context } = req.body;
       const result = this.errorHandlingService.logError(error, context);
       return sendSuccess(res, result, 'Error logged');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getErrorStats = async (req: Request, res: Response, next: NextFunction) => {
+  getErrorStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = this.errorHandlingService.getErrorStats();
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getErrorStatistics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getErrorStatistics = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -69,11 +69,11 @@ export class ErrorHandlingController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getErrorDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getErrorDetails = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const page = parseInt(req.query.page as string) || 1;
@@ -132,11 +132,11 @@ export class ErrorHandlingController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  markErrorResolved = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  markErrorResolved = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { resolution } = req.body;
@@ -165,11 +165,11 @@ export class ErrorHandlingController {
 
       return sendSuccess(res, errorLog, 'Error marked as resolved');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getErrorTrends = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getErrorTrends = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -216,11 +216,11 @@ export class ErrorHandlingController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  cleanupErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  cleanupErrorLogs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { olderThanDays } = req.body;
 
@@ -242,11 +242,11 @@ export class ErrorHandlingController {
         cutoffDate
       }, `Deleted ${result.count} error logs older than ${olderThanDays} days`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  exportErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  exportErrorLogs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const format = (req.query.format as string) || 'json';
       const limit = parseInt(req.query.limit as string) || 1000;
@@ -296,7 +296,7 @@ export class ErrorHandlingController {
       res.setHeader('Content-Disposition', `attachment; filename="error-logs-${Date.now()}.json"`);
       return res.send(JSON.stringify(errorLogs, null, 2));
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

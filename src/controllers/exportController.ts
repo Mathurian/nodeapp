@@ -29,7 +29,7 @@ export class ExportController {
 
       sendSuccess(res, { filepath }, 'Event exported to Excel successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -53,7 +53,7 @@ export class ExportController {
 
       sendSuccess(res, { filepath }, 'Contest results exported to CSV successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -77,7 +77,7 @@ export class ExportController {
 
       sendSuccess(res, { filepath }, 'Judge performance exported to XML successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -99,7 +99,7 @@ export class ExportController {
 
       sendSuccess(res, { filepath }, 'System analytics exported to PDF successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -118,7 +118,7 @@ export class ExportController {
 
       sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

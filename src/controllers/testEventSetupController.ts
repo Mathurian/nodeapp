@@ -19,7 +19,7 @@ export class TestEventSetupController {
   /**
    * Create a test event with configurable options
    */
-  createTestEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  createTestEvent = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'testEventSetup');
     try {
       const config: TestEventConfig = req.body;
@@ -38,7 +38,7 @@ export class TestEventSetupController {
       sendCreated(res, result, result.message);
     } catch (error) {
       log.error('Create test event error', { error: (error as Error).message });
-      next(error);
+      return next(error);
     }
   };
 }

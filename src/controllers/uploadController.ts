@@ -35,7 +35,7 @@ export class UploadController {
       });
       successResponse(res, { file }, 'File uploaded successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -60,7 +60,7 @@ export class UploadController {
       });
       successResponse(res, { image }, 'Image uploaded successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -77,7 +77,7 @@ export class UploadController {
       await this.uploadService.deleteFile(fileId);
       successResponse(res, null, 'File deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -94,7 +94,7 @@ export class UploadController {
       const files = await this.uploadService.getFiles(userId);
       res.json(files);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

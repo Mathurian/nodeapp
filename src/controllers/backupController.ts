@@ -25,7 +25,7 @@ const getSettingsService = (): SettingsService => {
 /**
  * Create a database backup
  */
-export const createBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const createBackup = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { type = 'FULL' } = req.body;
     const userId = (req as any).user?.id;
@@ -117,14 +117,14 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
       }, 'Backup created successfully');
     });
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * List all backups
  */
-export const listBackups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const listBackups = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backups = await prisma.backupLog.findMany({
       orderBy: { createdAt: 'desc' }
@@ -139,14 +139,14 @@ export const listBackups = async (req: Request, res: Response, next: NextFunctio
 
     sendSuccess(res, transformedBackups);
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Download a backup file
  */
-export const downloadBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const downloadBackup = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { backupId } = req.params;
     const backup = await prisma.backupLog.findUnique({
@@ -165,14 +165,14 @@ export const downloadBackup = async (req: Request, res: Response, next: NextFunc
 
     res.download(backup.location, path.basename(backup.location));
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Restore a backup
  */
-export const restoreBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const restoreBackup = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const file = (req as any).file;
     if (!file) {
@@ -201,14 +201,14 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
       sendSuccess(res, null, 'Backup restored successfully');
     });
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Delete a backup
  */
-export const deleteBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const deleteBackup = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { filename } = req.params;
     const filepath = path.join('backups', filename);
@@ -228,14 +228,14 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
 
     sendSuccess(res, null, 'Backup deleted successfully');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Get backup settings
  */
-export const getBackupSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backupService = getScheduledBackupService();
     
@@ -270,28 +270,28 @@ export const getBackupSettings = async (req: Request, res: Response, next: NextF
       });
       return;
     }
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Create backup setting
  */
-export const createBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const createBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const settingsService = getSettingsService();
     const userId = (req as any).user?.id;
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting created');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Update backup setting
  */
-export const updateBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const updateBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
     const settings = req.body;
@@ -300,27 +300,27 @@ export const updateBackupSetting = async (req: Request, res: Response, next: Nex
     await settingsService.updateBackupSettings(settings, userId);
     sendSuccess(res, {}, 'Backup settings updated');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Delete backup setting
  */
-export const deleteBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const deleteBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting deleted');
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Run scheduled backup manually
  */
-export const runScheduledBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const runScheduledBackup = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { settingId } = req.body;
     const backupService = getScheduledBackupService();
@@ -332,27 +332,27 @@ export const runScheduledBackup = async (req: Request, res: Response, next: Next
       res.status(500).json({ error: result.error || 'Backup failed' });
     }
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Get active backup schedules
  */
-export const getActiveSchedules = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getActiveSchedules = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const backupService = getScheduledBackupService();
     const schedules = backupService.getActiveSchedules();
     sendSuccess(res, schedules);
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };
 
 /**
  * Debug backup settings
  */
-export const debugBackupSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const debugBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const settingsService = getSettingsService();
     const settings = await settingsService.getBackupSettings();
@@ -365,6 +365,6 @@ export const debugBackupSettings = async (req: Request, res: Response, next: Nex
       databaseUrl: process.env.DATABASE_URL ? 'configured' : 'not configured'
     });
   } catch (error: any) {
-    next(error);
+    return next(error);
   }
 };

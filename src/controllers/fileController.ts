@@ -13,37 +13,37 @@ export class FileController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  listFiles = async (req: Request, res: Response, next: NextFunction) => {
+  listFiles = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { directory } = req.query;
       const files = await this.fileService.listFiles(directory as string | undefined);
       return sendSuccess(res, files);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  downloadFile = async (req: Request, res: Response, next: NextFunction) => {
+  downloadFile = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       const filePath = await this.fileService.getFilePath(filename);
       res.download(filePath, filename);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  deleteFile = async (req: Request, res: Response, next: NextFunction) => {
+  deleteFile = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
       await this.fileService.deleteFile(filename);
       return sendSuccess(res, null, 'File deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getAllFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllFiles = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -78,11 +78,11 @@ export class FileController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  uploadFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  uploadFiles = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
         return sendSuccess(res, {}, 'User not authenticated', 401);
@@ -121,11 +121,11 @@ export class FileController {
         count: uploadedFiles.length
       }, 'Files uploaded successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getFileById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileById = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -140,11 +140,11 @@ export class FileController {
 
       return sendSuccess(res, file);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  updateFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateFile = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const { category, isPublic, metadata } = req.body;
@@ -170,11 +170,11 @@ export class FileController {
 
       return sendSuccess(res, file, 'File updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getFileStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const [
         totalFiles,
@@ -219,11 +219,11 @@ export class FileController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  upload = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  upload = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
         return sendSuccess(res, {}, 'User not authenticated', 401);
@@ -254,7 +254,7 @@ export class FileController {
 
       return sendSuccess(res, uploadedFile, 'File uploaded successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

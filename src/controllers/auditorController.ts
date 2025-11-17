@@ -24,7 +24,7 @@ export class AuditorController {
       res.json(stats);
     } catch (error) {
       log.error('Get auditor stats error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -41,7 +41,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Get pending audits error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -58,7 +58,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Get completed audits error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -80,7 +80,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Final certification error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -103,7 +103,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Reject audit error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -122,7 +122,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Get score verification error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -150,7 +150,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Verify score error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -169,7 +169,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Get tally master status error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -188,7 +188,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Get certification workflow error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -215,7 +215,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Generate summary report error', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -233,7 +233,7 @@ export class AuditorController {
       res.json(result);
     } catch (error) {
       log.error('Get audit history error', error);
-      next(error);
+      return next(error);
     }
   };
 }

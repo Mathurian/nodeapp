@@ -27,7 +27,7 @@ export class CategoriesController {
       // In production, this should require a contest filter or implement pagination
       return sendSuccess(res, [], 'Please use getCategoriesByContest endpoint for category lists');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -43,7 +43,7 @@ export class CategoriesController {
       const category = await this.categoryService.getCategoryWithDetails(id);
       return sendSuccess(res, category, 'Category retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -59,7 +59,7 @@ export class CategoriesController {
       const categories = await this.categoryService.getCategoriesByContestId(contestId);
       return sendSuccess(res, categories, 'Categories retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -88,7 +88,7 @@ export class CategoriesController {
 
       return sendCreated(res, category, 'Category created successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -115,7 +115,7 @@ export class CategoriesController {
 
       return sendSuccess(res, category, 'Category updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -131,7 +131,7 @@ export class CategoriesController {
       await this.categoryService.deleteCategory(id);
       return sendNoContent(res);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -147,7 +147,7 @@ export class CategoriesController {
       const stats = await this.categoryService.getCategoryStats(id);
       return sendSuccess(res, stats, 'Category statistics retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -164,7 +164,7 @@ export class CategoriesController {
       const category = await this.categoryService.certifyTotals(id, certified);
       return sendSuccess(res, category, 'Category totals certified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -180,7 +180,7 @@ export class CategoriesController {
       const categories = await this.categoryService.searchCategories(query);
       return sendSuccess(res, categories, 'Search results retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -201,7 +201,7 @@ export class CategoriesController {
 
       return sendSuccess(res, criteria, 'Category criteria retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -240,7 +240,7 @@ export class CategoriesController {
 
       return sendCreated(res, criterion, 'Criterion created successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -275,7 +275,7 @@ export class CategoriesController {
 
       return sendSuccess(res, criterion, 'Criterion updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -303,7 +303,7 @@ export class CategoriesController {
 
       return sendNoContent(res);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -320,7 +320,7 @@ export class CategoriesController {
       const category = await this.categoryService.updateCategory(id, { timeLimit });
       return sendSuccess(res, category, 'Category time limit updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -346,7 +346,7 @@ export class CategoriesController {
 
       return sendSuccess(res, { deleted: result.count }, 'Categories deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -387,7 +387,7 @@ export class CategoriesController {
         total: updates.length
       }, 'Categories bulk update completed');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -413,7 +413,7 @@ export class CategoriesController {
 
       return sendSuccess(res, { deleted: result.count }, 'Criteria deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -454,7 +454,7 @@ export class CategoriesController {
         total: updates.length
       }, 'Criteria bulk update completed');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -24,7 +24,7 @@ export class CategoryTypeController {
       res.json(categoryTypes);
     } catch (error) {
       log.error('Get category types error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -51,7 +51,7 @@ export class CategoryTypeController {
       res.status(201).json(categoryType);
     } catch (error) {
       log.error('Create category type error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -73,7 +73,7 @@ export class CategoryTypeController {
       res.json(categoryType);
     } catch (error) {
       log.error('Update category type error:', error);
-      next(error);
+      return next(error);
     }
   };
 
@@ -94,7 +94,7 @@ export class CategoryTypeController {
       res.status(204).send();
     } catch (error) {
       log.error('Delete category type error:', error);
-      next(error);
+      return next(error);
     }
   };
 }

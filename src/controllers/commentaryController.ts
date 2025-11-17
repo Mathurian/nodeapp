@@ -23,7 +23,7 @@ export class CommentaryController {
       });
       return sendSuccess(res, scoreComment, 'Comment created', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -33,7 +33,7 @@ export class CommentaryController {
       const comments = await this.commentaryService.getCommentsForScore(scoreId, req.user!.role);
       return sendSuccess(res, comments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -43,7 +43,7 @@ export class CommentaryController {
       const comments = await this.commentaryService.getCommentsByContestant(contestantId, req.user!.role);
       return sendSuccess(res, comments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -54,7 +54,7 @@ export class CommentaryController {
       const updatedComment = await this.commentaryService.update(id, { comment, isPrivate }, req.user!.id, req.user!.role);
       return sendSuccess(res, updatedComment, 'Comment updated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -64,7 +64,7 @@ export class CommentaryController {
       await this.commentaryService.delete(id, req.user!.id, req.user!.role);
       return sendSuccess(res, null, 'Comment deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

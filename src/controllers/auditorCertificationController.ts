@@ -16,7 +16,7 @@ export class AuditorCertificationController {
       const status = await this.auditorCertificationService.getFinalCertificationStatus(categoryId);
       return sendSuccess(res, status);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -32,7 +32,7 @@ export class AuditorCertificationController {
       );
       return sendSuccess(res, certification, 'Final certification completed successfully. All scores are now permanently locked.');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

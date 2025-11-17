@@ -10,7 +10,7 @@ export class RoleAssignmentController {
     this.roleAssignmentService = container.resolve(RoleAssignmentService);
   }
 
-  getAllRoleAssignments = async (req: Request, res: Response, next: NextFunction) => {
+  getAllRoleAssignments = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { role, contestId, eventId, categoryId } = req.query;
       const assignments = await this.roleAssignmentService.getAll({
@@ -21,11 +21,11 @@ export class RoleAssignmentController {
       });
       return sendSuccess(res, assignments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  createRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
+  createRoleAssignment = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId, role, contestId, eventId, categoryId, notes } = req.body;
       const assignment = await this.roleAssignmentService.create({
@@ -39,28 +39,28 @@ export class RoleAssignmentController {
       });
       return sendSuccess(res, assignment, 'Role assignment created', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  updateRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
+  updateRoleAssignment = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const { notes, isActive } = req.body;
       const assignment = await this.roleAssignmentService.update(id, { notes, isActive });
       return sendSuccess(res, assignment, 'Role assignment updated');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  deleteRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
+  deleteRoleAssignment = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       await this.roleAssignmentService.delete(id);
       return sendSuccess(res, null, 'Role assignment deleted');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../utils/prisma';
 
 const logActivity = (action: string, resourceType: string | null = null, resourceId: string | null = null) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     const originalSend = res.send
     
     res.send = function(data) {

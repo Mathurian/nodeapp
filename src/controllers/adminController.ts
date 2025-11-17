@@ -13,53 +13,53 @@ export class AdminController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getDashboard = async (req: Request, res: Response, next: NextFunction) => {
+  getDashboard = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getSystemHealth = async (req: Request, res: Response, next: NextFunction) => {
+  getSystemHealth = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  clearCache = async (req: Request, res: Response, next: NextFunction) => {
+  clearCache = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.adminService.clearCache();
       return sendSuccess(res, result, 'Cache cleared');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getDatabaseTables = async (req: Request, res: Response, next: NextFunction) => {
+  getDatabaseTables = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const tables = await this.adminService.getDatabaseTables();
       return sendSuccess(res, tables);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getTableStructure = async (req: Request, res: Response, next: NextFunction) => {
+  getTableStructure = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const structure = await this.adminService.getTableStructure(tableName);
       return sendSuccess(res, structure);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getTableData = async (req: Request, res: Response, next: NextFunction) => {
+  getTableData = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
       const { page = '1', limit = '50', orderBy, orderDirection = 'asc' } = req.query;
@@ -72,40 +72,40 @@ export class AdminController {
       );
       return sendSuccess(res, data);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  executeDatabaseQuery = async (req: Request, res: Response, next: NextFunction) => {
+  executeDatabaseQuery = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { query, limit = 100 } = req.body;
       const result = await this.adminService.executeDatabaseQuery(query, parseInt(limit));
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getStats = async (req: Request, res: Response, next: NextFunction) => {
+  getStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const stats = await this.adminService.getDashboardStats();
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getLogs = async (req: Request, res: Response, next: NextFunction) => {
+  getLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const logs = await this.adminService.getActivityLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getActiveUsers = async (req: Request, res: Response, next: NextFunction) => {
+  getActiveUsers = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const hours = parseInt(req.query.hours as string) || 24;
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
@@ -130,11 +130,11 @@ export class AdminController {
 
       return sendSuccess(res, activeUsers);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getUsers = async (req: Request, res: Response, next: NextFunction) => {
+  getUsers = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -184,11 +184,11 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getEvents = async (req: Request, res: Response, next: NextFunction) => {
+  getEvents = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -231,11 +231,11 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getContests = async (req: Request, res: Response, next: NextFunction) => {
+  getContests = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -277,11 +277,11 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getCategories = async (req: Request, res: Response, next: NextFunction) => {
+  getCategories = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -329,11 +329,11 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getScores = async (req: Request, res: Response, next: NextFunction) => {
+  getScores = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -391,31 +391,31 @@ export class AdminController {
         }
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getActivityLogs = async (req: Request, res: Response, next: NextFunction) => {
+  getActivityLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const logs = await this.adminService.getActivityLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
+  getAuditLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const logs = await this.adminService.getAuditLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  exportAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
+  exportAuditLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const format = (req.query.format as string) || 'json';
       const limit = parseInt(req.query.limit as string) || 1000;
@@ -450,20 +450,20 @@ export class AdminController {
       res.setHeader('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.json"`);
       return res.send(JSON.stringify(logs, null, 2));
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  testConnection = async (req: Request, res: Response, next: NextFunction) => {
+  testConnection = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.adminService.getSystemHealth();
       return sendSuccess(res, health);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  forceLogoutAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+  forceLogoutAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       // Increment sessionVersion for all users to invalidate their tokens
       await this.prisma.user.updateMany({
@@ -482,11 +482,11 @@ export class AdminController {
         usersAffected: count
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  forceLogoutUser = async (req: Request, res: Response, next: NextFunction) => {
+  forceLogoutUser = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId } = req.params;
 
@@ -518,11 +518,11 @@ export class AdminController {
         userId: user.id
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getContestantScores = async (req: Request, res: Response, next: NextFunction) => {
+  getContestantScores = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestantId } = req.params;
       const categoryId = req.query.categoryId as string | undefined;
@@ -592,7 +592,7 @@ export class AdminController {
         stats
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

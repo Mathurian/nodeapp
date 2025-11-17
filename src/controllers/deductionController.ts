@@ -37,7 +37,7 @@ export class DeductionController {
 
       sendCreated(res, deduction, 'Deduction request created successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -60,7 +60,7 @@ export class DeductionController {
 
       sendSuccess(res, deductions, 'Pending deductions retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -88,7 +88,7 @@ export class DeductionController {
 
       sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -109,7 +109,7 @@ export class DeductionController {
 
       sendSuccess(res, null, 'Deduction rejected successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -128,7 +128,7 @@ export class DeductionController {
 
       sendSuccess(res, status, 'Approval status retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -155,7 +155,7 @@ export class DeductionController {
 
       sendSuccess(res, result, 'Deduction history retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

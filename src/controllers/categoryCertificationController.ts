@@ -19,7 +19,7 @@ export class CategoryCertificationController {
       const progress = await this.categoryCertificationService.getCertificationProgress(categoryId);
       return sendSuccess(res, progress);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -33,7 +33,7 @@ export class CategoryCertificationController {
       );
       return sendSuccess(res, certification, 'Category certified successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -57,7 +57,7 @@ export class CategoryCertificationController {
 
       return sendSuccess(res, certification, 'Contestant certified successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -89,7 +89,7 @@ export class CategoryCertificationController {
         certifiedCount: result.count
       }, `Certified ${result.count} scores for judge in category`);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

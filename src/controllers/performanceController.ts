@@ -37,7 +37,7 @@ export class PerformanceController {
   /**
    * Get performance statistics
    */
-  getPerformanceStats = async (req: Request, res: Response, next: NextFunction) => {
+  getPerformanceStats = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { timeRange, endpoint, method } = req.query;
 
@@ -49,26 +49,26 @@ export class PerformanceController {
 
       return sendSuccess(res, stats);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get system metrics
    */
-  getSystemMetrics = async (req: Request, res: Response, next: NextFunction) => {
+  getSystemMetrics = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const metrics = await this.performanceService.getSystemMetrics();
       return sendSuccess(res, metrics);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get performance logs with filtering
    */
-  getPerformanceLogs = async (req: Request, res: Response, next: NextFunction) => {
+  getPerformanceLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const {
         page,
@@ -98,27 +98,27 @@ export class PerformanceController {
 
       return sendSuccess(res, result);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Clear performance logs
    */
-  clearPerformanceLogs = async (req: Request, res: Response, next: NextFunction) => {
+  clearPerformanceLogs = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { olderThan } = req.body;
       const result = await this.performanceService.clearPerformanceLogs(olderThan);
       return sendSuccess(res, result, result.message);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Health check endpoint
    */
-  getHealthCheck = async (req: Request, res: Response, next: NextFunction) => {
+  getHealthCheck = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const health = await this.performanceService.getHealthCheck();
       const statusCode = health.status === 'healthy' ? 200 : 503;

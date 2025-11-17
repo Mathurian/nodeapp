@@ -19,19 +19,19 @@ export class RateLimitController {
   /**
    * Get all rate limit configurations
    */
-  getAllConfigs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllConfigs = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const configs = await this.rateLimitService.getAllConfigs();
       return sendSuccess(res, configs, 'Rate limit configurations retrieved');
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get rate limit configuration for a specific tier
    */
-  getConfig = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getConfig = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { tier } = req.params;
       if (!tier) {
@@ -41,14 +41,14 @@ export class RateLimitController {
       const config = await this.rateLimitService.getConfig(tier);
       return sendSuccess(res, config, `Rate limit configuration for tier: ${tier}`);
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Update rate limit configuration
    */
-  updateConfig = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateConfig = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { tier } = req.params;
       const { points, duration, blockDuration } = req.body;
@@ -69,14 +69,14 @@ export class RateLimitController {
       const updated = await this.rateLimitService.updateConfig(tier, updates);
       return sendSuccess(res, updated, `Rate limit configuration updated for tier: ${tier}`);
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 
   /**
    * Get current user's rate limit status
    */
-  getMyRateLimitStatus = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getMyRateLimitStatus = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const tier = this.rateLimitService.getTierFromRequest(req);
       const config = await this.rateLimitService.getConfig(tier);
@@ -88,7 +88,7 @@ export class RateLimitController {
         blockDuration: config.blockDuration,
       }, 'Rate limit status retrieved');
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   };
 }

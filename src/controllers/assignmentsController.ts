@@ -38,7 +38,7 @@ export class AssignmentsController {
       const assignments = await this.assignmentService.getAllAssignments(filters);
       return sendSuccess(res, assignments, 'Assignments retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -56,7 +56,7 @@ export class AssignmentsController {
 
       successResponse(res, assignment, 'Assignment created successfully', 201);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -74,7 +74,7 @@ export class AssignmentsController {
 
       res.json(assignment);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -92,7 +92,7 @@ export class AssignmentsController {
 
       successResponse(res, assignment, 'Assignment updated successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -110,7 +110,7 @@ export class AssignmentsController {
 
       successResponse(res, null, 'Assignment deleted successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -128,7 +128,7 @@ export class AssignmentsController {
 
       res.json(assignments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -146,7 +146,7 @@ export class AssignmentsController {
 
       res.json(assignments);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -175,7 +175,7 @@ export class AssignmentsController {
         `${assignedCount} judge(s) assigned successfully`
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -197,65 +197,65 @@ export class AssignmentsController {
         `${removedCount} assignment(s) removed successfully`
       );
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getJudgeAssignments = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudgeAssignments = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // This is an alias for getAssignmentsForJudge - delegate to that method
       return this.getAssignmentsForJudge(req, res, next);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getJudges = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudges = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const judges = await this.assignmentService.getJudges();
       return sendSuccess(res, judges, 'Judges retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCategories = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const categories = await this.assignmentService.getCategories();
       return sendSuccess(res, categories, 'Categories retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  assignJudge = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  assignJudge = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // This is an alias for createAssignment - delegate to that method
       return this.createAssignment(req, res, next);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  removeAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  removeAssignment = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // This is an alias for deleteAssignment - delegate to that method
       return this.deleteAssignment(req, res, next);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getContestants = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const contestants = await this.assignmentService.getContestants();
       return sendSuccess(res, contestants, 'Contestants retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  assignContestantToCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  assignContestantToCategory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     const log = createRequestLogger(req, 'assignments');
     try {
       const { categoryId, contestId, contestantId } = req.body;
@@ -316,31 +316,31 @@ export class AssignmentsController {
         contestantId: req.body?.contestantId,
         stack: error.stack 
       });
-      next(error);
+      return next(error);
     }
   };
 
-  removeContestantFromCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  removeContestantFromCategory = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId, contestantId } = req.params;
       await this.assignmentService.removeContestantFromCategory(categoryId, contestantId);
       return sendSuccess(res, null, 'Contestant removed from category successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getCategoryContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCategoryContestants = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
       const contestants = await this.assignmentService.getCategoryContestants(categoryId);
       return sendSuccess(res, contestants, 'Category contestants retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
-  getAllContestantAssignments = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllContestantAssignments = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const filters = {
         categoryId: req.query.categoryId as string | undefined,
@@ -349,7 +349,7 @@ export class AssignmentsController {
       const assignments = await this.assignmentService.getAllContestantAssignments(filters);
       return sendSuccess(res, assignments, 'Contestant assignments retrieved successfully');
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -23,7 +23,7 @@ export class AdvancedReportingController {
       );
       return sendSuccess(res, report);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -33,7 +33,7 @@ export class AdvancedReportingController {
       const report = await this.advancedReportingService.generateSummaryReport(eventId);
       return sendSuccess(res, report);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -132,7 +132,7 @@ export class AdvancedReportingController {
 
       return sendSuccess(res, report);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -246,7 +246,7 @@ export class AdvancedReportingController {
 
       return sendSuccess(res, report);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -357,7 +357,7 @@ export class AdvancedReportingController {
 
       return sendSuccess(res, report);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 
@@ -499,7 +499,7 @@ export class AdvancedReportingController {
 
       return sendSuccess(res, report);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   };
 }

@@ -6,7 +6,7 @@ const prisma = require('../utils/prisma')
 // Assignment Validation Middleware Functions
 
 // Validate assignment creation
-const validateAssignmentCreation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const validateAssignmentCreation = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { judgeId, categoryId, eventId, contestId } = req.body
 
@@ -203,7 +203,7 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
 };
 
 // Validate assignment update
-const validateAssignmentUpdate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const validateAssignmentUpdate = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const assignmentId = req.params.id || req.params.assignmentId
     const { status, notes } = req.body
@@ -321,7 +321,7 @@ const validateAssignmentUpdate = async (req: Request, res: Response, next: NextF
 };
 
 // Validate assignment deletion
-const validateAssignmentDeletion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const validateAssignmentDeletion = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = req.params.id || req.params.assignmentId
 
@@ -409,7 +409,7 @@ const validateAssignmentDeletion = async (req: Request, res: Response, next: Nex
 }
 
 // Validate bulk assignment operations
-const validateBulkAssignmentOperation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const validateBulkAssignmentOperation = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { operation, assignmentIds, data } = req.body
 
@@ -484,7 +484,7 @@ const validateBulkAssignmentOperation = async (req: Request, res: Response, next
 };
 
 // Validate assignment query parameters
-const validateAssignmentQuery = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const validateAssignmentQuery = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { status, judgeId, categoryId, eventId, contestId, sortBy, sortOrder } = req.query
 
