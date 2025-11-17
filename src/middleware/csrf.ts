@@ -3,7 +3,6 @@ import { randomBytes, timingSafeEqual } from 'crypto';
 import { csrfSecret } from '../utils/config';
 
 // CSRF secret for token generation
-const CSRF_SECRET = csrfSecret
 
 /**
  * Simple CSRF token generation

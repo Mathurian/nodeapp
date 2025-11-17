@@ -5,7 +5,6 @@ import { jwtSecret } from '../utils/config';
 import prisma from '../utils/prisma';
 import { userCache } from '../utils/cache';
 
-const JWT_SECRET = jwtSecret;
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // Read token from httpOnly cookie instead of Authorization header
