@@ -19,7 +19,7 @@ export class NotificationsController {
     }
   };
 
-  getNotificationById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getNotificationById = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // id from params not currently used
       // NotificationService doesn't have getById, we can use the repository directly or return error
@@ -42,7 +42,7 @@ export class NotificationsController {
     }
   };
 
-  updateNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  updateNotification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // id from params not currently used
       // NotificationService doesn't have update method

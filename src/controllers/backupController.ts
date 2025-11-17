@@ -236,8 +236,6 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
  */
 export const getBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const backupService = getScheduledBackupService();
-    
     // Get backup settings from database (backupSetting table)
     const backupSettings = await prisma.backupSetting.findMany({
       orderBy: { createdAt: 'desc' }
@@ -304,7 +302,7 @@ export const updateBackupSetting = async (req: Request, res: Response, next: Nex
 /**
  * Delete backup setting
  */
-export const deleteBackupSetting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const deleteBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // id from params not currently used
     // Implementation depends on SettingsService API

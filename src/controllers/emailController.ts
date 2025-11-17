@@ -217,7 +217,7 @@ export class EmailController {
   sendCampaign = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { campaignId } = req.params;
-      const { recipients, templateId, subject, body } = req.body;
+      const { recipients, subject, body } = req.body;
 
       if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
         return sendSuccess(res, {}, 'Recipients list is required', 400);
