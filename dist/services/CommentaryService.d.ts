@@ -16,13 +16,12 @@ export declare class CommentaryService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     create(data: CreateCommentDto): Promise<{
-        judge: never;
-    } & {
         id: string;
         judgeId: string;
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -37,6 +36,7 @@ export declare class CommentaryService extends BaseService {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -52,6 +52,7 @@ export declare class CommentaryService extends BaseService {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;
@@ -65,6 +66,7 @@ export declare class CommentaryService extends BaseService {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         criterionId: string;
         comment: string;
         scoreId: string;

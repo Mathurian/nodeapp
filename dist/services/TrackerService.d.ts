@@ -6,33 +6,18 @@ export declare class TrackerService extends BaseService {
     getScoringProgressByContest(contestId: string): Promise<{
         contestId: string;
         contestName: string;
-        eventName: string;
-        categories: {
-            categoryId: string;
-            categoryName: string;
-            totalContestants: number;
-            totalJudges: number;
-            totalScores: number;
-            expectedScores: number;
-            completionPercentage: number;
-            judges: {
-                judgeId: string;
-                judgeName: string;
-                completed: number;
-                total: number;
-                completionPercentage: number;
-            }[];
-        }[];
+        eventName: any;
+        categories: any;
         overallCompletion: number;
     }>;
     getScoringProgressByCategory(categoryId: string): Promise<{
         categoryId: string;
         categoryName: string;
-        contestName: string;
-        eventName: string;
-        totalContestants: number;
-        totalJudges: number;
-        totalScores: number;
+        contestName: any;
+        eventName: any;
+        totalContestants: any;
+        totalJudges: any;
+        totalScores: any;
         expectedScores: number;
         completionPercentage: number;
     }>;

@@ -10,6 +10,7 @@ export interface CreateNotificationDTO {
 }
 export interface NotificationFilters {
     userId: string;
+    tenantId: string;
     read?: boolean;
     type?: NotificationType;
     limit?: number;
@@ -21,11 +22,11 @@ export declare class NotificationRepository {
     create(data: CreateNotificationDTO): Promise<Notification>;
     createMany(userIds: string[], notification: Omit<CreateNotificationDTO, 'userId'>): Promise<number>;
     findByUser(filters: NotificationFilters): Promise<Notification[]>;
-    getUnreadCount(userId: string): Promise<number>;
-    markAsRead(id: string, userId: string): Promise<Notification>;
-    markAllAsRead(userId: string): Promise<number>;
-    delete(id: string, userId: string): Promise<Notification>;
-    deleteOldRead(userId: string, daysOld?: number): Promise<number>;
-    findById(id: string): Promise<Notification | null>;
+    getUnreadCount(userId: string, tenantId: string): Promise<number>;
+    markAsRead(id: string, userId: string, tenantId: string): Promise<Notification>;
+    markAllAsRead(userId: string, tenantId: string): Promise<number>;
+    delete(id: string, userId: string, tenantId: string): Promise<Notification>;
+    deleteOldRead(userId: string, tenantId: string, daysOld?: number): Promise<number>;
+    findById(id: string, tenantId: string): Promise<Notification | null>;
 }
 //# sourceMappingURL=NotificationRepository.d.ts.map

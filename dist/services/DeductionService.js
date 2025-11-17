@@ -29,14 +29,19 @@ let DeductionService = class DeductionService extends BaseService_1.BaseService 
             'categoryId',
             'amount',
             'reason',
-            'requestedBy'
+            'requestedBy',
+            'tenantId'
         ]);
         if (data.amount <= 0) {
             throw new BaseService_1.ValidationError('Deduction amount must be greater than 0');
         }
         const [contestant, category] = await Promise.all([
-            database_1.prisma.contestant.findUnique({ where: { id: data.contestantId } }),
-            database_1.prisma.category.findUnique({ where: { id: data.categoryId } })
+            database_1.prisma.contestant.findFirst({
+                where: { id: data.contestantId, tenantId: data.tenantId }
+            }),
+            database_1.prisma.category.findFirst({
+                where: { id: data.categoryId, tenantId: data.tenantId }
+            })
         ]);
         if (!contestant) {
             throw new BaseService_1.NotFoundError('Contestant', data.contestantId);
@@ -46,11 +51,11 @@ let DeductionService = class DeductionService extends BaseService_1.BaseService 
         }
         return await this.deductionRepo.createDeduction(data);
     }
-    async getPendingDeductions(userRole, userId) {
+    async getPendingDeductions(userRole, userId, tenantId) {
         let categoryIds;
         if (userRole === 'JUDGE') {
-            const user = await database_1.prisma.user.findUnique({
-                where: { id: userId },
+            const user = await database_1.prisma.user.findFirst({
+                where: { id: userId, tenantId },
                 include: {
                     judge: {
                         include: {
@@ -68,44 +73,44 @@ let DeductionService = class DeductionService extends BaseService_1.BaseService 
                 categoryIds = [];
             }
         }
-        const deductions = await this.deductionRepo.findPendingWithRelations(categoryIds);
+        const deductions = await this.deductionRepo.findPendingWithRelations(tenantId, categoryIds);
         return deductions.map(deduction => ({
             ...deduction,
             approvalStatus: this.calculateApprovalStatus(deduction.approvals, userId)
         }));
     }
-    async approveDeduction(id, approvedBy, userRole, signature, notes) {
+    async approveDeduction(id, approvedBy, userRole, tenantId, signature, notes) {
         this.validateRequired({ id, approvedBy, signature }, [
             'id',
             'approvedBy',
             'signature'
         ]);
-        const deductionRequest = await this.deductionRepo.findByIdWithRelations(id);
+        const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
         if (!deductionRequest) {
             throw new BaseService_1.NotFoundError('Deduction request', id);
         }
         if (deductionRequest.status !== 'PENDING') {
             throw new BaseService_1.ValidationError('Deduction request is not pending');
         }
-        const hasApproved = await this.deductionRepo.hasUserApproved(id, approvedBy);
+        const hasApproved = await this.deductionRepo.hasUserApproved(id, approvedBy, tenantId);
         if (hasApproved) {
             throw new BaseService_1.ValidationError('You have already approved this deduction');
         }
         let isHeadJudge = false;
         if (userRole === 'JUDGE') {
-            const user = await database_1.prisma.user.findUnique({
-                where: { id: approvedBy },
+            const user = await database_1.prisma.user.findFirst({
+                where: { id: approvedBy, tenantId },
                 include: { judge: true }
             });
             if (user?.judge) {
                 isHeadJudge = user.judge.isHeadJudge;
             }
         }
-        const approval = await this.deductionRepo.createApproval(id, approvedBy, userRole, isHeadJudge);
-        const allApprovals = await this.deductionRepo.getApprovals(id);
+        const approval = await this.deductionRepo.createApproval(id, approvedBy, userRole, tenantId, isHeadJudge);
+        const allApprovals = await this.deductionRepo.getApprovals(id, tenantId);
         const approvalStatus = this.calculateApprovalStatus(allApprovals, approvedBy);
         if (approvalStatus.isFullyApproved) {
-            await this.deductionRepo.updateStatus(id, 'APPROVED');
+            await this.deductionRepo.updateStatus(id, 'APPROVED', tenantId);
             await this.deductionRepo.applyDeductionToScores(deductionRequest.contestantId, deductionRequest.categoryId, deductionRequest.amount, deductionRequest.reason);
         }
         return {
@@ -114,23 +119,23 @@ let DeductionService = class DeductionService extends BaseService_1.BaseService 
             message: 'Deduction approved successfully'
         };
     }
-    async rejectDeduction(id, rejectedBy, reason) {
+    async rejectDeduction(id, rejectedBy, reason, tenantId) {
         this.validateRequired({ id, reason }, ['id', 'reason']);
-        const deductionRequest = await this.deductionRepo.findById(id);
+        const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
         if (!deductionRequest) {
             throw new BaseService_1.NotFoundError('Deduction request', id);
         }
         if (deductionRequest.status !== 'PENDING') {
             throw new BaseService_1.ValidationError('Deduction request is not pending');
         }
-        await this.deductionRepo.updateStatus(id, 'REJECTED', {
+        await this.deductionRepo.updateStatus(id, 'REJECTED', tenantId, {
             rejectionReason: reason,
             rejectedBy,
             rejectedAt: new Date()
         });
     }
-    async getApprovalStatus(id) {
-        const deductionRequest = await this.deductionRepo.findByIdWithRelations(id);
+    async getApprovalStatus(id, tenantId) {
+        const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
         if (!deductionRequest) {
             throw new BaseService_1.NotFoundError('Deduction request', id);
         }

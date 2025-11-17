@@ -32,7 +32,8 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
                 description: data.description || null,
                 contests: JSON.stringify(data.contests),
                 categories: JSON.stringify(data.categories),
-                createdBy: data.createdBy
+                createdBy: data.createdBy,
+                tenantId: data.tenantId
             }
         });
         return {
@@ -44,8 +45,9 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
             createdAt: template.createdAt
         };
     }
-    async getAll() {
+    async getAll(tenantId) {
         const templates = await this.prisma.eventTemplate.findMany({
+            where: { tenantId },
             include: {
                 creator: {
                     select: {
@@ -68,9 +70,9 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
             updatedAt: template.updatedAt
         }));
     }
-    async getById(id) {
-        const template = await this.prisma.eventTemplate.findUnique({
-            where: { id },
+    async getById(id, tenantId) {
+        const template = await this.prisma.eventTemplate.findFirst({
+            where: { id, tenantId },
             include: {
                 creator: {
                     select: {
@@ -95,9 +97,15 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
             updatedAt: template.updatedAt
         };
     }
-    async update(id, data) {
+    async update(id, tenantId, data) {
         if (!data.name || !data.contests || !data.categories) {
             throw this.badRequestError('Name, contests, and categories are required');
+        }
+        const existing = await this.prisma.eventTemplate.findFirst({
+            where: { id, tenantId }
+        });
+        if (!existing) {
+            throw this.notFoundError('Template', id);
         }
         const template = await this.prisma.eventTemplate.update({
             where: { id },
@@ -117,15 +125,21 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
             updatedAt: template.updatedAt
         };
     }
-    async delete(id) {
+    async delete(id, tenantId) {
+        const existing = await this.prisma.eventTemplate.findFirst({
+            where: { id, tenantId }
+        });
+        if (!existing) {
+            throw this.notFoundError('Template', id);
+        }
         await this.prisma.eventTemplate.delete({ where: { id } });
     }
     async createEventFromTemplate(data) {
         if (!data.templateId || !data.eventName || !data.startDate || !data.endDate) {
             throw this.badRequestError('Template ID, event name, start date, and end date are required');
         }
-        const template = await this.prisma.eventTemplate.findUnique({
-            where: { id: data.templateId }
+        const template = await this.prisma.eventTemplate.findFirst({
+            where: { id: data.templateId, tenantId: data.tenantId }
         });
         if (!template) {
             throw this.notFoundError('Template', data.templateId);
@@ -137,7 +151,8 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
                 name: data.eventName,
                 description: data.eventDescription || null,
                 startDate: new Date(data.startDate),
-                endDate: new Date(data.endDate)
+                endDate: new Date(data.endDate),
+                tenantId: data.tenantId
             }
         });
         for (const contestTemplate of contests) {
@@ -145,7 +160,8 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
                 data: {
                     eventId: event.id,
                     name: contestTemplate.name,
-                    description: contestTemplate.description || null
+                    description: contestTemplate.description || null,
+                    tenantId: data.tenantId
                 }
             });
             const contestCategories = categories.filter((cat) => cat.contestId === contestTemplate.id);
@@ -158,7 +174,8 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
                         scoreCap: categoryTemplate.scoreCap || null,
                         timeLimit: categoryTemplate.timeLimit || null,
                         contestantMin: categoryTemplate.contestantMin || null,
-                        contestantMax: categoryTemplate.contestantMax || null
+                        contestantMax: categoryTemplate.contestantMax || null,
+                        tenantId: data.tenantId
                     }
                 });
                 if (categoryTemplate.criteria && categoryTemplate.criteria.length > 0) {
@@ -166,7 +183,8 @@ let EventTemplateService = class EventTemplateService extends BaseService_1.Base
                         data: categoryTemplate.criteria.map((c) => ({
                             categoryId: createdCategory.id,
                             name: c.name,
-                            maxScore: c.maxScore || 10
+                            maxScore: c.maxScore || 10,
+                            tenantId: data.tenantId
                         }))
                     });
                 }

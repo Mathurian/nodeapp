@@ -59,10 +59,10 @@ class WorkflowService {
             throw error;
         }
     }
-    static async getTemplate(id) {
+    static async getTemplate(id, tenantId) {
         try {
-            return await database_1.default.workflowTemplate.findUnique({
-                where: { id }
+            return await database_1.default.workflowTemplate.findFirst({
+                where: { id, tenantId }
             });
         }
         catch (error) {
@@ -74,7 +74,7 @@ class WorkflowService {
         try {
             return await database_1.default.workflowTemplate.findMany({
                 where: {
-                    ...(tenantId && { tenantId }),
+                    tenantId,
                     isActive: true
                 },
                 orderBy: { createdAt: 'desc' }
@@ -105,10 +105,10 @@ class WorkflowService {
             throw error;
         }
     }
-    static async advanceWorkflow(instanceId, _userId, approvalStatus, _comments) {
+    static async advanceWorkflow(instanceId, tenantId, _userId, approvalStatus, _comments) {
         try {
-            const instance = await database_1.default.workflowInstance.findUnique({
-                where: { id: instanceId }
+            const instance = await database_1.default.workflowInstance.findFirst({
+                where: { id: instanceId, tenantId }
             });
             if (!instance) {
                 throw new Error(`Workflow instance ${instanceId} not found`);
@@ -136,10 +136,10 @@ class WorkflowService {
             throw error;
         }
     }
-    static async getInstance(id) {
+    static async getInstance(id, tenantId) {
         try {
-            return await database_1.default.workflowInstance.findUnique({
-                where: { id }
+            return await database_1.default.workflowInstance.findFirst({
+                where: { id, tenantId }
             });
         }
         catch (error) {

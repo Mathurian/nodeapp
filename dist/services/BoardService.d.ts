@@ -9,12 +9,16 @@ export declare class BoardService extends BaseService {
         certified: number;
         pending: number;
     }>;
-    getCertifications(): Promise<{
+    getCertifications(): Promise<({
+        contest: never;
+        scores: never;
+        certifications: never;
+    } & {
         name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         description: string | null;
         contestId: string;
         scoreCap: number | null;
@@ -22,53 +26,17 @@ export declare class BoardService extends BaseService {
         contestantMin: number | null;
         contestantMax: number | null;
         totalsCertified: boolean;
-    }[]>;
+    })[]>;
     approveCertification(categoryId: string): Promise<{
         message: string;
         category: {
-            contest: {
-                event: {
-                    name: string;
-                    id: string;
-                    tenantId: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    description: string | null;
-                    startDate: Date;
-                    endDate: Date;
-                    location: string | null;
-                    maxContestants: number | null;
-                    contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                    contestantViewRestricted: boolean;
-                    contestantViewReleaseDate: Date | null;
-                    isLocked: boolean;
-                    lockedAt: Date | null;
-                    lockVerifiedBy: string | null;
-                    archived: boolean;
-                };
-            } & {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                eventId: string;
-                description: string | null;
-                contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                contestantViewRestricted: boolean;
-                contestantViewReleaseDate: Date | null;
-                isLocked: boolean;
-                lockedAt: Date | null;
-                lockVerifiedBy: string | null;
-                archived: boolean;
-                nextContestantNumber: number | null;
-            };
+            contest: never;
         } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             description: string | null;
             contestId: string;
             scoreCap: number | null;
@@ -81,49 +49,13 @@ export declare class BoardService extends BaseService {
     rejectCertification(categoryId: string, reason?: string): Promise<{
         message: string;
         category: {
-            contest: {
-                event: {
-                    name: string;
-                    id: string;
-                    tenantId: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    description: string | null;
-                    startDate: Date;
-                    endDate: Date;
-                    location: string | null;
-                    maxContestants: number | null;
-                    contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                    contestantViewRestricted: boolean;
-                    contestantViewReleaseDate: Date | null;
-                    isLocked: boolean;
-                    lockedAt: Date | null;
-                    lockVerifiedBy: string | null;
-                    archived: boolean;
-                };
-            } & {
-                name: string;
-                id: string;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                eventId: string;
-                description: string | null;
-                contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-                contestantViewRestricted: boolean;
-                contestantViewReleaseDate: Date | null;
-                isLocked: boolean;
-                lockedAt: Date | null;
-                lockVerifiedBy: string | null;
-                archived: boolean;
-                nextContestantNumber: number | null;
-            };
+            contest: never;
         } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             description: string | null;
             contestId: string;
             scoreCap: number | null;
@@ -143,13 +75,14 @@ export declare class BoardService extends BaseService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         eventId: string | null;
         categoryId: string | null;
         contestId: string | null;
         title: string;
         content: string;
         order: number | null;
-        filePath: string | null;
+        file_path: string | null;
     }[]>;
     createEmceeScript(data: {
         title: string;
@@ -165,13 +98,14 @@ export declare class BoardService extends BaseService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         eventId: string | null;
         categoryId: string | null;
         contestId: string | null;
         title: string;
         content: string;
         order: number | null;
-        filePath: string | null;
+        file_path: string | null;
     }>;
     updateEmceeScript(scriptId: string, data: {
         title?: string;
@@ -187,13 +121,14 @@ export declare class BoardService extends BaseService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         eventId: string | null;
         categoryId: string | null;
         contestId: string | null;
         title: string;
         content: string;
         order: number | null;
-        filePath: string | null;
+        file_path: string | null;
     }>;
     deleteEmceeScript(scriptId: string): Promise<{
         message: string;
@@ -204,6 +139,7 @@ export declare class BoardService extends BaseService {
             id: string;
             judgeId: string;
             contestantId: string;
+            tenantId: string;
             categoryId: string;
             reason: string;
             requestedAt: Date;
@@ -222,6 +158,7 @@ export declare class BoardService extends BaseService {
         id: string;
         judgeId: string;
         contestantId: string;
+        tenantId: string;
         categoryId: string;
         reason: string;
         requestedAt: Date;
@@ -233,6 +170,7 @@ export declare class BoardService extends BaseService {
         id: string;
         judgeId: string;
         contestantId: string;
+        tenantId: string;
         categoryId: string;
         reason: string;
         requestedAt: Date;

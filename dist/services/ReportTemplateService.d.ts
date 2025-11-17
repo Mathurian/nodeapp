@@ -5,6 +5,7 @@ export interface CreateReportTemplateDTO {
     type: string;
     template: string;
     parameters?: string;
+    tenantId: string;
 }
 export interface UpdateReportTemplateDTO {
     name?: string;
@@ -15,13 +16,13 @@ export interface UpdateReportTemplateDTO {
 export declare class ReportTemplateService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
-    getAllTemplates(filters?: {
+    getAllTemplates(tenantId: string, filters?: {
         type?: string;
     }): Promise<ReportTemplate[]>;
-    getTemplateById(templateId: string): Promise<ReportTemplate>;
+    getTemplateById(templateId: string, tenantId: string): Promise<ReportTemplate>;
     createTemplate(data: CreateReportTemplateDTO): Promise<ReportTemplate>;
-    updateTemplate(templateId: string, data: UpdateReportTemplateDTO): Promise<ReportTemplate>;
-    deleteTemplate(templateId: string): Promise<void>;
-    getTemplatesByType(type: string): Promise<ReportTemplate[]>;
+    updateTemplate(templateId: string, tenantId: string, data: UpdateReportTemplateDTO): Promise<ReportTemplate>;
+    deleteTemplate(templateId: string, tenantId: string): Promise<void>;
+    getTemplatesByType(type: string, tenantId: string): Promise<ReportTemplate[]>;
 }
 //# sourceMappingURL=ReportTemplateService.d.ts.map

@@ -15,52 +15,28 @@ export declare class BioService extends BaseService {
     getContestantBios(filters: BioQueryFilters): Promise<{
         name: string;
         id: string;
-        gender: string;
-        pronouns: string;
-        bio: string;
-        imagePath: string;
-        contestantNumber: number;
-        contestContestants: {
-            contest: {
-                event: {
-                    name: string;
-                    id: string;
-                };
-                name: string;
-                id: string;
-            };
-        }[];
-        categoryContestants: {
-            category: {
-                name: string;
-                id: string;
-            };
-        }[];
+        email: string | null;
+        gender: string | null;
+        pronouns: string | null;
+        contestantNumber: number | null;
+        bio: string | null;
+        imagePath: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
     }[]>;
     getJudgeBios(filters: BioQueryFilters): Promise<{
         name: string;
         id: string;
-        gender: string;
-        pronouns: string;
-        bio: string;
-        imagePath: string;
+        email: string | null;
+        gender: string | null;
+        pronouns: string | null;
+        bio: string | null;
+        imagePath: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         isHeadJudge: boolean;
-        contestJudges: {
-            contest: {
-                event: {
-                    name: string;
-                    id: string;
-                };
-                name: string;
-                id: string;
-            };
-        }[];
-        categoryJudges: {
-            category: {
-                name: string;
-                id: string;
-            };
-        }[];
     }[]>;
     updateContestantBio(contestantId: string, data: UpdateBioDto): Promise<{
         name: string;

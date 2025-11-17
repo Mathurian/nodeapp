@@ -1,6 +1,7 @@
 import { PrismaClient, SavedSearch, SearchHistory, SearchAnalytic } from '@prisma/client';
 export interface CreateSavedSearchDTO {
     userId: string;
+    tenantId: string;
     name: string;
     query: string;
     filters?: Record<string, any>;
@@ -9,12 +10,14 @@ export interface CreateSavedSearchDTO {
 }
 export interface CreateSearchHistoryDTO {
     userId: string;
+    tenantId: string;
     query: string;
     filters?: Record<string, any>;
     entityTypes?: string[];
     resultCount?: number;
 }
 export interface SearchOptions {
+    tenantId: string;
     query?: string;
     entityTypes?: string[];
     filters?: Record<string, any>;
@@ -33,11 +36,11 @@ export declare class SearchRepository {
     private prismaClient;
     constructor(prismaClient?: PrismaClient);
     createSavedSearch(data: CreateSavedSearchDTO): Promise<SavedSearch>;
-    getSavedSearches(userId: string, includePublic?: boolean): Promise<SavedSearch[]>;
-    deleteSavedSearch(id: string, userId: string): Promise<SavedSearch>;
+    getSavedSearches(userId: string, tenantId: string, includePublic?: boolean): Promise<SavedSearch[]>;
+    deleteSavedSearch(id: string, userId: string, tenantId: string): Promise<SavedSearch>;
     createSearchHistory(data: CreateSearchHistoryDTO): Promise<SearchHistory>;
-    getSearchHistory(userId: string, limit?: number): Promise<SearchHistory[]>;
-    clearSearchHistory(userId: string): Promise<number>;
+    getSearchHistory(userId: string, tenantId: string, limit?: number): Promise<SearchHistory[]>;
+    clearSearchHistory(userId: string, tenantId: string): Promise<number>;
     trackSearch(query: string, resultCount: number, responseTime: number): Promise<void>;
     getPopularSearches(limit?: number): Promise<SearchAnalytic[]>;
     getSearchSuggestions(prefix: string, limit?: number): Promise<string[]>;

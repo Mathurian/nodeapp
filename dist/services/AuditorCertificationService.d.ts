@@ -16,10 +16,11 @@ export declare class AuditorCertificationService extends BaseService {
             certifications: {
                 id: string;
                 role: string;
+                tenantId: string;
                 categoryId: string;
                 certifiedAt: Date;
-                comments: string | null;
                 userId: string;
+                comments: string | null;
                 signatureName: string | null;
             }[];
         };
@@ -37,10 +38,11 @@ export declare class AuditorCertificationService extends BaseService {
     submitFinalCertification(categoryId: string, userId: string, _userRole: string, confirmations: any): Promise<{
         id: string;
         role: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
-        comments: string | null;
         userId: string;
+        comments: string | null;
         signatureName: string | null;
     }>;
     private getFinalCertificationStatusInternal;

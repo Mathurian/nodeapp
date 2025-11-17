@@ -26,26 +26,27 @@ export interface UpdateCustomFieldDTO {
 export interface SetCustomFieldValueDTO {
     fieldId: string;
     entityId: string;
+    tenantId: string;
     value: string;
 }
 export declare class CustomFieldService {
     private prisma;
     constructor(prisma: PrismaClient);
     createCustomField(data: CreateCustomFieldDTO): Promise<CustomField>;
-    getCustomFieldsByEntityType(entityType: string, activeOnly?: boolean): Promise<CustomField[]>;
-    getCustomFieldById(id: string): Promise<CustomField | null>;
-    getCustomFieldByKey(key: string, entityType: string): Promise<CustomField | null>;
-    updateCustomField(id: string, data: UpdateCustomFieldDTO): Promise<CustomField>;
-    deleteCustomField(id: string): Promise<void>;
+    getCustomFieldsByEntityType(entityType: string, tenantId: string, activeOnly?: boolean): Promise<CustomField[]>;
+    getCustomFieldById(id: string, tenantId: string): Promise<CustomField | null>;
+    getCustomFieldByKey(key: string, entityType: string, tenantId: string): Promise<CustomField | null>;
+    updateCustomField(id: string, tenantId: string, data: UpdateCustomFieldDTO): Promise<CustomField>;
+    deleteCustomField(id: string, tenantId: string): Promise<void>;
     setCustomFieldValue(data: SetCustomFieldValueDTO): Promise<CustomFieldValue>;
-    getCustomFieldValues(entityId: string, entityType: string): Promise<CustomFieldValue[]>;
-    getCustomFieldValue(fieldId: string, entityId: string): Promise<CustomFieldValue | null>;
-    deleteCustomFieldValue(fieldId: string, entityId: string): Promise<void>;
-    bulkSetCustomFieldValues(entityId: string, values: Record<string, string>): Promise<void>;
+    getCustomFieldValues(entityId: string, entityType: string, tenantId: string): Promise<CustomFieldValue[]>;
+    getCustomFieldValue(fieldId: string, entityId: string, tenantId: string): Promise<CustomFieldValue | null>;
+    deleteCustomFieldValue(fieldId: string, entityId: string, tenantId: string): Promise<void>;
+    bulkSetCustomFieldValues(entityId: string, tenantId: string, values: Record<string, string>): Promise<void>;
     validateCustomFieldValue(field: CustomField, value: string): {
         valid: boolean;
         error?: string;
     };
-    reorderCustomFields(fieldIds: string[], entityType: string): Promise<void>;
+    reorderCustomFields(fieldIds: string[], entityType: string, tenantId: string): Promise<void>;
 }
 //# sourceMappingURL=CustomFieldService.d.ts.map

@@ -9,12 +9,15 @@ export declare class AuditorService extends BaseService {
         completedAudits: number;
     }>;
     getPendingAudits(page?: number, limit?: number): Promise<{
-        categories: {
+        categories: ({
+            contest: never;
+            categoryCertifications: never;
+        } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             description: string | null;
             contestId: string;
             scoreCap: number | null;
@@ -22,7 +25,7 @@ export declare class AuditorService extends BaseService {
             contestantMin: number | null;
             contestantMax: number | null;
             totalsCertified: boolean;
-        }[];
+        })[];
         pagination: {
             page: number;
             limit: number;
@@ -31,12 +34,15 @@ export declare class AuditorService extends BaseService {
         };
     }>;
     getCompletedAudits(page?: number, limit?: number): Promise<{
-        categories: {
+        categories: ({
+            contest: never;
+            categoryCertifications: never;
+        } & {
             name: string;
             id: string;
-            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             description: string | null;
             contestId: string;
             scoreCap: number | null;
@@ -44,7 +50,7 @@ export declare class AuditorService extends BaseService {
             contestantMin: number | null;
             contestantMax: number | null;
             totalsCertified: boolean;
-        }[];
+        })[];
         pagination: {
             page: number;
             limit: number;
@@ -57,10 +63,11 @@ export declare class AuditorService extends BaseService {
         certification: {
             id: string;
             role: string;
+            tenantId: string;
             categoryId: string;
             certifiedAt: Date;
-            comments: string | null;
             userId: string;
+            comments: string | null;
             signatureName: string | null;
         };
     }>;
@@ -76,9 +83,9 @@ export declare class AuditorService extends BaseService {
             action: string;
             resourceType: string | null;
             resourceId: string | null;
-            details: import("@prisma/client/runtime/library").JsonValue | null;
             ipAddress: string | null;
             logLevel: import(".prisma/client").$Enums.LogLevel;
+            details: import("@prisma/client/runtime/library").JsonValue | null;
         };
     }>;
     getScoreVerification(categoryId: string, contestantId?: string): Promise<{
@@ -98,15 +105,16 @@ export declare class AuditorService extends BaseService {
         contestantId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         isLocked: boolean;
         lockedAt: Date | null;
         categoryId: string;
         criterionId: string | null;
-        comment: string | null;
         allowCommentEdit: boolean;
-        isCertified: boolean;
         certifiedAt: Date | null;
         certifiedBy: string | null;
+        comment: string | null;
+        isCertified: boolean;
         lockedBy: string | null;
     }>;
     getTallyMasterStatus(categoryId: string): Promise<{
@@ -160,20 +168,14 @@ export declare class AuditorService extends BaseService {
             tallyMasterCertified: any;
             auditorCertified: any;
             finalCertified: any;
-            certifications: any;
+            certifications: never;
         };
         generatedAt: string;
         generatedBy: string;
     }>;
     getAuditHistory(categoryId?: string, page?: number, limit?: number): Promise<{
         auditLogs: ({
-            user: {
-                name: string;
-                id: string;
-                preferredName: string;
-                email: string;
-                role: import(".prisma/client").$Enums.UserRole;
-            };
+            user: never;
         } & {
             id: string;
             createdAt: Date;
@@ -184,9 +186,9 @@ export declare class AuditorService extends BaseService {
             action: string;
             resourceType: string | null;
             resourceId: string | null;
-            details: import("@prisma/client/runtime/library").JsonValue | null;
             ipAddress: string | null;
             logLevel: import(".prisma/client").$Enums.LogLevel;
+            details: import("@prisma/client/runtime/library").JsonValue | null;
         })[];
         pagination: {
             page: number;

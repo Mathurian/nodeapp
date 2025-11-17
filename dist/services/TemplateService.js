@@ -22,34 +22,34 @@ let TemplateService = class TemplateService extends BaseService_1.BaseService {
         super();
         this.templateRepo = templateRepo;
     }
-    async getAllTemplates() {
-        return await this.templateRepo.findAllWithCriteria();
+    async getAllTemplates(tenantId) {
+        return await this.templateRepo.findAllWithCriteria(tenantId);
     }
-    async getTemplateById(id) {
+    async getTemplateById(id, tenantId) {
         this.validateRequired({ id }, ['id']);
-        const template = await this.templateRepo.findByIdWithCriteria(id);
+        const template = await this.templateRepo.findByIdWithCriteria(id, tenantId);
         if (!template) {
             throw new BaseService_1.NotFoundError('Template', id);
         }
         return template;
     }
     async createTemplate(data) {
-        this.validateRequired(data, ['name']);
+        this.validateRequired(data, ['name', 'tenantId']);
         return await this.templateRepo.createWithCriteria(data);
     }
-    async updateTemplate(id, data) {
+    async updateTemplate(id, tenantId, data) {
         this.validateRequired({ id }, ['id']);
-        await this.getTemplateById(id);
-        return await this.templateRepo.updateWithCriteria(id, data);
+        await this.getTemplateById(id, tenantId);
+        return await this.templateRepo.updateWithCriteria(id, tenantId, data);
     }
-    async deleteTemplate(id) {
+    async deleteTemplate(id, tenantId) {
         this.validateRequired({ id }, ['id']);
-        await this.getTemplateById(id);
+        await this.getTemplateById(id, tenantId);
         await this.templateRepo.delete(id);
     }
-    async duplicateTemplate(id) {
+    async duplicateTemplate(id, tenantId) {
         this.validateRequired({ id }, ['id']);
-        const duplicated = await this.templateRepo.duplicateTemplate(id);
+        const duplicated = await this.templateRepo.duplicateTemplate(id, tenantId);
         if (!duplicated) {
             throw new BaseService_1.NotFoundError('Template', id);
         }

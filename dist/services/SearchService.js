@@ -27,6 +27,7 @@ let SearchService = class SearchService {
         await this.searchRepository.trackSearch(options.query, results.length, responseTime);
         await this.searchRepository.createSearchHistory({
             userId,
+            tenantId: options.tenantId,
             query: options.query,
             filters: options.filters,
             entityTypes: options.entityTypes,
@@ -72,6 +73,7 @@ let SearchService = class SearchService {
         await this.searchRepository.trackSearch(options.query, results.length, responseTime);
         await this.searchRepository.createSearchHistory({
             userId,
+            tenantId: options.tenantId,
             query: options.query,
             filters: options.filters,
             entityTypes: [entityType],
@@ -147,30 +149,31 @@ let SearchService = class SearchService {
     async saveSearch(data) {
         return this.searchRepository.createSavedSearch(data);
     }
-    async getSavedSearches(userId, includePublic = false) {
-        return this.searchRepository.getSavedSearches(userId, includePublic);
+    async getSavedSearches(userId, tenantId, includePublic = false) {
+        return this.searchRepository.getSavedSearches(userId, tenantId, includePublic);
     }
-    async deleteSavedSearch(id, userId) {
-        return this.searchRepository.deleteSavedSearch(id, userId);
+    async deleteSavedSearch(id, userId, tenantId) {
+        return this.searchRepository.deleteSavedSearch(id, userId, tenantId);
     }
-    async executeSavedSearch(userId, savedSearchId) {
-        const savedSearch = await this.searchRepository.getSavedSearches(userId);
+    async executeSavedSearch(userId, tenantId, savedSearchId) {
+        const savedSearch = await this.searchRepository.getSavedSearches(userId, tenantId);
         const search = savedSearch.find((s) => s.id === savedSearchId);
         if (!search) {
             throw new Error('Saved search not found');
         }
         const options = {
+            tenantId,
             query: search.query,
             filters: search.filters ? JSON.parse(search.filters) : undefined,
             entityTypes: search.entityTypes ? search.entityTypes.split(',') : undefined,
         };
         return this.search(userId, options);
     }
-    async getSearchHistory(userId, limit = 10) {
-        return this.searchRepository.getSearchHistory(userId, limit);
+    async getSearchHistory(userId, tenantId, limit = 10) {
+        return this.searchRepository.getSearchHistory(userId, tenantId, limit);
     }
-    async clearSearchHistory(userId) {
-        return this.searchRepository.clearSearchHistory(userId);
+    async clearSearchHistory(userId, tenantId) {
+        return this.searchRepository.clearSearchHistory(userId, tenantId);
     }
     async getSearchSuggestions(prefix, limit = 5) {
         if (prefix.length < 2)

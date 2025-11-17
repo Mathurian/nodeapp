@@ -6,6 +6,7 @@ interface CreateScoreRemovalRequestDto {
     reason: string;
     requestedBy: string;
     userRole: string;
+    tenantId: string;
 }
 interface SignRequestDto {
     signatureName: string;
@@ -24,6 +25,7 @@ export declare class ScoreRemovalService extends BaseService {
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
         requestedBy: string;
@@ -38,7 +40,7 @@ export declare class ScoreRemovalService extends BaseService {
         boardSignedAt: Date | null;
         boardSignedBy: string | null;
     }>;
-    getAll(status?: string): Promise<({
+    getAll(tenantId: string, status?: string): Promise<({
         category: never;
         judge: never;
         requestedByUser: never;
@@ -48,6 +50,7 @@ export declare class ScoreRemovalService extends BaseService {
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
         requestedBy: string;
@@ -62,7 +65,7 @@ export declare class ScoreRemovalService extends BaseService {
         boardSignedAt: Date | null;
         boardSignedBy: string | null;
     })[]>;
-    getById(id: string): Promise<{
+    getById(id: string, tenantId: string): Promise<{
         category: never;
         judge: never;
         requestedByUser: never;
@@ -72,6 +75,7 @@ export declare class ScoreRemovalService extends BaseService {
         judgeId: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         categoryId: string;
         reason: string;
         requestedBy: string;
@@ -86,7 +90,7 @@ export declare class ScoreRemovalService extends BaseService {
         boardSignedAt: Date | null;
         boardSignedBy: string | null;
     }>;
-    signRequest(id: string, data: SignRequestDto): Promise<{
+    signRequest(id: string, tenantId: string, data: SignRequestDto): Promise<{
         request: {
             category: never;
             judge: never;
@@ -96,6 +100,7 @@ export declare class ScoreRemovalService extends BaseService {
             judgeId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             categoryId: string;
             reason: string;
             requestedBy: string;
@@ -112,7 +117,7 @@ export declare class ScoreRemovalService extends BaseService {
         };
         allSigned: boolean;
     }>;
-    executeRemoval(id: string): Promise<{
+    executeRemoval(id: string, tenantId: string): Promise<{
         deletedCount: number;
     }>;
 }

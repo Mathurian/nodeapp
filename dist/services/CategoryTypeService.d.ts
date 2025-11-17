@@ -3,7 +3,6 @@ export declare class CategoryTypeService extends BaseService {
     getAllCategoryTypes(): Promise<{
         name: string;
         id: string;
-        tenantId: string | null;
         createdAt: Date;
         description: string | null;
         isSystem: boolean;
@@ -12,7 +11,6 @@ export declare class CategoryTypeService extends BaseService {
     createCategoryType(name: string, description: string | null, createdById: string, tenantId?: string): Promise<{
         name: string;
         id: string;
-        tenantId: string | null;
         createdAt: Date;
         description: string | null;
         isSystem: boolean;
@@ -21,7 +19,6 @@ export declare class CategoryTypeService extends BaseService {
     updateCategoryType(id: string, name?: string, description?: string | null): Promise<{
         name: string;
         id: string;
-        tenantId: string | null;
         createdAt: Date;
         description: string | null;
         isSystem: boolean;

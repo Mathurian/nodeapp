@@ -22,9 +22,9 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         super();
         this.prisma = prisma;
     }
-    async getJudgeIdFromUser(userId) {
-        const userWithJudge = await this.prisma.user.findUnique({
-            where: { id: userId },
+    async getJudgeIdFromUser(userId, tenantId) {
+        const userWithJudge = await this.prisma.user.findFirst({
+            where: { id: userId, tenantId },
             include: { judge: true },
         });
         if (!userWithJudge || !userWithJudge.judge) {
@@ -32,17 +32,17 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         }
         return userWithJudge.judge.id;
     }
-    async getStats(userId) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async getStats(userId, tenantId) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (!judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
         const [totalAssignments, pendingAssignments, activeAssignments, completedAssignments, totalScores,] = await Promise.all([
-            this.prisma.assignment.count({ where: { judgeId } }),
-            this.prisma.assignment.count({ where: { judgeId, status: 'PENDING' } }),
-            this.prisma.assignment.count({ where: { judgeId, status: 'ACTIVE' } }),
-            this.prisma.assignment.count({ where: { judgeId, status: 'COMPLETED' } }),
-            this.prisma.score.count({ where: { judgeId } }),
+            this.prisma.assignment.count({ where: { judgeId, tenantId } }),
+            this.prisma.assignment.count({ where: { judgeId, tenantId, status: 'PENDING' } }),
+            this.prisma.assignment.count({ where: { judgeId, tenantId, status: 'ACTIVE' } }),
+            this.prisma.assignment.count({ where: { judgeId, tenantId, status: 'COMPLETED' } }),
+            this.prisma.score.count({ where: { judgeId, tenantId } }),
         ]);
         return {
             totalAssignments,
@@ -52,26 +52,26 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             totalScores,
         };
     }
-    async getAssignments(userId, userRole) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async getAssignments(userId, userRole, tenantId) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (userRole === 'JUDGE' && !judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
-        const whereClause = userRole === 'JUDGE' && judgeId ? { judgeId } : {};
+        const whereClause = userRole === 'JUDGE' && judgeId ? { judgeId, tenantId } : { tenantId };
         const assignments = await this.prisma.assignment.findMany({
             where: whereClause,
             orderBy: { assignedAt: 'desc' },
         });
         return assignments;
     }
-    async updateAssignmentStatus(assignmentId, status, userId, userRole) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async updateAssignmentStatus(assignmentId, status, userId, userRole, tenantId) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (userRole === 'JUDGE') {
             if (!judgeId) {
                 throw this.forbiddenError('User is not linked to a Judge record');
             }
-            const assignment = await this.prisma.assignment.findUnique({
-                where: { id: assignmentId },
+            const assignment = await this.prisma.assignment.findFirst({
+                where: { id: assignmentId, tenantId },
             });
             if (!assignment || assignment.judgeId !== judgeId) {
                 throw this.forbiddenError('Not authorized to update this assignment');
@@ -83,9 +83,9 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         });
         return updatedAssignment;
     }
-    async getScoringInterface(categoryId, userId) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
+    async getScoringInterface(categoryId, userId, tenantId) {
+        const user = await this.prisma.user.findFirst({
+            where: { id: userId, tenantId },
             include: { judge: true },
         });
         if (!user || !user.judge) {
@@ -96,14 +96,15 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             where: {
                 judgeId,
                 categoryId,
+                tenantId,
                 status: { in: ['ACTIVE', 'COMPLETED'] },
             },
         });
         if (!assignment) {
             throw this.forbiddenError('Not assigned to this category');
         }
-        const category = await this.prisma.category.findUnique({
-            where: { id: categoryId },
+        const category = await this.prisma.category.findFirst({
+            where: { id: categoryId, tenantId },
             include: {
                 contest: {
                     include: {
@@ -117,10 +118,10 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         }
         const [criteria, categoryContestants, scores] = await Promise.all([
             this.prisma.criterion.findMany({
-                where: { categoryId },
+                where: { categoryId, tenantId },
             }),
             this.prisma.categoryContestant.findMany({
-                where: { categoryId },
+                where: { categoryId, tenantId },
                 include: {
                     contestant: {
                         include: {
@@ -137,7 +138,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
                 },
             }),
             this.prisma.score.findMany({
-                where: { judgeId, categoryId },
+                where: { judgeId, categoryId, tenantId },
                 include: {
                     criterion: true,
                     contestant: true,
@@ -168,8 +169,8 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         };
     }
     async submitScore(data, userId) {
-        const { categoryId, contestantId, criterionId, score, comment } = data;
-        const judgeId = await this.getJudgeIdFromUser(userId);
+        const { categoryId, contestantId, criterionId, score, comment, tenantId } = data;
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (!judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
@@ -177,6 +178,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             where: {
                 judgeId,
                 categoryId,
+                tenantId,
                 status: { in: ['ACTIVE', 'COMPLETED'] },
             },
         });
@@ -185,8 +187,8 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         }
         let criterion = null;
         if (criterionId) {
-            criterion = await this.prisma.criterion.findUnique({
-                where: { id: criterionId },
+            criterion = await this.prisma.criterion.findFirst({
+                where: { id: criterionId, tenantId },
             });
             if (!criterion) {
                 throw this.notFoundError('Criterion', criterionId);
@@ -201,6 +203,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
                 judgeId,
                 categoryId,
                 contestantId,
+                tenantId,
                 ...(criterionId && { criterionId }),
             },
         });
@@ -224,6 +227,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
                     judgeId,
                     categoryId,
                     contestantId,
+                    tenantId,
                     criterionId: criterionId || null,
                     score: finalScore,
                     comment: comment || null,
@@ -236,8 +240,8 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         }
         return scoreRecord;
     }
-    async getCertificationWorkflow(categoryId, userId) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async getCertificationWorkflow(categoryId, userId, tenantId) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (!judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
@@ -245,14 +249,15 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             where: {
                 judgeId,
                 categoryId,
+                tenantId,
                 status: { in: ['ACTIVE', 'COMPLETED'] },
             },
         });
         if (!assignment) {
             throw this.forbiddenError('Not assigned to this category');
         }
-        const category = await this.prisma.category.findUnique({
-            where: { id: categoryId },
+        const category = await this.prisma.category.findFirst({
+            where: { id: categoryId, tenantId },
             include: {
                 contest: {
                     include: {
@@ -267,7 +272,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         let certifications = [];
         try {
             certifications = await this.prisma.categoryCertification?.findMany({
-                where: { categoryId },
+                where: { categoryId, tenantId },
                 orderBy: { certifiedAt: 'desc' },
             }) || [];
         }
@@ -280,8 +285,8 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             certifications,
         };
     }
-    async getContestantBios(categoryId, userId) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async getContestantBios(categoryId, userId, tenantId) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (!judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
@@ -289,13 +294,14 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             where: {
                 judgeId,
                 categoryId,
+                tenantId,
             },
         });
         if (!assignment) {
             throw this.forbiddenError('Not assigned to this category');
         }
         const categoryContestants = await this.prisma.categoryContestant.findMany({
-            where: { categoryId },
+            where: { categoryId, tenantId },
             include: {
                 contestant: {
                     include: {
@@ -315,13 +321,13 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         const contestants = categoryContestants.map((cc) => cc.contestant);
         return contestants;
     }
-    async getContestantBio(contestantId, userId) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async getContestantBio(contestantId, userId, tenantId) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (!judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
-        const contestant = await this.prisma.contestant.findUnique({
-            where: { id: contestantId },
+        const contestant = await this.prisma.contestant.findFirst({
+            where: { id: contestantId, tenantId },
             include: {
                 users: {
                     select: {
@@ -340,6 +346,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
         const categoryContestant = await this.prisma.categoryContestant.findFirst({
             where: {
                 contestantId,
+                tenantId,
             },
             include: {
                 category: {
@@ -357,6 +364,7 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             where: {
                 judgeId,
                 categoryId: categoryContestant.categoryId,
+                tenantId,
             },
         });
         if (!assignment) {
@@ -367,14 +375,15 @@ let JudgeService = class JudgeService extends BaseService_1.BaseService {
             category: categoryContestant.category,
         };
     }
-    async getJudgeHistory(userId, query = {}) {
-        const judgeId = await this.getJudgeIdFromUser(userId);
+    async getJudgeHistory(userId, tenantId, query = {}) {
+        const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
         if (!judgeId) {
             throw this.forbiddenError('User is not linked to a Judge record');
         }
         const { page = 1, limit = 50, categoryId, eventId } = query;
         const whereClause = {
             judgeId,
+            tenantId,
             ...(categoryId && { categoryId }),
             ...(eventId && {
                 category: {

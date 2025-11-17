@@ -4,6 +4,7 @@ export interface UploadScoreFileDTO {
     categoryId: string;
     judgeId: string;
     contestantId?: string;
+    tenantId: string;
     fileName: string;
     fileType: string;
     filePath: string;
@@ -33,13 +34,13 @@ export declare class ScoreFileService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     uploadScoreFile(data: UploadScoreFileDTO, uploadedById: string): Promise<ScoreFile>;
-    getScoreFileById(id: string): Promise<ScoreFile | null>;
-    getScoreFilesByCategory(categoryId: string): Promise<ScoreFile[]>;
-    getScoreFilesByJudge(judgeId: string): Promise<ScoreFile[]>;
-    getScoreFilesByContestant(contestantId: string): Promise<ScoreFile[]>;
-    updateScoreFile(id: string, data: UpdateScoreFileDTO, _userId: string, userRole: string): Promise<ScoreFile>;
-    deleteScoreFile(id: string, userId: string, userRole: string): Promise<void>;
-    getAllScoreFiles(filters?: {
+    getScoreFileById(id: string, tenantId: string): Promise<ScoreFile | null>;
+    getScoreFilesByCategory(categoryId: string, tenantId: string): Promise<ScoreFile[]>;
+    getScoreFilesByJudge(judgeId: string, tenantId: string): Promise<ScoreFile[]>;
+    getScoreFilesByContestant(contestantId: string, tenantId: string): Promise<ScoreFile[]>;
+    updateScoreFile(id: string, tenantId: string, data: UpdateScoreFileDTO, _userId: string, userRole: string): Promise<ScoreFile>;
+    deleteScoreFile(id: string, tenantId: string, userId: string, userRole: string): Promise<void>;
+    getAllScoreFiles(tenantId: string, filters?: {
         categoryId?: string;
         judgeId?: string;
         contestantId?: string;

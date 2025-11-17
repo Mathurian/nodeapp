@@ -5,18 +5,9 @@ export declare class AdvancedReportingService extends BaseService {
     constructor(prisma: PrismaClient);
     generateScoreReport(eventId?: string, contestId?: string, categoryId?: string): Promise<{
         scores: ({
-            category: {
-                contest: {
-                    name: string;
-                };
-                name: string;
-            };
-            contestant: {
-                name: string;
-            };
-            judge: {
-                name: string;
-            };
+            category: never;
+            contestant: never;
+            judge: never;
         } & {
             score: number | null;
             id: string;
@@ -24,24 +15,25 @@ export declare class AdvancedReportingService extends BaseService {
             contestantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             isLocked: boolean;
             lockedAt: Date | null;
             categoryId: string;
             criterionId: string | null;
-            comment: string | null;
             allowCommentEdit: boolean;
-            isCertified: boolean;
             certifiedAt: Date | null;
             certifiedBy: string | null;
+            comment: string | null;
+            isCertified: boolean;
             lockedBy: string | null;
         })[];
         total: number;
     }>;
     generateSummaryReport(eventId: string): Promise<{
         event: string;
-        contests: number;
-        categories: number;
-        totalScores: number;
+        contests: any;
+        categories: any;
+        totalScores: any;
     }>;
 }
 //# sourceMappingURL=AdvancedReportingService.d.ts.map

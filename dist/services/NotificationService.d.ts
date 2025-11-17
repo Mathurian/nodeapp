@@ -8,12 +8,12 @@ export declare class NotificationService {
     setSocketIO(io: SocketIOServer): void;
     createNotification(data: CreateNotificationDTO): Promise<Notification>;
     broadcastNotification(userIds: string[], notification: Omit<CreateNotificationDTO, 'userId'>): Promise<number>;
-    getUserNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
-    getUnreadCount(userId: string): Promise<number>;
-    markAsRead(id: string, userId: string): Promise<Notification>;
-    markAllAsRead(userId: string): Promise<number>;
-    deleteNotification(id: string, userId: string): Promise<Notification>;
-    cleanupOldNotifications(userId: string, daysOld?: number): Promise<number>;
+    getUserNotifications(userId: string, tenantId: string, limit?: number, offset?: number): Promise<Notification[]>;
+    getUnreadCount(userId: string, tenantId: string): Promise<number>;
+    markAsRead(id: string, userId: string, tenantId: string): Promise<Notification>;
+    markAllAsRead(userId: string, tenantId: string): Promise<number>;
+    deleteNotification(id: string, userId: string, tenantId: string): Promise<Notification>;
+    cleanupOldNotifications(userId: string, tenantId: string, daysOld?: number): Promise<number>;
     notifyScoreSubmitted(tenantId: string, userId: string, contestantName: string, categoryName: string): Promise<Notification>;
     notifyContestCertified(tenantId: string, userId: string, contestName: string): Promise<Notification>;
     notifyAssignmentChange(tenantId: string, userId: string, contestName: string, action: 'assigned' | 'removed'): Promise<Notification>;

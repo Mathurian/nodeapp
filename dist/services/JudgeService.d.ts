@@ -6,19 +6,20 @@ interface SubmitScoreData {
     criterionId?: string;
     score?: number;
     comment?: string;
+    tenantId: string;
 }
 export declare class JudgeService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
-    getJudgeIdFromUser(userId: string): Promise<string | null>;
-    getStats(userId: string): Promise<{
+    getJudgeIdFromUser(userId: string, tenantId: string): Promise<string | null>;
+    getStats(userId: string, tenantId: string): Promise<{
         totalAssignments: number;
         pendingAssignments: number;
         activeAssignments: number;
         completedAssignments: number;
         totalScores: number;
     }>;
-    getAssignments(userId: string, userRole: string): Promise<{
+    getAssignments(userId: string, userRole: string, tenantId: string): Promise<{
         status: import(".prisma/client").$Enums.AssignmentStatus;
         id: string;
         judgeId: string;
@@ -31,7 +32,7 @@ export declare class JudgeService extends BaseService {
         notes: string | null;
         priority: number;
     }[]>;
-    updateAssignmentStatus(assignmentId: string, status: string, userId: string, userRole: string): Promise<{
+    updateAssignmentStatus(assignmentId: string, status: string, userId: string, userRole: string, tenantId: string): Promise<{
         status: import(".prisma/client").$Enums.AssignmentStatus;
         id: string;
         judgeId: string;
@@ -44,7 +45,7 @@ export declare class JudgeService extends BaseService {
         notes: string | null;
         priority: number;
     }>;
-    getScoringInterface(categoryId: string, userId: string): Promise<{
+    getScoringInterface(categoryId: string, userId: string, tenantId: string): Promise<{
         category: {
             id: any;
             name: any;
@@ -66,7 +67,7 @@ export declare class JudgeService extends BaseService {
         };
     }>;
     submitScore(data: SubmitScoreData, userId: string): Promise<any>;
-    getCertificationWorkflow(categoryId: string, userId: string): Promise<{
+    getCertificationWorkflow(categoryId: string, userId: string, tenantId: string): Promise<{
         category: any;
         assignment: {
             status: import(".prisma/client").$Enums.AssignmentStatus;
@@ -83,35 +84,13 @@ export declare class JudgeService extends BaseService {
         };
         certifications: any[];
     }>;
-    getContestantBios(categoryId: string, userId: string): Promise<any>;
-    getContestantBio(contestantId: string, userId: string): Promise<any>;
-    getJudgeHistory(userId: string, query?: any): Promise<{
+    getContestantBios(categoryId: string, userId: string, tenantId: string): Promise<any>;
+    getContestantBio(contestantId: string, userId: string, tenantId: string): Promise<any>;
+    getJudgeHistory(userId: string, tenantId: string, query?: any): Promise<{
         scores: ({
-            category: {
-                name: string;
-                id: string;
-            };
-            contestant: {
-                name: string;
-                id: string;
-                email: string | null;
-                gender: string | null;
-                pronouns: string | null;
-                bio: string | null;
-                imagePath: string | null;
-                contestantNumber: number | null;
-                tenantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-            };
-            criterion: {
-                name: string;
-                id: string;
-                createdAt: Date;
-                updatedAt: Date;
-                categoryId: string;
-                maxScore: number;
-            };
+            category: never;
+            contestant: never;
+            criterion: never;
         } & {
             score: number | null;
             id: string;
@@ -119,15 +98,16 @@ export declare class JudgeService extends BaseService {
             contestantId: string;
             createdAt: Date;
             updatedAt: Date;
+            tenantId: string;
             isLocked: boolean;
             lockedAt: Date | null;
             categoryId: string;
             criterionId: string | null;
-            comment: string | null;
             allowCommentEdit: boolean;
-            isCertified: boolean;
             certifiedAt: Date | null;
             certifiedBy: string | null;
+            comment: string | null;
+            isCertified: boolean;
             lockedBy: string | null;
         })[];
         pagination: {

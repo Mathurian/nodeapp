@@ -71,16 +71,15 @@ export declare class PerformanceController {
     getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         logs: {
             id: string;
-            tenantId: string | null;
             createdAt: Date;
-            categoryId: string | null;
             eventId: string | null;
+            categoryId: string | null;
             contestId: string | null;
             userId: string | null;
-            ipAddress: string | null;
-            userAgent: string | null;
-            endpoint: string;
             method: string;
+            userAgent: string | null;
+            ipAddress: string | null;
+            endpoint: string;
             responseTime: number;
             statusCode: number;
         }[];
@@ -166,16 +165,15 @@ export declare const getSystemMetrics: (_req: Request, res: Response, next: Next
 export declare const getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     logs: {
         id: string;
-        tenantId: string | null;
         createdAt: Date;
-        categoryId: string | null;
         eventId: string | null;
+        categoryId: string | null;
         contestId: string | null;
         userId: string | null;
-        ipAddress: string | null;
-        userAgent: string | null;
-        endpoint: string;
         method: string;
+        userAgent: string | null;
+        ipAddress: string | null;
+        endpoint: string;
         responseTime: number;
         statusCode: number;
     }[];

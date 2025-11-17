@@ -6,33 +6,18 @@ export declare class TrackerController {
     getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         contestId: string;
         contestName: string;
-        eventName: string;
-        categories: {
-            categoryId: string;
-            categoryName: string;
-            totalContestants: number;
-            totalJudges: number;
-            totalScores: number;
-            expectedScores: number;
-            completionPercentage: number;
-            judges: {
-                judgeId: string;
-                judgeName: string;
-                completed: number;
-                total: number;
-                completionPercentage: number;
-            }[];
-        }[];
+        eventName: any;
+        categories: any;
         overallCompletion: number;
     }>, Record<string, any>>>;
     getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         categoryId: string;
         categoryName: string;
-        contestName: string;
-        eventName: string;
-        totalContestants: number;
-        totalJudges: number;
-        totalScores: number;
+        contestName: any;
+        eventName: any;
+        totalContestants: any;
+        totalJudges: any;
+        totalScores: any;
         expectedScores: number;
         completionPercentage: number;
     }>, Record<string, any>>>;
@@ -43,33 +28,18 @@ export declare class TrackerController {
 export declare const getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     contestId: string;
     contestName: string;
-    eventName: string;
-    categories: {
-        categoryId: string;
-        categoryName: string;
-        totalContestants: number;
-        totalJudges: number;
-        totalScores: number;
-        expectedScores: number;
-        completionPercentage: number;
-        judges: {
-            judgeId: string;
-            judgeName: string;
-            completed: number;
-            total: number;
-            completionPercentage: number;
-        }[];
-    }[];
+    eventName: any;
+    categories: any;
     overallCompletion: number;
 }>, Record<string, any>>>;
 export declare const getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     categoryId: string;
     categoryName: string;
-    contestName: string;
-    eventName: string;
-    totalContestants: number;
-    totalJudges: number;
-    totalScores: number;
+    contestName: any;
+    eventName: any;
+    totalContestants: any;
+    totalJudges: any;
+    totalScores: any;
     expectedScores: number;
     completionPercentage: number;
 }>, Record<string, any>>>;

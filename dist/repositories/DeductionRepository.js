@@ -20,8 +20,11 @@ let DeductionRepository = class DeductionRepository extends BaseRepository_1.Bas
     getModelName() {
         return 'deductionRequest';
     }
-    async findPendingWithRelations(categoryIds) {
-        const whereClause = { status: 'PENDING' };
+    async findPendingWithRelations(tenantId, categoryIds) {
+        const whereClause = {
+            status: 'PENDING',
+            tenantId
+        };
         if (categoryIds && categoryIds.length > 0) {
             whereClause.categoryId = { in: categoryIds };
         }
@@ -48,9 +51,12 @@ let DeductionRepository = class DeductionRepository extends BaseRepository_1.Bas
             orderBy: { createdAt: 'desc' }
         });
     }
-    async findByIdWithRelations(id) {
-        return this.getModel().findUnique({
-            where: { id },
+    async findByIdWithRelations(id, tenantId) {
+        return this.getModel().findFirst({
+            where: {
+                id,
+                tenantId
+            },
             include: {
                 contestant: {
                     select: { id: true, name: true, email: true }
@@ -80,7 +86,8 @@ let DeductionRepository = class DeductionRepository extends BaseRepository_1.Bas
                 amount: data.amount,
                 reason: data.reason,
                 requestedById: data.requestedBy,
-                status: 'PENDING'
+                status: 'PENDING',
+                tenantId: data.tenantId
             },
             include: {
                 contestant: {
@@ -103,7 +110,9 @@ let DeductionRepository = class DeductionRepository extends BaseRepository_1.Bas
         });
     }
     async findWithFilters(filters, page, limit) {
-        const whereClause = {};
+        const whereClause = {
+            tenantId: filters.tenantId
+        };
         if (filters.status)
             whereClause.status = filters.status;
         if (filters.categoryId)
@@ -140,32 +149,37 @@ let DeductionRepository = class DeductionRepository extends BaseRepository_1.Bas
         ]);
         return { deductions, total };
     }
-    async getApprovals(requestId) {
+    async getApprovals(requestId, tenantId) {
         return database_1.prisma.deductionApproval.findMany({
-            where: { requestId },
+            where: {
+                requestId,
+                tenantId
+            },
             orderBy: { approvedAt: 'asc' }
         });
     }
-    async createApproval(requestId, approvedById, role, isHeadJudge) {
+    async createApproval(requestId, approvedById, role, tenantId, isHeadJudge) {
         return database_1.prisma.deductionApproval.create({
             data: {
                 requestId,
                 approvedById,
                 role,
+                tenantId,
                 isHeadJudge: isHeadJudge || false
             }
         });
     }
-    async hasUserApproved(requestId, userId) {
+    async hasUserApproved(requestId, userId, tenantId) {
         const approval = await database_1.prisma.deductionApproval.findFirst({
             where: {
                 requestId,
-                approvedById: userId
+                approvedById: userId,
+                tenantId
             }
         });
         return !!approval;
     }
-    async updateStatus(id, status, additionalData) {
+    async updateStatus(id, status, tenantId, additionalData) {
         return this.getModel().update({
             where: { id },
             data: {

@@ -27,7 +27,7 @@ export declare class RoleAssignmentService extends BaseService {
         id: string;
         role: string;
         isActive: boolean;
-        tenantId: string | null;
+        tenantId: string;
         eventId: string | null;
         categoryId: string | null;
         contestId: string | null;
@@ -40,7 +40,7 @@ export declare class RoleAssignmentService extends BaseService {
         id: string;
         role: string;
         isActive: boolean;
-        tenantId: string | null;
+        tenantId: string;
         eventId: string | null;
         categoryId: string | null;
         contestId: string | null;
@@ -53,7 +53,7 @@ export declare class RoleAssignmentService extends BaseService {
         id: string;
         role: string;
         isActive: boolean;
-        tenantId: string | null;
+        tenantId: string;
         eventId: string | null;
         categoryId: string | null;
         contestId: string | null;

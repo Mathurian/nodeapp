@@ -47,6 +47,7 @@ let NotificationRepository = class NotificationRepository {
     async findByUser(filters) {
         const where = {
             userId: filters.userId,
+            tenantId: filters.tenantId,
         };
         if (filters.read !== undefined) {
             where.read = filters.read;
@@ -63,17 +64,18 @@ let NotificationRepository = class NotificationRepository {
             skip: filters.offset,
         });
     }
-    async getUnreadCount(userId) {
+    async getUnreadCount(userId, tenantId) {
         return this.prisma.notification.count({
             where: {
                 userId,
+                tenantId,
                 read: false,
             },
         });
     }
-    async markAsRead(id, userId) {
+    async markAsRead(id, userId, tenantId) {
         const notification = await this.prisma.notification.findFirst({
-            where: { id, userId },
+            where: { id, userId, tenantId },
         });
         if (!notification) {
             throw new Error('Notification not found');
@@ -86,10 +88,11 @@ let NotificationRepository = class NotificationRepository {
             },
         });
     }
-    async markAllAsRead(userId) {
+    async markAllAsRead(userId, tenantId) {
         const result = await this.prisma.notification.updateMany({
             where: {
                 userId,
+                tenantId,
                 read: false,
             },
             data: {
@@ -99,9 +102,9 @@ let NotificationRepository = class NotificationRepository {
         });
         return result.count;
     }
-    async delete(id, userId) {
+    async delete(id, userId, tenantId) {
         const notification = await this.prisma.notification.findFirst({
-            where: { id, userId },
+            where: { id, userId, tenantId },
         });
         if (!notification) {
             throw new Error('Notification not found');
@@ -110,12 +113,13 @@ let NotificationRepository = class NotificationRepository {
             where: { id },
         });
     }
-    async deleteOldRead(userId, daysOld = 30) {
+    async deleteOldRead(userId, tenantId, daysOld = 30) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
         const result = await this.prisma.notification.deleteMany({
             where: {
                 userId,
+                tenantId,
                 read: true,
                 readAt: {
                     lt: cutoffDate,
@@ -124,9 +128,9 @@ let NotificationRepository = class NotificationRepository {
         });
         return result.count;
     }
-    async findById(id) {
-        return this.prisma.notification.findUnique({
-            where: { id },
+    async findById(id, tenantId) {
+        return this.prisma.notification.findFirst({
+            where: { id, tenantId },
         });
     }
 };
