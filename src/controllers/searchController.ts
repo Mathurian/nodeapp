@@ -41,6 +41,7 @@ export class SearchController {
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
         facets: facets ? JSON.parse(facets as string) : undefined,
+        tenantId: req.user!.tenantId
       };
 
       const results = await this.searchService.search(userId, options);
@@ -69,6 +70,7 @@ export class SearchController {
         filters: filters ? JSON.parse(filters as string) : undefined,
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
+        tenantId: req.user!.tenantId
       };
 
       const results = await this.searchService.searchByType(userId, type, options);
@@ -147,6 +149,7 @@ export class SearchController {
         filters,
         entityTypes,
         isPublic,
+        tenantId: req.user!.tenantId
       });
 
       return sendSuccess(res, savedSearch, 'Search saved successfully', 201);
@@ -165,6 +168,7 @@ export class SearchController {
 
       const searches = await this.searchService.getSavedSearches(
         userId,
+        req.user!.tenantId,
         includePublic === 'true'
       );
 
@@ -189,7 +193,7 @@ export class SearchController {
       const userId = req.user!.id;
       const { id } = req.params;
 
-      await this.searchService.deleteSavedSearch(id, userId);
+      await this.searchService.deleteSavedSearch(id, userId, req.user!.tenantId);
 
       return res.status(204).send();
     } catch (error) {
@@ -205,7 +209,7 @@ export class SearchController {
       const userId = req.user!.id;
       const { id } = req.params;
 
-      const results = await this.searchService.executeSavedSearch(userId, id);
+      const results = await this.searchService.executeSavedSearch(userId, req.user!.tenantId, id);
 
       return sendSuccess(res, results);
     } catch (error) {
@@ -223,7 +227,7 @@ export class SearchController {
       const userId = req.user!.id;
       const { limit = 10 } = req.query;
 
-      const history = await this.searchService.getSearchHistory(userId, parseInt(limit as string));
+      const history = await this.searchService.getSearchHistory(userId, req.user!.tenantId, parseInt(limit as string));
 
       // Parse JSON fields
       const parsed = history.map((item) => ({
@@ -244,7 +248,7 @@ export class SearchController {
   clearSearchHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const userId = req.user!.id;
-      const count = await this.searchService.clearSearchHistory(userId);
+      const count = await this.searchService.clearSearchHistory(userId, req.user!.tenantId);
 
       return sendSuccess(res, { count }, 'Search history cleared successfully');
     } catch (error) {
