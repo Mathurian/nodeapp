@@ -33,9 +33,9 @@ export class ReportsController {
   /**
    * Get all report templates
    */
-  getTemplates = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const templates = await this.templateService.getAllTemplates();
+      const templates = await this.templateService.getAllTemplates(req.user!.tenantId);
       res.json({ data: templates });
     } catch (error) {
       return next(error);
@@ -52,7 +52,8 @@ export class ReportsController {
         name,
         template: template || '{}',
         parameters: parameters || '{}',
-        type: type || 'event'
+        type: type || 'event',
+        tenantId: req.user!.tenantId
       });
       res.status(201).json(reportTemplate);
     } catch (error) {
@@ -71,7 +72,7 @@ export class ReportsController {
         res.status(400).json({ error: 'Template ID is required' });
         return;
       }
-      const updated = await this.templateService.updateTemplate(id, updates);
+      const updated = await this.templateService.updateTemplate(id, req.user!.tenantId, updates);
       res.json(updated);
     } catch (error) {
       return next(error);
@@ -88,7 +89,7 @@ export class ReportsController {
         res.status(400).json({ error: 'Template ID is required' });
         return;
       }
-      await this.templateService.deleteTemplate(id);
+      await this.templateService.deleteTemplate(id, req.user!.tenantId);
       res.status(204).send();
     } catch (error) {
       return next(error);

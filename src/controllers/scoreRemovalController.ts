@@ -18,7 +18,8 @@ export class ScoreRemovalController {
         categoryId,
         reason,
         requestedBy: req.user!.id,
-        userRole: req.user!.role
+        userRole: req.user!.role,
+        tenantId: req.user!.tenantId
       });
       return sendSuccess(res, request, 'Score removal request created. Awaiting co-signatures.');
     } catch (error) {
@@ -29,7 +30,7 @@ export class ScoreRemovalController {
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
-      const requests = await this.scoreRemovalService.getAll(status as string | undefined);
+      const requests = await this.scoreRemovalService.getAll(status as string | undefined, req.user!.tenantId);
       return sendSuccess(res, requests);
     } catch (error) {
       return next(error);
@@ -39,7 +40,7 @@ export class ScoreRemovalController {
   getScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const request = await this.scoreRemovalService.getById(id);
+      const request = await this.scoreRemovalService.getById(id, req.user!.tenantId);
       return sendSuccess(res, request);
     } catch (error) {
       return next(error);
@@ -54,7 +55,7 @@ export class ScoreRemovalController {
         signatureName,
         userId: req.user!.id,
         userRole: req.user!.role
-      });
+      }, req.user!.tenantId);
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
       return next(error);
@@ -64,7 +65,7 @@ export class ScoreRemovalController {
   executeScoreRemoval = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const result = await this.scoreRemovalService.executeRemoval(id);
+      const result = await this.scoreRemovalService.executeRemoval(id, req.user!.tenantId);
       return sendSuccess(res, result, 'Score removal executed successfully');
     } catch (error) {
       return next(error);
