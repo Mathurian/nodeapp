@@ -165,11 +165,11 @@ export class BackupAdminController {
       }
 
       // Execute verification script in background
-      exec(scriptPath, (error, stdout, stderr) => {
+      exec(scriptPath, (error, _stdout, _stderr) => {
         if (error) {
           console.error('Backup verification failed:', error);
         } else {
-          console.log('Backup verification completed:', stdout);
+          console.log('Backup verification completed:', _stdout);
         }
       });
 
@@ -206,11 +206,11 @@ export class BackupAdminController {
       }
 
       // Execute backup script in background
-      exec(scriptPath, (error, stdout, stderr) => {
+      exec(scriptPath, (error, _stdout, _stderr) => {
         if (error) {
           console.error('Full backup failed:', error);
         } else {
-          console.log('Full backup completed:', stdout);
+          console.log('Full backup completed:', _stdout);
         }
       });
 

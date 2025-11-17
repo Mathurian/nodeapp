@@ -62,7 +62,7 @@ export class ArchiveController {
   archiveItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const { type, id } = req.params;
+      const { id } = req.params;
       const { reason } = req.body;
       const userId = req.user?.id;
 
@@ -85,7 +85,7 @@ export class ArchiveController {
   restoreItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const { type, id } = req.params;
+      const { id } = req.params;
 
       if (!id) {
         res.status(400).json({ error: 'Item ID required' });
@@ -106,7 +106,7 @@ export class ArchiveController {
   deleteArchivedItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const { type, id } = req.params;
+      const { id } = req.params;
 
       if (!id) {
         res.status(400).json({ error: 'Item ID required' });

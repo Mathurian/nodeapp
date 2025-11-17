@@ -83,7 +83,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Execute backup
-    exec(command, async (error, stdout, stderr) => {
+    exec(command, async (error, _stdout, _stderr) => {
       if (error) {
         await prisma.backupLog.update({
           where: { id: backupLog.id },
@@ -189,7 +189,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
 
     const command = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f ${file.path}`;
 
-    exec(command, async (error, stdout, stderr) => {
+    exec(command, async (error, _stdout, _stderr) => {
       if (error) {
         res.status(500).json({ error: `Restore failed: ${error.message}` });
         return;
