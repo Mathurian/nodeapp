@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, ForbiddenError, NotFoundError } from './BaseService';
+import { BaseService } from './BaseService';
 
 export interface BulkCertificationResetDTO {
   eventId?: string;

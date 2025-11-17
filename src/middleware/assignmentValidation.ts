@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-const { PrismaClient } = require('@prisma/client')
 
 const prisma = require('../utils/prisma')
 

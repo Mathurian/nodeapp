@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, NotFoundError, ValidationError, ForbiddenError } from './BaseService';
+import { BaseService } from './BaseService';
 
 export interface SetContestantViewRestrictionDTO {
   eventId?: string;
