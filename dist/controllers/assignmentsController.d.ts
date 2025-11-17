@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 export declare class AssignmentsController {
     private assignmentService;
-    private prisma;
     constructor();
     getAllAssignments: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     createAssignment: (req: Request, res: Response, next: NextFunction) => Promise<void>;
@@ -13,11 +12,11 @@ export declare class AssignmentsController {
     bulkAssignJudges: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     removeAllAssignmentsForCategory: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     getJudgeAssignments: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
-    getJudges: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
-    getCategories: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
+    getJudges: (_req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
+    getCategories: (_req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     assignJudge: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     removeAssignment: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
-    getContestants: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
+    getContestants: (_req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     assignContestantToCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     removeContestantFromCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     getCategoryContestants: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
@@ -33,11 +32,11 @@ export declare const getAssignmentsForCategory: (req: Request, res: Response, ne
 export declare const bulkAssignJudges: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const removeAllAssignmentsForCategory: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const getJudgeAssignments: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
-export declare const getJudges: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
-export declare const getCategories: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
+export declare const getJudges: (_req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
+export declare const getCategories: (_req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const assignJudge: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const removeAssignment: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
-export declare const getContestants: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
+export declare const getContestants: (_req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const assignContestantToCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const removeContestantFromCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const getCategoryContestants: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;

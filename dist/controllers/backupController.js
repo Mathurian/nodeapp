@@ -21,7 +21,6 @@ const getSettingsService = () => {
 const createBackup = async (req, res, next) => {
     try {
         const { type = 'FULL' } = req.body;
-        const userId = req.user?.id;
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `backup-${type.toLowerCase()}-${timestamp}.sql`;
         const filepath = path_1.default.join('backups', filename);
@@ -65,7 +64,7 @@ const createBackup = async (req, res, next) => {
                 res.status(400).json({ error: 'Invalid backup type' });
                 return;
         }
-        (0, child_process_1.exec)(command, async (error, stdout, stderr) => {
+        (0, child_process_1.exec)(command, async (error, _stdout, _stderr) => {
             if (error) {
                 await prisma_1.prisma.backupLog.update({
                     where: { id: backupLog.id },
@@ -98,11 +97,11 @@ const createBackup = async (req, res, next) => {
         });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.createBackup = createBackup;
-const listBackups = async (req, res, next) => {
+const listBackups = async (_req, res, next) => {
     try {
         const backups = await prisma_1.prisma.backupLog.findMany({
             orderBy: { createdAt: 'desc' }
@@ -115,7 +114,7 @@ const listBackups = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, transformedBackups);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listBackups = listBackups;
@@ -136,7 +135,7 @@ const downloadBackup = async (req, res, next) => {
         res.download(backup.location, path_1.default.basename(backup.location));
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.downloadBackup = downloadBackup;
@@ -154,7 +153,7 @@ const restoreBackup = async (req, res, next) => {
         const username = dbUrl.username;
         const password = dbUrl.password || '';
         const command = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f ${file.path}`;
-        (0, child_process_1.exec)(command, async (error, stdout, stderr) => {
+        (0, child_process_1.exec)(command, async (error, _stdout, _stderr) => {
             if (error) {
                 res.status(500).json({ error: `Restore failed: ${error.message}` });
                 return;
@@ -164,7 +163,7 @@ const restoreBackup = async (req, res, next) => {
         });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.restoreBackup = restoreBackup;
@@ -184,13 +183,12 @@ const deleteBackup = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, null, 'Backup deleted successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.deleteBackup = deleteBackup;
-const getBackupSettings = async (req, res, next) => {
+const getBackupSettings = async (_req, res, next) => {
     try {
-        const backupService = getScheduledBackupService();
         const backupSettings = await prisma_1.prisma.backupSetting.findMany({
             orderBy: { createdAt: 'desc' }
         });
@@ -217,24 +215,21 @@ const getBackupSettings = async (req, res, next) => {
             });
             return;
         }
-        next(error);
+        return next(error);
     }
 };
 exports.getBackupSettings = getBackupSettings;
-const createBackupSetting = async (req, res, next) => {
+const createBackupSetting = async (_req, res, next) => {
     try {
-        const settingsService = getSettingsService();
-        const userId = req.user?.id;
         (0, responseHelpers_1.sendSuccess)(res, {}, 'Backup setting created');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.createBackupSetting = createBackupSetting;
 const updateBackupSetting = async (req, res, next) => {
     try {
-        const { id } = req.params;
         const settings = req.body;
         const userId = req.user?.id;
         const settingsService = getSettingsService();
@@ -242,17 +237,16 @@ const updateBackupSetting = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, {}, 'Backup settings updated');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.updateBackupSetting = updateBackupSetting;
-const deleteBackupSetting = async (req, res, next) => {
+const deleteBackupSetting = async (_req, res, next) => {
     try {
-        const { id } = req.params;
         (0, responseHelpers_1.sendSuccess)(res, {}, 'Backup setting deleted');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.deleteBackupSetting = deleteBackupSetting;
@@ -269,22 +263,22 @@ const runScheduledBackup = async (req, res, next) => {
         }
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.runScheduledBackup = runScheduledBackup;
-const getActiveSchedules = async (req, res, next) => {
+const getActiveSchedules = async (_req, res, next) => {
     try {
         const backupService = getScheduledBackupService();
         const schedules = backupService.getActiveSchedules();
         (0, responseHelpers_1.sendSuccess)(res, schedules);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getActiveSchedules = getActiveSchedules;
-const debugBackupSettings = async (req, res, next) => {
+const debugBackupSettings = async (_req, res, next) => {
     try {
         const settingsService = getSettingsService();
         const settings = await settingsService.getBackupSettings();
@@ -297,7 +291,7 @@ const debugBackupSettings = async (req, res, next) => {
         });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.debugBackupSettings = debugBackupSettings;

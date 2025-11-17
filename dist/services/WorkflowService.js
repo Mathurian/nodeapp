@@ -105,7 +105,7 @@ class WorkflowService {
             throw error;
         }
     }
-    static async advanceWorkflow(instanceId, userId, approvalStatus, comments) {
+    static async advanceWorkflow(instanceId, _userId, approvalStatus, _comments) {
         try {
             const instance = await database_1.default.workflowInstance.findUnique({
                 where: { id: instanceId }

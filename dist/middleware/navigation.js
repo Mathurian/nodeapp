@@ -1,8 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getNavigationData = exports.checkNavigationPermission = exports.getUserFeatures = exports.canAccessFeature = exports.getRoutePermissions = exports.getNavigationItems = void 0;
-const { PrismaClient } = require('@prisma/client');
-const prisma = require('../utils/prisma');
 const getNavigationItems = (userRole) => {
     const baseItems = [
         {

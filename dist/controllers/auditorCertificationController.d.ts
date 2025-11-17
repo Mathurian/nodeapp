@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 export declare class AuditorCertificationController {
     private auditorCertificationService;
     constructor();
-    getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         categoryId: string;
         categoryName: string;
         canCertify: boolean;
@@ -33,7 +33,7 @@ export declare class AuditorCertificationController {
             certifiedBy: string;
         };
     }>, Record<string, any>>>;
-    submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
         role: string;
         categoryId: string;
@@ -43,7 +43,7 @@ export declare class AuditorCertificationController {
         signatureName: string | null;
     }>, Record<string, any>>>;
 }
-export declare const getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     categoryId: string;
     categoryName: string;
     canCertify: boolean;
@@ -74,7 +74,7 @@ export declare const getFinalCertificationStatus: (req: Request, res: Response, 
         certifiedBy: string;
     };
 }>, Record<string, any>>>;
-export declare const submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
     role: string;
     categoryId: string;

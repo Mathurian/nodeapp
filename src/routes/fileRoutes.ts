@@ -18,7 +18,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// @ts-expect-error Upload configuration defined
 const upload = multer({
   storage: storage,
   limits: {

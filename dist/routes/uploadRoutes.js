@@ -11,10 +11,10 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const config_1 = require("../utils/config");
 const router = express_1.default.Router();
 const storage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, 'uploads/');
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         cb(null, Date.now() + '-' + file.originalname);
     }
 });

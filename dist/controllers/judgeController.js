@@ -16,7 +16,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAssignments = async (req, res, next) => {
@@ -26,7 +26,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, assignments);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateAssignmentStatus = async (req, res, next) => {
@@ -42,7 +42,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, assignment, 'Assignment status updated');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getScoringInterface = async (req, res, next) => {
@@ -57,7 +57,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, scoringData);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     submitScore = async (req, res, next) => {
@@ -74,7 +74,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, scoreRecord, 'Score submitted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCertificationWorkflow = async (req, res, next) => {
@@ -89,7 +89,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, certificationData);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getContestantBios = async (req, res, next) => {
@@ -104,7 +104,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, contestants);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getContestantBio = async (req, res, next) => {
@@ -119,7 +119,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, contestant);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getJudgeHistory = async (req, res, next) => {
@@ -129,7 +129,7 @@ class JudgeController {
             (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

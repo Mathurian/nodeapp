@@ -23,7 +23,7 @@ class NotificationPreferencesController {
             return (0, responseHelpers_1.sendSuccess)(res, parsed);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updatePreferences = async (req, res, next) => {
@@ -51,7 +51,7 @@ class NotificationPreferencesController {
             return (0, responseHelpers_1.sendSuccess)(res, parsed, 'Notification preferences updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     resetPreferences = async (req, res, next) => {
@@ -69,7 +69,7 @@ class NotificationPreferencesController {
             return (0, responseHelpers_1.sendSuccess)(res, parsed, 'Notification preferences reset to defaults');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

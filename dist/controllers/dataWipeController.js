@@ -23,7 +23,7 @@ class DataWipeController {
         }
         catch (error) {
             log.error('Wipe all data error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     wipeEventData = async (req, res, next) => {
@@ -39,7 +39,7 @@ class DataWipeController {
         }
         catch (error) {
             log.error('Wipe event data error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

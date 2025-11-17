@@ -12,10 +12,10 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const config_1 = require("../utils/config");
 const router = express_1.default.Router();
 const themeStorage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, 'uploads/theme/');
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const fieldname = file.fieldname === 'logo' ? 'logo' : 'favicon';
         cb(null, fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
@@ -24,7 +24,7 @@ const themeStorage = multer_1.default.diskStorage({
 const themeUpload = (0, multer_1.default)({
     storage: themeStorage,
     limits: { fileSize: config_1.maxFileSize },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (_req, file, cb) => {
         const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
         if (allowedMimeTypes.includes(file.mimetype)) {
             cb(null, true);

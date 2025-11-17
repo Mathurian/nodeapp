@@ -29,7 +29,7 @@ const metricsMiddleware = (req, res, next) => {
     next();
 };
 exports.metricsMiddleware = metricsMiddleware;
-const metricsEndpoint = async (req, res) => {
+const metricsEndpoint = async (_req, res) => {
     if (!metricsService) {
         res.status(503).json({ error: 'Metrics service not available' });
         return;

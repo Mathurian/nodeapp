@@ -24,7 +24,7 @@ function validate(schema, target = 'body') {
                 (0, responseHelpers_1.sendValidationError)(res, validationErrors);
                 return;
             }
-            next(error);
+            return next(error);
         }
     };
 }
@@ -52,7 +52,7 @@ function validateMultiple(schemas) {
                 (0, responseHelpers_1.sendValidationError)(res, validationErrors);
                 return;
             }
-            next(error);
+            return next(error);
         }
     };
 }

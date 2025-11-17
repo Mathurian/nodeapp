@@ -63,7 +63,7 @@ class AuthController {
             if (error.message === 'Account is inactive') {
                 return (0, responseHelpers_1.sendUnauthorized)(res, 'Account is inactive');
             }
-            next(error);
+            return next(error);
         }
     };
     getProfile = async (req, res, next) => {
@@ -87,7 +87,7 @@ class AuthController {
             if (error.message === 'User not found') {
                 return (0, responseHelpers_1.sendNotFound)(res, 'User not found');
             }
-            next(error);
+            return next(error);
         }
     };
     getPermissions = async (req, res, next) => {
@@ -111,7 +111,7 @@ class AuthController {
             if (error.message === 'User not found') {
                 return (0, responseHelpers_1.sendNotFound)(res, 'User not found');
             }
-            next(error);
+            return next(error);
         }
     };
     requestPasswordReset = async (req, res) => {
@@ -151,7 +151,7 @@ class AuthController {
             if (error.message === 'Invalid or expired reset token') {
                 return (0, responseHelpers_1.sendBadRequest)(res, 'Invalid or expired reset token');
             }
-            next(error);
+            return next(error);
         }
     };
     changePassword = async (req, res, next) => {
@@ -178,7 +178,7 @@ class AuthController {
             if (error.message === 'Current password is incorrect') {
                 return (0, responseHelpers_1.sendBadRequest)(res, 'Current password is incorrect');
             }
-            next(error);
+            return next(error);
         }
     };
     logout = async (req, res, next) => {
@@ -220,7 +220,7 @@ class AuthController {
         }
         catch (error) {
             log.error('Logout error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

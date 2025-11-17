@@ -3,13 +3,13 @@ export declare class EmailController {
     private emailService;
     private prisma;
     constructor();
-    getConfig: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<import("../services/EmailService").EmailConfig>, Record<string, any>>>;
-    sendEmail: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getConfig: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<import("../services/EmailService").EmailConfig>, Record<string, any>>>;
+    sendEmail: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         success: boolean;
         to: string;
         subject: string;
     }>, Record<string, any>>>;
-    sendBulkEmail: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any[]>, Record<string, any>>>;
+    sendBulkEmail: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any[]>, Record<string, any>>>;
     getTemplates: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     createTemplate: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     updateTemplate: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
@@ -21,13 +21,13 @@ export declare class EmailController {
     sendMultipleEmails: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     sendEmailByRole: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getConfig: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<import("../services/EmailService").EmailConfig>, Record<string, any>>>;
-export declare const sendEmail: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getConfig: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<import("../services/EmailService").EmailConfig>, Record<string, any>>>;
+export declare const sendEmail: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     success: boolean;
     to: string;
     subject: string;
 }>, Record<string, any>>>;
-export declare const sendBulkEmail: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any[]>, Record<string, any>>>;
+export declare const sendBulkEmail: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any[]>, Record<string, any>>>;
 export declare const getTemplates: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const createTemplate: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const updateTemplate: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;

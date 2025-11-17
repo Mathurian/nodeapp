@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 export declare class PrintController {
     private printService;
     constructor();
-    getPrintTemplates: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getPrintTemplates: (_req: Request, res: Response, next: NextFunction) => Promise<void>;
     createPrintTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     updatePrintTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     deletePrintTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
@@ -15,7 +15,7 @@ export declare class PrintController {
     printContestReport: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     printArchivedContestReport: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }
-export declare const getPrintTemplates: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+export declare const getPrintTemplates: (_req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const createPrintTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const updatePrintTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const deletePrintTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;

@@ -17,7 +17,7 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Get archives error:', error);
-            next(error);
+            return next(error);
         }
     };
     getActiveEvents = async (req, res, next) => {
@@ -28,7 +28,7 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Get active events error:', error);
-            next(error);
+            return next(error);
         }
     };
     getArchivedEvents = async (req, res, next) => {
@@ -39,13 +39,13 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Get archived events error:', error);
-            next(error);
+            return next(error);
         }
     };
     archiveItem = async (req, res, next) => {
         const log = (0, logger_1.createRequestLogger)(req, 'archive');
         try {
-            const { type, id } = req.params;
+            const { id } = req.params;
             const { reason } = req.body;
             const userId = req.user?.id;
             if (!id) {
@@ -57,13 +57,13 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Archive item error:', error);
-            next(error);
+            return next(error);
         }
     };
     restoreItem = async (req, res, next) => {
         const log = (0, logger_1.createRequestLogger)(req, 'archive');
         try {
-            const { type, id } = req.params;
+            const { id } = req.params;
             if (!id) {
                 res.status(400).json({ error: 'Item ID required' });
                 return;
@@ -73,13 +73,13 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Restore item error:', error);
-            next(error);
+            return next(error);
         }
     };
     deleteArchivedItem = async (req, res, next) => {
         const log = (0, logger_1.createRequestLogger)(req, 'archive');
         try {
-            const { type, id } = req.params;
+            const { id } = req.params;
             if (!id) {
                 res.status(400).json({ error: 'Item ID required' });
                 return;
@@ -89,7 +89,7 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Delete archived item error:', error);
-            next(error);
+            return next(error);
         }
     };
     archiveEvent = async (req, res, next) => {
@@ -107,7 +107,7 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Archive event error:', error);
-            next(error);
+            return next(error);
         }
     };
     restoreEvent = async (req, res, next) => {
@@ -123,7 +123,7 @@ class ArchiveController {
         }
         catch (error) {
             log.error('Restore event error:', error);
-            next(error);
+            return next(error);
         }
     };
 }

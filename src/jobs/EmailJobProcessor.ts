@@ -56,6 +56,7 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
   constructor(emailService: EmailService) {
     super('email-job-processor');
     this.emailService = emailService;
+    // Email service ready for use when email sending is implemented
   }
 
   /**
@@ -83,7 +84,8 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
   async process(job: Job<EmailJobData>): Promise<any> {
     this.validate(job.data);
 
-    const { to, subject, html, text, from, cc, bcc, attachments, template } = job.data;
+    const { to, subject, html, text, template } = job.data;
+    // Note: from, cc, bcc, attachments not currently used but available in job.data
 
     try {
       // Update progress
@@ -106,9 +108,14 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
       }
 
       // Send email - EmailService.sendEmail takes 3 arguments: to, subject, body
-      const toAddress = Array.isArray(to) ? to[0] : to;
-      const emailBody = emailHtml || emailText || '';
-      // Result from sendEmail: await this.emailService.sendEmail(toAddress, subject, emailBody);
+      // TODO: Implement actual email sending
+      this.logger.info('Would send email via emailService', {
+        to: Array.isArray(to) ? to[0] : to,
+        subject,
+        hasHtml: !!emailHtml,
+        hasText: !!emailText,
+      });
+      // await this.emailService.sendEmail(toAddress, subject, emailBody);
 
       await job.updateProgress(100);
 

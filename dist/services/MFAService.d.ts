@@ -19,7 +19,7 @@ export declare class MFAService extends BaseService {
         success: boolean;
         message: string;
     }>;
-    disableMFA(userId: string, password: string): Promise<{
+    disableMFA(userId: string, _password: string): Promise<{
         success: boolean;
         message: string;
     }>;

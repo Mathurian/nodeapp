@@ -38,7 +38,7 @@ const VirusScanService_1 = require("../services/VirusScanService");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 class VirusScanAdminController {
-    static async healthCheck(req, res) {
+    static async healthCheck(_req, res) {
         try {
             const virusScanService = (0, VirusScanService_1.getVirusScanService)();
             const isAvailable = await virusScanService.isAvailable();
@@ -58,7 +58,7 @@ class VirusScanAdminController {
             });
         }
     }
-    static async getStatistics(req, res) {
+    static async getStatistics(_req, res) {
         try {
             const virusScanService = (0, VirusScanService_1.getVirusScanService)();
             const stats = virusScanService.getStatistics();
@@ -75,7 +75,7 @@ class VirusScanAdminController {
             });
         }
     }
-    static async listQuarantinedFiles(req, res) {
+    static async listQuarantinedFiles(_req, res) {
         try {
             const virusScanService = (0, VirusScanService_1.getVirusScanService)();
             const files = virusScanService.listQuarantinedFiles();
@@ -224,7 +224,7 @@ class VirusScanAdminController {
             });
         }
     }
-    static async clearCache(req, res) {
+    static async clearCache(_req, res) {
         try {
             const virusScanService = (0, VirusScanService_1.getVirusScanService)();
             virusScanService.clearCache();

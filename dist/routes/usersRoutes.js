@@ -14,10 +14,10 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const prisma_1 = require("../utils/prisma");
 const router = express_1.default.Router();
 const userImageStorage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, 'uploads/users/');
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, 'image-' + uniqueSuffix + path_1.default.extname(file.originalname));
     }
@@ -25,7 +25,7 @@ const userImageStorage = multer_1.default.diskStorage({
 const userImageUpload = (0, multer_1.default)({
     storage: userImageStorage,
     limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (_req, file, cb) => {
         const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
         if (allowedMimeTypes.includes(file.mimetype)) {
             cb(null, true);
@@ -36,10 +36,10 @@ const userImageUpload = (0, multer_1.default)({
     }
 });
 const userBioStorage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, 'uploads/users/bios/');
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, 'bio-' + uniqueSuffix + path_1.default.extname(file.originalname));
     }
@@ -47,7 +47,7 @@ const userBioStorage = multer_1.default.diskStorage({
 const csvUpload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (_req, file, cb) => {
         const allowedMimeTypes = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
         if (allowedMimeTypes.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
             cb(null, true);
@@ -60,7 +60,7 @@ const csvUpload = (0, multer_1.default)({
 const userBioUpload = (0, multer_1.default)({
     storage: userBioStorage,
     limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (_req, file, cb) => {
         const allowedMimeTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
         if (allowedMimeTypes.includes(file.mimetype)) {
             cb(null, true);

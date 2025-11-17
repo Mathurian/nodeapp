@@ -15,7 +15,7 @@ router.get('/', auth_1.authenticateToken, async (req, res, next) => {
         res.json(notifications);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.get('/unread-count', auth_1.authenticateToken, async (req, res, next) => {
@@ -26,7 +26,7 @@ router.get('/unread-count', auth_1.authenticateToken, async (req, res, next) => 
         res.json({ count });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.put('/:id/read', auth_1.authenticateToken, async (req, res, next) => {
@@ -38,7 +38,7 @@ router.put('/:id/read', auth_1.authenticateToken, async (req, res, next) => {
         res.json(notification);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.put('/read-all', auth_1.authenticateToken, async (req, res, next) => {
@@ -49,7 +49,7 @@ router.put('/read-all', auth_1.authenticateToken, async (req, res, next) => {
         res.json({ count });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.delete('/:id', auth_1.authenticateToken, async (req, res, next) => {
@@ -61,7 +61,7 @@ router.delete('/:id', auth_1.authenticateToken, async (req, res, next) => {
         res.json({ success: true });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.delete('/read-all', auth_1.authenticateToken, async (req, res, next) => {
@@ -73,7 +73,7 @@ router.delete('/read-all', auth_1.authenticateToken, async (req, res, next) => {
         res.json({ count });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 exports.default = router;

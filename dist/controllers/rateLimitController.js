@@ -9,13 +9,13 @@ class RateLimitController {
     constructor() {
         this.rateLimitService = tsyringe_1.container.resolve(RateLimitService_1.RateLimitService);
     }
-    getAllConfigs = async (req, res, next) => {
+    getAllConfigs = async (_req, res, next) => {
         try {
             const configs = await this.rateLimitService.getAllConfigs();
             return (0, responseHelpers_1.sendSuccess)(res, configs, 'Rate limit configurations retrieved');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getConfig = async (req, res, next) => {
@@ -28,7 +28,7 @@ class RateLimitController {
             return (0, responseHelpers_1.sendSuccess)(res, config, `Rate limit configuration for tier: ${tier}`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateConfig = async (req, res, next) => {
@@ -52,7 +52,7 @@ class RateLimitController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, `Rate limit configuration updated for tier: ${tier}`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getMyRateLimitStatus = async (req, res, next) => {
@@ -67,7 +67,7 @@ class RateLimitController {
             }, 'Rate limit status retrieved');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

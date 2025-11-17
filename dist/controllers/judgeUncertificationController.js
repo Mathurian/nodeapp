@@ -18,7 +18,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, requests);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createUncertificationRequest = async (req, res, next) => {
@@ -34,7 +34,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, request, 'Uncertification request created. Awaiting co-signatures.');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     signUncertificationRequest = async (req, res, next) => {
@@ -49,7 +49,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Request signed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     executeUncertification = async (req, res, next) => {
@@ -59,7 +59,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Uncertification executed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     requestUncertification = async (req, res, next) => {
@@ -96,7 +96,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, request, 'Uncertification request created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     approveUncertification = async (req, res, next) => {
@@ -137,7 +137,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, approved, 'Uncertification request approved and scores uncertified successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     rejectUncertification = async (req, res, next) => {
@@ -171,7 +171,7 @@ class JudgeUncertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, rejected, 'Uncertification request rejected successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getJudgeUncertificationRequests = async (req, res, next) => {
@@ -208,7 +208,7 @@ class JudgeUncertificationController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

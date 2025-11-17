@@ -6,10 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BackupAdminController = void 0;
 const BackupMonitoringService_1 = __importDefault(require("../services/BackupMonitoringService"));
 const child_process_1 = require("child_process");
-const util_1 = require("util");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
-const execAsync = (0, util_1.promisify)(child_process_1.exec);
 const backupMonitoringService = BackupMonitoringService_1.default.getInstance();
 class BackupAdminController {
     async listBackups(req, res) {
@@ -102,7 +100,7 @@ class BackupAdminController {
             });
         }
     }
-    async getHealth(req, res) {
+    async getHealth(_req, res) {
         try {
             const health = await backupMonitoringService.checkBackupHealth();
             res.json({
@@ -118,7 +116,7 @@ class BackupAdminController {
             });
         }
     }
-    async verifyBackups(req, res) {
+    async verifyBackups(_req, res) {
         try {
             const scriptPath = '/var/www/event-manager/scripts/backup-verify.sh';
             try {
@@ -131,12 +129,12 @@ class BackupAdminController {
                 });
                 return;
             }
-            (0, child_process_1.exec)(scriptPath, (error, stdout, stderr) => {
+            (0, child_process_1.exec)(scriptPath, (error, _stdout, _stderr) => {
                 if (error) {
                     console.error('Backup verification failed:', error);
                 }
                 else {
-                    console.log('Backup verification completed:', stdout);
+                    console.log('Backup verification completed:', _stdout);
                 }
             });
             res.json({
@@ -152,7 +150,7 @@ class BackupAdminController {
             });
         }
     }
-    async triggerFullBackup(req, res) {
+    async triggerFullBackup(_req, res) {
         try {
             const scriptPath = '/var/www/event-manager/scripts/backup-full.sh';
             try {
@@ -165,12 +163,12 @@ class BackupAdminController {
                 });
                 return;
             }
-            (0, child_process_1.exec)(scriptPath, (error, stdout, stderr) => {
+            (0, child_process_1.exec)(scriptPath, (error, _stdout, _stderr) => {
                 if (error) {
                     console.error('Full backup failed:', error);
                 }
                 else {
-                    console.log('Full backup completed:', stdout);
+                    console.log('Full backup completed:', _stdout);
                 }
             });
             res.json({
@@ -203,7 +201,7 @@ class BackupAdminController {
             });
         }
     }
-    async listBackupFiles(req, res) {
+    async listBackupFiles(_req, res) {
         try {
             const backupDir = '/var/backups/event-manager/full';
             try {

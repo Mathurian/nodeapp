@@ -18,7 +18,7 @@ class JudgeContestantCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certifications);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certify = async (req, res, next) => {
@@ -32,7 +32,7 @@ class JudgeContestantCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Certification created', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     uncertify = async (req, res, next) => {
@@ -42,7 +42,7 @@ class JudgeContestantCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Certification deleted');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyContestantScores = async (req, res, next) => {
@@ -70,7 +70,7 @@ class JudgeContestantCertificationController {
             }, `Certified ${result.count} scores for contestant in category`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategoryCertificationStatus = async (req, res, next) => {
@@ -83,7 +83,7 @@ class JudgeContestantCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, status, 'Category certification status retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyCategory = async (req, res, next) => {
@@ -109,7 +109,7 @@ class JudgeContestantCertificationController {
             }, `Certified ${result.count} scores in category`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

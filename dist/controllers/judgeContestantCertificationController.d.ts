@@ -3,7 +3,7 @@ export declare class JudgeContestantCertificationController {
     private judgeContestantCertificationService;
     private prisma;
     constructor();
-    getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
         judgeId: string;
         contestantId: string;
@@ -11,7 +11,7 @@ export declare class JudgeContestantCertificationController {
         certifiedAt: Date;
         comments: string | null;
     }[]>, Record<string, any>>>;
-    certify: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    certify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
         judgeId: string;
         contestantId: string;
@@ -19,12 +19,12 @@ export declare class JudgeContestantCertificationController {
         certifiedAt: Date;
         comments: string | null;
     }>, Record<string, any>>>;
-    uncertify: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+    uncertify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
     certifyContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     getCategoryCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
     judgeId: string;
     contestantId: string;
@@ -32,7 +32,7 @@ export declare const getCertifications: (req: Request, res: Response, next: Next
     certifiedAt: Date;
     comments: string | null;
 }[]>, Record<string, any>>>;
-export declare const certify: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const certify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
     judgeId: string;
     contestantId: string;
@@ -40,7 +40,7 @@ export declare const certify: (req: Request, res: Response, next: NextFunction) 
     certifiedAt: Date;
     comments: string | null;
 }>, Record<string, any>>>;
-export declare const uncertify: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+export declare const uncertify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 export declare const certifyContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const getCategoryCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;

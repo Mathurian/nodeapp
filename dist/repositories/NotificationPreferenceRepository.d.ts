@@ -26,11 +26,11 @@ export interface UpdateNotificationPreferenceDTO {
 export declare class NotificationPreferenceRepository {
     private prismaClient;
     constructor(prismaClient?: PrismaClient);
-    findByUserId(tenantId: string, userId: string): Promise<NotificationPreference | null>;
+    findByUserId(_tenantId: string, userId: string): Promise<NotificationPreference | null>;
     create(data: CreateNotificationPreferenceDTO): Promise<NotificationPreference>;
-    update(tenantId: string, userId: string, data: UpdateNotificationPreferenceDTO): Promise<NotificationPreference>;
+    update(_tenantId: string, userId: string, data: UpdateNotificationPreferenceDTO): Promise<NotificationPreference>;
     getOrCreate(tenantId: string, userId: string): Promise<NotificationPreference>;
-    delete(tenantId: string, userId: string): Promise<NotificationPreference>;
+    delete(_tenantId: string, userId: string): Promise<NotificationPreference>;
     isNotificationTypeEnabled(tenantId: string, userId: string, type: 'email' | 'push' | 'inApp', notificationType?: string): Promise<boolean>;
     isInQuietHours(tenantId: string, userId: string): Promise<boolean>;
     getUsersForDigest(frequency: string): Promise<NotificationPreference[]>;

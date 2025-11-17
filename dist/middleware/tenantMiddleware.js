@@ -199,84 +199,84 @@ function createTenantPrismaClient(tenantId, isSuperAdmin = false) {
     return database_1.default.$extends({
         query: {
             $allModels: {
-                async findMany({ model, operation, args, query }) {
+                async findMany({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async findFirst({ model, operation, args, query }) {
+                async findFirst({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async findUnique({ model, operation, args, query }) {
+                async findUnique({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async findUniqueOrThrow({ model, operation, args, query }) {
+                async findUniqueOrThrow({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async count({ model, operation, args, query }) {
+                async count({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async aggregate({ model, operation, args, query }) {
+                async aggregate({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async groupBy({ model, operation, args, query }) {
+                async groupBy({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async create({ model, operation, args, query }) {
+                async create({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.data = { ...args.data, tenantId };
                     }
                     return query(args);
                 },
-                async createMany({ model, operation, args, query }) {
+                async createMany({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields && Array.isArray(args.data)) {
                         args.data = args.data.map((item) => ({ ...item, tenantId }));
                     }
                     return query(args);
                 },
-                async update({ model, operation, args, query }) {
+                async update({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async updateMany({ model, operation, args, query }) {
+                async updateMany({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async upsert({ model, operation, args, query }) {
+                async upsert({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
@@ -284,14 +284,14 @@ function createTenantPrismaClient(tenantId, isSuperAdmin = false) {
                     }
                     return query(args);
                 },
-                async delete({ model, operation, args, query }) {
+                async delete({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };
                     }
                     return query(args);
                 },
-                async deleteMany({ model, operation, args, query }) {
+                async deleteMany({ model, args, query }) {
                     const modelFields = database_1.default[model]?.fields;
                     if (modelFields && 'tenantId' in modelFields) {
                         args.where = { ...args.where, tenantId };

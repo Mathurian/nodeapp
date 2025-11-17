@@ -47,7 +47,7 @@ class EventsController {
             (0, responseHelpers_1.sendSuccess)(res, eventsWithStatus);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getEventById = async (req, res, next) => {
@@ -60,7 +60,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, event);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getEventWithDetails = async (req, res, next) => {
@@ -73,7 +73,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, event);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getUpcomingEvents = async (_req, res, next) => {
@@ -82,7 +82,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, events);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getOngoingEvents = async (_req, res, next) => {
@@ -91,7 +91,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, events);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getPastEvents = async (_req, res, next) => {
@@ -100,7 +100,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, events);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createEvent = async (req, res, next) => {
@@ -109,7 +109,7 @@ class EventsController {
             successResponse(res, event, 'Event created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateEvent = async (req, res, next) => {
@@ -122,7 +122,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, event, 'Event updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteEvent = async (req, res, next) => {
@@ -135,7 +135,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Event deleted successfully', 204);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     archiveEvent = async (req, res, next) => {
@@ -148,7 +148,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, event, 'Event archived successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     unarchiveEvent = async (req, res, next) => {
@@ -161,7 +161,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, event, 'Event unarchived successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getEventStats = async (req, res, next) => {
@@ -174,7 +174,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     searchEvents = async (req, res, next) => {
@@ -187,7 +187,7 @@ class EventsController {
             return (0, responseHelpers_1.sendSuccess)(res, events);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

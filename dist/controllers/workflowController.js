@@ -9,7 +9,7 @@ const createTemplate = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, template, 'Workflow template created', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.createTemplate = createTemplate;
@@ -19,7 +19,7 @@ const getTemplate = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, template);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getTemplate = getTemplate;
@@ -30,7 +30,7 @@ const listTemplates = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, templates);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listTemplates = listTemplates;
@@ -41,7 +41,7 @@ const startWorkflow = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, instance, 'Workflow started', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.startWorkflow = startWorkflow;
@@ -54,7 +54,7 @@ const advanceWorkflow = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, instance, 'Workflow advanced');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.advanceWorkflow = advanceWorkflow;
@@ -64,7 +64,7 @@ const getInstance = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, instance);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getInstance = getInstance;
@@ -75,7 +75,7 @@ const listInstancesForEntity = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, instances);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listInstancesForEntity = listInstancesForEntity;

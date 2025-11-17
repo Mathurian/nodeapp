@@ -109,7 +109,7 @@ let MFAService = class MFAService extends BaseService_1.BaseService {
             message: 'Multi-factor authentication enabled successfully'
         };
     }
-    async disableMFA(userId, password) {
+    async disableMFA(userId, _password) {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
             select: { password: true, mfaEnabled: true }

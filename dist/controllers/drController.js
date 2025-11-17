@@ -10,7 +10,7 @@ const getDRConfig = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, config);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getDRConfig = getDRConfig;
@@ -21,7 +21,7 @@ const updateDRConfig = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, config, 'DR configuration updated successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.updateDRConfig = updateDRConfig;
@@ -35,7 +35,7 @@ const createBackupSchedule = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, schedule, 'Backup schedule created successfully', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.createBackupSchedule = createBackupSchedule;
@@ -46,7 +46,7 @@ const updateBackupSchedule = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, schedule, 'Backup schedule updated successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.updateBackupSchedule = updateBackupSchedule;
@@ -57,7 +57,7 @@ const deleteBackupSchedule = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, null, 'Backup schedule deleted successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.deleteBackupSchedule = deleteBackupSchedule;
@@ -68,7 +68,7 @@ const listBackupSchedules = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, schedules);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listBackupSchedules = listBackupSchedules;
@@ -82,7 +82,7 @@ const createBackupTarget = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, target, 'Backup target created successfully', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.createBackupTarget = createBackupTarget;
@@ -93,7 +93,7 @@ const updateBackupTarget = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, target, 'Backup target updated successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.updateBackupTarget = updateBackupTarget;
@@ -104,7 +104,7 @@ const deleteBackupTarget = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, null, 'Backup target deleted successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.deleteBackupTarget = deleteBackupTarget;
@@ -115,7 +115,7 @@ const listBackupTargets = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, targets);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listBackupTargets = listBackupTargets;
@@ -126,7 +126,7 @@ const verifyBackupTarget = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, { verified }, verified ? 'Backup target verified successfully' : 'Backup target verification failed');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.verifyBackupTarget = verifyBackupTarget;
@@ -142,7 +142,7 @@ const executeBackup = async (req, res, next) => {
         }
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.executeBackup = executeBackup;
@@ -153,7 +153,7 @@ const executeDRTest = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, result, 'DR test executed successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.executeDRTest = executeDRTest;
@@ -165,7 +165,7 @@ const getDRMetrics = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, metrics);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getDRMetrics = getDRMetrics;
@@ -176,7 +176,7 @@ const getDRDashboard = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, dashboard);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getDRDashboard = getDRDashboard;
@@ -187,7 +187,7 @@ const checkRTORPO = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, violations);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.checkRTORPO = checkRTORPO;

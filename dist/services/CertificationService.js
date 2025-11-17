@@ -34,7 +34,7 @@ let CertificationService = class CertificationService extends BaseService_1.Base
             contests: []
         };
     }
-    async certifyAll(eventId, userId, userRole) {
+    async certifyAll(eventId, _userId, _userRole) {
         const event = await this.prisma.event.findUnique({
             where: { id: eventId },
         });

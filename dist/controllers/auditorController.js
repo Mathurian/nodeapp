@@ -17,7 +17,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get auditor stats error', error);
-            next(error);
+            return next(error);
         }
     };
     getPendingAudits = async (req, res, next) => {
@@ -30,7 +30,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get pending audits error', error);
-            next(error);
+            return next(error);
         }
     };
     getCompletedAudits = async (req, res, next) => {
@@ -43,7 +43,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get completed audits error', error);
-            next(error);
+            return next(error);
         }
     };
     finalCertification = async (req, res, next) => {
@@ -60,7 +60,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Final certification error', error);
-            next(error);
+            return next(error);
         }
     };
     rejectAudit = async (req, res, next) => {
@@ -78,7 +78,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Reject audit error', error);
-            next(error);
+            return next(error);
         }
     };
     getScoreVerification = async (req, res, next) => {
@@ -94,7 +94,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get score verification error', error);
-            next(error);
+            return next(error);
         }
     };
     verifyScore = async (req, res, next) => {
@@ -116,7 +116,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Verify score error', error);
-            next(error);
+            return next(error);
         }
     };
     getTallyMasterStatus = async (req, res, next) => {
@@ -132,7 +132,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get tally master status error', error);
-            next(error);
+            return next(error);
         }
     };
     getCertificationWorkflow = async (req, res, next) => {
@@ -148,7 +148,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get certification workflow error', error);
-            next(error);
+            return next(error);
         }
     };
     generateSummaryReport = async (req, res, next) => {
@@ -165,7 +165,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Generate summary report error', error);
-            next(error);
+            return next(error);
         }
     };
     getAuditHistory = async (req, res, next) => {
@@ -179,7 +179,7 @@ class AuditorController {
         }
         catch (error) {
             log.error('Get audit history error', error);
-            next(error);
+            return next(error);
         }
     };
 }

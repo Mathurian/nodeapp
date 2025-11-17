@@ -39,7 +39,7 @@ class ResultsController {
         }
         catch (error) {
             log.error('Get results error:', error);
-            next(error);
+            return next(error);
         }
     };
     getCategories = async (req, res, next) => {
@@ -50,7 +50,7 @@ class ResultsController {
         }
         catch (error) {
             log.error('Get categories error:', error);
-            next(error);
+            return next(error);
         }
     };
     getContestantResults = async (req, res, next) => {
@@ -76,7 +76,7 @@ class ResultsController {
                 res.status(403).json({ error: error.message });
                 return;
             }
-            next(error);
+            return next(error);
         }
     };
     getCategoryResults = async (req, res, next) => {
@@ -108,7 +108,7 @@ class ResultsController {
                     return;
                 }
             }
-            next(error);
+            return next(error);
         }
     };
     getContestResults = async (req, res, next) => {
@@ -140,7 +140,7 @@ class ResultsController {
                     return;
                 }
             }
-            next(error);
+            return next(error);
         }
     };
     getEventResults = async (req, res, next) => {
@@ -172,7 +172,7 @@ class ResultsController {
                     return;
                 }
             }
-            next(error);
+            return next(error);
         }
     };
 }

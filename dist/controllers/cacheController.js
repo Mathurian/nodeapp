@@ -17,7 +17,7 @@ class CacheController {
         }
         catch (error) {
             log.error('Get cache stats error:', error);
-            next(error);
+            return next(error);
         }
     };
     flushCache = async (req, res, next) => {
@@ -38,7 +38,7 @@ class CacheController {
         }
         catch (error) {
             log.error('Flush cache error:', error);
-            next(error);
+            return next(error);
         }
     };
     deleteCacheKey = async (req, res, next) => {
@@ -64,7 +64,7 @@ class CacheController {
         }
         catch (error) {
             log.error('Delete cache key error:', error);
-            next(error);
+            return next(error);
         }
     };
     deleteCachePattern = async (req, res, next) => {
@@ -90,7 +90,7 @@ class CacheController {
         }
         catch (error) {
             log.error('Delete cache pattern error:', error);
-            next(error);
+            return next(error);
         }
     };
     getCacheStatus = async (req, res, next) => {
@@ -104,7 +104,7 @@ class CacheController {
         }
         catch (error) {
             log.error('Get cache status error:', error);
-            next(error);
+            return next(error);
         }
     };
 }

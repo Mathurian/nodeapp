@@ -7,7 +7,7 @@ export declare class CertificationService extends BaseService {
         event: string;
         contests: any[];
     }>;
-    certifyAll(eventId: string, userId: string, userRole: string): Promise<{
+    certifyAll(eventId: string, _userId: string, _userRole: string): Promise<{
         success: boolean;
         message: string;
     }>;

@@ -15,16 +15,15 @@ class NotificationsController {
             return (0, responseHelpers_1.sendSuccess)(res, notifications);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getNotificationById = async (req, res, next) => {
+    getNotificationById = async (_req, res, next) => {
         try {
-            const { id } = req.params;
             return res.status(501).json({ error: 'Not implemented' });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createNotification = async (req, res, next) => {
@@ -36,16 +35,15 @@ class NotificationsController {
             return (0, responseHelpers_1.sendSuccess)(res, notification, 'Notification created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    updateNotification = async (req, res, next) => {
+    updateNotification = async (_req, res, next) => {
         try {
-            const { id } = req.params;
             return res.status(501).json({ error: 'Not implemented' });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteNotification = async (req, res, next) => {
@@ -55,7 +53,7 @@ class NotificationsController {
             return res.status(204).send();
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     markAsRead = async (req, res, next) => {
@@ -65,7 +63,7 @@ class NotificationsController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Notification marked as read');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     markAllAsRead = async (req, res, next) => {
@@ -74,7 +72,7 @@ class NotificationsController {
             return (0, responseHelpers_1.sendSuccess)(res, { count }, 'All notifications marked as read');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

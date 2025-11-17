@@ -94,7 +94,7 @@ const cachePaginated = (options = {}) => {
 exports.cachePaginated = cachePaginated;
 const invalidateCache = (patterns, namespace) => {
     const cacheService = (0, RedisCacheService_1.getCacheService)();
-    return async (req, res, next) => {
+    return async (_req, res, next) => {
         const originalJson = res.json.bind(res);
         res.json = function (body) {
             if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -111,7 +111,7 @@ const invalidateCache = (patterns, namespace) => {
 exports.invalidateCache = invalidateCache;
 const invalidateCacheTag = (tag) => {
     const cacheService = (0, RedisCacheService_1.getCacheService)();
-    return async (req, res, next) => {
+    return async (_req, res, next) => {
         const originalJson = res.json.bind(res);
         res.json = function (body) {
             if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -126,7 +126,7 @@ const invalidateCacheTag = (tag) => {
     };
 };
 exports.invalidateCacheTag = invalidateCacheTag;
-const noCache = (req, res, next) => {
+const noCache = (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

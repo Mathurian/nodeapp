@@ -11,40 +11,40 @@ class AdminController {
         this.adminService = container_1.container.resolve(AdminService_1.AdminService);
         this.prisma = container_1.container.resolve('PrismaClient');
     }
-    getDashboard = async (req, res, next) => {
+    getDashboard = async (_req, res, next) => {
         try {
             const stats = await this.adminService.getDashboardStats();
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getSystemHealth = async (req, res, next) => {
+    getSystemHealth = async (_req, res, next) => {
         try {
             const health = await this.adminService.getSystemHealth();
             return (0, responseHelpers_1.sendSuccess)(res, health);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    clearCache = async (req, res, next) => {
+    clearCache = async (_req, res, next) => {
         try {
             const result = await this.adminService.clearCache();
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Cache cleared');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getDatabaseTables = async (req, res, next) => {
+    getDatabaseTables = async (_req, res, next) => {
         try {
             const tables = await this.adminService.getDatabaseTables();
             return (0, responseHelpers_1.sendSuccess)(res, tables);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTableStructure = async (req, res, next) => {
@@ -54,7 +54,7 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, structure);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTableData = async (req, res, next) => {
@@ -65,7 +65,7 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, data);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     executeDatabaseQuery = async (req, res, next) => {
@@ -75,16 +75,16 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getStats = async (req, res, next) => {
+    getStats = async (_req, res, next) => {
         try {
             const stats = await this.adminService.getDashboardStats();
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getLogs = async (req, res, next) => {
@@ -94,7 +94,7 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, logs);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getActiveUsers = async (req, res, next) => {
@@ -121,7 +121,7 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, activeUsers);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getUsers = async (req, res, next) => {
@@ -171,7 +171,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getEvents = async (req, res, next) => {
@@ -214,7 +214,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getContests = async (req, res, next) => {
@@ -256,7 +256,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategories = async (req, res, next) => {
@@ -304,7 +304,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getScores = async (req, res, next) => {
@@ -362,7 +362,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getActivityLogs = async (req, res, next) => {
@@ -372,7 +372,7 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, logs);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAuditLogs = async (req, res, next) => {
@@ -382,7 +382,7 @@ class AdminController {
             return (0, responseHelpers_1.sendSuccess)(res, logs);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportAuditLogs = async (req, res, next) => {
@@ -414,19 +414,19 @@ class AdminController {
             return res.send(JSON.stringify(logs, null, 2));
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    testConnection = async (req, res, next) => {
+    testConnection = async (_req, res, next) => {
         try {
             const health = await this.adminService.getSystemHealth();
             return (0, responseHelpers_1.sendSuccess)(res, health);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    forceLogoutAllUsers = async (req, res, next) => {
+    forceLogoutAllUsers = async (_req, res, next) => {
         try {
             await this.prisma.user.updateMany({
                 data: {
@@ -443,7 +443,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     forceLogoutUser = async (req, res, next) => {
@@ -473,7 +473,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getContestantScores = async (req, res, next) => {
@@ -541,7 +541,7 @@ class AdminController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

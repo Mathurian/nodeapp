@@ -16,7 +16,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, [], 'Please use getCategoriesByContest endpoint for category lists');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategoryById = async (req, res, next) => {
@@ -29,7 +29,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, category, 'Category retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategoriesByContest = async (req, res, next) => {
@@ -42,7 +42,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, categories, 'Categories retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createCategory = async (req, res, next) => {
@@ -64,7 +64,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendCreated)(res, category, 'Category created successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateCategory = async (req, res, next) => {
@@ -85,7 +85,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, category, 'Category updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteCategory = async (req, res, next) => {
@@ -98,7 +98,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendNoContent)(res);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategoryStats = async (req, res, next) => {
@@ -111,7 +111,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, stats, 'Category statistics retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyTotals = async (req, res, next) => {
@@ -125,7 +125,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, category, 'Category totals certified successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     searchCategories = async (req, res, next) => {
@@ -138,7 +138,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, categories, 'Search results retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategoryCriteria = async (req, res, next) => {
@@ -154,7 +154,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, criteria, 'Category criteria retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createCriterion = async (req, res, next) => {
@@ -183,7 +183,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendCreated)(res, criterion, 'Criterion created successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateCriterion = async (req, res, next) => {
@@ -211,7 +211,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, criterion, 'Criterion updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteCriterion = async (req, res, next) => {
@@ -232,7 +232,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendNoContent)(res);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateCategoryWithTimeLimit = async (req, res, next) => {
@@ -246,7 +246,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, category, 'Category time limit updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkDeleteCategories = async (req, res, next) => {
@@ -266,7 +266,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, { deleted: result.count }, 'Categories deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkUpdateCategories = async (req, res, next) => {
@@ -297,7 +297,7 @@ class CategoriesController {
             }, 'Categories bulk update completed');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkDeleteCriteria = async (req, res, next) => {
@@ -317,7 +317,7 @@ class CategoriesController {
             return (0, responseHelpers_1.sendSuccess)(res, { deleted: result.count }, 'Criteria deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkUpdateCriteria = async (req, res, next) => {
@@ -348,7 +348,7 @@ class CategoriesController {
             }, 'Criteria bulk update completed');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

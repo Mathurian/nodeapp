@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateAssignmentQuery = exports.validateBulkAssignmentOperation = exports.validateAssignmentDeletion = exports.validateAssignmentUpdate = exports.validateAssignmentCreation = void 0;
-const { PrismaClient } = require('@prisma/client');
 const prisma = require('../utils/prisma');
 const validateAssignmentCreation = async (req, res, next) => {
     try {
@@ -179,7 +178,7 @@ exports.validateAssignmentCreation = validateAssignmentCreation;
 const validateAssignmentUpdate = async (req, res, next) => {
     try {
         const assignmentId = req.params.id || req.params.assignmentId;
-        const { status, notes } = req.body;
+        const { status } = req.body;
         const assignment = await prisma.assignment.findUnique({
             where: { id: assignmentId },
             include: {

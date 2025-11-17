@@ -16,7 +16,7 @@ class AuditorCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, status);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     submitFinalCertification = async (req, res, next) => {
@@ -27,7 +27,7 @@ class AuditorCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Final certification completed successfully. All scores are now permanently locked.');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

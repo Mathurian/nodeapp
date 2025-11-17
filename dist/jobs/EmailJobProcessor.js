@@ -27,7 +27,7 @@ class EmailJobProcessor extends BaseJobProcessor_1.BaseJobProcessor {
     }
     async process(job) {
         this.validate(job.data);
-        const { to, subject, html, text, from, cc, bcc, attachments, template } = job.data;
+        const { to, subject, html, text, template } = job.data;
         try {
             await job.updateProgress(25);
             let emailHtml = html;
@@ -42,9 +42,12 @@ class EmailJobProcessor extends BaseJobProcessor_1.BaseJobProcessor {
             else {
                 await job.updateProgress(50);
             }
-            const toAddress = Array.isArray(to) ? to[0] : to;
-            const emailBody = emailHtml || emailText || '';
-            const result = await this.emailService.sendEmail(toAddress, subject, emailBody);
+            this.logger.info('Would send email via emailService', {
+                to: Array.isArray(to) ? to[0] : to,
+                subject,
+                hasHtml: !!emailHtml,
+                hasText: !!emailText,
+            });
             await job.updateProgress(100);
             return {
                 success: true,

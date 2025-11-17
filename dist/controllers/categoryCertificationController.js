@@ -18,7 +18,7 @@ class CategoryCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, progress);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyCategory = async (req, res, next) => {
@@ -28,7 +28,7 @@ class CategoryCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Category certified successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyContestant = async (req, res, next) => {
@@ -48,7 +48,7 @@ class CategoryCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Contestant certified successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyJudgeScores = async (req, res, next) => {
@@ -76,7 +76,7 @@ class CategoryCertificationController {
             }, `Certified ${result.count} scores for judge in category`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

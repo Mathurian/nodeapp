@@ -11,7 +11,7 @@ export declare class EmailService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     getConfig(): Promise<EmailConfig>;
-    sendEmail(to: string, subject: string, body: string): Promise<{
+    sendEmail(to: string, subject: string, _body: string): Promise<{
         success: boolean;
         to: string;
         subject: string;

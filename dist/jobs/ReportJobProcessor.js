@@ -159,7 +159,7 @@ class ReportJobProcessor extends BaseJobProcessor_1.BaseJobProcessor {
         return event;
     }
     async fetchScoringReportData(parameters) {
-        const { categoryId, contestId } = parameters;
+        const { categoryId, _contestId } = parameters;
         if (!categoryId) {
             throw new Error('Category ID is required for scoring report');
         }

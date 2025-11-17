@@ -13,19 +13,19 @@ export interface RateLimitResult {
     limit: number;
 }
 export declare class RateLimitService {
-    private prisma;
+    private _prisma;
     private configCache;
     private redis;
     private redisEnabled;
     private redisUnavailableLogged;
     private log;
-    constructor(prisma: PrismaClient);
+    constructor(_prisma: PrismaClient);
     private initializeRedis;
     private initializeDefaultConfigs;
     getConfig(tier: string): Promise<RateLimitConfig>;
     updateConfig(tier: string, updates: Partial<RateLimitConfig>): Promise<RateLimitConfig>;
     getAllConfigs(): Promise<RateLimitConfig[]>;
-    createLimiter(tier: string, customConfig?: Partial<RateLimitConfig>): (req: Request) => Promise<RateLimitConfig>;
+    createLimiter(tier: string, customConfig?: Partial<RateLimitConfig>): (_req: Request) => Promise<RateLimitConfig>;
     getTierFromRequest(req: Request): string;
     private createRedisStore;
     createEndpointLimiter(endpoint: string, config: Partial<RateLimitConfig>): import("express-rate-limit").RateLimitRequestHandler;

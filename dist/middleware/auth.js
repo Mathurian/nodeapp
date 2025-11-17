@@ -9,7 +9,6 @@ const permissions_1 = require("./permissions");
 const config_1 = require("../utils/config");
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const cache_1 = require("../utils/cache");
-const JWT_SECRET = config_1.jwtSecret;
 const authenticateToken = async (req, res, next) => {
     const token = req.cookies?.access_token;
     if (!token) {

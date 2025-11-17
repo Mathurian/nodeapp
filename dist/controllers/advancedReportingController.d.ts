@@ -3,7 +3,7 @@ export declare class AdvancedReportingController {
     private advancedReportingService;
     private prisma;
     constructor();
-    generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         scores: ({
             category: {
                 contest: {
@@ -37,7 +37,7 @@ export declare class AdvancedReportingController {
         })[];
         total: number;
     }>, Record<string, any>>>;
-    generateSummaryReport: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    generateSummaryReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         event: string;
         contests: number;
         categories: number;
@@ -48,7 +48,7 @@ export declare class AdvancedReportingController {
     generateSystemAnalyticsReport: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     generateContestResultsReport: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     scores: ({
         category: {
             contest: {
@@ -82,7 +82,7 @@ export declare const generateScoreReport: (req: Request, res: Response, next: Ne
     })[];
     total: number;
 }>, Record<string, any>>>;
-export declare const generateSummaryReport: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const generateSummaryReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     event: string;
     contests: number;
     categories: number;

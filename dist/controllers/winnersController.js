@@ -21,7 +21,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getWinnersByContest = async (req, res, next) => {
@@ -37,7 +37,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     signWinners = async (req, res, next) => {
@@ -54,7 +54,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getSignatureStatus = async (req, res, next) => {
@@ -69,7 +69,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCertificationProgress = async (req, res, next) => {
@@ -83,7 +83,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getRoleCertificationStatus = async (req, res, next) => {
@@ -97,7 +97,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyScores = async (req, res, next) => {
@@ -112,7 +112,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getWinners = async (req, res, next) => {
@@ -122,7 +122,7 @@ class WinnersController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message || 'Winners retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

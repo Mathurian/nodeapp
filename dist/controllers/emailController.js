@@ -11,13 +11,13 @@ class EmailController {
         this.emailService = container_1.container.resolve(EmailService_1.EmailService);
         this.prisma = container_1.container.resolve('PrismaClient');
     }
-    getConfig = async (req, res, next) => {
+    getConfig = async (_req, res, next) => {
         try {
             const config = await this.emailService.getConfig();
             return (0, responseHelpers_1.sendSuccess)(res, config);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendEmail = async (req, res, next) => {
@@ -27,7 +27,7 @@ class EmailController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Email sent');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendBulkEmail = async (req, res, next) => {
@@ -37,7 +37,7 @@ class EmailController {
             return (0, responseHelpers_1.sendSuccess)(res, results, 'Bulk email sent');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTemplates = async (req, res, next) => {
@@ -84,7 +84,7 @@ class EmailController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createTemplate = async (req, res, next) => {
@@ -108,7 +108,7 @@ class EmailController {
             return (0, responseHelpers_1.sendSuccess)(res, template, 'Template created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateTemplate = async (req, res, next) => {
@@ -135,7 +135,7 @@ class EmailController {
             return (0, responseHelpers_1.sendSuccess)(res, template, 'Template updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteTemplate = async (req, res, next) => {
@@ -153,7 +153,7 @@ class EmailController {
             return (0, responseHelpers_1.sendSuccess)(res, {}, 'Template deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCampaigns = async (req, res, next) => {
@@ -171,7 +171,7 @@ class EmailController {
             return (0, responseHelpers_1.sendSuccess)(res, { campaigns: logs });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createCampaign = async (req, res, next) => {
@@ -187,13 +187,13 @@ class EmailController {
             }, 'Campaign created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendCampaign = async (req, res, next) => {
         try {
             const { campaignId } = req.params;
-            const { recipients, templateId, subject, body } = req.body;
+            const { recipients, subject, body } = req.body;
             if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
                 return (0, responseHelpers_1.sendSuccess)(res, {}, 'Recipients list is required', 400);
             }
@@ -210,7 +210,7 @@ class EmailController {
             }, 'Campaign sent');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getLogs = async (req, res, next) => {
@@ -243,7 +243,7 @@ class EmailController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendMultipleEmails = async (req, res, next) => {
@@ -264,7 +264,7 @@ class EmailController {
             }, 'Multiple emails sent');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendEmailByRole = async (req, res, next) => {
@@ -291,7 +291,7 @@ class EmailController {
             }, `Emails sent to users with role: ${role}`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

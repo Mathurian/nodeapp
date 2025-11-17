@@ -37,7 +37,7 @@ export declare class ScoreFileService extends BaseService {
     getScoreFilesByCategory(categoryId: string): Promise<ScoreFile[]>;
     getScoreFilesByJudge(judgeId: string): Promise<ScoreFile[]>;
     getScoreFilesByContestant(contestantId: string): Promise<ScoreFile[]>;
-    updateScoreFile(id: string, data: UpdateScoreFileDTO, userId: string, userRole: string): Promise<ScoreFile>;
+    updateScoreFile(id: string, data: UpdateScoreFileDTO, _userId: string, userRole: string): Promise<ScoreFile>;
     deleteScoreFile(id: string, userId: string, userRole: string): Promise<void>;
     getAllScoreFiles(filters?: {
         categoryId?: string;

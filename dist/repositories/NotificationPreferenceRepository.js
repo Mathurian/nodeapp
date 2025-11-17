@@ -21,7 +21,7 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
     constructor(prismaClient = database_1.default) {
         this.prismaClient = prismaClient;
     }
-    async findByUserId(tenantId, userId) {
+    async findByUserId(_tenantId, userId) {
         return this.prismaClient.notificationPreference.findUnique({
             where: {
                 userId
@@ -44,7 +44,7 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
             },
         });
     }
-    async update(tenantId, userId, data) {
+    async update(_tenantId, userId, data) {
         const updateData = {};
         if (data.emailEnabled !== undefined)
             updateData.emailEnabled = data.emailEnabled;
@@ -77,7 +77,7 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
             return existing;
         return this.create({ tenantId, userId });
     }
-    async delete(tenantId, userId) {
+    async delete(_tenantId, userId) {
         return this.prismaClient.notificationPreference.delete({
             where: {
                 userId

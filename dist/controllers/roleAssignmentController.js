@@ -21,7 +21,7 @@ class RoleAssignmentController {
             return (0, responseHelpers_1.sendSuccess)(res, assignments);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createRoleAssignment = async (req, res, next) => {
@@ -39,7 +39,7 @@ class RoleAssignmentController {
             return (0, responseHelpers_1.sendSuccess)(res, assignment, 'Role assignment created', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateRoleAssignment = async (req, res, next) => {
@@ -50,7 +50,7 @@ class RoleAssignmentController {
             return (0, responseHelpers_1.sendSuccess)(res, assignment, 'Role assignment updated');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteRoleAssignment = async (req, res, next) => {
@@ -60,7 +60,7 @@ class RoleAssignmentController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Role assignment deleted');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

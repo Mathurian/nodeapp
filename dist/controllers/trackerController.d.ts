@@ -3,7 +3,7 @@ export declare class TrackerController {
     private trackerService;
     private prisma;
     constructor();
-    getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         contestId: string;
         contestName: string;
         eventName: string;
@@ -25,7 +25,7 @@ export declare class TrackerController {
         }[];
         overallCompletion: number;
     }>, Record<string, any>>>;
-    getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         categoryId: string;
         categoryName: string;
         contestName: string;
@@ -40,7 +40,7 @@ export declare class TrackerController {
     getCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     getPendingCertifications: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     contestId: string;
     contestName: string;
     eventName: string;
@@ -62,7 +62,7 @@ export declare const getScoringProgressByContest: (req: Request, res: Response, 
     }[];
     overallCompletion: number;
 }>, Record<string, any>>>;
-export declare const getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     categoryId: string;
     categoryName: string;
     contestName: string;

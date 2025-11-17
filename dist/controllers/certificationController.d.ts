@@ -3,11 +3,11 @@ export declare class CertificationController {
     private certificationService;
     private prisma;
     constructor();
-    getOverallStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getOverallStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         event: string;
         contests: any[];
     }>, Record<string, any>>>;
-    certifyAll: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    certifyAll: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         success: boolean;
         message: string;
     }>, Record<string, any>>>;
@@ -23,11 +23,11 @@ export declare class CertificationController {
     rejectCertification: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     getCertificationStats: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getOverallStatus: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getOverallStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     event: string;
     contests: any[];
 }>, Record<string, any>>>;
-export declare const certifyAll: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const certifyAll: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     success: boolean;
     message: string;
 }>, Record<string, any>>>;

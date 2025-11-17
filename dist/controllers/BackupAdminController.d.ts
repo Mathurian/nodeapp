@@ -3,11 +3,11 @@ export declare class BackupAdminController {
     listBackups(req: Request, res: Response): Promise<void>;
     getStats(req: Request, res: Response): Promise<void>;
     getLatest(req: Request, res: Response): Promise<void>;
-    getHealth(req: Request, res: Response): Promise<void>;
-    verifyBackups(req: Request, res: Response): Promise<void>;
-    triggerFullBackup(req: Request, res: Response): Promise<void>;
+    getHealth(_req: Request, res: Response): Promise<void>;
+    verifyBackups(_req: Request, res: Response): Promise<void>;
+    triggerFullBackup(_req: Request, res: Response): Promise<void>;
     getSizeTrend(req: Request, res: Response): Promise<void>;
-    listBackupFiles(req: Request, res: Response): Promise<void>;
+    listBackupFiles(_req: Request, res: Response): Promise<void>;
     logBackup(req: Request, res: Response): Promise<void>;
     receiveAlert(req: Request, res: Response): Promise<void>;
     cleanupLogs(req: Request, res: Response): Promise<void>;

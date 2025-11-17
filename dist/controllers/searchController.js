@@ -28,7 +28,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, results);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     searchByType = async (req, res, next) => {
@@ -49,7 +49,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, results);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getSuggestions = async (req, res, next) => {
@@ -62,7 +62,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, suggestions);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getPopularSearches = async (req, res, next) => {
@@ -72,7 +72,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, searches);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTrendingSearches = async (req, res, next) => {
@@ -82,7 +82,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, searches);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     saveSearch = async (req, res, next) => {
@@ -103,7 +103,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, savedSearch, 'Search saved successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getSavedSearches = async (req, res, next) => {
@@ -119,7 +119,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, parsed);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteSavedSearch = async (req, res, next) => {
@@ -130,7 +130,7 @@ class SearchController {
             return res.status(204).send();
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     executeSavedSearch = async (req, res, next) => {
@@ -141,7 +141,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, results);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getSearchHistory = async (req, res, next) => {
@@ -157,7 +157,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, parsed);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     clearSearchHistory = async (req, res, next) => {
@@ -167,7 +167,7 @@ class SearchController {
             return (0, responseHelpers_1.sendSuccess)(res, { count }, 'Search history cleared successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

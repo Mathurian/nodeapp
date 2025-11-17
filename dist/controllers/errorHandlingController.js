@@ -18,16 +18,16 @@ class ErrorHandlingController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Error logged');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getErrorStats = async (req, res, next) => {
+    getErrorStats = async (_req, res, next) => {
         try {
             const stats = this.errorHandlingService.getErrorStats();
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getErrorStatistics = async (req, res, next) => {
@@ -63,7 +63,7 @@ class ErrorHandlingController {
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getErrorDetails = async (req, res, next) => {
@@ -119,7 +119,7 @@ class ErrorHandlingController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     markErrorResolved = async (req, res, next) => {
@@ -146,7 +146,7 @@ class ErrorHandlingController {
             return (0, responseHelpers_1.sendSuccess)(res, errorLog, 'Error marked as resolved');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getErrorTrends = async (req, res, next) => {
@@ -191,7 +191,7 @@ class ErrorHandlingController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     cleanupErrorLogs = async (req, res, next) => {
@@ -213,7 +213,7 @@ class ErrorHandlingController {
             }, `Deleted ${result.count} error logs older than ${olderThanDays} days`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportErrorLogs = async (req, res, next) => {
@@ -262,7 +262,7 @@ class ErrorHandlingController {
             return res.send(JSON.stringify(errorLogs, null, 2));
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

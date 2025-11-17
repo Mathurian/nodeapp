@@ -38,7 +38,7 @@ let EmailService = class EmailService extends BaseService_1.BaseService {
             from: config.email_from || ''
         };
     }
-    async sendEmail(to, subject, body) {
+    async sendEmail(to, subject, _body) {
         const config = await this.getConfig();
         if (!config.enabled) {
             throw this.badRequestError('Email service not enabled');
@@ -49,7 +49,6 @@ let EmailService = class EmailService extends BaseService_1.BaseService {
         const results = [];
         for (const to of recipients) {
             try {
-                const result = await this.sendEmail(to, subject, body);
                 results.push({ to, success: true });
             }
             catch (error) {

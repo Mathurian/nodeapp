@@ -17,7 +17,7 @@ class CategoryTypeController {
         }
         catch (error) {
             log.error('Get category types error:', error);
-            next(error);
+            return next(error);
         }
     };
     createCategoryType = async (req, res, next) => {
@@ -38,7 +38,7 @@ class CategoryTypeController {
         }
         catch (error) {
             log.error('Create category type error:', error);
-            next(error);
+            return next(error);
         }
     };
     updateCategoryType = async (req, res, next) => {
@@ -55,7 +55,7 @@ class CategoryTypeController {
         }
         catch (error) {
             log.error('Update category type error:', error);
-            next(error);
+            return next(error);
         }
     };
     deleteCategoryType = async (req, res, next) => {
@@ -71,7 +71,7 @@ class CategoryTypeController {
         }
         catch (error) {
             log.error('Delete category type error:', error);
-            next(error);
+            return next(error);
         }
     };
 }

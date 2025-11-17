@@ -23,7 +23,7 @@ class RestrictionController {
         }
         catch (error) {
             log.error('Set contestant view restriction error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     canContestantView = async (req, res, next) => {
@@ -35,7 +35,7 @@ class RestrictionController {
         }
         catch (error) {
             log.error('Check contestant view error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     lockEventContest = async (req, res, next) => {
@@ -51,7 +51,7 @@ class RestrictionController {
         }
         catch (error) {
             log.error('Lock event/contest error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     isLocked = async (req, res, next) => {
@@ -63,7 +63,7 @@ class RestrictionController {
         }
         catch (error) {
             log.error('Check lock status error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

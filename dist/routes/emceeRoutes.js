@@ -12,10 +12,10 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const config_1 = require("../utils/config");
 const router = express_1.default.Router();
 const emceeScriptStorage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, 'uploads/emcee/');
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, 'script-' + uniqueSuffix + path_1.default.extname(file.originalname));
     }
@@ -23,7 +23,7 @@ const emceeScriptStorage = multer_1.default.diskStorage({
 const emceeScriptUpload = (0, multer_1.default)({
     storage: emceeScriptStorage,
     limits: { fileSize: config_1.maxFileSize },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (_req, file, cb) => {
         const allowedMimeTypes = [
             'application/pdf',
             'application/msword',
