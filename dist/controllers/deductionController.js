@@ -23,7 +23,7 @@ class DeductionController {
             (0, responseHelpers_1.sendCreated)(res, deduction, 'Deduction request created successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getPendingDeductions = async (req, res, next) => {
@@ -34,7 +34,7 @@ class DeductionController {
             (0, responseHelpers_1.sendSuccess)(res, deductions, 'Pending deductions retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     approveDeduction = async (req, res, next) => {
@@ -47,7 +47,7 @@ class DeductionController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     rejectDeduction = async (req, res, next) => {
@@ -59,7 +59,7 @@ class DeductionController {
             (0, responseHelpers_1.sendSuccess)(res, null, 'Deduction rejected successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getApprovalStatus = async (req, res, next) => {
@@ -69,7 +69,7 @@ class DeductionController {
             (0, responseHelpers_1.sendSuccess)(res, status, 'Approval status retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getDeductionHistory = async (req, res, next) => {
@@ -83,7 +83,7 @@ class DeductionController {
             (0, responseHelpers_1.sendSuccess)(res, result, 'Deduction history retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

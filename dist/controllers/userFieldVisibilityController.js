@@ -17,7 +17,7 @@ class UserFieldVisibilityController {
         }
         catch (error) {
             log.error('Get field visibility settings error:', error);
-            next(error);
+            return next(error);
         }
     };
     updateFieldVisibility = async (req, res, next) => {
@@ -35,7 +35,7 @@ class UserFieldVisibilityController {
         }
         catch (error) {
             log.error('Update field visibility error:', error);
-            next(error);
+            return next(error);
         }
     };
     resetFieldVisibility = async (req, res, next) => {
@@ -46,7 +46,7 @@ class UserFieldVisibilityController {
         }
         catch (error) {
             log.error('Reset field visibility error:', error);
-            next(error);
+            return next(error);
         }
     };
 }

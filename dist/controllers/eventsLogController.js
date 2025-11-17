@@ -29,7 +29,7 @@ const listEventLogs = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, { logs, total, limit, offset });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listEventLogs = listEventLogs;
@@ -41,7 +41,7 @@ const getEventLog = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, log);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.getEventLog = getEventLog;
@@ -53,7 +53,7 @@ const listWebhooks = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, webhooks);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.listWebhooks = listWebhooks;
@@ -68,7 +68,7 @@ const createWebhook = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, webhook, 'Webhook created', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.createWebhook = createWebhook;
@@ -81,7 +81,7 @@ const updateWebhook = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, webhook, 'Webhook updated');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.updateWebhook = updateWebhook;
@@ -93,7 +93,7 @@ const deleteWebhook = async (req, res, next) => {
         (0, responseHelpers_1.sendSuccess)(res, null, 'Webhook deleted');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
 exports.deleteWebhook = deleteWebhook;

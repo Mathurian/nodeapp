@@ -66,10 +66,10 @@ export class BackupTransferService {
           result = await this.uploadToS3(filepath, target, checksum);
           break;
         case 'ftp':
-          result = await this.uploadToFTP(filepath, target, checksum);
+          result = await this.uploadToFTP(filepath, target);
           break;
         case 'sftp':
-          result = await this.uploadToSFTP(filepath, target, checksum);
+          result = await this.uploadToSFTP(filepath, target);
           break;
         case 'azure':
           result = await this.uploadToAzure(filepath, target, checksum);

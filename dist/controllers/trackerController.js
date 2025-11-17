@@ -18,7 +18,7 @@ class TrackerController {
             return (0, responseHelpers_1.sendSuccess)(res, progress);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getScoringProgressByCategory = async (req, res, next) => {
@@ -28,7 +28,7 @@ class TrackerController {
             return (0, responseHelpers_1.sendSuccess)(res, progress);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getJudgeScoringProgress = async (req, res, next) => {
@@ -60,7 +60,7 @@ class TrackerController {
             return (0, responseHelpers_1.sendSuccess)(res, progress);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCertificationStatus = async (req, res, next) => {
@@ -92,7 +92,7 @@ class TrackerController {
             return (0, responseHelpers_1.sendSuccess)(res, status);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getPendingCertifications = async (req, res, next) => {
@@ -130,7 +130,7 @@ class TrackerController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

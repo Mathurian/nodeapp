@@ -22,7 +22,7 @@ let RestrictionService = class RestrictionService extends BaseService_1.BaseServ
         super();
         this.prisma = prisma;
     }
-    async setContestantViewRestriction(dto, userId, userRole) {
+    async setContestantViewRestriction(dto, _userId, userRole) {
         if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
             throw this.forbiddenError('You do not have permission to set contestant view restrictions');
         }

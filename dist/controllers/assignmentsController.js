@@ -7,10 +7,8 @@ const responseHelpers_1 = require("../utils/responseHelpers");
 const logger_1 = require("../utils/logger");
 class AssignmentsController {
     assignmentService;
-    prisma;
     constructor() {
         this.assignmentService = container_1.container.resolve(AssignmentService_1.AssignmentService);
-        this.prisma = container_1.container.resolve('PrismaClient');
     }
     getAllAssignments = async (req, res, next) => {
         try {
@@ -25,7 +23,7 @@ class AssignmentsController {
             return (0, responseHelpers_1.sendSuccess)(res, assignments, 'Assignments retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createAssignment = async (req, res, next) => {
@@ -35,7 +33,7 @@ class AssignmentsController {
             (0, responseHelpers_1.successResponse)(res, assignment, 'Assignment created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAssignmentById = async (req, res, next) => {
@@ -45,7 +43,7 @@ class AssignmentsController {
             res.json(assignment);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateAssignment = async (req, res, next) => {
@@ -55,7 +53,7 @@ class AssignmentsController {
             (0, responseHelpers_1.successResponse)(res, assignment, 'Assignment updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteAssignment = async (req, res, next) => {
@@ -65,7 +63,7 @@ class AssignmentsController {
             (0, responseHelpers_1.successResponse)(res, null, 'Assignment deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAssignmentsForJudge = async (req, res, next) => {
@@ -75,7 +73,7 @@ class AssignmentsController {
             res.json(assignments);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAssignmentsForCategory = async (req, res, next) => {
@@ -85,7 +83,7 @@ class AssignmentsController {
             res.json(assignments);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkAssignJudges = async (req, res, next) => {
@@ -97,7 +95,7 @@ class AssignmentsController {
             (0, responseHelpers_1.successResponse)(res, { assignedCount }, `${assignedCount} judge(s) assigned successfully`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     removeAllAssignmentsForCategory = async (req, res, next) => {
@@ -107,7 +105,7 @@ class AssignmentsController {
             (0, responseHelpers_1.successResponse)(res, { removedCount }, `${removedCount} assignment(s) removed successfully`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getJudgeAssignments = async (req, res, next) => {
@@ -115,25 +113,25 @@ class AssignmentsController {
             return this.getAssignmentsForJudge(req, res, next);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getJudges = async (req, res, next) => {
+    getJudges = async (_req, res, next) => {
         try {
             const judges = await this.assignmentService.getJudges();
             return (0, responseHelpers_1.sendSuccess)(res, judges, 'Judges retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getCategories = async (req, res, next) => {
+    getCategories = async (_req, res, next) => {
         try {
             const categories = await this.assignmentService.getCategories();
             return (0, responseHelpers_1.sendSuccess)(res, categories, 'Categories retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     assignJudge = async (req, res, next) => {
@@ -141,7 +139,7 @@ class AssignmentsController {
             return this.createAssignment(req, res, next);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     removeAssignment = async (req, res, next) => {
@@ -149,16 +147,16 @@ class AssignmentsController {
             return this.deleteAssignment(req, res, next);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getContestants = async (req, res, next) => {
+    getContestants = async (_req, res, next) => {
         try {
             const contestants = await this.assignmentService.getContestants();
             return (0, responseHelpers_1.sendSuccess)(res, contestants, 'Contestants retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     assignContestantToCategory = async (req, res, next) => {
@@ -212,7 +210,7 @@ class AssignmentsController {
                 contestantId: req.body?.contestantId,
                 stack: error.stack
             });
-            next(error);
+            return next(error);
         }
     };
     removeContestantFromCategory = async (req, res, next) => {
@@ -222,7 +220,7 @@ class AssignmentsController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Contestant removed from category successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCategoryContestants = async (req, res, next) => {
@@ -232,7 +230,7 @@ class AssignmentsController {
             return (0, responseHelpers_1.sendSuccess)(res, contestants, 'Category contestants retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAllContestantAssignments = async (req, res, next) => {
@@ -245,7 +243,7 @@ class AssignmentsController {
             return (0, responseHelpers_1.sendSuccess)(res, assignments, 'Contestant assignments retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

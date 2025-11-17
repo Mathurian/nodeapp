@@ -18,7 +18,7 @@ router.get('/', async (req, res, next) => {
         return (0, responseHelpers_1.sendSuccess)(res, judges, 'Judges retrieved successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.post('/', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('CREATE_JUDGE', 'JUDGE'), async (req, res, next) => {
@@ -28,7 +28,7 @@ router.post('/', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, e
         return (0, responseHelpers_1.sendSuccess)(res, judge, 'Judge created successfully', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.put('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('UPDATE_JUDGE', 'JUDGE'), async (req, res, next) => {
@@ -38,7 +38,7 @@ router.put('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0,
         return (0, responseHelpers_1.sendSuccess)(res, judge, 'Judge updated successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.post('/bulk-delete', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('BULK_DELETE_JUDGES', 'JUDGE'), async (req, res, next) => {
@@ -52,7 +52,7 @@ router.post('/bulk-delete', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOAR
         return (0, responseHelpers_1.sendSuccess)(res, result, `${result.deletedCount} judge(s) deleted successfully`);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.delete('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('DELETE_JUDGE', 'JUDGE'), async (req, res, next) => {
@@ -62,7 +62,7 @@ router.delete('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), 
         return (0, responseHelpers_1.sendSuccess)(res, null, 'Judge deleted successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 exports.default = router;

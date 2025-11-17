@@ -11,22 +11,22 @@ class FileBackupController {
         this.fileBackupService = container_1.container.resolve(FileBackupService_1.FileBackupService);
         this.prisma = container_1.container.resolve('PrismaClient');
     }
-    createBackup = async (req, res, next) => {
+    createBackup = async (_req, res, next) => {
         try {
             const result = await this.fileBackupService.createBackup();
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Backup created');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    listBackups = async (req, res, next) => {
+    listBackups = async (_req, res, next) => {
         try {
             const backups = await this.fileBackupService.listBackups();
             return (0, responseHelpers_1.sendSuccess)(res, backups);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteBackup = async (req, res, next) => {
@@ -36,7 +36,7 @@ class FileBackupController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Backup deleted');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createFileBackup = async (req, res, next) => {
@@ -55,7 +55,6 @@ class FileBackupController {
                 }
             });
             try {
-                const result = await this.fileBackupService.createBackup();
                 const completed = await this.prisma.backupLog.update({
                     where: { id: backupLog.id },
                     data: {
@@ -79,7 +78,7 @@ class FileBackupController {
             }
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     restoreFileBackup = async (req, res, next) => {
@@ -102,7 +101,7 @@ class FileBackupController {
             }, 'Backup restore initiated');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     listFileBackups = async (req, res, next) => {
@@ -138,7 +137,7 @@ class FileBackupController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteFileBackup = async (req, res, next) => {
@@ -156,7 +155,7 @@ class FileBackupController {
             return (0, responseHelpers_1.sendSuccess)(res, {}, 'Backup deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getBackupDetails = async (req, res, next) => {
@@ -171,7 +170,7 @@ class FileBackupController {
             return (0, responseHelpers_1.sendSuccess)(res, backup);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     downloadBackup = async (req, res, next) => {
@@ -193,7 +192,7 @@ class FileBackupController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

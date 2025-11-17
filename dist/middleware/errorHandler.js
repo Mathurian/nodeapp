@@ -68,7 +68,7 @@ const logActivity = (action, resourceType = null, resourceId = null) => {
     };
 };
 exports.logActivity = logActivity;
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
     const errorDetails = {
         message: err.message,
         name: err.name,

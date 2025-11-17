@@ -24,7 +24,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Get scores error', { error: error.message, categoryId: req.params.categoryId });
-            next(error);
+            return next(error);
         }
     };
     submitScore = async (req, res, next) => {
@@ -58,7 +58,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Submit score error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     updateScore = async (req, res, next) => {
@@ -77,7 +77,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Update score error', { error: error.message, scoreId: req.params.scoreId });
-            next(error);
+            return next(error);
         }
     };
     deleteScore = async (req, res, next) => {
@@ -91,7 +91,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Delete score error', { error: error.message, scoreId: req.params.scoreId });
-            next(error);
+            return next(error);
         }
     };
     certifyScore = async (req, res, next) => {
@@ -109,7 +109,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Certify score error', { error: error.message, scoreId: req.params.scoreId });
-            next(error);
+            return next(error);
         }
     };
     certifyScores = async (req, res, next) => {
@@ -127,7 +127,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Certify scores error', { error: error.message, categoryId: req.params.categoryId });
-            next(error);
+            return next(error);
         }
     };
     unsignScore = async (req, res, next) => {
@@ -141,7 +141,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Unsign score error', { error: error.message, scoreId: req.params.scoreId });
-            next(error);
+            return next(error);
         }
     };
     getScoresByJudge = async (req, res, next) => {
@@ -155,7 +155,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Get scores by judge error', { error: error.message, judgeId: req.params.judgeId });
-            next(error);
+            return next(error);
         }
     };
     getScoresByContestant = async (req, res, next) => {
@@ -172,7 +172,7 @@ class ScoringController {
                 error: error.message,
                 contestantId: req.params.contestantId
             });
-            next(error);
+            return next(error);
         }
     };
     getScoresByContest = async (req, res, next) => {
@@ -186,7 +186,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Get scores by contest error', { error: error.message, contestId: req.params.contestId });
-            next(error);
+            return next(error);
         }
     };
     getContestStats = async (req, res, next) => {
@@ -200,7 +200,7 @@ class ScoringController {
         }
         catch (error) {
             log.error('Get contest stats error', { error: error.message, contestId: req.params.contestId });
-            next(error);
+            return next(error);
         }
     };
     getCategories = async (req, res, next) => {
@@ -242,7 +242,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, categories);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyTotals = async (req, res, next) => {
@@ -282,7 +282,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Totals certified successfully by Tally Master');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     finalCertification = async (req, res, next) => {
@@ -333,7 +333,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Final certification completed by Auditor');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     requestDeduction = async (req, res, next) => {
@@ -368,7 +368,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, deductionRequest, 'Deduction request created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     approveDeduction = async (req, res, next) => {
@@ -402,7 +402,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Deduction request approved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     rejectDeduction = async (req, res, next) => {
@@ -427,7 +427,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Deduction request rejected');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getDeductions = async (req, res, next) => {
@@ -449,7 +449,7 @@ class ScoringController {
             return (0, responseHelpers_1.sendSuccess)(res, deductions);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyJudgeContestScores = async (req, res, next) => {
@@ -497,7 +497,7 @@ class ScoringController {
             }, `Certified ${result.count} scores for judge in contest`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     uncertifyCategory = async (req, res, next) => {
@@ -533,7 +533,7 @@ class ScoringController {
             }, 'Category uncertified successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

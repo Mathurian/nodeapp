@@ -22,7 +22,7 @@ class ScoreRemovalController {
             return (0, responseHelpers_1.sendSuccess)(res, request, 'Score removal request created. Awaiting co-signatures.');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getScoreRemovalRequests = async (req, res, next) => {
@@ -32,7 +32,7 @@ class ScoreRemovalController {
             return (0, responseHelpers_1.sendSuccess)(res, requests);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getScoreRemovalRequest = async (req, res, next) => {
@@ -42,7 +42,7 @@ class ScoreRemovalController {
             return (0, responseHelpers_1.sendSuccess)(res, request);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     signScoreRemovalRequest = async (req, res, next) => {
@@ -57,7 +57,7 @@ class ScoreRemovalController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Request signed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     executeScoreRemoval = async (req, res, next) => {
@@ -67,7 +67,7 @@ class ScoreRemovalController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Score removal executed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

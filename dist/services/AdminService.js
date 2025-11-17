@@ -31,7 +31,7 @@ let AdminService = class AdminService extends BaseService_1.BaseService {
     }
     async getDashboardStats() {
         try {
-            const [totalUsers, totalEvents, totalContests, totalCategories, totalScores, activeUsers, contests, categories, lastBackupRecord] = await Promise.all([
+            const [totalUsers, totalEvents, totalContests, totalCategories, totalScores, activeUsers, lastBackupRecord] = await Promise.all([
                 this.prisma.user.count(),
                 this.prisma.event.count(),
                 this.prisma.contest.count(),
@@ -44,12 +44,6 @@ let AdminService = class AdminService extends BaseService_1.BaseService {
                         }
                     }
                 }),
-                this.prisma.contest.findMany({
-                    include: {
-                        categories: true
-                    }
-                }),
-                this.prisma.category.findMany({}),
                 this.prisma.backupLog.findFirst({
                     where: { status: 'COMPLETED' },
                     orderBy: { createdAt: 'desc' },

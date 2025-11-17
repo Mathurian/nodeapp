@@ -26,7 +26,7 @@ class ReportsController {
             res.json({ data: templates });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createTemplate = async (req, res, next) => {
@@ -41,7 +41,7 @@ class ReportsController {
             res.status(201).json(reportTemplate);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateTemplate = async (req, res, next) => {
@@ -56,7 +56,7 @@ class ReportsController {
             res.json(updated);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteTemplate = async (req, res, next) => {
@@ -70,7 +70,7 @@ class ReportsController {
             res.status(204).send();
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateReport = async (req, res, next) => {
@@ -94,7 +94,7 @@ class ReportsController {
             res.status(201).json(reportData);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateContestantReports = async (req, res, next) => {
@@ -108,7 +108,7 @@ class ReportsController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getReportInstances = async (req, res, next) => {
@@ -123,7 +123,7 @@ class ReportsController {
             res.json({ data: instances });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteReportInstance = async (req, res, next) => {
@@ -137,7 +137,7 @@ class ReportsController {
             res.status(204).send();
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportToPDF = async (req, res, next) => {
@@ -154,7 +154,7 @@ class ReportsController {
             res.send(buffer);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportToExcel = async (req, res, next) => {
@@ -171,7 +171,7 @@ class ReportsController {
             res.send(buffer);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportToCSV = async (req, res, next) => {
@@ -188,7 +188,7 @@ class ReportsController {
             res.send(buffer);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     async getReportData(instanceId) {
@@ -217,7 +217,7 @@ class ReportsController {
             res.json({ message: 'Report emailed successfully' });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

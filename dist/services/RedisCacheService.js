@@ -514,7 +514,7 @@ class RedisCacheService {
             console.error('Cache publish error:', error);
         }
     }
-    handleCacheInvalidation(channel, message) {
+    handleCacheInvalidation(_channel, message) {
         try {
             const data = JSON.parse(message);
             if (data.pattern) {

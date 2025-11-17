@@ -18,7 +18,7 @@ class FileController {
             return (0, responseHelpers_1.sendSuccess)(res, files);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     downloadFile = async (req, res, next) => {
@@ -28,7 +28,7 @@ class FileController {
             res.download(filePath, filename);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteFile = async (req, res, next) => {
@@ -38,7 +38,7 @@ class FileController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'File deleted');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAllFiles = async (req, res, next) => {
@@ -74,7 +74,7 @@ class FileController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     uploadFiles = async (req, res, next) => {
@@ -111,7 +111,7 @@ class FileController {
             }, 'Files uploaded successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getFileById = async (req, res, next) => {
@@ -126,7 +126,7 @@ class FileController {
             return (0, responseHelpers_1.sendSuccess)(res, file);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateFile = async (req, res, next) => {
@@ -153,10 +153,10 @@ class FileController {
             return (0, responseHelpers_1.sendSuccess)(res, file, 'File updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getFileStats = async (req, res, next) => {
+    getFileStats = async (_req, res, next) => {
         try {
             const [totalFiles, totalSize, byCategory, recentUploads] = await Promise.all([
                 this.prisma.file.count(),
@@ -195,7 +195,7 @@ class FileController {
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     upload = async (req, res, next) => {
@@ -226,7 +226,7 @@ class FileController {
             return (0, responseHelpers_1.sendSuccess)(res, uploadedFile, 'File uploaded successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

@@ -35,8 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.csrfErrorHandler = exports.csrfProtection = exports.getCsrfToken = exports.generateCsrfToken = void 0;
 const crypto_1 = require("crypto");
-const config_1 = require("../utils/config");
-const CSRF_SECRET = config_1.csrfSecret;
 const generateToken = () => {
     return (0, crypto_1.randomBytes)(32).toString('hex');
 };
@@ -147,7 +145,7 @@ const csrfProtection = async (req, res, next) => {
     next();
 };
 exports.csrfProtection = csrfProtection;
-const csrfErrorHandler = (err, req, res, next) => {
+const csrfErrorHandler = (err, _req, res, next) => {
     if (err && err.code === 'EBADCSRFTOKEN') {
         res.status(403).json({
             error: 'CSRF token validation failed',

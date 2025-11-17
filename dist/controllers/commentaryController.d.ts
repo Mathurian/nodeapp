@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 export declare class CommentaryController {
     private commentaryService;
     constructor();
-    createComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    createComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         judge: never;
     } & {
         id: string;
@@ -15,7 +15,7 @@ export declare class CommentaryController {
         scoreId: string;
         isPrivate: boolean;
     }>, Record<string, any>>>;
-    getCommentsForScore: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+    getCommentsForScore: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
         judge: never;
         criterion: never;
     } & {
@@ -29,7 +29,7 @@ export declare class CommentaryController {
         scoreId: string;
         isPrivate: boolean;
     })[]>, Record<string, any>>>;
-    getCommentsByContestant: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+    getCommentsByContestant: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
         judge: never;
         criterion: never;
         score: never;
@@ -44,7 +44,7 @@ export declare class CommentaryController {
         scoreId: string;
         isPrivate: boolean;
     })[]>, Record<string, any>>>;
-    updateComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    updateComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         judge: never;
     } & {
         id: string;
@@ -57,9 +57,9 @@ export declare class CommentaryController {
         scoreId: string;
         isPrivate: boolean;
     }>, Record<string, any>>>;
-    deleteComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+    deleteComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 }
-export declare const createComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const createComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     judge: never;
 } & {
     id: string;
@@ -72,7 +72,7 @@ export declare const createComment: (req: Request, res: Response, next: NextFunc
     scoreId: string;
     isPrivate: boolean;
 }>, Record<string, any>>>;
-export declare const getCommentsForScore: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+export declare const getCommentsForScore: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
     judge: never;
     criterion: never;
 } & {
@@ -86,7 +86,7 @@ export declare const getCommentsForScore: (req: Request, res: Response, next: Ne
     scoreId: string;
     isPrivate: boolean;
 })[]>, Record<string, any>>>;
-export declare const getCommentsByContestant: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+export declare const getCommentsByContestant: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
     judge: never;
     criterion: never;
     score: never;
@@ -101,7 +101,7 @@ export declare const getCommentsByContestant: (req: Request, res: Response, next
     scoreId: string;
     isPrivate: boolean;
 })[]>, Record<string, any>>>;
-export declare const updateComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const updateComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     judge: never;
 } & {
     id: string;
@@ -114,8 +114,8 @@ export declare const updateComment: (req: Request, res: Response, next: NextFunc
     scoreId: string;
     isPrivate: boolean;
 }>, Record<string, any>>>;
-export declare const deleteComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
-export declare const createScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const deleteComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+export declare const createScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     judge: never;
 } & {
     id: string;
@@ -128,7 +128,7 @@ export declare const createScoreComment: (req: Request, res: Response, next: Nex
     scoreId: string;
     isPrivate: boolean;
 }>, Record<string, any>>>;
-export declare const getScoreComments: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+export declare const getScoreComments: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
     judge: never;
     criterion: never;
 } & {
@@ -142,7 +142,7 @@ export declare const getScoreComments: (req: Request, res: Response, next: NextF
     scoreId: string;
     isPrivate: boolean;
 })[]>, Record<string, any>>>;
-export declare const updateScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const updateScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     judge: never;
 } & {
     id: string;
@@ -155,5 +155,5 @@ export declare const updateScoreComment: (req: Request, res: Response, next: Nex
     scoreId: string;
     isPrivate: boolean;
 }>, Record<string, any>>>;
-export declare const deleteScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+export declare const deleteScoreComment: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 //# sourceMappingURL=commentaryController.d.ts.map

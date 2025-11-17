@@ -19,7 +19,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get tally master stats error', error);
-            next(error);
+            return next(error);
         }
     };
     getCertifications = async (req, res, next) => {
@@ -32,7 +32,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get certifications error', error);
-            next(error);
+            return next(error);
         }
     };
     getCertificationQueue = async (req, res, next) => {
@@ -45,7 +45,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get certification queue error', error);
-            next(error);
+            return next(error);
         }
     };
     getPendingCertifications = async (req, res, next) => {
@@ -58,7 +58,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get pending certifications error', error);
-            next(error);
+            return next(error);
         }
     };
     certifyTotals = async (req, res, next) => {
@@ -76,7 +76,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Certify totals error', error);
-            next(error);
+            return next(error);
         }
     };
     getScoreReview = async (req, res, next) => {
@@ -92,7 +92,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get score review error', error);
-            next(error);
+            return next(error);
         }
     };
     getCertificationWorkflow = async (req, res, next) => {
@@ -120,7 +120,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get certification workflow error:', error);
-            next(error);
+            return next(error);
         }
     };
     getBiasCheckingTools = async (req, res, next) => {
@@ -136,7 +136,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get bias checking tools error', error);
-            next(error);
+            return next(error);
         }
     };
     getTallyMasterHistory = async (req, res, next) => {
@@ -149,7 +149,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get tally master history error', error);
-            next(error);
+            return next(error);
         }
     };
     requestScoreRemoval = async (req, res, next) => {
@@ -230,7 +230,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Request score removal error', error);
-            next(error);
+            return next(error);
         }
     };
     getScoreRemovalRequests = async (req, res, next) => {
@@ -246,7 +246,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get score removal requests error', error);
-            next(error);
+            return next(error);
         }
     };
     approveScoreRemoval = async (req, res, next) => {
@@ -256,7 +256,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Approve score removal error', error);
-            next(error);
+            return next(error);
         }
     };
     rejectScoreRemoval = async (req, res, next) => {
@@ -266,7 +266,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Reject score removal error', error);
-            next(error);
+            return next(error);
         }
     };
     getContestantScores = async (req, res, next) => {
@@ -276,7 +276,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get contestant scores error', error);
-            next(error);
+            return next(error);
         }
     };
     getJudgeScores = async (req, res, next) => {
@@ -286,7 +286,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get judge scores error', error);
-            next(error);
+            return next(error);
         }
     };
     getCategoryJudges = async (req, res, next) => {
@@ -302,7 +302,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get category judges error', error);
-            next(error);
+            return next(error);
         }
     };
     removeJudgeContestantScores = async (req, res, next) => {
@@ -312,7 +312,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Remove judge contestant scores error', error);
-            next(error);
+            return next(error);
         }
     };
     getContestScoreReview = async (req, res, next) => {
@@ -328,7 +328,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get contest score review error', error);
-            next(error);
+            return next(error);
         }
     };
     getContestCertifications = async (req, res, next) => {
@@ -344,7 +344,7 @@ class TallyMasterController {
         }
         catch (error) {
             log.error('Get contest certifications error', error);
-            next(error);
+            return next(error);
         }
     };
 }

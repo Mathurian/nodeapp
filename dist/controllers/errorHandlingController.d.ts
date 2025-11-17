@@ -3,12 +3,12 @@ export declare class ErrorHandlingController {
     private errorHandlingService;
     private prisma;
     constructor();
-    logError: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    logError: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         logged: boolean;
         timestamp: Date;
         error: string;
     }>, Record<string, any>>>;
-    getErrorStats: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getErrorStats: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         total: number;
         last24Hours: number;
         byType: {};
@@ -20,12 +20,12 @@ export declare class ErrorHandlingController {
     cleanupErrorLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     exportErrorLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const logError: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const logError: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     logged: boolean;
     timestamp: Date;
     error: string;
 }>, Record<string, any>>>;
-export declare const getErrorStats: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getErrorStats: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     total: number;
     last24Hours: number;
     byType: {};

@@ -11,13 +11,13 @@ class SMSController {
         this.smsService = container_1.container.resolve(SMSService_1.SMSService);
         this.prisma = container_1.container.resolve('PrismaClient');
     }
-    getSMSConfig = async (req, res, next) => {
+    getSMSConfig = async (_req, res, next) => {
         try {
             const settings = await this.smsService.getSettings();
             return (0, responseHelpers_1.sendSuccess)(res, settings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateSMSConfig = async (req, res, next) => {
@@ -27,7 +27,7 @@ class SMSController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'SMS settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendSMS = async (req, res, next) => {
@@ -37,7 +37,7 @@ class SMSController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'SMS sent successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendBulkSMS = async (req, res, next) => {
@@ -61,12 +61,12 @@ class SMSController {
             }, `Bulk SMS sent: ${successful} succeeded, ${failed} failed`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     sendNotificationSMS = async (req, res, next) => {
         try {
-            const { eventId, userRole, message } = req.body;
+            const { userRole, message } = req.body;
             if (!message) {
                 return (0, responseHelpers_1.sendSuccess)(res, {}, 'Message is required', 400);
             }
@@ -92,7 +92,7 @@ class SMSController {
             }, `Notification SMS sent to ${successful} users`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getSMSHistory = async (req, res, next) => {
@@ -125,7 +125,7 @@ class SMSController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

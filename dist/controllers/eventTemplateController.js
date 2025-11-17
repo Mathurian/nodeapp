@@ -22,16 +22,16 @@ class EventTemplateController {
             return (0, responseHelpers_1.sendSuccess)(res, template, 'Template created', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getTemplates = async (req, res, next) => {
+    getTemplates = async (_req, res, next) => {
         try {
             const templates = await this.eventTemplateService.getAll();
             return (0, responseHelpers_1.sendSuccess)(res, templates);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTemplate = async (req, res, next) => {
@@ -41,7 +41,7 @@ class EventTemplateController {
             return (0, responseHelpers_1.sendSuccess)(res, template);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateTemplate = async (req, res, next) => {
@@ -57,7 +57,7 @@ class EventTemplateController {
             return (0, responseHelpers_1.sendSuccess)(res, template, 'Template updated');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteTemplate = async (req, res, next) => {
@@ -67,7 +67,7 @@ class EventTemplateController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Template deleted');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createEventFromTemplate = async (req, res, next) => {
@@ -83,7 +83,7 @@ class EventTemplateController {
             return (0, responseHelpers_1.sendSuccess)(res, event, 'Event created from template', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

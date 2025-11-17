@@ -23,7 +23,7 @@ class BulkCertificationResetController {
         }
         catch (error) {
             log.error('Reset certifications error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

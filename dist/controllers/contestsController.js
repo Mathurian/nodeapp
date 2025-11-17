@@ -19,7 +19,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contest, 'Contest retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getContestsByEvent = async (req, res, next) => {
@@ -33,7 +33,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contests, 'Contests retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createContest = async (req, res, next) => {
@@ -52,7 +52,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendCreated)(res, contest, 'Contest created successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateContest = async (req, res, next) => {
@@ -70,7 +70,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contest, 'Contest updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteContest = async (req, res, next) => {
@@ -83,7 +83,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendNoContent)(res);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     archiveContest = async (req, res, next) => {
@@ -96,7 +96,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contest, 'Contest archived successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     reactivateContest = async (req, res, next) => {
@@ -109,7 +109,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contest, 'Contest reactivated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getArchivedContests = async (req, res, next) => {
@@ -121,7 +121,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contests, 'Archived contests retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getContestStats = async (req, res, next) => {
@@ -134,7 +134,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, stats, 'Contest statistics retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     searchContests = async (req, res, next) => {
@@ -147,7 +147,7 @@ class ContestsController {
             return (0, responseHelpers_1.sendSuccess)(res, contests, 'Search results retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

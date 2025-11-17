@@ -22,14 +22,14 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const ioredis_1 = __importDefault(require("ioredis"));
 const logger_1 = require("../utils/logger");
 let RateLimitService = class RateLimitService {
-    prisma;
+    _prisma;
     configCache = new Map();
     redis = null;
     redisEnabled = false;
     redisUnavailableLogged = false;
     log = (0, logger_1.createLogger)('rate-limit');
-    constructor(prisma) {
-        this.prisma = prisma;
+    constructor(_prisma) {
+        this._prisma = _prisma;
         this.initializeRedis();
         this.initializeDefaultConfigs();
     }
@@ -112,7 +112,7 @@ let RateLimitService = class RateLimitService {
         return Array.from(this.configCache.values());
     }
     createLimiter(tier, customConfig) {
-        return async (req) => {
+        return async (_req) => {
             const config = customConfig
                 ? { ...await this.getConfig(tier), ...customConfig }
                 : await this.getConfig(tier);
@@ -143,7 +143,6 @@ let RateLimitService = class RateLimitService {
         }
         const windowSeconds = Math.ceil(windowMs / 1000);
         const redis = this.redis;
-        const log = this.log;
         return {
             async increment(key) {
                 try {
@@ -196,7 +195,7 @@ let RateLimitService = class RateLimitService {
             skip: (req) => {
                 return req.path === '/health' || req.path === '/api/health';
             },
-            handler: (req, res) => {
+            handler: (_req, res) => {
                 const resetAt = new Date(Date.now() + (config.duration || 60) * 1000);
                 res.status(429).json({
                     success: false,

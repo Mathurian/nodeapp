@@ -24,7 +24,7 @@ class UploadController {
             (0, responseHelpers_1.successResponse)(res, { file }, 'File uploaded successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     uploadImage = async (req, res, next) => {
@@ -42,7 +42,7 @@ class UploadController {
             (0, responseHelpers_1.successResponse)(res, { image }, 'Image uploaded successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteFile = async (req, res, next) => {
@@ -52,7 +52,7 @@ class UploadController {
             (0, responseHelpers_1.successResponse)(res, null, 'File deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getFiles = async (req, res, next) => {
@@ -62,7 +62,7 @@ class UploadController {
             res.json(files);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

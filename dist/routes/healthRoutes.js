@@ -7,7 +7,7 @@ const express_1 = __importDefault(require("express"));
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const cache_1 = require("../utils/cache");
 const router = express_1.default.Router();
-router.get('/health', async (req, res) => {
+router.get('/health', async (_req, res) => {
     res.status(200).json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
@@ -15,7 +15,7 @@ router.get('/health', async (req, res) => {
         service: 'event-manager'
     });
 });
-router.get('/health/detailed', async (req, res) => {
+router.get('/health/detailed', async (_req, res) => {
     const startTime = Date.now();
     const health = {
         status: 'healthy',
@@ -100,13 +100,13 @@ router.get('/health/detailed', async (req, res) => {
                 503;
     res.status(statusCode).json(health);
 });
-router.get('/health/live', (req, res) => {
+router.get('/health/live', (_req, res) => {
     res.status(200).json({
         status: 'alive',
         timestamp: new Date().toISOString()
     });
 });
-router.get('/health/ready', async (req, res) => {
+router.get('/health/ready', async (_req, res) => {
     try {
         await prisma_1.default.$queryRaw `SELECT 1 as ready_check`;
         res.status(200).json({

@@ -93,7 +93,7 @@ const validatePassword = async (req, res, next) => {
     }
 };
 exports.validatePassword = validatePassword;
-const getPasswordPolicy = async (req, res) => {
+const getPasswordPolicy = async (_req, res) => {
     try {
         const policy = await prisma.passwordPolicy.findFirst({
             where: { isActive: true }

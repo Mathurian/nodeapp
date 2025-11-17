@@ -33,7 +33,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Upload score file error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     getScoreFileById = async (req, res, next) => {
@@ -50,7 +50,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Get score file error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     getScoreFilesByCategory = async (req, res, next) => {
@@ -63,7 +63,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Get score files by category error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     getScoreFilesByJudge = async (req, res, next) => {
@@ -76,7 +76,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Get score files by judge error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     getScoreFilesByContestant = async (req, res, next) => {
@@ -89,7 +89,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Get score files by contestant error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     getAllScoreFiles = async (req, res, next) => {
@@ -107,7 +107,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Get all score files error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     updateScoreFile = async (req, res, next) => {
@@ -124,7 +124,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Update score file error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     deleteScoreFile = async (req, res, next) => {
@@ -140,7 +140,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Delete score file error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     downloadScoreFile = async (req, res, next) => {
@@ -163,7 +163,7 @@ class ScoreFileController {
         }
         catch (error) {
             log.error('Download score file error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

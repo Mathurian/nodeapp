@@ -9,13 +9,13 @@ class PrintController {
     constructor() {
         this.printService = container_1.container.resolve(PrintService_1.PrintService);
     }
-    getPrintTemplates = async (req, res, next) => {
+    getPrintTemplates = async (_req, res, next) => {
         try {
             const templates = await this.printService.getPrintTemplates();
             (0, responseHelpers_1.successResponse)(res, { templates }, 'Print templates retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createPrintTemplate = async (req, res, next) => {
@@ -30,7 +30,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, { template }, 'Print template created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updatePrintTemplate = async (req, res, next) => {
@@ -41,7 +41,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, { template }, 'Print template updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deletePrintTemplate = async (req, res, next) => {
@@ -51,7 +51,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, null, 'Print template deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printEventReport = async (req, res, next) => {
@@ -64,7 +64,7 @@ class PrintController {
             res.send(output.content);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printContestResults = async (req, res, next) => {
@@ -77,7 +77,7 @@ class PrintController {
             res.send(output.content);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printJudgePerformance = async (req, res, next) => {
@@ -90,7 +90,7 @@ class PrintController {
             res.send(output.content);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printContestantReport = async (req, res, next) => {
@@ -100,7 +100,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, contestant, 'Contestant report retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printJudgeReport = async (req, res, next) => {
@@ -110,7 +110,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, judge, 'Judge report retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printCategoryReport = async (req, res, next) => {
@@ -120,7 +120,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, category, 'Category report retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printContestReport = async (req, res, next) => {
@@ -130,7 +130,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, contest, 'Contest report retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     printArchivedContestReport = async (req, res, next) => {
@@ -140,7 +140,7 @@ class PrintController {
             (0, responseHelpers_1.successResponse)(res, contest, 'Archived contest report retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

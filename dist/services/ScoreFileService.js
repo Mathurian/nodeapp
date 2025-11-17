@@ -84,7 +84,7 @@ let ScoreFileService = class ScoreFileService extends BaseService_1.BaseService 
             orderBy: { createdAt: 'desc' }
         });
     }
-    async updateScoreFile(id, data, userId, userRole) {
+    async updateScoreFile(id, data, _userId, userRole) {
         const scoreFile = await this.prisma.scoreFile.findUnique({
             where: { id }
         });

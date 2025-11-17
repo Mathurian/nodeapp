@@ -34,7 +34,7 @@ export declare class AuditorCertificationService extends BaseService {
             certifiedBy: string;
         };
     }>;
-    submitFinalCertification(categoryId: string, userId: string, userRole: string, confirmations: any): Promise<{
+    submitFinalCertification(categoryId: string, userId: string, _userRole: string, confirmations: any): Promise<{
         id: string;
         role: string;
         categoryId: string;

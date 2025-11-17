@@ -18,7 +18,7 @@ router.get('/', async (req, res, next) => {
         return (0, responseHelpers_1.sendSuccess)(res, contestants, 'Contestants retrieved successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.post('/', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('CREATE_CONTESTANT', 'CONTESTANT'), async (req, res, next) => {
@@ -28,7 +28,7 @@ router.post('/', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, e
         return (0, responseHelpers_1.sendSuccess)(res, contestant, 'Contestant created successfully', 201);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.put('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('UPDATE_CONTESTANT', 'CONTESTANT'), async (req, res, next) => {
@@ -38,7 +38,7 @@ router.put('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0,
         return (0, responseHelpers_1.sendSuccess)(res, contestant, 'Contestant updated successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.post('/bulk-delete', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('BULK_DELETE_CONTESTANTS', 'CONTESTANT'), async (req, res, next) => {
@@ -52,7 +52,7 @@ router.post('/bulk-delete', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOAR
         return (0, responseHelpers_1.sendSuccess)(res, result, `${result.deletedCount} contestant(s) deleted successfully`);
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 router.delete('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), (0, errorHandler_1.logActivity)('DELETE_CONTESTANT', 'CONTESTANT'), async (req, res, next) => {
@@ -62,7 +62,7 @@ router.delete('/:id', (0, auth_1.requireRole)(['ADMIN', 'ORGANIZER', 'BOARD']), 
         return (0, responseHelpers_1.sendSuccess)(res, null, 'Contestant deleted successfully');
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 });
 exports.default = router;

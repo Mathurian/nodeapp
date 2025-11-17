@@ -7,7 +7,6 @@ const path = require('path');
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;
 const IV_LENGTH = 16;
-const TAG_LENGTH = 16;
 const generateKey = (password, salt) => {
     return crypto.pbkdf2Sync(password, salt, 100000, KEY_LENGTH, 'sha512');
 };
@@ -37,7 +36,6 @@ exports.encryptFile = encryptFile;
 const decryptFile = async (encryptedData, password) => {
     try {
         const salt = encryptedData.slice(0, 16);
-        const iv = encryptedData.slice(16, 32);
         const tag = encryptedData.slice(32, 48);
         const encrypted = encryptedData.slice(48);
         const key = generateKey(password, salt);
@@ -129,7 +127,6 @@ const decryptMetadata = (encryptedMetadata, password) => {
     try {
         const encryptedData = Buffer.from(encryptedMetadata, 'base64');
         const salt = encryptedData.slice(0, 16);
-        const iv = encryptedData.slice(16, 32);
         const tag = encryptedData.slice(32, 48);
         const encrypted = encryptedData.slice(48);
         const key = generateKey(password, salt);

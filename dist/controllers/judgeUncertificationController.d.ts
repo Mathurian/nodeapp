@@ -3,12 +3,11 @@ export declare class JudgeUncertificationController {
     private judgeUncertificationService;
     private prisma;
     constructor();
-    getUncertificationRequests: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+    getUncertificationRequests: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
         category: never;
         judge: never;
         requestedByUser: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         tenantId: string | null;
@@ -16,19 +15,19 @@ export declare class JudgeUncertificationController {
         updatedAt: Date;
         categoryId: string;
         reason: string;
-        approvedAt: Date | null;
-        rejectionReason: string | null;
-        requestedBy: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         approvedBy: string | null;
+        approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
+        rejectionReason: string | null;
+        requestedBy: string;
     })[]>, Record<string, any>>>;
-    createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         category: never;
         judge: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         tenantId: string | null;
@@ -36,20 +35,20 @@ export declare class JudgeUncertificationController {
         updatedAt: Date;
         categoryId: string;
         reason: string;
-        approvedAt: Date | null;
-        rejectionReason: string | null;
-        requestedBy: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         approvedBy: string | null;
+        approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
+        rejectionReason: string | null;
+        requestedBy: string;
     }>, Record<string, any>>>;
-    signUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    signUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         request: {
             category: never;
             judge: never;
         } & {
-            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
             judgeId: string;
             tenantId: string | null;
@@ -57,17 +56,18 @@ export declare class JudgeUncertificationController {
             updatedAt: Date;
             categoryId: string;
             reason: string;
-            approvedAt: Date | null;
-            rejectionReason: string | null;
-            requestedBy: string;
+            status: import(".prisma/client").$Enums.RequestStatus;
             requestedAt: Date;
             approvedBy: string | null;
+            approvedAt: Date | null;
             rejectedBy: string | null;
             rejectedAt: Date | null;
+            rejectionReason: string | null;
+            requestedBy: string;
         };
         allSigned: boolean;
     }>, Record<string, any>>>;
-    executeUncertification: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    executeUncertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         message: string;
     }>, Record<string, any>>>;
     requestUncertification: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
@@ -75,12 +75,11 @@ export declare class JudgeUncertificationController {
     rejectUncertification: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     getJudgeUncertificationRequests: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getUncertificationRequests: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<({
+export declare const getUncertificationRequests: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
     category: never;
     judge: never;
     requestedByUser: never;
 } & {
-    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     tenantId: string | null;
@@ -88,19 +87,19 @@ export declare const getUncertificationRequests: (req: Request, res: Response, n
     updatedAt: Date;
     categoryId: string;
     reason: string;
-    approvedAt: Date | null;
-    rejectionReason: string | null;
-    requestedBy: string;
+    status: import(".prisma/client").$Enums.RequestStatus;
     requestedAt: Date;
     approvedBy: string | null;
+    approvedAt: Date | null;
     rejectedBy: string | null;
     rejectedAt: Date | null;
+    rejectionReason: string | null;
+    requestedBy: string;
 })[]>, Record<string, any>>>;
-export declare const createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     category: never;
     judge: never;
 } & {
-    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     tenantId: string | null;
@@ -108,20 +107,20 @@ export declare const createUncertificationRequest: (req: Request, res: Response,
     updatedAt: Date;
     categoryId: string;
     reason: string;
-    approvedAt: Date | null;
-    rejectionReason: string | null;
-    requestedBy: string;
+    status: import(".prisma/client").$Enums.RequestStatus;
     requestedAt: Date;
     approvedBy: string | null;
+    approvedAt: Date | null;
     rejectedBy: string | null;
     rejectedAt: Date | null;
+    rejectionReason: string | null;
+    requestedBy: string;
 }>, Record<string, any>>>;
-export declare const signUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const signUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     request: {
         category: never;
         judge: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         tenantId: string | null;
@@ -129,17 +128,18 @@ export declare const signUncertificationRequest: (req: Request, res: Response, n
         updatedAt: Date;
         categoryId: string;
         reason: string;
-        approvedAt: Date | null;
-        rejectionReason: string | null;
-        requestedBy: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         approvedBy: string | null;
+        approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
+        rejectionReason: string | null;
+        requestedBy: string;
     };
     allSigned: boolean;
 }>, Record<string, any>>>;
-export declare const executeUncertification: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const executeUncertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     message: string;
 }>, Record<string, any>>>;
 export declare const requestUncertification: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;

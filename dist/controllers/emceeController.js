@@ -18,7 +18,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get emcee stats error:', error);
-            next(error);
+            return next(error);
         }
     };
     getScripts = async (req, res, next) => {
@@ -34,7 +34,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get scripts error:', error);
-            next(error);
+            return next(error);
         }
     };
     getScript = async (req, res, next) => {
@@ -50,7 +50,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get script error:', error);
-            next(error);
+            return next(error);
         }
     };
     getContestantBios = async (req, res, next) => {
@@ -66,7 +66,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get contestant bios error:', error);
-            next(error);
+            return next(error);
         }
     };
     getJudgeBios = async (req, res, next) => {
@@ -82,7 +82,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get judge bios error:', error);
-            next(error);
+            return next(error);
         }
     };
     getEvents = async (req, res, next) => {
@@ -93,7 +93,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get events error:', error);
-            next(error);
+            return next(error);
         }
     };
     getEvent = async (req, res, next) => {
@@ -109,7 +109,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get event error:', error);
-            next(error);
+            return next(error);
         }
     };
     getContests = async (req, res, next) => {
@@ -121,7 +121,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get contests error:', error);
-            next(error);
+            return next(error);
         }
     };
     getContest = async (req, res, next) => {
@@ -137,7 +137,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get contest error:', error);
-            next(error);
+            return next(error);
         }
     };
     getEmceeHistory = async (req, res, next) => {
@@ -150,7 +150,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get emcee history error:', error);
-            next(error);
+            return next(error);
         }
     };
     uploadScript = async (req, res, next) => {
@@ -174,7 +174,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Upload script error:', error);
-            next(error);
+            return next(error);
         }
     };
     updateScript = async (req, res, next) => {
@@ -198,7 +198,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Update script error:', error);
-            next(error);
+            return next(error);
         }
     };
     deleteScript = async (req, res, next) => {
@@ -214,7 +214,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Delete script error:', error);
-            next(error);
+            return next(error);
         }
     };
     toggleScript = async (req, res, next) => {
@@ -230,7 +230,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Toggle script error:', error);
-            next(error);
+            return next(error);
         }
     };
     serveScriptFile = async (req, res, next) => {
@@ -254,7 +254,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Serve script file error:', error);
-            next(error);
+            return next(error);
         }
     };
     getFileViewUrl = async (req, res, next) => {
@@ -271,7 +271,7 @@ class EmceeController {
         }
         catch (error) {
             log.error('Get file view URL error:', error);
-            next(error);
+            return next(error);
         }
     };
 }

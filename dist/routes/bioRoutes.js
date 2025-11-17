@@ -12,10 +12,10 @@ const bioController_1 = require("../controllers/bioController");
 const errorHandler_1 = require("../middleware/errorHandler");
 const config_1 = require("../utils/config");
 const bioImageStorage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, 'uploads/bios/');
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, 'bio-' + uniqueSuffix + path_1.default.extname(file.originalname));
     }
@@ -23,7 +23,7 @@ const bioImageStorage = multer_1.default.diskStorage({
 const bioImageUpload = (0, multer_1.default)({
     storage: bioImageStorage,
     limits: { fileSize: config_1.maxFileSize },
-    fileFilter: (req, file, cb) => {
+    fileFilter: (_req, file, cb) => {
         const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (allowedMimeTypes.includes(file.mimetype)) {
             cb(null, true);

@@ -15,7 +15,7 @@ export interface LockEventContestDTO {
 export declare class RestrictionService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
-    setContestantViewRestriction(dto: SetContestantViewRestrictionDTO, userId: string, userRole: string): Promise<void>;
+    setContestantViewRestriction(dto: SetContestantViewRestrictionDTO, _userId: string, userRole: string): Promise<void>;
     canContestantView(eventId?: string, contestId?: string): Promise<boolean>;
     lockEventContest(dto: LockEventContestDTO, userId: string, userRole: string): Promise<void>;
     isLocked(eventId?: string, contestId?: string): Promise<boolean>;

@@ -26,7 +26,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Get users error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     getUserById = async (req, res, next) => {
@@ -45,7 +45,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Get user error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     createUser = async (req, res, next) => {
@@ -160,7 +160,7 @@ class UsersController {
                 (0, responseHelpers_1.sendError)(res, 'User with this email already exists', 400);
             }
             else {
-                next(error);
+                return next(error);
             }
         }
     };
@@ -250,7 +250,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Update user error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     deleteUser = async (req, res, next) => {
@@ -274,7 +274,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Delete user error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     resetPassword = async (req, res, next) => {
@@ -292,7 +292,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Reset password error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     getUsersByRole = async (req, res, next) => {
@@ -317,7 +317,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Get users by role error', { error: error.message, role: req.params.role });
-            next(error);
+            return next(error);
         }
     };
     updateLastLogin = async (req, res, next) => {
@@ -338,7 +338,7 @@ class UsersController {
                 (0, responseHelpers_1.sendNotFound)(res, 'User not found');
             }
             else {
-                next(error);
+                return next(error);
             }
         }
     };
@@ -359,7 +359,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Bulk remove users error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     removeAllUsersByRole = async (req, res, next) => {
@@ -375,7 +375,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Remove all users by role error', { error: error.message, role: req.params.role });
-            next(error);
+            return next(error);
         }
     };
     getUserStats = async (req, res, next) => {
@@ -387,7 +387,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Get user stats error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     uploadUserImage = async (req, res, next) => {
@@ -431,7 +431,7 @@ class UsersController {
         }
         catch (error) {
             log.error('Upload user image error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     importUsersFromCSV = async (req, res, next) => {
@@ -439,7 +439,7 @@ class UsersController {
             return this.bulkUploadUsers(req, res, next);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCSVTemplate = async (req, res, next) => {
@@ -447,7 +447,7 @@ class UsersController {
             return this.getBulkUploadTemplate(req, res, next);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateUserRoleFields = async (req, res, next) => {
@@ -539,7 +539,7 @@ class UsersController {
         catch (error) {
             const log = (0, logger_1.createRequestLogger)(req, 'users');
             log.error('Update user role fields error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     uploadUserBioFile = async (req, res, next) => {
@@ -616,7 +616,7 @@ class UsersController {
         catch (error) {
             const log = (0, logger_1.createRequestLogger)(req, 'users');
             log.error('Upload user bio file error', { error: error.message, userId: req.params.id });
-            next(error);
+            return next(error);
         }
     };
     bulkUploadUsers = async (req, res, next) => {
@@ -894,7 +894,7 @@ class UsersController {
         catch (error) {
             const log = (0, logger_1.createRequestLogger)(req, 'users');
             log.error('Bulk upload error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
     parseCSVLine(line) {
@@ -945,7 +945,7 @@ class UsersController {
         catch (error) {
             const log = (0, logger_1.createRequestLogger)(req, 'users');
             log.error('Bulk delete failed', { error: error.message, stack: error.stack });
-            next(error);
+            return next(error);
         }
     };
     getBulkUploadTemplate = async (req, res, next) => {
@@ -1011,7 +1011,7 @@ class UsersController {
         catch (error) {
             const log = (0, logger_1.createRequestLogger)(req, 'users');
             log.error('Get bulk upload template error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

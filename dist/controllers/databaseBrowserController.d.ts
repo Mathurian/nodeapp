@@ -3,8 +3,8 @@ export declare class DatabaseBrowserController {
     private databaseBrowserService;
     private prisma;
     constructor();
-    getTables: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<string[]>, Record<string, any>>>;
-    getTableData: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getTables: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<string[]>, Record<string, any>>>;
+    getTableData: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         table: string;
         data: any;
         pagination: {
@@ -14,15 +14,15 @@ export declare class DatabaseBrowserController {
             pages: number;
         };
     }>, Record<string, any>>>;
-    getTableSchema: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getTableSchema: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         table: string;
         message: string;
     }>, Record<string, any>>>;
     executeQuery: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     getQueryHistory: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getTables: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<string[]>, Record<string, any>>>;
-export declare const getTableData: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getTables: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<string[]>, Record<string, any>>>;
+export declare const getTableData: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     table: string;
     data: any;
     pagination: {
@@ -32,7 +32,7 @@ export declare const getTableData: (req: Request, res: Response, next: NextFunct
         pages: number;
     };
 }>, Record<string, any>>>;
-export declare const getTableSchema: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getTableSchema: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     table: string;
     message: string;
 }>, Record<string, any>>>;

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-// exec imported but not used
+import { exec } from 'child_process';
 
 
 class ScheduledBackupService {

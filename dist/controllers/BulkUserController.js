@@ -209,7 +209,7 @@ let BulkUserController = class BulkUserController {
             });
         }
     }
-    async getImportTemplate(req, res) {
+    async getImportTemplate(_req, res) {
         try {
             const template = this.csvService.generateTemplate('users');
             res.setHeader('Content-Type', 'text/csv');

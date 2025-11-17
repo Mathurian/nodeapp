@@ -64,10 +64,10 @@ class BackupTransferService {
                     result = await this.uploadToS3(filepath, target, checksum);
                     break;
                 case 'ftp':
-                    result = await this.uploadToFTP(filepath, target, checksum);
+                    result = await this.uploadToFTP(filepath, target);
                     break;
                 case 'sftp':
-                    result = await this.uploadToSFTP(filepath, target, checksum);
+                    result = await this.uploadToSFTP(filepath, target);
                     break;
                 case 'azure':
                     result = await this.uploadToAzure(filepath, target, checksum);
@@ -153,7 +153,7 @@ class BackupTransferService {
             remotePath: `s3://${bucket}/${key}`
         };
     }
-    static async uploadToFTP(filepath, target, checksum) {
+    static async uploadToFTP(filepath, target) {
         const { host, port = 21, user, password, remotePath = '/' } = target.config;
         const client = new basic_ftp_1.Client();
         client.ftp.verbose = false;
@@ -189,7 +189,7 @@ class BackupTransferService {
             client.close();
         }
     }
-    static async uploadToSFTP(filepath, target, checksum) {
+    static async uploadToSFTP(filepath, target) {
         const { host, port = 22, username, password, privateKey, remotePath = '/' } = target.config;
         const client = new ssh2_sftp_client_1.default();
         try {

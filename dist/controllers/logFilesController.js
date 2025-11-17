@@ -9,13 +9,13 @@ class LogFilesController {
     constructor() {
         this.logFilesService = container_1.container.resolve(LogFilesService_1.LogFilesService);
     }
-    getLogFiles = async (req, res, next) => {
+    getLogFiles = async (_req, res, next) => {
         try {
             const result = await this.logFilesService.getLogFiles();
             return (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getLogFileContents = async (req, res, next) => {
@@ -26,7 +26,7 @@ class LogFilesController {
             return (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     downloadLogFile = async (req, res, next) => {
@@ -36,7 +36,7 @@ class LogFilesController {
             res.download(filePath, filename);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     cleanupOldLogs = async (req, res, next) => {
@@ -46,7 +46,7 @@ class LogFilesController {
             return (0, responseHelpers_1.sendSuccess)(res, result, `Deleted ${result.deletedCount} log file(s)`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteLogFile = async (req, res, next) => {
@@ -56,7 +56,7 @@ class LogFilesController {
             return (0, responseHelpers_1.sendSuccess)(res, null, `Log file "${filename}" deleted successfully`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

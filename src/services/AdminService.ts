@@ -26,8 +26,6 @@ export class AdminService extends BaseService {
         totalCategories,
         totalScores,
         activeUsers,
-        // contests,
-        // categories,
         lastBackupRecord
       ] = await Promise.all([
         this.prisma.user.count(),
@@ -35,21 +33,12 @@ export class AdminService extends BaseService {
         this.prisma.contest.count(),
         this.prisma.category.count(),
         this.prisma.score.count(),
-        this.prisma.user.count({ 
-          where: { 
-            lastLoginAt: { 
-              gte: new Date(Date.now() - 24 * 60 * 60 * 1000) 
-            } 
-          } 
-        }),
-        this.prisma.contest.findMany({
-          include: {
-            categories: true
-            // certifications include removed - not in schema
+        this.prisma.user.count({
+          where: {
+            lastLoginAt: {
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+            }
           }
-        }),
-        this.prisma.category.findMany({
-          // certifications include removed - not in schema
         }),
         this.prisma.backupLog.findFirst({
           where: { status: 'COMPLETED' },

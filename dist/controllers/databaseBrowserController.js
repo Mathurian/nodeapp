@@ -11,13 +11,13 @@ class DatabaseBrowserController {
         this.databaseBrowserService = container_1.container.resolve(DatabaseBrowserService_1.DatabaseBrowserService);
         this.prisma = container_1.container.resolve('PrismaClient');
     }
-    getTables = async (req, res, next) => {
+    getTables = async (_req, res, next) => {
         try {
             const tables = await this.databaseBrowserService.getTables();
             return (0, responseHelpers_1.sendSuccess)(res, tables);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTableData = async (req, res, next) => {
@@ -28,7 +28,7 @@ class DatabaseBrowserController {
             return (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTableSchema = async (req, res, next) => {
@@ -38,7 +38,7 @@ class DatabaseBrowserController {
             return (0, responseHelpers_1.sendSuccess)(res, schema);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     executeQuery = async (req, res, next) => {
@@ -67,7 +67,7 @@ class DatabaseBrowserController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getQueryHistory = async (req, res, next) => {
@@ -109,7 +109,7 @@ class DatabaseBrowserController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

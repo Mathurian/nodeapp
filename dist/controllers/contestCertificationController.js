@@ -16,7 +16,7 @@ class ContestCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, progress);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyContest = async (req, res, next) => {
@@ -26,7 +26,7 @@ class ContestCertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Contest certified successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

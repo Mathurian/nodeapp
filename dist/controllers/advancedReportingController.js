@@ -18,7 +18,7 @@ class AdvancedReportingController {
             return (0, responseHelpers_1.sendSuccess)(res, report);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateSummaryReport = async (req, res, next) => {
@@ -28,7 +28,7 @@ class AdvancedReportingController {
             return (0, responseHelpers_1.sendSuccess)(res, report);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateEventReport = async (req, res, next) => {
@@ -119,7 +119,7 @@ class AdvancedReportingController {
             return (0, responseHelpers_1.sendSuccess)(res, report);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateJudgePerformanceReport = async (req, res, next) => {
@@ -219,7 +219,7 @@ class AdvancedReportingController {
             return (0, responseHelpers_1.sendSuccess)(res, report);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateSystemAnalyticsReport = async (req, res, next) => {
@@ -304,7 +304,7 @@ class AdvancedReportingController {
             return (0, responseHelpers_1.sendSuccess)(res, report);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     generateContestResultsReport = async (req, res, next) => {
@@ -426,7 +426,7 @@ class AdvancedReportingController {
             return (0, responseHelpers_1.sendSuccess)(res, report);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

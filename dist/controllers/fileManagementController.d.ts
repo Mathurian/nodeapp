@@ -3,17 +3,17 @@ export declare class FileManagementController {
     private fileManagementService;
     private prisma;
     constructor();
-    getFileInfo: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getFileInfo: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         name: string;
         size: number;
         created: Date;
         modified: Date;
     }>, Record<string, any>>>;
-    moveFile: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    moveFile: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         success: boolean;
         newPath: string;
     }>, Record<string, any>>>;
-    copyFile: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    copyFile: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         success: boolean;
         newPath: string;
     }>, Record<string, any>>>;
@@ -24,17 +24,17 @@ export declare class FileManagementController {
     checkFileIntegrity: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     bulkCheckFileIntegrity: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getFileInfo: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getFileInfo: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     name: string;
     size: number;
     created: Date;
     modified: Date;
 }>, Record<string, any>>>;
-export declare const moveFile: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const moveFile: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     success: boolean;
     newPath: string;
 }>, Record<string, any>>>;
-export declare const copyFile: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const copyFile: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     success: boolean;
     newPath: string;
 }>, Record<string, any>>>;

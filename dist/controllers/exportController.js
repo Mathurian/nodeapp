@@ -20,7 +20,7 @@ class ExportController {
             (0, responseHelpers_1.sendSuccess)(res, { filepath }, 'Event exported to Excel successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportContestResultsToCSV = async (req, res, next) => {
@@ -34,7 +34,7 @@ class ExportController {
             (0, responseHelpers_1.sendSuccess)(res, { filepath }, 'Contest results exported to CSV successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportJudgePerformanceToXML = async (req, res, next) => {
@@ -48,7 +48,7 @@ class ExportController {
             (0, responseHelpers_1.sendSuccess)(res, { filepath }, 'Judge performance exported to XML successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     exportSystemAnalyticsToPDF = async (req, res, next) => {
@@ -58,7 +58,7 @@ class ExportController {
             (0, responseHelpers_1.sendSuccess)(res, { filepath }, 'System analytics exported to PDF successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getExportHistory = async (req, res, next) => {
@@ -69,7 +69,7 @@ class ExportController {
             (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

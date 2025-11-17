@@ -23,7 +23,7 @@ class TestEventSetupController {
         }
         catch (error) {
             log.error('Create test event error', { error: error.message });
-            next(error);
+            return next(error);
         }
     };
 }

@@ -18,7 +18,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, status);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyAll = async (req, res, next) => {
@@ -28,7 +28,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'All categories certified');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getAllCertifications = async (req, res, next) => {
@@ -70,7 +70,7 @@ class CertificationController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createCertification = async (req, res, next) => {
@@ -122,7 +122,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Certification created successfully', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateCertification = async (req, res, next) => {
@@ -149,7 +149,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Certification updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteCertification = async (req, res, next) => {
@@ -167,7 +167,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, {}, 'Certification deleted successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCertificationById = async (req, res, next) => {
@@ -182,7 +182,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, certification);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyJudge = async (req, res, next) => {
@@ -210,7 +210,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Judge certification completed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyTally = async (req, res, next) => {
@@ -241,7 +241,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Tally Master certification completed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     certifyAuditor = async (req, res, next) => {
@@ -272,7 +272,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Auditor certification completed successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     approveBoard = async (req, res, next) => {
@@ -304,7 +304,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Board approval completed - Certification finalized');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     rejectCertification = async (req, res, next) => {
@@ -334,7 +334,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, updated, 'Certification rejected');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCertificationStats = async (req, res, next) => {
@@ -380,7 +380,7 @@ class CertificationController {
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

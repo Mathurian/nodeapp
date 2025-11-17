@@ -564,7 +564,7 @@ class DRAutomationService {
         }
         return new Date(now.getTime() + 24 * 60 * 60 * 1000);
     }
-    static async replicateToTargets(backupId, filepath, targetIds) {
+    static async replicateToTargets(_backupId, filepath, targetIds) {
         try {
             const targets = await database_1.default.backupTarget.findMany({
                 where: {

@@ -3,7 +3,7 @@ export declare class PerformanceController {
     private performanceService;
     constructor();
     logPerformance: (req: Request, res: Response, next: NextFunction) => void;
-    getPerformanceStats: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getPerformanceStats: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         timeRange: "1h" | "24h" | "7d" | "30d";
         totalRequests: number;
         averageResponseTime: number;
@@ -32,7 +32,7 @@ export declare class PerformanceController {
         })[];
         errorRate: string;
     }>, Record<string, any>>>;
-    getSystemMetrics: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getSystemMetrics: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         timestamp: string;
         process: {
             pid: number;
@@ -68,19 +68,19 @@ export declare class PerformanceController {
             error?: string;
         };
     }>, Record<string, any>>>;
-    getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         logs: {
             id: string;
             tenantId: string | null;
             createdAt: Date;
-            eventId: string | null;
             categoryId: string | null;
+            eventId: string | null;
             contestId: string | null;
             userId: string | null;
-            method: string;
-            userAgent: string | null;
             ipAddress: string | null;
+            userAgent: string | null;
             endpoint: string;
+            method: string;
             responseTime: number;
             statusCode: number;
         }[];
@@ -91,14 +91,14 @@ export declare class PerformanceController {
             pages: number;
         };
     }>, Record<string, any>>>;
-    clearPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    clearPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         message: string;
         count: number;
     }>, Record<string, any>>>;
-    getHealthCheck: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>>>;
+    getHealthCheck: (_req: Request, res: Response, _next: NextFunction) => Promise<Response<any, Record<string, any>>>;
 }
 export declare const logPerformance: (req: Request, res: Response, next: NextFunction) => void;
-export declare const getPerformanceStats: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getPerformanceStats: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     timeRange: "1h" | "24h" | "7d" | "30d";
     totalRequests: number;
     averageResponseTime: number;
@@ -127,7 +127,7 @@ export declare const getPerformanceStats: (req: Request, res: Response, next: Ne
     })[];
     errorRate: string;
 }>, Record<string, any>>>;
-export declare const getSystemMetrics: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getSystemMetrics: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     timestamp: string;
     process: {
         pid: number;
@@ -163,19 +163,19 @@ export declare const getSystemMetrics: (req: Request, res: Response, next: NextF
         error?: string;
     };
 }>, Record<string, any>>>;
-export declare const getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     logs: {
         id: string;
         tenantId: string | null;
         createdAt: Date;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         userId: string | null;
-        method: string;
-        userAgent: string | null;
         ipAddress: string | null;
+        userAgent: string | null;
         endpoint: string;
+        method: string;
         responseTime: number;
         statusCode: number;
     }[];
@@ -186,9 +186,9 @@ export declare const getPerformanceLogs: (req: Request, res: Response, next: Nex
         pages: number;
     };
 }>, Record<string, any>>>;
-export declare const clearPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const clearPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     message: string;
     count: number;
 }>, Record<string, any>>>;
-export declare const getHealthCheck: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>>>;
+export declare const getHealthCheck: (_req: Request, res: Response, _next: NextFunction) => Promise<Response<any, Record<string, any>>>;
 //# sourceMappingURL=performanceController.d.ts.map

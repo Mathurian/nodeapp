@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUserFileAccess = exports.checkSharingPermission = exports.checkUploadPermission = exports.getRoleFilePermissions = exports.checkFilePermission = exports.checkFileAccess = void 0;
-const { PrismaClient } = require('@prisma/client');
 const prisma = require('../utils/prisma');
 const checkFileAccess = (requiredPermission = 'READ') => {
     return async (req, res, next) => {

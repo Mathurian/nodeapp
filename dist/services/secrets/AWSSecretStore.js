@@ -65,7 +65,7 @@ class AWSSecretStore {
     }
     async set(key, value, expiresAt) {
         try {
-            const { CreateSecretCommand, UpdateSecretCommand, ResourceExistsException, } = require('@aws-sdk/client-secrets-manager');
+            const { CreateSecretCommand, UpdateSecretCommand, } = require('@aws-sdk/client-secrets-manager');
             const secretName = this.getSecretName(key);
             const secretValue = JSON.stringify({
                 value,

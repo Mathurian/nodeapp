@@ -13,6 +13,6 @@ export declare class BulkUserController {
     changeUserRoles(req: Request, res: Response): Promise<void>;
     importUsers(req: Request, res: Response): Promise<void>;
     exportUsers(req: Request, res: Response): Promise<void>;
-    getImportTemplate(req: Request, res: Response): Promise<void>;
+    getImportTemplate(_req: Request, res: Response): Promise<void>;
 }
 //# sourceMappingURL=BulkUserController.d.ts.map

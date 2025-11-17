@@ -36,16 +36,16 @@ class PerformanceController {
             return (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getSystemMetrics = async (req, res, next) => {
+    getSystemMetrics = async (_req, res, next) => {
         try {
             const metrics = await this.performanceService.getSystemMetrics();
             return (0, responseHelpers_1.sendSuccess)(res, metrics);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getPerformanceLogs = async (req, res, next) => {
@@ -66,7 +66,7 @@ class PerformanceController {
             return (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     clearPerformanceLogs = async (req, res, next) => {
@@ -76,10 +76,10 @@ class PerformanceController {
             return (0, responseHelpers_1.sendSuccess)(res, result, result.message);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getHealthCheck = async (req, res, next) => {
+    getHealthCheck = async (_req, res, _next) => {
         try {
             const health = await this.performanceService.getHealthCheck();
             const statusCode = health.status === 'healthy' ? 200 : 503;

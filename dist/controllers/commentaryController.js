@@ -23,7 +23,7 @@ class CommentaryController {
             return (0, responseHelpers_1.sendSuccess)(res, scoreComment, 'Comment created', 201);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCommentsForScore = async (req, res, next) => {
@@ -33,7 +33,7 @@ class CommentaryController {
             return (0, responseHelpers_1.sendSuccess)(res, comments);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getCommentsByContestant = async (req, res, next) => {
@@ -43,7 +43,7 @@ class CommentaryController {
             return (0, responseHelpers_1.sendSuccess)(res, comments);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateComment = async (req, res, next) => {
@@ -54,7 +54,7 @@ class CommentaryController {
             return (0, responseHelpers_1.sendSuccess)(res, updatedComment, 'Comment updated');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteComment = async (req, res, next) => {
@@ -64,7 +64,7 @@ class CommentaryController {
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Comment deleted');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

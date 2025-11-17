@@ -20,7 +20,7 @@ class BioController {
             return (0, responseHelpers_1.sendSuccess)(res, contestants);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getJudgeBios = async (req, res, next) => {
@@ -34,7 +34,7 @@ class BioController {
             return (0, responseHelpers_1.sendSuccess)(res, judges);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateContestantBio = async (req, res, next) => {
@@ -52,7 +52,7 @@ class BioController {
             return (0, responseHelpers_1.sendSuccess)(res, contestant, 'Contestant bio updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateJudgeBio = async (req, res, next) => {
@@ -70,7 +70,7 @@ class BioController {
             return (0, responseHelpers_1.sendSuccess)(res, judge, 'Judge bio updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

@@ -15,7 +15,7 @@ class TemplatesController {
             (0, responseHelpers_1.sendSuccess)(res, templates, 'Templates retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getTemplateById = async (req, res, next) => {
@@ -25,7 +25,7 @@ class TemplatesController {
             (0, responseHelpers_1.sendSuccess)(res, template, 'Template retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     createTemplate = async (req, res, next) => {
@@ -39,7 +39,7 @@ class TemplatesController {
             (0, responseHelpers_1.sendCreated)(res, template, 'Template created successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateTemplate = async (req, res, next) => {
@@ -54,7 +54,7 @@ class TemplatesController {
             (0, responseHelpers_1.sendSuccess)(res, template, 'Template updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     deleteTemplate = async (req, res, next) => {
@@ -64,7 +64,7 @@ class TemplatesController {
             (0, responseHelpers_1.sendNoContent)(res);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     duplicateTemplate = async (req, res, next) => {
@@ -74,7 +74,7 @@ class TemplatesController {
             (0, responseHelpers_1.sendCreated)(res, template, 'Template duplicated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

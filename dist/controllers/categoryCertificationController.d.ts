@@ -3,7 +3,7 @@ export declare class CategoryCertificationController {
     private categoryCertificationService;
     private prisma;
     constructor();
-    getCategoryCertificationProgress: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    getCategoryCertificationProgress: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         categoryId: string;
         judgeProgress: {
             contestantsCertified: number;
@@ -20,7 +20,7 @@ export declare class CategoryCertificationController {
             isCategoryCertified: boolean;
         };
     }>, Record<string, any>>>;
-    certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+    certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
         role: string;
         categoryId: string;
@@ -32,7 +32,7 @@ export declare class CategoryCertificationController {
     certifyContestant: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     certifyJudgeScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
-export declare const getCategoryCertificationProgress: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getCategoryCertificationProgress: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     categoryId: string;
     judgeProgress: {
         contestantsCertified: number;
@@ -49,7 +49,7 @@ export declare const getCategoryCertificationProgress: (req: Request, res: Respo
         isCategoryCertified: boolean;
     };
 }>, Record<string, any>>>;
-export declare const certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
     role: string;
     categoryId: string;

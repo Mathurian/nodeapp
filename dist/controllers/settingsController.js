@@ -9,25 +9,25 @@ class SettingsController {
     constructor() {
         this.settingsService = container_1.container.resolve(SettingsService_1.SettingsService);
     }
-    getAllSettings = async (req, res, next) => {
+    getAllSettings = async (_req, res, next) => {
         try {
             const settings = await this.settingsService.getAllSettings();
             res.json(settings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getSettings = async (req, res, next) => {
+    getSettings = async (_req, res, next) => {
         try {
             const settings = await this.settingsService.getAllSettings();
             res.json(settings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getAppName = async (req, res, next) => {
+    getAppName = async (_req, res, _next) => {
         try {
             const appNameSettings = await this.settingsService.getAppName();
             res.json({ data: appNameSettings });
@@ -36,13 +36,13 @@ class SettingsController {
             res.json({ data: { appName: 'Event Manager', appSubtitle: '' } });
         }
     };
-    getPublicSettings = async (req, res, next) => {
+    getPublicSettings = async (_req, res, next) => {
         try {
             const publicSettings = await this.settingsService.getPublicSettings();
             res.json(publicSettings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateSettings = async (req, res, next) => {
@@ -53,7 +53,7 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     testSettings = async (req, res, next) => {
@@ -69,16 +69,16 @@ class SettingsController {
             }
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getLoggingLevels = async (req, res, next) => {
+    getLoggingLevels = async (_req, res, next) => {
         try {
             const loggingLevels = await this.settingsService.getLoggingLevels();
             res.json(loggingLevels);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateLoggingLevel = async (req, res, next) => {
@@ -89,16 +89,16 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, setting, 'Logging level updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getSecuritySettings = async (req, res, next) => {
+    getSecuritySettings = async (_req, res, next) => {
         try {
             const securitySettings = await this.settingsService.getSecuritySettings();
             res.json(securitySettings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateSecuritySettings = async (req, res, next) => {
@@ -109,16 +109,16 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Security settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getBackupSettings = async (req, res, next) => {
+    getBackupSettings = async (_req, res, next) => {
         try {
             const backupSettings = await this.settingsService.getBackupSettings();
             res.json(backupSettings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateBackupSettings = async (req, res, next) => {
@@ -129,16 +129,16 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Backup settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getEmailSettings = async (req, res, next) => {
+    getEmailSettings = async (_req, res, next) => {
         try {
             const emailSettings = await this.settingsService.getEmailSettings();
             res.json(emailSettings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateEmailSettings = async (req, res, next) => {
@@ -149,16 +149,16 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Email settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getPasswordPolicy = async (req, res, next) => {
+    getPasswordPolicy = async (_req, res, next) => {
         try {
             const passwordPolicy = await this.settingsService.getPasswordPolicy();
             res.json(passwordPolicy);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updatePasswordPolicy = async (req, res, next) => {
@@ -169,16 +169,16 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Password policy updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getJWTConfig = async (req, res, next) => {
+    getJWTConfig = async (_req, res, next) => {
         try {
             const jwtConfig = await this.settingsService.getJWTConfig();
             res.json(jwtConfig);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateJWTConfig = async (req, res, next) => {
@@ -189,16 +189,16 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'JWT configuration updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getThemeSettings = async (req, res, next) => {
+    getThemeSettings = async (_req, res, next) => {
         try {
             const themeSettings = await this.settingsService.getThemeSettings();
             res.json(themeSettings);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateThemeSettings = async (req, res, next) => {
@@ -209,7 +209,7 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Theme settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     uploadThemeLogo = async (req, res, next) => {
@@ -225,7 +225,7 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { logoPath }, 'Logo uploaded successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     uploadThemeFavicon = async (req, res, next) => {
@@ -241,19 +241,19 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { faviconPath }, 'Favicon uploaded successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getDatabaseConnectionInfo = async (req, res, next) => {
+    getDatabaseConnectionInfo = async (_req, res, next) => {
         try {
             const info = await this.settingsService.getDatabaseConnectionInfo();
             res.json(info);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
-    getContestantVisibilitySettings = async (req, res, next) => {
+    getContestantVisibilitySettings = async (_req, res, next) => {
         try {
             const visibilitySettings = await this.settingsService.getContestantVisibilitySettings();
             const transformed = {
@@ -265,7 +265,7 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, transformed, 'Contestant visibility settings retrieved successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     updateContestantVisibilitySettings = async (req, res, next) => {
@@ -276,7 +276,7 @@ class SettingsController {
             (0, responseHelpers_1.successResponse)(res, { updatedCount }, 'Contestant visibility settings updated successfully');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

@@ -53,7 +53,7 @@ class FileManagementController {
             return (0, responseHelpers_1.sendSuccess)(res, info);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     moveFile = async (req, res, next) => {
@@ -64,7 +64,7 @@ class FileManagementController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'File moved');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     copyFile = async (req, res, next) => {
@@ -75,7 +75,7 @@ class FileManagementController {
             return (0, responseHelpers_1.sendSuccess)(res, result, 'File copied');
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getFilesWithFilters = async (req, res, next) => {
@@ -155,7 +155,7 @@ class FileManagementController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkFileOperations = async (req, res, next) => {
@@ -224,7 +224,7 @@ class FileManagementController {
             return (0, responseHelpers_1.sendSuccess)(res, result, `Bulk ${operation} operation completed`);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getFileSearchSuggestions = async (req, res, next) => {
@@ -256,7 +256,7 @@ class FileManagementController {
             return (0, responseHelpers_1.sendSuccess)(res, suggestions);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     getFileAnalytics = async (req, res, next) => {
@@ -324,7 +324,7 @@ class FileManagementController {
             return (0, responseHelpers_1.sendSuccess)(res, analytics);
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     checkFileIntegrity = async (req, res, next) => {
@@ -374,7 +374,7 @@ class FileManagementController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
     bulkCheckFileIntegrity = async (req, res, next) => {
@@ -448,7 +448,7 @@ class FileManagementController {
             });
         }
         catch (error) {
-            next(error);
+            return next(error);
         }
     };
 }

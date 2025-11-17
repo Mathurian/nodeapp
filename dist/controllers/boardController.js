@@ -17,7 +17,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Get board stats error', error);
-            next(error);
+            return next(error);
         }
     };
     getCertifications = async (req, res, next) => {
@@ -28,7 +28,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Get certifications error', error);
-            next(error);
+            return next(error);
         }
     };
     approveCertification = async (req, res, next) => {
@@ -44,7 +44,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Approve certification error', error);
-            next(error);
+            return next(error);
         }
     };
     rejectCertification = async (req, res, next) => {
@@ -61,7 +61,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Reject certification error', error);
-            next(error);
+            return next(error);
         }
     };
     getCertificationStatus = async (req, res, next) => {
@@ -72,7 +72,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Get certification status error', error);
-            next(error);
+            return next(error);
         }
     };
     getEmceeScripts = async (req, res, next) => {
@@ -83,7 +83,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Get emcee scripts error', error);
-            next(error);
+            return next(error);
         }
     };
     createEmceeScript = async (req, res, next) => {
@@ -110,7 +110,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Create emcee script error', error);
-            next(error);
+            return next(error);
         }
     };
     updateEmceeScript = async (req, res, next) => {
@@ -137,7 +137,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Update emcee script error', error);
-            next(error);
+            return next(error);
         }
     };
     deleteEmceeScript = async (req, res, next) => {
@@ -153,7 +153,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Delete emcee script error', error);
-            next(error);
+            return next(error);
         }
     };
     generateReport = async (req, res, next) => {
@@ -165,7 +165,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Generate report error', error);
-            next(error);
+            return next(error);
         }
     };
     getScoreRemovalRequests = async (req, res, next) => {
@@ -179,7 +179,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Get score removal requests error', error);
-            next(error);
+            return next(error);
         }
     };
     approveScoreRemoval = async (req, res, next) => {
@@ -197,7 +197,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Approve score removal error', error);
-            next(error);
+            return next(error);
         }
     };
     rejectScoreRemoval = async (req, res, next) => {
@@ -215,7 +215,7 @@ class BoardController {
         }
         catch (error) {
             log.error('Reject score removal error', error);
-            next(error);
+            return next(error);
         }
     };
 }

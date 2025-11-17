@@ -4,7 +4,7 @@ exports.CacheAdminController = void 0;
 const RedisCacheService_1 = require("../services/RedisCacheService");
 const redis_config_1 = require("../config/redis.config");
 class CacheAdminController {
-    static async getStatistics(req, res) {
+    static async getStatistics(_req, res) {
         try {
             const cacheService = (0, RedisCacheService_1.getCacheService)();
             const stats = await cacheService.getStatistics();
@@ -21,7 +21,7 @@ class CacheAdminController {
             });
         }
     }
-    static async healthCheck(req, res) {
+    static async healthCheck(_req, res) {
         try {
             const cacheService = (0, RedisCacheService_1.getCacheService)();
             const isHealthy = await cacheService.healthCheck();
@@ -71,7 +71,7 @@ class CacheAdminController {
             });
         }
     }
-    static async clearAll(req, res) {
+    static async clearAll(_req, res) {
         try {
             const cacheService = (0, RedisCacheService_1.getCacheService)();
             const success = await cacheService.clear();
@@ -140,7 +140,7 @@ class CacheAdminController {
             });
         }
     }
-    static async warmCache(req, res) {
+    static async warmCache(_req, res) {
         try {
             res.json({
                 success: true,
@@ -155,7 +155,7 @@ class CacheAdminController {
             });
         }
     }
-    static async resetStatistics(req, res) {
+    static async resetStatistics(_req, res) {
         try {
             const cacheService = (0, RedisCacheService_1.getCacheService)();
             cacheService.resetStatistics();
