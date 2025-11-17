@@ -27,7 +27,14 @@ class AuthController {
                 email: result.user.email,
                 role: result.user.role
             });
-            return (0, responseHelpers_1.sendSuccess)(res, result, 'Login successful');
+            res.cookie('access_token', result.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 24 * 60 * 60 * 1000,
+                path: '/',
+            });
+            return (0, responseHelpers_1.sendSuccess)(res, { user: result.user }, 'Login successful');
         }
         catch (error) {
             log.error('Login error', {
@@ -203,6 +210,12 @@ class AuthController {
                 }
                 log.info('User logged out successfully', { userId });
             }
+            res.clearCookie('access_token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/',
+            });
             return (0, responseHelpers_1.sendSuccess)(res, {}, 'Logged out successfully');
         }
         catch (error) {

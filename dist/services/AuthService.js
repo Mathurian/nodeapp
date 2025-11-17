@@ -24,6 +24,7 @@ const node_cache_1 = __importDefault(require("node-cache"));
 const client_1 = require("@prisma/client");
 const permissions_1 = require("../middleware/permissions");
 const cache_1 = require("../utils/cache");
+const passwordValidator_1 = require("../utils/passwordValidator");
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const RESET_TOKEN_TTL_SECONDS = 10 * 60;
@@ -174,6 +175,22 @@ let AuthService = class AuthService {
         if (!userId) {
             throw new Error('Invalid or expired reset token');
         }
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId }
+        });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        const validation = (0, passwordValidator_1.validatePassword)(newPassword);
+        if (!validation.isValid) {
+            throw new Error(`Password does not meet complexity requirements: ${validation.errors.join(', ')}`);
+        }
+        if ((0, passwordValidator_1.isPasswordSimilarToUserInfo)(newPassword, {
+            name: user.name,
+            email: user.email
+        })) {
+            throw new Error('Password is too similar to your personal information');
+        }
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         await this.prisma.user.update({
             where: { id: userId },
@@ -194,6 +211,19 @@ let AuthService = class AuthService {
         }
         if (!await bcryptjs_1.default.compare(currentPassword, user.password)) {
             throw new Error('Current password is incorrect');
+        }
+        const validation = (0, passwordValidator_1.validatePassword)(newPassword);
+        if (!validation.isValid) {
+            throw new Error(`Password does not meet complexity requirements: ${validation.errors.join(', ')}`);
+        }
+        if ((0, passwordValidator_1.isPasswordSimilarToUserInfo)(newPassword, {
+            name: user.name,
+            email: user.email
+        })) {
+            throw new Error('Password is too similar to your personal information');
+        }
+        if (await bcryptjs_1.default.compare(newPassword, user.password)) {
+            throw new Error('New password must be different from current password');
         }
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         await this.prisma.user.update({
