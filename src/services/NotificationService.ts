@@ -60,9 +60,10 @@ export class NotificationService {
   /**
    * Get notifications for a user
    */
-  async getUserNotifications(userId: string, limit = 50, offset = 0): Promise<Notification[]> {
+  async getUserNotifications(userId: string, tenantId: string, limit = 50, offset = 0): Promise<Notification[]> {
     return this.notificationRepository.findByUser({
       userId,
+      tenantId,
       limit,
       offset,
     });
@@ -71,15 +72,15 @@ export class NotificationService {
   /**
    * Get unread notification count
    */
-  async getUnreadCount(userId: string): Promise<number> {
-    return this.notificationRepository.getUnreadCount(userId);
+  async getUnreadCount(userId: string, tenantId: string): Promise<number> {
+    return this.notificationRepository.getUnreadCount(userId, tenantId);
   }
 
   /**
    * Mark notification as read
    */
-  async markAsRead(id: string, userId: string): Promise<Notification> {
-    const notification = await this.notificationRepository.markAsRead(id, userId);
+  async markAsRead(id: string, userId: string, tenantId: string): Promise<Notification> {
+    const notification = await this.notificationRepository.markAsRead(id, userId, tenantId);
 
     // Emit real-time update
     if (this.io) {
@@ -92,8 +93,8 @@ export class NotificationService {
   /**
    * Mark all notifications as read for a user
    */
-  async markAllAsRead(userId: string): Promise<number> {
-    const count = await this.notificationRepository.markAllAsRead(userId);
+  async markAllAsRead(userId: string, tenantId: string): Promise<number> {
+    const count = await this.notificationRepository.markAllAsRead(userId, tenantId);
 
     // Emit real-time update
     if (this.io) {
@@ -106,8 +107,8 @@ export class NotificationService {
   /**
    * Delete a notification
    */
-  async deleteNotification(id: string, userId: string): Promise<Notification> {
-    const notification = await this.notificationRepository.delete(id, userId);
+  async deleteNotification(id: string, userId: string, tenantId: string): Promise<Notification> {
+    const notification = await this.notificationRepository.delete(id, userId, tenantId);
 
     // Emit real-time update
     if (this.io) {
@@ -120,8 +121,8 @@ export class NotificationService {
   /**
    * Delete old read notifications
    */
-  async cleanupOldNotifications(userId: string, daysOld = 30): Promise<number> {
-    return this.notificationRepository.deleteOldRead(userId, daysOld);
+  async cleanupOldNotifications(userId: string, tenantId: string, daysOld = 30): Promise<number> {
+    return this.notificationRepository.deleteOldRead(userId, tenantId, daysOld);
   }
 
   // ==================== Specific Notification Creators ====================
