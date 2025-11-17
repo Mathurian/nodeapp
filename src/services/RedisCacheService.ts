@@ -8,7 +8,7 @@
  */
 
 import Redis, { RedisOptions } from 'ioredis';
-import { getRedisOptions, getRedisConfig, CacheTTL, CacheNamespace } from '../config/redis.config';
+import { getRedisOptions, getRedisConfig, CacheTTL } from '../config/redis.config';
 
 export interface CacheOptions {
   ttl?: number;

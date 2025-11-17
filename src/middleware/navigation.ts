@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 
-const prisma = require('../utils/prisma')
 
 // Define navigation structure based on roles
 const getNavigationItems = (userRole: string): any[] => {

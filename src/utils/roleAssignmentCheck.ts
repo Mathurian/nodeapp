@@ -4,7 +4,7 @@
  * can only access resources they are assigned to.
  */
 
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma: PrismaClient = require('./prisma');
 

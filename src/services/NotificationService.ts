@@ -4,7 +4,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { Notification, NotificationType } from '@prisma/client';
+import { Notification } from '@prisma/client';
 import { NotificationRepository, CreateNotificationDTO } from '../repositories/NotificationRepository';
 import { Server as SocketIOServer } from 'socket.io';
 

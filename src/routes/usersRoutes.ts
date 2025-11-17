@@ -14,7 +14,6 @@ import {
 import {
   logActivity
 } from '../middleware/errorHandler';
-import { maxFileSize } from '../utils/config';
 import { prisma } from '../utils/prisma';
 
 const router: Router = express.Router();

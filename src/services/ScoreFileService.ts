@@ -7,7 +7,6 @@ import { PrismaClient, ScoreFile } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { promises as fs } from 'fs';
-import * as path from 'path';
 
 export interface UploadScoreFileDTO {
   categoryId: string;
