@@ -146,7 +146,11 @@ model Criterion {
   maxScore   Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  tenantId   String
 
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId])
   @@map("criteria")
 }
 
@@ -167,8 +171,14 @@ model Score {
   isLocked         Boolean   @default(false)
   lockedAt         DateTime?
   lockedBy         String?
+  tenantId         String
 
-  @@unique([categoryId, contestantId, judgeId, criterionId])
+  @@unique([tenantId, categoryId, contestantId, judgeId, criterionId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, categoryId, contestantId])
+  @@index([tenantId, categoryId, judgeId])
+  @@index([tenantId, isCertified, categoryId])
   @@index([categoryId, contestantId])
   @@index([categoryId, judgeId])
   @@index([isCertified, categoryId])
@@ -234,8 +244,12 @@ model JudgeComment {
   judgeId      String
   comment      String?
   createdAt    DateTime @default(now())
+  tenantId     String
 
-  @@unique([categoryId, contestantId, judgeId])
+  @@unique([tenantId, categoryId, contestantId, judgeId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, contestantId, judgeId])
   @@map("judge_comments")
 }
 
@@ -245,8 +259,12 @@ model JudgeCertification {
   judgeId       String
   signatureName String
   certifiedAt   DateTime @default(now())
+  tenantId      String
 
-  @@unique([categoryId, judgeId])
+  @@unique([tenantId, categoryId, judgeId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, judgeId])
   @@map("judge_certifications")
 }
 
@@ -258,8 +276,12 @@ model OverallDeduction {
   reason       String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  tenantId     String
 
-  @@unique([categoryId, contestantId])
+  @@unique([tenantId, categoryId, contestantId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, contestantId])
   @@map("overall_deductions")
 }
 
@@ -303,7 +325,15 @@ model EmceeScript {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   file_path  String?
+  tenantId   String
 
+  @@index([tenantId])
+  @@index([tenantId, eventId])
+  @@index([tenantId, contestId])
+  @@index([tenantId, categoryId])
+  @@index([eventId])
+  @@index([contestId])
+  @@index([categoryId])
   @@map("emcee_scripts")
 }
 
@@ -316,7 +346,11 @@ model ArchivedEvent {
   endDate      DateTime?
   archivedAt   DateTime  @default(now())
   archivedById String
+  tenantId     String
 
+  @@index([tenantId])
+  @@index([tenantId, eventId])
+  @@index([eventId])
   @@map("archived_events")
 }
 
@@ -351,39 +385,60 @@ model JudgeScoreRemovalRequest {
   requestedAt  DateTime      @default(now())
   reviewedAt   DateTime?
   reviewedById String?
+  tenantId     String
 
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+  @@index([categoryId])
   @@map("judge_score_removal_requests")
 }
 
 model ContestContestant {
   contestId    String
   contestantId String
+  tenantId     String
 
   @@id([contestId, contestantId])
+  @@index([tenantId])
+  @@index([tenantId, contestId])
+  @@index([contestId])
   @@map("contest_contestants")
 }
 
 model ContestJudge {
   contestId String
   judgeId   String
+  tenantId  String
 
   @@id([contestId, judgeId])
+  @@index([tenantId])
+  @@index([tenantId, contestId])
+  @@index([contestId])
   @@map("contest_judges")
 }
 
 model CategoryContestant {
   categoryId   String
   contestantId String
+  tenantId     String
 
   @@id([categoryId, contestantId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId])
   @@map("category_contestants")
 }
 
 model CategoryJudge {
   categoryId String
   judgeId    String
+  tenantId   String
 
   @@id([categoryId, judgeId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId])
   @@map("category_judges")
 }
 
@@ -585,8 +640,12 @@ model CategoryCertification {
   signatureName String?
   certifiedAt   DateTime @default(now())
   comments      String?
+  tenantId      String
 
-  @@unique([categoryId, role])
+  @@unique([tenantId, categoryId, role])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, role])
   @@map("category_certifications")
 }
 
@@ -608,8 +667,12 @@ model ContestCertification {
   userId      String
   certifiedAt DateTime @default(now())
   comments    String?
+  tenantId    String
 
-  @@unique([contestId, role])
+  @@unique([tenantId, contestId, role])
+  @@index([tenantId])
+  @@index([tenantId, contestId])
+  @@index([contestId, role])
   @@map("contest_certifications")
 }
 
@@ -653,8 +716,12 @@ model DeductionApproval {
   role         String
   isHeadJudge  Boolean  @default(false)
   approvedAt   DateTime @default(now())
+  tenantId     String
 
-  @@unique([requestId, approvedById])
+  @@unique([tenantId, requestId, approvedById])
+  @@index([tenantId])
+  @@index([tenantId, requestId])
+  @@index([requestId, approvedById])
   @@map("deduction_approvals")
 }
 
@@ -667,7 +734,12 @@ model DeductionRequest {
   requestedById String
   status        DeductionStatus @default(PENDING)
   createdAt     DateTime        @default(now())
+  tenantId      String
 
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+  @@index([categoryId])
   @@map("deduction_requests")
 }
 
@@ -853,7 +925,16 @@ model File {
   eventId      String?
   contestId    String?
   categoryId   String?
+  tenantId     String
 
+  @@index([tenantId])
+  @@index([tenantId, eventId])
+  @@index([tenantId, contestId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, uploadedBy])
+  @@index([eventId])
+  @@index([contestId])
+  @@index([categoryId])
   @@map("files")
 }
 
@@ -864,8 +945,12 @@ model JudgeContestantCertification {
   contestantId String
   certifiedAt  DateTime @default(now())
   comments     String?
+  tenantId     String
 
-  @@unique([categoryId, judgeId, contestantId])
+  @@unique([tenantId, categoryId, judgeId, contestantId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([categoryId, judgeId, contestantId])
   @@map("judge_contestant_certifications")
 }
 
@@ -884,7 +969,12 @@ model JudgeUncertificationRequest {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   status          RequestStatus @default(PENDING)
+  tenantId        String
 
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+  @@index([categoryId])
   @@map("judge_uncertification_requests")
 }
 
@@ -1246,8 +1336,14 @@ model WinnerSignature {
   userAgent  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  tenantId   String
 
-  @@unique([categoryId, userId])
+  @@unique([tenantId, categoryId, userId])
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, contestId])
+  @@index([tenantId, eventId])
+  @@index([categoryId, userId])
   @@map("winner_signatures")
 }
 
@@ -1280,7 +1376,10 @@ model WorkflowStepExecution {
   approvalStatus String?
   comments       String?
   metadata       Json?
+  tenantId       String
 
+  @@index([tenantId])
+  @@index([tenantId, instanceId])
   @@index([instanceId])
   @@index([status])
   @@map("workflow_step_executions")
@@ -1300,7 +1399,10 @@ model WorkflowStep {
   notifyRoles     Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  tenantId        String
 
+  @@index([tenantId])
+  @@index([tenantId, templateId])
   @@index([templateId, stepOrder])
   @@map("workflow_steps")
 }
@@ -1331,7 +1433,10 @@ model WorkflowTransition {
   transitionType String   @default("sequential")
   priority       Int      @default(0)
   createdAt      DateTime @default(now())
+  tenantId       String
 
+  @@index([tenantId])
+  @@index([tenantId, fromStepId])
   @@index([fromStepId])
   @@index([toStepId])
   @@map("workflow_transitions")
