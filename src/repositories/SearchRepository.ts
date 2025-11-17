@@ -9,6 +9,7 @@ import prisma from '../config/database';
 
 export interface CreateSavedSearchDTO {
   userId: string;
+  tenantId: string;
   name: string;
   query: string;
   filters?: Record<string, any>;
@@ -18,6 +19,7 @@ export interface CreateSavedSearchDTO {
 
 export interface CreateSearchHistoryDTO {
   userId: string;
+  tenantId: string;
   query: string;
   filters?: Record<string, any>;
   entityTypes?: string[];
@@ -25,6 +27,7 @@ export interface CreateSearchHistoryDTO {
 }
 
 export interface SearchOptions {
+  tenantId: string;
   query?: string;
   entityTypes?: string[];
   filters?: Record<string, any>;
@@ -54,6 +57,7 @@ export class SearchRepository {
     return this.prismaClient.savedSearch.create({
       data: {
         userId: data.userId,
+        tenantId: data.tenantId,
         name: data.name,
         query: data.query,
         filters: data.filters ? JSON.stringify(data.filters) : null,
@@ -66,12 +70,13 @@ export class SearchRepository {
   /**
    * Get saved searches for user
    */
-  async getSavedSearches(userId: string, includePublic = false): Promise<SavedSearch[]> {
+  async getSavedSearches(userId: string, tenantId: string, includePublic = false): Promise<SavedSearch[]> {
     const where: Prisma.SavedSearchWhereInput = includePublic
       ? {
+          tenantId,
           OR: [{ userId }, { isPublic: true }],
         }
-      : { userId };
+      : { userId, tenantId };
 
     return this.prismaClient.savedSearch.findMany({
       where,
@@ -82,9 +87,15 @@ export class SearchRepository {
   /**
    * Delete saved search
    */
-  async deleteSavedSearch(id: string, userId: string): Promise<SavedSearch> {
+  async deleteSavedSearch(id: string, userId: string, tenantId: string): Promise<SavedSearch> {
+    // Verify it belongs to user and tenant
+    const search = await this.prismaClient.savedSearch.findFirst({
+      where: { id, userId, tenantId },
+    });
+    if (!search) throw new Error('Saved search not found');
+
     return this.prismaClient.savedSearch.delete({
-      where: { id, userId },
+      where: { id },
     });
   }
 
@@ -97,6 +108,7 @@ export class SearchRepository {
     return this.prismaClient.searchHistory.create({
       data: {
         userId: data.userId,
+        tenantId: data.tenantId,
         query: data.query,
         filters: data.filters ? JSON.stringify(data.filters) : null,
         entityTypes: data.entityTypes?.join(','),
@@ -108,9 +120,9 @@ export class SearchRepository {
   /**
    * Get search history for user
    */
-  async getSearchHistory(userId: string, limit = 10): Promise<SearchHistory[]> {
+  async getSearchHistory(userId: string, tenantId: string, limit = 10): Promise<SearchHistory[]> {
     return this.prismaClient.searchHistory.findMany({
-      where: { userId },
+      where: { userId, tenantId },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -119,9 +131,9 @@ export class SearchRepository {
   /**
    * Clear search history for user
    */
-  async clearSearchHistory(userId: string): Promise<number> {
+  async clearSearchHistory(userId: string, tenantId: string): Promise<number> {
     const result = await this.prismaClient.searchHistory.deleteMany({
-      where: { userId },
+      where: { userId, tenantId },
     });
     return result.count;
   }
@@ -197,7 +209,7 @@ export class SearchRepository {
    * Search users
    */
   async searchUsers(options: SearchOptions): Promise<SearchResult[]> {
-    const { query, limit = 20, offset = 0 } = options;
+    const { query, tenantId, limit = 20, offset = 0 } = options;
 
     const users = await this.prismaClient.$queryRaw<any[]>`
       SELECT
@@ -210,6 +222,7 @@ export class SearchRepository {
       FROM users
       WHERE to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(email, ''))
             @@ plainto_tsquery('english', ${query})
+        AND "tenantId" = ${tenantId}
       ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -229,7 +242,7 @@ export class SearchRepository {
    * Search events
    */
   async searchEvents(options: SearchOptions): Promise<SearchResult[]> {
-    const { query, limit = 20, offset = 0 } = options;
+    const { query, tenantId, limit = 20, offset = 0 } = options;
 
     const events = await this.prismaClient.$queryRaw<any[]>`
       SELECT
@@ -244,6 +257,7 @@ export class SearchRepository {
       WHERE to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, ''))
             @@ plainto_tsquery('english', ${query})
         AND archived = false
+        AND "tenantId" = ${tenantId}
       ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -266,7 +280,7 @@ export class SearchRepository {
    * Search contests
    */
   async searchContests(options: SearchOptions): Promise<SearchResult[]> {
-    const { query, limit = 20, offset = 0 } = options;
+    const { query, tenantId, limit = 20, offset = 0 } = options;
 
     const contests = await this.prismaClient.$queryRaw<any[]>`
       SELECT
@@ -281,6 +295,7 @@ export class SearchRepository {
       WHERE to_tsvector('english', COALESCE(c.name, '') || ' ' || COALESCE(c.description, ''))
             @@ plainto_tsquery('english', ${query})
         AND c.archived = false
+        AND c."tenantId" = ${tenantId}
       ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -300,7 +315,7 @@ export class SearchRepository {
    * Search categories
    */
   async searchCategories(options: SearchOptions): Promise<SearchResult[]> {
-    const { query, limit = 20, offset = 0 } = options;
+    const { query, tenantId, limit = 20, offset = 0 } = options;
 
     const categories = await this.prismaClient.$queryRaw<any[]>`
       SELECT
@@ -314,6 +329,7 @@ export class SearchRepository {
       LEFT JOIN contests c ON cat."contestId" = c.id
       WHERE to_tsvector('english', COALESCE(cat.name, '') || ' ' || COALESCE(cat.description, ''))
             @@ plainto_tsquery('english', ${query})
+        AND cat."tenantId" = ${tenantId}
       ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -333,7 +349,7 @@ export class SearchRepository {
    * Search contestants
    */
   async searchContestants(options: SearchOptions): Promise<SearchResult[]> {
-    const { query, limit = 20, offset = 0 } = options;
+    const { query, tenantId, limit = 20, offset = 0 } = options;
 
     const contestants = await this.prismaClient.$queryRaw<any[]>`
       SELECT
@@ -346,6 +362,7 @@ export class SearchRepository {
       FROM contestants
       WHERE to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(email, ''))
             @@ plainto_tsquery('english', ${query})
+        AND "tenantId" = ${tenantId}
       ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -365,7 +382,7 @@ export class SearchRepository {
    * Search judges
    */
   async searchJudges(options: SearchOptions): Promise<SearchResult[]> {
-    const { query, limit = 20, offset = 0 } = options;
+    const { query, tenantId, limit = 20, offset = 0 } = options;
 
     const judges = await this.prismaClient.$queryRaw<any[]>`
       SELECT
@@ -378,6 +395,7 @@ export class SearchRepository {
       FROM judges
       WHERE to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(email, ''))
             @@ plainto_tsquery('english', ${query})
+        AND "tenantId" = ${tenantId}
       ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
