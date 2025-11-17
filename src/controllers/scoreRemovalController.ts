@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ScoreRemovalService } from '../services/ScoreRemovalService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class ScoreRemovalController {
   private scoreRemovalService: ScoreRemovalService;

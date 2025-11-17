@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { RestrictionService } from '../services/RestrictionService';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 
 export class RestrictionController {

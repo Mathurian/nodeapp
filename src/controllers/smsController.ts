@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { SMSService } from '../services/SMSService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class SMSController {

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ContestCertificationService } from '../services/ContestCertificationService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class ContestCertificationController {
   private contestCertificationService: ContestCertificationService;

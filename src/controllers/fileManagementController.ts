@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileManagementService } from '../services/FileManagementService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as path from 'path';
 
 export class FileManagementController {
   private fileManagementService: FileManagementService;

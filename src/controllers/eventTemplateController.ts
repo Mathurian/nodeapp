@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { EventTemplateService } from '../services/EventTemplateService';
-import { successResponse, sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 
 export class EventTemplateController {
   private eventTemplateService: EventTemplateService;

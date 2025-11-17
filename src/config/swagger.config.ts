@@ -7,7 +7,6 @@
  */
 
 import * as swaggerJsdoc from 'swagger-jsdoc';
-import { Application } from 'express';
 
 const options: swaggerJsdoc.Options = {
   definition: {

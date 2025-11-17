@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { TestEventSetupService, TestEventConfig } from '../services/TestEventSetupService';
-import { sendSuccess, sendCreated } from '../utils/responseHelpers';
+import { sendCreated } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 
 export class TestEventSetupController {

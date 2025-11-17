@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ResultsService } from '../services/ResultsService';
-import { successResponse } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { UserRole } from '@prisma/client';
 

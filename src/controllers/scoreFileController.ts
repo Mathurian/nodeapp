@@ -8,7 +8,6 @@ import { container } from 'tsyringe';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { sendSuccess, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
-import * as path from 'path';
 import { promises as fs } from 'fs';
 
 export class ScoreFileController {

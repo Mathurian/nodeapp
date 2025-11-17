@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { DataWipeService } from '../services/DataWipeService';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { sendSuccess } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 
 export class DataWipeController {

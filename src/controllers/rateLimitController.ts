@@ -6,8 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { RateLimitService } from '../services/RateLimitService';
-import { sendSuccess, sendBadRequest, sendUnauthorized } from '../utils/responseHelpers';
-import { requireRole } from '../middleware/auth';
+import { sendSuccess, sendBadRequest } from '../utils/responseHelpers';
 
 export class RateLimitController {
   private rateLimitService: RateLimitService;
