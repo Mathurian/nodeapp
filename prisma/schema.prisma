@@ -1227,8 +1227,12 @@ model ScoreComment {
   isPrivate    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  tenantId     String
 
-  @@unique([scoreId, criterionId, contestantId, judgeId])
+  @@unique([tenantId, scoreId, criterionId, contestantId, judgeId])
+  @@index([tenantId])
+  @@index([tenantId, scoreId])
+  @@index([scoreId, criterionId, contestantId, judgeId])
   @@map("score_comments")
 }
 
@@ -1246,7 +1250,12 @@ model ScoreFile {
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  tenantId     String
 
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+  @@index([tenantId, uploadedById])
   @@index([categoryId])
   @@index([contestantId])
   @@index([judgeId])
@@ -1274,7 +1283,13 @@ model ScoreRemovalRequest {
   boardSignedBy    String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  tenantId         String
 
+  @@index([tenantId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, status])
+  @@index([categoryId])
+  @@index([status])
   @@map("score_removal_requests")
 }
 
@@ -1301,7 +1316,11 @@ model SearchHistory {
   entityTypes String?
   resultCount Int      @default(0)
   createdAt   DateTime @default(now())
+  tenantId    String
 
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, userId, createdAt])
   @@index([userId, createdAt])
   @@map("search_history")
 }
@@ -1333,7 +1352,10 @@ model ThemeSetting {
   logoPath       String?
   faviconPath    String?
   updatedAt      DateTime @updatedAt
+  tenantId       String
 
+  @@unique([tenantId])
+  @@index([tenantId])
   @@map("theme_settings")
 }
 
@@ -1377,7 +1399,11 @@ model WebhookDelivery {
   responseBody   String?
   errorMessage   String?
   createdAt      DateTime  @default(now())
+  tenantId       String
 
+  @@index([tenantId])
+  @@index([tenantId, webhookId])
+  @@index([tenantId, status])
   @@index([createdAt])
   @@index([status])
   @@index([webhookId])
