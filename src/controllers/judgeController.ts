@@ -16,7 +16,7 @@ export class JudgeController {
   getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as any).user;
-      const stats = await this.judgeService.getStats(user.id);
+      const stats = await this.judgeService.getStats(user.id, user.tenantId);
       sendSuccess(res, stats);
     } catch (error) {
       return next(error);
@@ -31,7 +31,8 @@ export class JudgeController {
       const user = (req as any).user;
       const assignments = await this.judgeService.getAssignments(
         user.id,
-        user.role
+        user.role,
+        user.tenantId
       );
       sendSuccess(res, assignments);
     } catch (error) {
@@ -61,7 +62,8 @@ export class JudgeController {
         id,
         status,
         user.id,
-        user.role
+        user.role,
+        user.tenantId
       );
 
       sendSuccess(res, assignment, 'Assignment status updated');
@@ -89,7 +91,8 @@ export class JudgeController {
 
       const scoringData = await this.judgeService.getScoringInterface(
         categoryId,
-        user.id
+        user.id,
+        user.tenantId
       );
 
       sendSuccess(res, scoringData);
@@ -113,6 +116,7 @@ export class JudgeController {
           criterionId,
           score,
           comment,
+          tenantId: user.tenantId
         },
         user.id
       );
@@ -142,7 +146,8 @@ export class JudgeController {
 
       const certificationData = await this.judgeService.getCertificationWorkflow(
         categoryId,
-        user.id
+        user.id,
+        user.tenantId
       );
 
       sendSuccess(res, certificationData);
@@ -170,7 +175,8 @@ export class JudgeController {
 
       const contestants = await this.judgeService.getContestantBios(
         categoryId,
-        user.id
+        user.id,
+        user.tenantId
       );
 
       sendSuccess(res, contestants);
@@ -198,7 +204,8 @@ export class JudgeController {
 
       const contestant = await this.judgeService.getContestantBio(
         contestantId,
-        user.id
+        user.id,
+        user.tenantId
       );
 
       sendSuccess(res, contestant);
@@ -213,7 +220,7 @@ export class JudgeController {
   getJudgeHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as any).user;
-      const result = await this.judgeService.getJudgeHistory(user.id, req.query);
+      const result = await this.judgeService.getJudgeHistory(user.id, user.tenantId, req.query as any);
       sendSuccess(res, result);
     } catch (error) {
       return next(error);
