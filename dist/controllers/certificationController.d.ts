@@ -4,7 +4,7 @@ export declare class CertificationController {
     private prisma;
     constructor();
     getOverallStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        event: string;
+        event: any;
         contests: any[];
     }>, Record<string, any>>>;
     certifyAll: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
@@ -24,7 +24,7 @@ export declare class CertificationController {
     getCertificationStats: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
 export declare const getOverallStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    event: string;
+    event: any;
     contests: any[];
 }>, Record<string, any>>>;
 export declare const certifyAll: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{

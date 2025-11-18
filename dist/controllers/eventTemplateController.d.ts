@@ -10,7 +10,7 @@ export declare class EventTemplateController {
         categories: any;
         createdAt: Date;
     }>, Record<string, any>>>;
-    getTemplates: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
+    getTemplates: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
         name: string;
         description: string;
@@ -56,7 +56,7 @@ export declare const createTemplate: (req: Request, res: Response, next: NextFun
     categories: any;
     createdAt: Date;
 }>, Record<string, any>>>;
-export declare const getTemplates: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
+export declare const getTemplates: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
     name: string;
     description: string;

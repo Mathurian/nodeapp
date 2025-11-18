@@ -8,7 +8,7 @@ export declare class CategoryTypeService extends BaseService {
         isSystem: boolean;
         createdById: string | null;
     }[]>;
-    createCategoryType(name: string, description: string | null, createdById: string, tenantId?: string): Promise<{
+    createCategoryType(name: string, description: string | null, createdById: string, _tenantId?: string): Promise<{
         name: string;
         id: string;
         createdAt: Date;

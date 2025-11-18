@@ -33,42 +33,8 @@ export declare class AdminService extends BaseService {
         success: boolean;
         message: string;
     }>;
-    getActivityLogs(limit?: number): Promise<{
-        id: string;
-        userId: string;
-        action: string;
-        resourceType: string;
-        resource: string;
-        resourceId: string;
-        details: import("@prisma/client/runtime/library").JsonValue;
-        ipAddress: string;
-        userAgent: string;
-        createdAt: string;
-        user: {
-            id: any;
-            name: any;
-            email: any;
-            role: any;
-        };
-    }[]>;
-    getAuditLogs(limit?: number): Promise<{
-        id: string;
-        userId: string;
-        action: string;
-        resourceType: string;
-        resource: string;
-        resourceId: string;
-        details: import("@prisma/client/runtime/library").JsonValue;
-        ipAddress: string;
-        userAgent: string;
-        createdAt: string;
-        user: {
-            id: any;
-            name: any;
-            email: any;
-            role: any;
-        };
-    }[]>;
+    getActivityLogs(limit?: number): Promise<any>;
+    getAuditLogs(limit?: number): Promise<any>;
     getDatabaseTables(): Promise<{
         name: string;
         rowCount: number;

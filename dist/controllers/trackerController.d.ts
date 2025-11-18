@@ -4,17 +4,17 @@ export declare class TrackerController {
     private prisma;
     constructor();
     getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        contestId: string;
-        contestName: string;
-        eventName: any;
-        categories: any;
+        contestId: any;
+        contestName: any;
+        eventName: string;
+        categories: any[];
         overallCompletion: number;
     }>, Record<string, any>>>;
     getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        categoryId: string;
-        categoryName: string;
+        categoryId: any;
+        categoryName: any;
         contestName: any;
-        eventName: any;
+        eventName: string;
         totalContestants: any;
         totalJudges: any;
         totalScores: any;
@@ -26,17 +26,17 @@ export declare class TrackerController {
     getPendingCertifications: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
 export declare const getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    contestId: string;
-    contestName: string;
-    eventName: any;
-    categories: any;
+    contestId: any;
+    contestName: any;
+    eventName: string;
+    categories: any[];
     overallCompletion: number;
 }>, Record<string, any>>>;
 export declare const getScoringProgressByCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    categoryId: string;
-    categoryName: string;
+    categoryId: any;
+    categoryName: any;
     contestName: any;
-    eventName: any;
+    eventName: string;
     totalContestants: any;
     totalJudges: any;
     totalScores: any;

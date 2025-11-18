@@ -12,7 +12,7 @@ class JudgeController {
     getStats = async (req, res, next) => {
         try {
             const user = req.user;
-            const stats = await this.judgeService.getStats(user.id);
+            const stats = await this.judgeService.getStats(user.id, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, stats);
         }
         catch (error) {
@@ -22,7 +22,7 @@ class JudgeController {
     getAssignments = async (req, res, next) => {
         try {
             const user = req.user;
-            const assignments = await this.judgeService.getAssignments(user.id, user.role);
+            const assignments = await this.judgeService.getAssignments(user.id, user.role, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, assignments);
         }
         catch (error) {
@@ -38,7 +38,7 @@ class JudgeController {
                 res.status(400).json({ error: 'Assignment ID is required' });
                 return;
             }
-            const assignment = await this.judgeService.updateAssignmentStatus(id, status, user.id, user.role);
+            const assignment = await this.judgeService.updateAssignmentStatus(id, status, user.id, user.role, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, assignment, 'Assignment status updated');
         }
         catch (error) {
@@ -53,7 +53,7 @@ class JudgeController {
                 res.status(400).json({ error: 'Category ID is required' });
                 return;
             }
-            const scoringData = await this.judgeService.getScoringInterface(categoryId, user.id);
+            const scoringData = await this.judgeService.getScoringInterface(categoryId, user.id, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, scoringData);
         }
         catch (error) {
@@ -70,6 +70,7 @@ class JudgeController {
                 criterionId,
                 score,
                 comment,
+                tenantId: user.tenantId
             }, user.id);
             (0, responseHelpers_1.sendSuccess)(res, scoreRecord, 'Score submitted successfully');
         }
@@ -85,7 +86,7 @@ class JudgeController {
                 res.status(400).json({ error: 'Category ID is required' });
                 return;
             }
-            const certificationData = await this.judgeService.getCertificationWorkflow(categoryId, user.id);
+            const certificationData = await this.judgeService.getCertificationWorkflow(categoryId, user.id, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, certificationData);
         }
         catch (error) {
@@ -100,7 +101,7 @@ class JudgeController {
                 res.status(400).json({ error: 'Category ID is required' });
                 return;
             }
-            const contestants = await this.judgeService.getContestantBios(categoryId, user.id);
+            const contestants = await this.judgeService.getContestantBios(categoryId, user.id, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, contestants);
         }
         catch (error) {
@@ -115,7 +116,7 @@ class JudgeController {
                 res.status(400).json({ error: 'Contestant ID is required' });
                 return;
             }
-            const contestant = await this.judgeService.getContestantBio(contestantId, user.id);
+            const contestant = await this.judgeService.getContestantBio(contestantId, user.id, user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, contestant);
         }
         catch (error) {
@@ -125,7 +126,7 @@ class JudgeController {
     getJudgeHistory = async (req, res, next) => {
         try {
             const user = req.user;
-            const result = await this.judgeService.getJudgeHistory(user.id, req.query);
+            const result = await this.judgeService.getJudgeHistory(user.id, user.tenantId, req.query);
             (0, responseHelpers_1.sendSuccess)(res, result);
         }
         catch (error) {

@@ -28,7 +28,7 @@ let TrackerService = class TrackerService extends BaseService_1.BaseService {
             select: {
                 id: true,
                 name: true,
-                event: { select: { id: true, name: true } },
+                eventId: true,
                 categories: {
                     select: {
                         id: true,
@@ -42,6 +42,10 @@ let TrackerService = class TrackerService extends BaseService_1.BaseService {
         });
         if (!contest)
             throw this.notFoundError('Contest', contestId);
+        const event = await this.prisma.event.findUnique({
+            where: { id: contest.eventId },
+            select: { id: true, name: true }
+        });
         const categoryProgress = await Promise.all(contest.categories.map(async (category) => {
             const totalContestants = category.contestants.length;
             const uniqueJudges = new Set(category.scores.map(s => s.judgeId));
@@ -81,7 +85,7 @@ let TrackerService = class TrackerService extends BaseService_1.BaseService {
         return {
             contestId: contest.id,
             contestName: contest.name,
-            eventName: contest.event.name,
+            eventName: event?.name || 'Unknown',
             categories: categoryProgress,
             overallCompletion: categoryProgress.length > 0
                 ? Math.round(categoryProgress.reduce((sum, cat) => sum + cat.completionPercentage, 0) / categoryProgress.length)
@@ -95,11 +99,15 @@ let TrackerService = class TrackerService extends BaseService_1.BaseService {
                 contestants: { select: { contestantId: true, contestant: { select: { name: true } } } },
                 scores: { select: { id: true, judgeId: true, contestantId: true } },
                 judges: { select: { judgeId: true, judge: { select: { name: true } } } },
-                contest: { select: { id: true, name: true, event: { select: { id: true, name: true } } } }
+                contest: { select: { id: true, name: true, eventId: true } }
             }
         });
         if (!category)
             throw this.notFoundError('Category', categoryId);
+        const event = await this.prisma.event.findUnique({
+            where: { id: category.contest.eventId },
+            select: { id: true, name: true }
+        });
         const totalContestants = category.contestants.length;
         const totalJudges = category.judges.length;
         const expectedScores = totalContestants * totalJudges;
@@ -111,7 +119,7 @@ let TrackerService = class TrackerService extends BaseService_1.BaseService {
             categoryId: category.id,
             categoryName: category.name,
             contestName: category.contest.name,
-            eventName: category.contest.event.name,
+            eventName: event?.name || 'Unknown',
             totalContestants,
             totalJudges,
             totalScores,

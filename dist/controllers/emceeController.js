@@ -242,13 +242,13 @@ class EmceeController {
                 return;
             }
             const script = await this.emceeService.getScriptFileInfo(scriptId);
-            if (!script.filePath) {
+            if (!script.file_path) {
                 res.status(404).json({ error: 'Script file not found' });
                 return;
             }
             const path = require('path');
             const fs = require('fs');
-            const filePath = path.join(__dirname, '../../', script.filePath);
+            const filePath = path.join(__dirname, '../../', script.file_path);
             const fileStream = fs.createReadStream(filePath);
             fileStream.pipe(res);
         }

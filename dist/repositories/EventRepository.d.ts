@@ -1,17 +1,6 @@
-import { Event, Prisma } from '@prisma/client';
+import { Event } from '@prisma/client';
 import { BaseRepository } from './BaseRepository';
-export type EventWithRelations = Prisma.EventGetPayload<{
-    include: {
-        contests: {
-            include: {
-                categories: true;
-                contestants: true;
-                judges: true;
-            };
-        };
-        assignments: true;
-    };
-}>;
+export type EventWithRelations = any;
 export declare class EventRepository extends BaseRepository<Event> {
     protected getModelName(): string;
     findActiveEvents(): Promise<Event[]>;

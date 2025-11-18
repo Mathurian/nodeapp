@@ -318,9 +318,6 @@ class AdminController {
             if (categoryId) {
                 where.categoryId = categoryId;
             }
-            if (contestId) {
-                where.contestId = contestId;
-            }
             const [scores, total] = await Promise.all([
                 this.prisma.score.findMany({
                     where,
@@ -522,7 +519,6 @@ class AdminController {
                     }
                 },
                 orderBy: [
-                    { category: { contest: { event: { startDate: 'desc' } } } },
                     { createdAt: 'desc' }
                 ]
             });

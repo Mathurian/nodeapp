@@ -50,7 +50,7 @@ let ContestCertificationService = class ContestCertificationService extends Base
             certifications: certs
         };
     }
-    async certifyContest(contestId, userId, userRole) {
+    async certifyContest(contestId, userId, userRole, tenantId) {
         const allowedRoles = ['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'];
         if (!allowedRoles.includes(userRole)) {
             throw this.forbiddenError('Role not authorized to certify contest');
@@ -68,6 +68,7 @@ let ContestCertificationService = class ContestCertificationService extends Base
         }
         return await this.prisma.contestCertification.create({
             data: {
+                tenantId,
                 contestId,
                 role: userRole,
                 userId

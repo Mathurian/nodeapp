@@ -9,9 +9,9 @@ class TemplatesController {
     constructor() {
         this.templateService = container_1.container.resolve(TemplateService_1.TemplateService);
     }
-    getAllTemplates = async (_req, res, next) => {
+    getAllTemplates = async (req, res, next) => {
         try {
-            const templates = await this.templateService.getAllTemplates();
+            const templates = await this.templateService.getAllTemplates(req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, templates, 'Templates retrieved successfully');
         }
         catch (error) {
@@ -21,7 +21,7 @@ class TemplatesController {
     getTemplateById = async (req, res, next) => {
         try {
             const id = req.params.id;
-            const template = await this.templateService.getTemplateById(id);
+            const template = await this.templateService.getTemplateById(id, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, template, 'Template retrieved successfully');
         }
         catch (error) {
@@ -34,7 +34,8 @@ class TemplatesController {
             const template = await this.templateService.createTemplate({
                 name,
                 description,
-                criteria
+                criteria,
+                tenantId: req.user.tenantId
             });
             (0, responseHelpers_1.sendCreated)(res, template, 'Template created successfully');
         }
@@ -46,7 +47,7 @@ class TemplatesController {
         try {
             const id = req.params.id;
             const { name, description, criteria } = req.body;
-            const template = await this.templateService.updateTemplate(id, {
+            const template = await this.templateService.updateTemplate(id, req.user.tenantId, {
                 name,
                 description,
                 criteria
@@ -60,7 +61,7 @@ class TemplatesController {
     deleteTemplate = async (req, res, next) => {
         try {
             const id = req.params.id;
-            await this.templateService.deleteTemplate(id);
+            await this.templateService.deleteTemplate(id, req.user.tenantId);
             (0, responseHelpers_1.sendNoContent)(res);
         }
         catch (error) {
@@ -70,7 +71,7 @@ class TemplatesController {
     duplicateTemplate = async (req, res, next) => {
         try {
             const id = req.params.id;
-            const template = await this.templateService.duplicateTemplate(id);
+            const template = await this.templateService.duplicateTemplate(id, req.user.tenantId);
             (0, responseHelpers_1.sendCreated)(res, template, 'Template duplicated successfully');
         }
         catch (error) {

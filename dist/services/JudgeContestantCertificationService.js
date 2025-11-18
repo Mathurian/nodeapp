@@ -35,7 +35,7 @@ let JudgeContestantCertificationService = class JudgeContestantCertificationServ
         });
     }
     async certify(data) {
-        const { judgeId, categoryId, contestantId } = data;
+        const { judgeId, categoryId, contestantId, tenantId } = data;
         if (!judgeId || !categoryId || !contestantId) {
             throw this.badRequestError('Judge ID, category ID, and contestant ID are required');
         }
@@ -46,7 +46,7 @@ let JudgeContestantCertificationService = class JudgeContestantCertificationServ
             throw this.badRequestError('Certification already exists');
         }
         return await this.prisma.judgeContestantCertification.create({
-            data: { judgeId, categoryId, contestantId }
+            data: { tenantId: tenantId || 'default_tenant', judgeId, categoryId, contestantId }
         });
     }
     async uncertify(id) {

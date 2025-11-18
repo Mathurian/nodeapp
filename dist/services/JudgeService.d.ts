@@ -20,29 +20,29 @@ export declare class JudgeService extends BaseService {
         totalScores: number;
     }>;
     getAssignments(userId: string, userRole: string, tenantId: string): Promise<{
-        status: import(".prisma/client").$Enums.AssignmentStatus;
         id: string;
         judgeId: string;
         tenantId: string;
-        eventId: string;
         categoryId: string | null;
+        eventId: string;
         contestId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        notes: string | null;
         assignedAt: Date;
         assignedBy: string;
-        notes: string | null;
         priority: number;
     }[]>;
     updateAssignmentStatus(assignmentId: string, status: string, userId: string, userRole: string, tenantId: string): Promise<{
-        status: import(".prisma/client").$Enums.AssignmentStatus;
         id: string;
         judgeId: string;
         tenantId: string;
-        eventId: string;
         categoryId: string | null;
+        eventId: string;
         contestId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        notes: string | null;
         assignedAt: Date;
         assignedBy: string;
-        notes: string | null;
         priority: number;
     }>;
     getScoringInterface(categoryId: string, userId: string, tenantId: string): Promise<{
@@ -70,16 +70,16 @@ export declare class JudgeService extends BaseService {
     getCertificationWorkflow(categoryId: string, userId: string, tenantId: string): Promise<{
         category: any;
         assignment: {
-            status: import(".prisma/client").$Enums.AssignmentStatus;
             id: string;
             judgeId: string;
             tenantId: string;
-            eventId: string;
             categoryId: string | null;
+            eventId: string;
             contestId: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            notes: string | null;
             assignedAt: Date;
             assignedBy: string;
-            notes: string | null;
             priority: number;
         };
         certifications: any[];
@@ -87,11 +87,7 @@ export declare class JudgeService extends BaseService {
     getContestantBios(categoryId: string, userId: string, tenantId: string): Promise<any>;
     getContestantBio(contestantId: string, userId: string, tenantId: string): Promise<any>;
     getJudgeHistory(userId: string, tenantId: string, query?: any): Promise<{
-        scores: ({
-            category: never;
-            contestant: never;
-            criterion: never;
-        } & {
+        scores: {
             score: number | null;
             id: string;
             judgeId: string;
@@ -109,7 +105,7 @@ export declare class JudgeService extends BaseService {
             comment: string | null;
             isCertified: boolean;
             lockedBy: string | null;
-        })[];
+        }[];
         pagination: {
             page: number;
             limit: number;

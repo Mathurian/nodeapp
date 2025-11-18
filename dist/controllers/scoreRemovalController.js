@@ -17,7 +17,8 @@ class ScoreRemovalController {
                 categoryId,
                 reason,
                 requestedBy: req.user.id,
-                userRole: req.user.role
+                userRole: req.user.role,
+                tenantId: req.user.tenantId
             });
             return (0, responseHelpers_1.sendSuccess)(res, request, 'Score removal request created. Awaiting co-signatures.');
         }
@@ -28,7 +29,7 @@ class ScoreRemovalController {
     getScoreRemovalRequests = async (req, res, next) => {
         try {
             const { status } = req.query;
-            const requests = await this.scoreRemovalService.getAll(status);
+            const requests = await this.scoreRemovalService.getAll(status, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, requests);
         }
         catch (error) {
@@ -38,7 +39,7 @@ class ScoreRemovalController {
     getScoreRemovalRequest = async (req, res, next) => {
         try {
             const { id } = req.params;
-            const request = await this.scoreRemovalService.getById(id);
+            const request = await this.scoreRemovalService.getById(id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, request);
         }
         catch (error) {
@@ -49,7 +50,7 @@ class ScoreRemovalController {
         try {
             const { id } = req.params;
             const { signatureName } = req.body;
-            const result = await this.scoreRemovalService.signRequest(id, {
+            const result = await this.scoreRemovalService.signRequest(id, req.user.tenantId, {
                 signatureName,
                 userId: req.user.id,
                 userRole: req.user.role
@@ -63,7 +64,7 @@ class ScoreRemovalController {
     executeScoreRemoval = async (req, res, next) => {
         try {
             const { id } = req.params;
-            const result = await this.scoreRemovalService.executeRemoval(id);
+            const result = await this.scoreRemovalService.executeRemoval(id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, result, 'Score removal executed successfully');
         }
         catch (error) {

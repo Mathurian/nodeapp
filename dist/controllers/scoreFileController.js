@@ -26,7 +26,8 @@ class ScoreFileController {
                 fileType,
                 filePath,
                 fileSize,
-                notes
+                notes,
+                tenantId: req.user.tenantId
             }, req.user.id);
             log.info('Score file uploaded', { categoryId, judgeId, fileId: scoreFile.id });
             (0, responseHelpers_1.sendSuccess)(res, scoreFile, 'Score file uploaded successfully');
@@ -40,7 +41,7 @@ class ScoreFileController {
         const log = (0, logger_1.createRequestLogger)(req, 'scoreFile');
         try {
             const { id } = req.params;
-            const file = await this.scoreFileService.getScoreFileById(id);
+            const file = await this.scoreFileService.getScoreFileById(id, req.user.tenantId);
             if (!file) {
                 (0, responseHelpers_1.sendError)(res, 'Score file not found', 404);
                 return;
@@ -57,7 +58,7 @@ class ScoreFileController {
         const log = (0, logger_1.createRequestLogger)(req, 'scoreFile');
         try {
             const { categoryId } = req.params;
-            const files = await this.scoreFileService.getScoreFilesByCategory(categoryId);
+            const files = await this.scoreFileService.getScoreFilesByCategory(categoryId, req.user.tenantId);
             log.info('Score files retrieved by category', { categoryId, count: files.length });
             (0, responseHelpers_1.sendSuccess)(res, files);
         }
@@ -70,7 +71,7 @@ class ScoreFileController {
         const log = (0, logger_1.createRequestLogger)(req, 'scoreFile');
         try {
             const { judgeId } = req.params;
-            const files = await this.scoreFileService.getScoreFilesByJudge(judgeId);
+            const files = await this.scoreFileService.getScoreFilesByJudge(judgeId, req.user.tenantId);
             log.info('Score files retrieved by judge', { judgeId, count: files.length });
             (0, responseHelpers_1.sendSuccess)(res, files);
         }
@@ -83,7 +84,7 @@ class ScoreFileController {
         const log = (0, logger_1.createRequestLogger)(req, 'scoreFile');
         try {
             const { contestantId } = req.params;
-            const files = await this.scoreFileService.getScoreFilesByContestant(contestantId);
+            const files = await this.scoreFileService.getScoreFilesByContestant(contestantId, req.user.tenantId);
             log.info('Score files retrieved by contestant', { contestantId, count: files.length });
             (0, responseHelpers_1.sendSuccess)(res, files);
         }
@@ -96,7 +97,7 @@ class ScoreFileController {
         const log = (0, logger_1.createRequestLogger)(req, 'scoreFile');
         try {
             const { categoryId, judgeId, contestantId, status } = req.query;
-            const files = await this.scoreFileService.getAllScoreFiles({
+            const files = await this.scoreFileService.getAllScoreFiles(req.user.tenantId, {
                 categoryId: categoryId,
                 judgeId: judgeId,
                 contestantId: contestantId,
@@ -118,7 +119,7 @@ class ScoreFileController {
             if (!req.user) {
                 throw new Error('User not authenticated');
             }
-            const scoreFile = await this.scoreFileService.updateScoreFile(id, { status, notes }, req.user.id, req.user.role);
+            const scoreFile = await this.scoreFileService.updateScoreFile(id, req.user.tenantId, { status, notes }, req.user.id, req.user.role);
             log.info('Score file updated', { id });
             (0, responseHelpers_1.sendSuccess)(res, scoreFile, 'Score file updated successfully');
         }
@@ -134,7 +135,7 @@ class ScoreFileController {
             if (!req.user) {
                 throw new Error('User not authenticated');
             }
-            await this.scoreFileService.deleteScoreFile(id, req.user.id, req.user.role);
+            await this.scoreFileService.deleteScoreFile(id, req.user.tenantId, req.user.id, req.user.role);
             log.info('Score file deleted', { id });
             (0, responseHelpers_1.sendNoContent)(res);
         }
@@ -150,7 +151,7 @@ class ScoreFileController {
             if (!req.user) {
                 throw new Error('User not authenticated');
             }
-            const fileInfo = await this.scoreFileService.getScoreFileById(id);
+            const fileInfo = await this.scoreFileService.getScoreFileById(id, req.user.tenantId);
             if (!fileInfo) {
                 (0, responseHelpers_1.sendError)(res, 'Score file not found', 404);
                 return;

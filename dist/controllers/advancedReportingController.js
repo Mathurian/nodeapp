@@ -55,36 +55,45 @@ class AdvancedReportingController {
                     }
                 }
             });
+            if (event && event.tenantId !== req.user.tenantId) {
+                return (0, responseHelpers_1.sendSuccess)(res, {}, 'Event not found', 404);
+            }
             if (!event) {
                 return (0, responseHelpers_1.sendSuccess)(res, {}, 'Event not found', 404);
             }
+            const contests = await this.prisma.contest.findMany({
+                where: { eventId, tenantId: req.user.tenantId },
+                select: { id: true }
+            });
+            const contestIds = contests.map(c => c.id);
+            const categories = await this.prisma.category.findMany({
+                where: { contestId: { in: contestIds }, tenantId: req.user.tenantId },
+                select: { id: true }
+            });
+            const categoryIds = categories.map(c => c.id);
             const [totalScores, totalContestants, totalCategories, totalJudges] = await Promise.all([
                 this.prisma.score.count({
                     where: {
-                        category: {
-                            contest: {
-                                eventId
-                            }
-                        }
+                        tenantId: req.user.tenantId,
+                        categoryId: { in: categoryIds }
                     }
                 }),
                 this.prisma.contestContestant.count({
                     where: {
-                        contest: {
-                            eventId
-                        }
+                        tenantId: req.user.tenantId,
+                        contestId: { in: contestIds }
                     }
                 }),
                 this.prisma.category.count({
                     where: {
-                        contest: {
-                            eventId
-                        }
+                        tenantId: req.user.tenantId,
+                        contestId: { in: contestIds }
                     }
                 }),
                 this.prisma.assignment.count({
                     where: {
-                        eventId
+                        eventId,
+                        tenantId: req.user.tenantId
                     }
                 })
             ]);
@@ -131,22 +140,36 @@ class AdvancedReportingController {
                 return (0, responseHelpers_1.sendSuccess)(res, {}, 'judgeId is required', 400);
             }
             const judge = await this.prisma.judge.findUnique({
-                where: { id: judgeId }
+                where: {
+                    id: judgeId,
+                    tenantId: req.user.tenantId
+                }
             });
             if (!judge) {
                 return (0, responseHelpers_1.sendSuccess)(res, {}, 'Judge not found', 404);
             }
-            const scoreWhere = { judgeId };
-            if (eventId) {
-                scoreWhere.category = {
+            let categoryFilter = undefined;
+            if (eventId && contestId) {
+                categoryFilter = {
+                    contestId,
                     contest: { eventId }
                 };
             }
-            if (contestId) {
-                scoreWhere.category = {
+            else if (eventId) {
+                categoryFilter = {
+                    contest: { eventId }
+                };
+            }
+            else if (contestId) {
+                categoryFilter = {
                     contestId
                 };
             }
+            const scoreWhere = {
+                judgeId,
+                tenantId: req.user.tenantId,
+                ...(categoryFilter && { category: categoryFilter })
+            };
             const scores = await this.prisma.score.findMany({
                 where: scoreWhere,
                 include: {
@@ -226,14 +249,15 @@ class AdvancedReportingController {
         try {
             const days = parseInt(req.query.days) || 30;
             const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+            const tenantId = req.user.tenantId;
             const [totalUsers, totalEvents, totalContests, totalCategories, totalContestants, totalJudges, totalScores, recentActivity, usersByRole, eventsByStatus] = await Promise.all([
-                this.prisma.user.count(),
-                this.prisma.event.count(),
-                this.prisma.contest.count(),
-                this.prisma.category.count(),
-                this.prisma.contestant.count(),
-                this.prisma.judge.count(),
-                this.prisma.score.count(),
+                this.prisma.user.count({ where: { tenantId } }),
+                this.prisma.event.count({ where: { tenantId } }),
+                this.prisma.contest.count({ where: { tenantId } }),
+                this.prisma.category.count({ where: { tenantId } }),
+                this.prisma.contestant.count({ where: { tenantId } }),
+                this.prisma.judge.count({ where: { tenantId } }),
+                this.prisma.score.count({ where: { tenantId } }),
                 this.prisma.activityLog.count({
                     where: {
                         createdAt: { gte: since }
@@ -241,14 +265,17 @@ class AdvancedReportingController {
                 }),
                 this.prisma.user.groupBy({
                     by: ['role'],
+                    where: { tenantId },
                     _count: { id: true }
                 }),
                 this.prisma.event.groupBy({
                     by: ['archived'],
+                    where: { tenantId },
                     _count: { id: true }
                 })
             ]);
             const recentEvents = await this.prisma.event.findMany({
+                where: { tenantId },
                 take: 10,
                 orderBy: { createdAt: 'desc' },
                 select: {
@@ -262,12 +289,16 @@ class AdvancedReportingController {
                 }
             });
             const scoringStats = await this.prisma.score.aggregate({
+                where: { tenantId },
                 _avg: { score: true },
                 _max: { score: true },
                 _min: { score: true }
             });
             const certifiedScores = await this.prisma.score.count({
-                where: { isCertified: true }
+                where: {
+                    tenantId,
+                    isCertified: true
+                }
             });
             const report = {
                 summary: {
@@ -330,6 +361,9 @@ class AdvancedReportingController {
             if (!contest) {
                 return (0, responseHelpers_1.sendSuccess)(res, {}, 'Contest not found', 404);
             }
+            if (contest.tenantId !== req.user.tenantId) {
+                return (0, responseHelpers_1.sendSuccess)(res, {}, 'Contest not found', 404);
+            }
             const event = await this.prisma.event.findUnique({
                 where: { id: contest.eventId },
                 select: {
@@ -342,7 +376,8 @@ class AdvancedReportingController {
             const categoryResults = await Promise.all(contest.categories.map(async (category) => {
                 const scores = await this.prisma.score.findMany({
                     where: {
-                        categoryId: category.id
+                        categoryId: category.id,
+                        tenantId: req.user.tenantId
                     },
                     include: {
                         contestant: {
@@ -392,13 +427,7 @@ class AdvancedReportingController {
                 const contestantCount = await this.prisma.contestContestant.count({
                     where: {
                         contestId,
-                        contest: {
-                            categories: {
-                                some: {
-                                    id: category.id
-                                }
-                            }
-                        }
+                        tenantId: req.user.tenantId
                     }
                 });
                 return {

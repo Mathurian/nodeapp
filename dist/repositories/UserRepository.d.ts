@@ -1,12 +1,6 @@
-import { User, Prisma } from '@prisma/client';
+import { User } from '@prisma/client';
 import { BaseRepository } from './BaseRepository';
-export type UserWithRelations = Prisma.UserGetPayload<{
-    include: {
-        assignedAssignments: true;
-        contestant: true;
-        judge: true;
-    };
-}>;
+export type UserWithRelations = any;
 export declare class UserRepository extends BaseRepository<User> {
     protected getModelName(): string;
     findByName(name: string): Promise<User | null>;

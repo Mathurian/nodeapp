@@ -63,7 +63,7 @@ let CategoryCertificationService = class CategoryCertificationService extends Ba
             }
         };
     }
-    async certifyCategory(categoryId, userId, userRole) {
+    async certifyCategory(categoryId, userId, userRole, tenantId) {
         const existing = await this.prisma.categoryCertification.findFirst({
             where: { categoryId, role: userRole }
         });
@@ -72,6 +72,7 @@ let CategoryCertificationService = class CategoryCertificationService extends Ba
         }
         return await this.prisma.categoryCertification.create({
             data: {
+                tenantId,
                 categoryId,
                 role: userRole,
                 userId

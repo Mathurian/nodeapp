@@ -52,7 +52,7 @@ class ScoringController {
                 hasComments: !!comments,
                 userId: req.user.id
             });
-            const newScore = await this.scoringService.submitScore(data, req.user.id);
+            const newScore = await this.scoringService.submitScore(data, req.user.id, req.user.tenantId);
             log.info('Score submitted successfully', { scoreId: newScore.id });
             (0, responseHelpers_1.sendCreated)(res, newScore);
         }
@@ -71,7 +71,7 @@ class ScoringController {
                 comments
             };
             log.info('Score update requested', { scoreId });
-            const updatedScore = await this.scoringService.updateScore(scoreId, data);
+            const updatedScore = await this.scoringService.updateScore(scoreId, data, req.user.tenantId);
             log.info('Score updated successfully', { scoreId });
             (0, responseHelpers_1.sendSuccess)(res, updatedScore);
         }
@@ -85,7 +85,7 @@ class ScoringController {
         try {
             const scoreId = req.params.scoreId;
             log.info('Score deletion requested', { scoreId });
-            await this.scoringService.deleteScore(scoreId);
+            await this.scoringService.deleteScore(scoreId, req.user.tenantId);
             log.info('Score deleted successfully', { scoreId });
             (0, responseHelpers_1.sendNoContent)(res);
         }
@@ -103,7 +103,7 @@ class ScoringController {
                 return;
             }
             log.info('Score certification requested', { scoreId, certifiedBy: req.user.id });
-            const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id);
+            const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, req.user.tenantId);
             log.info('Score certified successfully', { scoreId });
             (0, responseHelpers_1.sendSuccess)(res, certifiedScore);
         }
@@ -121,7 +121,7 @@ class ScoringController {
                 return;
             }
             log.info('Category scores certification requested', { categoryId, certifiedBy: req.user.id });
-            const result = await this.scoringService.certifyScores(categoryId, req.user.id);
+            const result = await this.scoringService.certifyScores(categoryId, req.user.id, req.user.tenantId);
             log.info('Category scores certified successfully', { categoryId, certified: result.certified });
             (0, responseHelpers_1.sendSuccess)(res, result);
         }
@@ -135,7 +135,7 @@ class ScoringController {
         try {
             const scoreId = req.params.scoreId;
             log.info('Score unsigned requested', { scoreId });
-            const unsignedScore = await this.scoringService.unsignScore(scoreId);
+            const unsignedScore = await this.scoringService.unsignScore(scoreId, req.user.tenantId);
             log.info('Score unsigned successfully', { scoreId });
             (0, responseHelpers_1.sendSuccess)(res, unsignedScore);
         }
@@ -149,7 +149,7 @@ class ScoringController {
         try {
             const judgeId = req.params.judgeId;
             log.debug('Fetching scores by judge', { judgeId });
-            const scores = await this.scoringService.getScoresByJudge(judgeId);
+            const scores = await this.scoringService.getScoresByJudge(judgeId, req.user.tenantId);
             log.info('Scores by judge retrieved successfully', { judgeId, count: scores.length });
             (0, responseHelpers_1.sendSuccess)(res, scores);
         }
@@ -163,7 +163,7 @@ class ScoringController {
         try {
             const contestantId = req.params.contestantId;
             log.debug('Fetching scores by contestant', { contestantId });
-            const scores = await this.scoringService.getScoresByContestant(contestantId);
+            const scores = await this.scoringService.getScoresByContestant(contestantId, req.user.tenantId);
             log.info('Scores by contestant retrieved successfully', { contestantId, count: scores.length });
             (0, responseHelpers_1.sendSuccess)(res, scores);
         }
@@ -180,7 +180,7 @@ class ScoringController {
         try {
             const contestId = req.params.contestId;
             log.debug('Fetching scores by contest', { contestId });
-            const scores = await this.scoringService.getScoresByContest(contestId);
+            const scores = await this.scoringService.getScoresByContest(contestId, req.user.tenantId);
             log.info('Scores by contest retrieved successfully', { contestId, count: scores.length });
             (0, responseHelpers_1.sendSuccess)(res, scores);
         }
@@ -194,7 +194,7 @@ class ScoringController {
         try {
             const contestId = req.params.contestId;
             log.debug('Fetching contest statistics', { contestId });
-            const stats = await this.scoringService.getContestStats(contestId);
+            const stats = await this.scoringService.getContestStats(contestId, req.user.tenantId);
             log.info('Contest statistics retrieved successfully', { contestId });
             (0, responseHelpers_1.sendSuccess)(res, stats);
         }
@@ -207,15 +207,15 @@ class ScoringController {
         try {
             const contestId = req.query.contestId;
             const eventId = req.query.eventId;
-            const where = {};
+            const where = {
+                tenantId: req.user.tenantId
+            };
             if (contestId)
                 where.contestId = contestId;
-            if (eventId) {
-                where.contest = {
-                    eventId
-                };
+            if (eventId && !contestId) {
+                where.contestId = undefined;
             }
-            const categories = await this.prisma.category.findMany({
+            const categories = (await this.prisma.category.findMany({
                 where,
                 include: {
                     contest: {
@@ -238,7 +238,7 @@ class ScoringController {
                     }
                 },
                 orderBy: { name: 'asc' }
-            });
+            }));
             return (0, responseHelpers_1.sendSuccess)(res, categories);
         }
         catch (error) {
@@ -260,7 +260,8 @@ class ScoringController {
             }
             const certification = await this.prisma.categoryCertification.upsert({
                 where: {
-                    categoryId_role: {
+                    tenantId_categoryId_role: {
+                        tenantId: req.user.tenantId,
                         categoryId,
                         role: 'TALLY_MASTER'
                     }
@@ -270,7 +271,8 @@ class ScoringController {
                     role: 'TALLY_MASTER',
                     userId: req.user.id,
                     signatureName: signatureName || null,
-                    comments: comments || null
+                    comments: comments || null,
+                    tenantId: req.user.tenantId
                 },
                 update: {
                     userId: req.user.id,
@@ -300,7 +302,8 @@ class ScoringController {
             }
             const tallyMasterCert = await this.prisma.categoryCertification.findUnique({
                 where: {
-                    categoryId_role: {
+                    tenantId_categoryId_role: {
+                        tenantId: req.user.tenantId,
                         categoryId,
                         role: 'TALLY_MASTER'
                     }
@@ -311,7 +314,8 @@ class ScoringController {
             }
             const certification = await this.prisma.categoryCertification.upsert({
                 where: {
-                    categoryId_role: {
+                    tenantId_categoryId_role: {
+                        tenantId: req.user.tenantId,
                         categoryId,
                         role: 'AUDITOR'
                     }
@@ -321,7 +325,8 @@ class ScoringController {
                     role: 'AUDITOR',
                     userId: req.user.id,
                     signatureName: signatureName || null,
-                    comments: comments || null
+                    comments: comments || null,
+                    tenantId: req.user.tenantId
                 },
                 update: {
                     userId: req.user.id,
@@ -362,7 +367,8 @@ class ScoringController {
                     amount,
                     reason,
                     requestedById: req.user.id,
-                    status: 'PENDING'
+                    status: 'PENDING',
+                    tenantId: req.user.tenantId
                 },
             });
             return (0, responseHelpers_1.sendSuccess)(res, deductionRequest, 'Deduction request created successfully', 201);
@@ -392,7 +398,8 @@ class ScoringController {
                     requestId: deductionId,
                     approvedById: req.user.id,
                     role: req.user.role,
-                    isHeadJudge: isHeadJudge || false
+                    isHeadJudge: isHeadJudge || false,
+                    tenantId: req.user.tenantId
                 }
             });
             const updated = await this.prisma.deductionRequest.update({

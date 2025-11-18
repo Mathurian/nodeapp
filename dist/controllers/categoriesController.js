@@ -177,7 +177,8 @@ class CategoriesController {
                 data: {
                     categoryId,
                     name,
-                    maxScore: parseInt(maxScore)
+                    maxScore: parseInt(maxScore),
+                    tenantId: req.user.tenantId
                 }
             });
             return (0, responseHelpers_1.sendCreated)(res, criterion, 'Criterion created successfully');

@@ -214,12 +214,17 @@ class TenantService {
     }
     static async getTenantUsage(tenantId) {
         try {
+            const categories = await database_1.default.category.findMany({
+                where: { tenantId },
+                select: { id: true }
+            });
+            const categoryIds = categories.map(c => c.id);
             const [usersCount, eventsCount, contestsCount, categoriesCount, scoresCount] = await Promise.all([
                 database_1.default.user.count({ where: { tenantId } }),
                 database_1.default.event.count({ where: { tenantId } }),
                 database_1.default.contest.count({ where: { tenantId } }),
                 database_1.default.category.count({ where: { tenantId } }),
-                database_1.default.score.count({ where: { category: { tenantId } } }),
+                database_1.default.score.count({ where: { categoryId: { in: categoryIds } } }),
             ]);
             const lastAudit = await database_1.default.auditLog.findFirst({
                 where: { tenantId },

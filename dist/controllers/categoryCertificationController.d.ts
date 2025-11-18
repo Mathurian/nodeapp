@@ -7,7 +7,7 @@ export declare class CategoryCertificationController {
         categoryId: string;
         judgeProgress: {
             contestantsCertified: number;
-            totalContestants: number;
+            totalContestants: any;
             isCategoryCertified: boolean;
         };
         tallyMasterProgress: {
@@ -37,7 +37,7 @@ export declare const getCategoryCertificationProgress: (req: Request, res: Respo
     categoryId: string;
     judgeProgress: {
         contestantsCertified: number;
-        totalContestants: number;
+        totalContestants: any;
         isCategoryCertified: boolean;
     };
     tallyMasterProgress: {

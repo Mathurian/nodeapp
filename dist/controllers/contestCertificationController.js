@@ -22,7 +22,7 @@ class ContestCertificationController {
     certifyContest = async (req, res, next) => {
         try {
             const { contestId } = req.params;
-            const certification = await this.contestCertificationService.certifyContest(contestId, req.user.id, req.user.role);
+            const certification = await this.contestCertificationService.certifyContest(contestId, req.user.id, req.user.role, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Contest certified successfully');
         }
         catch (error) {

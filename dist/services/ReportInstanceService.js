@@ -24,9 +24,10 @@ let ReportInstanceService = class ReportInstanceService extends BaseService_1.Ba
     }
     async createInstance(data) {
         try {
-            this.validateRequired(data, ['type', 'name', 'generatedById', 'format']);
+            this.validateRequired(data, ['type', 'name', 'generatedById', 'format', 'tenantId']);
             const instance = await this.prisma.reportInstance.create({
                 data: {
+                    tenantId: data.tenantId,
                     type: data.type,
                     name: data.name,
                     generatedById: data.generatedById,

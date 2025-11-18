@@ -25,26 +25,26 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
         this.scoreRepository = scoreRepository;
         this.prisma = prisma;
     }
-    async getScoresByCategory(categoryId, contestantId) {
+    async getScoresByCategory(categoryId, tenantId, contestantId) {
         try {
             if (contestantId) {
-                return await this.prisma.score.findMany({
-                    where: { categoryId, contestantId },
+                return (await this.prisma.score.findMany({
+                    where: { categoryId, contestantId, tenantId },
                     include: {
                         contestant: true,
                         judge: true,
                         category: true
                     },
                     orderBy: { createdAt: 'desc' }
-                });
+                }));
             }
-            return await this.scoreRepository.findByCategory(categoryId);
+            return await this.scoreRepository.findByCategory(categoryId, tenantId);
         }
         catch (error) {
             this.handleError(error, { method: 'getScoresByCategory', categoryId, contestantId });
         }
     }
-    async submitScore(data, userId) {
+    async submitScore(data, userId, tenantId) {
         try {
             const { categoryId, contestantId, criteriaId, score, comments } = data;
             this.logInfo('Score submission requested', {
@@ -55,7 +55,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
                 hasComments: !!comments,
                 userId
             });
-            const category = await this.prisma.category.findUnique({
+            const category = (await this.prisma.category.findUnique({
                 where: { id: categoryId },
                 include: {
                     contest: {
@@ -64,16 +64,16 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
                         }
                     }
                 }
-            });
+            }));
             if (!category) {
                 throw new BaseService_1.NotFoundError('Category', categoryId);
             }
-            const userWithJudge = await this.prisma.user.findUnique({
+            const userWithJudge = (await this.prisma.user.findUnique({
                 where: { id: userId },
                 include: {
                     judge: true
                 }
-            });
+            }));
             if (!userWithJudge?.judge) {
                 throw new BaseService_1.ValidationError('User is not linked to a Judge record');
             }
@@ -81,6 +81,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.logDebug('Judge ID retrieved', { judgeId });
             const assignment = await this.prisma.assignment.findFirst({
                 where: {
+                    tenantId,
                     judgeId: userWithJudge.judge.id,
                     OR: [
                         { categoryId },
@@ -94,6 +95,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             }
             const existingScore = await this.prisma.score.findFirst({
                 where: {
+                    tenantId,
                     categoryId,
                     contestantId,
                     judgeId,
@@ -109,9 +111,8 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
                     contestantId,
                     criterionId: criteriaId || null,
                     judgeId,
-                    contestId: category.contestId,
-                    eventId: category.contest.eventId,
                     score: score,
+                    tenantId,
                     certifiedAt: null,
                     certifiedBy: null
                 },
@@ -134,7 +135,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.handleError(error, { method: 'submitScore', data });
         }
     }
-    async updateScore(scoreId, data) {
+    async updateScore(scoreId, data, tenantId) {
         try {
             const existingScore = await this.scoreRepository.findById(scoreId);
             this.assertExists(existingScore, 'Score', scoreId);
@@ -156,7 +157,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.handleError(error, { method: 'updateScore', scoreId, data });
         }
     }
-    async deleteScore(scoreId) {
+    async deleteScore(scoreId, tenantId) {
         try {
             const score = await this.scoreRepository.findById(scoreId);
             this.assertExists(score, 'Score', scoreId);
@@ -167,7 +168,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.handleError(error, { method: 'deleteScore', scoreId });
         }
     }
-    async certifyScore(scoreId, certifiedBy) {
+    async certifyScore(scoreId, certifiedBy, tenantId) {
         try {
             const score = await this.scoreRepository.findById(scoreId);
             this.assertExists(score, 'Score', scoreId);
@@ -190,11 +191,12 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.handleError(error, { method: 'certifyScore', scoreId });
         }
     }
-    async certifyScores(categoryId, certifiedBy) {
+    async certifyScores(categoryId, certifiedBy, tenantId) {
         try {
             const result = await this.prisma.score.updateMany({
                 where: {
                     categoryId,
+                    tenantId,
                     certifiedAt: null
                 },
                 data: {
@@ -213,7 +215,7 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.handleError(error, { method: 'certifyScores', categoryId });
         }
     }
-    async unsignScore(scoreId) {
+    async unsignScore(scoreId, tenantId) {
         try {
             const score = await this.scoreRepository.findById(scoreId);
             this.assertExists(score, 'Score', scoreId);
@@ -236,41 +238,41 @@ let ScoringService = class ScoringService extends BaseService_1.BaseService {
             this.handleError(error, { method: 'unsignScore', scoreId });
         }
     }
-    async getScoresByJudge(judgeId) {
+    async getScoresByJudge(judgeId, tenantId) {
         try {
-            return await this.scoreRepository.findByJudge(judgeId);
+            return await this.scoreRepository.findByJudge(judgeId, tenantId);
         }
         catch (error) {
             this.handleError(error, { method: 'getScoresByJudge', judgeId });
         }
     }
-    async getScoresByContestant(contestantId) {
+    async getScoresByContestant(contestantId, tenantId) {
         try {
-            return await this.scoreRepository.findByContestant(contestantId);
+            return await this.scoreRepository.findByContestant(contestantId, tenantId);
         }
         catch (error) {
             this.handleError(error, { method: 'getScoresByContestant', contestantId });
         }
     }
-    async getScoresByContest(contestId) {
+    async getScoresByContest(contestId, tenantId) {
         try {
-            return await this.scoreRepository.findByContest(contestId);
+            return await this.scoreRepository.findByContest(contestId, tenantId);
         }
         catch (error) {
             this.handleError(error, { method: 'getScoresByContest', contestId });
         }
     }
-    async calculateAverageScore(contestantId, categoryId) {
+    async calculateAverageScore(contestantId, categoryId, tenantId) {
         try {
-            return await this.scoreRepository.getAverageScoreForContestantInCategory(contestantId, categoryId);
+            return await this.scoreRepository.getAverageScoreForContestantInCategory(contestantId, categoryId, tenantId);
         }
         catch (error) {
             this.handleError(error, { method: 'calculateAverageScore', contestantId, categoryId });
         }
     }
-    async getContestStats(contestId) {
+    async getContestStats(contestId, tenantId) {
         try {
-            return await this.scoreRepository.getContestScoreStats(contestId);
+            return await this.scoreRepository.getContestScoreStats(contestId, tenantId);
         }
         catch (error) {
             this.handleError(error, { method: 'getContestStats', contestId });

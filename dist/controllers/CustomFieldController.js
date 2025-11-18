@@ -14,7 +14,7 @@ class CustomFieldController {
             const { entityType } = req.params;
             const { active } = req.query;
             const activeOnly = active === 'true' || active === undefined;
-            const customFields = await customFieldService.getCustomFieldsByEntityType(entityType, activeOnly);
+            const customFields = await customFieldService.getCustomFieldsByEntityType(entityType, req.user.tenantId, activeOnly);
             (0, responseHelpers_1.sendSuccess)(res, customFields, 'Custom fields retrieved successfully');
         }
         catch (error) {
@@ -25,7 +25,7 @@ class CustomFieldController {
     async getCustomFieldById(req, res) {
         try {
             const { id } = req.params;
-            const customField = await customFieldService.getCustomFieldById(id);
+            const customField = await customFieldService.getCustomFieldById(id, req.user.tenantId);
             if (!customField) {
                 (0, responseHelpers_1.sendError)(res, 'Custom field not found', 404);
                 return;
@@ -44,11 +44,12 @@ class CustomFieldController {
                 (0, responseHelpers_1.sendError)(res, 'Missing required fields: name, key, type, entityType', 400);
                 return;
             }
-            const existing = await customFieldService.getCustomFieldByKey(data.key, data.entityType);
+            const existing = await customFieldService.getCustomFieldByKey(data.key, data.entityType, req.user.tenantId);
             if (existing) {
                 (0, responseHelpers_1.sendError)(res, 'Custom field with this key already exists for this entity type', 400);
                 return;
             }
+            data.tenantId = req.user.tenantId;
             const customField = await customFieldService.createCustomField(data);
             (0, responseHelpers_1.sendSuccess)(res, customField, 'Custom field created successfully', 201);
         }
@@ -61,12 +62,12 @@ class CustomFieldController {
         try {
             const { id } = req.params;
             const data = req.body;
-            const existing = await customFieldService.getCustomFieldById(id);
+            const existing = await customFieldService.getCustomFieldById(id, req.user.tenantId);
             if (!existing) {
                 (0, responseHelpers_1.sendError)(res, 'Custom field not found', 404);
                 return;
             }
-            const customField = await customFieldService.updateCustomField(id, data);
+            const customField = await customFieldService.updateCustomField(id, req.user.tenantId, data);
             (0, responseHelpers_1.sendSuccess)(res, customField, 'Custom field updated successfully');
         }
         catch (error) {
@@ -77,12 +78,12 @@ class CustomFieldController {
     async deleteCustomField(req, res) {
         try {
             const { id } = req.params;
-            const existing = await customFieldService.getCustomFieldById(id);
+            const existing = await customFieldService.getCustomFieldById(id, req.user.tenantId);
             if (!existing) {
                 (0, responseHelpers_1.sendError)(res, 'Custom field not found', 404);
                 return;
             }
-            await customFieldService.deleteCustomField(id);
+            await customFieldService.deleteCustomField(id, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, null, 'Custom field deleted successfully');
         }
         catch (error) {
@@ -98,7 +99,7 @@ class CustomFieldController {
                 (0, responseHelpers_1.sendError)(res, 'entityType query parameter is required', 400);
                 return;
             }
-            const values = await customFieldService.getCustomFieldValues(entityId, entityType);
+            const values = await customFieldService.getCustomFieldValues(entityId, entityType, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, values, 'Custom field values retrieved successfully');
         }
         catch (error) {
@@ -113,7 +114,7 @@ class CustomFieldController {
                 (0, responseHelpers_1.sendError)(res, 'Missing required fields: customFieldId, entityId', 400);
                 return;
             }
-            const customField = await customFieldService.getCustomFieldById(customFieldId);
+            const customField = await customFieldService.getCustomFieldById(customFieldId, req.user.tenantId);
             if (!customField) {
                 (0, responseHelpers_1.sendError)(res, 'Custom field not found', 404);
                 return;
@@ -127,6 +128,7 @@ class CustomFieldController {
                 fieldId: customFieldId,
                 entityId,
                 value,
+                tenantId: req.user.tenantId
             });
             (0, responseHelpers_1.sendSuccess)(res, fieldValue, 'Custom field value set successfully');
         }
@@ -144,7 +146,7 @@ class CustomFieldController {
             }
             const validationErrors = [];
             for (const [customFieldId, value] of Object.entries(values)) {
-                const customField = await customFieldService.getCustomFieldById(customFieldId);
+                const customField = await customFieldService.getCustomFieldById(customFieldId, req.user.tenantId);
                 if (!customField) {
                     validationErrors.push(`Custom field ${customFieldId} not found`);
                     continue;
@@ -158,7 +160,7 @@ class CustomFieldController {
                 (0, responseHelpers_1.sendError)(res, validationErrors.join('; '), 400);
                 return;
             }
-            await customFieldService.bulkSetCustomFieldValues(entityId, values);
+            await customFieldService.bulkSetCustomFieldValues(entityId, req.user.tenantId, values);
             (0, responseHelpers_1.sendSuccess)(res, null, 'Custom field values set successfully');
         }
         catch (error) {
@@ -169,7 +171,7 @@ class CustomFieldController {
     async deleteCustomFieldValue(req, res) {
         try {
             const { customFieldId, entityId } = req.params;
-            await customFieldService.deleteCustomFieldValue(customFieldId, entityId);
+            await customFieldService.deleteCustomFieldValue(customFieldId, entityId, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, null, 'Custom field value deleted successfully');
         }
         catch (error) {
@@ -184,7 +186,7 @@ class CustomFieldController {
                 (0, responseHelpers_1.sendError)(res, 'Missing required fields: fieldIds (array), entityType', 400);
                 return;
             }
-            await customFieldService.reorderCustomFields(fieldIds, entityType);
+            await customFieldService.reorderCustomFields(fieldIds, entityType, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, null, 'Custom fields reordered successfully');
         }
         catch (error) {

@@ -7,7 +7,7 @@ export declare class CategoryCertificationService extends BaseService {
         categoryId: string;
         judgeProgress: {
             contestantsCertified: number;
-            totalContestants: number;
+            totalContestants: any;
             isCategoryCertified: boolean;
         };
         tallyMasterProgress: {
@@ -20,7 +20,7 @@ export declare class CategoryCertificationService extends BaseService {
             isCategoryCertified: boolean;
         };
     }>;
-    certifyCategory(categoryId: string, userId: string, userRole: string): Promise<{
+    certifyCategory(categoryId: string, userId: string, userRole: string, tenantId: string): Promise<{
         id: string;
         role: string;
         tenantId: string;

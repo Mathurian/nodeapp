@@ -25,26 +25,7 @@ export declare class WinnerService extends BaseService {
         message: string;
     }>;
     getWinnersByContest(contestId: string, _userRole: string, includeCategoryBreakdown?: boolean): Promise<{
-        contest: {
-            event: never;
-            categories: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            eventId: string;
-            description: string | null;
-            archived: boolean;
-            contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-            contestantViewRestricted: boolean;
-            isLocked: boolean;
-            contestantViewReleaseDate: Date | null;
-            lockedAt: Date | null;
-            lockVerifiedBy: string | null;
-            nextContestantNumber: number | null;
-        };
+        contest: any;
         categories: any[];
         contestants: {
             contestant: any;
@@ -86,26 +67,7 @@ export declare class WinnerService extends BaseService {
         role: string;
     }>;
     getWinners(eventId?: string, contestId?: string): Promise<{
-        contest: {
-            event: never;
-            categories: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            eventId: string;
-            description: string | null;
-            archived: boolean;
-            contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-            contestantViewRestricted: boolean;
-            isLocked: boolean;
-            contestantViewReleaseDate: Date | null;
-            lockedAt: Date | null;
-            lockVerifiedBy: string | null;
-            nextContestantNumber: number | null;
-        };
+        contest: any;
         categories: any[];
         contestants: {
             contestant: any;
@@ -115,27 +77,7 @@ export declare class WinnerService extends BaseService {
         }[];
         message: string;
     } | {
-        event: {
-            contests: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            startDate: Date;
-            endDate: Date;
-            archived: boolean;
-            location: string | null;
-            maxContestants: number | null;
-            contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
-            contestantViewRestricted: boolean;
-            isLocked: boolean;
-            contestantViewReleaseDate: Date | null;
-            lockedAt: Date | null;
-            lockVerifiedBy: string | null;
-        };
+        event: any;
         contests: any[];
         message: string;
         winners?: undefined;

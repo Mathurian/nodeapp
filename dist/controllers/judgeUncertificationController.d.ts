@@ -8,7 +8,6 @@ export declare class JudgeUncertificationController {
         judge: never;
         requestedByUser: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -16,16 +15,16 @@ export declare class JudgeUncertificationController {
         tenantId: string;
         categoryId: string;
         reason: string;
-        approvedAt: Date | null;
+        status: import(".prisma/client").$Enums.RequestStatus;
         rejectionReason: string | null;
         requestedBy: string;
         requestedAt: Date;
         approvedBy: string | null;
+        approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
     })[]>, Record<string, any>>>;
     createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -33,11 +32,12 @@ export declare class JudgeUncertificationController {
         tenantId: string;
         categoryId: string;
         reason: string;
-        approvedAt: Date | null;
+        status: import(".prisma/client").$Enums.RequestStatus;
         rejectionReason: string | null;
         requestedBy: string;
         requestedAt: Date;
         approvedBy: string | null;
+        approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
     }>, Record<string, any>>>;
@@ -46,7 +46,6 @@ export declare class JudgeUncertificationController {
             category: never;
             judge: never;
         } & {
-            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
             judgeId: string;
             createdAt: Date;
@@ -54,11 +53,12 @@ export declare class JudgeUncertificationController {
             tenantId: string;
             categoryId: string;
             reason: string;
-            approvedAt: Date | null;
+            status: import(".prisma/client").$Enums.RequestStatus;
             rejectionReason: string | null;
             requestedBy: string;
             requestedAt: Date;
             approvedBy: string | null;
+            approvedAt: Date | null;
             rejectedBy: string | null;
             rejectedAt: Date | null;
         };
@@ -77,7 +77,6 @@ export declare const getUncertificationRequests: (req: Request, res: Response, n
     judge: never;
     requestedByUser: never;
 } & {
-    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     createdAt: Date;
@@ -85,16 +84,16 @@ export declare const getUncertificationRequests: (req: Request, res: Response, n
     tenantId: string;
     categoryId: string;
     reason: string;
-    approvedAt: Date | null;
+    status: import(".prisma/client").$Enums.RequestStatus;
     rejectionReason: string | null;
     requestedBy: string;
     requestedAt: Date;
     approvedBy: string | null;
+    approvedAt: Date | null;
     rejectedBy: string | null;
     rejectedAt: Date | null;
 })[]>, Record<string, any>>>;
 export declare const createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    status: import(".prisma/client").$Enums.RequestStatus;
     id: string;
     judgeId: string;
     createdAt: Date;
@@ -102,11 +101,12 @@ export declare const createUncertificationRequest: (req: Request, res: Response,
     tenantId: string;
     categoryId: string;
     reason: string;
-    approvedAt: Date | null;
+    status: import(".prisma/client").$Enums.RequestStatus;
     rejectionReason: string | null;
     requestedBy: string;
     requestedAt: Date;
     approvedBy: string | null;
+    approvedAt: Date | null;
     rejectedBy: string | null;
     rejectedAt: Date | null;
 }>, Record<string, any>>>;
@@ -115,7 +115,6 @@ export declare const signUncertificationRequest: (req: Request, res: Response, n
         category: never;
         judge: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -123,11 +122,12 @@ export declare const signUncertificationRequest: (req: Request, res: Response, n
         tenantId: string;
         categoryId: string;
         reason: string;
-        approvedAt: Date | null;
+        status: import(".prisma/client").$Enums.RequestStatus;
         rejectionReason: string | null;
         requestedBy: string;
         requestedAt: Date;
         approvedBy: string | null;
+        approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
     };

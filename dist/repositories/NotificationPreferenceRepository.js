@@ -21,16 +21,17 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
     constructor(prismaClient = database_1.default) {
         this.prismaClient = prismaClient;
     }
-    async findByUserId(_tenantId, userId) {
+    async findByUserId(tenantId, userId) {
         return this.prismaClient.notificationPreference.findUnique({
             where: {
-                userId
+                tenantId_userId: { tenantId, userId }
             },
         });
     }
     async create(data) {
         return this.prismaClient.notificationPreference.create({
             data: {
+                tenantId: data.tenantId,
                 userId: data.userId,
                 emailEnabled: data.emailEnabled ?? true,
                 pushEnabled: data.pushEnabled ?? false,
@@ -44,7 +45,7 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
             },
         });
     }
-    async update(_tenantId, userId, data) {
+    async update(tenantId, userId, data) {
         const updateData = {};
         if (data.emailEnabled !== undefined)
             updateData.emailEnabled = data.emailEnabled;
@@ -66,7 +67,7 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
             updateData.quietHoursEnd = String(data.quietHoursEnd);
         return this.prismaClient.notificationPreference.update({
             where: {
-                userId
+                tenantId_userId: { tenantId, userId }
             },
             data: updateData,
         });
@@ -77,10 +78,10 @@ let NotificationPreferenceRepository = class NotificationPreferenceRepository {
             return existing;
         return this.create({ tenantId, userId });
     }
-    async delete(_tenantId, userId) {
+    async delete(tenantId, userId) {
         return this.prismaClient.notificationPreference.delete({
             where: {
-                userId
+                tenantId_userId: { tenantId, userId }
             },
         });
     }

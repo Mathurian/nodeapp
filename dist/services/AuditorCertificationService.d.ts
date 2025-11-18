@@ -5,12 +5,12 @@ export declare class AuditorCertificationService extends BaseService {
     constructor(prisma: PrismaClient);
     getFinalCertificationStatus(categoryId: string): Promise<{
         categoryId: string;
-        categoryName: string;
+        categoryName: any;
         canCertify: boolean;
         readyForFinalCertification: boolean;
         alreadyCertified: boolean;
         tallyCertifications: {
-            required: number;
+            required: any;
             completed: number;
             missing: number;
             certifications: {
@@ -25,8 +25,8 @@ export declare class AuditorCertificationService extends BaseService {
             }[];
         };
         scoreStatus: {
-            total: number;
-            uncertified: number;
+            total: any;
+            uncertified: any;
             completed: boolean;
         };
         auditorCertified: boolean;

@@ -51,6 +51,7 @@ const configureSocketHandlers = (io) => {
         try {
             const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
             socket.userId = decoded.userId;
+            socket.tenantId = decoded.tenantId;
             next();
         }
         catch (error) {
@@ -59,6 +60,7 @@ const configureSocketHandlers = (io) => {
     });
     io.on('connection', (socket) => {
         const userId = socket.userId;
+        const tenantId = socket.tenantId;
         console.log(`Client connected: ${socket.id} (User: ${userId})`);
         if (userId) {
             socket.join(`user:${userId}`);
@@ -81,7 +83,7 @@ const configureSocketHandlers = (io) => {
         socket.on('mark-notification-read', async (notificationId) => {
             try {
                 const notificationService = tsyringe_1.container.resolve(NotificationService_1.NotificationService);
-                await notificationService.markAsRead(notificationId, userId);
+                await notificationService.markAsRead(notificationId, userId, tenantId);
             }
             catch (error) {
                 console.error('Error marking notification as read:', error);

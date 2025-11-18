@@ -19,7 +19,7 @@ export declare class ContestCertificationService extends BaseService {
             comments: string | null;
         }[];
     }>;
-    certifyContest(contestId: string, userId: string, userRole: string): Promise<{
+    certifyContest(contestId: string, userId: string, userRole: string, tenantId: string): Promise<{
         id: string;
         role: string;
         tenantId: string;

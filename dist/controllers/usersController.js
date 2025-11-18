@@ -144,13 +144,9 @@ class UsersController {
                 });
                 log.info('Contestant record created and linked', { userId: user.id, contestantId: contestant.id });
             }
-            const createdUser = await this.prisma.user.findUnique({
-                where: { id: user.id },
-                include: {
-                    judge: true,
-                    contestant: true
-                }
-            });
+            const createdUser = (await this.prisma.user.findUnique({
+                where: { id: user.id }
+            }));
             log.info('User created successfully', { userId: user.id, email: data.email, role: data.role });
             (0, responseHelpers_1.sendCreated)(res, createdUser);
         }

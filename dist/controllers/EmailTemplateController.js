@@ -12,7 +12,7 @@ class EmailTemplateController {
     async getAllTemplates(req, res) {
         try {
             const { eventId } = req.query;
-            const templates = await emailTemplateService.getAllEmailTemplates(eventId);
+            const templates = await emailTemplateService.getAllEmailTemplates(eventId, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, templates, 'Email templates retrieved successfully');
         }
         catch (error) {
@@ -23,7 +23,7 @@ class EmailTemplateController {
     async getTemplateById(req, res) {
         try {
             const { id } = req.params;
-            const template = await emailTemplateService.getEmailTemplateById(id);
+            const template = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
             if (!template) {
                 (0, responseHelpers_1.sendError)(res, 'Email template not found', 404);
                 return;
@@ -39,7 +39,7 @@ class EmailTemplateController {
         try {
             const { type } = req.params;
             const { eventId } = req.query;
-            const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId);
+            const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, templates, 'Email templates retrieved successfully');
         }
         catch (error) {
@@ -60,6 +60,7 @@ class EmailTemplateController {
                 return;
             }
             data.createdBy = userId;
+            data.tenantId = req.user.tenantId;
             const template = await emailTemplateService.createEmailTemplate(data);
             (0, responseHelpers_1.sendSuccess)(res, template, 'Email template created successfully', 201);
         }
@@ -72,12 +73,12 @@ class EmailTemplateController {
         try {
             const { id } = req.params;
             const data = req.body;
-            const existing = await emailTemplateService.getEmailTemplateById(id);
+            const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
             if (!existing) {
                 (0, responseHelpers_1.sendError)(res, 'Email template not found', 404);
                 return;
             }
-            const template = await emailTemplateService.updateEmailTemplate(id, data);
+            const template = await emailTemplateService.updateEmailTemplate(id, req.user.tenantId, data);
             (0, responseHelpers_1.sendSuccess)(res, template, 'Email template updated successfully');
         }
         catch (error) {
@@ -88,12 +89,12 @@ class EmailTemplateController {
     async deleteTemplate(req, res) {
         try {
             const { id } = req.params;
-            const existing = await emailTemplateService.getEmailTemplateById(id);
+            const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
             if (!existing) {
                 (0, responseHelpers_1.sendError)(res, 'Email template not found', 404);
                 return;
             }
-            await emailTemplateService.deleteEmailTemplate(id);
+            await emailTemplateService.deleteEmailTemplate(id, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, null, 'Email template deleted successfully');
         }
         catch (error) {
@@ -109,7 +110,7 @@ class EmailTemplateController {
                 (0, responseHelpers_1.sendError)(res, 'Unauthorized', 401);
                 return;
             }
-            const cloned = await emailTemplateService.cloneEmailTemplate(id, userId);
+            const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, cloned, 'Email template cloned successfully', 201);
         }
         catch (error) {
@@ -121,7 +122,7 @@ class EmailTemplateController {
         try {
             const { id } = req.params;
             const { variables } = req.body;
-            const preview = await emailTemplateService.previewEmailTemplate(id, variables);
+            const preview = await emailTemplateService.previewEmailTemplate(id, req.user.tenantId, variables);
             (0, responseHelpers_1.sendSuccess)(res, preview, 'Email template preview generated successfully');
         }
         catch (error) {

@@ -143,7 +143,8 @@ class CustomFieldService {
             }
             const value = await this.prisma.customFieldValue.upsert({
                 where: {
-                    customFieldId_entityId: {
+                    tenantId_customFieldId_entityId: {
+                        tenantId: data.tenantId,
                         customFieldId: data.fieldId,
                         entityId: data.entityId,
                     },
@@ -220,7 +221,8 @@ class CustomFieldService {
             }
             await this.prisma.customFieldValue.delete({
                 where: {
-                    customFieldId_entityId: {
+                    tenantId_customFieldId_entityId: {
+                        tenantId,
                         customFieldId: fieldId,
                         entityId,
                     },

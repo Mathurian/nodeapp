@@ -95,24 +95,7 @@ export declare class AdminController {
         uptime: string;
         uptimeSeconds: number;
     }>, Record<string, any>>>;
-    getLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        id: string;
-        userId: string;
-        action: string;
-        resourceType: string;
-        resource: string;
-        resourceId: string;
-        details: import("@prisma/client/runtime/library").JsonValue;
-        ipAddress: string;
-        userAgent: string;
-        createdAt: string;
-        user: {
-            id: any;
-            name: any;
-            email: any;
-            role: any;
-        };
-    }[]>, Record<string, any>>>;
+    getLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
     getActiveUsers: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         name: string;
         id: string;
@@ -157,15 +140,12 @@ export declare class AdminController {
         };
     }>, Record<string, any>>>;
     getContests: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        contests: ({
-            event: never;
-        } & {
+        contests: {
             name: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             tenantId: string;
-            eventId: string;
             description: string | null;
             archived: boolean;
             contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
@@ -174,8 +154,9 @@ export declare class AdminController {
             contestantViewReleaseDate: Date | null;
             lockedAt: Date | null;
             lockVerifiedBy: string | null;
+            eventId: string;
             nextContestantNumber: number | null;
-        })[];
+        }[];
         pagination: {
             page: number;
             limit: number;
@@ -185,9 +166,7 @@ export declare class AdminController {
         };
     }>, Record<string, any>>>;
     getCategories: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        categories: ({
-            contest: never;
-        } & {
+        categories: {
             name: string;
             id: string;
             createdAt: Date;
@@ -200,7 +179,7 @@ export declare class AdminController {
             contestantMin: number | null;
             contestantMax: number | null;
             totalsCertified: boolean;
-        })[];
+        }[];
         pagination: {
             page: number;
             limit: number;
@@ -210,11 +189,7 @@ export declare class AdminController {
         };
     }>, Record<string, any>>>;
     getScores: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        scores: ({
-            category: never;
-            contestant: never;
-            judge: never;
-        } & {
+        scores: {
             score: number | null;
             id: string;
             judgeId: string;
@@ -232,7 +207,7 @@ export declare class AdminController {
             comment: string | null;
             isCertified: boolean;
             lockedBy: string | null;
-        })[];
+        }[];
         pagination: {
             page: number;
             limit: number;
@@ -241,42 +216,8 @@ export declare class AdminController {
             hasMore: boolean;
         };
     }>, Record<string, any>>>;
-    getActivityLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        id: string;
-        userId: string;
-        action: string;
-        resourceType: string;
-        resource: string;
-        resourceId: string;
-        details: import("@prisma/client/runtime/library").JsonValue;
-        ipAddress: string;
-        userAgent: string;
-        createdAt: string;
-        user: {
-            id: any;
-            name: any;
-            email: any;
-            role: any;
-        };
-    }[]>, Record<string, any>>>;
-    getAuditLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        id: string;
-        userId: string;
-        action: string;
-        resourceType: string;
-        resource: string;
-        resourceId: string;
-        details: import("@prisma/client/runtime/library").JsonValue;
-        ipAddress: string;
-        userAgent: string;
-        createdAt: string;
-        user: {
-            id: any;
-            name: any;
-            email: any;
-            role: any;
-        };
-    }[]>, Record<string, any>>>;
+    getActivityLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+    getAuditLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
     exportAuditLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<any, Record<string, any>>>;
     testConnection: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         database: string;
@@ -413,24 +354,7 @@ export declare const getStats: (_req: Request, res: Response, next: NextFunction
     uptime: string;
     uptimeSeconds: number;
 }>, Record<string, any>>>;
-export declare const getLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    id: string;
-    userId: string;
-    action: string;
-    resourceType: string;
-    resource: string;
-    resourceId: string;
-    details: import("@prisma/client/runtime/library").JsonValue;
-    ipAddress: string;
-    userAgent: string;
-    createdAt: string;
-    user: {
-        id: any;
-        name: any;
-        email: any;
-        role: any;
-    };
-}[]>, Record<string, any>>>;
+export declare const getLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 export declare const getActiveUsers: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     name: string;
     id: string;
@@ -475,15 +399,12 @@ export declare const getEvents: (req: Request, res: Response, next: NextFunction
     };
 }>, Record<string, any>>>;
 export declare const getContests: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    contests: ({
-        event: never;
-    } & {
+    contests: {
         name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        eventId: string;
         description: string | null;
         archived: boolean;
         contestantNumberingMode: import(".prisma/client").$Enums.ContestantNumberingMode;
@@ -492,8 +413,9 @@ export declare const getContests: (req: Request, res: Response, next: NextFuncti
         contestantViewReleaseDate: Date | null;
         lockedAt: Date | null;
         lockVerifiedBy: string | null;
+        eventId: string;
         nextContestantNumber: number | null;
-    })[];
+    }[];
     pagination: {
         page: number;
         limit: number;
@@ -503,9 +425,7 @@ export declare const getContests: (req: Request, res: Response, next: NextFuncti
     };
 }>, Record<string, any>>>;
 export declare const getCategories: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    categories: ({
-        contest: never;
-    } & {
+    categories: {
         name: string;
         id: string;
         createdAt: Date;
@@ -518,7 +438,7 @@ export declare const getCategories: (req: Request, res: Response, next: NextFunc
         contestantMin: number | null;
         contestantMax: number | null;
         totalsCertified: boolean;
-    })[];
+    }[];
     pagination: {
         page: number;
         limit: number;
@@ -528,11 +448,7 @@ export declare const getCategories: (req: Request, res: Response, next: NextFunc
     };
 }>, Record<string, any>>>;
 export declare const getScores: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    scores: ({
-        category: never;
-        contestant: never;
-        judge: never;
-    } & {
+    scores: {
         score: number | null;
         id: string;
         judgeId: string;
@@ -550,7 +466,7 @@ export declare const getScores: (req: Request, res: Response, next: NextFunction
         comment: string | null;
         isCertified: boolean;
         lockedBy: string | null;
-    })[];
+    }[];
     pagination: {
         page: number;
         limit: number;
@@ -559,42 +475,8 @@ export declare const getScores: (req: Request, res: Response, next: NextFunction
         hasMore: boolean;
     };
 }>, Record<string, any>>>;
-export declare const getActivityLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    id: string;
-    userId: string;
-    action: string;
-    resourceType: string;
-    resource: string;
-    resourceId: string;
-    details: import("@prisma/client/runtime/library").JsonValue;
-    ipAddress: string;
-    userAgent: string;
-    createdAt: string;
-    user: {
-        id: any;
-        name: any;
-        email: any;
-        role: any;
-    };
-}[]>, Record<string, any>>>;
-export declare const getAuditLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    id: string;
-    userId: string;
-    action: string;
-    resourceType: string;
-    resource: string;
-    resourceId: string;
-    details: import("@prisma/client/runtime/library").JsonValue;
-    ipAddress: string;
-    userAgent: string;
-    createdAt: string;
-    user: {
-        id: any;
-        name: any;
-        email: any;
-        role: any;
-    };
-}[]>, Record<string, any>>>;
+export declare const getActivityLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
+export declare const getAuditLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 export declare const exportAuditLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<any, Record<string, any>>>;
 export declare const testConnection: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     database: string;

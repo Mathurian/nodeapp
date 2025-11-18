@@ -192,16 +192,19 @@ let TestEventSetupService = class TestEventSetupService extends BaseService_1.Ba
                     await tx.criterion.createMany({
                         data: [
                             {
+                                tenantId: 'default_tenant',
                                 categoryId: category.id,
                                 name: 'Criterion 1',
                                 maxScore: 30
                             },
                             {
+                                tenantId: 'default_tenant',
                                 categoryId: category.id,
                                 name: 'Criterion 2',
                                 maxScore: 40
                             },
                             {
+                                tenantId: 'default_tenant',
                                 categoryId: category.id,
                                 name: 'Criterion 3',
                                 maxScore: 30
@@ -236,6 +239,7 @@ let TestEventSetupService = class TestEventSetupService extends BaseService_1.Ba
                         if (assignJudgesToCategories) {
                             await tx.categoryJudge.create({
                                 data: {
+                                    tenantId: 'default_tenant',
                                     categoryId: category.id,
                                     judgeId: judge.id
                                 }
@@ -271,12 +275,14 @@ let TestEventSetupService = class TestEventSetupService extends BaseService_1.Ba
                         if (assignContestantsToCategories) {
                             await tx.categoryContestant.create({
                                 data: {
+                                    tenantId: 'default_tenant',
                                     categoryId: category.id,
                                     contestantId: contestant.id
                                 }
                             });
                             await tx.contestContestant.create({
                                 data: {
+                                    tenantId: 'default_tenant',
                                     contestId: contest.id,
                                     contestantId: contestant.id
                                 }

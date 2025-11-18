@@ -4,33 +4,11 @@ export declare class AdvancedReportingController {
     private prisma;
     constructor();
     generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        scores: ({
-            category: never;
-            contestant: never;
-            judge: never;
-        } & {
-            score: number | null;
-            id: string;
-            judgeId: string;
-            contestantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            isLocked: boolean;
-            lockedAt: Date | null;
-            categoryId: string;
-            criterionId: string | null;
-            allowCommentEdit: boolean;
-            certifiedAt: Date | null;
-            certifiedBy: string | null;
-            comment: string | null;
-            isCertified: boolean;
-            lockedBy: string | null;
-        })[];
-        total: number;
+        scores: any;
+        total: any;
     }>, Record<string, any>>>;
     generateSummaryReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        event: string;
+        event: any;
         contests: any;
         categories: any;
         totalScores: any;
@@ -41,33 +19,11 @@ export declare class AdvancedReportingController {
     generateContestResultsReport: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 }
 export declare const generateScoreReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    scores: ({
-        category: never;
-        contestant: never;
-        judge: never;
-    } & {
-        score: number | null;
-        id: string;
-        judgeId: string;
-        contestantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        isLocked: boolean;
-        lockedAt: Date | null;
-        categoryId: string;
-        criterionId: string | null;
-        allowCommentEdit: boolean;
-        certifiedAt: Date | null;
-        certifiedBy: string | null;
-        comment: string | null;
-        isCertified: boolean;
-        lockedBy: string | null;
-    })[];
-    total: number;
+    scores: any;
+    total: any;
 }>, Record<string, any>>>;
 export declare const generateSummaryReport: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    event: string;
+    event: any;
     contests: any;
     categories: any;
     totalScores: any;

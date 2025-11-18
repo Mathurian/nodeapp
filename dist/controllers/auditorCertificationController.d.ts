@@ -4,12 +4,12 @@ export declare class AuditorCertificationController {
     constructor();
     getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         categoryId: string;
-        categoryName: string;
+        categoryName: any;
         canCertify: boolean;
         readyForFinalCertification: boolean;
         alreadyCertified: boolean;
         tallyCertifications: {
-            required: number;
+            required: any;
             completed: number;
             missing: number;
             certifications: {
@@ -24,8 +24,8 @@ export declare class AuditorCertificationController {
             }[];
         };
         scoreStatus: {
-            total: number;
-            uncertified: number;
+            total: any;
+            uncertified: any;
             completed: boolean;
         };
         auditorCertified: boolean;
@@ -47,12 +47,12 @@ export declare class AuditorCertificationController {
 }
 export declare const getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     categoryId: string;
-    categoryName: string;
+    categoryName: any;
     canCertify: boolean;
     readyForFinalCertification: boolean;
     alreadyCertified: boolean;
     tallyCertifications: {
-        required: number;
+        required: any;
         completed: number;
         missing: number;
         certifications: {
@@ -67,8 +67,8 @@ export declare const getFinalCertificationStatus: (req: Request, res: Response, 
         }[];
     };
     scoreStatus: {
-        total: number;
-        uncertified: number;
+        total: any;
+        uncertified: any;
         completed: boolean;
     };
     auditorCertified: boolean;

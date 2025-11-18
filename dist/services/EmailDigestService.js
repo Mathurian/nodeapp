@@ -41,7 +41,7 @@ let EmailDigestService = class EmailDigestService {
         let sentCount = 0;
         for (const preference of preferences) {
             try {
-                const sent = await this.sendDigestToUser(preference.userId, frequency);
+                const sent = await this.sendDigestToUser(preference.userId, frequency, preference.tenantId);
                 if (sent)
                     sentCount++;
             }
@@ -51,10 +51,11 @@ let EmailDigestService = class EmailDigestService {
         }
         return sentCount;
     }
-    async sendDigestToUser(userId, frequency) {
+    async sendDigestToUser(userId, frequency, tenantId) {
         const since = this.getTimeRange(frequency);
         const allNotifications = await this.notificationRepository.findByUser({
             userId,
+            tenantId,
             read: false,
             limit: 100,
         });
@@ -282,8 +283,13 @@ let EmailDigestService = class EmailDigestService {
             });
         }
         else {
+            const user = await database_1.default.user.findUnique({
+                where: { id: userId },
+                select: { tenantId: true }
+            });
             await database_1.default.notificationDigest.create({
                 data: {
+                    tenantId: user?.tenantId || 'default_tenant',
                     userId,
                     frequency,
                     lastSentAt: new Date(),

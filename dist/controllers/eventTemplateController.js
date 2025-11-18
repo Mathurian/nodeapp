@@ -17,7 +17,8 @@ class EventTemplateController {
                 description,
                 contests,
                 categories,
-                createdBy: req.user.id
+                createdBy: req.user.id,
+                tenantId: req.user.tenantId
             });
             return (0, responseHelpers_1.sendSuccess)(res, template, 'Template created', 201);
         }
@@ -25,9 +26,9 @@ class EventTemplateController {
             return next(error);
         }
     };
-    getTemplates = async (_req, res, next) => {
+    getTemplates = async (req, res, next) => {
         try {
-            const templates = await this.eventTemplateService.getAll();
+            const templates = await this.eventTemplateService.getAll(req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, templates);
         }
         catch (error) {
@@ -37,7 +38,7 @@ class EventTemplateController {
     getTemplate = async (req, res, next) => {
         try {
             const { id } = req.params;
-            const template = await this.eventTemplateService.getById(id);
+            const template = await this.eventTemplateService.getById(id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, template);
         }
         catch (error) {
@@ -48,7 +49,7 @@ class EventTemplateController {
         try {
             const { id } = req.params;
             const { name, description, contests, categories } = req.body;
-            const template = await this.eventTemplateService.update(id, {
+            const template = await this.eventTemplateService.update(id, req.user.tenantId, {
                 name,
                 description,
                 contests,
@@ -63,7 +64,7 @@ class EventTemplateController {
     deleteTemplate = async (req, res, next) => {
         try {
             const { id } = req.params;
-            await this.eventTemplateService.delete(id);
+            await this.eventTemplateService.delete(id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Template deleted');
         }
         catch (error) {
@@ -78,7 +79,8 @@ class EventTemplateController {
                 eventName,
                 eventDescription,
                 startDate,
-                endDate
+                endDate,
+                tenantId: req.user.tenantId
             });
             return (0, responseHelpers_1.sendSuccess)(res, event, 'Event created from template', 201);
         }

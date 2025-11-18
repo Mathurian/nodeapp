@@ -24,7 +24,7 @@ class CategoryCertificationController {
     certifyCategory = async (req, res, next) => {
         try {
             const { categoryId } = req.params;
-            const certification = await this.categoryCertificationService.certifyCategory(categoryId, req.user.id, req.user.role);
+            const certification = await this.categoryCertificationService.certifyCategory(categoryId, req.user.id, req.user.role, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Category certified successfully');
         }
         catch (error) {
@@ -42,7 +42,8 @@ class CategoryCertificationController {
                     judgeId: req.user?.judgeId || '',
                     categoryId,
                     contestantId,
-                    certifiedAt: new Date()
+                    certifiedAt: new Date(),
+                    tenantId: req.user.tenantId
                 }
             });
             return (0, responseHelpers_1.sendSuccess)(res, certification, 'Contestant certified successfully', 201);

@@ -5,6 +5,7 @@ export interface CreateReportInstanceDTO {
     name: string;
     generatedById: string;
     format: string;
+    tenantId: string;
     data?: string;
     templateId?: string;
 }

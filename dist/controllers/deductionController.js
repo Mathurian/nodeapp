@@ -18,7 +18,8 @@ class DeductionController {
                 categoryId,
                 amount: parseFloat(amount),
                 reason,
-                requestedBy
+                requestedBy,
+                tenantId: req.user.tenantId
             });
             (0, responseHelpers_1.sendCreated)(res, deduction, 'Deduction request created successfully');
         }
@@ -30,7 +31,7 @@ class DeductionController {
         try {
             const userRole = req.user.role;
             const userId = req.user.id;
-            const deductions = await this.deductionService.getPendingDeductions(userRole, userId);
+            const deductions = await this.deductionService.getPendingDeductions(userRole, userId, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, deductions, 'Pending deductions retrieved successfully');
         }
         catch (error) {
@@ -55,7 +56,7 @@ class DeductionController {
             const id = req.params.id;
             const { reason } = req.body;
             const rejectedBy = req.user.id;
-            await this.deductionService.rejectDeduction(id, rejectedBy, reason);
+            await this.deductionService.rejectDeduction(id, rejectedBy, reason, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, null, 'Deduction rejected successfully');
         }
         catch (error) {
@@ -65,7 +66,7 @@ class DeductionController {
     getApprovalStatus = async (req, res, next) => {
         try {
             const id = req.params.id;
-            const status = await this.deductionService.getApprovalStatus(id);
+            const status = await this.deductionService.getApprovalStatus(id, req.user.tenantId);
             (0, responseHelpers_1.sendSuccess)(res, status, 'Approval status retrieved successfully');
         }
         catch (error) {
@@ -78,7 +79,8 @@ class DeductionController {
             const result = await this.deductionService.getDeductionHistory({
                 status: status,
                 categoryId: categoryId,
-                contestantId: contestantId
+                contestantId: contestantId,
+                tenantId: req.user.tenantId
             }, parseInt(page), parseInt(limit));
             (0, responseHelpers_1.sendSuccess)(res, result, 'Deduction history retrieved successfully');
         }

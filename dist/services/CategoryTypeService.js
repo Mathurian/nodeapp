@@ -19,11 +19,10 @@ let CategoryTypeService = class CategoryTypeService extends BaseService_1.BaseSe
             orderBy: { name: 'asc' },
         });
     }
-    async createCategoryType(name, description, createdById, tenantId = '') {
+    async createCategoryType(name, description, createdById, _tenantId = '') {
         this.validateRequired({ name }, ['name']);
         const categoryType = await prisma_1.default.categoryType.create({
             data: {
-                tenantId,
                 name,
                 description: description || null,
                 isSystem: false,

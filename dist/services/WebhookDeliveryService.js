@@ -48,6 +48,7 @@ class WebhookDeliveryService {
             logger.info(`Delivering webhook ${webhook.name} for event ${event.type}`);
             const delivery = await database_1.default.webhookDelivery.create({
                 data: {
+                    tenantId: webhook.tenantId || 'default_tenant',
                     webhookId: webhook.id,
                     eventId: event.metadata.correlationId || event.type || 'unknown',
                     status: 'pending',

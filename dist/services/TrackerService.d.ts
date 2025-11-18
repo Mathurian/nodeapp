@@ -4,17 +4,17 @@ export declare class TrackerService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     getScoringProgressByContest(contestId: string): Promise<{
-        contestId: string;
-        contestName: string;
-        eventName: any;
-        categories: any;
+        contestId: any;
+        contestName: any;
+        eventName: string;
+        categories: any[];
         overallCompletion: number;
     }>;
     getScoringProgressByCategory(categoryId: string): Promise<{
-        categoryId: string;
-        categoryName: string;
+        categoryId: any;
+        categoryName: any;
         contestName: any;
-        eventName: any;
+        eventName: string;
         totalContestants: any;
         totalJudges: any;
         totalScores: any;

@@ -14,21 +14,17 @@ const hasCategoryAssignment = async (userId, role, categoryId) => {
         where: { id: categoryId },
         select: {
             id: true,
-            contestId: true,
-            contest: {
-                select: {
-                    id: true,
-                    eventId: true,
-                    event: {
-                        select: {
-                            id: true
-                        }
-                    }
-                }
-            }
+            contestId: true
         }
     });
     if (!category) {
+        return false;
+    }
+    const contest = await prisma.contest.findUnique({
+        where: { id: category.contestId },
+        select: { eventId: true }
+    });
+    if (!contest) {
         return false;
     }
     const assignment = await prisma.roleAssignment.findFirst({
@@ -39,7 +35,7 @@ const hasCategoryAssignment = async (userId, role, categoryId) => {
             OR: [
                 { categoryId },
                 { contestId: category.contestId },
-                { eventId: category.contest.eventId }
+                { eventId: contest.eventId }
             ]
         }
     });
@@ -56,8 +52,8 @@ const hasContestAssignment = async (userId, role, contestId) => {
     }
     const contest = await prisma.contest.findUnique({
         where: { id: contestId },
-        include: {
-            event: true
+        select: {
+            eventId: true
         }
     });
     if (!contest) {

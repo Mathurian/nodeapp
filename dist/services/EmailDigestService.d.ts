@@ -17,7 +17,7 @@ export declare class EmailDigestService {
     sendDailyDigests(): Promise<number>;
     sendWeeklyDigests(): Promise<number>;
     private sendDigests;
-    sendDigestToUser(userId: string, frequency: string): Promise<boolean>;
+    sendDigestToUser(userId: string, frequency: string, tenantId: string): Promise<boolean>;
     private getTimeRange;
     private groupNotifications;
     private generateDigestHTML;

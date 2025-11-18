@@ -1,13 +1,6 @@
-import { Score, Prisma } from '@prisma/client';
+import { Score } from '@prisma/client';
 import { BaseRepository } from './BaseRepository';
-export type ScoreWithRelations = Prisma.ScoreGetPayload<{
-    include: {
-        judge: true;
-        contestant: true;
-        category: true;
-        contest: true;
-    };
-}>;
+export type ScoreWithRelations = any;
 export declare class ScoreRepository extends BaseRepository<Score> {
     protected getModelName(): string;
     findByEvent(eventId: string, tenantId: string): Promise<ScoreWithRelations[]>;

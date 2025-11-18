@@ -36,16 +36,7 @@ let AuditorCertificationService = class AuditorCertificationService extends Base
                 name: true,
                 description: true,
                 scoreCap: true,
-                contestId: true,
-                contest: {
-                    select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        eventId: true,
-                        event: { select: { id: true, name: true, description: true } }
-                    }
-                }
+                contestId: true
             }
         });
         const categoryJudges = await this.prisma.categoryJudge.findMany({
@@ -110,6 +101,7 @@ let AuditorCertificationService = class AuditorCertificationService extends Base
         }
         const certification = await this.prisma.categoryCertification.create({
             data: {
+                tenantId: auditor.tenantId,
                 categoryId,
                 role: 'AUDITOR',
                 userId

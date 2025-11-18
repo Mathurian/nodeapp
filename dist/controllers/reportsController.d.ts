@@ -6,7 +6,7 @@ export declare class ReportsController {
     private emailService;
     private instanceService;
     constructor();
-    getTemplates: (_req: Request, res: Response, next: NextFunction) => Promise<void>;
+    getTemplates: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     createTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     updateTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     deleteTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
@@ -20,7 +20,7 @@ export declare class ReportsController {
     private getReportData;
     sendReportEmail: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }
-export declare const getTemplates: (_req: Request, res: Response, next: NextFunction) => Promise<void>;
+export declare const getTemplates: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const createTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const updateTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 export declare const deleteTemplate: (req: Request, res: Response, next: NextFunction) => Promise<void>;
