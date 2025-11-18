@@ -20,7 +20,7 @@ interface ApiMeta {
     hasNextPage: boolean;
     hasPrevPage: boolean;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -28,12 +28,12 @@ interface ApiMeta {
  */
 export const successResponse = (
   res: Response,
-  data: any = null,
+  data: unknown = null,
   message: string = 'Success',
   statusCode: number = 200,
   meta: ApiMeta | null = null
 ): Response => {
-  const response: any = {
+  const response: Record<string, unknown> = {
     success: true,
     message,
     data,
@@ -54,9 +54,9 @@ export const errorResponse = (
   res: Response,
   message: string = 'Internal Server Error',
   statusCode: number = 500,
-  errors: any = null
+  errors: unknown = null
 ): Response => {
-  const response: any = {
+  const response: Record<string, unknown> = {
     success: false,
     message,
     timestamp: new Date().toISOString(),
@@ -67,8 +67,8 @@ export const errorResponse = (
   }
 
   // Add stack trace only in development
-  if (process.env.NODE_ENV !== 'production' && errors?.stack) {
-    response.stack = errors.stack;
+  if (process.env.NODE_ENV !== 'production' && errors && typeof errors === 'object' && 'stack' in errors) {
+    response.stack = (errors as { stack: string }).stack;
   }
 
   return res.status(statusCode).json(response);
@@ -79,7 +79,7 @@ export const errorResponse = (
  */
 export const paginatedResponse = (
   res: Response,
-  data: any[],
+  data: unknown[],
   page: number,
   limit: number,
   total: number,
@@ -104,7 +104,7 @@ export const paginatedResponse = (
  */
 export const createdResponse = (
   res: Response,
-  data: any,
+  data: unknown,
   message: string = 'Resource created successfully'
 ): Response => {
   return successResponse(res, data, message, 201);
@@ -123,7 +123,7 @@ export const noContentResponse = (res: Response): Response => {
 export const badRequestResponse = (
   res: Response,
   message: string = 'Bad Request',
-  errors: any = null
+  errors: unknown = null
 ): Response => {
   return errorResponse(res, message, 400, errors);
 };
@@ -173,7 +173,7 @@ export const conflictResponse = (
  */
 export const validationErrorResponse = (
   res: Response,
-  errors: any[],
+  errors: unknown[],
   message: string = 'Validation failed'
 ): Response => {
   return errorResponse(res, message, 422, errors);
@@ -185,7 +185,7 @@ export const validationErrorResponse = (
 export const internalErrorResponse = (
   res: Response,
   message: string = 'Internal Server Error',
-  error: any = null
+  error: unknown = null
 ): Response => {
   return errorResponse(res, message, 500, error);
 };
