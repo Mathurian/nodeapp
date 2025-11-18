@@ -3,6 +3,7 @@ import { container } from '../config/container';
 import { AssignmentService, AssignmentFilters } from '../services/AssignmentService';
 import { sendSuccess, successResponse, sendError } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 /**
  * Assignments Controller
@@ -66,7 +67,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const assignment = await this.assignmentService.getAssignmentById(id);
 
       res.json(assignment);
@@ -84,7 +85,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const assignment = await this.assignmentService.updateAssignment(id, req.body);
 
       successResponse(res, assignment, 'Assignment updated successfully');
@@ -102,7 +103,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       await this.assignmentService.deleteAssignment(id);
 
       successResponse(res, null, 'Assignment deleted successfully');
@@ -120,7 +121,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { judgeId } = req.params;
+      const judgeId = getRequiredParam(req, 'judgeId');
       const assignments = await this.assignmentService.getAssignmentsForJudge(judgeId);
 
       res.json(assignments);
@@ -138,7 +139,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { categoryId } = req.params;
+      const categoryId = getRequiredParam(req, 'categoryId');
       const assignments = await this.assignmentService.getAssignmentsForCategory(categoryId);
 
       res.json(assignments);
@@ -156,7 +157,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { categoryId } = req.params;
+      const categoryId = getRequiredParam(req, 'categoryId');
       const { judgeIds } = req.body;
       const userId = req.user?.id || '';
 
@@ -185,7 +186,7 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { categoryId } = req.params;
+      const categoryId = getRequiredParam(req, 'categoryId');
       const removedCount = await this.assignmentService.removeAllAssignmentsForCategory(categoryId);
 
       successResponse(
@@ -319,7 +320,8 @@ export class AssignmentsController {
 
   removeContestantFromCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { categoryId, contestantId } = req.params;
+      const categoryId = getRequiredParam(req, 'categoryId');
+      const contestantId = getRequiredParam(req, 'contestantId');
       await this.assignmentService.removeContestantFromCategory(categoryId, contestantId);
       return sendSuccess(res, null, 'Contestant removed from category successfully');
     } catch (error) {
@@ -329,7 +331,7 @@ export class AssignmentsController {
 
   getCategoryContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { categoryId } = req.params;
+      const categoryId = getRequiredParam(req, 'categoryId');
       const contestants = await this.assignmentService.getCategoryContestants(categoryId);
       return sendSuccess(res, contestants, 'Category contestants retrieved successfully');
     } catch (error) {
