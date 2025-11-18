@@ -217,6 +217,7 @@ export class AssignmentService extends BaseService {
 
     let finalContestId = data.contestId;
     let finalEventId = data.eventId;
+    let tenantId: string;
 
     // If categoryId provided, fetch to get contestId and eventId
     if (data.categoryId) {
@@ -235,13 +236,18 @@ export class AssignmentService extends BaseService {
         throw this.createNotFoundError('Category not found');
       }
 
+      tenantId = category.tenantId;
       finalContestId = category.contestId;
       finalEventId = category.contest.eventId;
 
       // Check if assignment already exists
       const existingAssignment = await this.prisma.assignment.findUnique({
         where: {
-          judgeId_categoryId: { judgeId: data.judgeId, categoryId: data.categoryId },
+          tenantId_judgeId_categoryId: {
+            tenantId: category.tenantId,
+            judgeId: data.judgeId,
+            categoryId: data.categoryId
+          },
         },
       });
 
@@ -259,11 +265,22 @@ export class AssignmentService extends BaseService {
         throw this.createNotFoundError('Contest not found');
       }
 
+      tenantId = contest.tenantId;
       finalEventId = contest.eventId;
+    } else {
+      // Fetch judge to get tenantId
+      const judge: any = await this.prisma.judge.findUnique({
+        where: { id: data.judgeId },
+      });
+      if (!judge) {
+        throw this.createNotFoundError('Judge not found');
+      }
+      tenantId = judge.tenantId;
     }
 
     return await this.prisma.assignment.create({
       data: {
+        tenantId,
         judgeId: data.judgeId,
         categoryId: data.categoryId || null,
         contestId: finalContestId || null,
@@ -409,7 +426,11 @@ export class AssignmentService extends BaseService {
       // Check if assignment already exists
       const existingAssignment = await this.prisma.assignment.findUnique({
         where: {
-          tenantId_judgeId_categoryId: { tenantId, judgeId, categoryId },
+          tenantId_judgeId_categoryId: {
+            tenantId: category.tenantId,
+            judgeId,
+            categoryId
+          },
         },
       });
 
@@ -489,14 +510,9 @@ export class AssignmentService extends BaseService {
    * Excludes categories from archived events
    */
   async getCategories(): Promise<any[]> {
-    return await this.prisma.category.findMany({
-      where: {
-        contest: {
-          event: {
-            archived: false
-          }
-        }
-      },
+    // Note: Can't filter by nested contest.event.archived in Prisma where clause
+    // Fetching all and filtering in memory
+    const categories = await this.prisma.category.findMany({
       include: {
         contest: {
           select: {
@@ -515,6 +531,9 @@ export class AssignmentService extends BaseService {
         name: 'asc',
       },
     });
+
+    // Filter out categories from archived events
+    return categories.filter((cat: any) => !cat.contest?.event?.archived);
   }
 
   /**
@@ -560,9 +579,7 @@ export class AssignmentService extends BaseService {
         },
       },
       orderBy: {
-        contestant: {
-          name: 'asc',
-        },
+        contestantId: 'asc',
       },
     });
   }
@@ -571,7 +588,7 @@ export class AssignmentService extends BaseService {
    * Get contestants for a specific category
    */
   async getCategoryContestants(categoryId: string): Promise<any[]> {
-    return await this.prisma.categoryContestant.findMany({
+    const contestants = await this.prisma.categoryContestant.findMany({
       where: { categoryId },
       include: {
         contestant: {
@@ -585,11 +602,11 @@ export class AssignmentService extends BaseService {
         },
       } as any,
       orderBy: {
-        contestant: {
-          name: 'asc',
-        },
+        contestantId: 'asc',
       },
     });
+
+    return contestants;
   }
 
   /**
@@ -628,6 +645,7 @@ export class AssignmentService extends BaseService {
 
     return await this.prisma.categoryContestant.create({
       data: {
+        tenantId: category.tenantId,
         categoryId,
         contestantId,
       },
@@ -680,6 +698,7 @@ export class AssignmentService extends BaseService {
     
     return await this.prisma.judge.create({
       data: {
+        tenantId: data.tenantId,
         name: data.name,
         email: data.email || null,
         bio: data.bio || null,
@@ -724,6 +743,7 @@ export class AssignmentService extends BaseService {
     
     return await this.prisma.contestant.create({
       data: {
+        tenantId: data.tenantId,
         name: data.name,
         email: data.email || null,
         contestantNumber: data.contestantNumber || null,
