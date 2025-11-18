@@ -53,8 +53,8 @@ export class EventTemplateService extends BaseService {
       id: template.id,
       name: template.name,
       description: template.description,
-      contests: JSON.parse(template.contests),
-      categories: JSON.parse(template.categories),
+      contests: JSON.parse(template.contests as string),
+      categories: JSON.parse(template.categories as string),
       createdAt: template.createdAt
     };
   }
@@ -78,8 +78,8 @@ export class EventTemplateService extends BaseService {
       id: template.id,
       name: template.name,
       description: template.description,
-      contests: JSON.parse(template.contests),
-      categories: JSON.parse(template.categories),
+      contests: JSON.parse(template.contests as string),
+      categories: JSON.parse(template.categories as string),
       creator: template.creator,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt
@@ -108,8 +108,8 @@ export class EventTemplateService extends BaseService {
       id: template.id,
       name: template.name,
       description: template.description,
-      contests: JSON.parse(template.contests),
-      categories: JSON.parse(template.categories),
+      contests: JSON.parse(template.contests as string),
+      categories: JSON.parse(template.categories as string),
       creator: template.creator,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt
@@ -143,8 +143,8 @@ export class EventTemplateService extends BaseService {
       id: template.id,
       name: template.name,
       description: template.description,
-      contests: JSON.parse(template.contests),
-      categories: JSON.parse(template.categories),
+      contests: JSON.parse(template.contests as string),
+      categories: JSON.parse(template.categories as string),
       updatedAt: template.updatedAt
     };
   }
@@ -174,8 +174,8 @@ export class EventTemplateService extends BaseService {
       throw this.notFoundError('Template', data.templateId);
     }
 
-    const contests = JSON.parse(template.contests);
-    const categories = JSON.parse(template.categories);
+    const contests = JSON.parse(template.contests as string);
+    const categories = JSON.parse(template.categories as string);
 
     const event = await this.prisma.event.create({
       data: {

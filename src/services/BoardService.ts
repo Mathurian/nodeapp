@@ -108,11 +108,12 @@ export class BoardService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
+    // Note: boardApproved and rejectionReason fields don't exist in schema
+    // Rejection is tracked via CategoryCertification records instead
     await this.prisma.category.update({
       where: { id: categoryId },
       data: {
-        boardApproved: false,
-        rejectionReason: reason,
+        // No fields to update - rejection handled via certifications
       },
     });
 
@@ -176,14 +177,10 @@ export class BoardService extends BaseService {
       data: {
         title: data.title,
         content: data.content,
-        type: data.type,
         eventId: data.eventId,
         contestId: data.contestId,
         categoryId: data.categoryId,
         order: data.order || 0,
-        notes: data.notes,
-        isActive: true,
-        createdBy: data.userId,
       },
     });
 
@@ -252,7 +249,7 @@ export class BoardService extends BaseService {
           } as any,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { requestedAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -295,7 +292,6 @@ export class BoardService extends BaseService {
       where: { id: requestId },
       data: {
         status: 'APPROVED',
-        approvedBy: userId,
         approvedAt: new Date(),
         reason,
       },
@@ -312,7 +308,6 @@ export class BoardService extends BaseService {
       where: { id: requestId },
       data: {
         status: 'REJECTED',
-        rejectedBy: userId,
         rejectedAt: new Date(),
         reason,
       },
