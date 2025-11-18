@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { CustomFieldService, CustomFieldType } from '../services/CustomFieldService';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = createLogger('CustomFieldsController');
 const customFieldService = new CustomFieldService(prisma);
@@ -73,7 +74,7 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
  */
 export const getCustomFieldsByEntityType = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { entityType } = req.params;
+    const entityType = getRequiredParam(req, 'entityType');
     const activeOnly = req.query.activeOnly !== 'false';
 
     const fields = await customFieldService.getCustomFieldsByEntityType(entityType, (req as any).user?.tenantId || 'default', activeOnly);
@@ -97,7 +98,7 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
  */
 export const getCustomFieldById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
 
     const field = await customFieldService.getCustomFieldById(id, (req as any).user?.tenantId || 'default');
 
@@ -128,7 +129,7 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
  */
 export const updateCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     const updateData = req.body;
 
     const field = await customFieldService.updateCustomField(id, (req as any).user?.tenantId || 'default', updateData);
@@ -154,7 +155,7 @@ export const updateCustomField = async (req: Request, res: Response): Promise<vo
  */
 export const deleteCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
 
     await customFieldService.deleteCustomField(id, (req as any).user?.tenantId || 'default');
 
@@ -266,7 +267,7 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
  */
 export const getCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { entityId } = req.params;
+    const entityId = getRequiredParam(req, 'entityId');
     const { entityType } = req.query;
 
     if (!entityType) {

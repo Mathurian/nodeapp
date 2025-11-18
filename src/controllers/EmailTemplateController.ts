@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = loggerFactory('EmailTemplateController');
 const prisma = new PrismaClient();
@@ -32,7 +33,7 @@ export class EmailTemplateController {
    */
   async getTemplateById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       const template = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
 
@@ -54,7 +55,7 @@ export class EmailTemplateController {
    */
   async getTemplatesByType(req: Request, res: Response): Promise<void> {
     try {
-      const { type } = req.params;
+      const type = getRequiredParam(req, 'type');
       const { eventId } = req.query;
 
       const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string, req.user!.tenantId);
@@ -103,7 +104,7 @@ export class EmailTemplateController {
    */
   async updateTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const data = req.body;
 
       const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
@@ -127,7 +128,7 @@ export class EmailTemplateController {
    */
   async deleteTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
       if (!existing) {
@@ -150,7 +151,7 @@ export class EmailTemplateController {
    */
   async cloneTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const userId = (req as any).user?.id;
 
       if (!userId) {
@@ -173,7 +174,7 @@ export class EmailTemplateController {
    */
   async previewTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const { variables } = req.body;
 
       const preview = await emailTemplateService.previewEmailTemplate(id, req.user!.tenantId, variables);
@@ -191,7 +192,7 @@ export class EmailTemplateController {
    */
   async getAvailableVariables(req: Request, res: Response): Promise<void> {
     try {
-      const { type } = req.params;
+      const type = getRequiredParam(req, 'type');
 
       const variables = emailTemplateService.getAvailableVariables(type);
 

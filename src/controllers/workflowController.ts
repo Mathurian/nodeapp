@@ -5,6 +5,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { WorkflowService } from '../services/WorkflowService';
 import { sendSuccess } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 export const createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -46,7 +47,7 @@ export const startWorkflow = async (req: Request, res: Response, next: NextFunct
 
 export const advanceWorkflow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     const { approvalStatus, comments } = req.body;
     const userId = (req as any).user?.id;
     const instance = await WorkflowService.advanceWorkflow(id, userId, approvalStatus, comments);

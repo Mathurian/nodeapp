@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ScoreRemovalService } from '../services/ScoreRemovalService';
 import { sendSuccess } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 export class ScoreRemovalController {
   private scoreRemovalService: ScoreRemovalService;
@@ -39,7 +40,7 @@ export class ScoreRemovalController {
 
   getScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const request = await this.scoreRemovalService.getById(id, req.user!.tenantId);
       return sendSuccess(res, request);
     } catch (error) {
@@ -49,7 +50,7 @@ export class ScoreRemovalController {
 
   signScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const { signatureName } = req.body;
       const result = await this.scoreRemovalService.signRequest(id, req.user!.tenantId, {
         signatureName,
@@ -64,7 +65,7 @@ export class ScoreRemovalController {
 
   executeScoreRemoval = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const result = await this.scoreRemovalService.executeRemoval(id, req.user!.tenantId);
       return sendSuccess(res, result, 'Score removal executed successfully');
     } catch (error) {

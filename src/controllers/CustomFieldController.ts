@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { CustomFieldService } from '../services/CustomFieldService';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = loggerFactory('CustomFieldController');
 const prisma = new PrismaClient();
@@ -15,7 +16,7 @@ export class CustomFieldController {
    */
   async getCustomFields(req: Request, res: Response): Promise<void> {
     try {
-      const { entityType } = req.params;
+      const entityType = getRequiredParam(req, 'entityType');
       const { active } = req.query;
 
       const activeOnly = active === 'true' || active === undefined;
@@ -34,7 +35,7 @@ export class CustomFieldController {
    */
   async getCustomFieldById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       const customField = await customFieldService.getCustomFieldById(id, req.user!.tenantId);
 
@@ -87,7 +88,7 @@ export class CustomFieldController {
    */
   async updateCustomField(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const data = req.body;
 
       // Check if custom field exists
@@ -112,7 +113,7 @@ export class CustomFieldController {
    */
   async deleteCustomField(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       // Check if custom field exists
       const existing = await customFieldService.getCustomFieldById(id, req.user!.tenantId);
@@ -136,7 +137,7 @@ export class CustomFieldController {
    */
   async getCustomFieldValues(req: Request, res: Response): Promise<void> {
     try {
-      const { entityId } = req.params;
+      const entityId = getRequiredParam(req, 'entityId');
       const { entityType } = req.query;
 
       if (!entityType) {
