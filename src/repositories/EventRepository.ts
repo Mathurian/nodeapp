@@ -3,9 +3,9 @@
  * Data access layer for Event entity
  */
 
-import { Event, Prisma } from '@prisma/client';
+import { Event } from '@prisma/client';
 import { injectable } from 'tsyringe';
-import { BaseRepository } from './BaseRepository';
+import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
 
 export type EventWithRelations = any; // Simplified due to Prisma type inference issues with nested includes
 

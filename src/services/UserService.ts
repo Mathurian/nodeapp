@@ -10,6 +10,7 @@ import { BaseService, ConflictError, ValidationError, NotFoundError } from './Ba
 import { UserRepository } from '../repositories/UserRepository';
 import { invalidateCache, userCache } from '../utils/cache';
 import { EmailService } from './EmailService';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 export interface CreateUserDTO {
   name: string;
@@ -152,6 +153,84 @@ export class UserService extends BaseService {
       return users.map(user => this.sanitizeUser(user));
     } catch (error) {
       this.handleError(error, { method: 'getUsersByRole', role });
+    }
+  }
+
+  /**
+   * Get all users with pagination
+   */
+  async getAllUsersPaginated(paginationOptions?: PaginationOptions): Promise<PaginatedResponse<User>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.userRepository.findAllPaginated({ page, limit });
+
+      return {
+        data: result.data.map(user => this.sanitizeUser(user)),
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'getAllUsersPaginated', paginationOptions });
+    }
+  }
+
+  /**
+   * Get active users with pagination
+   */
+  async getActiveUsersPaginated(paginationOptions?: PaginationOptions): Promise<PaginatedResponse<User>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.userRepository.findActiveUsersPaginated({ page, limit });
+
+      return {
+        data: result.data.map(user => this.sanitizeUser(user)),
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'getActiveUsersPaginated', paginationOptions });
+    }
+  }
+
+  /**
+   * Get users by role with pagination
+   */
+  async getUsersByRolePaginated(role: string, paginationOptions?: PaginationOptions): Promise<PaginatedResponse<User>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.userRepository.findByRolePaginated(role, { page, limit });
+
+      return {
+        data: result.data.map(user => this.sanitizeUser(user)),
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'getUsersByRolePaginated', role, paginationOptions });
     }
   }
 
