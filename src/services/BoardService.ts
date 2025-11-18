@@ -170,11 +170,13 @@ export class BoardService extends BaseService {
     order?: number;
     notes?: string;
     userId: string;
+    tenantId: string;
   }) {
-    this.validateRequired(data, ['title', 'content']);
+    this.validateRequired(data, ['title', 'content', 'tenantId']);
 
     const script = await this.prisma.emceeScript.create({
       data: {
+        tenantId: data.tenantId,
         title: data.title,
         content: data.content,
         eventId: data.eventId,
