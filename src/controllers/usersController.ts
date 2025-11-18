@@ -614,8 +614,8 @@ export class UsersController {
           include: {
             judge: true,
             contestant: true
-          }
-        });
+          } as any
+        }) as any;
 
         // Invalidate cache
         userCache.invalidate(id);
@@ -685,8 +685,8 @@ export class UsersController {
         include: {
           judge: true,
           contestant: true
-        }
-      });
+        } as any
+      }) as any;
 
       if (!currentUser) {
         return sendNotFound(res, 'User not found');
@@ -709,8 +709,8 @@ export class UsersController {
         include: {
           judge: true,
           contestant: true
-        }
-      });
+        } as any
+      }) as any;
 
       // Invalidate cache
       userCache.invalidate(id);
