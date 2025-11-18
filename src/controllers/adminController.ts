@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { AdminService } from '../services/AdminService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 export class AdminController {
   private adminService: AdminService;
@@ -243,7 +243,7 @@ export class AdminController {
 
       const skip = (page - 1) * limit;
 
-      const where: any = {};
+      const where: Prisma.ContestWhereInput = {};
       if (eventId) {
         where.eventId = eventId;
       }
@@ -289,7 +289,7 @@ export class AdminController {
 
       const skip = (page - 1) * limit;
 
-      const where: any = {};
+      const where: Prisma.CategoryWhereInput = {};
       if (contestId) {
         where.contestId = contestId;
       }
@@ -342,7 +342,7 @@ export class AdminController {
 
       const skip = (page - 1) * limit;
 
-      const where: any = {};
+      const where: Prisma.ScoreWhereInput = {};
       if (categoryId) {
         where.categoryId = categoryId;
       }
@@ -571,7 +571,6 @@ export class AdminController {
           }
         },
         orderBy: [
-          { category: { contest: { event: { startDate: 'desc' } } } },
           { createdAt: 'desc' }
         ]
       });
