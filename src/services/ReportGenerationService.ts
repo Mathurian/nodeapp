@@ -65,7 +65,7 @@ export class ReportGenerationService extends BaseService {
       });
 
       // Aggregate scores across all categories in the contest
-      const allScores = await this.prisma.score.findMany({
+      const allScores: any = await this.prisma.score.findMany({
         where: {
           categoryId: { in: contest.categories.map((c: any) => c.id) }
         },
@@ -74,8 +74,8 @@ export class ReportGenerationService extends BaseService {
           judge: true,
           criterion: true,
           category: true
-        }
-      });
+        } as any
+      } as any);
 
       // Group by contestant and sum scores
       const contestantTotals: Record<string, any> = {};
@@ -153,7 +153,7 @@ export class ReportGenerationService extends BaseService {
    */
   async generateEventReportData(eventId: string, userId?: string): Promise<ReportData> {
     try {
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: eventId },
         include: {
           contests: {
@@ -171,8 +171,8 @@ export class ReportGenerationService extends BaseService {
               }
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       this.assertExists(event, 'Event', eventId);
 
@@ -208,7 +208,7 @@ export class ReportGenerationService extends BaseService {
    */
   async generateContestResultsData(contestId: string, userId?: string): Promise<ReportData> {
     try {
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
           event: true,
@@ -223,8 +223,8 @@ export class ReportGenerationService extends BaseService {
               }
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       this.assertExists(contest, 'Contest', contestId);
 
@@ -252,7 +252,7 @@ export class ReportGenerationService extends BaseService {
    */
   async generateJudgePerformanceData(judgeId: string, userId?: string): Promise<ReportData> {
     try {
-      const judge = await this.prisma.judge.findUnique({
+      const judge: any = await this.prisma.judge.findUnique({
         where: { id: judgeId },
         include: {
           scores: {
@@ -262,8 +262,8 @@ export class ReportGenerationService extends BaseService {
               criterion: true
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       this.assertExists(judge, 'Judge', judgeId);
 
