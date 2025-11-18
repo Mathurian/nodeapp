@@ -8,6 +8,7 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { CacheService } from './CacheService';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 interface CreateCategoryDto {
   contestId: string;
@@ -122,6 +123,61 @@ export class CategoryService extends BaseService {
       return categories;
     } catch (error) {
       return this.handleError(error, { operation: 'getCategoriesByContestId', contestId });
+    }
+  }
+
+  /**
+   * Get all categories with pagination
+   */
+  async getAllCategoriesPaginated(paginationOptions?: PaginationOptions): Promise<PaginatedResponse<Category>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.categoryRepo.findAllPaginated({ page, limit });
+
+      return {
+        data: result.data,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      return this.handleError(error, { operation: 'getAllCategoriesPaginated', paginationOptions });
+    }
+  }
+
+  /**
+   * Get categories by contest with pagination
+   */
+  async getCategoriesByContestIdPaginated(
+    contestId: string,
+    paginationOptions?: PaginationOptions
+  ): Promise<PaginatedResponse<Category>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.categoryRepo.findByContestIdPaginated(contestId, { page, limit });
+
+      return {
+        data: result.data,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      return this.handleError(error, { operation: 'getCategoriesByContestIdPaginated', contestId, paginationOptions });
     }
   }
 

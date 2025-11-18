@@ -5,7 +5,7 @@
 
 import { Category } from '@prisma/client';
 import { injectable } from 'tsyringe';
-import { BaseRepository } from './BaseRepository';
+import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
 
 @injectable()
 export class CategoryRepository extends BaseRepository<Category> {
@@ -126,5 +126,41 @@ export class CategoryRepository extends BaseRepository<Category> {
    */
   async certifyTotals(categoryId: string, certified: boolean): Promise<Category> {
     return this.update(categoryId, { totalsCertified: certified });
+  }
+
+  /**
+   * Find all categories with pagination
+   */
+  async findAllPaginated(options: PaginationOptions): Promise<PaginatedResult<Category>> {
+    return this.findManyPaginated({}, options);
+  }
+
+  /**
+   * Find categories by contest with pagination
+   */
+  async findByContestIdPaginated(contestId: string, options: PaginationOptions): Promise<PaginatedResult<Category>> {
+    return this.findManyPaginated(
+      {
+        contestId,
+        contest: {
+          event: {
+            archived: false
+          }
+        }
+      },
+      { ...options, orderBy: options.orderBy || { createdAt: 'asc' } }
+    );
+  }
+
+  /**
+   * Search categories with pagination
+   */
+  async searchCategoriesPaginated(query: string, options: PaginationOptions): Promise<PaginatedResult<Category>> {
+    return this.findManyPaginated({
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
+      ],
+    }, options);
   }
 }

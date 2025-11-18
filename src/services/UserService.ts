@@ -9,6 +9,8 @@ import bcrypt from 'bcrypt';
 import { BaseService, ConflictError, ValidationError, NotFoundError } from './BaseService';
 import { UserRepository } from '../repositories/UserRepository';
 import { invalidateCache, userCache } from '../utils/cache';
+import { EmailService } from './EmailService';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 export interface CreateUserDTO {
   name: string;
@@ -75,7 +77,8 @@ export interface UserImageUploadDTO {
 export class UserService extends BaseService {
   constructor(
     @inject(UserRepository) private userRepository: UserRepository,
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject(EmailService) private emailService: EmailService
   ) {
     super();
   }
@@ -154,6 +157,84 @@ export class UserService extends BaseService {
   }
 
   /**
+   * Get all users with pagination
+   */
+  async getAllUsersPaginated(paginationOptions?: PaginationOptions): Promise<PaginatedResponse<User>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.userRepository.findAllPaginated({ page, limit });
+
+      return {
+        data: result.data.map(user => this.sanitizeUser(user)),
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'getAllUsersPaginated', paginationOptions });
+    }
+  }
+
+  /**
+   * Get active users with pagination
+   */
+  async getActiveUsersPaginated(paginationOptions?: PaginationOptions): Promise<PaginatedResponse<User>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.userRepository.findActiveUsersPaginated({ page, limit });
+
+      return {
+        data: result.data.map(user => this.sanitizeUser(user)),
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'getActiveUsersPaginated', paginationOptions });
+    }
+  }
+
+  /**
+   * Get users by role with pagination
+   */
+  async getUsersByRolePaginated(role: string, paginationOptions?: PaginationOptions): Promise<PaginatedResponse<User>> {
+    try {
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const result = await this.userRepository.findByRolePaginated(role, { page, limit });
+
+      return {
+        data: result.data.map(user => this.sanitizeUser(user)),
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'getUsersByRolePaginated', role, paginationOptions });
+    }
+  }
+
+  /**
    * Create a new user
    */
   async createUser(data: CreateUserDTO): Promise<User> {
@@ -197,6 +278,16 @@ export class UserService extends BaseService {
       });
 
       this.logInfo('User created', { userId: user.id, name: user.name });
+
+      // Send welcome email (non-blocking - don't wait for completion)
+      this.emailService.sendWelcomeEmail(
+        user.email,
+        user.preferredName || user.name,
+        `${process.env.FRONTEND_URL}/verify-email?userId=${user.id}`
+      ).catch(error => {
+        console.error('Failed to send welcome email:', error);
+        // Don't throw - user creation should succeed even if email fails
+      });
 
       // Invalidate cache
       await invalidateCache('users:*');

@@ -3,9 +3,9 @@
  * Data access layer for User entity
  */
 
-import { User, Prisma } from '@prisma/client';
+import { User } from '@prisma/client';
 import { injectable } from 'tsyringe';
-import { BaseRepository } from './BaseRepository';
+import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
 
 export type UserWithRelations = any; // Simplified due to Prisma type inference issues with includes
 
@@ -152,5 +152,45 @@ export class UserRepository extends BaseRepository<User> {
       totalAssignments: user.assignedAssignments.length,
       eventsParticipated: eventIds.size
     };
+  }
+
+  /**
+   * Find all users with pagination
+   */
+  async findAllPaginated(options: PaginationOptions): Promise<PaginatedResult<User>> {
+    return this.findManyPaginated({}, options);
+  }
+
+  /**
+   * Find active users with pagination
+   */
+  async findActiveUsersPaginated(options: PaginationOptions): Promise<PaginatedResult<User>> {
+    return this.findManyPaginated(
+      {
+        isActive: true,
+        archived: false
+      },
+      options
+    );
+  }
+
+  /**
+   * Find users by role with pagination
+   */
+  async findByRolePaginated(role: string, options: PaginationOptions): Promise<PaginatedResult<User>> {
+    return this.findManyPaginated({ role }, options);
+  }
+
+  /**
+   * Search users with pagination
+   */
+  async searchUsersPaginated(query: string, options: PaginationOptions): Promise<PaginatedResult<User>> {
+    return this.findManyPaginated({
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { preferredName: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } }
+      ]
+    }, options);
   }
 }

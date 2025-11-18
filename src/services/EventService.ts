@@ -9,6 +9,7 @@ import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { EventRepository } from '../repositories/EventRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 interface CreateEventDto {
   name: string;
@@ -194,6 +195,53 @@ export class EventService extends BaseService {
       return events;
     } catch (error) {
       return this.handleError(error, { operation: 'getAllEvents', filters });
+    }
+  }
+
+  /**
+   * Get all events with pagination
+   */
+  async getAllEventsPaginated(
+    filters?: EventFilters,
+    paginationOptions?: PaginationOptions
+  ): Promise<PaginatedResponse<Event>> {
+    try {
+      // Build repository pagination options (use defaults from repository)
+      const page = paginationOptions?.page || 1;
+      const limit = Math.min(paginationOptions?.limit || 50, 100);
+
+      const repoPaginationOptions = {
+        page,
+        limit,
+        orderBy: { startDate: 'desc' as const }
+      };
+
+      let result;
+
+      if (filters?.archived !== undefined) {
+        result = filters.archived
+          ? await this.eventRepo.findArchivedEventsPaginated(repoPaginationOptions)
+          : await this.eventRepo.findActiveEventsPaginated(repoPaginationOptions);
+      } else if (filters?.search) {
+        result = await this.eventRepo.searchEventsPaginated(filters.search, repoPaginationOptions);
+      } else {
+        result = await this.eventRepo.findAllPaginated(repoPaginationOptions);
+      }
+
+      // Convert repository PaginatedResult to service PaginatedResponse
+      return {
+        data: result.data,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasMore: result.hasNextPage,
+          hasPrevious: result.hasPrevPage
+        }
+      };
+    } catch (error) {
+      return this.handleError(error, { operation: 'getAllEventsPaginated', filters, paginationOptions });
     }
   }
 

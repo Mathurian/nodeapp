@@ -4,6 +4,15 @@
  */
 
 import { trackError, ErrorSeverity } from '../utils/errorTracking';
+import {
+  PaginationOptions,
+  PaginationParams,
+  PaginationMetadata,
+  PaginatedResponse,
+  getPaginationParams,
+  createPaginationMetadata,
+  createPaginatedResponse
+} from '../utils/pagination';
 
 /**
  * Service Error
@@ -330,5 +339,39 @@ export abstract class BaseService {
    */
   protected logError(message: string, error?: any): void {
     console.error(`[${this.constructor.name}] ${message}`, error || '');
+  }
+
+  /**
+   * Get pagination parameters for Prisma queries
+   * @param options - Pagination options
+   * @returns Prisma-compatible skip and take parameters
+   */
+  protected getPaginationParams(options?: PaginationOptions): PaginationParams {
+    return getPaginationParams(options);
+  }
+
+  /**
+   * Create pagination metadata
+   * @param total - Total count of items
+   * @param options - Pagination options
+   * @returns Pagination metadata
+   */
+  protected createPaginationMetadata(total: number, options?: PaginationOptions): PaginationMetadata {
+    return createPaginationMetadata(total, options);
+  }
+
+  /**
+   * Create a paginated response
+   * @param data - Array of items
+   * @param total - Total count of items
+   * @param options - Pagination options
+   * @returns Paginated response with data and metadata
+   */
+  protected createPaginatedResponse<T>(
+    data: T[],
+    total: number,
+    options?: PaginationOptions
+  ): PaginatedResponse<T> {
+    return createPaginatedResponse(data, total, options);
   }
 }
