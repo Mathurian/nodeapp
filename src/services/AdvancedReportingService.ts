@@ -14,12 +14,35 @@ export class AdvancedReportingService extends BaseService {
     else if (contestId) where.category = { contestId };
     else if (eventId) where.category = { contest: { eventId } };
 
+    // P2-2 OPTIMIZATION: Selective field loading
     const scores: any = await this.prisma.score.findMany({
       where,
-      include: {
-        judge: { select: { name: true } },
-        contestant: { select: { name: true } },
-        category: { select: { name: true, contest: { select: { name: true } } } }
+      select: {
+        id: true,
+        score: true,
+        contestantId: true,
+        judgeId: true,
+        categoryId: true,
+        judge: {
+          select: {
+            name: true
+          }
+        },
+        contestant: {
+          select: {
+            name: true
+          }
+        },
+        category: {
+          select: {
+            name: true,
+            contest: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
       } as any
     } as any);
 
@@ -27,16 +50,35 @@ export class AdvancedReportingService extends BaseService {
   }
 
   async generateSummaryReport(eventId: string) {
+    // P2-2 OPTIMIZATION: Selective field loading
     const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: {
+      select: {
+        id: true,
+        name: true,
         contests: {
-          include: {
+          select: {
+            id: true,
+            name: true,
             categories: {
-              include: {
-                scores: true,
-                contestants: true,
-                judges: true
+              select: {
+                id: true,
+                name: true,
+                scores: {
+                  select: {
+                    id: true
+                  }
+                },
+                contestants: {
+                  select: {
+                    id: true
+                  }
+                },
+                judges: {
+                  select: {
+                    id: true
+                  }
+                }
               }
             }
           }

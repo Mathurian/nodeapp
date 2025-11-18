@@ -65,15 +65,42 @@ export class ReportGenerationService extends BaseService {
       });
 
       // Aggregate scores across all categories in the contest
+      // P2-2 OPTIMIZATION: Selective field loading
       const allScores: any = await this.prisma.score.findMany({
         where: {
           categoryId: { in: contest.categories.map((c: any) => c.id) }
         },
-        include: {
-          contestant: true,
-          judge: true,
-          criterion: true,
-          category: true
+        select: {
+          id: true,
+          contestantId: true,
+          judgeId: true,
+          categoryId: true,
+          score: true,
+          contestant: {
+            select: {
+              id: true,
+              name: true,
+              contestantNumber: true
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          criterion: {
+            select: {
+              id: true,
+              maxScore: true
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
         } as any
       } as any);
 
@@ -153,18 +180,49 @@ export class ReportGenerationService extends BaseService {
    */
   async generateEventReportData(eventId: string, userId?: string): Promise<ReportData> {
     try {
+      // P2-2 OPTIMIZATION: Selective field loading
       const event: any = await this.prisma.event.findUnique({
         where: { id: eventId },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true,
           contests: {
-            include: {
+            select: {
+              id: true,
+              name: true,
               categories: {
-                include: {
+                select: {
+                  id: true,
+                  name: true,
+                  scoreCap: true,
                   scores: {
-                    include: {
-                      contestant: true,
-                      judge: true,
-                      criterion: true
+                    select: {
+                      id: true,
+                      contestantId: true,
+                      judgeId: true,
+                      categoryId: true,
+                      score: true,
+                      contestant: {
+                        select: {
+                          id: true,
+                          name: true,
+                          contestantNumber: true
+                        }
+                      },
+                      judge: {
+                        select: {
+                          id: true,
+                          name: true
+                        }
+                      },
+                      criterion: {
+                        select: {
+                          id: true,
+                          maxScore: true
+                        }
+                      }
                     }
                   }
                 }
@@ -208,17 +266,52 @@ export class ReportGenerationService extends BaseService {
    */
   async generateContestResultsData(contestId: string, userId?: string): Promise<ReportData> {
     try {
+      // P2-2 OPTIMIZATION: Selective field loading
       const contest: any = await this.prisma.contest.findUnique({
         where: { id: contestId },
-        include: {
-          event: true,
+        select: {
+          id: true,
+          name: true,
+          eventId: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+              startDate: true,
+              endDate: true
+            }
+          },
           categories: {
-            include: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true,
               scores: {
-                include: {
-                  contestant: true,
-                  judge: true,
-                  criterion: true
+                select: {
+                  id: true,
+                  contestantId: true,
+                  judgeId: true,
+                  categoryId: true,
+                  score: true,
+                  contestant: {
+                    select: {
+                      id: true,
+                      name: true,
+                      contestantNumber: true
+                    }
+                  },
+                  judge: {
+                    select: {
+                      id: true,
+                      name: true
+                    }
+                  },
+                  criterion: {
+                    select: {
+                      id: true,
+                      maxScore: true
+                    }
+                  }
                 }
               }
             }
@@ -252,14 +345,38 @@ export class ReportGenerationService extends BaseService {
    */
   async generateJudgePerformanceData(judgeId: string, userId?: string): Promise<ReportData> {
     try {
+      // P2-2 OPTIMIZATION: Selective field loading
       const judge: any = await this.prisma.judge.findUnique({
         where: { id: judgeId },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          judgeNumber: true,
           scores: {
-            include: {
-              contestant: true,
-              category: true,
-              criterion: true
+            select: {
+              id: true,
+              contestantId: true,
+              categoryId: true,
+              score: true,
+              contestant: {
+                select: {
+                  id: true,
+                  name: true,
+                  contestantNumber: true
+                }
+              },
+              category: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              },
+              criterion: {
+                select: {
+                  id: true,
+                  maxScore: true
+                }
+              }
             }
           }
         } as any

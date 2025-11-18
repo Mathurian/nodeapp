@@ -37,13 +37,55 @@ export class ScoringService extends BaseService {
   async getScoresByCategory(categoryId: string, tenantId: string, contestantId?: string): Promise<Score[]> {
     try {
       if (contestantId) {
+        // P2-2 OPTIMIZATION: Selective field loading instead of full includes
         return (await this.prisma.score.findMany({
           where: { categoryId, contestantId, tenantId },
-          include: {
-            contestant: true,
-            judge: true,
-            category: true
-          } ,
+          select: {
+            id: true,
+            categoryId: true,
+            contestantId: true,
+            judgeId: true,
+            criterionId: true,
+            score: true,
+            comments: true,
+            createdAt: true,
+            updatedAt: true,
+            tenantId: true,
+            // Only select essential fields from relations
+            contestant: {
+              select: {
+                id: true,
+                contestantNumber: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true
+                  }
+                }
+              }
+            },
+            judge: {
+              select: {
+                id: true,
+                judgeNumber: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    preferredName: true
+                  }
+                }
+              }
+            },
+            category: {
+              select: {
+                id: true,
+                name: true,
+                scoreCap: true
+              }
+            }
+          },
           orderBy: { createdAt: 'desc' }
         } as any)) as any;
       }
@@ -71,12 +113,23 @@ export class ScoringService extends BaseService {
       });
 
       // Verify category exists and get context
+      // P2-2 OPTIMIZATION: Selective field loading
       const category: any = (await this.prisma.category.findUnique({
         where: { id: categoryId },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          contestId: true,
           contest: {
-            include: {
-              event: true
+            select: {
+              id: true,
+              eventId: true,
+              event: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
             }
           }
         } as any
@@ -87,10 +140,17 @@ export class ScoringService extends BaseService {
       }
 
       // Get the Judge record from the User
+      // P2-2 OPTIMIZATION: Selective field loading
       const userWithJudge: any = (await this.prisma.user.findUnique({
         where: { id: userId },
-        include: {
-          judge: true
+        select: {
+          id: true,
+          role: true,
+          judge: {
+            select: {
+              id: true
+            }
+          }
         } as any
       } as any)) as any;
 
@@ -134,6 +194,7 @@ export class ScoringService extends BaseService {
       }
 
       // Create the score
+      // P2-2 OPTIMIZATION: Selective field loading
       const newScore: any = await this.prisma.score.create({
         data: {
           categoryId,
@@ -145,10 +206,50 @@ export class ScoringService extends BaseService {
           certifiedAt: null,
           certifiedBy: null
         },
-        include: {
-          contestant: true,
-          judge: true,
-          category: true
+        select: {
+          id: true,
+          categoryId: true,
+          contestantId: true,
+          judgeId: true,
+          criterionId: true,
+          score: true,
+          comments: true,
+          createdAt: true,
+          updatedAt: true,
+          tenantId: true,
+          contestant: {
+            select: {
+              id: true,
+              contestantNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              judgeNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true
+            }
+          }
         } as any
       } as any);
 
@@ -174,15 +275,56 @@ export class ScoringService extends BaseService {
       const existingScore = await this.scoreRepository.findById(scoreId);
       this.assertExists(existingScore, 'Score', scoreId);
 
+      // P2-2 OPTIMIZATION: Selective field loading
       const updatedScore: any = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           score: data.score !== undefined ? data.score : existingScore!.score,
         },
-        include: {
-          contestant: true,
-          judge: true,
-          category: true
+        select: {
+          id: true,
+          categoryId: true,
+          contestantId: true,
+          judgeId: true,
+          criterionId: true,
+          score: true,
+          comments: true,
+          createdAt: true,
+          updatedAt: true,
+          tenantId: true,
+          contestant: {
+            select: {
+              id: true,
+              contestantNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              judgeNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true
+            }
+          }
         } as any
       } as any);
 
@@ -217,16 +359,59 @@ export class ScoringService extends BaseService {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
+      // P2-2 OPTIMIZATION: Selective field loading
       const certifiedScore: any = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           certifiedAt: new Date(),
           certifiedBy: certifiedBy
         },
-        include: {
-          contestant: true,
-          judge: true,
-          category: true
+        select: {
+          id: true,
+          categoryId: true,
+          contestantId: true,
+          judgeId: true,
+          criterionId: true,
+          score: true,
+          comments: true,
+          certifiedAt: true,
+          certifiedBy: true,
+          createdAt: true,
+          updatedAt: true,
+          tenantId: true,
+          contestant: {
+            select: {
+              id: true,
+              contestantNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              judgeNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true
+            }
+          }
         } as any
       } as any);
 
@@ -274,16 +459,59 @@ export class ScoringService extends BaseService {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
+      // P2-2 OPTIMIZATION: Selective field loading
       const unsignedScore: any = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           certifiedAt: null,
           certifiedBy: null
         },
-        include: {
-          contestant: true,
-          judge: true,
-          category: true
+        select: {
+          id: true,
+          categoryId: true,
+          contestantId: true,
+          judgeId: true,
+          criterionId: true,
+          score: true,
+          comments: true,
+          certifiedAt: true,
+          certifiedBy: true,
+          createdAt: true,
+          updatedAt: true,
+          tenantId: true,
+          contestant: {
+            select: {
+              id: true,
+              contestantNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              judgeNumber: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  preferredName: true
+                }
+              }
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true
+            }
+          }
         } as any
       } as any);
 

@@ -30,13 +30,25 @@ export class WinnerService extends BaseService {
    * Get winners by category
    */
   async getWinnersByCategory(categoryId: string, _userRole: string) {
+    // P2-2 OPTIMIZATION: Selective field loading
     const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        contestId: true,
         contest: {
-          include: {
-            event: true,
-          },
+          select: {
+            id: true,
+            name: true,
+            eventId: true,
+            event: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
         },
         criteria: {
           select: {
@@ -52,12 +64,17 @@ export class WinnerService extends BaseService {
     }
 
     // Get all scores for this category
+    // P2-2 OPTIMIZATION: Selective field loading
     const scores: any = await this.prisma.score.findMany({
       where: {
         categoryId,
         score: { not: null },
       },
-      include: {
+      select: {
+        id: true,
+        contestantId: true,
+        judgeId: true,
+        score: true,
         contestant: {
           select: {
             id: true,
@@ -177,12 +194,23 @@ export class WinnerService extends BaseService {
     _userRole: string,
     includeCategoryBreakdown = true
   ) {
+    // P2-2 OPTIMIZATION: Selective field loading
     const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId },
-      include: {
-        event: true,
+      select: {
+        id: true,
+        name: true,
+        eventId: true,
+        event: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         categories: {
-          include: {
+          select: {
+            id: true,
+            name: true,
             criteria: {
               select: {
                 id: true,
@@ -446,13 +474,14 @@ export class WinnerService extends BaseService {
     // Check role-specific certification status
     if (role === 'JUDGE') {
       // For judges, check if any judge has certified
+      // P2-2 OPTIMIZATION: Selective field loading
       const judgeCertifications = await this.prisma.judgeCertification.findMany({
         where: { categoryId, tenantId },
-        include: {
-          judge: {
-            select: { name: true },
-          },
-        },
+        select: {
+          judgeId: true,
+          signatureName: true,
+          certifiedAt: true
+        }
       });
 
       const certified = judgeCertifications.length > 0;
@@ -467,20 +496,27 @@ export class WinnerService extends BaseService {
         count: judgeCertifications.length,
         certifications: judgeCertifications.map(cert => ({
           judgeId: cert.judgeId,
-          judgeName: (cert.judge as any)?.name,
+          judgeName: null, // Judge relation not available in schema
           signatureName: cert.signatureName,
           certifiedAt: cert.certifiedAt,
         })),
       };
     } else {
       // For other roles, check category certifications
+      // P2-2 OPTIMIZATION: Selective field loading
       const certification = await this.prisma.categoryCertification.findFirst({
         where: { categoryId, role, tenantId },
-        include: {
+        select: {
+          userId: true,
+          signatureName: true,
+          certifiedAt: true,
+          comments: true,
           category: {
-            select: { name: true },
-          },
-        },
+            select: {
+              name: true
+            }
+          }
+        }
       });
 
       return {
@@ -505,15 +541,27 @@ export class WinnerService extends BaseService {
     tenantId: string,
     comments?: string
   ) {
+    // P2-2 OPTIMIZATION: Selective field loading
     const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        contestId: true,
         contest: {
-          include: {
-            event: true,
-          },
-        },
-      },
+          select: {
+            id: true,
+            name: true,
+            eventId: true,
+            event: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!category) {
@@ -592,7 +640,7 @@ export class WinnerService extends BaseService {
         updates.auditorCertified = true;
         updates.currentStep = Math.max(certificationWorkflow.currentStep, 3);
       } else if (userRole === 'BOARD') {
-        updates.boardCertified = true;
+        updates.boardApproved = true;
         updates.currentStep = Math.max(certificationWorkflow.currentStep, 4);
       }
 
@@ -600,7 +648,7 @@ export class WinnerService extends BaseService {
       const allCertified =
         (updates.tallyCertified ?? certificationWorkflow.tallyCertified) &&
         (updates.auditorCertified ?? certificationWorkflow.auditorCertified) &&
-        (updates.boardCertified ?? certificationWorkflow.boardCertified);
+        (updates.boardApproved ?? certificationWorkflow.boardApproved);
 
       if (allCertified) {
         updates.status = 'CERTIFIED';
@@ -640,13 +688,20 @@ export class WinnerService extends BaseService {
     }
 
     if (eventId) {
+      // P2-2 OPTIMIZATION: Selective field loading
       const event: any = await this.prisma.event.findUnique({
         where: { id: eventId },
-        include: {
+        select: {
+          id: true,
+          name: true,
           contests: {
-            include: {
+            select: {
+              id: true,
+              name: true,
               categories: {
-                include: {
+                select: {
+                  id: true,
+                  name: true,
                   criteria: {
                     select: {
                       id: true,
