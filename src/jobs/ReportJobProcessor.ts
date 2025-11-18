@@ -197,7 +197,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       throw new Error('Event ID is required for event report');
     }
 
-    const event = await prisma.event.findUnique({
+    const event: any = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -205,8 +205,8 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
             categories: true,
           },
         },
-      },
-    });
+      } as any,
+    } as any);
 
     if (!event) {
       throw new Error(`Event not found: ${eventId}`);
@@ -225,15 +225,15 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       throw new Error('Category ID is required for scoring report');
     }
 
-    const scores = await prisma.score.findMany({
+    const scores: any = await prisma.score.findMany({
       where: { categoryId },
       include: {
         judge: true,
         contestant: true,
         criterion: true,
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
-    });
+    } as any);
 
     return scores;
   }

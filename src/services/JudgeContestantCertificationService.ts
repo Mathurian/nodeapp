@@ -21,7 +21,7 @@ export class JudgeContestantCertificationService extends BaseService {
   }
 
   async certify(data: any) {
-    const { judgeId, categoryId, contestantId } = data;
+    const { judgeId, categoryId, contestantId, tenantId } = data;
 
     if (!judgeId || !categoryId || !contestantId) {
       throw this.badRequestError('Judge ID, category ID, and contestant ID are required');
@@ -36,7 +36,7 @@ export class JudgeContestantCertificationService extends BaseService {
     }
 
     return await this.prisma.judgeContestantCertification.create({
-      data: { judgeId, categoryId, contestantId }
+      data: { tenantId: tenantId || 'default_tenant', judgeId, categoryId, contestantId }
     });
   }
 

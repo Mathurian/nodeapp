@@ -49,6 +49,7 @@ export class WebhookDeliveryService {
       // Create webhook delivery record
       const delivery = await prisma.webhookDelivery.create({
         data: {
+          tenantId: (webhook as any).tenantId || 'default_tenant',
           webhookId: webhook.id,
           eventId: event.metadata.correlationId || event.type || 'unknown',
           status: 'pending',

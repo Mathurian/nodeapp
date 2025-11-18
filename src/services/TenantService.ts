@@ -331,12 +331,19 @@ export class TenantService {
    */
   static async getTenantUsage(tenantId: string): Promise<TenantUsageStats> {
     try {
+      // Get category IDs for tenant first
+      const categories = await prisma.category.findMany({
+        where: { tenantId },
+        select: { id: true }
+      });
+      const categoryIds = categories.map(c => c.id);
+
       const [usersCount, eventsCount, contestsCount, categoriesCount, scoresCount] = await Promise.all([
         prisma.user.count({ where: { tenantId } }),
         prisma.event.count({ where: { tenantId } }),
         prisma.contest.count({ where: { tenantId } }),
         prisma.category.count({ where: { tenantId } }),
-        prisma.score.count({ where: { category: { tenantId } } }),
+        prisma.score.count({ where: { categoryId: { in: categoryIds } } }),
       ]);
 
       // Get last activity (most recent audit log)

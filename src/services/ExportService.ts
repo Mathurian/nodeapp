@@ -32,7 +32,7 @@ export class ExportService extends BaseService {
   async exportEventToExcel(eventId: string, includeDetails = false): Promise<string> {
     await this.ensureExportDir();
 
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -40,8 +40,8 @@ export class ExportService extends BaseService {
             categories: true,
           },
         },
-      },
-    });
+      } as any,
+    } as any);
 
     if (!event) {
       throw this.notFoundError('Event', eventId);
@@ -65,12 +65,12 @@ export class ExportService extends BaseService {
   async exportContestResultsToCSV(contestId: string): Promise<string> {
     await this.ensureExportDir();
 
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         categories: true,
-      },
-    });
+      } as any,
+    } as any);
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);

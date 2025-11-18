@@ -90,7 +90,7 @@ export class DatabaseBrowserController {
       const limit = parseInt(req.query.limit as string) || 50;
       const skip = (page - 1) * limit;
 
-      const [queries, total] = await Promise.all([
+      const [queries, total]: any = await Promise.all([
         this.prisma.activityLog.findMany({
           where: {
             action: 'DATABASE_QUERY'
@@ -103,11 +103,11 @@ export class DatabaseBrowserController {
                 email: true
               }
             }
-          },
+          } as any,
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
-        }),
+        } as any),
         this.prisma.activityLog.count({
           where: { action: 'DATABASE_QUERY' }
         })

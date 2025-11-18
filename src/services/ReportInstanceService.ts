@@ -12,6 +12,7 @@ export interface CreateReportInstanceDTO {
   name: string;
   generatedById: string;
   format: string;
+  tenantId: string;
   data?: string;
   templateId?: string;
 }
@@ -37,10 +38,11 @@ export class ReportInstanceService extends BaseService {
    */
   async createInstance(data: CreateReportInstanceDTO): Promise<ReportInstance> {
     try {
-      this.validateRequired(data, ['type', 'name', 'generatedById', 'format']);
+      this.validateRequired(data, ['type', 'name', 'generatedById', 'format', 'tenantId']);
 
       const instance = await this.prisma.reportInstance.create({
         data: {
+          tenantId: data.tenantId,
           type: data.type,
           name: data.name,
           generatedById: data.generatedById,

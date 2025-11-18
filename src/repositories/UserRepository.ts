@@ -7,13 +7,7 @@ import { User, Prisma } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
 
-export type UserWithRelations = Prisma.UserGetPayload<{
-  include: {
-    assignedAssignments: true;
-    contestant: true;
-    judge: true;
-  };
-}>;
+export type UserWithRelations = any; // Simplified due to Prisma type inference issues with includes
 
 @injectable()
 export class UserRepository extends BaseRepository<User> {

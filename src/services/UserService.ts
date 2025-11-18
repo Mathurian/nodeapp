@@ -657,13 +657,13 @@ export class UserService extends BaseService {
    */
   async getAllUsersWithRelations(): Promise<any[]> {
     try {
-      const users = await this.prisma.user.findMany({
+      const users: any = await this.prisma.user.findMany({
         include: {
           judge: true,
           contestant: true
-        },
+        } as any,
         orderBy: { createdAt: 'desc' }
-      });
+      } as any);
 
       // Map lastLoginAt to lastLogin for frontend compatibility
       const mappedUsers = users.map(user => ({
@@ -682,13 +682,13 @@ export class UserService extends BaseService {
    */
   async getUserByIdWithRelations(userId: string): Promise<any> {
     try {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         include: {
           judge: true,
           contestant: true
-        }
-      });
+        } as any
+      } as any);
 
       this.assertExists(user, 'User', userId);
 

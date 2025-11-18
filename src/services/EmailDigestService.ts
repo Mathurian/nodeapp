@@ -52,7 +52,7 @@ export class EmailDigestService {
 
     for (const preference of preferences) {
       try {
-        const sent = await this.sendDigestToUser(preference.userId, frequency);
+        const sent = await this.sendDigestToUser(preference.userId, frequency, preference.tenantId);
         if (sent) sentCount++;
       } catch (error) {
         console.error(`Error sending digest to user ${preference.userId}:`, error);
@@ -65,13 +65,14 @@ export class EmailDigestService {
   /**
    * Send digest email to a single user
    */
-  async sendDigestToUser(userId: string, frequency: string): Promise<boolean> {
+  async sendDigestToUser(userId: string, frequency: string, tenantId: string): Promise<boolean> {
     // Get time range based on frequency
     const since = this.getTimeRange(frequency);
 
     // Get unread notifications - filter by createdAt since 'since' is not in the type
     const allNotifications = await this.notificationRepository.findByUser({
       userId,
+      tenantId,
       read: false,
       limit: 100,
     });
@@ -358,9 +359,15 @@ export class EmailDigestService {
         },
       });
     } else {
-      // Create new record
+      // Create new record - get tenantId from user
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { tenantId: true }
+      });
+
       await prisma.notificationDigest.create({
         data: {
+          tenantId: user?.tenantId || 'default_tenant',
           userId,
           frequency,
           lastSentAt: new Date(),

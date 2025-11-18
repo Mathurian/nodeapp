@@ -26,7 +26,8 @@ export class ContestCertificationController {
       const certification = await this.contestCertificationService.certifyContest(
         contestId,
         req.user!.id,
-        req.user!.role
+        req.user!.role,
+        req.user!.tenantId
       );
       return sendSuccess(res, certification, 'Contest certified successfully');
     } catch (error) {

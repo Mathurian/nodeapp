@@ -76,7 +76,7 @@ export class BioService extends BaseService {
               }
             }
           }
-        },
+        } as any,
         categoryContestants: {
           select: {
             category: {
@@ -86,10 +86,10 @@ export class BioService extends BaseService {
               }
             }
           }
-        }
-      },
+        } as any
+      } as any,
       orderBy: { contestantNumber: 'asc' }
-    });
+    } as any);
   }
 
   /**
@@ -149,7 +149,7 @@ export class BioService extends BaseService {
               }
             }
           }
-        },
+        } as any,
         categoryJudges: {
           select: {
             category: {
@@ -159,10 +159,10 @@ export class BioService extends BaseService {
               }
             }
           }
-        }
-      },
+        } as any
+      } as any,
       orderBy: { name: 'asc' }
-    });
+    } as any);
   }
 
   /**

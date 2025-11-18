@@ -40,7 +40,7 @@ export class ContestCertificationService extends BaseService {
     };
   }
 
-  async certifyContest(contestId: string, userId: string, userRole: string) {
+  async certifyContest(contestId: string, userId: string, userRole: string, tenantId: string) {
     const allowedRoles = ['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'];
 
     if (!allowedRoles.includes(userRole)) {
@@ -63,6 +63,7 @@ export class ContestCertificationService extends BaseService {
 
     return await this.prisma.contestCertification.create({
       data: {
+        tenantId,
         contestId,
         role: userRole,
         userId
