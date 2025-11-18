@@ -34,21 +34,21 @@ export class ScoringService extends BaseService {
   /**
    * Get scores by category
    */
-  async getScoresByCategory(categoryId: string, contestantId?: string): Promise<Score[]> {
+  async getScoresByCategory(categoryId: string, tenantId: string, contestantId?: string): Promise<Score[]> {
     try {
       if (contestantId) {
-        return await this.prisma.score.findMany({
-          where: { categoryId, contestantId },
+        return (await this.prisma.score.findMany({
+          where: { categoryId, contestantId, tenantId },
           include: {
             contestant: true,
             judge: true,
             category: true
-          },
+          } as any,
           orderBy: { createdAt: 'desc' }
-        });
+        } as any)) as any;
       }
 
-      return await this.scoreRepository.findByCategory(categoryId);
+      return await this.scoreRepository.findByCategory(categoryId, tenantId);
     } catch (error) {
       this.handleError(error, { method: 'getScoresByCategory', categoryId, contestantId });
     }
@@ -57,7 +57,7 @@ export class ScoringService extends BaseService {
   /**
    * Submit a score
    */
-  async submitScore(data: SubmitScoreDTO, userId: string): Promise<Score> {
+  async submitScore(data: SubmitScoreDTO, userId: string, tenantId: string): Promise<Score> {
     try {
       const { categoryId, contestantId, criteriaId, score, comments } = data;
 
@@ -71,7 +71,7 @@ export class ScoringService extends BaseService {
       });
 
       // Verify category exists and get context
-      const category = await this.prisma.category.findUnique({
+      const category: any = (await this.prisma.category.findUnique({
         where: { id: categoryId },
         include: {
           contest: {
@@ -79,20 +79,20 @@ export class ScoringService extends BaseService {
               event: true
             }
           }
-        }
-      });
+        } as any
+      } as any)) as any;
 
       if (!category) {
         throw new NotFoundError('Category', categoryId);
       }
 
       // Get the Judge record from the User
-      const userWithJudge = await this.prisma.user.findUnique({
+      const userWithJudge: any = (await this.prisma.user.findUnique({
         where: { id: userId },
         include: {
           judge: true
-        }
-      });
+        } as any
+      } as any)) as any;
 
       if (!userWithJudge?.judge) {
         throw new ValidationError('User is not linked to a Judge record');
@@ -104,6 +104,7 @@ export class ScoringService extends BaseService {
       // Validate judge assignment to this category
       const assignment = await this.prisma.assignment.findFirst({
         where: {
+          tenantId,
           judgeId: userWithJudge.judge.id,
           OR: [
             { categoryId },
@@ -120,6 +121,7 @@ export class ScoringService extends BaseService {
       // Check if there's an existing score for this judge/contestant/category
       const existingScore = await this.prisma.score.findFirst({
         where: {
+          tenantId,
           categoryId,
           contestantId,
           judgeId,
@@ -138,18 +140,17 @@ export class ScoringService extends BaseService {
           contestantId,
           criterionId: criteriaId || null,
           judgeId,
-          contestId: category.contestId,
-          eventId: category.contest.eventId,
           score: score,
+          tenantId,
           certifiedAt: null,
           certifiedBy: null
-        } as any,
+        },
         include: {
           contestant: true,
           judge: true,
           category: true
-        }
-      });
+        } as any
+      } as any);
 
       this.logInfo('Score submitted successfully', {
         scoreId: newScore.id,
@@ -168,22 +169,22 @@ export class ScoringService extends BaseService {
   /**
    * Update an existing score
    */
-  async updateScore(scoreId: string, data: UpdateScoreDTO): Promise<Score> {
+  async updateScore(scoreId: string, data: UpdateScoreDTO, tenantId: string): Promise<Score> {
     try {
-      const existingScore = await this.scoreRepository.findById(scoreId);
+      const existingScore = await this.scoreRepository.findById(scoreId, tenantId);
       this.assertExists(existingScore, 'Score', scoreId);
 
       const updatedScore = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           score: data.score !== undefined ? data.score : existingScore!.score,
-        } as any,
+        },
         include: {
           contestant: true,
           judge: true,
           category: true
-        }
-      });
+        } as any
+      } as any);
 
       this.logInfo('Score updated successfully', { scoreId });
       return updatedScore;
@@ -195,12 +196,12 @@ export class ScoringService extends BaseService {
   /**
    * Delete a score
    */
-  async deleteScore(scoreId: string): Promise<void> {
+  async deleteScore(scoreId: string, tenantId: string): Promise<void> {
     try {
-      const score = await this.scoreRepository.findById(scoreId);
+      const score = await this.scoreRepository.findById(scoreId, tenantId);
       this.assertExists(score, 'Score', scoreId);
 
-      await this.scoreRepository.delete(scoreId);
+      await this.scoreRepository.delete(scoreId, tenantId);
 
       this.logInfo('Score deleted successfully', { scoreId });
     } catch (error) {
@@ -211,9 +212,9 @@ export class ScoringService extends BaseService {
   /**
    * Certify a single score
    */
-  async certifyScore(scoreId: string, certifiedBy: string): Promise<Score> {
+  async certifyScore(scoreId: string, certifiedBy: string, tenantId: string): Promise<Score> {
     try {
-      const score = await this.scoreRepository.findById(scoreId);
+      const score = await this.scoreRepository.findById(scoreId, tenantId);
       this.assertExists(score, 'Score', scoreId);
 
       const certifiedScore = await this.prisma.score.update({
@@ -221,13 +222,13 @@ export class ScoringService extends BaseService {
         data: {
           certifiedAt: new Date(),
           certifiedBy: certifiedBy
-        } as any,
+        },
         include: {
           contestant: true,
           judge: true,
           category: true
-        }
-      });
+        } as any
+      } as any);
 
       this.logInfo('Score certified successfully', { scoreId, certifiedBy });
       return certifiedScore;
@@ -239,17 +240,18 @@ export class ScoringService extends BaseService {
   /**
    * Certify all scores for a category
    */
-  async certifyScores(categoryId: string, certifiedBy: string): Promise<{ certified: number }> {
+  async certifyScores(categoryId: string, certifiedBy: string, tenantId: string): Promise<{ certified: number }> {
     try {
       const result = await this.prisma.score.updateMany({
         where: {
           categoryId,
+          tenantId,
           certifiedAt: null // Only certify uncertified scores
         },
         data: {
           certifiedAt: new Date(),
           certifiedBy: certifiedBy
-        } as any
+        }
       });
 
       this.logInfo('Scores certified for category', {
@@ -267,9 +269,9 @@ export class ScoringService extends BaseService {
   /**
    * Unsign a score (remove certification)
    */
-  async unsignScore(scoreId: string): Promise<Score> {
+  async unsignScore(scoreId: string, tenantId: string): Promise<Score> {
     try {
-      const score = await this.scoreRepository.findById(scoreId);
+      const score = await this.scoreRepository.findById(scoreId, tenantId);
       this.assertExists(score, 'Score', scoreId);
 
       const unsignedScore = await this.prisma.score.update({
@@ -277,13 +279,13 @@ export class ScoringService extends BaseService {
         data: {
           certifiedAt: null,
           certifiedBy: null
-        } as any,
+        },
         include: {
           contestant: true,
           judge: true,
           category: true
-        }
-      });
+        } as any
+      } as any);
 
       this.logInfo('Score unsigned successfully', { scoreId });
       return unsignedScore;
@@ -295,9 +297,9 @@ export class ScoringService extends BaseService {
   /**
    * Get scores by judge
    */
-  async getScoresByJudge(judgeId: string): Promise<Score[]> {
+  async getScoresByJudge(judgeId: string, tenantId: string): Promise<Score[]> {
     try {
-      return await this.scoreRepository.findByJudge(judgeId);
+      return await this.scoreRepository.findByJudge(judgeId, tenantId);
     } catch (error) {
       this.handleError(error, { method: 'getScoresByJudge', judgeId });
     }
@@ -306,9 +308,9 @@ export class ScoringService extends BaseService {
   /**
    * Get scores by contestant
    */
-  async getScoresByContestant(contestantId: string): Promise<Score[]> {
+  async getScoresByContestant(contestantId: string, tenantId: string): Promise<Score[]> {
     try {
-      return await this.scoreRepository.findByContestant(contestantId);
+      return await this.scoreRepository.findByContestant(contestantId, tenantId);
     } catch (error) {
       this.handleError(error, { method: 'getScoresByContestant', contestantId });
     }
@@ -317,9 +319,9 @@ export class ScoringService extends BaseService {
   /**
    * Get scores by contest
    */
-  async getScoresByContest(contestId: string): Promise<Score[]> {
+  async getScoresByContest(contestId: string, tenantId: string): Promise<Score[]> {
     try {
-      return await this.scoreRepository.findByContest(contestId);
+      return await this.scoreRepository.findByContest(contestId, tenantId);
     } catch (error) {
       this.handleError(error, { method: 'getScoresByContest', contestId });
     }
@@ -328,11 +330,12 @@ export class ScoringService extends BaseService {
   /**
    * Calculate average score for contestant in category
    */
-  async calculateAverageScore(contestantId: string, categoryId: string): Promise<number> {
+  async calculateAverageScore(contestantId: string, categoryId: string, tenantId: string): Promise<number> {
     try {
       return await this.scoreRepository.getAverageScoreForContestantInCategory(
         contestantId,
-        categoryId
+        categoryId,
+        tenantId
       );
     } catch (error) {
       this.handleError(error, { method: 'calculateAverageScore', contestantId, categoryId });
@@ -342,9 +345,9 @@ export class ScoringService extends BaseService {
   /**
    * Get contest score statistics
    */
-  async getContestStats(contestId: string): Promise<any> {
+  async getContestStats(contestId: string, tenantId: string): Promise<any> {
     try {
-      return await this.scoreRepository.getContestScoreStats(contestId);
+      return await this.scoreRepository.getContestScoreStats(contestId, tenantId);
     } catch (error) {
       this.handleError(error, { method: 'getContestStats', contestId });
     }
