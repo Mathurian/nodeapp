@@ -34,7 +34,7 @@ export const createMonitoredPrismaClient = () => {
   });
 
   // Track query execution time
-  prisma.$on('query' as never, async (e: any) => {
+  prisma.$on('query' as never, async (e: { duration: string; query: string; params: string; target: string }) => {
     const duration = parseFloat(e.duration);
 
     if (duration > SLOW_QUERY_THRESHOLD) {
@@ -64,7 +64,7 @@ export const createMonitoredPrismaClient = () => {
   });
 
   // Log errors
-  prisma.$on('error' as never, (e: any) => {
+  prisma.$on('error' as never, (e: { message: string; target: string }) => {
     queryLogger.error('Prisma Error', {
       message: e.message,
       target: e.target,
@@ -73,7 +73,7 @@ export const createMonitoredPrismaClient = () => {
   });
 
   // Log warnings
-  prisma.$on('warn' as never, (e: any) => {
+  prisma.$on('warn' as never, (e: { message: string; target: string }) => {
     queryLogger.warn('Prisma Warning', {
       message: e.message,
       target: e.target,
@@ -119,7 +119,14 @@ export class QueryMetrics {
   }
 
   static getMetrics() {
-    const metrics: any[] = [];
+    const metrics: Array<{
+      operation: string;
+      count: number;
+      totalDuration: number;
+      minDuration: number;
+      maxDuration: number;
+      avgDuration: number;
+    }> = [];
 
     this.metrics.forEach((value, key) => {
       metrics.push({
@@ -153,7 +160,12 @@ export class ConnectionPoolMonitor {
   static async getPoolStats() {
     try {
       // Get active connections
-      const result: any = await this.prisma.$queryRaw`
+      const result = await this.prisma.$queryRaw<Array<{
+        total_connections: string;
+        active_connections: string;
+        idle_connections: string;
+        idle_in_transaction: string;
+      }>>`
         SELECT
           count(*) as total_connections,
           count(*) FILTER (WHERE state = 'active') as active_connections,
@@ -178,7 +190,12 @@ export class ConnectionPoolMonitor {
 
   static async getLongRunningQueries(thresholdSeconds: number = 10) {
     try {
-      const result: any = await this.prisma.$queryRaw`
+      const result = await this.prisma.$queryRaw<Array<{
+        pid: number;
+        duration: string;
+        state: string;
+        query: string;
+      }>>`
         SELECT
           pid,
           now() - query_start as duration,

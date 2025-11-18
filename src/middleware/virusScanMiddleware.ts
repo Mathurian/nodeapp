@@ -138,7 +138,7 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
       }
 
       // All files are clean - attach scan results to request
-      (req as any).scanResults = scanResults.map(({ result }) => result);
+      (req as { scanResults?: unknown[] }).scanResults = scanResults.map(({ result }) => result);
 
       next();
     } catch (error) {

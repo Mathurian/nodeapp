@@ -133,9 +133,9 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
       })
 
       if (overlappingAssignments.length > 0) {
-        res.status(400).json({ 
+        res.status(400).json({
           error: 'Judge has overlapping assignments during this event period',
-          conflictingAssignments: overlappingAssignments.map((a: any) => ({
+          conflictingAssignments: overlappingAssignments.map((a: { id: string; categoryId: string | null; contestId: string }) => ({
             id: a.id,
             categoryId: a.categoryId,
             contestId: a.contestId,
@@ -457,13 +457,13 @@ const validateBulkAssignmentOperation = async (req: Request, res: Response, next
         break
       case 'delete':
         // Check if all assignments can be deleted
-        const nonDeletable = assignments.filter((a: any) => 
+        const nonDeletable = assignments.filter((a: { status: string }) =>
           !['PENDING', 'CANCELLED'].includes(a.status)
         );
         if (nonDeletable.length > 0) {
-          res.status(400).json({ 
+          res.status(400).json({
             error: 'Some assignments cannot be deleted due to their status',
-            nonDeletable: nonDeletable.map((a: any) => ({ id: a.id, status: a.status }))
+            nonDeletable: nonDeletable.map((a: { id: string; status: string }) => ({ id: a.id, status: a.status }))
           });
           return;
         }
