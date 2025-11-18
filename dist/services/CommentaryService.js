@@ -94,7 +94,7 @@ let CommentaryService = class CommentaryService extends BaseService_1.BaseServic
                 criterion: {
                     select: {
                         name: true,
-                        description: true
+                        maxScore: true
                     }
                 },
                 score: {

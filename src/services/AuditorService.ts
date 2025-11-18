@@ -324,7 +324,7 @@ export class AuditorService extends BaseService {
             criterion: true,
           } as any,
         },
-        certifications: true,
+        categoryCertifications: true,
       },
     });
 
@@ -373,7 +373,7 @@ export class AuditorService extends BaseService {
             criterion: true,
           } as any,
         },
-        certifications: true,
+        categoryCertifications: true,
       },
     });
 
@@ -471,7 +471,7 @@ export class AuditorService extends BaseService {
             },
           } as any,
         },
-        certifications: true,
+        categoryCertifications: true,
       },
     });
 

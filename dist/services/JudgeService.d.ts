@@ -53,18 +53,18 @@ export declare class JudgeService extends BaseService {
     getJudgeHistory(userId: string, tenantId: string, query?: any): Promise<{
         scores: {
             id: string;
-            judgeId: string;
             contestantId: string;
+            comment: string | null;
             createdAt: Date;
             updatedAt: Date;
             tenantId: string;
             score: number | null;
+            criterionId: string | null;
+            judgeId: string;
             categoryId: string;
+            allowCommentEdit: boolean;
             certifiedAt: Date | null;
             certifiedBy: string | null;
-            criterionId: string | null;
-            allowCommentEdit: boolean;
-            comment: string | null;
             isCertified: boolean;
             isLocked: boolean;
             lockedAt: Date | null;

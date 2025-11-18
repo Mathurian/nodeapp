@@ -18,11 +18,11 @@ export declare const paginationSchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     limit: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    limit?: number;
     page?: number;
+    limit?: number;
 }, {
-    limit?: number;
     page?: number;
+    limit?: number;
 }>;
 export declare const createUserSchema: z.ZodObject<{
     username: z.ZodString;
@@ -83,20 +83,20 @@ export declare const changePasswordSchema: z.ZodEffects<z.ZodObject<{
     newPassword: z.ZodString;
     confirmPassword: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    newPassword?: string;
     currentPassword?: string;
+    newPassword?: string;
     confirmPassword?: string;
 }, {
-    newPassword?: string;
     currentPassword?: string;
+    newPassword?: string;
     confirmPassword?: string;
 }>, {
-    newPassword?: string;
     currentPassword?: string;
+    newPassword?: string;
     confirmPassword?: string;
 }, {
-    newPassword?: string;
     currentPassword?: string;
+    newPassword?: string;
     confirmPassword?: string;
 }>;
 export declare const createEventSchema: z.ZodEffects<z.ZodObject<{
@@ -146,17 +146,17 @@ export declare const updateEventSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name?: string;
     description?: string;
+    archived?: boolean;
     startDate?: string | Date;
     endDate?: string | Date;
-    archived?: boolean;
     location?: string;
     maxContestants?: number;
 }, {
     name?: string;
     description?: string;
+    archived?: boolean;
     startDate?: string | Date;
     endDate?: string | Date;
-    archived?: boolean;
     location?: string;
     maxContestants?: number;
 }>;
@@ -167,14 +167,14 @@ export declare const createScoreSchema: z.ZodObject<{
     contestId: z.ZodString;
     value: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    judgeId?: string;
     contestantId?: string;
+    judgeId?: string;
     categoryId?: string;
     contestId?: string;
     value?: number;
 }, {
-    judgeId?: string;
     contestantId?: string;
+    judgeId?: string;
     categoryId?: string;
     contestId?: string;
     value?: number;
@@ -191,12 +191,12 @@ export declare const searchQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     limit: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    limit?: number;
     page?: number;
+    limit?: number;
     q?: string;
 }, {
-    limit?: number;
     page?: number;
+    limit?: number;
     q?: string;
 }>;
 export declare const dateRangeSchema: z.ZodEffects<z.ZodObject<{
@@ -225,17 +225,17 @@ export declare const createContestSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name?: string;
     description?: string;
-    archived?: boolean;
-    contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     eventId?: string;
+    contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     nextContestantNumber?: number;
+    archived?: boolean;
 }, {
     name?: string;
     description?: string;
-    archived?: boolean;
-    contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     eventId?: string;
+    contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     nextContestantNumber?: number;
+    archived?: boolean;
 }>;
 export declare const updateContestSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -246,15 +246,15 @@ export declare const updateContestSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name?: string;
     description?: string;
-    archived?: boolean;
     contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     nextContestantNumber?: number;
+    archived?: boolean;
 }, {
     name?: string;
     description?: string;
-    archived?: boolean;
     contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
     nextContestantNumber?: number;
+    archived?: boolean;
 }>;
 export declare const createCategorySchema: z.ZodObject<{
     contestId: z.ZodString;
@@ -267,8 +267,8 @@ export declare const createCategorySchema: z.ZodObject<{
     totalsCertified: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name?: string;
-    description?: string;
     contestId?: string;
+    description?: string;
     scoreCap?: number;
     timeLimit?: number;
     contestantMin?: number;
@@ -276,8 +276,8 @@ export declare const createCategorySchema: z.ZodObject<{
     totalsCertified?: boolean;
 }, {
     name?: string;
-    description?: string;
     contestId?: string;
+    description?: string;
     scoreCap?: number;
     timeLimit?: number;
     contestantMin?: number;

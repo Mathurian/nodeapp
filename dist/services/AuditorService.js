@@ -263,7 +263,7 @@ let AuditorService = class AuditorService extends BaseService_1.BaseService {
                         criterion: true,
                     },
                 },
-                certifications: true,
+                categoryCertifications: true,
             },
         });
         if (!category) {
@@ -303,7 +303,7 @@ let AuditorService = class AuditorService extends BaseService_1.BaseService {
                         criterion: true,
                     },
                 },
-                certifications: true,
+                categoryCertifications: true,
             },
         });
         if (!category) {
@@ -392,7 +392,7 @@ let AuditorService = class AuditorService extends BaseService_1.BaseService {
                         },
                     },
                 },
-                certifications: true,
+                categoryCertifications: true,
             },
         });
         if (!category) {

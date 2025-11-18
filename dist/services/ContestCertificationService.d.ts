@@ -13,11 +13,11 @@ export declare class ContestCertificationService extends BaseService {
     }>;
     certifyContest(contestId: string, userId: string, userRole: string, tenantId: string): Promise<{
         id: string;
-        role: string;
         tenantId: string;
-        userId: string;
-        contestId: string;
         certifiedAt: Date;
+        contestId: string;
+        role: string;
+        userId: string;
         comments: string | null;
     }>;
 }

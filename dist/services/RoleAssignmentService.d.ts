@@ -25,42 +25,42 @@ export declare class RoleAssignmentService extends BaseService {
     constructor(prisma: PrismaClient);
     getAll(filters: RoleAssignmentFilters): Promise<{
         id: string;
-        role: string;
-        isActive: boolean;
         tenantId: string;
-        userId: string;
-        eventId: string | null;
-        contestId: string | null;
         categoryId: string | null;
+        contestId: string | null;
+        eventId: string | null;
         assignedAt: Date;
         assignedBy: string;
         notes: string | null;
+        role: string;
+        isActive: boolean;
+        userId: string;
     }[]>;
     create(data: CreateRoleAssignmentDto): Promise<{
         id: string;
-        role: string;
-        isActive: boolean;
         tenantId: string;
-        userId: string;
-        eventId: string | null;
-        contestId: string | null;
         categoryId: string | null;
+        contestId: string | null;
+        eventId: string | null;
         assignedAt: Date;
         assignedBy: string;
         notes: string | null;
+        role: string;
+        isActive: boolean;
+        userId: string;
     }>;
     update(id: string, data: UpdateRoleAssignmentDto): Promise<{
         id: string;
-        role: string;
-        isActive: boolean;
         tenantId: string;
-        userId: string;
-        eventId: string | null;
-        contestId: string | null;
         categoryId: string | null;
+        contestId: string | null;
+        eventId: string | null;
         assignedAt: Date;
         assignedBy: string;
         notes: string | null;
+        role: string;
+        isActive: boolean;
+        userId: string;
     }>;
     delete(id: string): Promise<void>;
 }

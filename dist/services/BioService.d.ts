@@ -13,40 +13,40 @@ export declare class BioService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     getContestantBios(filters: BioQueryFilters): Promise<{
-        name: string;
         id: string;
-        email: string | null;
-        gender: string | null;
-        pronouns: string | null;
-        contestantNumber: number | null;
-        bio: string | null;
-        imagePath: string | null;
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
+        name: string;
+        email: string | null;
+        gender: string | null;
+        pronouns: string | null;
+        bio: string | null;
+        imagePath: string | null;
+        contestantNumber: number | null;
     }[]>;
     getJudgeBios(filters: BioQueryFilters): Promise<{
-        name: string;
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        name: string;
         email: string | null;
         gender: string | null;
         pronouns: string | null;
         bio: string | null;
         imagePath: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         isHeadJudge: boolean;
     }[]>;
     updateContestantBio(contestantId: string, data: UpdateBioDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         bio: string;
         imagePath: string;
     }>;
     updateJudgeBio(judgeId: string, data: UpdateBioDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         bio: string;
         imagePath: string;
     }>;

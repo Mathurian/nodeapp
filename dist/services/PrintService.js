@@ -254,12 +254,12 @@ let PrintService = class PrintService extends BaseService_1.BaseService {
                         event: true,
                     },
                 },
-                contestants: {
+                categoryContestants: {
                     include: {
                         contestant: true,
                     },
                 },
-                judges: {
+                categoryJudges: {
                     include: {
                         judge: true,
                     },
@@ -286,12 +286,12 @@ let PrintService = class PrintService extends BaseService_1.BaseService {
                 event: true,
                 categories: {
                     include: {
-                        contestants: {
+                        categoryContestants: {
                             include: {
                                 contestant: true,
                             },
                         },
-                        judges: {
+                        categoryJudges: {
                             include: {
                                 judge: true,
                             },
@@ -318,12 +318,12 @@ let PrintService = class PrintService extends BaseService_1.BaseService {
                 event: true,
                 categories: {
                     include: {
-                        contestants: {
+                        categoryContestants: {
                             include: {
                                 contestant: true,
                             },
                         },
-                        judges: {
+                        categoryJudges: {
                             include: {
                                 judge: true,
                             },

@@ -22,11 +22,11 @@ export declare class CategoryCertificationController {
     }>, Record<string, any>>>;
     certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        role: string;
         tenantId: string;
-        userId: string;
         categoryId: string;
         certifiedAt: Date;
+        role: string;
+        userId: string;
         comments: string | null;
         signatureName: string | null;
     }>, Record<string, any>>>;
@@ -52,11 +52,11 @@ export declare const getCategoryCertificationProgress: (req: Request, res: Respo
 }>, Record<string, any>>>;
 export declare const certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    role: string;
     tenantId: string;
-    userId: string;
     categoryId: string;
     certifiedAt: Date;
+    role: string;
+    userId: string;
     comments: string | null;
     signatureName: string | null;
 }>, Record<string, any>>>;

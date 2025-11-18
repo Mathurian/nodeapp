@@ -330,12 +330,12 @@ export class PrintService extends BaseService {
             event: true,
           } as any,
         },
-        contestants: {
+        categoryContestants: {
           include: {
             contestant: true,
           } as any,
         },
-        judges: {
+        categoryJudges: {
           include: {
             judge: true,
           } as any,
@@ -368,12 +368,12 @@ export class PrintService extends BaseService {
         event: true,
         categories: {
           include: {
-            contestants: {
+            categoryContestants: {
               include: {
                 contestant: true,
               } as any,
             },
-            judges: {
+            categoryJudges: {
               include: {
                 judge: true,
               } as any,
@@ -406,12 +406,12 @@ export class PrintService extends BaseService {
         event: true,
         categories: {
           include: {
-            contestants: {
+            categoryContestants: {
               include: {
                 contestant: true,
               } as any,
             },
-            judges: {
+            categoryJudges: {
               include: {
                 judge: true,
               } as any,

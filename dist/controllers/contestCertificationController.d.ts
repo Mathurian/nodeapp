@@ -12,11 +12,11 @@ export declare class ContestCertificationController {
     }>, Record<string, any>>>;
     certifyContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        role: string;
         tenantId: string;
-        userId: string;
-        contestId: string;
         certifiedAt: Date;
+        contestId: string;
+        role: string;
+        userId: string;
         comments: string | null;
     }>, Record<string, any>>>;
 }
@@ -30,11 +30,11 @@ export declare const getContestCertificationProgress: (req: Request, res: Respon
 }>, Record<string, any>>>;
 export declare const certifyContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    role: string;
     tenantId: string;
-    userId: string;
-    contestId: string;
     certifiedAt: Date;
+    contestId: string;
+    role: string;
+    userId: string;
     comments: string | null;
 }>, Record<string, any>>>;
 //# sourceMappingURL=contestCertificationController.d.ts.map

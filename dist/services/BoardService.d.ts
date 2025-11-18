@@ -29,9 +29,9 @@ export declare class BoardService extends BaseService {
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        eventId: string | null;
-        contestId: string | null;
         categoryId: string | null;
+        contestId: string | null;
+        eventId: string | null;
         title: string;
         content: string;
         order: number | null;

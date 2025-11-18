@@ -22,11 +22,11 @@ export declare class CategoryCertificationService extends BaseService {
     }>;
     certifyCategory(categoryId: string, userId: string, userRole: string, tenantId: string): Promise<{
         id: string;
-        role: string;
         tenantId: string;
-        userId: string;
         categoryId: string;
         certifiedAt: Date;
+        role: string;
+        userId: string;
         comments: string | null;
         signatureName: string | null;
     }>;

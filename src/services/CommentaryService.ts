@@ -104,7 +104,7 @@ export class CommentaryService extends BaseService {
         criterion: {
           select: {
             name: true,
-            description: true
+            maxScore: true
           }
         },
         score: {
