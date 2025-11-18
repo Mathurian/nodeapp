@@ -234,7 +234,8 @@ export class CategoriesController {
         data: {
           categoryId,
           name,
-          maxScore: parseInt(maxScore)
+          maxScore: parseInt(maxScore),
+          tenantId: req.user!.tenantId
         }
       });
 

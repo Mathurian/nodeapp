@@ -8,7 +8,7 @@ import { container } from 'tsyringe';
 import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/ScoringService';
 import { sendSuccess, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -286,7 +286,7 @@ export class ScoringController {
       const contestId = req.query.contestId as string | undefined;
       const eventId = req.query.eventId as string | undefined;
 
-      const where: any = {};
+      const where: Prisma.CategoryWhereInput = {};
       if (contestId) where.contestId = contestId;
       if (eventId) {
         where.contest = {
@@ -346,7 +346,8 @@ export class ScoringController {
       // Create or update category certification for TALLY_MASTER
       const certification = await this.prisma.categoryCertification.upsert({
         where: {
-          categoryId_role: {
+          tenantId_categoryId_role: {
+            tenantId: req.user!.tenantId,
             categoryId,
             role: 'TALLY_MASTER'
           }
@@ -356,7 +357,8 @@ export class ScoringController {
           role: 'TALLY_MASTER',
           userId: req.user.id,
           signatureName: signatureName || null,
-          comments: comments || null
+          comments: comments || null,
+          tenantId: req.user!.tenantId
         },
         update: {
           userId: req.user.id,
@@ -394,7 +396,8 @@ export class ScoringController {
       // Check if Tally Master has certified
       const tallyMasterCert = await this.prisma.categoryCertification.findUnique({
         where: {
-          categoryId_role: {
+          tenantId_categoryId_role: {
+            tenantId: req.user!.tenantId,
             categoryId,
             role: 'TALLY_MASTER'
           }
@@ -408,7 +411,8 @@ export class ScoringController {
       // Create or update category certification for AUDITOR
       const certification = await this.prisma.categoryCertification.upsert({
         where: {
-          categoryId_role: {
+          tenantId_categoryId_role: {
+            tenantId: req.user!.tenantId,
             categoryId,
             role: 'AUDITOR'
           }
@@ -418,7 +422,8 @@ export class ScoringController {
           role: 'AUDITOR',
           userId: req.user.id,
           signatureName: signatureName || null,
-          comments: comments || null
+          comments: comments || null,
+          tenantId: req.user!.tenantId
         },
         update: {
           userId: req.user.id,
@@ -467,7 +472,8 @@ export class ScoringController {
           amount,
           reason,
           requestedById: req.user.id,
-          status: 'PENDING'
+          status: 'PENDING',
+          tenantId: req.user!.tenantId
         },
         // include removed - no relations in schema
       });
@@ -505,7 +511,8 @@ export class ScoringController {
           requestId: deductionId,
           approvedById: req.user.id,
           role: req.user.role,
-          isHeadJudge: isHeadJudge || false
+          isHeadJudge: isHeadJudge || false,
+          tenantId: req.user!.tenantId
         }
       });
 
