@@ -12,6 +12,8 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { CommandRegistry } from '../lib/commands/CommandRegistry'
 import { createNavigationCommands } from '../lib/commands/definitions/navigationCommands'
 import { createActionCommands } from '../lib/commands/definitions/actionCommands'
+import { createQuickActionCommands } from '../lib/commands/definitions/quickActionCommands'
+import { createContextCommands } from '../lib/commands/definitions/contextCommands'
 import type { Command } from '../lib/commands/CommandRegistry'
 
 interface CommandPaletteProps {
@@ -64,9 +66,37 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       }
     })
 
+    // Create quick action commands
+    const quickActionCommands = createQuickActionCommands({
+      navigate: (path: string) => {
+        navigate(path)
+      }
+    })
+
+    // Create context-specific commands based on current page
+    const currentPath = location.pathname
+    let context = 'general'
+    if (currentPath.includes('/events')) context = 'events'
+    else if (currentPath.includes('/scoring')) context = 'scoring'
+    else if (currentPath.includes('/users')) context = 'users'
+    else if (currentPath.includes('/results')) context = 'results'
+    else if (currentPath.includes('/admin')) context = 'admin'
+
+    const contextCommands = createContextCommands({
+      context,
+      navigate: (path: string) => {
+        navigate(path)
+      }
+    })
+
     // Register all commands
-    registry.registerCommands([...navigationCommands, ...actionCommands])
-  }, [navigate, logout, registry])
+    registry.registerCommands([
+      ...navigationCommands,
+      ...actionCommands,
+      ...quickActionCommands,
+      ...contextCommands
+    ])
+  }, [navigate, logout, registry, location.pathname])
 
   // Update displayed commands based on query
   useEffect(() => {

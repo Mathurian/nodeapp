@@ -3,15 +3,6 @@ import { PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
 import * as crypto from 'crypto';
 
-// TODO: Use this interface when implementing full winner calculation
-// interface WinnerCalculation {
-//   contestant: any;
-//   totalScore: number;
-//   totalPossibleScore: number;
-//   scores: any[];
-//   judgesScored: Set<string>;
-// }
-
 @injectable()
 export class WinnerService extends BaseService {
   constructor(
@@ -275,12 +266,12 @@ export class WinnerService extends BaseService {
 
   /**
    * Sign winners for a category
-   * TODO: Implement full signature and certification logic
    */
   async signWinners(
     categoryId: string,
     userId: string,
     userRole: string,
+    tenantId: string,
     ipAddress?: string,
     userAgent?: string
   ) {
@@ -300,19 +291,51 @@ export class WinnerService extends BaseService {
       userAgent
     );
 
-    // TODO: Store signature and create certification record
+    // Check if already signed
+    const existingCertification = await this.prisma.categoryCertification.findFirst({
+      where: {
+        categoryId,
+        userId,
+        role: userRole,
+        tenantId,
+      },
+    });
+
+    if (existingCertification) {
+      throw this.conflictError('User has already signed this category');
+    }
+
+    // Get user details for signature name
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
+    // Create certification record
+    const certification = await this.prisma.categoryCertification.create({
+      data: {
+        categoryId,
+        userId,
+        role: userRole,
+        signatureName: user?.name || 'Unknown User',
+        tenantId,
+        comments: `Signed from IP: ${ipAddress || 'unknown'}, User-Agent: ${userAgent || 'unknown'}`,
+      },
+    });
 
     return {
-      message: 'Winners signed successfully (placeholder)',
+      message: 'Winners signed successfully',
       signature,
       categoryId,
+      certificationId: certification.id,
+      certifiedAt: certification.certifiedAt,
     };
   }
 
   /**
    * Get signature status for a category
    */
-  async getSignatureStatus(categoryId: string, userId: string) {
+  async getSignatureStatus(categoryId: string, userId: string, tenantId: string) {
     const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
@@ -321,22 +344,35 @@ export class WinnerService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    // TODO: Check if user has signed this category
-    const signed = false;
-    const signature = null;
+    // Check if user has signed this category
+    const certification = await this.prisma.categoryCertification.findFirst({
+      where: {
+        categoryId,
+        userId,
+        tenantId,
+      },
+    });
+
+    const signed = !!certification;
+    const signature = certification
+      ? this.generateSignature(userId, categoryId, certification.role)
+      : null;
 
     return {
       categoryId,
       userId,
       signed,
       signature,
+      certifiedAt: certification?.certifiedAt || null,
+      role: certification?.role || null,
+      signatureName: certification?.signatureName || null,
     };
   }
 
   /**
    * Get certification progress for a category
    */
-  async getCertificationProgress(categoryId: string) {
+  async getCertificationProgress(categoryId: string, tenantId: string) {
     const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
@@ -345,23 +381,60 @@ export class WinnerService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    // TODO: Calculate certification progress
-    // - Check which roles have certified
-    // - Calculate percentage complete
+    // Required roles for full certification
+    const requiredRoles = ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
+
+    // Get all certifications for this category
+    const categoryCertifications = await this.prisma.categoryCertification.findMany({
+      where: { categoryId, tenantId },
+      select: { role: true, userId: true, certifiedAt: true, signatureName: true },
+    });
+
+    const judgeCertifications = await this.prisma.judgeCertification.findMany({
+      where: { categoryId, tenantId },
+      select: { judgeId: true, certifiedAt: true, signatureName: true },
+    });
+
+    // Track which roles have certified
+    const rolesCertified = new Set<string>();
+
+    // Check category certifications
+    for (const cert of categoryCertifications) {
+      rolesCertified.add(cert.role);
+    }
+
+    // If there are judge certifications, mark JUDGE role as certified
+    if (judgeCertifications.length > 0) {
+      rolesCertified.add('JUDGE');
+    }
+
+    const rolesCertifiedArray = Array.from(rolesCertified);
+    const rolesRemaining = requiredRoles.filter(role => !rolesCertified.has(role));
+
+    // Calculate progress
+    const certificationProgress = Math.round(
+      (rolesCertifiedArray.length / requiredRoles.length) * 100
+    );
+
+    // All roles must be certified for full certification
+    const totalsCertified = rolesRemaining.length === 0;
 
     return {
       categoryId,
-      totalsCertified: false,
-      certificationProgress: 0,
-      rolesCertified: [] as string[],
-      rolesRemaining: [] as string[],
+      totalsCertified,
+      certificationProgress,
+      rolesCertified: rolesCertifiedArray,
+      rolesRemaining,
+      requiredRoles,
+      judgeCount: judgeCertifications.length,
+      categoryCertificationCount: categoryCertifications.length,
     };
   }
 
   /**
    * Get role-specific certification status
    */
-  async getRoleCertificationStatus(categoryId: string, role: string) {
+  async getRoleCertificationStatus(categoryId: string, role: string, tenantId: string) {
     const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
@@ -370,15 +443,56 @@ export class WinnerService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    // TODO: Check role-specific certification status
+    // Check role-specific certification status
+    if (role === 'JUDGE') {
+      // For judges, check if any judge has certified
+      const judgeCertifications = await this.prisma.judgeCertification.findMany({
+        where: { categoryId, tenantId },
+        include: {
+          judge: {
+            select: { name: true },
+          },
+        },
+      });
 
-    return {
-      categoryId,
-      role,
-      certified: false,
-      certifiedBy: null,
-      certifiedAt: null,
-    };
+      const certified = judgeCertifications.length > 0;
+      const lastCertification = judgeCertifications[judgeCertifications.length - 1];
+
+      return {
+        categoryId,
+        role,
+        certified,
+        certifiedBy: lastCertification?.signatureName || null,
+        certifiedAt: lastCertification?.certifiedAt || null,
+        count: judgeCertifications.length,
+        certifications: judgeCertifications.map(cert => ({
+          judgeId: cert.judgeId,
+          judgeName: (cert.judge as any)?.name,
+          signatureName: cert.signatureName,
+          certifiedAt: cert.certifiedAt,
+        })),
+      };
+    } else {
+      // For other roles, check category certifications
+      const certification = await this.prisma.categoryCertification.findFirst({
+        where: { categoryId, role, tenantId },
+        include: {
+          category: {
+            select: { name: true },
+          },
+        },
+      });
+
+      return {
+        categoryId,
+        role,
+        certified: !!certification,
+        certifiedBy: certification?.signatureName || null,
+        certifiedAt: certification?.certifiedAt || null,
+        userId: certification?.userId || null,
+        comments: certification?.comments || null,
+      };
+    }
   }
 
   /**
@@ -387,26 +501,133 @@ export class WinnerService extends BaseService {
   async certifyScores(
     categoryId: string,
     userId: string,
-    userRole: string
+    userRole: string,
+    tenantId: string,
+    comments?: string
   ) {
     const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
+      include: {
+        contest: {
+          include: {
+            event: true,
+          },
+        },
+      },
     });
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
-    // TODO: Implement score certification
-    // - Verify role permissions
-    // - Create certification record
-    // - Update category status
+    // Verify role permissions
+    const allowedRoles = ['ADMIN', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'];
+    if (!allowedRoles.includes(userRole)) {
+      throw this.forbiddenError(
+        `Role ${userRole} is not authorized to certify scores. Allowed roles: ${allowedRoles.join(', ')}`
+      );
+    }
+
+    // Check if this role has already certified
+    const existingCertification = await this.prisma.categoryCertification.findFirst({
+      where: {
+        categoryId,
+        role: userRole,
+        tenantId,
+      },
+    });
+
+    if (existingCertification) {
+      throw this.conflictError(
+        `Role ${userRole} has already certified this category on ${existingCertification.certifiedAt.toISOString()}`
+      );
+    }
+
+    // Get user details
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
+    // Verify there are scores to certify
+    const scoreCount = await this.prisma.score.count({
+      where: {
+        categoryId,
+        score: { not: null },
+      },
+    });
+
+    if (scoreCount === 0) {
+      throw this.badRequestError('Cannot certify category with no scores');
+    }
+
+    // Create certification record
+    const certification = await this.prisma.categoryCertification.create({
+      data: {
+        categoryId,
+        userId,
+        role: userRole,
+        signatureName: user?.name || 'Unknown User',
+        tenantId,
+        comments: comments || `Certified by ${userRole}`,
+      },
+    });
+
+    // Update the Certification workflow if it exists
+    const certificationWorkflow = await this.prisma.certification.findFirst({
+      where: {
+        categoryId,
+        tenantId,
+      },
+    });
+
+    if (certificationWorkflow) {
+      // Update workflow based on role
+      const updates: any = {};
+
+      if (userRole === 'TALLY_MASTER') {
+        updates.tallyCertified = true;
+        updates.currentStep = Math.max(certificationWorkflow.currentStep, 2);
+      } else if (userRole === 'AUDITOR') {
+        updates.auditorCertified = true;
+        updates.currentStep = Math.max(certificationWorkflow.currentStep, 3);
+      } else if (userRole === 'BOARD') {
+        updates.boardCertified = true;
+        updates.currentStep = Math.max(certificationWorkflow.currentStep, 4);
+      }
+
+      // Check if all required roles have certified
+      const allCertified =
+        (updates.tallyCertified ?? certificationWorkflow.tallyCertified) &&
+        (updates.auditorCertified ?? certificationWorkflow.auditorCertified) &&
+        (updates.boardCertified ?? certificationWorkflow.boardCertified);
+
+      if (allCertified) {
+        updates.status = 'CERTIFIED';
+      } else if (certificationWorkflow.status === 'PENDING') {
+        updates.status = 'IN_PROGRESS';
+      }
+
+      await this.prisma.certification.update({
+        where: { id: certificationWorkflow.id },
+        data: updates,
+      });
+    }
+
+    // Get updated progress
+    const progress = await this.getCertificationProgress(categoryId, tenantId);
 
     return {
-      message: 'Scores certified successfully (placeholder)',
+      message: 'Scores certified successfully',
       categoryId,
       certifiedBy: userId,
+      certifiedByName: user?.name,
       role: userRole,
+      certificationId: certification.id,
+      certifiedAt: certification.certifiedAt,
+      progress: progress.certificationProgress,
+      totalsCertified: progress.totalsCertified,
+      rolesRemaining: progress.rolesRemaining,
     };
   }
 
