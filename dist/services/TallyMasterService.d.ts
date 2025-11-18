@@ -9,23 +9,7 @@ export declare class TallyMasterService extends BaseService {
         certifiedTotals: number;
     }>;
     getCertifications(page?: number, limit?: number): Promise<{
-        categories: ({
-            contest: never;
-            scores: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            contestId: string;
-            scoreCap: number | null;
-            timeLimit: number | null;
-            contestantMin: number | null;
-            contestantMax: number | null;
-            totalsCertified: boolean;
-        })[];
+        categories: any;
         pagination: {
             page: number;
             limit: number;
@@ -67,11 +51,11 @@ export declare class TallyMasterService extends BaseService {
     }>;
     getScoreReview(categoryId: string): Promise<{
         category: {
-            id: string;
-            name: string;
-            description: string;
-            scoreCap: number;
-            maxScore: number;
+            id: any;
+            name: any;
+            description: any;
+            scoreCap: any;
+            maxScore: any;
         };
         contest: {
             id: any;
@@ -84,9 +68,9 @@ export declare class TallyMasterService extends BaseService {
     }>;
     getBiasCheckingTools(categoryId: string): Promise<{
         category: {
-            id: string;
-            name: string;
-            description: string;
+            id: any;
+            name: any;
+            description: any;
             maxScore: any;
         };
         overallAverage: number;
@@ -103,20 +87,7 @@ export declare class TallyMasterService extends BaseService {
         recommendations: string[];
     }>;
     getTallyMasterHistory(page?: number, limit?: number): Promise<{
-        categories: {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            contestId: string;
-            scoreCap: number | null;
-            timeLimit: number | null;
-            contestantMin: number | null;
-            contestantMax: number | null;
-            totalsCertified: boolean;
-        }[];
+        categories: any;
         pagination: {
             page: number;
             limit: number;
@@ -126,9 +97,9 @@ export declare class TallyMasterService extends BaseService {
     }>;
     getContestScoreReview(contestId: string): Promise<{
         contest: {
-            id: string;
-            name: string;
-            event: never;
+            id: any;
+            name: any;
+            event: any;
         };
         summary: {
             totalCategories: any;
@@ -141,50 +112,16 @@ export declare class TallyMasterService extends BaseService {
     }>;
     getCategoryJudges(categoryId: string): Promise<any[]>;
     getContestCertifications(contestId: string): Promise<{
-        contestId: string;
-        contestName: string;
-        event: never;
-        categories: any;
-        totalCategories: any;
+        contestId: any;
+        contestName: any;
+        event: any;
+        categories: any[];
+        totalCategories: number;
         averageScoringCompletion: number;
         averageCertificationCompletion: number;
     }>;
     getScoreRemovalRequests(page?: number, limit?: number, status?: string, categoryId?: string, contestId?: string): Promise<{
-        requests: {
-            id: any;
-            categoryId: any;
-            contestantId: any;
-            judgeId: any;
-            reason: any;
-            status: any;
-            requestedAt: any;
-            reviewedAt: any;
-            reviewedById: any;
-            category: {
-                name: string;
-                id: string;
-                createdAt: Date;
-                updatedAt: Date;
-                tenantId: string;
-                description: string | null;
-                contestId: string;
-                scoreCap: number | null;
-                timeLimit: number | null;
-                contestantMin: number | null;
-                contestantMax: number | null;
-                totalsCertified: boolean;
-            };
-            contestant: {
-                id: string;
-                contestantNumber: number;
-                user: any;
-            };
-            judge: {
-                id: string;
-                name: string;
-                user: any;
-            };
-        }[];
+        requests: any[];
         pagination: {
             page: number;
             limit: number;

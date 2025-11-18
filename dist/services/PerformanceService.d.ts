@@ -52,19 +52,19 @@ export declare class PerformanceService extends BaseService {
         minResponseTime: number;
         maxResponseTime: number;
         responseTimeDistribution: (Prisma.PickEnumerable<Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-            _count: {
-                id: number;
-            };
             _avg: {
                 responseTime: number;
+            };
+            _count: {
+                id: number;
             };
         })[];
         slowEndpoints: (Prisma.PickEnumerable<Prisma.PerformanceLogGroupByOutputType, "endpoint"[]> & {
-            _count: {
-                id: number;
-            };
             _avg: {
                 responseTime: number;
+            };
+            _count: {
+                id: number;
             };
         })[];
         errorStats: (Prisma.PickEnumerable<Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
@@ -114,14 +114,14 @@ export declare class PerformanceService extends BaseService {
         logs: {
             id: string;
             createdAt: Date;
-            eventId: string | null;
             categoryId: string | null;
+            eventId: string | null;
             contestId: string | null;
             userId: string | null;
-            method: string;
-            userAgent: string | null;
             ipAddress: string | null;
+            userAgent: string | null;
             endpoint: string;
+            method: string;
             responseTime: number;
             statusCode: number;
         }[];

@@ -91,9 +91,9 @@ export declare class ResultsService extends BaseService {
     })[]>;
     getCategoryResults(filter: CategoryResultsFilter): Promise<any[]>;
     getContestResults(filter: ContestResultsFilter): Promise<({
-        category: never;
-        contestant: never;
-        judge: never;
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
         score: number | null;
         id: string;

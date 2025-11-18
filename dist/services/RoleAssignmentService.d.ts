@@ -28,39 +28,39 @@ export declare class RoleAssignmentService extends BaseService {
         role: string;
         isActive: boolean;
         tenantId: string;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         userId: string;
+        notes: string | null;
         assignedAt: Date;
         assignedBy: string;
-        notes: string | null;
     }[]>;
     create(data: CreateRoleAssignmentDto): Promise<{
         id: string;
         role: string;
         isActive: boolean;
         tenantId: string;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         userId: string;
+        notes: string | null;
         assignedAt: Date;
         assignedBy: string;
-        notes: string | null;
     }>;
     update(id: string, data: UpdateRoleAssignmentDto): Promise<{
         id: string;
         role: string;
         isActive: boolean;
         tenantId: string;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         userId: string;
+        notes: string | null;
         assignedAt: Date;
         assignedBy: string;
-        notes: string | null;
     }>;
     delete(id: string): Promise<void>;
 }

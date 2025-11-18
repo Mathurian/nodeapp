@@ -27,7 +27,7 @@ let ArchiveService = class ArchiveService extends BaseService_1.BaseService {
             include: {
                 event: true,
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { id: 'desc' },
         });
     }
     async getActiveEvents() {
@@ -41,7 +41,7 @@ let ArchiveService = class ArchiveService extends BaseService_1.BaseService {
                     },
                 },
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { id: 'desc' },
         });
     }
     async getArchivedEvents() {
@@ -55,15 +55,25 @@ let ArchiveService = class ArchiveService extends BaseService_1.BaseService {
                     },
                 },
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { id: 'desc' },
         });
     }
     async archiveItem(id, reason, userId) {
+        const event = await this.prisma.event.findUnique({
+            where: { id },
+        });
+        if (!event) {
+            throw this.notFoundError('Event', id);
+        }
         const archive = await this.prisma.archivedEvent.create({
             data: {
+                tenantId: event.tenantId,
                 eventId: id,
-                reason,
-                archivedBy: userId,
+                name: event.name,
+                description: event.description,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                archivedById: userId || 'system',
             },
         });
         return archive;
@@ -97,6 +107,7 @@ let ArchiveService = class ArchiveService extends BaseService_1.BaseService {
         });
         const archive = await this.prisma.archivedEvent.create({
             data: {
+                tenantId: event.tenantId,
                 eventId,
                 name: event.name,
                 description: event.description,

@@ -3,8 +3,9 @@ export declare class ScoreRemovalController {
     private scoreRemovalService;
     constructor();
     createScoreRemovalRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        category: never;
-        judge: never;
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
         id: string;
         judgeId: string;
@@ -14,8 +15,8 @@ export declare class ScoreRemovalController {
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedBy: string;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -39,8 +40,8 @@ export declare class ScoreRemovalController {
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedBy: string;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -64,8 +65,8 @@ export declare class ScoreRemovalController {
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedBy: string;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -89,8 +90,8 @@ export declare class ScoreRemovalController {
             categoryId: string;
             reason: string;
             status: import(".prisma/client").$Enums.RequestStatus;
-            requestedBy: string;
             requestedAt: Date;
+            requestedBy: string;
             tallySignature: string | null;
             tallySignedAt: Date | null;
             tallySignedBy: string | null;
@@ -108,8 +109,9 @@ export declare class ScoreRemovalController {
     }>, Record<string, any>>>;
 }
 export declare const createScoreRemovalRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    category: never;
-    judge: never;
+    [x: string]: never;
+    [x: number]: never;
+    [x: symbol]: never;
 } & {
     id: string;
     judgeId: string;
@@ -119,8 +121,8 @@ export declare const createScoreRemovalRequest: (req: Request, res: Response, ne
     categoryId: string;
     reason: string;
     status: import(".prisma/client").$Enums.RequestStatus;
-    requestedBy: string;
     requestedAt: Date;
+    requestedBy: string;
     tallySignature: string | null;
     tallySignedAt: Date | null;
     tallySignedBy: string | null;
@@ -144,8 +146,8 @@ export declare const getScoreRemovalRequests: (req: Request, res: Response, next
     categoryId: string;
     reason: string;
     status: import(".prisma/client").$Enums.RequestStatus;
-    requestedBy: string;
     requestedAt: Date;
+    requestedBy: string;
     tallySignature: string | null;
     tallySignedAt: Date | null;
     tallySignedBy: string | null;
@@ -169,8 +171,8 @@ export declare const getScoreRemovalRequest: (req: Request, res: Response, next:
     categoryId: string;
     reason: string;
     status: import(".prisma/client").$Enums.RequestStatus;
-    requestedBy: string;
     requestedAt: Date;
+    requestedBy: string;
     tallySignature: string | null;
     tallySignedAt: Date | null;
     tallySignedBy: string | null;
@@ -194,8 +196,8 @@ export declare const signScoreRemovalRequest: (req: Request, res: Response, next
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedBy: string;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;

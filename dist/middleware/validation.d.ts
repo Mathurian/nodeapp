@@ -18,11 +18,11 @@ export declare const paginationSchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     limit: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    page?: number;
     limit?: number;
+    page?: number;
 }, {
-    page?: number;
     limit?: number;
+    page?: number;
 }>;
 export declare const createUserSchema: z.ZodObject<{
     username: z.ZodString;
@@ -83,20 +83,20 @@ export declare const changePasswordSchema: z.ZodEffects<z.ZodObject<{
     newPassword: z.ZodString;
     confirmPassword: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    currentPassword?: string;
     newPassword?: string;
+    currentPassword?: string;
     confirmPassword?: string;
 }, {
-    currentPassword?: string;
     newPassword?: string;
+    currentPassword?: string;
     confirmPassword?: string;
 }>, {
-    currentPassword?: string;
     newPassword?: string;
+    currentPassword?: string;
     confirmPassword?: string;
 }, {
-    currentPassword?: string;
     newPassword?: string;
+    currentPassword?: string;
     confirmPassword?: string;
 }>;
 export declare const createEventSchema: z.ZodEffects<z.ZodObject<{
@@ -191,12 +191,12 @@ export declare const searchQuerySchema: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
     limit: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    page?: number;
     limit?: number;
+    page?: number;
     q?: string;
 }, {
-    page?: number;
     limit?: number;
+    page?: number;
     q?: string;
 }>;
 export declare const dateRangeSchema: z.ZodEffects<z.ZodObject<{
@@ -224,17 +224,17 @@ export declare const createContestSchema: z.ZodObject<{
     nextContestantNumber: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name?: string;
-    eventId?: string;
     description?: string;
     archived?: boolean;
     contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
+    eventId?: string;
     nextContestantNumber?: number;
 }, {
     name?: string;
-    eventId?: string;
     description?: string;
     archived?: boolean;
     contestantNumberingMode?: "MANUAL" | "AUTOMATIC";
+    eventId?: string;
     nextContestantNumber?: number;
 }>;
 export declare const updateContestSchema: z.ZodObject<{

@@ -23,18 +23,11 @@ class CacheController {
     flushCache = async (req, res, next) => {
         const log = (0, logger_1.createRequestLogger)(req, 'cache');
         try {
-            const success = await this.cacheService.flush();
-            if (success) {
-                res.json({
-                    success: true,
-                    message: 'Cache flushed successfully',
-                });
-            }
-            else {
-                res.status(500).json({
-                    error: 'Failed to flush cache. Cache may be disabled.',
-                });
-            }
+            await this.cacheService.flushAll();
+            res.json({
+                success: true,
+                message: 'Cache flushed successfully',
+            });
         }
         catch (error) {
             log.error('Flush cache error:', error);
@@ -49,18 +42,11 @@ class CacheController {
                 res.status(400).json({ error: 'Cache key is required' });
                 return;
             }
-            const success = await this.cacheService.delete(key);
-            if (success) {
-                res.json({
-                    success: true,
-                    message: `Cache key "${key}" deleted successfully`,
-                });
-            }
-            else {
-                res.status(500).json({
-                    error: 'Failed to delete cache key',
-                });
-            }
+            await this.cacheService.del(key);
+            res.json({
+                success: true,
+                message: `Cache key "${key}" deleted successfully`,
+            });
         }
         catch (error) {
             log.error('Delete cache key error:', error);
@@ -75,18 +61,11 @@ class CacheController {
                 res.status(400).json({ error: 'Pattern is required' });
                 return;
             }
-            const success = await this.cacheService.deletePattern(pattern);
-            if (success) {
-                res.json({
-                    success: true,
-                    message: `Cache keys matching "${pattern}" deleted successfully`,
-                });
-            }
-            else {
-                res.status(500).json({
-                    error: 'Failed to delete cache keys',
-                });
-            }
+            await this.cacheService.invalidatePattern(pattern);
+            res.json({
+                success: true,
+                message: `Cache keys matching "${pattern}" deleted successfully`,
+            });
         }
         catch (error) {
             log.error('Delete cache pattern error:', error);
@@ -96,10 +75,10 @@ class CacheController {
     getCacheStatus = async (req, res, next) => {
         const log = (0, logger_1.createRequestLogger)(req, 'cache');
         try {
-            const isEnabled = this.cacheService.isEnabled();
+            const stats = await this.cacheService.getStats();
             res.json({
-                enabled: isEnabled,
-                status: isEnabled ? 'connected' : 'disconnected',
+                enabled: stats.enabled,
+                status: stats.enabled ? 'connected' : 'disconnected',
             });
         }
         catch (error) {

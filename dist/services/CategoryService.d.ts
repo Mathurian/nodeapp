@@ -1,7 +1,7 @@
 import { Category } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
-import { CacheService } from './cacheService';
+import { CacheService } from './CacheService';
 interface CreateCategoryDto {
     contestId: string;
     name: string;

@@ -129,6 +129,7 @@ let AuditorService = class AuditorService extends BaseService_1.BaseService {
         }
         const certification = await this.prisma.categoryCertification.create({
             data: {
+                tenantId: category.tenantId,
                 categoryId,
                 userId,
                 role: 'AUDITOR',
@@ -197,7 +198,7 @@ let AuditorService = class AuditorService extends BaseService_1.BaseService {
                     },
                 },
             },
-            orderBy: [{ contestant: { name: 'asc' } }, { criterion: { order: 'asc' } }],
+            orderBy: [{ contestantId: 'asc' }, { criterionId: 'asc' }],
         });
         const groupedScores = scores.reduce((acc, score) => {
             const key = score.contestantId;
@@ -239,11 +240,9 @@ let AuditorService = class AuditorService extends BaseService_1.BaseService {
         const updatedScore = await this.prisma.score.update({
             where: { id: scoreId },
             data: {
-                verified: data.verified,
-                verificationComments: data.comments,
-                verificationIssues: data.issues,
-                verifiedBy: userId,
-                verifiedAt: new Date(),
+                isCertified: data.verified,
+                certifiedBy: userId,
+                certifiedAt: new Date(),
             },
         });
         return updatedScore;

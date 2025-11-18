@@ -1,7 +1,7 @@
 import { Contest } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
-import { CacheService } from './cacheService';
+import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
 interface CreateContestDto {
     eventId: string;

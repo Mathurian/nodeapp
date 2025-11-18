@@ -431,9 +431,7 @@ let EmceeService = class EmceeService extends BaseService_1.BaseService {
             skip: offset,
             take: limit,
         });
-        const total = await this.prisma.emceeScript.count({
-            where: { isActive: true },
-        });
+        const total = await this.prisma.emceeScript.count();
         return {
             scripts,
             pagination: {
@@ -445,15 +443,16 @@ let EmceeService = class EmceeService extends BaseService_1.BaseService {
         };
     }
     async uploadScript(data) {
-        this.validateRequired(data, ['title']);
+        this.validateRequired(data, ['title', 'tenantId']);
         if (!data.content && !data.filePath) {
             throw this.validationError('Content or file is required');
         }
         const script = await this.prisma.emceeScript.create({
             data: {
+                tenantId: data.tenantId,
                 title: data.title,
                 content: data.content || `Script file: ${data.filePath}`,
-                filePath: data.filePath || null,
+                file_path: data.filePath || null,
                 eventId: data.eventId || null,
                 contestId: data.contestId || null,
                 categoryId: data.categoryId || null,
@@ -485,7 +484,7 @@ let EmceeService = class EmceeService extends BaseService_1.BaseService {
         const script = await this.prisma.emceeScript.findUnique({
             where: { id: scriptId },
         });
-        if (!script || !script.filePath) {
+        if (!script || !script.file_path) {
             throw this.notFoundError('Script file', scriptId);
         }
         return script;

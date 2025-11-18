@@ -16,15 +16,19 @@ export declare class JudgeUncertificationController {
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        requestedAt: Date;
+        approvedAt: Date | null;
+        rejectedAt: Date | null;
         rejectionReason: string | null;
         requestedBy: string;
-        requestedAt: Date;
         approvedBy: string | null;
-        approvedAt: Date | null;
         rejectedBy: string | null;
-        rejectedAt: Date | null;
     })[]>, Record<string, any>>>;
     createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
+    } & {
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -33,13 +37,13 @@ export declare class JudgeUncertificationController {
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        requestedAt: Date;
+        approvedAt: Date | null;
+        rejectedAt: Date | null;
         rejectionReason: string | null;
         requestedBy: string;
-        requestedAt: Date;
         approvedBy: string | null;
-        approvedAt: Date | null;
         rejectedBy: string | null;
-        rejectedAt: Date | null;
     }>, Record<string, any>>>;
     signUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         request: {
@@ -54,13 +58,13 @@ export declare class JudgeUncertificationController {
             categoryId: string;
             reason: string;
             status: import(".prisma/client").$Enums.RequestStatus;
+            requestedAt: Date;
+            approvedAt: Date | null;
+            rejectedAt: Date | null;
             rejectionReason: string | null;
             requestedBy: string;
-            requestedAt: Date;
             approvedBy: string | null;
-            approvedAt: Date | null;
             rejectedBy: string | null;
-            rejectedAt: Date | null;
         };
         allSigned: boolean;
     }>, Record<string, any>>>;
@@ -85,15 +89,19 @@ export declare const getUncertificationRequests: (req: Request, res: Response, n
     categoryId: string;
     reason: string;
     status: import(".prisma/client").$Enums.RequestStatus;
+    requestedAt: Date;
+    approvedAt: Date | null;
+    rejectedAt: Date | null;
     rejectionReason: string | null;
     requestedBy: string;
-    requestedAt: Date;
     approvedBy: string | null;
-    approvedAt: Date | null;
     rejectedBy: string | null;
-    rejectedAt: Date | null;
 })[]>, Record<string, any>>>;
 export declare const createUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
+    [x: string]: never;
+    [x: number]: never;
+    [x: symbol]: never;
+} & {
     id: string;
     judgeId: string;
     createdAt: Date;
@@ -102,13 +110,13 @@ export declare const createUncertificationRequest: (req: Request, res: Response,
     categoryId: string;
     reason: string;
     status: import(".prisma/client").$Enums.RequestStatus;
+    requestedAt: Date;
+    approvedAt: Date | null;
+    rejectedAt: Date | null;
     rejectionReason: string | null;
     requestedBy: string;
-    requestedAt: Date;
     approvedBy: string | null;
-    approvedAt: Date | null;
     rejectedBy: string | null;
-    rejectedAt: Date | null;
 }>, Record<string, any>>>;
 export declare const signUncertificationRequest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     request: {
@@ -123,13 +131,13 @@ export declare const signUncertificationRequest: (req: Request, res: Response, n
         categoryId: string;
         reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        requestedAt: Date;
+        approvedAt: Date | null;
+        rejectedAt: Date | null;
         rejectionReason: string | null;
         requestedBy: string;
-        requestedAt: Date;
         approvedBy: string | null;
-        approvedAt: Date | null;
         rejectedBy: string | null;
-        rejectedAt: Date | null;
     };
     allSigned: boolean;
 }>, Record<string, any>>>;

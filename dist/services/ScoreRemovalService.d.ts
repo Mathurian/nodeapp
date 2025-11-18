@@ -17,10 +17,10 @@ export declare class ScoreRemovalService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     createRequest(data: CreateScoreRemovalRequestDto): Promise<{
-        category: never;
-        judge: never;
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -28,8 +28,9 @@ export declare class ScoreRemovalService extends BaseService {
         tenantId: string;
         categoryId: string;
         reason: string;
-        requestedBy: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -45,7 +46,6 @@ export declare class ScoreRemovalService extends BaseService {
         judge: never;
         requestedByUser: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -53,8 +53,9 @@ export declare class ScoreRemovalService extends BaseService {
         tenantId: string;
         categoryId: string;
         reason: string;
-        requestedBy: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -70,7 +71,6 @@ export declare class ScoreRemovalService extends BaseService {
         judge: never;
         requestedByUser: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -78,8 +78,9 @@ export declare class ScoreRemovalService extends BaseService {
         tenantId: string;
         categoryId: string;
         reason: string;
-        requestedBy: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
+        requestedBy: string;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -95,7 +96,6 @@ export declare class ScoreRemovalService extends BaseService {
             category: never;
             judge: never;
         } & {
-            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
             judgeId: string;
             createdAt: Date;
@@ -103,8 +103,9 @@ export declare class ScoreRemovalService extends BaseService {
             tenantId: string;
             categoryId: string;
             reason: string;
-            requestedBy: string;
+            status: import(".prisma/client").$Enums.RequestStatus;
             requestedAt: Date;
+            requestedBy: string;
             tallySignature: string | null;
             tallySignedAt: Date | null;
             tallySignedBy: string | null;

@@ -16,6 +16,10 @@ export declare class CommentaryService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     create(data: CreateCommentDto): Promise<{
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
+    } & {
         id: string;
         judgeId: string;
         contestantId: string;
@@ -28,8 +32,9 @@ export declare class CommentaryService extends BaseService {
         isPrivate: boolean;
     }>;
     getCommentsForScore(scoreId: string, userRole: string): Promise<({
-        judge: never;
-        criterion: never;
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
         id: string;
         judgeId: string;
@@ -59,7 +64,9 @@ export declare class CommentaryService extends BaseService {
         isPrivate: boolean;
     })[]>;
     update(id: string, data: UpdateCommentDto, userId: string, userRole: string): Promise<{
-        judge: never;
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
         id: string;
         judgeId: string;

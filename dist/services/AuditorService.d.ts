@@ -5,56 +5,24 @@ export declare class AuditorService extends BaseService {
     constructor(prisma: PrismaClient);
     getStats(): Promise<{
         totalCategories: number;
-        pendingAudits: number;
-        completedAudits: number;
+        pendingAudits: any;
+        completedAudits: any;
     }>;
     getPendingAudits(page?: number, limit?: number): Promise<{
-        categories: ({
-            contest: never;
-            categoryCertifications: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            contestId: string;
-            scoreCap: number | null;
-            timeLimit: number | null;
-            contestantMin: number | null;
-            contestantMax: number | null;
-            totalsCertified: boolean;
-        })[];
+        categories: any;
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
     getCompletedAudits(page?: number, limit?: number): Promise<{
-        categories: ({
-            contest: never;
-            categoryCertifications: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            contestId: string;
-            scoreCap: number | null;
-            timeLimit: number | null;
-            contestantMin: number | null;
-            contestantMax: number | null;
-            totalsCertified: boolean;
-        })[];
+        categories: any;
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
@@ -76,14 +44,14 @@ export declare class AuditorService extends BaseService {
         activityLog: {
             id: string;
             createdAt: Date;
+            action: string;
             userId: string | null;
-            userAgent: string | null;
             userName: string | null;
             userRole: string | null;
-            action: string;
             resourceType: string | null;
             resourceId: string | null;
             ipAddress: string | null;
+            userAgent: string | null;
             logLevel: import(".prisma/client").$Enums.LogLevel;
             details: import("@prisma/client/runtime/library").JsonValue | null;
         };
@@ -91,7 +59,7 @@ export declare class AuditorService extends BaseService {
     getScoreVerification(categoryId: string, contestantId?: string): Promise<{
         categoryId: string;
         scores: unknown[];
-        totalScores: number;
+        totalScores: any;
         uniqueContestants: number;
     }>;
     verifyScore(scoreId: string, userId: string, data: {
@@ -118,8 +86,8 @@ export declare class AuditorService extends BaseService {
         lockedBy: string | null;
     }>;
     getTallyMasterStatus(categoryId: string): Promise<{
-        categoryId: string;
-        categoryName: string;
+        categoryId: any;
+        categoryName: any;
         totalScores: any;
         verifiedScores: any;
         pendingVerification: number;
@@ -129,8 +97,8 @@ export declare class AuditorService extends BaseService {
         finalCertified: any;
     }>;
     getCertificationWorkflow(categoryId: string): Promise<{
-        categoryId: string;
-        categoryName: string;
+        categoryId: any;
+        categoryName: any;
         contestName: any;
         eventName: any;
         steps: {
@@ -144,10 +112,10 @@ export declare class AuditorService extends BaseService {
     }>;
     generateSummaryReport(categoryId: string, userId: string, includeDetails?: boolean): Promise<{
         category: {
-            id: string;
-            name: string;
-            description: string;
-            scoreCap: number;
+            id: any;
+            name: any;
+            description: any;
+            scoreCap: any;
         };
         contest: {
             id: any;
@@ -168,28 +136,13 @@ export declare class AuditorService extends BaseService {
             tallyMasterCertified: any;
             auditorCertified: any;
             finalCertified: any;
-            certifications: never;
+            certifications: any;
         };
         generatedAt: string;
         generatedBy: string;
     }>;
     getAuditHistory(categoryId?: string, page?: number, limit?: number): Promise<{
-        auditLogs: ({
-            user: never;
-        } & {
-            id: string;
-            createdAt: Date;
-            userId: string | null;
-            userAgent: string | null;
-            userName: string | null;
-            userRole: string | null;
-            action: string;
-            resourceType: string | null;
-            resourceId: string | null;
-            ipAddress: string | null;
-            logLevel: import(".prisma/client").$Enums.LogLevel;
-            details: import("@prisma/client/runtime/library").JsonValue | null;
-        })[];
+        auditLogs: any;
         pagination: {
             page: number;
             limit: number;

@@ -16,7 +16,7 @@ exports.ContestService = void 0;
 const tsyringe_1 = require("tsyringe");
 const BaseService_1 = require("./BaseService");
 const ContestRepository_1 = require("../repositories/ContestRepository");
-const cacheService_1 = require("./cacheService");
+const CacheService_1 = require("./CacheService");
 const RestrictionService_1 = require("./RestrictionService");
 let ContestService = class ContestService extends BaseService_1.BaseService {
     contestRepo;
@@ -228,7 +228,7 @@ exports.ContestService = ContestService = __decorate([
     __param(1, (0, tsyringe_1.inject)('CacheService')),
     __param(2, (0, tsyringe_1.inject)(RestrictionService_1.RestrictionService)),
     __metadata("design:paramtypes", [ContestRepository_1.ContestRepository,
-        cacheService_1.CacheService,
+        CacheService_1.CacheService,
         RestrictionService_1.RestrictionService])
 ], ContestService);
 //# sourceMappingURL=ContestService.js.map

@@ -8,7 +8,6 @@ export declare class JudgeUncertificationService extends BaseService {
         judge: never;
         requestedByUser: never;
     } & {
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -16,16 +15,20 @@ export declare class JudgeUncertificationService extends BaseService {
         tenantId: string;
         categoryId: string;
         reason: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
+        requestedAt: Date;
         approvedAt: Date | null;
+        rejectedAt: Date | null;
         rejectionReason: string | null;
         requestedBy: string;
-        requestedAt: Date;
         approvedBy: string | null;
         rejectedBy: string | null;
-        rejectedAt: Date | null;
     })[]>;
     createUncertificationRequest(data: any): Promise<{
-        status: import(".prisma/client").$Enums.RequestStatus;
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
+    } & {
         id: string;
         judgeId: string;
         createdAt: Date;
@@ -33,20 +36,20 @@ export declare class JudgeUncertificationService extends BaseService {
         tenantId: string;
         categoryId: string;
         reason: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
+        requestedAt: Date;
         approvedAt: Date | null;
+        rejectedAt: Date | null;
         rejectionReason: string | null;
         requestedBy: string;
-        requestedAt: Date;
         approvedBy: string | null;
         rejectedBy: string | null;
-        rejectedAt: Date | null;
     }>;
     signRequest(id: string, data: any): Promise<{
         request: {
             category: never;
             judge: never;
         } & {
-            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
             judgeId: string;
             createdAt: Date;
@@ -54,13 +57,14 @@ export declare class JudgeUncertificationService extends BaseService {
             tenantId: string;
             categoryId: string;
             reason: string;
+            status: import(".prisma/client").$Enums.RequestStatus;
+            requestedAt: Date;
             approvedAt: Date | null;
+            rejectedAt: Date | null;
             rejectionReason: string | null;
             requestedBy: string;
-            requestedAt: Date;
             approvedBy: string | null;
             rejectedBy: string | null;
-            rejectedAt: Date | null;
         };
         allSigned: boolean;
     }>;

@@ -16,7 +16,7 @@ exports.EventService = void 0;
 const tsyringe_1 = require("tsyringe");
 const BaseService_1 = require("./BaseService");
 const EventRepository_1 = require("../repositories/EventRepository");
-const cacheService_1 = require("./cacheService");
+const CacheService_1 = require("./CacheService");
 const RestrictionService_1 = require("./RestrictionService");
 let EventService = class EventService extends BaseService_1.BaseService {
     eventRepo;
@@ -311,7 +311,7 @@ exports.EventService = EventService = __decorate([
     __param(1, (0, tsyringe_1.inject)('CacheService')),
     __param(2, (0, tsyringe_1.inject)(RestrictionService_1.RestrictionService)),
     __metadata("design:paramtypes", [EventRepository_1.EventRepository,
-        cacheService_1.CacheService,
+        CacheService_1.CacheService,
         RestrictionService_1.RestrictionService])
 ], EventService);
 //# sourceMappingURL=EventService.js.map

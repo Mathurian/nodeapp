@@ -11,7 +11,7 @@ class NotificationsController {
     }
     getAllNotifications = async (req, res, next) => {
         try {
-            const notifications = await this.notificationService.getUserNotifications(req.user.id);
+            const notifications = await this.notificationService.getUserNotifications(req.user.id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, notifications);
         }
         catch (error) {
@@ -49,7 +49,7 @@ class NotificationsController {
     deleteNotification = async (req, res, next) => {
         try {
             const { id } = req.params;
-            await this.notificationService.deleteNotification(id, req.user.id);
+            await this.notificationService.deleteNotification(id, req.user.id, req.user.tenantId);
             return res.status(204).send();
         }
         catch (error) {
@@ -59,7 +59,7 @@ class NotificationsController {
     markAsRead = async (req, res, next) => {
         try {
             const { id } = req.params;
-            await this.notificationService.markAsRead(id, req.user.id);
+            await this.notificationService.markAsRead(id, req.user.id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, null, 'Notification marked as read');
         }
         catch (error) {
@@ -68,7 +68,7 @@ class NotificationsController {
     };
     markAllAsRead = async (req, res, next) => {
         try {
-            const count = await this.notificationService.markAllAsRead(req.user.id);
+            const count = await this.notificationService.markAllAsRead(req.user.id, req.user.tenantId);
             return (0, responseHelpers_1.sendSuccess)(res, { count }, 'All notifications marked as read');
         }
         catch (error) {

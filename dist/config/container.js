@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.container = void 0;
 exports.setupContainer = setupContainer;
@@ -55,7 +22,7 @@ const UserService_1 = require("../services/UserService");
 const EventService_1 = require("../services/EventService");
 const ContestService_1 = require("../services/ContestService");
 const CategoryService_1 = require("../services/CategoryService");
-const cacheService_1 = __importStar(require("../services/cacheService"));
+const CacheService_1 = require("../services/CacheService");
 const ScoringService_1 = require("../services/ScoringService");
 const ReportGenerationService_1 = require("../services/ReportGenerationService");
 const ReportExportService_1 = require("../services/ReportExportService");
@@ -212,8 +179,9 @@ function setupContainer() {
             return new SearchRepository_1.SearchRepository(prisma);
         }
     });
-    tsyringe_1.container.register(cacheService_1.CacheService, { useValue: cacheService_1.default });
-    tsyringe_1.container.register('CacheService', { useValue: cacheService_1.default });
+    const cacheServiceInstance = new CacheService_1.CacheService();
+    tsyringe_1.container.register(CacheService_1.CacheService, { useValue: cacheServiceInstance });
+    tsyringe_1.container.register('CacheService', { useValue: cacheServiceInstance });
     tsyringe_1.container.register(UserService_1.UserService, UserService_1.UserService);
     tsyringe_1.container.register(EventService_1.EventService, EventService_1.EventService);
     tsyringe_1.container.register(ContestService_1.ContestService, ContestService_1.ContestService);

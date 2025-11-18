@@ -6,69 +6,22 @@ export declare class BoardService extends BaseService {
     getStats(): Promise<{
         contests: number;
         categories: number;
-        certified: number;
-        pending: number;
+        certified: any;
+        pending: any;
     }>;
-    getCertifications(): Promise<({
-        contest: never;
-        scores: never;
-        certifications: never;
-    } & {
-        name: string;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        description: string | null;
-        contestId: string;
-        scoreCap: number | null;
-        timeLimit: number | null;
-        contestantMin: number | null;
-        contestantMax: number | null;
-        totalsCertified: boolean;
-    })[]>;
+    getCertifications(): Promise<any>;
     approveCertification(categoryId: string): Promise<{
         message: string;
-        category: {
-            contest: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            contestId: string;
-            scoreCap: number | null;
-            timeLimit: number | null;
-            contestantMin: number | null;
-            contestantMax: number | null;
-            totalsCertified: boolean;
-        };
+        category: any;
     }>;
     rejectCertification(categoryId: string, reason?: string): Promise<{
         message: string;
-        category: {
-            contest: never;
-        } & {
-            name: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            description: string | null;
-            contestId: string;
-            scoreCap: number | null;
-            timeLimit: number | null;
-            contestantMin: number | null;
-            contestantMax: number | null;
-            totalsCertified: boolean;
-        };
+        category: any;
     }>;
     getCertificationStatus(): Promise<{
-        total: number;
-        pending: number;
-        certified: number;
+        total: any;
+        pending: any;
+        certified: any;
         approved: number;
     }>;
     getEmceeScripts(): Promise<{
@@ -76,12 +29,12 @@ export declare class BoardService extends BaseService {
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         title: string;
-        content: string;
         order: number | null;
+        content: string;
         file_path: string | null;
     }[]>;
     createEmceeScript(data: {
@@ -94,17 +47,18 @@ export declare class BoardService extends BaseService {
         order?: number;
         notes?: string;
         userId: string;
+        tenantId: string;
     }): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         title: string;
-        content: string;
         order: number | null;
+        content: string;
         file_path: string | null;
     }>;
     updateEmceeScript(scriptId: string, data: {
@@ -122,30 +76,19 @@ export declare class BoardService extends BaseService {
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        eventId: string | null;
         categoryId: string | null;
+        eventId: string | null;
         contestId: string | null;
         title: string;
-        content: string;
         order: number | null;
+        content: string;
         file_path: string | null;
     }>;
     deleteEmceeScript(scriptId: string): Promise<{
         message: string;
     }>;
     getScoreRemovalRequests(status?: string, page?: number, limit?: number): Promise<{
-        requests: {
-            status: import(".prisma/client").$Enums.RequestStatus;
-            id: string;
-            judgeId: string;
-            contestantId: string;
-            tenantId: string;
-            categoryId: string;
-            reason: string;
-            requestedAt: Date;
-            reviewedAt: Date | null;
-            reviewedById: string | null;
-        }[];
+        requests: any;
         pagination: {
             page: number;
             limit: number;
@@ -154,25 +97,25 @@ export declare class BoardService extends BaseService {
         };
     }>;
     approveScoreRemoval(requestId: string, userId: string, reason?: string): Promise<{
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         contestantId: string;
         tenantId: string;
         categoryId: string;
         reason: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         reviewedAt: Date | null;
         reviewedById: string | null;
     }>;
     rejectScoreRemoval(requestId: string, userId: string, reason?: string): Promise<{
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
         judgeId: string;
         contestantId: string;
         tenantId: string;
         categoryId: string;
         reason: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         reviewedAt: Date | null;
         reviewedById: string | null;

@@ -446,11 +446,7 @@ let TallyMasterService = class TallyMasterService extends BaseService_1.BaseServ
             skip: offset,
             take: limit,
         });
-        const total = await this.prisma.category.count({
-            where: {
-                tallyMasterCertified: true,
-            },
-        });
+        const total = await this.prisma.category.count();
         return {
             categories,
             pagination: {

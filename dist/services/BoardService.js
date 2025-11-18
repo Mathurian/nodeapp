@@ -75,7 +75,7 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
         }
         await this.prisma.category.update({
             where: { id: categoryId },
-            data: { boardApproved: true },
+            data: {},
         });
         return { message: 'Certification approved', category };
     }
@@ -95,10 +95,7 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
         }
         await this.prisma.category.update({
             where: { id: categoryId },
-            data: {
-                boardApproved: false,
-                rejectionReason: reason,
-            },
+            data: {},
         });
         return { message: 'Certification rejected', category };
     }
@@ -128,19 +125,16 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
         });
     }
     async createEmceeScript(data) {
-        this.validateRequired(data, ['title', 'content']);
+        this.validateRequired(data, ['title', 'content', 'tenantId']);
         const script = await this.prisma.emceeScript.create({
             data: {
+                tenantId: data.tenantId,
                 title: data.title,
                 content: data.content,
-                type: data.type,
                 eventId: data.eventId,
                 contestId: data.contestId,
                 categoryId: data.categoryId,
                 order: data.order || 0,
-                notes: data.notes,
-                isActive: true,
-                createdBy: data.userId,
             },
         });
         return script;
@@ -181,7 +175,7 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
                     },
                 },
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { requestedAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
         });
@@ -213,7 +207,6 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
             where: { id: requestId },
             data: {
                 status: 'APPROVED',
-                approvedBy: userId,
                 approvedAt: new Date(),
                 reason,
             },
@@ -225,7 +218,6 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
             where: { id: requestId },
             data: {
                 status: 'REJECTED',
-                rejectedBy: userId,
                 rejectedAt: new Date(),
                 reason,
             },

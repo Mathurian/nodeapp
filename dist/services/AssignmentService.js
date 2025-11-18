@@ -179,6 +179,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
         }
         let finalContestId = data.contestId;
         let finalEventId = data.eventId;
+        let tenantId;
         if (data.categoryId) {
             const category = await this.prisma.category.findUnique({
                 where: { id: data.categoryId },
@@ -193,11 +194,16 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
             if (!category) {
                 throw this.createNotFoundError('Category not found');
             }
+            tenantId = category.tenantId;
             finalContestId = category.contestId;
             finalEventId = category.contest.eventId;
             const existingAssignment = await this.prisma.assignment.findUnique({
                 where: {
-                    judgeId_categoryId: { judgeId: data.judgeId, categoryId: data.categoryId },
+                    tenantId_judgeId_categoryId: {
+                        tenantId: category.tenantId,
+                        judgeId: data.judgeId,
+                        categoryId: data.categoryId
+                    },
                 },
             });
             if (existingAssignment) {
@@ -212,10 +218,21 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
             if (!contest) {
                 throw this.createNotFoundError('Contest not found');
             }
+            tenantId = contest.tenantId;
             finalEventId = contest.eventId;
+        }
+        else {
+            const judge = await this.prisma.judge.findUnique({
+                where: { id: data.judgeId },
+            });
+            if (!judge) {
+                throw this.createNotFoundError('Judge not found');
+            }
+            tenantId = judge.tenantId;
         }
         return await this.prisma.assignment.create({
             data: {
+                tenantId,
                 judgeId: data.judgeId,
                 categoryId: data.categoryId || null,
                 contestId: finalContestId || null,
@@ -320,7 +337,11 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
         for (const judgeId of judgeIds) {
             const existingAssignment = await this.prisma.assignment.findUnique({
                 where: {
-                    judgeId_categoryId: { judgeId, categoryId },
+                    tenantId_judgeId_categoryId: {
+                        tenantId: category.tenantId,
+                        judgeId,
+                        categoryId
+                    },
                 },
             });
             if (!existingAssignment) {
@@ -381,14 +402,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
         }));
     }
     async getCategories() {
-        return await this.prisma.category.findMany({
-            where: {
-                contest: {
-                    event: {
-                        archived: false
-                    }
-                }
-            },
+        const categories = await this.prisma.category.findMany({
             include: {
                 contest: {
                     select: {
@@ -407,6 +421,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
                 name: 'asc',
             },
         });
+        return categories.filter((cat) => !cat.contest?.event?.archived);
     }
     async getAllContestantAssignments(filters) {
         const where = {};
@@ -445,14 +460,12 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
                 },
             },
             orderBy: {
-                contestant: {
-                    name: 'asc',
-                },
+                contestantId: 'asc',
             },
         });
     }
     async getCategoryContestants(categoryId) {
-        return await this.prisma.categoryContestant.findMany({
+        const contestants = await this.prisma.categoryContestant.findMany({
             where: { categoryId },
             include: {
                 contestant: {
@@ -466,11 +479,10 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
                 },
             },
             orderBy: {
-                contestant: {
-                    name: 'asc',
-                },
+                contestantId: 'asc',
             },
         });
+        return contestants;
     }
     async assignContestantToCategory(categoryId, contestantId) {
         const category = await this.prisma.category.findUnique({
@@ -499,6 +511,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
         }
         return await this.prisma.categoryContestant.create({
             data: {
+                tenantId: category.tenantId,
                 categoryId,
                 contestantId,
             },
@@ -542,6 +555,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
         this.validateRequired(data, ['name']);
         return await this.prisma.judge.create({
             data: {
+                tenantId: data.tenantId,
                 name: data.name,
                 email: data.email || null,
                 bio: data.bio || null,
@@ -573,6 +587,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
         this.validateRequired(data, ['name']);
         return await this.prisma.contestant.create({
             data: {
+                tenantId: data.tenantId,
                 name: data.name,
                 email: data.email || null,
                 contestantNumber: data.contestantNumber || null,

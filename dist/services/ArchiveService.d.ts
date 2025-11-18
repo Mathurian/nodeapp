@@ -3,22 +3,25 @@ import { BaseService } from './BaseService';
 export declare class ArchiveService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
-    getAllArchives(): Promise<{
+    getAllArchives(): Promise<({
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
+    } & {
         name: string;
         id: string;
         tenantId: string;
-        eventId: string;
         description: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        eventId: string;
         archivedAt: Date;
         archivedById: string;
-    }[]>;
+    })[]>;
     getActiveEvents(): Promise<({
-        _count: {
-            contests: number;
-            contestants: number;
-        };
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
         name: string;
         id: string;
@@ -39,10 +42,9 @@ export declare class ArchiveService extends BaseService {
         lockVerifiedBy: string | null;
     })[]>;
     getArchivedEvents(): Promise<({
-        _count: {
-            contests: number;
-            contestants: number;
-        };
+        [x: string]: never;
+        [x: number]: never;
+        [x: symbol]: never;
     } & {
         name: string;
         id: string;
@@ -66,10 +68,10 @@ export declare class ArchiveService extends BaseService {
         name: string;
         id: string;
         tenantId: string;
-        eventId: string;
         description: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        eventId: string;
         archivedAt: Date;
         archivedById: string;
     }>;
@@ -83,10 +85,10 @@ export declare class ArchiveService extends BaseService {
         name: string;
         id: string;
         tenantId: string;
-        eventId: string;
         description: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        eventId: string;
         archivedAt: Date;
         archivedById: string;
     }>;

@@ -56,6 +56,7 @@ let JudgeUncertificationService = class JudgeUncertificationService extends Base
         }
         return await this.prisma.judgeUncertificationRequest.create({
             data: {
+                tenantId: category.tenantId,
                 judgeId,
                 categoryId,
                 reason: reason.trim(),
@@ -82,32 +83,11 @@ let JudgeUncertificationService = class JudgeUncertificationService extends Base
             throw this.badRequestError('Request has already been approved');
         }
         const signedAt = new Date();
-        const updateData = {};
-        if (userRole === 'AUDITOR' && !request.auditorSignature) {
-            updateData.auditorSignature = signatureName;
-            updateData.auditorSignedAt = signedAt;
-            updateData.auditorSignedBy = userId;
-        }
-        else if (userRole === 'TALLY_MASTER' && !request.tallySignature) {
-            updateData.tallySignature = signatureName;
-            updateData.tallySignedAt = signedAt;
-            updateData.tallySignedBy = userId;
-        }
-        else if (userRole === 'BOARD' && !request.boardSignature) {
-            updateData.boardSignature = signatureName;
-            updateData.boardSignedAt = signedAt;
-            updateData.boardSignedBy = userId;
-        }
-        else {
-            throw this.badRequestError('You have already signed this request or your signature is not required');
-        }
-        const hasAuditorSignature = request.auditorSignature || updateData.auditorSignature;
-        const hasTallySignature = request.tallySignature || updateData.tallySignature;
-        const hasBoardSignature = request.boardSignature || updateData.boardSignature;
-        if (hasAuditorSignature && hasTallySignature && hasBoardSignature) {
-            updateData.status = 'APPROVED';
-            updateData.updatedAt = signedAt;
-        }
+        const updateData = {
+            status: 'APPROVED',
+            approvedAt: signedAt,
+            requestedAt: signedAt,
+        };
         const updatedRequest = await this.prisma.judgeUncertificationRequest.update({
             where: { id },
             data: updateData,

@@ -167,7 +167,7 @@ let ScoreRemovalService = class ScoreRemovalService extends BaseService_1.BaseSe
         });
         await this.prisma.scoreRemovalRequest.update({
             where: { id },
-            data: { status: 'COMPLETED' }
+            data: { status: 'APPROVED' }
         });
         return {
             deletedCount: deletedScores.count

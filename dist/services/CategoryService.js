@@ -16,7 +16,7 @@ exports.CategoryService = void 0;
 const tsyringe_1 = require("tsyringe");
 const BaseService_1 = require("./BaseService");
 const CategoryRepository_1 = require("../repositories/CategoryRepository");
-const cacheService_1 = require("./cacheService");
+const CacheService_1 = require("./CacheService");
 let CategoryService = class CategoryService extends BaseService_1.BaseService {
     categoryRepo;
     cacheService;
@@ -179,6 +179,6 @@ exports.CategoryService = CategoryService = __decorate([
     __param(0, (0, tsyringe_1.inject)('CategoryRepository')),
     __param(1, (0, tsyringe_1.inject)('CacheService')),
     __metadata("design:paramtypes", [CategoryRepository_1.CategoryRepository,
-        cacheService_1.CacheService])
+        CacheService_1.CacheService])
 ], CategoryService);
 //# sourceMappingURL=CategoryService.js.map

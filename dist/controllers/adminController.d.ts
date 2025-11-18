@@ -232,6 +232,7 @@ export declare class AdminController {
     forceLogoutUser: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         success: boolean;
         message: string;
+        userId: string;
     }>, Record<string, any>>>;
     getContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         scores: {
@@ -491,6 +492,7 @@ export declare const forceLogoutAllUsers: (_req: Request, res: Response, next: N
 export declare const forceLogoutUser: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     success: boolean;
     message: string;
+    userId: string;
 }>, Record<string, any>>>;
 export declare const getContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     scores: {
