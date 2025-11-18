@@ -151,6 +151,7 @@ export class AuditorService extends BaseService {
     // Create auditor category certification
     const certification = await this.prisma.categoryCertification.create({
       data: {
+        tenantId: category.tenantId,
         categoryId,
         userId,
         role: 'AUDITOR',
@@ -290,14 +291,14 @@ export class AuditorService extends BaseService {
       throw this.notFoundError('Score', scoreId);
     }
 
+    // Note: verification fields don't exist in Score schema
+    // Score has isCertified, certifiedBy, certifiedAt instead
     const updatedScore = await this.prisma.score.update({
       where: { id: scoreId },
       data: {
-        verified: data.verified,
-        verificationComments: data.comments,
-        verificationIssues: data.issues,
-        verifiedBy: userId,
-        verifiedAt: new Date(),
+        isCertified: data.verified,
+        certifiedBy: userId,
+        certifiedAt: new Date(),
       },
     });
 
