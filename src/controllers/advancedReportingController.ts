@@ -46,7 +46,7 @@ export class AdvancedReportingController {
       }
 
       // Get event with all related data
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: eventId },
         include: {
           contests: {
@@ -62,8 +62,8 @@ export class AdvancedReportingController {
               }
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       // Verify tenant access
       if (event && event.tenantId !== req.user!.tenantId) {
@@ -74,32 +74,38 @@ export class AdvancedReportingController {
         return sendSuccess(res, {}, 'Event not found', 404);
       }
 
+      // Get contest IDs for this event
+      const contests = await this.prisma.contest.findMany({
+        where: { eventId, tenantId: req.user!.tenantId },
+        select: { id: true }
+      });
+      const contestIds = contests.map(c => c.id);
+
+      // Get category IDs for these contests
+      const categories = await this.prisma.category.findMany({
+        where: { contestId: { in: contestIds }, tenantId: req.user!.tenantId },
+        select: { id: true }
+      });
+      const categoryIds = categories.map(c => c.id);
+
       // Get total scores, contestants, judges and categories for this event
       const [totalScores, totalContestants, totalCategories, totalJudges] = await Promise.all([
         this.prisma.score.count({
           where: {
             tenantId: req.user!.tenantId,
-            category: {
-              contest: {
-                eventId
-              }
-            }
+            categoryId: { in: categoryIds }
           }
         }),
         this.prisma.contestContestant.count({
           where: {
             tenantId: req.user!.tenantId,
-            contest: {
-              eventId
-            }
+            contestId: { in: contestIds }
           }
         }),
         this.prisma.category.count({
           where: {
             tenantId: req.user!.tenantId,
-            contest: {
-              eventId
-            }
+            contestId: { in: contestIds }
           }
         }),
         this.prisma.assignment.count({
@@ -191,7 +197,7 @@ export class AdvancedReportingController {
       };
 
       // Get all scores by this judge
-      const scores = await this.prisma.score.findMany({
+      const scores: any = await this.prisma.score.findMany({
         where: scoreWhere,
         include: {
           category: {
@@ -212,8 +218,8 @@ export class AdvancedReportingController {
               name: true
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       // Calculate statistics
       const totalScores = scores.length;
@@ -400,7 +406,7 @@ export class AdvancedReportingController {
       }
 
       // Get contest with all related data
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
           categories: {
@@ -412,8 +418,8 @@ export class AdvancedReportingController {
               }
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       if (!contest) {
         return sendSuccess(res, {}, 'Contest not found', 404);
@@ -439,7 +445,7 @@ export class AdvancedReportingController {
       const categoryResults = await Promise.all(
         contest.categories.map(async (category: any) => {
           // Get all scores for this category, grouped by contestant
-          const scores = await this.prisma.score.findMany({
+          const scores: any = await this.prisma.score.findMany({
             where: {
               categoryId: category.id,
               tenantId: req.user!.tenantId
@@ -457,8 +463,8 @@ export class AdvancedReportingController {
                   name: true
                 }
               }
-            }
-          });
+            } as any
+          } as any);
 
           // Calculate total scores per contestant
           const contestantScores = scores.reduce((acc: any, score) => {
