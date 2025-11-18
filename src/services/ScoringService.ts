@@ -171,7 +171,7 @@ export class ScoringService extends BaseService {
    */
   async updateScore(scoreId: string, data: UpdateScoreDTO, tenantId: string): Promise<Score> {
     try {
-      const existingScore = await this.scoreRepository.findById(scoreId, tenantId);
+      const existingScore = await this.scoreRepository.findById(scoreId);
       this.assertExists(existingScore, 'Score', scoreId);
 
       const updatedScore = await this.prisma.score.update({
@@ -198,10 +198,10 @@ export class ScoringService extends BaseService {
    */
   async deleteScore(scoreId: string, tenantId: string): Promise<void> {
     try {
-      const score = await this.scoreRepository.findById(scoreId, tenantId);
+      const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
-      await this.scoreRepository.delete(scoreId, tenantId);
+      await this.scoreRepository.delete(scoreId);
 
       this.logInfo('Score deleted successfully', { scoreId });
     } catch (error) {
@@ -214,7 +214,7 @@ export class ScoringService extends BaseService {
    */
   async certifyScore(scoreId: string, certifiedBy: string, tenantId: string): Promise<Score> {
     try {
-      const score = await this.scoreRepository.findById(scoreId, tenantId);
+      const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
       const certifiedScore = await this.prisma.score.update({
@@ -271,7 +271,7 @@ export class ScoringService extends BaseService {
    */
   async unsignScore(scoreId: string, tenantId: string): Promise<Score> {
     try {
-      const score = await this.scoreRepository.findById(scoreId, tenantId);
+      const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
       const unsignedScore = await this.prisma.score.update({
