@@ -7,7 +7,12 @@ import { Score, Prisma } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
 
-export type ScoreWithRelations = any;
+// Type for Score with common relations
+export type ScoreWithRelations = Score & {
+  categoryId?: string;
+  category?: { name: string; [key: string]: unknown };
+  [key: string]: unknown;
+};
 
 @injectable()
 export class ScoreRepository extends BaseRepository<Score> {
@@ -194,7 +199,7 @@ export class ScoreRepository extends BaseRepository<Score> {
 
     const categoryScores = new Map<string, { name: string; scores: number[] }>();
 
-    scores.forEach((score: any) => {
+    scores.forEach((score) => {
       if (!categoryScores.has(score.categoryId)) {
         categoryScores.set(score.categoryId, {
           name: score.category.name,
@@ -220,7 +225,7 @@ export class ScoreRepository extends BaseRepository<Score> {
     tenantId: string
   ): Promise<Array<{ judgeId: string; judgeName: string; totalScores: number; expectedScores: number }>> {
     // Get all judges and contestants for the contest
-    const contest: any = await this.prisma.contest.findFirst({
+    const contest = await this.prisma.contest.findFirst({
       where: { id: contestId, tenantId },
       include: {
         judges: {
@@ -244,7 +249,7 @@ export class ScoreRepository extends BaseRepository<Score> {
     const expectedScoresPerJudge = contest.contestants.length * contest.categories.length;
 
     const judgeStatus = await Promise.all(
-      contest.judges.map(async (contestJudge: any) => {
+      contest.judges.map(async (contestJudge) => {
         const scoreCount = await this.count({
           judgeId: contestJudge.judgeId,
           contestId,

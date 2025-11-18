@@ -66,7 +66,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
    * Find all pending deductions with relations
    */
   async findPendingWithRelations(tenantId: string, categoryIds?: string[]): Promise<DeductionWithRelations[]> {
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       status: 'PENDING',
       tenantId
     };
@@ -173,7 +173,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
     page: number,
     limit: number
   ): Promise<{ deductions: DeductionWithRelations[]; total: number }> {
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       tenantId: filters.tenantId
     };
 
@@ -267,7 +267,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Update deduction status
    */
-  async updateStatus(id: string, status: string, tenantId: string, additionalData?: any): Promise<DeductionRequest> {
+  async updateStatus(id: string, status: string, tenantId: string, additionalData?: Record<string, unknown>): Promise<DeductionRequest> {
     return this.getModel().update({
       where: { id },
       data: {

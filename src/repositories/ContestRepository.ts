@@ -7,7 +7,10 @@ import { Contest, PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
 
-export type ContestWithRelations = any; // Prisma complex type - using any for simplicity
+// Type for Contest with common relations
+export type ContestWithRelations = Contest & {
+  [key: string]: unknown;
+};
 
 @injectable()
 export class ContestRepository extends BaseRepository<Contest> {
@@ -24,7 +27,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Excludes contests from archived events unless explicitly requested
    */
   async findByEventId(eventId: string, includeArchivedEvents: boolean = false): Promise<Contest[]> {
-    const where: any = { eventId };
+    const where: Record<string, unknown> = { eventId };
     
     if (!includeArchivedEvents) {
       where.event = {
@@ -43,7 +46,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Used when viewing contests for a specific event (allows archived contests even if event is archived)
    */
   async findByEventIdWithArchived(eventId: string, includeArchivedContests: boolean = false): Promise<Contest[]> {
-    const where: any = { eventId };
+    const where: Record<string, unknown> = { eventId };
     
     if (!includeArchivedContests) {
       where.archived = false;
