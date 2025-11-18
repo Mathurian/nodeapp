@@ -208,16 +208,19 @@ export class TestEventSetupService extends BaseService {
           await tx.criterion.createMany({
             data: [
               {
+                tenantId: 'default_tenant',
                 categoryId: category.id,
                 name: 'Criterion 1',
                 maxScore: 30
               },
               {
+                tenantId: 'default_tenant',
                 categoryId: category.id,
                 name: 'Criterion 2',
                 maxScore: 40
               },
               {
+                tenantId: 'default_tenant',
                 categoryId: category.id,
                 name: 'Criterion 3',
                 maxScore: 30
@@ -260,6 +263,7 @@ export class TestEventSetupService extends BaseService {
               // Assign judge to category
               await tx.categoryJudge.create({
                 data: {
+                  tenantId: 'default_tenant',
                   categoryId: category.id,
                   judgeId: judge.id
                 }
@@ -303,6 +307,7 @@ export class TestEventSetupService extends BaseService {
               // Assign contestant to category
               await tx.categoryContestant.create({
                 data: {
+                  tenantId: 'default_tenant',
                   categoryId: category.id,
                   contestantId: contestant.id
                 }
@@ -311,6 +316,7 @@ export class TestEventSetupService extends BaseService {
               // Also assign to contest
               await tx.contestContestant.create({
                 data: {
+                  tenantId: 'default_tenant',
                   contestId: contest.id,
                   contestantId: contestant.id
                 }

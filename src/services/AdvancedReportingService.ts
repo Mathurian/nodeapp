@@ -14,20 +14,20 @@ export class AdvancedReportingService extends BaseService {
     else if (contestId) where.category = { contestId };
     else if (eventId) where.category = { contest: { eventId } };
 
-    const scores = await this.prisma.score.findMany({
+    const scores: any = await this.prisma.score.findMany({
       where,
       include: {
         judge: { select: { name: true } },
         contestant: { select: { name: true } },
         category: { select: { name: true, contest: { select: { name: true } } } }
-      }
-    });
+      } as any
+    } as any);
 
     return { scores, total: scores.length };
   }
 
   async generateSummaryReport(eventId: string) {
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -41,8 +41,8 @@ export class AdvancedReportingService extends BaseService {
             }
           }
         }
-      }
-    });
+      } as any
+    } as any);
 
     if (!event) throw this.notFoundError('Event', eventId);
 
@@ -50,7 +50,7 @@ export class AdvancedReportingService extends BaseService {
       event: event.name,
       contests: event.contests.length,
       categories: event.contests.reduce((sum, c) => sum + c.categories.length, 0),
-      totalScores: event.contests.reduce((sum, c) => 
+      totalScores: event.contests.reduce((sum, c) =>
         sum + c.categories.reduce((s, cat) => s + cat.scores.length, 0), 0
       )
     };

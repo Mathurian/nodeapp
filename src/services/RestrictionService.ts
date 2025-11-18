@@ -96,7 +96,7 @@ export class RestrictionService extends BaseService {
     contestId?: string
   ): Promise<boolean> {
     if (contestId) {
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
           event: {
@@ -106,8 +106,8 @@ export class RestrictionService extends BaseService {
               contestantViewReleaseDate: true
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       if (!contest) {
         return false;
@@ -271,12 +271,12 @@ export class RestrictionService extends BaseService {
    */
   async isLocked(eventId?: string, contestId?: string): Promise<boolean> {
     if (contestId) {
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
           event: true
-        }
-      });
+        } as any
+      } as any);
 
       if (!contest) {
         return false;

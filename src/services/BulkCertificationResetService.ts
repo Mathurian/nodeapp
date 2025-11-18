@@ -150,14 +150,14 @@ export class BulkCertificationResetService extends BaseService {
       };
     } else if (dto.contestId) {
       // Reset certifications for a specific contest
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: dto.contestId },
         include: {
           categories: {
             select: { id: true }
           }
-        }
-      });
+        } as any
+      } as any);
 
       if (!contest) {
         throw this.createNotFoundError('Contest not found');
@@ -244,7 +244,7 @@ export class BulkCertificationResetService extends BaseService {
       };
     } else if (dto.eventId) {
       // Reset certifications for a specific event
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: dto.eventId },
         include: {
           contests: {
@@ -254,8 +254,8 @@ export class BulkCertificationResetService extends BaseService {
               }
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       if (!event) {
         throw this.createNotFoundError('Event not found');

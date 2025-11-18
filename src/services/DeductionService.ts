@@ -84,7 +84,7 @@ export class DeductionService extends BaseService {
     // Role-based filtering
     if (userRole === 'JUDGE') {
       // Get categories assigned to this judge through CategoryJudge
-      const user = await prisma.user.findFirst({
+      const user: any = await prisma.user.findFirst({
         where: { id: userId, tenantId },
         include: {
           judge: {
@@ -94,8 +94,8 @@ export class DeductionService extends BaseService {
               }
             }
           }
-        }
-      });
+        } as any
+      } as any);
 
       if (user?.judge) {
         categoryIds = user.judge.categoryJudges.map((cj: any) => cj.categoryId);
@@ -154,10 +154,10 @@ export class DeductionService extends BaseService {
     // Check if user is a head judge
     let isHeadJudge = false;
     if (userRole === 'JUDGE') {
-      const user = await prisma.user.findFirst({
+      const user: any = await prisma.user.findFirst({
         where: { id: approvedBy, tenantId },
-        include: { judge: true }
-      });
+        include: { judge: true } as any
+      } as any);
       if (user?.judge) {
         isHeadJudge = user.judge.isHeadJudge;
       }
