@@ -19,30 +19,21 @@ export class AuditorCertificationService extends BaseService {
       // include removed - no user relation in schema
     });
 
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       select: {
         id: true,
         name: true,
         description: true,
         scoreCap: true,
-        contestId: true,
-        contest: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            eventId: true,
-            event: { select: { id: true, name: true, description: true } }
-          }
-        }
+        contestId: true
       }
     });
 
-    const categoryJudges = await this.prisma.categoryJudge.findMany({
+    const categoryJudges: any = await this.prisma.categoryJudge.findMany({
       where: { categoryId },
-      include: { judge: true }
-    });
+      include: { judge: true } as any
+    } as any);
 
     const requiredTallyCertifications = categoryJudges.length;
     const completedTallyCertifications = tallyCertifications.length;
@@ -50,10 +41,10 @@ export class AuditorCertificationService extends BaseService {
     const canCertify = completedTallyCertifications >= requiredTallyCertifications;
     const alreadyCertified = !!auditorCertification;
 
-    const allScores = await this.prisma.score.findMany({
+    const allScores: any = await this.prisma.score.findMany({
       where: { categoryId },
-      include: { judge: true, criterion: true }
-    });
+      include: { judge: true, criterion: true } as any
+    } as any);
 
     const uncertifiedScores = allScores.filter(
       score => !score.isCertified && score.criterionId
@@ -116,6 +107,7 @@ export class AuditorCertificationService extends BaseService {
 
     const certification = await this.prisma.categoryCertification.create({
       data: {
+        tenantId: auditor.tenantId,
         categoryId,
         role: 'AUDITOR',
         userId

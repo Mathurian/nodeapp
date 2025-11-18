@@ -40,10 +40,10 @@ export class NotificationPreferenceRepository {
   /**
    * Find preference by tenant and user ID
    */
-  async findByUserId(_tenantId: string, userId: string): Promise<NotificationPreference | null> {
+  async findByUserId(tenantId: string, userId: string): Promise<NotificationPreference | null> {
     return this.prismaClient.notificationPreference.findUnique({
       where: {
-        userId // Schema has userId as unique, not compound key
+        tenantId_userId: { tenantId, userId }
       },
     });
   }
@@ -54,6 +54,7 @@ export class NotificationPreferenceRepository {
   async create(data: CreateNotificationPreferenceDTO): Promise<NotificationPreference> {
     return this.prismaClient.notificationPreference.create({
       data: {
+        tenantId: data.tenantId,
         userId: data.userId,
         emailEnabled: data.emailEnabled ?? true,
         pushEnabled: data.pushEnabled ?? false,
@@ -71,7 +72,7 @@ export class NotificationPreferenceRepository {
   /**
    * Update preference
    */
-  async update(_tenantId: string, userId: string, data: UpdateNotificationPreferenceDTO): Promise<NotificationPreference> {
+  async update(tenantId: string, userId: string, data: UpdateNotificationPreferenceDTO): Promise<NotificationPreference> {
     const updateData: Prisma.NotificationPreferenceUpdateInput = {};
 
     if (data.emailEnabled !== undefined) updateData.emailEnabled = data.emailEnabled;
@@ -86,7 +87,7 @@ export class NotificationPreferenceRepository {
 
     return this.prismaClient.notificationPreference.update({
       where: {
-        userId // Schema has userId as unique, not compound key
+        tenantId_userId: { tenantId, userId }
       },
       data: updateData,
     });
@@ -105,10 +106,10 @@ export class NotificationPreferenceRepository {
   /**
    * Delete preference
    */
-  async delete(_tenantId: string, userId: string): Promise<NotificationPreference> {
+  async delete(tenantId: string, userId: string): Promise<NotificationPreference> {
     return this.prismaClient.notificationPreference.delete({
       where: {
-        userId // Schema has userId as unique, not compound key
+        tenantId_userId: { tenantId, userId }
       },
     });
   }
