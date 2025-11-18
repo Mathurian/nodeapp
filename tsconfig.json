@@ -16,15 +16,15 @@
 
     /* Strict Type-Checking Options */
     "strict": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitReturns": false,
+    "strictNullChecks": true,        // ENABLED: Catch null/undefined errors
+    "noImplicitAny": true,            // ENABLED: Require explicit types
+    "noUnusedLocals": true,           // ENABLED: Remove unused variables
+    "noUnusedParameters": true,       // ENABLED: Remove unused parameters
+    "noImplicitReturns": true,        // ENABLED: All code paths must return
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
+    "noUncheckedIndexedAccess": true, // ENABLED: Array access returns T | undefined
+    "noImplicitOverride": true,       // ENABLED: Require override keyword
+    "noPropertyAccessFromIndexSignature": true, // ENABLED: Require bracket notation for index signatures
 
     /* Module Resolution Options */
     "esModuleInterop": true,
