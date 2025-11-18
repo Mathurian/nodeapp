@@ -51,7 +51,20 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
                   // Include relevant request data
                   body: req.body ? Object.keys(req.body).reduce((acc: Record<string, any>, key: string) => {
                     // Exclude sensitive fields from logging
-                    if (!['password', 'token', 'secret', 'apiKey'].includes(key.toLowerCase())) {
+                    // SECURITY FIX: Case-insensitive field filtering with comprehensive list
+                    const sensitiveFields = [
+                      'password', 'token', 'secret', 'apikey', 'api_key',
+                      'mfa', 'totp', 'otp', 'mfasecret', 'mfa_secret',
+                      'certificate', 'privatekey', 'private_key',
+                      'accesstoken', 'access_token', 'refreshtoken', 'refresh_token',
+                      'sessionid', 'session_id', 'auth', 'authorization',
+                      'bearer', 'jwt', 'ssn', 'creditcard', 'credit_card',
+                      'cvv', 'pin', 'backupcodes', 'backup_codes'
+                    ];
+                    const normalizedKey = key.toLowerCase();
+                    const isSensitive = sensitiveFields.some(field => normalizedKey.includes(field));
+
+                    if (!isSensitive) {
                       acc[key] = req.body[key];
                     } else {
                       acc[key] = '[REDACTED]';
