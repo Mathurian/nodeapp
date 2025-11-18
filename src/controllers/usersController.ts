@@ -138,7 +138,7 @@ export class UsersController {
         userData.contestantSchool = data.school || null;
       }
 
-      const user = await this.userService.createUser(userData);
+      const user = await this.userService.createUser(userData as CreateUserDTO);
 
       // Create associated Judge or Contestant record if applicable
       if (data.role === 'JUDGE') {
@@ -182,13 +182,9 @@ export class UsersController {
       }
 
       // Fetch the updated user with relations
-      const createdUser = await this.prisma.user.findUnique({
-        where: { id: user.id },
-        include: {
-          judge: true,
-          contestant: true
-        }
-      });
+      const createdUser = (await this.prisma.user.findUnique({
+        where: { id: user.id }
+      } as any)) as any;
 
       log.info('User created successfully', { userId: user.id, email: data.email, role: data.role });
       sendCreated(res, createdUser);
@@ -266,7 +262,7 @@ export class UsersController {
         include: {
           judge: true,
           contestant: true
-        }
+        } as any
       });
 
       // Invalidate user cache after update
