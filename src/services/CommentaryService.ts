@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient } from '@prisma/client';
@@ -44,7 +43,7 @@ export class CommentaryService extends BaseService {
             email: true
           }
         }
-      }
+      } as any
     });
   }
 
@@ -70,7 +69,7 @@ export class CommentaryService extends BaseService {
             description: true
           }
         }
-      },
+      } as any,
       orderBy: { createdAt: 'asc' }
     });
   }
@@ -104,7 +103,7 @@ export class CommentaryService extends BaseService {
                 contest: {
                   include: {
                     event: true
-                  }
+                  } as any
                 }
               }
             }
@@ -144,7 +143,7 @@ export class CommentaryService extends BaseService {
             email: true
           }
         }
-      }
+      } as any
     });
   }
 

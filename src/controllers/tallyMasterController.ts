@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { TallyMasterService } from '../services/TallyMasterService';

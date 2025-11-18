@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient } from '@prisma/client';
@@ -55,7 +54,7 @@ export class ScoreRemovalService extends BaseService {
       include: {
         judge: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } }
-      }
+      } as any
     });
   }
 
@@ -70,7 +69,7 @@ export class ScoreRemovalService extends BaseService {
         category: {
           include: {
             contest: { select: { id: true, name: true } }
-          }
+          } as any
         },
         requestedByUser: { select: { id: true, name: true } }
       },
@@ -86,7 +85,7 @@ export class ScoreRemovalService extends BaseService {
         category: {
           include: {
             contest: { select: { id: true, name: true } }
-          }
+          } as any
         },
         requestedByUser: { select: { id: true, name: true } }
       }
@@ -147,7 +146,7 @@ export class ScoreRemovalService extends BaseService {
         category: {
           include: {
             contest: { select: { id: true, name: true } }
-          }
+          } as any
         }
       }
     });
@@ -164,7 +163,7 @@ export class ScoreRemovalService extends BaseService {
       include: {
         judge: { select: { id: true } },
         category: { select: { id: true } }
-      }
+      } as any
     });
 
     if (!request) throw this.notFoundError('Score removal request', id);

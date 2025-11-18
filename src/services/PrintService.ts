@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import * as puppeteer from 'puppeteer';
@@ -150,7 +149,7 @@ export class PrintService extends BaseService {
         contests: {
           include: {
             categories: true,
-          },
+          } as any,
         },
       },
     });
@@ -185,7 +184,7 @@ export class PrintService extends BaseService {
       include: {
         event: true,
         categories: true,
-      },
+      } as any,
     });
 
     if (!contest) {
@@ -227,7 +226,7 @@ export class PrintService extends BaseService {
       include: {
         category: true,
         criterion: true,
-      },
+      } as any,
     });
 
     const performanceStats = {
@@ -273,7 +272,7 @@ export class PrintService extends BaseService {
                 contest: {
                   include: {
                     event: true,
-                  },
+                  } as any,
                 },
               },
             },
@@ -303,7 +302,7 @@ export class PrintService extends BaseService {
                 contest: {
                   include: {
                     event: true,
-                  },
+                  } as any,
                 },
               },
             },
@@ -329,17 +328,17 @@ export class PrintService extends BaseService {
         contest: {
           include: {
             event: true,
-          },
+          } as any,
         },
         contestants: {
           include: {
             contestant: true,
-          },
+          } as any,
         },
         judges: {
           include: {
             judge: true,
-          },
+          } as any,
         },
         criteria: {
           orderBy: { createdAt: 'asc' },
@@ -347,7 +346,7 @@ export class PrintService extends BaseService {
         scores: {
           include: {
             criterion: true,
-          },
+          } as any,
         },
       },
     });
@@ -372,12 +371,12 @@ export class PrintService extends BaseService {
             contestants: {
               include: {
                 contestant: true,
-              },
+              } as any,
             },
             judges: {
               include: {
                 judge: true,
-              },
+              } as any,
             },
             criteria: {
               orderBy: { createdAt: 'asc' },
@@ -410,12 +409,12 @@ export class PrintService extends BaseService {
             contestants: {
               include: {
                 contestant: true,
-              },
+              } as any,
             },
             judges: {
               include: {
                 judge: true,
-              },
+              } as any,
             },
             criteria: {
               orderBy: { createdAt: 'asc' },

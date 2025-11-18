@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
@@ -19,7 +18,7 @@ export class ArchiveService extends BaseService {
     return await this.prisma.archivedEvent.findMany({
       include: {
         event: true,
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -37,7 +36,7 @@ export class ArchiveService extends BaseService {
             contestants: true,
           },
         },
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -55,7 +54,7 @@ export class ArchiveService extends BaseService {
             contestants: true,
           },
         },
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
     });
   }

@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient } from '@prisma/client';
@@ -19,10 +18,10 @@ export class BoardService extends BaseService {
     const totalContests = await this.prisma.contest.count();
     const totalCategories = await this.prisma.category.count();
 
-    const categories = await this.prisma.category.findMany({
+    const categories: any = await this.prisma.category.findMany({
       include: {
         certifications: true,
-      },
+      } as any,
     });
 
     const certified = categories.filter((cat: any) => cat.certifications.some((cert: any) => cert.type === 'FINAL')).length;
@@ -41,18 +40,18 @@ export class BoardService extends BaseService {
    * Get all certifications
    */
   async getCertifications() {
-    const categories = await this.prisma.category.findMany({
+    const categories: any = await this.prisma.category.findMany({
       include: {
         contest: {
           include: {
             event: true,
-          },
+          } as any,
         },
         scores: {
           include: {
             judge: true,
             contestant: true,
-          },
+          } as any,
         },
         certifications: true,
       },
@@ -73,7 +72,7 @@ export class BoardService extends BaseService {
         contest: {
           include: {
             event: true,
-          },
+          } as any,
         },
       },
     });
@@ -100,7 +99,7 @@ export class BoardService extends BaseService {
         contest: {
           include: {
             event: true,
-          },
+          } as any,
         },
       },
     });
@@ -124,7 +123,7 @@ export class BoardService extends BaseService {
    * Get certification status summary
    */
   async getCertificationStatus() {
-    const categories = await this.prisma.category.findMany({
+    const categories: any = await this.prisma.category.findMany({
       include: {
         certifications: {
           where: {
@@ -133,7 +132,7 @@ export class BoardService extends BaseService {
             },
           },
         },
-      },
+      } as any,
     });
 
     const status = {
@@ -234,7 +233,7 @@ export class BoardService extends BaseService {
     const whereClause: any = {};
     if (status) whereClause.status = status;
 
-    const requests = await this.prisma.judgeScoreRemovalRequest.findMany({
+    const requests: any = await this.prisma.judgeScoreRemovalRequest.findMany({
       where: whereClause,
       include: {
         judge: true,
@@ -243,14 +242,14 @@ export class BoardService extends BaseService {
             contest: {
               include: {
                 event: true,
-              },
+              } as any,
             },
           },
         },
         score: {
           include: {
             contestant: true,
-          },
+          } as any,
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -279,7 +278,7 @@ export class BoardService extends BaseService {
   async approveScoreRemoval(requestId: string, userId: string, reason?: string) {
     const request = await this.prisma.judgeScoreRemovalRequest.findUnique({
       where: { id: requestId },
-      include: { score: true },
+      include: { score: true } as any,
     });
 
     if (!request) {

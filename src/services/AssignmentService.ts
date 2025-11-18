@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
@@ -87,7 +86,7 @@ export class AssignmentService extends BaseService {
             endDate: true,
           },
         },
-      },
+      } as any,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
 
@@ -100,7 +99,7 @@ export class AssignmentService extends BaseService {
       categoryJudgeWhere.categoryId = filters.categoryId;
     }
 
-    const categoryJudges = await this.prisma.categoryJudge.findMany({
+    const categoryJudges: any = await this.prisma.categoryJudge.findMany({
       where: categoryJudgeWhere,
       include: {
         judge: {
@@ -135,7 +134,7 @@ export class AssignmentService extends BaseService {
             },
           },
         },
-      },
+      } as any,
     });
 
     // Convert CategoryJudge entries to assignment-like objects
@@ -227,7 +226,7 @@ export class AssignmentService extends BaseService {
           contest: {
             include: {
               event: true,
-            },
+            } as any,
           },
         },
       });
@@ -253,7 +252,7 @@ export class AssignmentService extends BaseService {
       // If contestId provided without categoryId, fetch contest to get eventId
       const contest = await this.prisma.contest.findUnique({
         where: { id: data.contestId },
-        include: { event: true },
+        include: { event: true } as any,
       });
 
       if (!contest) {
@@ -281,7 +280,7 @@ export class AssignmentService extends BaseService {
         contest: true,
         event: true,
         assignedByUser: true,
-      },
+      } as any,
     });
   }
 
@@ -297,7 +296,7 @@ export class AssignmentService extends BaseService {
         contest: true,
         event: true,
         assignedByUser: true,
-      },
+      } as any,
     });
 
     if (!assignment) {
@@ -331,7 +330,7 @@ export class AssignmentService extends BaseService {
         contest: true,
         event: true,
         assignedByUser: true,
-      },
+      } as any,
     });
   }
 
@@ -362,7 +361,7 @@ export class AssignmentService extends BaseService {
         category: true,
         contest: true,
         event: true,
-      },
+      } as any,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
   }
@@ -376,7 +375,7 @@ export class AssignmentService extends BaseService {
       include: {
         judge: true,
         assignedByUser: true,
-      },
+      } as any,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
   }
@@ -395,7 +394,7 @@ export class AssignmentService extends BaseService {
         contest: {
           include: {
             event: true,
-          },
+          } as any,
         },
       },
     });
@@ -457,7 +456,7 @@ export class AssignmentService extends BaseService {
    * Returns contestants from Contestant table, joined with User table to get user email if different
    */
   async getContestants(): Promise<any[]> {
-    const contestants = await this.prisma.contestant.findMany({
+    const contestants: any = await this.prisma.contestant.findMany({
       include: {
         users: {
           select: {
@@ -467,7 +466,7 @@ export class AssignmentService extends BaseService {
             role: true,
           },
         },
-      },
+      } as any,
       orderBy: {
         name: 'asc',
       },
@@ -511,7 +510,7 @@ export class AssignmentService extends BaseService {
             },
           },
         },
-      },
+      } as any,
       orderBy: {
         name: 'asc',
       },
@@ -555,7 +554,7 @@ export class AssignmentService extends BaseService {
                     name: true,
                   },
                 },
-              },
+              } as any,
             },
           },
         },
@@ -584,7 +583,7 @@ export class AssignmentService extends BaseService {
             bio: true,
           },
         },
-      },
+      } as any,
       orderBy: {
         contestant: {
           name: 'asc',
@@ -604,7 +603,7 @@ export class AssignmentService extends BaseService {
         contest: {
           include: {
             event: true
-          }
+          } as any
         }
       }
     });
@@ -651,7 +650,7 @@ export class AssignmentService extends BaseService {
                     name: true,
                   },
                 },
-              },
+              } as any,
             },
           },
         },

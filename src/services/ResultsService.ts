@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient, UserRole } from '@prisma/client';
 import { BaseService } from './BaseService';
@@ -130,7 +129,7 @@ export class ResultsService extends BaseService {
       case 'JUDGE': {
         const judgeUser = await this.prisma.user.findUnique({
           where: { id: userId },
-          include: { judge: true },
+          include: { judge: true } as any,
         });
 
         if (!judgeUser?.judge) {
@@ -263,7 +262,7 @@ export class ResultsService extends BaseService {
         contest: {
           include: {
             event: true,
-          },
+          } as any,
         },
       },
     });
@@ -290,7 +289,7 @@ export class ResultsService extends BaseService {
     } else if (userRole === 'JUDGE') {
       const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true },
+        include: { judge: true } as any,
       });
 
       if (!judgeUser?.judge) {
@@ -310,7 +309,7 @@ export class ResultsService extends BaseService {
             contest: {
               include: {
                 event: true,
-              },
+              } as any,
             },
           },
         },
@@ -350,7 +349,7 @@ export class ResultsService extends BaseService {
     } else if (userRole === 'JUDGE') {
       const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true },
+        include: { judge: true } as any,
       });
 
       if (!judgeUser?.judge) {
@@ -382,14 +381,14 @@ export class ResultsService extends BaseService {
       throw new Error('Insufficient permissions');
     }
 
-    const scores = await this.prisma.score.findMany({
+    const scores: any = await this.prisma.score.findMany({
       where: whereClause,
       include: {
         contestant: true,
         judge: true,
         category: true,
         criterion: true,
-      },
+      } as any,
     });
 
     // Group by contestant and calculate totals
@@ -471,7 +470,7 @@ export class ResultsService extends BaseService {
     } else if (userRole === 'JUDGE') {
       const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true },
+        include: { judge: true } as any,
       });
 
       if (!judgeUser?.judge) {
@@ -510,7 +509,7 @@ export class ResultsService extends BaseService {
         category: true,
         contestant: true,
         judge: true,
-      },
+      } as any,
     });
   }
 
@@ -551,7 +550,7 @@ export class ResultsService extends BaseService {
     } else if (userRole === 'JUDGE') {
       const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true },
+        include: { judge: true } as any,
       });
 
       if (!judgeUser?.judge) {
@@ -592,7 +591,7 @@ export class ResultsService extends BaseService {
         category: {
           include: {
             contest: true,
-          },
+          } as any,
         },
         contestant: true,
         judge: true,
