@@ -1,0 +1,444 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFront distribution for Event Manager System
+
+Parameters:
+  OriginDomain:
+    Type: String
+    Description: Origin domain (e.g., api.eventmanager.com)
+    Default: api.eventmanager.com
+
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for CloudFront (must be in us-east-1)
+
+  CustomDomain:
+    Type: String
+    Description: Custom domain for CDN (e.g., cdn.eventmanager.com)
+    Default: cdn.eventmanager.com
+
+Resources:
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Event Manager CDN Distribution
+
+        # Custom domain aliases
+        Aliases:
+          - !Ref CustomDomain
+
+        # SSL Configuration
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+        # Default cache behavior (for HTML/index files)
+        DefaultCacheBehavior:
+          TargetOriginId: EventManagerOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - PATCH
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          CachePolicyId: !Ref DefaultCachePolicy
+          OriginRequestPolicyId: !Ref DefaultOriginRequestPolicy
+
+        # Ordered cache behaviors for different paths
+        CacheBehaviors:
+          # Static assets - long cache (1 year)
+          - PathPattern: '/assets/*'
+            TargetOriginId: EventManagerOrigin
+            ViewerProtocolPolicy: https-only
+            Compress: true
+            CachePolicyId: !Ref LongCachePolicy
+            ResponseHeadersPolicyId: !Ref StaticAssetsResponseHeadersPolicy
+
+          # Uploads - medium cache (7 days)
+          - PathPattern: '/uploads/*'
+            TargetOriginId: EventManagerOrigin
+            ViewerProtocolPolicy: https-only
+            Compress: true
+            CachePolicyId: !Ref MediumCachePolicy
+            ResponseHeadersPolicyId: !Ref DefaultResponseHeadersPolicy
+
+          # API requests - no cache
+          - PathPattern: '/api/*'
+            TargetOriginId: EventManagerOrigin
+            ViewerProtocolPolicy: https-only
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachePolicyId: !Ref NoCachePolicy
+            OriginRequestPolicyId: !Ref DefaultOriginRequestPolicy
+            ResponseHeadersPolicyId: !Ref CORSResponseHeadersPolicy
+
+          # Socket.IO - no cache
+          - PathPattern: '/socket.io/*'
+            TargetOriginId: EventManagerOrigin
+            ViewerProtocolPolicy: https-only
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachePolicyId: !Ref NoCachePolicy
+            OriginRequestPolicyId: !Ref WebSocketOriginRequestPolicy
+
+          # Metrics endpoint - no cache
+          - PathPattern: '/metrics'
+            TargetOriginId: EventManagerOrigin
+            ViewerProtocolPolicy: https-only
+            CachePolicyId: !Ref NoCachePolicy
+            OriginRequestPolicyId: !Ref DefaultOriginRequestPolicy
+
+        # Origin configuration
+        Origins:
+          - Id: EventManagerOrigin
+            DomainName: !Ref OriginDomain
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
+
+        # Custom error responses
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+
+        # Price class (use all edge locations for best performance)
+        PriceClass: PriceClass_All
+
+        # Enable HTTP/2 and HTTP/3
+        HttpVersion: http2and3
+
+        # Enable IPv6
+        IPV6Enabled: true
+
+  # Cache Policies
+
+  # Long cache policy (1 year) for versioned static assets
+  LongCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-LongCache'
+        Comment: Long cache for versioned static assets (1 year)
+        DefaultTTL: 31536000 # 1 year
+        MaxTTL: 31536000
+        MinTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+
+  # Medium cache policy (7 days) for uploads
+  MediumCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-MediumCache'
+        Comment: Medium cache for user uploads (7 days)
+        DefaultTTL: 604800 # 7 days
+        MaxTTL: 604800
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+
+  # No cache policy for dynamic content (API, metrics)
+  NoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-NoCache'
+        Comment: No cache for dynamic content
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Authorization
+              - Accept
+              - Content-Type
+              - Origin
+              - CloudFront-Is-Mobile-Viewer
+              - CloudFront-Is-Desktop-Viewer
+          CookiesConfig:
+            CookieBehavior: all
+
+  # Default cache policy (1 hour) for HTML files
+  DefaultCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-DefaultCache'
+        Comment: Default cache for HTML files (1 hour)
+        DefaultTTL: 3600 # 1 hour
+        MaxTTL: 86400 # 1 day
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+
+  # Origin Request Policies
+
+  # Default origin request policy
+  DefaultOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub '${AWS::StackName}-DefaultOriginRequest'
+        Comment: Forward necessary headers, cookies, and query strings
+        QueryStringsConfig:
+          QueryStringBehavior: all
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Authorization
+            - Accept
+            - Content-Type
+            - Origin
+            - Referer
+            - User-Agent
+            - CloudFront-Is-Mobile-Viewer
+            - CloudFront-Is-Desktop-Viewer
+        CookiesConfig:
+          CookieBehavior: all
+
+  # WebSocket origin request policy
+  WebSocketOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub '${AWS::StackName}-WebSocketOriginRequest'
+        Comment: Forward all headers for WebSocket connections
+        QueryStringsConfig:
+          QueryStringBehavior: all
+        HeadersConfig:
+          HeaderBehavior: allViewer
+        CookiesConfig:
+          CookieBehavior: all
+
+  # Response Headers Policies
+
+  # Static assets response headers
+  StaticAssetsResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-StaticAssetsHeaders'
+        Comment: Security and caching headers for static assets
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          XSSProtection:
+            ModeBlock: true
+            Protection: true
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+        CustomHeadersConfig:
+          Items:
+            - Header: Cache-Control
+              Value: public, max-age=31536000, immutable
+              Override: true
+
+  # CORS response headers for API
+  CORSResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-CORSHeaders'
+        Comment: CORS headers for API requests
+        CorsConfig:
+          AccessControlAllowOrigins:
+            Items:
+              - '*'
+          AccessControlAllowHeaders:
+            Items:
+              - '*'
+          AccessControlAllowMethods:
+            Items:
+              - GET
+              - HEAD
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+          AccessControlAllowCredentials: true
+          AccessControlMaxAgeSec: 600
+          OriginOverride: true
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Override: true
+
+  # Default response headers
+  DefaultResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-DefaultHeaders'
+        Comment: Default security headers
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: SAMEORIGIN
+            Override: true
+          XSSProtection:
+            ModeBlock: true
+            Protection: true
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+
+  # CloudWatch Alarms
+
+  # Low cache hit rate alarm
+  CacheHitRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-LowCacheHitRate'
+      AlarmDescription: Alert when cache hit rate falls below 70%
+      MetricName: CacheHitRate
+      Namespace: AWS/CloudFront
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistribution
+      TreatMissingData: notBreaching
+
+  # High 4xx error rate alarm
+  FourxxErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-High4xxErrorRate'
+      AlarmDescription: Alert when 4xx error rate exceeds 5%
+      MetricName: 4xxErrorRate
+      Namespace: AWS/CloudFront
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistribution
+      TreatMissingData: notBreaching
+
+  # High 5xx error rate alarm
+  FivexxErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-High5xxErrorRate'
+      AlarmDescription: Alert when 5xx error rate exceeds 1%
+      MetricName: 5xxErrorRate
+      Namespace: AWS/CloudFront
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistribution
+      TreatMissingData: notBreaching
+
+Outputs:
+  DistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub '${AWS::StackName}-DistributionId'
+
+  DistributionDomain:
+    Description: CloudFront Distribution Domain Name
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-DistributionDomain'
+
+  DistributionURL:
+    Description: CloudFront Distribution URL
+    Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-DistributionURL'
+
+  CustomDomainURL:
+    Description: Custom Domain URL
+    Value: !Sub 'https://${CustomDomain}'
+    Export:
+      Name: !Sub '${AWS::StackName}-CustomDomainURL'
