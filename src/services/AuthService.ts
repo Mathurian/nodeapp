@@ -52,6 +52,58 @@ export class AuthService {
   }
 
   /**
+   * P2-5: Check if password was used in recent history
+   * @param userId - User ID
+   * @param newPassword - New password to check
+   * @param historyLimit - Number of previous passwords to check (default: 5)
+   * @returns true if password was used recently
+   */
+  private async isPasswordInHistory(userId: string, newPassword: string, historyLimit: number = 5): Promise<boolean> {
+    const passwordHistories = await this.prisma.passwordHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: historyLimit
+    });
+
+    for (const history of passwordHistories) {
+      if (await bcrypt.compare(newPassword, history.password)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * P2-5: Save password to history
+   * @param userId - User ID
+   * @param hashedPassword - Hashed password to save
+   */
+  private async savePasswordToHistory(userId: string, hashedPassword: string): Promise<void> {
+    await this.prisma.passwordHistory.create({
+      data: {
+        userId,
+        password: hashedPassword
+      }
+    });
+
+    // Keep only the last 10 password histories
+    const allHistories = await this.prisma.passwordHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip: 10
+    });
+
+    if (allHistories.length > 0) {
+      await this.prisma.passwordHistory.deleteMany({
+        where: {
+          id: { in: allHistories.map(h => h.id) }
+        }
+      });
+    }
+  }
+
+  /**
    * Authenticate user and generate JWT token
    */
   async login(credentials: LoginCredentials, tenantId: string, ipAddress?: string, userAgent?: string): Promise<LoginResult> {
@@ -289,6 +341,11 @@ export class AuthService {
       throw new Error('Password is too similar to your personal information');
     }
 
+    // P2-5: Check password history
+    if (await this.isPasswordInHistory(userId, newPassword, 5)) {
+      throw new Error('Password has been used recently. Please choose a different password');
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await this.prisma.user.update({
@@ -298,6 +355,9 @@ export class AuthService {
         sessionVersion: { increment: 1 }
       }
     });
+
+    // P2-5: Save password to history
+    await this.savePasswordToHistory(userId, hashedPassword);
 
     // Invalidate the token after use
     this.resetTokenCache.del(token);
@@ -340,6 +400,11 @@ export class AuthService {
       throw new Error('New password must be different from current password');
     }
 
+    // P2-5: Check password history
+    if (await this.isPasswordInHistory(userId, newPassword, 5)) {
+      throw new Error('Password has been used recently. Please choose a different password');
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await this.prisma.user.update({
@@ -349,6 +414,9 @@ export class AuthService {
         sessionVersion: { increment: 1 }
       }
     });
+
+    // P2-5: Save password to history
+    await this.savePasswordToHistory(userId, hashedPassword);
 
     userCache.invalidate(userId);
   }

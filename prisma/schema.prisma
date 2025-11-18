@@ -287,6 +287,7 @@ model User {
   requestedScoreRemovalRequests          ScoreRemovalRequest[]
   activityLogs                           ActivityLog[]
   createdEventTemplates                  EventTemplate[]
+  passwordHistories                      PasswordHistory[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -939,6 +940,18 @@ model EmailSetting {
   updatedAt           DateTime @updatedAt
 
   @@map("email_settings")
+}
+
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  password  String   // Hashed password
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("password_histories")
 }
 
 model EmailTemplate {
