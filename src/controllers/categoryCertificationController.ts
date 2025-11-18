@@ -51,7 +51,8 @@ export class CategoryCertificationController {
           judgeId: req.user?.judgeId || '',
           categoryId,
           contestantId,
-          certifiedAt: new Date()
+          certifiedAt: new Date(),
+          tenantId: req.user!.tenantId
         }
       });
 
