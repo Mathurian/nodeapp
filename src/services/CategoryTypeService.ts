@@ -20,12 +20,11 @@ export class CategoryTypeService extends BaseService {
   /**
    * Create a new category type
    */
-  async createCategoryType(name: string, description: string | null, createdById: string, tenantId: string = '') {
+  async createCategoryType(name: string, description: string | null, createdById: string, _tenantId: string = '') {
     this.validateRequired({ name }, ['name']);
 
     const categoryType = await prisma.categoryType.create({
       data: {
-        tenantId,
         name,
         description: description || null,
         isSystem: false,

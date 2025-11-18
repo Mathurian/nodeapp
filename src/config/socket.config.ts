@@ -64,8 +64,9 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string; tenantId: string }
       ;(socket as any).userId = decoded.userId
+      ;(socket as any).tenantId = decoded.tenantId
       next()
     } catch (error) {
       next(new Error('Authentication error: Invalid token'))
@@ -74,6 +75,7 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
 
   io.on('connection', (socket: Socket) => {
     const userId = (socket as any).userId
+    const tenantId = (socket as any).tenantId
     console.log(`Client connected: ${socket.id} (User: ${userId})`)
 
     // Automatically join user-specific room
@@ -105,7 +107,7 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
     socket.on('mark-notification-read', async (notificationId: string) => {
       try {
         const notificationService = container.resolve(NotificationService)
-        await notificationService.markAsRead(notificationId, userId)
+        await notificationService.markAsRead(notificationId, userId, tenantId)
       } catch (error) {
         console.error('Error marking notification as read:', error)
         socket.emit('notification:error', { message: 'Failed to mark notification as read' })

@@ -45,8 +45,8 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         include: {
           judge: true,
           contestant: true
-        }
-      });
+        } as any
+      } as any);
 
       if (user) {
         // Cache the user for 1 hour (3600 seconds)

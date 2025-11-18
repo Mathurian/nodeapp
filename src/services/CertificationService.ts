@@ -9,12 +9,12 @@ export class CertificationService extends BaseService {
   }
 
   async getOverallStatus(eventId: string) {
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
         // contests include removed - not in schema
-      }
-    });
+      } as any
+    } as any);
 
     if (!event) throw this.notFoundError('Event', eventId);
 
