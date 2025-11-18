@@ -66,7 +66,7 @@ export class EmailTemplateService {
    */
   async createEmailTemplate(data: CreateEmailTemplateDTO): Promise<EmailTemplate> {
     try {
-      const template = await this.prisma.emailTemplate.create({
+      const template: any = await this.prisma.emailTemplate.create({
         data: {
           tenantId: data.tenantId || 'default_tenant',
           name: data.name,
@@ -116,7 +116,7 @@ export class EmailTemplateService {
         ];
       }
 
-      const templates = await this.prisma.emailTemplate.findMany({
+      const templates: any = await this.prisma.emailTemplate.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       });
@@ -133,7 +133,7 @@ export class EmailTemplateService {
    */
   async getEmailTemplateById(id: string, tenantId: string): Promise<EmailTemplate | null> {
     try {
-      const template = await this.prisma.emailTemplate.findFirst({
+      const template: any = await this.prisma.emailTemplate.findFirst({
         where: { id, tenantId },
       });
 
@@ -157,7 +157,7 @@ export class EmailTemplateService {
         ];
       }
 
-      const templates = await this.prisma.emailTemplate.findMany({
+      const templates: any = await this.prisma.emailTemplate.findMany({
         where,
         orderBy: { createdAt: 'desc' },
       });
@@ -175,7 +175,7 @@ export class EmailTemplateService {
   async updateEmailTemplate(id: string, tenantId: string, data: UpdateEmailTemplateDTO): Promise<EmailTemplate> {
     try {
       // Verify template belongs to tenant
-      const existing = await this.prisma.emailTemplate.findFirst({
+      const existing: any = await this.prisma.emailTemplate.findFirst({
         where: { id, tenantId }
       });
       if (!existing) {
@@ -206,7 +206,7 @@ export class EmailTemplateService {
       if (data.borderRadius !== undefined) updateData.borderRadius = data.borderRadius;
       if (data.padding !== undefined) updateData.padding = data.padding;
 
-      const template = await this.prisma.emailTemplate.update({
+      const template: any = await this.prisma.emailTemplate.update({
         where: { id },
         data: updateData,
       });
@@ -225,7 +225,7 @@ export class EmailTemplateService {
   async deleteEmailTemplate(id: string, tenantId: string): Promise<void> {
     try {
       // Verify template belongs to tenant
-      const existing = await this.prisma.emailTemplate.findFirst({
+      const existing: any = await this.prisma.emailTemplate.findFirst({
         where: { id, tenantId }
       });
       if (!existing) {

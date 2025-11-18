@@ -71,7 +71,7 @@ export class SettingsService extends BaseService {
       'footer_contactEmail',
     ];
 
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { key: { in: keys } },
     });
 
@@ -152,7 +152,7 @@ export class SettingsService extends BaseService {
    * Get logging levels
    */
   async getLoggingLevels(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'logging_' } },
     });
 
@@ -173,7 +173,7 @@ export class SettingsService extends BaseService {
    * Get security settings
    */
   async getSecuritySettings(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { category: 'security' },
     });
 
@@ -201,7 +201,7 @@ export class SettingsService extends BaseService {
    * Get backup settings
    */
   async getBackupSettings(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { category: 'backup' },
     });
 
@@ -229,7 +229,7 @@ export class SettingsService extends BaseService {
    * Get email settings
    */
   async getEmailSettings(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { category: 'email' },
     });
 
@@ -283,7 +283,7 @@ export class SettingsService extends BaseService {
    * Get password policy
    */
   async getPasswordPolicy(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'password_' } },
     });
 
@@ -311,7 +311,7 @@ export class SettingsService extends BaseService {
    * Get JWT configuration
    */
   async getJWTConfig(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'jwt_' } },
     });
 
@@ -339,7 +339,7 @@ export class SettingsService extends BaseService {
    * Get theme settings
    */
   async getThemeSettings(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { category: 'theme' },
     });
 
@@ -367,7 +367,7 @@ export class SettingsService extends BaseService {
    * Get contestant visibility settings
    */
   async getContestantVisibilitySettings(): Promise<Record<string, string>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'contestant_visibility_' } },
     });
 

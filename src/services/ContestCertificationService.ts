@@ -9,7 +9,7 @@ export class ContestCertificationService extends BaseService {
   }
 
   async getCertificationProgress(contestId: string) {
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId },
       select: {
         id: true,
@@ -21,7 +21,7 @@ export class ContestCertificationService extends BaseService {
 
     if (!contest) throw this.notFoundError('Contest', contestId);
 
-    const certs = await this.prisma.contestCertification.findMany({
+    const certs: any = await this.prisma.contestCertification.findMany({
       where: { contestId }
     });
 
@@ -47,13 +47,13 @@ export class ContestCertificationService extends BaseService {
       throw this.forbiddenError('Role not authorized to certify contest');
     }
 
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId }
     });
 
     if (!contest) throw this.notFoundError('Contest', contestId);
 
-    const existing = await this.prisma.contestCertification.findFirst({
+    const existing: any = await this.prisma.contestCertification.findFirst({
       where: { contestId, role: userRole }
     });
 

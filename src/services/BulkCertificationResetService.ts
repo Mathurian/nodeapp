@@ -81,7 +81,7 @@ export class BulkCertificationResetService extends BaseService {
       };
     } else if (dto.categoryId) {
       // Reset certifications for a specific category
-      const category = await this.prisma.category.findUnique({
+      const category: any = await this.prisma.category.findUnique({
         where: { id: dto.categoryId }
       });
 

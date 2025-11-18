@@ -48,6 +48,11 @@ model Event {
   lockVerifiedBy            String?
   tenantId                  String
 
+  contests        Contest[]
+  archivedEvents  ArchivedEvent[]
+  emceeScripts    EmceeScript[]
+  assignments     Assignment[]
+
   @@index([tenantId])
   @@index([tenantId, archived])
   @@map("events")
@@ -69,6 +74,13 @@ model Contest {
   lockedAt                  DateTime?
   lockVerifiedBy            String?
   tenantId                  String
+
+  event              Event                 @relation(fields: [eventId], references: [id])
+  categories         Category[]
+  emceeScripts       EmceeScript[]
+  assignments        Assignment[]
+  contestContestants ContestContestant[]
+  contestJudges      ContestJudge[]
 
   @@index([tenantId])
   @@index([eventId])
@@ -93,6 +105,18 @@ model Category {
   totalsCertified Boolean  @default(false)
   tenantId        String
 
+  contest                       Contest                          @relation(fields: [contestId], references: [id])
+  scores                        Score[]
+  criteria                      Criterion[]
+  categoryContestants           CategoryContestant[]
+  categoryJudges                CategoryJudge[]
+  assignments                   Assignment[]
+  categoryCertifications        CategoryCertification[]
+  emceeScripts                  EmceeScript[]
+  judgeScoreRemovalRequests     JudgeScoreRemovalRequest[]
+  judgeUncertificationRequests  JudgeUncertificationRequest[]
+  scoreRemovalRequests          ScoreRemovalRequest[]
+
   @@index([tenantId])
   @@index([contestId])
   @@index([contestId, createdAt])
@@ -114,6 +138,11 @@ model Contestant {
   updatedAt        DateTime @updatedAt
   tenantId         String
 
+  scores             Score[]
+  categoryContestants CategoryContestant[]
+  contestContestants  ContestContestant[]
+  users              User[]
+
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, contestantNumber])
@@ -134,6 +163,16 @@ model Judge {
   isHeadJudge Boolean  @default(false)
   tenantId    String
 
+  scores                       Score[]
+  assignments                  Assignment[]
+  categoryJudges               CategoryJudge[]
+  contestJudges                ContestJudge[]
+  users                        User[]
+  judgeScoreRemovalRequests    JudgeScoreRemovalRequest[]
+  judgeUncertificationRequests JudgeUncertificationRequest[]
+  scoreRemovalRequests         ScoreRemovalRequest[]
+  scoreComments                ScoreComment[]
+
   @@unique([tenantId, email])
   @@index([tenantId])
   @@map("judges")
@@ -147,6 +186,10 @@ model Criterion {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   tenantId   String
+
+  category      Category       @relation(fields: [categoryId], references: [id])
+  scores        Score[]
+  scoreComments ScoreComment[]
 
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -172,6 +215,13 @@ model Score {
   lockedAt         DateTime?
   lockedBy         String?
   tenantId         String
+
+  category                  Category                   @relation(fields: [categoryId], references: [id])
+  contestant                Contestant                 @relation(fields: [contestantId], references: [id])
+  judge                     Judge                      @relation(fields: [judgeId], references: [id])
+  criterion                 Criterion?                 @relation(fields: [criterionId], references: [id])
+  judgeScoreRemovalRequests JudgeScoreRemovalRequest[]
+  scoreComments             ScoreComment[]
 
   @@unique([tenantId, categoryId, contestantId, judgeId, criterionId])
   @@index([tenantId])
@@ -229,6 +279,14 @@ model User {
   mfaEnrolledAt         DateTime?
   mfaMethod             String?   @default("totp")
   mfaSecret             String?
+
+  judge                                  Judge?                            @relation(fields: [judgeId], references: [id])
+  contestant                             Contestant?                       @relation(fields: [contestantId], references: [id])
+  assignedAssignments                    Assignment[]
+  requestedJudgeUncertificationRequests  JudgeUncertificationRequest[]
+  requestedScoreRemovalRequests          ScoreRemovalRequest[]
+  activityLogs                           ActivityLog[]
+  createdEventTemplates                  EventTemplate[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -299,6 +357,8 @@ model ActivityLog {
   createdAt    DateTime @default(now())
   details      Json?
 
+  user User? @relation(fields: [userId], references: [id])
+
   @@map("activity_logs")
 }
 
@@ -327,6 +387,10 @@ model EmceeScript {
   file_path  String?
   tenantId   String
 
+  event    Event?    @relation(fields: [eventId], references: [id])
+  contest  Contest?  @relation(fields: [contestId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
   @@index([tenantId])
   @@index([tenantId, eventId])
   @@index([tenantId, contestId])
@@ -347,6 +411,8 @@ model ArchivedEvent {
   archivedAt   DateTime  @default(now())
   archivedById String
   tenantId     String
+
+  event Event @relation(fields: [eventId], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, eventId])
@@ -387,12 +453,17 @@ model JudgeScoreRemovalRequest {
   categoryId   String
   contestantId String
   judgeId      String
+  scoreId      String?
   reason       String
   status       RequestStatus @default(PENDING)
   requestedAt  DateTime      @default(now())
   reviewedAt   DateTime?
   reviewedById String?
   tenantId     String
+
+  category Category  @relation(fields: [categoryId], references: [id])
+  judge    Judge     @relation(fields: [judgeId], references: [id])
+  score    Score?    @relation(fields: [scoreId], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -406,6 +477,9 @@ model ContestContestant {
   contestantId String
   tenantId     String
 
+  contest    Contest    @relation(fields: [contestId], references: [id])
+  contestant Contestant @relation(fields: [contestantId], references: [id])
+
   @@id([contestId, contestantId])
   @@index([tenantId])
   @@index([tenantId, contestId])
@@ -417,6 +491,9 @@ model ContestJudge {
   contestId String
   judgeId   String
   tenantId  String
+
+  contest Contest @relation(fields: [contestId], references: [id])
+  judge   Judge   @relation(fields: [judgeId], references: [id])
 
   @@id([contestId, judgeId])
   @@index([tenantId])
@@ -430,6 +507,9 @@ model CategoryContestant {
   contestantId String
   tenantId     String
 
+  category   Category   @relation(fields: [categoryId], references: [id])
+  contestant Contestant @relation(fields: [contestantId], references: [id])
+
   @@id([categoryId, contestantId])
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -441,6 +521,9 @@ model CategoryJudge {
   categoryId String
   judgeId    String
   tenantId   String
+
+  category Category @relation(fields: [categoryId], references: [id])
+  judge    Judge    @relation(fields: [judgeId], references: [id])
 
   @@id([categoryId, judgeId])
   @@index([tenantId])
@@ -461,6 +544,12 @@ model Assignment {
   notes      String?
   priority   Int              @default(1)
   tenantId   String
+
+  judge          Judge     @relation(fields: [judgeId], references: [id])
+  category       Category? @relation(fields: [categoryId], references: [id])
+  contest        Contest   @relation(fields: [contestId], references: [id])
+  event          Event     @relation(fields: [eventId], references: [id])
+  assignedByUser User      @relation(fields: [assignedBy], references: [id])
 
   @@unique([tenantId, judgeId, categoryId])
   @@index([tenantId])
@@ -648,6 +737,8 @@ model CategoryCertification {
   certifiedAt   DateTime @default(now())
   comments      String?
   tenantId      String
+
+  category Category @relation(fields: [categoryId], references: [id])
 
   @@unique([tenantId, categoryId, role])
   @@index([tenantId])
@@ -926,6 +1017,8 @@ model EventTemplate {
   updatedAt   DateTime @updatedAt
   tenantId    String
 
+  creator User @relation(fields: [createdBy], references: [id])
+
   @@index([tenantId])
   @@index([tenantId, name])
   @@map("event_templates")
@@ -992,6 +1085,10 @@ model JudgeUncertificationRequest {
   updatedAt       DateTime      @updatedAt
   status          RequestStatus @default(PENDING)
   tenantId        String
+
+  category        Category @relation(fields: [categoryId], references: [id])
+  judge           Judge    @relation(fields: [judgeId], references: [id])
+  requestedByUser User     @relation(fields: [requestedBy], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -1229,6 +1326,10 @@ model ScoreComment {
   updatedAt    DateTime @updatedAt
   tenantId     String
 
+  score      Score      @relation(fields: [scoreId], references: [id])
+  criterion  Criterion  @relation(fields: [criterionId], references: [id])
+  judge      Judge      @relation(fields: [judgeId], references: [id])
+
   @@unique([tenantId, scoreId, criterionId, contestantId, judgeId])
   @@index([tenantId])
   @@index([tenantId, scoreId])
@@ -1284,6 +1385,10 @@ model ScoreRemovalRequest {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   tenantId         String
+
+  category        Category @relation(fields: [categoryId], references: [id])
+  judge           Judge    @relation(fields: [judgeId], references: [id])
+  requestedByUser User     @relation(fields: [requestedBy], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, categoryId])

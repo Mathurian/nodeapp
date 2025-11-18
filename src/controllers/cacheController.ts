@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { CacheService } from '../services/CacheService';
@@ -35,18 +34,11 @@ export class CacheController {
   flushCache = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'cache');
     try {
-      const success = await this.cacheService.flush();
-
-      if (success) {
-        res.json({
-          success: true,
-          message: 'Cache flushed successfully',
-        });
-      } else {
-        res.status(500).json({
-          error: 'Failed to flush cache. Cache may be disabled.',
-        });
-      }
+      await this.cacheService.flushAll();
+      res.json({
+        success: true,
+        message: 'Cache flushed successfully',
+      });
     } catch (error) {
       log.error('Flush cache error:', error);
       return next(error);
@@ -66,18 +58,11 @@ export class CacheController {
         return;
       }
 
-      const success = await this.cacheService.delete(key);
-
-      if (success) {
-        res.json({
-          success: true,
-          message: `Cache key "${key}" deleted successfully`,
-        });
-      } else {
-        res.status(500).json({
-          error: 'Failed to delete cache key',
-        });
-      }
+      await this.cacheService.del(key);
+      res.json({
+        success: true,
+        message: `Cache key "${key}" deleted successfully`,
+      });
     } catch (error) {
       log.error('Delete cache key error:', error);
       return next(error);
@@ -97,18 +82,11 @@ export class CacheController {
         return;
       }
 
-      const success = await this.cacheService.deletePattern(pattern);
-
-      if (success) {
-        res.json({
-          success: true,
-          message: `Cache keys matching "${pattern}" deleted successfully`,
-        });
-      } else {
-        res.status(500).json({
-          error: 'Failed to delete cache keys',
-        });
-      }
+      await this.cacheService.invalidatePattern(pattern);
+      res.json({
+        success: true,
+        message: `Cache keys matching "${pattern}" deleted successfully`,
+      });
     } catch (error) {
       log.error('Delete cache pattern error:', error);
       return next(error);
@@ -121,10 +99,10 @@ export class CacheController {
   getCacheStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'cache');
     try {
-      const isEnabled = this.cacheService.isEnabled();
+      const stats = await this.cacheService.getStats();
       res.json({
-        enabled: isEnabled,
-        status: isEnabled ? 'connected' : 'disconnected',
+        enabled: stats.enabled,
+        status: stats.enabled ? 'connected' : 'disconnected',
       });
     } catch (error) {
       log.error('Get cache status error:', error);

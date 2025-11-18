@@ -180,7 +180,7 @@ export class BioService extends BaseService {
     }
 
     // Verify contestant exists
-    const contestant = await this.prisma.contestant.findUnique({
+    const contestant: any = await this.prisma.contestant.findUnique({
       where: { id: contestantId }
     });
 
@@ -215,7 +215,7 @@ export class BioService extends BaseService {
     }
 
     // Verify judge exists
-    const judge = await this.prisma.judge.findUnique({
+    const judge: any = await this.prisma.judge.findUnique({
       where: { id: judgeId }
     });
 

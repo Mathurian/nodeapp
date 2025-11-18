@@ -61,7 +61,7 @@ export class AuthService {
     // Find user with related data
     // Note: For multi-tenancy, we should ideally pass tenantId here
     // For now, find by email (this may need tenant context in production)
-    const user = await this.prisma.user.findFirst({
+    const user: any = await this.prisma.user.findFirst({
       where: { email }
     });
 
@@ -149,7 +149,7 @@ export class AuthService {
    * Get user profile by ID
    */
   async getProfile(userId: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -180,7 +180,7 @@ export class AuthService {
    * Get user permissions
    */
   async getPermissions(userId: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -214,7 +214,7 @@ export class AuthService {
    * Generate password reset token
    */
   async generatePasswordResetToken(email: string): Promise<string> {
-    const user = await this.prisma.user.findFirst({
+    const user: any = await this.prisma.user.findFirst({
       where: { email }
     });
 
@@ -246,7 +246,7 @@ export class AuthService {
     }
 
     // Get user info for password similarity check
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -287,7 +287,7 @@ export class AuthService {
    * Change user password (authenticated)
    */
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -350,7 +350,7 @@ export class AuthService {
    * Check if user has specific permission
    */
   async hasPermission(userId: string, permission: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
+    const user: any = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 

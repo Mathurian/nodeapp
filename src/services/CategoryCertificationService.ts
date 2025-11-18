@@ -11,27 +11,27 @@ export class CategoryCertificationService extends BaseService {
   async getCertificationProgress(categoryId: string) {
     const categoryContestants: any = await this.prisma.categoryContestant.findMany({
       where: { categoryId },
-      include: { contestant: true } as any
+      include: { contestant: true }
     } as any);
 
     const categoryJudges: any = await this.prisma.categoryJudge.findMany({
       where: { categoryId },
-      include: { judge: true } as any
+      include: { judge: true }
     } as any);
 
-    const judgeContestantCertifications = await this.prisma.judgeContestantCertification.findMany({
+    const judgeContestantCertifications: any = await this.prisma.judgeContestantCertification.findMany({
       where: { categoryId }
     });
 
-    const tallyMasterCert = await this.prisma.categoryCertification.findFirst({
+    const tallyMasterCert: any = await this.prisma.categoryCertification.findFirst({
       where: { categoryId, role: 'TALLY_MASTER' }
     });
 
-    const auditorCert = await this.prisma.categoryCertification.findFirst({
+    const auditorCert: any = await this.prisma.categoryCertification.findFirst({
       where: { categoryId, role: 'AUDITOR' }
     });
 
-    const boardCerts = await this.prisma.categoryCertification.findMany({
+    const boardCerts: any = await this.prisma.categoryCertification.findMany({
       where: { categoryId, role: { in: ['BOARD', 'ORGANIZER', 'ADMIN'] } }
     });
 
@@ -58,7 +58,7 @@ export class CategoryCertificationService extends BaseService {
   }
 
   async certifyCategory(categoryId: string, userId: string, userRole: string, tenantId: string) {
-    const existing = await this.prisma.categoryCertification.findFirst({
+    const existing: any = await this.prisma.categoryCertification.findFirst({
       where: { categoryId, role: userRole }
     });
 

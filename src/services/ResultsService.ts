@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient, UserRole } from '@prisma/client';
 import { BaseService } from './BaseService';
@@ -47,7 +46,7 @@ export class ResultsService extends BaseService {
     const { userRole, userId, offset = 0, limit = 50 } = filter;
 
     let whereClause: any = {};
-    const selectClause = {
+    const selectClause: any = {
       id: true,
       score: true,
       comment: true,
@@ -128,7 +127,7 @@ export class ResultsService extends BaseService {
         break;
 
       case 'JUDGE': {
-        const judgeUser = await this.prisma.user.findUnique({
+        const judgeUser: any = await this.prisma.user.findUnique({
           where: { id: userId },
           include: { judge: true },
         });
@@ -142,12 +141,12 @@ export class ResultsService extends BaseService {
             { judgeId: judgeUser.judge.id },
             { category: { judges: { some: { judgeId: judgeUser.judge.id } } } },
           ],
-        };
+        } as any;
         break;
       }
 
       case 'CONTESTANT': {
-        const user = await this.prisma.user.findUnique({
+        const user: any = await this.prisma.user.findUnique({
           where: { id: userId },
           select: { contestantId: true },
         });
@@ -157,13 +156,13 @@ export class ResultsService extends BaseService {
         }
 
         // Get visibility settings
-        const canViewOverallResults = await this.prisma.systemSetting.findUnique({
+        const canViewOverallResults: any = await this.prisma.systemSetting.findUnique({
           where: { key: 'contestant_can_view_overall_results' },
         });
         const canViewOverall = (canViewOverallResults?.value || 'true') === 'true';
 
         // Get certified category IDs
-        const certifiedCategories = await this.prisma.category.findMany({
+        const certifiedCategories: any = await this.prisma.category.findMany({
           where: { totalsCertified: true },
           select: { id: true },
         });
@@ -190,7 +189,7 @@ export class ResultsService extends BaseService {
         throw new Error('Insufficient permissions');
     }
 
-    const results = await this.prisma.score.findMany({
+    const results: any = await this.prisma.score.findMany({
       where: whereClause,
       select: selectClause,
       orderBy: { createdAt: 'desc' },
@@ -198,14 +197,14 @@ export class ResultsService extends BaseService {
       take: limit,
     });
 
-    const total = await this.prisma.score.count({
+    const total: any = await this.prisma.score.count({
       where: whereClause,
     });
 
     // Calculate totals for each result
     const resultsWithTotals = await Promise.all(
       results.map(async (result) => {
-        const categoryScores = await this.prisma.score.findMany({
+        const categoryScores: any = await this.prisma.score.findMany({
           where: {
             categoryId: result.categoryId,
             contestantId: result.contestantId,
@@ -234,7 +233,7 @@ export class ResultsService extends BaseService {
                 updatedAt: true,
               },
             },
-          },
+          } as any,
         });
 
         const earned = categoryScores.reduce((sum, s) => sum + (s.score || 0), 0);
@@ -258,7 +257,7 @@ export class ResultsService extends BaseService {
    * Get all categories with related data
    */
   async getCategories() {
-    return await this.prisma.category.findMany({
+    return await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           include: {
@@ -279,7 +278,7 @@ export class ResultsService extends BaseService {
 
     // CONTESTANT can only see their own results
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -288,7 +287,7 @@ export class ResultsService extends BaseService {
         throw new Error('Access denied. You can only view your own results.');
       }
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
       });
@@ -315,7 +314,7 @@ export class ResultsService extends BaseService {
           },
         },
         judge: true,
-      },
+      } as any,
     });
   }
 
@@ -326,7 +325,7 @@ export class ResultsService extends BaseService {
     const { categoryId, userRole, userId } = filter;
 
     // Verify category exists
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -337,7 +336,7 @@ export class ResultsService extends BaseService {
     let whereClause: any = { categoryId };
 
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -348,7 +347,7 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
       });
@@ -358,7 +357,7 @@ export class ResultsService extends BaseService {
       }
 
       // Check assignment
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           categoryId,
@@ -367,7 +366,7 @@ export class ResultsService extends BaseService {
       });
 
       if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        const hasScores: any = await this.prisma.score.findFirst({
           where: {
             categoryId,
             judgeId: judgeUser.judge.id,
@@ -382,14 +381,14 @@ export class ResultsService extends BaseService {
       throw new Error('Insufficient permissions');
     }
 
-    const scores = await this.prisma.score.findMany({
+    const scores: any = await this.prisma.score.findMany({
       where: whereClause,
       include: {
         contestant: true,
         judge: true,
         category: true,
         criterion: true,
-      },
+      } as any,
     });
 
     // Group by contestant and calculate totals
@@ -443,7 +442,7 @@ export class ResultsService extends BaseService {
     const { contestId, userRole, userId } = filter;
 
     // Verify contest exists
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId },
     });
 
@@ -458,7 +457,7 @@ export class ResultsService extends BaseService {
     };
 
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -469,7 +468,7 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
       });
@@ -478,7 +477,7 @@ export class ResultsService extends BaseService {
         return [];
       }
 
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           contestId,
@@ -487,13 +486,13 @@ export class ResultsService extends BaseService {
       });
 
       if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        const hasScores: any = await this.prisma.score.findFirst({
           where: {
             judgeId: judgeUser.judge.id,
             category: {
               contestId,
             },
-          },
+          } as any,
         });
 
         if (!hasScores) {
@@ -510,7 +509,7 @@ export class ResultsService extends BaseService {
         category: true,
         contestant: true,
         judge: true,
-      },
+      } as any,
     });
   }
 
@@ -521,7 +520,7 @@ export class ResultsService extends BaseService {
     const { eventId, userRole, userId } = filter;
 
     // Verify event exists
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
 
@@ -538,7 +537,7 @@ export class ResultsService extends BaseService {
     };
 
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -549,7 +548,7 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
       });
@@ -558,7 +557,7 @@ export class ResultsService extends BaseService {
         return [];
       }
 
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           eventId,
@@ -567,7 +566,7 @@ export class ResultsService extends BaseService {
       });
 
       if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        const hasScores: any = await this.prisma.score.findFirst({
           where: {
             judgeId: judgeUser.judge.id,
             category: {
@@ -575,7 +574,7 @@ export class ResultsService extends BaseService {
                 eventId,
               },
             },
-          },
+          } as any,
         });
 
         if (!hasScores) {
@@ -596,7 +595,7 @@ export class ResultsService extends BaseService {
         },
         contestant: true,
         judge: true,
-      },
+      } as any,
     });
   }
 }

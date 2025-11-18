@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient } from '@prisma/client';
@@ -28,8 +27,19 @@ export class CommentaryService extends BaseService {
       throw this.badRequestError('Score ID, criterion ID, contestant ID, and comment are required');
     }
 
+    // Fetch score to get tenantId
+    const score: any = await this.prisma.score.findUnique({
+      where: { id: data.scoreId },
+      select: { tenantId: true },
+    });
+
+    if (!score) {
+      throw this.notFoundError('Score', data.scoreId);
+    }
+
     return await this.prisma.scoreComment.create({
       data: {
+        tenantId: score.tenantId,
         scoreId: data.scoreId,
         criterionId: data.criterionId,
         contestantId: data.contestantId,
@@ -44,7 +54,7 @@ export class CommentaryService extends BaseService {
             email: true
           }
         }
-      }
+      } as any
     });
   }
 
@@ -70,7 +80,7 @@ export class CommentaryService extends BaseService {
             description: true
           }
         }
-      },
+      } as any,
       orderBy: { createdAt: 'asc' }
     });
   }
@@ -94,7 +104,7 @@ export class CommentaryService extends BaseService {
         criterion: {
           select: {
             name: true,
-            description: true
+            maxScore: true
           }
         },
         score: {
@@ -104,7 +114,7 @@ export class CommentaryService extends BaseService {
                 contest: {
                   include: {
                     event: true
-                  }
+                  } as any
                 }
               }
             }
@@ -119,7 +129,7 @@ export class CommentaryService extends BaseService {
   }
 
   async update(id: string, data: UpdateCommentDto, userId: string, userRole: string) {
-    const existingComment = await this.prisma.scoreComment.findUnique({
+    const existingComment: any = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
 
@@ -144,12 +154,12 @@ export class CommentaryService extends BaseService {
             email: true
           }
         }
-      }
+      } as any
     });
   }
 
   async delete(id: string, userId: string, userRole: string) {
-    const existingComment = await this.prisma.scoreComment.findUnique({
+    const existingComment: any = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
 

@@ -55,7 +55,7 @@ export class ScoreFileService extends BaseService {
     uploadedById: string
   ): Promise<ScoreFile> {
     // Verify category exists in tenant
-    const category = await this.prisma.category.findFirst({
+    const category: any = await this.prisma.category.findFirst({
       where: { id: data.categoryId, tenantId: data.tenantId }
     });
 
@@ -64,7 +64,7 @@ export class ScoreFileService extends BaseService {
     }
 
     // Verify judge exists in tenant
-    const judge = await this.prisma.judge.findFirst({
+    const judge: any = await this.prisma.judge.findFirst({
       where: { id: data.judgeId, tenantId: data.tenantId }
     });
 
@@ -74,7 +74,7 @@ export class ScoreFileService extends BaseService {
 
     // If contestantId provided, verify contestant exists in tenant
     if (data.contestantId) {
-      const contestant = await this.prisma.contestant.findFirst({
+      const contestant: any = await this.prisma.contestant.findFirst({
         where: { id: data.contestantId, tenantId: data.tenantId }
       });
 
@@ -84,7 +84,7 @@ export class ScoreFileService extends BaseService {
     }
 
     // Create score file record
-    const scoreFile = await this.prisma.scoreFile.create({
+    const scoreFile: any = await this.prisma.scoreFile.create({
       data: {
         categoryId: data.categoryId,
         judgeId: data.judgeId,
@@ -153,7 +153,7 @@ export class ScoreFileService extends BaseService {
     _userId: string,
     userRole: string
   ): Promise<ScoreFile> {
-    const scoreFile = await this.prisma.scoreFile.findFirst({
+    const scoreFile: any = await this.prisma.scoreFile.findFirst({
       where: { id, tenantId }
     });
 
@@ -168,7 +168,7 @@ export class ScoreFileService extends BaseService {
       throw this.forbiddenError('You do not have permission to update score file status');
     }
 
-    const updated = await this.prisma.scoreFile.update({
+    const updated: any = await this.prisma.scoreFile.update({
       where: { id },
       data: {
         status: data.status || scoreFile.status,
@@ -189,7 +189,7 @@ export class ScoreFileService extends BaseService {
     userId: string,
     userRole: string
   ): Promise<void> {
-    const scoreFile = await this.prisma.scoreFile.findFirst({
+    const scoreFile: any = await this.prisma.scoreFile.findFirst({
       where: { id, tenantId }
     });
 
