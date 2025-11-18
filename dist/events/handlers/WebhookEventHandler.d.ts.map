@@ -1,1 +1,0 @@
-{"version":3,"file":"WebhookEventHandler.d.ts","sourceRoot":"","sources":["../../../src/events/handlers/WebhookEventHandler.ts"],"names":[],"mappings":"AAMA,OAAO,EAAE,QAAQ,EAAE,MAAM,gCAAgC,CAAC;AAM1D,qBAAa,mBAAmB;WACjB,MAAM,CAAC,KAAK,EAAE,QAAQ,GAAG,OAAO,CAAC,IAAI,CAAC;mBA2B9B,cAAc;CAoBpC"}
