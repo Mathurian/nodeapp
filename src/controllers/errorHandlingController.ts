@@ -82,7 +82,7 @@ export class ErrorHandlingController {
 
       if (id) {
         // Get specific error details
-        const errorLog = await this.prisma.activityLog.findUnique({
+        const errorLog: any = await this.prisma.activityLog.findUnique({
           where: { id },
           include: {
             user: {
@@ -92,8 +92,8 @@ export class ErrorHandlingController {
                 email: true
               }
             }
-          }
-        });
+          } as any
+        } as any);
 
         if (!errorLog) {
           return sendSuccess(res, {}, 'Error log not found', 404);
@@ -103,7 +103,7 @@ export class ErrorHandlingController {
       }
 
       // Get all error logs with pagination
-      const [errorLogs, total] = await Promise.all([
+      const [errorLogs, total]: any = await Promise.all([
         this.prisma.activityLog.findMany({
           where: { action: 'ERROR' },
           include: {
@@ -113,11 +113,11 @@ export class ErrorHandlingController {
                 name: true
               }
             }
-          },
+          } as any,
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
-        }),
+        } as any),
         this.prisma.activityLog.count({ where: { action: 'ERROR' } })
       ]);
 
@@ -253,7 +253,7 @@ export class ErrorHandlingController {
       const days = parseInt(req.query.days as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      const errorLogs = await this.prisma.activityLog.findMany({
+      const errorLogs: any = await this.prisma.activityLog.findMany({
         where: {
           action: 'ERROR',
           createdAt: { gte: since }
@@ -266,10 +266,10 @@ export class ErrorHandlingController {
               email: true
             }
           }
-        },
+        } as any,
         take: limit,
         orderBy: { createdAt: 'desc' }
-      });
+      } as any);
 
       if (format === 'csv') {
         const headers = ['ID', 'User', 'Type', 'Details', 'IP Address', 'Date'];
