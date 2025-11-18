@@ -133,7 +133,7 @@ export class AuditorService extends BaseService {
    * Final certification for a category
    */
   async finalCertification(categoryId: string, userId: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -191,7 +191,7 @@ export class AuditorService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    const scores = await this.prisma.score.findMany({
+    const scores: any = await this.prisma.score.findMany({
       where: {
         categoryId,
         ...(contestantId && { contestantId }),
@@ -232,7 +232,7 @@ export class AuditorService extends BaseService {
           },
         },
       } as any,
-      orderBy: [{ contestant: { name: 'asc' } }, { criterion: { order: 'asc' } }],
+      orderBy: [{ contestantId: 'asc' }, { criterionId: 'asc' }],
     });
 
     // Group scores by contestant
@@ -276,7 +276,7 @@ export class AuditorService extends BaseService {
       issues?: string;
     }
   ) {
-    const score = await this.prisma.score.findUnique({
+    const score: any = await this.prisma.score.findUnique({
       where: { id: scoreId },
       include: {
         judge: true,
@@ -308,7 +308,7 @@ export class AuditorService extends BaseService {
    * Get tally master status for a category
    */
   async getTallyMasterStatus(categoryId: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -357,7 +357,7 @@ export class AuditorService extends BaseService {
    * Get certification workflow for a category
    */
   async getCertificationWorkflow(categoryId: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -433,7 +433,7 @@ export class AuditorService extends BaseService {
    * Generate summary report for a category
    */
   async generateSummaryReport(categoryId: string, userId: string, includeDetails: boolean = false) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {

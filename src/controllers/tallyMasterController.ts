@@ -244,6 +244,7 @@ export class TallyMasterController {
           for (const cId of contestantIds) {
             const request = await this.prisma.judgeScoreRemovalRequest.create({
               data: {
+                tenantId: req.user!.tenantId,
                 categoryId: category.id,
                 contestantId: cId,
                 judgeId,
@@ -269,6 +270,7 @@ export class TallyMasterController {
 
         const request = await this.prisma.judgeScoreRemovalRequest.create({
           data: {
+            tenantId: req.user!.tenantId,
             categoryId,
             contestantId,
             judgeId,

@@ -37,7 +37,7 @@ export class AssignmentService extends BaseService {
    */
   async getAllAssignments(filters: AssignmentFilters): Promise<any[]> {
     // Get Assignment records
-    const assignments = await this.prisma.assignment.findMany({
+    const assignments: any = await this.prisma.assignment.findMany({
       where: {
         ...(filters.status && { status: filters.status as any }),
         ...(filters.judgeId && { judgeId: filters.judgeId }),
@@ -220,7 +220,7 @@ export class AssignmentService extends BaseService {
 
     // If categoryId provided, fetch to get contestId and eventId
     if (data.categoryId) {
-      const category = await this.prisma.category.findUnique({
+      const category: any = await this.prisma.category.findUnique({
         where: { id: data.categoryId },
         include: {
           contest: {
@@ -250,7 +250,7 @@ export class AssignmentService extends BaseService {
       }
     } else if (data.contestId && !data.eventId) {
       // If contestId provided without categoryId, fetch contest to get eventId
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: data.contestId },
         include: { event: true } as any,
       });
@@ -288,7 +288,7 @@ export class AssignmentService extends BaseService {
    * Get assignment by ID
    */
   async getAssignmentById(id: string): Promise<any> {
-    const assignment = await this.prisma.assignment.findUnique({
+    const assignment: any = await this.prisma.assignment.findUnique({
       where: { id },
       include: {
         judge: true,
@@ -388,7 +388,7 @@ export class AssignmentService extends BaseService {
     judgeIds: string[],
     userId: string
   ): Promise<number> {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -409,7 +409,7 @@ export class AssignmentService extends BaseService {
       // Check if assignment already exists
       const existingAssignment = await this.prisma.assignment.findUnique({
         where: {
-          judgeId_categoryId: { judgeId, categoryId },
+          tenantId_judgeId_categoryId: { tenantId, judgeId, categoryId },
         },
       });
 
@@ -597,7 +597,7 @@ export class AssignmentService extends BaseService {
    */
   async assignContestantToCategory(categoryId: string, contestantId: string): Promise<any> {
     // First verify the category exists (even if from archived event, we should allow assignment)
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {

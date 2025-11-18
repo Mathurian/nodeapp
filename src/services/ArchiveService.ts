@@ -19,7 +19,7 @@ export class ArchiveService extends BaseService {
       include: {
         event: true,
       } as any,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -37,7 +37,7 @@ export class ArchiveService extends BaseService {
           },
         },
       } as any,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -55,7 +55,7 @@ export class ArchiveService extends BaseService {
           },
         },
       } as any,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { id: 'desc' },
     });
   }
 
