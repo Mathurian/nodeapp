@@ -72,7 +72,7 @@ export class ScoringController {
         userId: req.user.id
       });
 
-      const newScore = await this.scoringService.submitScore(data, req.user.id);
+      const newScore = await this.scoringService.submitScore(data, req.user.id, req.user!.tenantId);
 
       log.info('Score submitted successfully', { scoreId: newScore.id });
       sendCreated(res, newScore);
@@ -98,7 +98,7 @@ export class ScoringController {
 
       log.info('Score update requested', { scoreId });
 
-      const updatedScore = await this.scoringService.updateScore(scoreId, data);
+      const updatedScore = await this.scoringService.updateScore(scoreId, data, req.user!.tenantId);
 
       log.info('Score updated successfully', { scoreId });
       sendSuccess(res, updatedScore);
@@ -118,7 +118,7 @@ export class ScoringController {
 
       log.info('Score deletion requested', { scoreId });
 
-      await this.scoringService.deleteScore(scoreId);
+      await this.scoringService.deleteScore(scoreId, req.user!.tenantId);
 
       log.info('Score deleted successfully', { scoreId });
       sendNoContent(res);
@@ -143,7 +143,7 @@ export class ScoringController {
 
       log.info('Score certification requested', { scoreId, certifiedBy: req.user.id });
 
-      const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id);
+      const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, req.user!.tenantId);
 
       log.info('Score certified successfully', { scoreId });
       sendSuccess(res, certifiedScore);
@@ -168,7 +168,7 @@ export class ScoringController {
 
       log.info('Category scores certification requested', { categoryId, certifiedBy: req.user.id });
 
-      const result = await this.scoringService.certifyScores(categoryId, req.user.id);
+      const result = await this.scoringService.certifyScores(categoryId, req.user.id, req.user!.tenantId);
 
       log.info('Category scores certified successfully', { categoryId, certified: result.certified });
       sendSuccess(res, result);
@@ -188,7 +188,7 @@ export class ScoringController {
 
       log.info('Score unsigned requested', { scoreId });
 
-      const unsignedScore = await this.scoringService.unsignScore(scoreId);
+      const unsignedScore = await this.scoringService.unsignScore(scoreId, req.user!.tenantId);
 
       log.info('Score unsigned successfully', { scoreId });
       sendSuccess(res, unsignedScore);
@@ -208,7 +208,7 @@ export class ScoringController {
 
       log.debug('Fetching scores by judge', { judgeId });
 
-      const scores = await this.scoringService.getScoresByJudge(judgeId);
+      const scores = await this.scoringService.getScoresByJudge(judgeId, req.user!.tenantId);
 
       log.info('Scores by judge retrieved successfully', { judgeId, count: scores.length });
       sendSuccess(res, scores);
@@ -228,7 +228,7 @@ export class ScoringController {
 
       log.debug('Fetching scores by contestant', { contestantId });
 
-      const scores = await this.scoringService.getScoresByContestant(contestantId);
+      const scores = await this.scoringService.getScoresByContestant(contestantId, req.user!.tenantId);
 
       log.info('Scores by contestant retrieved successfully', { contestantId, count: scores.length });
       sendSuccess(res, scores);
@@ -251,7 +251,7 @@ export class ScoringController {
 
       log.debug('Fetching scores by contest', { contestId });
 
-      const scores = await this.scoringService.getScoresByContest(contestId);
+      const scores = await this.scoringService.getScoresByContest(contestId, req.user!.tenantId);
 
       log.info('Scores by contest retrieved successfully', { contestId, count: scores.length });
       sendSuccess(res, scores);
@@ -271,7 +271,7 @@ export class ScoringController {
 
       log.debug('Fetching contest statistics', { contestId });
 
-      const stats = await this.scoringService.getContestStats(contestId);
+      const stats = await this.scoringService.getContestStats(contestId, req.user!.tenantId);
 
       log.info('Contest statistics retrieved successfully', { contestId });
       sendSuccess(res, stats);
@@ -286,15 +286,16 @@ export class ScoringController {
       const contestId = req.query.contestId as string | undefined;
       const eventId = req.query.eventId as string | undefined;
 
-      const where: Prisma.CategoryWhereInput = {};
+      const where: Prisma.CategoryWhereInput = {
+        tenantId: req.user!.tenantId
+      };
       if (contestId) where.contestId = contestId;
-      if (eventId) {
-        where.contest = {
-          eventId
-        };
+      if (eventId && !contestId) {
+        // Only use nested filter if not using contestId
+        where.contestId = undefined;
       }
 
-      const categories = await this.prisma.category.findMany({
+      const categories = (await this.prisma.category.findMany({
         where,
         include: {
           contest: {
@@ -315,9 +316,9 @@ export class ScoringController {
               contestants: true
             }
           }
-        },
+        } as any,
         orderBy: { name: 'asc' }
-      });
+      } as any)) as any;
 
       return sendSuccess(res, categories);
     } catch (error) {
