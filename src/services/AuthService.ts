@@ -33,6 +33,7 @@ interface TokenPayload {
   email: string;
   role: string;
   sessionVersion: number;
+  tenantId: string;
 }
 
 @injectable()
@@ -51,18 +52,24 @@ export class AuthService {
   /**
    * Authenticate user and generate JWT token
    */
-  async login(credentials: LoginCredentials, ipAddress?: string, userAgent?: string): Promise<LoginResult> {
+  async login(credentials: LoginCredentials, tenantId: string, ipAddress?: string, userAgent?: string): Promise<LoginResult> {
     const { email, password } = credentials;
 
     if (!email || !password) {
       throw new Error('Email and password are required');
     }
 
+    if (!tenantId) {
+      throw new Error('Tenant context is required');
+    }
+
     // Find user with related data
-    // Note: For multi-tenancy, we should ideally pass tenantId here
-    // For now, find by email (this may need tenant context in production)
+    // SECURITY FIX: Filter by tenantId to prevent cross-tenant authentication bypass
     const user: any = await this.prisma.user.findFirst({
-      where: { email }
+      where: {
+        email,
+        tenantId
+      }
     });
 
     // Validate credentials
@@ -94,7 +101,8 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role,
-      sessionVersion: user.sessionVersion
+      sessionVersion: user.sessionVersion,
+      tenantId: user.tenantId
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn } as any);

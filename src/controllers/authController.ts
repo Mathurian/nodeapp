@@ -35,9 +35,16 @@ export class AuthController {
 
       const ipAddress = req.ip || req.connection?.remoteAddress;
       const userAgent = req.get('User-Agent');
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        log.warn('Login failed: missing tenant context');
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       const result = await this.authService.login(
         { email, password },
+        tenantId,
         ipAddress,
         userAgent
       );

@@ -425,33 +425,18 @@ export class AdminService extends BaseService {
   }
 
   async executeDatabaseQuery(query: string, limit: number = 100) {
-    try {
-      // Security: Only allow SELECT queries
-      const trimmedQuery = query.trim().toUpperCase();
-      if (!trimmedQuery.startsWith('SELECT')) {
-        throw this.badRequestError('Only SELECT queries are allowed');
-      }
-
-      // Additional security: Check for dangerous keywords
-      const dangerousKeywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE', 'EXEC', 'EXECUTE'];
-      for (const keyword of dangerousKeywords) {
-        if (trimmedQuery.includes(keyword)) {
-          throw this.badRequestError(`Query contains forbidden keyword: ${keyword}`);
-        }
-      }
-
-      // Execute query with limit
-      const limitedQuery = query.replace(/;?\s*$/, '') + ` LIMIT ${limit}`;
-      const rows: any = await this.prisma.$queryRawUnsafe(limitedQuery) as Array<Record<string, any>>;
-
-      return {
-        rows: rows,
-        columns: rows.length > 0 ? Object.keys(rows[0]) : [],
-        rowCount: rows.length
-      };
-    } catch (error) {
-      log.error('Error executing database query', { error: (error as Error).message });
-      throw error;
-    }
+    // SECURITY FIX: This method has been disabled due to SQL injection vulnerability
+    // Direct SQL query execution is extremely dangerous and should never be exposed to users
+    //
+    // If database inspection is needed, use:
+    // 1. Database administration tools (pgAdmin, TablePlus, etc.)
+    // 2. Read-only database replicas
+    // 3. Pre-defined safe query templates with parameterized queries
+    //
+    // Reference: Implementation Plan 2025-11-18, Issue P0-1
+    throw this.forbiddenError(
+      'Direct SQL query execution is disabled for security reasons. ' +
+      'Please use the Database Browser interface or contact system administrator.'
+    );
   }
 }

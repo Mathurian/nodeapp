@@ -40,8 +40,12 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 
     if (!user) {
       // Cache miss - fetch from database
-      user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
+      // SECURITY FIX: Add tenantId filter to prevent cross-tenant authentication bypass
+      user = await prisma.user.findFirst({
+        where: {
+          id: decoded.userId,
+          tenantId: decoded.tenantId
+        },
         include: {
           judge: true,
           contestant: true
@@ -54,6 +58,11 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       }
     } else {
       fromCache = true;
+      // SECURITY FIX: Validate tenantId for cached users to prevent cross-tenant access
+      if (user.tenantId !== decoded.tenantId) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+      }
     }
 
     if (!user) {

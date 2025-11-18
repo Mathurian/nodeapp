@@ -81,7 +81,8 @@ router.get("/database/tables", requireRole(["ADMIN"]), getDatabaseTables)
  *       200:
  *         description: Query executed successfully
  */
-router.post("/database/query", requireRole(["ADMIN"]), logActivity("EXECUTE_DATABASE_QUERY", "DATABASE"), executeDatabaseQuery)
+// SECURITY FIX: Route disabled due to SQL injection vulnerability (P0-1)
+// router.post("/database/query", requireRole(["ADMIN"]), logActivity("EXECUTE_DATABASE_QUERY", "DATABASE"), executeDatabaseQuery)
 router.use(requireRole(['ADMIN', 'ORGANIZER', 'BOARD']))
 
 /**
