@@ -7,6 +7,7 @@ import { Score, PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, NotFoundError, ValidationError, ForbiddenError, ConflictError } from './BaseService';
 import { ScoreRepository } from '../repositories/ScoreRepository';
+import { CacheService } from './CacheService';
 
 export interface SubmitScoreDTO {
   categoryId: string;
@@ -26,9 +27,32 @@ export interface UpdateScoreDTO {
 export class ScoringService extends BaseService {
   constructor(
     @inject(ScoreRepository) private scoreRepository: ScoreRepository,
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject('CacheService') private cacheService: CacheService
   ) {
     super();
+  }
+
+  /**
+   * P2-3: Invalidate score caches
+   */
+  private async invalidateScoreCaches(categoryId?: string, judgeId?: string, contestantId?: string, contestId?: string): Promise<void> {
+    // Invalidate all score list caches
+    await this.cacheService.invalidatePattern('scores:*');
+
+    // Invalidate specific caches if IDs provided
+    if (categoryId) {
+      await this.cacheService.del(`scores:category:${categoryId}`);
+    }
+    if (judgeId) {
+      await this.cacheService.del(`scores:judge:${judgeId}`);
+    }
+    if (contestantId) {
+      await this.cacheService.del(`scores:contestant:${contestantId}`);
+    }
+    if (contestId) {
+      await this.cacheService.del(`scores:contest:${contestId}`);
+    }
   }
 
   /**
@@ -261,6 +285,9 @@ export class ScoringService extends BaseService {
         score
       });
 
+      // P2-3: Invalidate score caches
+      await this.invalidateScoreCaches(categoryId, judgeId, contestantId);
+
       return newScore;
     } catch (error) {
       this.handleError(error, { method: 'submitScore', data });
@@ -329,6 +356,14 @@ export class ScoringService extends BaseService {
       } as any);
 
       this.logInfo('Score updated successfully', { scoreId });
+
+      // P2-3: Invalidate score caches
+      await this.invalidateScoreCaches(
+        existingScore!.categoryId,
+        existingScore!.judgeId,
+        existingScore!.contestantId
+      );
+
       return updatedScore;
     } catch (error) {
       this.handleError(error, { method: 'updateScore', scoreId, data });
@@ -346,6 +381,13 @@ export class ScoringService extends BaseService {
       await this.scoreRepository.delete(scoreId);
 
       this.logInfo('Score deleted successfully', { scoreId });
+
+      // P2-3: Invalidate score caches
+      await this.invalidateScoreCaches(
+        score!.categoryId,
+        score!.judgeId,
+        score!.contestantId
+      );
     } catch (error) {
       this.handleError(error, { method: 'deleteScore', scoreId });
     }
@@ -416,6 +458,14 @@ export class ScoringService extends BaseService {
       } as any);
 
       this.logInfo('Score certified successfully', { scoreId, certifiedBy });
+
+      // P2-3: Invalidate score caches
+      await this.invalidateScoreCaches(
+        score!.categoryId,
+        score!.judgeId,
+        score!.contestantId
+      );
+
       return certifiedScore;
     } catch (error) {
       this.handleError(error, { method: 'certifyScore', scoreId });
@@ -444,6 +494,9 @@ export class ScoringService extends BaseService {
         certified: result.count,
         certifiedBy
       });
+
+      // P2-3: Invalidate score caches for the category
+      await this.invalidateScoreCaches(categoryId);
 
       return { certified: result.count };
     } catch (error) {
@@ -516,6 +569,14 @@ export class ScoringService extends BaseService {
       } as any);
 
       this.logInfo('Score unsigned successfully', { scoreId });
+
+      // P2-3: Invalidate score caches
+      await this.invalidateScoreCaches(
+        score!.categoryId,
+        score!.judgeId,
+        score!.contestantId
+      );
+
       return unsignedScore;
     } catch (error) {
       this.handleError(error, { method: 'unsignScore', scoreId });

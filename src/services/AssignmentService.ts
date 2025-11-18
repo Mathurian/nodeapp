@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient, AssignmentStatus } from '@prisma/client';
 import { BaseService } from './BaseService';
+import { CacheService } from './CacheService';
 
 export interface CreateAssignmentInput {
   judgeId: string;
@@ -27,8 +28,31 @@ export interface AssignmentFilters {
 
 @injectable()
 export class AssignmentService extends BaseService {
-  constructor(@inject('PrismaClient') private prisma: PrismaClient) {
+  constructor(
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject('CacheService') private cacheService: CacheService
+  ) {
     super();
+  }
+
+  /**
+   * P2-3: Cache key generator
+   */
+  private getCacheKey(id: string): string {
+    return `assignment:${id}`;
+  }
+
+  /**
+   * P2-3: Invalidate assignment caches
+   */
+  private async invalidateAssignmentCaches(judgeId?: string, categoryId?: string): Promise<void> {
+    await this.cacheService.invalidatePattern('assignments:list:*');
+    if (judgeId) {
+      await this.cacheService.del(`assignments:judge:${judgeId}`);
+    }
+    if (categoryId) {
+      await this.cacheService.del(`assignments:category:${categoryId}`);
+    }
   }
 
   /**
@@ -36,6 +60,13 @@ export class AssignmentService extends BaseService {
    * Includes both Assignment records and CategoryJudge relationships
    */
   async getAllAssignments(filters: AssignmentFilters): Promise<any[]> {
+    // P2-3: Check cache
+    const cacheKey = `assignments:list:${JSON.stringify(filters)}`;
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     // Get Assignment records
     const assignments: any = await this.prisma.assignment.findMany({
       where: {
@@ -197,7 +228,12 @@ export class AssignmentService extends BaseService {
       assignmentMap.set(key, assignment);
     });
 
-    return Array.from(assignmentMap.values());
+    const result = Array.from(assignmentMap.values());
+
+    // P2-3: Cache result (TTL: 15 min)
+    await this.cacheService.set(cacheKey, result, 900);
+
+    return result;
   }
 
   /**
@@ -278,7 +314,7 @@ export class AssignmentService extends BaseService {
       tenantId = judge.tenantId;
     }
 
-    return await this.prisma.assignment.create({
+    const assignment = await this.prisma.assignment.create({
       data: {
         tenantId,
         judgeId: data.judgeId,
@@ -299,6 +335,11 @@ export class AssignmentService extends BaseService {
         assignedByUser: true,
       } as any,
     });
+
+    // P2-3: Invalidate assignment caches
+    await this.invalidateAssignmentCaches(data.judgeId, data.categoryId);
+
+    return assignment;
   }
 
   /**
@@ -338,7 +379,7 @@ export class AssignmentService extends BaseService {
       throw this.createNotFoundError('Assignment not found');
     }
 
-    return await this.prisma.assignment.update({
+    const updated = await this.prisma.assignment.update({
       where: { id },
       data,
       include: {
@@ -349,6 +390,11 @@ export class AssignmentService extends BaseService {
         assignedByUser: true,
       } as any,
     });
+
+    // P2-3: Invalidate assignment caches
+    await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId);
+
+    return updated;
   }
 
   /**
@@ -366,13 +412,23 @@ export class AssignmentService extends BaseService {
     await this.prisma.assignment.delete({
       where: { id },
     });
+
+    // P2-3: Invalidate assignment caches
+    await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId);
   }
 
   /**
    * Get assignments for a judge
    */
   async getAssignmentsForJudge(judgeId: string): Promise<any[]> {
-    return await this.prisma.assignment.findMany({
+    // P2-3: Check cache
+    const cacheKey = `assignments:judge:${judgeId}`;
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const assignments = await this.prisma.assignment.findMany({
       where: { judgeId },
       include: {
         category: true,
@@ -381,13 +437,25 @@ export class AssignmentService extends BaseService {
       } ,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
+
+    // P2-3: Cache result (TTL: 15 min)
+    await this.cacheService.set(cacheKey, assignments, 900);
+
+    return assignments;
   }
 
   /**
    * Get assignments for a category
    */
   async getAssignmentsForCategory(categoryId: string): Promise<any[]> {
-    return await this.prisma.assignment.findMany({
+    // P2-3: Check cache
+    const cacheKey = `assignments:category:${categoryId}`;
+    const cached = await this.cacheService.get<any[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const assignments = await this.prisma.assignment.findMany({
       where: { categoryId },
       include: {
         judge: true,
@@ -395,6 +463,11 @@ export class AssignmentService extends BaseService {
       } ,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
+
+    // P2-3: Cache result (TTL: 15 min)
+    await this.cacheService.set(cacheKey, assignments, 900);
+
+    return assignments;
   }
 
   /**
@@ -450,6 +523,13 @@ export class AssignmentService extends BaseService {
 
         assignedCount++;
       }
+    }
+
+    // P2-3: Invalidate assignment caches for all affected judges and category
+    await this.cacheService.invalidatePattern('assignments:list:*');
+    await this.cacheService.del(`assignments:category:${categoryId}`);
+    for (const judgeId of judgeIds) {
+      await this.cacheService.del(`assignments:judge:${judgeId}`);
     }
 
     return assignedCount;
