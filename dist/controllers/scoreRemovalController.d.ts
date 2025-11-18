@@ -8,12 +8,12 @@ export declare class ScoreRemovalController {
         [x: symbol]: never;
     } & {
         id: string;
-        judgeId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string;
+        tenantId: string;
+        createdAt: Date;
         reason: string;
+        judgeId: string;
+        updatedAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         requestedBy: string;
@@ -33,12 +33,12 @@ export declare class ScoreRemovalController {
         requestedByUser: never;
     } & {
         id: string;
-        judgeId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string;
+        tenantId: string;
+        createdAt: Date;
         reason: string;
+        judgeId: string;
+        updatedAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         requestedBy: string;
@@ -58,12 +58,12 @@ export declare class ScoreRemovalController {
         requestedByUser: never;
     } & {
         id: string;
-        judgeId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string;
+        tenantId: string;
+        createdAt: Date;
         reason: string;
+        judgeId: string;
+        updatedAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         requestedBy: string;
@@ -83,12 +83,12 @@ export declare class ScoreRemovalController {
             judge: never;
         } & {
             id: string;
-            judgeId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
             categoryId: string;
+            tenantId: string;
+            createdAt: Date;
             reason: string;
+            judgeId: string;
+            updatedAt: Date;
             status: import(".prisma/client").$Enums.RequestStatus;
             requestedAt: Date;
             requestedBy: string;
@@ -114,12 +114,12 @@ export declare const createScoreRemovalRequest: (req: Request, res: Response, ne
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    tenantId: string;
     categoryId: string;
+    tenantId: string;
+    createdAt: Date;
     reason: string;
+    judgeId: string;
+    updatedAt: Date;
     status: import(".prisma/client").$Enums.RequestStatus;
     requestedAt: Date;
     requestedBy: string;
@@ -139,12 +139,12 @@ export declare const getScoreRemovalRequests: (req: Request, res: Response, next
     requestedByUser: never;
 } & {
     id: string;
-    judgeId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    tenantId: string;
     categoryId: string;
+    tenantId: string;
+    createdAt: Date;
     reason: string;
+    judgeId: string;
+    updatedAt: Date;
     status: import(".prisma/client").$Enums.RequestStatus;
     requestedAt: Date;
     requestedBy: string;
@@ -164,12 +164,12 @@ export declare const getScoreRemovalRequest: (req: Request, res: Response, next:
     requestedByUser: never;
 } & {
     id: string;
-    judgeId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    tenantId: string;
     categoryId: string;
+    tenantId: string;
+    createdAt: Date;
     reason: string;
+    judgeId: string;
+    updatedAt: Date;
     status: import(".prisma/client").$Enums.RequestStatus;
     requestedAt: Date;
     requestedBy: string;
@@ -189,12 +189,12 @@ export declare const signScoreRemovalRequest: (req: Request, res: Response, next
         judge: never;
     } & {
         id: string;
-        judgeId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string;
+        tenantId: string;
+        createdAt: Date;
         reason: string;
+        judgeId: string;
+        updatedAt: Date;
         status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         requestedBy: string;

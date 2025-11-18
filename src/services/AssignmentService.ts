@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AssignmentStatus } from '@prisma/client';
 import { BaseService } from './BaseService';
 
 export interface CreateAssignmentInput {
@@ -12,7 +12,7 @@ export interface CreateAssignmentInput {
 }
 
 export interface UpdateAssignmentInput {
-  status?: string;
+  status?: AssignmentStatus;
   notes?: string;
   priority?: number;
 }
@@ -437,6 +437,7 @@ export class AssignmentService extends BaseService {
       if (!existingAssignment) {
         await this.prisma.assignment.create({
           data: {
+            tenantId: category.tenantId,
             judgeId,
             categoryId,
             contestId: category.contestId,

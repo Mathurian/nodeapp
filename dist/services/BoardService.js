@@ -207,8 +207,8 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
             where: { id: requestId },
             data: {
                 status: 'APPROVED',
-                approvedAt: new Date(),
-                reason,
+                reviewedAt: new Date(),
+                reviewedById: userId,
             },
         });
         return updatedRequest;
@@ -218,8 +218,8 @@ let BoardService = class BoardService extends BaseService_1.BaseService {
             where: { id: requestId },
             data: {
                 status: 'REJECTED',
-                rejectedAt: new Date(),
-                reason,
+                reviewedAt: new Date(),
+                reviewedById: userId,
             },
         });
         return updatedRequest;

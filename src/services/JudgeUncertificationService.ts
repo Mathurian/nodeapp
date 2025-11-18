@@ -127,7 +127,7 @@ export class JudgeUncertificationService extends BaseService {
 
     await this.prisma.judgeUncertificationRequest.update({
       where: { id },
-      data: { status: 'COMPLETED' }
+      data: { status: 'APPROVED' }
     });
 
     return { message: 'Uncertification executed successfully' };

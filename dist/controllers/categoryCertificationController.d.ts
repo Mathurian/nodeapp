@@ -22,13 +22,13 @@ export declare class CategoryCertificationController {
     }>, Record<string, any>>>;
     certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
-        role: string;
-        tenantId: string;
         categoryId: string;
-        certifiedAt: Date;
+        role: string;
         userId: string;
-        comments: string | null;
         signatureName: string | null;
+        certifiedAt: Date;
+        comments: string | null;
+        tenantId: string;
     }>, Record<string, any>>>;
     certifyContestant: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
     certifyJudgeScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
@@ -52,13 +52,13 @@ export declare const getCategoryCertificationProgress: (req: Request, res: Respo
 }>, Record<string, any>>>;
 export declare const certifyCategory: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
-    role: string;
-    tenantId: string;
     categoryId: string;
-    certifiedAt: Date;
+    role: string;
     userId: string;
-    comments: string | null;
     signatureName: string | null;
+    certifiedAt: Date;
+    comments: string | null;
+    tenantId: string;
 }>, Record<string, any>>>;
 export declare const certifyContestant: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 export declare const certifyJudgeScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;

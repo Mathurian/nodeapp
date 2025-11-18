@@ -46,7 +46,7 @@ export class ResultsService extends BaseService {
     const { userRole, userId, offset = 0, limit = 50 } = filter;
 
     let whereClause: any = {};
-    const selectClause = {
+    const selectClause: any = {
       id: true,
       score: true,
       comment: true,
@@ -204,7 +204,7 @@ export class ResultsService extends BaseService {
     // Calculate totals for each result
     const resultsWithTotals = await Promise.all(
       results.map(async (result) => {
-        const categoryScores = await this.prisma.score.findMany({
+        const categoryScores: any = await this.prisma.score.findMany({
           where: {
             categoryId: result.categoryId,
             contestantId: result.contestantId,
@@ -233,7 +233,7 @@ export class ResultsService extends BaseService {
                 updatedAt: true,
               },
             },
-          },
+          } as any,
         });
 
         const earned = categoryScores.reduce((sum, s) => sum + (s.score || 0), 0);
@@ -257,12 +257,12 @@ export class ResultsService extends BaseService {
    * Get all categories with related data
    */
   async getCategories() {
-    return await this.prisma.category.findMany({
+    return await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
       },
     });
@@ -309,12 +309,12 @@ export class ResultsService extends BaseService {
             contest: {
               include: {
                 event: true,
-              } as any,
+              },
             },
           },
         },
         judge: true,
-      },
+      } as any,
     });
   }
 
@@ -492,7 +492,7 @@ export class ResultsService extends BaseService {
             category: {
               contestId,
             },
-          },
+          } as any,
         });
 
         if (!hasScores) {
@@ -574,7 +574,7 @@ export class ResultsService extends BaseService {
                 eventId,
               },
             },
-          },
+          } as any,
         });
 
         if (!hasScores) {
@@ -591,11 +591,11 @@ export class ResultsService extends BaseService {
         category: {
           include: {
             contest: true,
-          } as any,
+          },
         },
         contestant: true,
         judge: true,
-      },
+      } as any,
     });
   }
 }

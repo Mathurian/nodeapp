@@ -347,6 +347,7 @@ let AssignmentService = class AssignmentService extends BaseService_1.BaseServic
             if (!existingAssignment) {
                 await this.prisma.assignment.create({
                     data: {
+                        tenantId: category.tenantId,
                         judgeId,
                         categoryId,
                         contestId: category.contestId,

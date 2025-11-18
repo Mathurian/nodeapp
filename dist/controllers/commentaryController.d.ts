@@ -8,12 +8,12 @@ export declare class CommentaryController {
         [x: symbol]: never;
     } & {
         id: string;
-        judgeId: string;
-        contestantId: string;
-        createdAt: Date;
-        updatedAt: Date;
         tenantId: string;
+        createdAt: Date;
+        contestantId: string;
+        judgeId: string;
         criterionId: string;
+        updatedAt: Date;
         comment: string;
         scoreId: string;
         isPrivate: boolean;
@@ -24,28 +24,28 @@ export declare class CommentaryController {
         [x: symbol]: never;
     } & {
         id: string;
-        judgeId: string;
-        contestantId: string;
-        createdAt: Date;
-        updatedAt: Date;
         tenantId: string;
+        createdAt: Date;
+        contestantId: string;
+        judgeId: string;
         criterionId: string;
+        updatedAt: Date;
         comment: string;
         scoreId: string;
         isPrivate: boolean;
     })[]>, Record<string, any>>>;
     getCommentsByContestant: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
+        score: never;
         judge: never;
         criterion: never;
-        score: never;
     } & {
         id: string;
-        judgeId: string;
-        contestantId: string;
-        createdAt: Date;
-        updatedAt: Date;
         tenantId: string;
+        createdAt: Date;
+        contestantId: string;
+        judgeId: string;
         criterionId: string;
+        updatedAt: Date;
         comment: string;
         scoreId: string;
         isPrivate: boolean;
@@ -56,12 +56,12 @@ export declare class CommentaryController {
         [x: symbol]: never;
     } & {
         id: string;
-        judgeId: string;
-        contestantId: string;
-        createdAt: Date;
-        updatedAt: Date;
         tenantId: string;
+        createdAt: Date;
+        contestantId: string;
+        judgeId: string;
         criterionId: string;
+        updatedAt: Date;
         comment: string;
         scoreId: string;
         isPrivate: boolean;
@@ -74,12 +74,12 @@ export declare const createComment: (req: Request, res: Response, next: NextFunc
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;
@@ -90,28 +90,28 @@ export declare const getCommentsForScore: (req: Request, res: Response, next: Ne
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;
 })[]>, Record<string, any>>>;
 export declare const getCommentsByContestant: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<({
+    score: never;
     judge: never;
     criterion: never;
-    score: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;
@@ -122,12 +122,12 @@ export declare const updateComment: (req: Request, res: Response, next: NextFunc
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;
@@ -139,12 +139,12 @@ export declare const createScoreComment: (req: Request, res: Response, next: Nex
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;
@@ -155,12 +155,12 @@ export declare const getScoreComments: (req: Request, res: Response, next: NextF
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;
@@ -171,12 +171,12 @@ export declare const updateScoreComment: (req: Request, res: Response, next: Nex
     [x: symbol]: never;
 } & {
     id: string;
-    judgeId: string;
-    contestantId: string;
-    createdAt: Date;
-    updatedAt: Date;
     tenantId: string;
+    createdAt: Date;
+    contestantId: string;
+    judgeId: string;
     criterionId: string;
+    updatedAt: Date;
     comment: string;
     scoreId: string;
     isPrivate: boolean;

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AssignmentStatus } from '@prisma/client';
 import { BaseService } from './BaseService';
 export interface CreateAssignmentInput {
     judgeId: string;
@@ -9,7 +9,7 @@ export interface CreateAssignmentInput {
     priority?: number;
 }
 export interface UpdateAssignmentInput {
-    status?: string;
+    status?: AssignmentStatus;
     notes?: string;
     priority?: number;
 }

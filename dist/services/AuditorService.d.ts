@@ -30,29 +30,29 @@ export declare class AuditorService extends BaseService {
         message: string;
         certification: {
             id: string;
-            role: string;
-            tenantId: string;
             categoryId: string;
-            certifiedAt: Date;
+            role: string;
             userId: string;
-            comments: string | null;
             signatureName: string | null;
+            certifiedAt: Date;
+            comments: string | null;
+            tenantId: string;
         };
     }>;
     rejectAudit(categoryId: string, userId: string, reason: string): Promise<{
         message: string;
         activityLog: {
             id: string;
-            createdAt: Date;
-            action: string;
             userId: string | null;
             userName: string | null;
             userRole: string | null;
+            action: string;
             resourceType: string | null;
             resourceId: string | null;
             ipAddress: string | null;
             userAgent: string | null;
             logLevel: import(".prisma/client").$Enums.LogLevel;
+            createdAt: Date;
             details: import("@prisma/client/runtime/library").JsonValue | null;
         };
     }>;
@@ -67,22 +67,22 @@ export declare class AuditorService extends BaseService {
         comments?: string;
         issues?: string;
     }): Promise<{
-        score: number | null;
         id: string;
-        judgeId: string;
-        contestantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        isLocked: boolean;
-        lockedAt: Date | null;
         categoryId: string;
-        criterionId: string | null;
-        allowCommentEdit: boolean;
         certifiedAt: Date | null;
+        tenantId: string;
+        createdAt: Date;
+        contestantId: string;
+        judgeId: string;
+        criterionId: string | null;
+        score: number | null;
+        updatedAt: Date;
+        allowCommentEdit: boolean;
         certifiedBy: string | null;
         comment: string | null;
         isCertified: boolean;
+        isLocked: boolean;
+        lockedAt: Date | null;
         lockedBy: string | null;
     }>;
     getTallyMasterStatus(categoryId: string): Promise<{

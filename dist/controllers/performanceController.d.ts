@@ -10,19 +10,19 @@ export declare class PerformanceController {
         minResponseTime: number;
         maxResponseTime: number;
         responseTimeDistribution: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-            _avg: {
-                responseTime: number;
-            };
             _count: {
                 id: number;
+            };
+            _avg: {
+                responseTime: number;
             };
         })[];
         slowEndpoints: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "endpoint"[]> & {
-            _avg: {
-                responseTime: number;
-            };
             _count: {
                 id: number;
+            };
+            _avg: {
+                responseTime: number;
             };
         })[];
         errorStats: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
@@ -71,13 +71,13 @@ export declare class PerformanceController {
     getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         logs: {
             id: string;
-            createdAt: Date;
             categoryId: string | null;
-            eventId: string | null;
-            contestId: string | null;
             userId: string | null;
             ipAddress: string | null;
             userAgent: string | null;
+            createdAt: Date;
+            contestId: string | null;
+            eventId: string | null;
             endpoint: string;
             method: string;
             responseTime: number;
@@ -104,19 +104,19 @@ export declare const getPerformanceStats: (req: Request, res: Response, next: Ne
     minResponseTime: number;
     maxResponseTime: number;
     responseTimeDistribution: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-        _avg: {
-            responseTime: number;
-        };
         _count: {
             id: number;
+        };
+        _avg: {
+            responseTime: number;
         };
     })[];
     slowEndpoints: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "endpoint"[]> & {
-        _avg: {
-            responseTime: number;
-        };
         _count: {
             id: number;
+        };
+        _avg: {
+            responseTime: number;
         };
     })[];
     errorStats: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
@@ -165,13 +165,13 @@ export declare const getSystemMetrics: (_req: Request, res: Response, next: Next
 export declare const getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     logs: {
         id: string;
-        createdAt: Date;
         categoryId: string | null;
-        eventId: string | null;
-        contestId: string | null;
         userId: string | null;
         ipAddress: string | null;
         userAgent: string | null;
+        createdAt: Date;
+        contestId: string | null;
+        eventId: string | null;
         endpoint: string;
         method: string;
         responseTime: number;

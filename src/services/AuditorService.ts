@@ -16,10 +16,10 @@ export class AuditorService extends BaseService {
    */
   async getStats() {
     const totalCategories = await this.prisma.category.count();
-    const categoriesWithCertifications: any = await this.prisma.category.findMany({
+    const categoriesWithCertifications: any = await (this.prisma.category.findMany as any)({
       include: {
         categoryCertifications: true,
-      } as any,
+      },
     });
 
     const pendingAudits = categoriesWithCertifications.filter((c: any) => {

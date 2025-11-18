@@ -18,10 +18,10 @@ export class BoardService extends BaseService {
     const totalContests = await this.prisma.contest.count();
     const totalCategories = await this.prisma.category.count();
 
-    const categories: any = await this.prisma.category.findMany({
+    const categories: any = await (this.prisma.category.findMany as any)({
       include: {
         certifications: true,
-      } as any,
+      },
     });
 
     const certified = categories.filter((cat: any) => cat.certifications.some((cert: any) => cert.type === 'FINAL')).length;
@@ -124,7 +124,7 @@ export class BoardService extends BaseService {
    * Get certification status summary
    */
   async getCertificationStatus() {
-    const categories: any = await this.prisma.category.findMany({
+    const categories: any = await (this.prisma.category.findMany as any)({
       include: {
         certifications: {
           where: {
@@ -133,7 +133,7 @@ export class BoardService extends BaseService {
             },
           },
         },
-      } as any,
+      },
     });
 
     const status = {
@@ -294,8 +294,8 @@ export class BoardService extends BaseService {
       where: { id: requestId },
       data: {
         status: 'APPROVED',
-        approvedAt: new Date(),
-        reason,
+        reviewedAt: new Date(),
+        reviewedById: userId,
       },
     });
 
@@ -310,8 +310,8 @@ export class BoardService extends BaseService {
       where: { id: requestId },
       data: {
         status: 'REJECTED',
-        rejectedAt: new Date(),
-        reason,
+        reviewedAt: new Date(),
+        reviewedById: userId,
       },
     });
 

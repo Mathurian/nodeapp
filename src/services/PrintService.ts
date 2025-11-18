@@ -491,7 +491,7 @@ export class PrintService extends BaseService {
     await browser.close();
 
     return {
-      content: pdfBuffer,
+      content: Buffer.from(pdfBuffer),
       contentType: 'application/pdf',
       filename: `${filename}.pdf`,
     };

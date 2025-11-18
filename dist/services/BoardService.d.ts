@@ -26,15 +26,15 @@ export declare class BoardService extends BaseService {
     }>;
     getEmceeScripts(): Promise<{
         id: string;
+        categoryId: string | null;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
         contestId: string | null;
+        eventId: string | null;
         title: string;
-        order: number | null;
         content: string;
+        order: number | null;
         file_path: string | null;
     }[]>;
     createEmceeScript(data: {
@@ -50,15 +50,15 @@ export declare class BoardService extends BaseService {
         tenantId: string;
     }): Promise<{
         id: string;
+        categoryId: string | null;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
         contestId: string | null;
+        eventId: string | null;
         title: string;
-        order: number | null;
         content: string;
+        order: number | null;
         file_path: string | null;
     }>;
     updateEmceeScript(scriptId: string, data: {
@@ -73,15 +73,15 @@ export declare class BoardService extends BaseService {
         isActive?: boolean;
     }): Promise<{
         id: string;
+        categoryId: string | null;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
         contestId: string | null;
+        eventId: string | null;
         title: string;
-        order: number | null;
         content: string;
+        order: number | null;
         file_path: string | null;
     }>;
     deleteEmceeScript(scriptId: string): Promise<{
@@ -98,11 +98,11 @@ export declare class BoardService extends BaseService {
     }>;
     approveScoreRemoval(requestId: string, userId: string, reason?: string): Promise<{
         id: string;
-        judgeId: string;
-        contestantId: string;
-        tenantId: string;
         categoryId: string;
+        tenantId: string;
         reason: string;
+        contestantId: string;
+        judgeId: string;
         status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         reviewedAt: Date | null;
@@ -110,11 +110,11 @@ export declare class BoardService extends BaseService {
     }>;
     rejectScoreRemoval(requestId: string, userId: string, reason?: string): Promise<{
         id: string;
-        judgeId: string;
-        contestantId: string;
-        tenantId: string;
         categoryId: string;
+        tenantId: string;
         reason: string;
+        contestantId: string;
+        judgeId: string;
         status: import(".prisma/client").$Enums.RequestStatus;
         requestedAt: Date;
         reviewedAt: Date | null;
