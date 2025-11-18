@@ -265,4 +265,44 @@ export class EventRepository extends BaseRepository<Event> {
       }
     });
   }
+
+  /**
+   * Find all events with pagination
+   */
+  async findAllPaginated(options: PaginationOptions): Promise<PaginatedResult<Event>> {
+    return this.findManyPaginated({}, options);
+  }
+
+  /**
+   * Find active events with pagination
+   */
+  async findActiveEventsPaginated(options: PaginationOptions): Promise<PaginatedResult<Event>> {
+    return this.findManyPaginated(
+      { archived: false },
+      { ...options, orderBy: options.orderBy || { startDate: 'desc' } }
+    );
+  }
+
+  /**
+   * Find archived events with pagination
+   */
+  async findArchivedEventsPaginated(options: PaginationOptions): Promise<PaginatedResult<Event>> {
+    return this.findManyPaginated(
+      { archived: true },
+      { ...options, orderBy: options.orderBy || { startDate: 'desc' } }
+    );
+  }
+
+  /**
+   * Search events with pagination
+   */
+  async searchEventsPaginated(query: string, options: PaginationOptions): Promise<PaginatedResult<Event>> {
+    return this.findManyPaginated({
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
+        { location: { contains: query, mode: 'insensitive' } }
+      ]
+    }, options);
+  }
 }
