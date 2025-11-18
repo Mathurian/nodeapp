@@ -14,6 +14,18 @@ import {
   createPaginatedResponse
 } from '../utils/pagination';
 
+// Type definitions
+export interface ValidationErrorDetails {
+  field: string;
+  message: string;
+  rule: string;
+  value?: unknown;
+}
+
+export interface SanitizedUser {
+  [key: string]: unknown;
+}
+
 /**
  * Service Error
  */
@@ -22,7 +34,7 @@ export class ServiceError extends Error {
     message: string,
     public statusCode: number = 500,
     public code?: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'ServiceError';
@@ -34,7 +46,7 @@ export class ServiceError extends Error {
  * Validation Error
  */
 export class ValidationError extends ServiceError {
-  constructor(message: string, public validationErrors?: any[]) {
+  constructor(message: string, public validationErrors?: ValidationErrorDetails[]) {
     super(message, 422, 'VALIDATION_ERROR', validationErrors);
     this.name = 'ValidationError';
     Object.setPrototypeOf(this, ValidationError.prototype);
@@ -95,7 +107,7 @@ export abstract class BaseService {
   /**
    * Handle service errors
    */
-  protected handleError(error: any, context?: any): never {
+  protected handleError(error: unknown, context?: Record<string, unknown>): never {
     // Log the error
     const severity = this.getErrorSeverity(error);
     trackError(error, severity, context);
@@ -106,8 +118,9 @@ export abstract class BaseService {
     }
 
     // Wrap other errors
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     throw new ServiceError(
-      error.message || 'An unexpected error occurred',
+      errorMessage,
       500,
       'INTERNAL_ERROR',
       error
@@ -117,7 +130,7 @@ export abstract class BaseService {
   /**
    * Determine error severity
    */
-  protected getErrorSeverity(error: any): ErrorSeverity {
+  protected getErrorSeverity(error: unknown): ErrorSeverity {
     if (error instanceof ValidationError) {
       return ErrorSeverity.LOW;
     }
@@ -136,7 +149,7 @@ export abstract class BaseService {
   /**
    * Validate required fields
    */
-  protected validateRequired(data: any, fields: string[]): void {
+  protected validateRequired(data: Record<string, unknown>, fields: string[]): void {
     const missing: string[] = [];
 
     fields.forEach(field => {
@@ -197,7 +210,7 @@ export abstract class BaseService {
   /**
    * Create Validation Error
    */
-  protected validationError(message: string, validationErrors?: any[]): ValidationError {
+  protected validationError(message: string, validationErrors?: ValidationErrorDetails[]): ValidationError {
     return new ValidationError(message, validationErrors);
   }
 
@@ -234,9 +247,13 @@ export abstract class BaseService {
   /**
    * Sanitize data for response (remove sensitive fields)
    */
-  protected sanitizeUser(user: any): any {
-    const { password, resetToken, resetTokenExpiry, ...sanitized } = user;
-    return sanitized;
+  protected sanitizeUser<T extends Record<string, unknown>>(user: T): Omit<T, 'password' | 'resetToken' | 'resetTokenExpiry'> {
+    const { password, resetToken, resetTokenExpiry, ...sanitized } = user as T & {
+      password?: unknown;
+      resetToken?: unknown;
+      resetTokenExpiry?: unknown;
+    };
+    return sanitized as Omit<T, 'password' | 'resetToken' | 'resetTokenExpiry'>;
   }
 
   /**
@@ -279,7 +296,7 @@ export abstract class BaseService {
     maxRetries: number = 3,
     delay: number = 1000
   ): Promise<T> {
-    let lastError: any;
+    let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -314,21 +331,21 @@ export abstract class BaseService {
   /**
    * Log info
    */
-  protected logInfo(message: string, data?: any): void {
+  protected logInfo(message: string, data?: Record<string, unknown>): void {
     console.log(`[${this.constructor.name}] ${message}`, data || '');
   }
 
   /**
    * Log warning
    */
-  protected logWarn(message: string, data?: any): void {
+  protected logWarn(message: string, data?: Record<string, unknown>): void {
     console.warn(`[${this.constructor.name}] ${message}`, data || '');
   }
 
   /**
    * Log debug
    */
-  protected logDebug(message: string, data?: any): void {
+  protected logDebug(message: string, data?: Record<string, unknown>): void {
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[${this.constructor.name}] DEBUG: ${message}`, data || '');
     }
@@ -337,7 +354,7 @@ export abstract class BaseService {
   /**
    * Log error
    */
-  protected logError(message: string, error?: any): void {
+  protected logError(message: string, error?: unknown): void {
     console.error(`[${this.constructor.name}] ${message}`, error || '');
   }
 
