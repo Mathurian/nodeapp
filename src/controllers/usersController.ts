@@ -113,7 +113,7 @@ export class UsersController {
       }
 
       // Create user with role-specific data
-      const userData = {
+      const userData: Record<string, any> = {
         name: data.name,
         email: data.email,
         password: data.password,
