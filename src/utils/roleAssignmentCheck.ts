@@ -27,22 +27,21 @@ export const hasCategoryAssignment = async (userId: string, role: string, catego
     where: { id: categoryId },
     select: {
       id: true,
-      contestId: true,
-      contest: {
-        select: {
-          id: true,
-          eventId: true,
-          event: {
-            select: {
-              id: true
-            }
-          }
-        }
-      }
+      contestId: true
     }
   })
 
   if (!category) {
+    return false
+  }
+
+  // Get contest to find event ID
+  const contest = await prisma.contest.findUnique({
+    where: { id: category.contestId },
+    select: { eventId: true }
+  })
+
+  if (!contest) {
     return false
   }
 
@@ -55,7 +54,7 @@ export const hasCategoryAssignment = async (userId: string, role: string, catego
       OR: [
         { categoryId },
         { contestId: category.contestId },
-        { eventId: category.contest.eventId }
+        { eventId: contest.eventId }
       ]
     }
   })
@@ -80,8 +79,8 @@ export const hasContestAssignment = async (userId: string, role: string, contest
   // Get contest to find event ID
   const contest = await prisma.contest.findUnique({
     where: { id: contestId },
-    include: {
-      event: true
+    select: {
+      eventId: true
     }
   })
 
