@@ -102,7 +102,7 @@ export function createPaginatedResponse<T>(
  * @param query - Request query parameters
  * @returns Parsed pagination options
  */
-export function parsePaginationQuery(query: any): PaginationOptions {
+export function parsePaginationQuery(query: Record<string, unknown>): PaginationOptions {
   return {
     page: query.page ? parseInt(String(query.page), 10) : undefined,
     limit: query.limit ? parseInt(String(query.limit), 10) : undefined

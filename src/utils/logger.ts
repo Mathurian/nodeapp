@@ -61,7 +61,7 @@ const loadLogLevels = async () => {
     }
     
     // Override with database values
-    settings.forEach((setting: any) => {
+    settings.forEach((setting: { key: string; value: string }) => {
       const key = setting.key.replace('logging_', '');
       if (key in logLevelCache) {
         (logLevelCache as Record<string, string>)[key] = setting.value;
@@ -113,7 +113,7 @@ const formatDate = (date: Date, formatStr: string): string => {
 }
 
 // Write log to file
-const writeToFile = async (level: string, category: string, message: string, meta: any = {}): Promise<void> => {
+const writeToFile = async (level: string, category: string, message: string, meta: Record<string, unknown> = {}): Promise<void> => {
   // Skip file writing if disabled (e.g., in test environment with permission issues)
   if (DISABLE_FILE_LOGGING) {
     return;
@@ -165,7 +165,7 @@ class Logger {
     this.category = category;
   }
 
-  async log(level: string, message: string, meta: any = {}) {
+  async log(level: string, message: string, meta: Record<string, unknown> = {}) {
     // Check if we should log this message
     if (!shouldLog(level, this.category)) {
       return
@@ -191,19 +191,19 @@ class Logger {
     });
   }
 
-  error(message: string, meta: any = {}) {
+  error(message: string, meta: Record<string, unknown> = {}) {
     return this.log('ERROR', message, meta)
   }
 
-  warn(message: string, meta: any = {}) {
+  warn(message: string, meta: Record<string, unknown> = {}) {
     return this.log('WARN', message, meta)
   }
 
-  info(message: string, meta: any = {}) {
+  info(message: string, meta: Record<string, unknown> = {}) {
     return this.log('INFO', message, meta)
   }
 
-  debug(message: string, meta: any = {}) {
+  debug(message: string, meta: Record<string, unknown> = {}) {
     return this.log('DEBUG', message, meta)
   }
 }
@@ -214,11 +214,11 @@ loadLogLevels().catch(err => {
 })
 
 // Create a request-aware logger that includes user context
-const createRequestLogger = (req: any, category: string = 'default') => {
+const createRequestLogger = (req: Record<string, unknown>, category: string = 'default') => {
   const baseLogger = new Logger(category);
-  
+
   // Safely get request metadata
-  const getRequestMeta = (meta: any = {}) => {
+  const getRequestMeta = (meta: Record<string, unknown> = {}) => {
     if (!req || typeof req !== 'object') {
       return meta
     }
@@ -237,19 +237,19 @@ const createRequestLogger = (req: any, category: string = 'default') => {
   }
   
   return {
-    error: (message: string, meta: any = {}) => {
+    error: (message: string, meta: Record<string, unknown> = {}) => {
       return baseLogger.error(message, getRequestMeta(meta));
     },
-    warn: (message: string, meta: any = {}) => {
+    warn: (message: string, meta: Record<string, unknown> = {}) => {
       return baseLogger.warn(message, getRequestMeta(meta));
     },
-    info: (message: string, meta: any = {}) => {
+    info: (message: string, meta: Record<string, unknown> = {}) => {
       return baseLogger.info(message, getRequestMeta(meta));
     },
-    debug: (message: string, meta: any = {}) => {
+    debug: (message: string, meta: Record<string, unknown> = {}) => {
       return baseLogger.debug(message, getRequestMeta(meta));
     },
-    log: (level: string, message: string, meta: any = {}) => {
+    log: (level: string, message: string, meta: Record<string, unknown> = {}) => {
       return baseLogger.log(level, message, getRequestMeta(meta));
     }
   };

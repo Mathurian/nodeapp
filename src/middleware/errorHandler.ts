@@ -49,7 +49,7 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
                   path: req.path,
                   timestamp: new Date().toISOString(),
                   // Include relevant request data
-                  body: req.body ? Object.keys(req.body).reduce((acc: Record<string, any>, key: string) => {
+                  body: req.body ? Object.keys(req.body).reduce((acc: Record<string, unknown>, key: string) => {
                     // Exclude sensitive fields from logging
                     // SECURITY FIX: Case-insensitive field filtering with comprehensive list
                     const sensitiveFields = [
@@ -89,12 +89,13 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
   }
 }
 
-const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction): void => {
+const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction): void => {
   // Enhanced error tracking and monitoring
+  const error = err as { message?: string; name?: string; stack?: string; statusCode?: number; code?: string };
   const errorDetails = {
-    message: err.message,
-    name: err.name,
-    stack: err.stack,
+    message: error.message || 'Unknown error',
+    name: error.name || 'Error',
+    stack: error.stack,
     timestamp: new Date().toISOString(),
     requestId: req.id || (req.headers['x-request-id'] as string) || null,
     userId: req.user?.id || null,
@@ -108,11 +109,11 @@ const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction
   console.error('[ERROR]', {
     ...errorDetails,
     // Exclude stack trace from console in production
-    stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+    stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
   })
 
   // Log critical errors to database asynchronously
-  if (err.statusCode >= 500 || !err.statusCode) {
+  if ((error.statusCode && error.statusCode >= 500) || !error.statusCode) {
     setImmediate(async () => {
       try {
         // Use ActivityLog instead of errorLog (which doesn't exist in schema)
@@ -124,10 +125,10 @@ const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction
           data: {
             action: 'ERROR',
             details: JSON.stringify({
-              message: err.message,
-              name: err.name,
-              stack: err.stack,
-              statusCode: err.statusCode || 500,
+              message: error.message,
+              name: error.name,
+              stack: error.stack,
+              statusCode: error.statusCode || 500,
               method: req.method,
               path: req.path,
               ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
@@ -152,49 +153,49 @@ const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction
   }
 
   // Handle specific error types
-  if (err.name === 'ValidationError') {
+  if (error.name === 'ValidationError') {
     res.status(400).json({
       success: false,
       error: 'Validation error',
-      details: err.message,
+      details: error.message,
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  if (err.name === 'UnauthorizedError' || err.statusCode === 401) {
+  if (error.name === 'UnauthorizedError' || error.statusCode === 401) {
     res.status(401).json({
       success: false,
       error: 'Unauthorized',
-      message: err.message || 'Authentication required',
+      message: error.message || 'Authentication required',
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  if (err.name === 'ForbiddenError' || err.statusCode === 403) {
+  if (error.name === 'ForbiddenError' || error.statusCode === 403) {
     res.status(403).json({
       success: false,
       error: 'Forbidden',
-      message: err.message || 'You do not have permission to access this resource',
+      message: error.message || 'You do not have permission to access this resource',
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  if (err.name === 'NotFoundError' || err.statusCode === 404) {
+  if (error.name === 'NotFoundError' || error.statusCode === 404) {
     res.status(404).json({
       success: false,
       error: 'Not found',
-      message: err.message || 'Resource not found',
+      message: error.message || 'Resource not found',
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
   // Handle Prisma errors
-  if (err.name === 'PrismaClientKnownRequestError') {
-    if (err.code === 'P2002') {
+  if (error.name === 'PrismaClientKnownRequestError') {
+    if (error.code === 'P2002') {
       res.status(409).json({
         success: false,
         error: 'Conflict',
@@ -203,7 +204,7 @@ const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction
       });
       return;
     }
-    if (err.code === 'P2025') {
+    if (error.code === 'P2025') {
       res.status(404).json({
         success: false,
         error: 'Not found',
@@ -215,14 +216,14 @@ const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction
   }
 
   // Default internal server error
-  const statusCode = err.statusCode || 500
+  const statusCode = error.statusCode || 500
   res.status(statusCode).json({
     success: false,
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message,
+    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message,
     timestamp: new Date().toISOString(),
     // Include stack trace only in development
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
   })
 }
 

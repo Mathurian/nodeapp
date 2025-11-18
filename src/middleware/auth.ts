@@ -32,7 +32,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
   }
 
   try {
-    const decoded = jwt.verify(token, jwtSecret) as any;
+    const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string; sessionVersion?: number };
 
     // Try to get user from cache first (50-70% reduction in DB queries)
     let user = userCache.getById(decoded.userId);
@@ -49,8 +49,8 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         include: {
           judge: true,
           contestant: true
-        } as any
-      } as any);
+        }
+      });
 
       if (user) {
         // Cache the user for 1 hour (3600 seconds)
