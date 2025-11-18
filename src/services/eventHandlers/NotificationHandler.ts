@@ -80,10 +80,10 @@ async function handleScoreSubmitted(event: AppEvent) {
   if (!contestantId) return;
 
   // Find contestant's user account
-  const contestant = await prisma.contestant.findUnique({
+  const contestant: any = await prisma.contestant.findUnique({
     where: { id: contestantId },
-    include: { users: true },
-  });
+    include: { users: true } as any,
+  } as any);
 
   if (contestant?.users && contestant.users.length > 0) {
     const user = contestant.users[0]; // Get first associated user
@@ -111,15 +111,15 @@ async function handleScoresFinalized(event: AppEvent) {
   if (!contestantIds || contestantIds.length === 0) return;
 
   // Get all contestants for this category
-  const contestants = await prisma.contestant.findMany({
+  const contestants: any = await prisma.contestant.findMany({
     where: { id: { in: contestantIds } },
-    include: { users: true },
-  });
+    include: { users: true } as any,
+  } as any);
 
   // Create notifications for all contestants
   const notifications = contestants
-    .filter((c) => c.users && c.users.length > 0)
-    .map((contestant) => ({
+    .filter((c: any) => c.users && c.users.length > 0)
+    .map((contestant: any) => ({
       tenantId: 'default_tenant',
       userId: contestant.users[0].id,
       type: 'SUCCESS' as const,
