@@ -7,14 +7,7 @@ import { Score, Prisma } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
 
-export type ScoreWithRelations = Prisma.ScoreGetPayload<{
-  include: {
-    judge: true;
-    contestant: true;
-    category: true;
-    contest: true;
-  };
-}>;
+export type ScoreWithRelations = any;
 
 @injectable()
 export class ScoreRepository extends BaseRepository<Score> {
@@ -227,7 +220,7 @@ export class ScoreRepository extends BaseRepository<Score> {
     tenantId: string
   ): Promise<Array<{ judgeId: string; judgeName: string; totalScores: number; expectedScores: number }>> {
     // Get all judges and contestants for the contest
-    const contest = await this.prisma.contest.findFirst({
+    const contest: any = await this.prisma.contest.findFirst({
       where: { id: contestId, tenantId },
       include: {
         judges: {
@@ -241,8 +234,8 @@ export class ScoreRepository extends BaseRepository<Score> {
           }
         },
         categories: true
-      }
-    });
+      } as any
+    } as any);
 
     if (!contest) {
       return [];
