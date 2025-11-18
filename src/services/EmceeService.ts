@@ -521,8 +521,9 @@ export class EmceeService extends BaseService {
     contestId?: string | null;
     categoryId?: string | null;
     order?: number;
+    tenantId?: string;
   }) {
-    this.validateRequired(data, ['title']);
+    this.validateRequired(data, ['title', 'tenantId']);
 
     if (!data.content && !data.filePath) {
       throw this.validationError('Content or file is required');
@@ -530,6 +531,7 @@ export class EmceeService extends BaseService {
 
     const script = await this.prisma.emceeScript.create({
       data: {
+        tenantId: data.tenantId!,
         title: data.title,
         content: data.content || `Script file: ${data.filePath}`,
         file_path: data.filePath || null,

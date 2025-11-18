@@ -182,7 +182,7 @@ export class ScoreRemovalService extends BaseService {
 
     await this.prisma.scoreRemovalRequest.update({
       where: { id },
-      data: { status: 'COMPLETED' }
+      data: { status: 'APPROVED' }
     });
 
     return {
