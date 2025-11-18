@@ -9,6 +9,7 @@ import bcrypt from 'bcrypt';
 import { BaseService, ConflictError, ValidationError, NotFoundError } from './BaseService';
 import { UserRepository } from '../repositories/UserRepository';
 import { invalidateCache, userCache } from '../utils/cache';
+import { EmailService } from './EmailService';
 
 export interface CreateUserDTO {
   name: string;
@@ -75,7 +76,8 @@ export interface UserImageUploadDTO {
 export class UserService extends BaseService {
   constructor(
     @inject(UserRepository) private userRepository: UserRepository,
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject(EmailService) private emailService: EmailService
   ) {
     super();
   }
@@ -197,6 +199,16 @@ export class UserService extends BaseService {
       });
 
       this.logInfo('User created', { userId: user.id, name: user.name });
+
+      // Send welcome email (non-blocking - don't wait for completion)
+      this.emailService.sendWelcomeEmail(
+        user.email,
+        user.preferredName || user.name,
+        `${process.env.FRONTEND_URL}/verify-email?userId=${user.id}`
+      ).catch(error => {
+        console.error('Failed to send welcome email:', error);
+        // Don't throw - user creation should succeed even if email fails
+      });
 
       // Invalidate cache
       await invalidateCache('users:*');

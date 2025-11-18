@@ -13,6 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissions';
 import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
+import { EmailService } from './EmailService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -41,7 +42,8 @@ export class AuthService {
   private resetTokenCache: NodeCache;
 
   constructor(
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject(EmailService) private emailService: EmailService
   ) {
     this.resetTokenCache = new NodeCache({
       stdTTL: RESET_TOKEN_TTL_SECONDS,
@@ -232,6 +234,17 @@ export class AuthService {
 
     const resetToken = crypto.randomBytes(32).toString('hex');
     this.resetTokenCache.set(resetToken, user.id);
+
+    // Send password reset email (non-blocking)
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    this.emailService.sendPasswordResetEmail(
+      user.email,
+      user.preferredName || user.name,
+      resetUrl
+    ).catch(error => {
+      console.error('Failed to send password reset email:', error);
+      // Don't throw - token generation should succeed even if email fails
+    });
 
     return resetToken;
   }
