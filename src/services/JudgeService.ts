@@ -23,10 +23,10 @@ export class JudgeService extends BaseService {
    * Get Judge ID from User ID
    */
   async getJudgeIdFromUser(userId: string, tenantId: string): Promise<string | null> {
-    const userWithJudge = await this.prisma.user.findFirst({
+    const userWithJudge: any = await this.prisma.user.findFirst({
       where: { id: userId, tenantId },
-      include: { judge: true },
-    });
+      include: { judge: true } as any,
+    } as any);
 
     if (!userWithJudge || !userWithJudge.judge) {
       return null;
@@ -131,10 +131,10 @@ export class JudgeService extends BaseService {
    */
   async getScoringInterface(categoryId: string, userId: string, tenantId: string) {
     // Get the Judge record linked to this User
-    const user = await this.prisma.user.findFirst({
+    const user: any = await this.prisma.user.findFirst({
       where: { id: userId, tenantId },
-      include: { judge: true },
-    });
+      include: { judge: true } as any,
+    } as any);
 
     if (!user || !user.judge) {
       throw this.forbiddenError('User is not linked to a Judge record');
@@ -156,7 +156,7 @@ export class JudgeService extends BaseService {
       throw this.forbiddenError('Not assigned to this category');
     }
 
-    const category = await this.prisma.category.findFirst({
+    const category: any = await this.prisma.category.findFirst({
       where: { id: categoryId, tenantId },
       include: {
         contest: {
@@ -164,8 +164,8 @@ export class JudgeService extends BaseService {
             event: true,
           },
         },
-      },
-    }) as any;
+      } as any,
+    } as any);
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
@@ -191,15 +191,15 @@ export class JudgeService extends BaseService {
               },
             },
           },
-        },
-      }) as any,
+        } as any,
+      } as any) as any,
       this.prisma.score.findMany({
         where: { judgeId, categoryId, tenantId },
         include: {
           criterion: true,
           contestant: true,
-        },
-      }) as any,
+        } as any,
+      } as any) as any,
     ]);
 
     const contestants = categoryContestants.map((cc: any) => cc.contestant);
@@ -296,8 +296,8 @@ export class JudgeService extends BaseService {
         include: {
           criterion: true,
           contestant: true,
-        },
-      });
+        } as any,
+      } as any);
     } else {
       scoreRecord = await this.prisma.score.create({
         data: {
@@ -312,8 +312,8 @@ export class JudgeService extends BaseService {
         include: {
           criterion: true,
           contestant: true,
-        },
-      });
+        } as any,
+      } as any);
     }
 
     return scoreRecord;
@@ -343,7 +343,7 @@ export class JudgeService extends BaseService {
       throw this.forbiddenError('Not assigned to this category');
     }
 
-    const category = await this.prisma.category.findFirst({
+    const category: any = await this.prisma.category.findFirst({
       where: { id: categoryId, tenantId },
       include: {
         contest: {
@@ -351,8 +351,8 @@ export class JudgeService extends BaseService {
             event: true,
           },
         },
-      },
-    }) as any;
+      } as any,
+    } as any);
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
@@ -416,8 +416,8 @@ export class JudgeService extends BaseService {
             },
           },
         },
-      },
-    }) as any;
+      } as any,
+    } as any) as any;
 
     const contestants = categoryContestants.map((cc: any) => cc.contestant);
     return contestants;
@@ -445,8 +445,8 @@ export class JudgeService extends BaseService {
             bio: true,
           },
         },
-      },
-    }) as any;
+      } as any,
+    } as any) as any;
 
     if (!contestant) {
       throw this.notFoundError('Contestant', contestantId);
@@ -465,8 +465,8 @@ export class JudgeService extends BaseService {
             name: true,
           },
         },
-      },
-    }) as any;
+      } as any,
+    } as any) as any;
 
     if (!categoryContestant) {
       throw this.notFoundError('Category assignment for contestant', contestantId);
@@ -528,11 +528,11 @@ export class JudgeService extends BaseService {
           },
           contestant: true,
           criterion: true,
-        },
+        } as any,
         orderBy: { createdAt: 'desc' },
         skip: (Number(page) - 1) * Number(limit),
         take: Number(limit),
-      }),
+      } as any),
       this.prisma.score.count({ where: whereClause }),
     ]);
 
