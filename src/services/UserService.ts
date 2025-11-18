@@ -3,7 +3,7 @@
  * Business logic for user management
  */
 
-import { User, UserRole, PrismaClient } from '@prisma/client';
+import { User, UserRole, PrismaClient, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import bcrypt from 'bcrypt';
 import { BaseService, ConflictError, ValidationError, NotFoundError } from './BaseService';
@@ -71,6 +71,25 @@ export interface ChangePasswordDTO {
 export interface UserImageUploadDTO {
   userId: string;
   imagePath: string;
+}
+
+export interface UserStats {
+  totalAssignments: number;
+  eventsParticipated: number;
+  [key: string]: number | undefined;
+}
+
+export interface AggregateUserStats {
+  totalUsers: number;
+  usersByRole: Record<string, number>;
+  recentLogins: number;
+  lastWeek: number;
+}
+
+export type UserWithRelations = User & {
+  judge: any | null;
+  contestant: any | null;
+  lastLogin?: Date | null;
 }
 
 @injectable()
@@ -433,7 +452,7 @@ export class UserService extends BaseService {
   /**
    * Get user statistics
    */
-  async getUserStats(userId: string): Promise<any> {
+  async getUserStats(userId: string): Promise<UserStats> {
     try {
       return await this.userRepository.getUserStats(userId);
     } catch (error) {
@@ -465,7 +484,7 @@ export class UserService extends BaseService {
       const user = await this.userRepository.findById(userId);
       this.assertExists(user, 'User', userId);
 
-      const updatedUser: any = await this.prisma.user.update({
+      const updatedUser = await this.prisma.user.update({
         where: { id: userId },
         data: { imagePath }
       });
@@ -521,7 +540,7 @@ export class UserService extends BaseService {
       }
 
       // Check for admin/organizer users
-      const adminUsers: any = await this.prisma.user.findMany({
+      const adminUsers = await this.prisma.user.findMany({
         where: {
           id: { in: userIds },
           role: { in: ['ADMIN', 'ORGANIZER'] }
@@ -538,7 +557,7 @@ export class UserService extends BaseService {
       }
 
       // Filter out any non-existent users and proceed with deletion
-      const existingUsers: any = await this.prisma.user.findMany({
+      const existingUsers = await this.prisma.user.findMany({
         where: {
           id: { in: userIds }
         },
@@ -553,13 +572,13 @@ export class UserService extends BaseService {
       }
 
       // Use a transaction to handle all deletions and related records
-      this.logInfo('Starting bulk delete transaction', { 
+      this.logInfo('Starting bulk delete transaction', {
         userIds: existingUserIds,
         count: existingUserIds.length,
         forceDeleteAdmin
       });
-      
-      const result: any = await this.prisma.$transaction(async (tx) => {
+
+      const result = await this.prisma.$transaction(async (tx) => {
         // Handle relations that don't have cascade delete
         // Set nullable foreign keys to null
         await tx.activityLog.updateMany({
@@ -649,7 +668,7 @@ export class UserService extends BaseService {
       }
 
       // Double-check that users were actually deleted
-      const remainingUsers: any = await this.prisma.user.findMany({
+      const remainingUsers = await this.prisma.user.findMany({
         where: { id: { in: existingUserIds } },
         select: { id: true, name: true, email: true }
       });
@@ -694,8 +713,8 @@ export class UserService extends BaseService {
         throw new ValidationError('Cannot delete admin or organizer users');
       }
 
-      const result: any = await this.prisma.user.deleteMany({
-        where: { role: role.toUpperCase() as any }
+      const result = await this.prisma.user.deleteMany({
+        where: { role: role.toUpperCase() as UserRole }
       });
 
       await invalidateCache('users:*');
@@ -710,7 +729,7 @@ export class UserService extends BaseService {
   /**
    * Get aggregate user statistics
    */
-  async getAggregateUserStats(): Promise<any> {
+  async getAggregateUserStats(): Promise<AggregateUserStats> {
     try {
       const [totalUsers, usersByRole, recentLogins] = await Promise.all([
         this.prisma.user.count(),
@@ -727,10 +746,10 @@ export class UserService extends BaseService {
         })
       ]);
 
-      const roleStats = usersByRole.reduce((acc: any, item: any) => {
+      const roleStats = usersByRole.reduce((acc: Record<string, number>, item) => {
         acc[item.role] = item._count.role;
         return acc;
-      }, {});
+      }, {} as Record<string, number>);
 
       return {
         totalUsers,
@@ -746,19 +765,21 @@ export class UserService extends BaseService {
   /**
    * Get users with relations (judge, contestant)
    */
-  async getAllUsersWithRelations(): Promise<any[]> {
+  async getAllUsersWithRelations(): Promise<UserWithRelations[]> {
     try {
-      const users: any = await this.prisma.user.findMany({
+      const users = await this.prisma.user.findMany({
         include: {
           judge: true,
           contestant: true
-        } ,
+        },
         orderBy: { createdAt: 'desc' }
-      } as any);
+      });
 
       // Map lastLoginAt to lastLogin for frontend compatibility
-      const mappedUsers = users.map(user => ({
+      const mappedUsers: UserWithRelations[] = users.map(user => ({
         ...this.sanitizeUser(user),
+        judge: user.judge,
+        contestant: user.contestant,
         lastLogin: user.lastLoginAt || null
       }));
 
@@ -771,19 +792,23 @@ export class UserService extends BaseService {
   /**
    * Get user by ID with relations
    */
-  async getUserByIdWithRelations(userId: string): Promise<any> {
+  async getUserByIdWithRelations(userId: string): Promise<UserWithRelations> {
     try {
-      const user: any = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         include: {
           judge: true,
           contestant: true
-        } as any
-      } as any);
+        }
+      });
 
       this.assertExists(user, 'User', userId);
 
-      return this.sanitizeUser(user!);
+      return {
+        ...this.sanitizeUser(user!),
+        judge: user!.judge,
+        contestant: user!.contestant
+      };
     } catch (error) {
       this.handleError(error, { method: 'getUserByIdWithRelations', userId });
     }
