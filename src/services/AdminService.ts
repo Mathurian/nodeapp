@@ -161,7 +161,7 @@ export class AdminService extends BaseService {
 
   async getActivityLogs(limit: number = 100) {
     try {
-      const logs = await this.prisma.activityLog.findMany({
+      const logs: any = await this.prisma.activityLog.findMany({
         include: {
           user: {
             select: {
@@ -171,10 +171,10 @@ export class AdminService extends BaseService {
               role: true
             }
           }
-        },
+        } as any,
         orderBy: { createdAt: 'desc' },
         take: limit
-      });
+      } as any);
 
       return logs.map(log => ({
         id: log.id,

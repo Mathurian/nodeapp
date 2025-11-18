@@ -39,10 +39,11 @@ router.get('/', authenticate, async (req: Request, res: Response, next: NextFunc
   try {
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
+    const tenantId = req.user!.tenantId;
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const notifications = await notificationService.getUserNotifications(userId, limit, offset);
+    const notifications = await notificationService.getUserNotifications(userId, tenantId, limit, offset);
     res.json(notifications);
   } catch (error) {
     return next(error);
@@ -65,7 +66,8 @@ router.get('/unread-count', authenticate, async (req: Request, res: Response, ne
   try {
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
-    const count = await notificationService.getUnreadCount(userId);
+    const tenantId = req.user!.tenantId;
+    const count = await notificationService.getUnreadCount(userId, tenantId);
     res.json({ count });
   } catch (error) {
     return next(error);
@@ -96,7 +98,8 @@ router.put('/:id/read', authenticate, async (req: Request, res: Response, next: 
     const notificationService = container.resolve(NotificationService);
     const { id } = req.params;
     const userId = req.user!.id;
-    const notification = await notificationService.markAsRead(id, userId);
+    const tenantId = req.user!.tenantId;
+    const notification = await notificationService.markAsRead(id, userId, tenantId);
     res.json(notification);
   } catch (error) {
     return next(error);
@@ -119,7 +122,8 @@ router.put('/read-all', authenticate, async (req: Request, res: Response, next: 
   try {
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
-    const count = await notificationService.markAllAsRead(userId);
+    const tenantId = req.user!.tenantId;
+    const count = await notificationService.markAllAsRead(userId, tenantId);
     res.json({ count });
   } catch (error) {
     return next(error);
@@ -150,7 +154,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response, next: Ne
     const notificationService = container.resolve(NotificationService);
     const { id } = req.params;
     const userId = req.user!.id;
-    await notificationService.deleteNotification(id, userId);
+    const tenantId = req.user!.tenantId;
+    await notificationService.deleteNotification(id, userId, tenantId);
     res.json({ success: true });
   } catch (error) {
     return next(error);
@@ -180,8 +185,9 @@ router.delete('/read-all', authenticate, async (req: Request, res: Response, nex
   try {
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
+    const tenantId = req.user!.tenantId;
     const daysOld = parseInt(req.query.daysOld as string) || 30;
-    const count = await notificationService.cleanupOldNotifications(userId, daysOld);
+    const count = await notificationService.cleanupOldNotifications(userId, tenantId, daysOld);
     res.json({ count });
   } catch (error) {
     return next(error);

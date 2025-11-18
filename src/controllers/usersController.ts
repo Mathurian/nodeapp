@@ -263,7 +263,7 @@ export class UsersController {
           judge: true,
           contestant: true
         } as any
-      });
+      } as any);
 
       // Invalidate user cache after update
       userCache.invalidate(id);
@@ -362,9 +362,9 @@ export class UsersController {
         include: {
           judge: true,
           contestant: true
-        },
+        } as any,
         orderBy: { createdAt: 'desc' }
-      });
+      } as any);
 
       log.info('Users by role retrieved', { role, count: users.length });
       sendSuccess(res, users);
@@ -608,14 +608,14 @@ export class UsersController {
 
       // Update user record if there are changes
       if (Object.keys(updateData).length > 0) {
-        const updatedUser = await this.prisma.user.update({
+        const updatedUser: any = await this.prisma.user.update({
           where: { id },
           data: updateData,
           include: {
             judge: true,
             contestant: true
           } as any
-        }) as any;
+        } as any);
 
         // Invalidate cache
         userCache.invalidate(id);
@@ -680,13 +680,13 @@ export class UsersController {
       log.debug('Updating user with bio file path', { userId: id, bioFilePath });
 
       // Get current user
-      const currentUser = await this.prisma.user.findUnique({
+      const currentUser: any = await this.prisma.user.findUnique({
         where: { id },
         include: {
           judge: true,
           contestant: true
         } as any
-      }) as any;
+      } as any);
 
       if (!currentUser) {
         return sendNotFound(res, 'User not found');
@@ -703,14 +703,14 @@ export class UsersController {
         updateData.contestantBio = `[Bio file: ${bioFilePath}]`;
       }
 
-      const updatedUser = await this.prisma.user.update({
+      const updatedUser: any = await this.prisma.user.update({
         where: { id },
         data: updateData,
         include: {
           judge: true,
           contestant: true
         } as any
-      }) as any;
+      } as any);
 
       // Invalidate cache
       userCache.invalidate(id);
