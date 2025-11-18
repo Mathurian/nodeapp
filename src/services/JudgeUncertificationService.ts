@@ -34,10 +34,10 @@ export class JudgeUncertificationService extends BaseService {
       throw this.badRequestError('Judge ID, category ID, and reason are required');
     }
 
-    const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
+    const category: any = await this.prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) throw this.notFoundError('Category', categoryId);
 
-    const judge = await this.prisma.judge.findUnique({ where: { id: judgeId } });
+    const judge: any = await this.prisma.judge.findUnique({ where: { id: judgeId } });
     if (!judge) throw this.notFoundError('Judge', judgeId);
 
     if (userRole !== 'BOARD' && userRole !== 'ADMIN') {
@@ -67,7 +67,7 @@ export class JudgeUncertificationService extends BaseService {
       throw this.badRequestError('Signature name is required');
     }
 
-    const request = await this.prisma.judgeUncertificationRequest.findUnique({
+    const request: any = await this.prisma.judgeUncertificationRequest.findUnique({
       where: { id }
     });
 
@@ -86,7 +86,7 @@ export class JudgeUncertificationService extends BaseService {
       requestedAt: signedAt,
     };
 
-    const updatedRequest = await this.prisma.judgeUncertificationRequest.update({
+    const updatedRequest: any = await this.prisma.judgeUncertificationRequest.update({
       where: { id },
       data: updateData,
       include: {
@@ -106,7 +106,7 @@ export class JudgeUncertificationService extends BaseService {
   }
 
   async executeUncertification(id: string) {
-    const request = await this.prisma.judgeUncertificationRequest.findUnique({
+    const request: any = await this.prisma.judgeUncertificationRequest.findUnique({
       where: { id }
     });
 

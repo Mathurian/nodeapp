@@ -241,7 +241,7 @@ export class AssignmentService extends BaseService {
       finalEventId = category.contest.eventId;
 
       // Check if assignment already exists
-      const existingAssignment = await this.prisma.assignment.findUnique({
+      const existingAssignment: any = await this.prisma.assignment.findUnique({
         where: {
           tenantId_judgeId_categoryId: {
             tenantId: category.tenantId,
@@ -258,7 +258,7 @@ export class AssignmentService extends BaseService {
       // If contestId provided without categoryId, fetch contest to get eventId
       const contest: any = await this.prisma.contest.findUnique({
         where: { id: data.contestId },
-        include: { event: true } as any,
+        include: { event: true },
       });
 
       if (!contest) {
@@ -330,7 +330,7 @@ export class AssignmentService extends BaseService {
     id: string,
     data: UpdateAssignmentInput
   ): Promise<any> {
-    const assignment = await this.prisma.assignment.findUnique({
+    const assignment: any = await this.prisma.assignment.findUnique({
       where: { id },
     });
 
@@ -355,7 +355,7 @@ export class AssignmentService extends BaseService {
    * Delete assignment
    */
   async deleteAssignment(id: string): Promise<void> {
-    const assignment = await this.prisma.assignment.findUnique({
+    const assignment: any = await this.prisma.assignment.findUnique({
       where: { id },
     });
 
@@ -378,7 +378,7 @@ export class AssignmentService extends BaseService {
         category: true,
         contest: true,
         event: true,
-      } as any,
+      } ,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
   }
@@ -392,7 +392,7 @@ export class AssignmentService extends BaseService {
       include: {
         judge: true,
         assignedByUser: true,
-      } as any,
+      } ,
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
   }
@@ -424,7 +424,7 @@ export class AssignmentService extends BaseService {
 
     for (const judgeId of judgeIds) {
       // Check if assignment already exists
-      const existingAssignment = await this.prisma.assignment.findUnique({
+      const existingAssignment: any = await this.prisma.assignment.findUnique({
         where: {
           tenantId_judgeId_categoryId: {
             tenantId: category.tenantId,
@@ -478,7 +478,7 @@ export class AssignmentService extends BaseService {
    * Returns contestants from Contestant table, joined with User table to get user email if different
    */
   async getContestants(): Promise<any[]> {
-    const contestants: any = await this.prisma.contestant.findMany({
+    const contestants: any = await (this.prisma.contestant.findMany as any)({
       include: {
         users: {
           select: {
@@ -513,7 +513,7 @@ export class AssignmentService extends BaseService {
   async getCategories(): Promise<any[]> {
     // Note: Can't filter by nested contest.event.archived in Prisma where clause
     // Fetching all and filtering in memory
-    const categories = await this.prisma.category.findMany({
+    const categories: any = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           select: {
@@ -589,7 +589,7 @@ export class AssignmentService extends BaseService {
    * Get contestants for a specific category
    */
   async getCategoryContestants(categoryId: string): Promise<any[]> {
-    const contestants = await this.prisma.categoryContestant.findMany({
+    const contestants: any = await this.prisma.categoryContestant.findMany({
       where: { categoryId },
       include: {
         contestant: {
@@ -631,7 +631,7 @@ export class AssignmentService extends BaseService {
     }
 
     // Check if assignment already exists
-    const existing = await this.prisma.categoryContestant.findUnique({
+    const existing: any = await this.prisma.categoryContestant.findUnique({
       where: {
         categoryId_contestantId: {
           categoryId,
@@ -789,7 +789,7 @@ export class AssignmentService extends BaseService {
       throw this.validationError('No judge IDs provided');
     }
 
-    const result = await this.prisma.judge.deleteMany({
+    const result: any = await this.prisma.judge.deleteMany({
       where: {
         id: {
           in: judgeIds,
@@ -808,7 +808,7 @@ export class AssignmentService extends BaseService {
       throw this.validationError('No contestant IDs provided');
     }
 
-    const result = await this.prisma.contestant.deleteMany({
+    const result: any = await this.prisma.contestant.deleteMany({
       where: {
         id: {
           in: contestantIds,
@@ -823,7 +823,7 @@ export class AssignmentService extends BaseService {
    * Remove all assignments for a category
    */
   async removeAllAssignmentsForCategory(categoryId: string): Promise<number> {
-    const result = await this.prisma.assignment.deleteMany({
+    const result: any = await this.prisma.assignment.deleteMany({
       where: { categoryId },
     });
 

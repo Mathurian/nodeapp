@@ -43,7 +43,7 @@ export class ReportTemplateService extends BaseService {
         where.type = filters.type;
       }
 
-      const templates = await this.prisma.reportTemplate.findMany({
+      const templates: any = await this.prisma.reportTemplate.findMany({
         where,
         orderBy: { createdAt: 'desc' }
       });
@@ -59,7 +59,7 @@ export class ReportTemplateService extends BaseService {
    */
   async getTemplateById(templateId: string, tenantId: string): Promise<ReportTemplate> {
     try {
-      const template = await this.prisma.reportTemplate.findFirst({
+      const template: any = await this.prisma.reportTemplate.findFirst({
         where: { id: templateId, tenantId }
       });
 
@@ -78,7 +78,7 @@ export class ReportTemplateService extends BaseService {
     try {
       this.validateRequired(data, ['name', 'type', 'template', 'tenantId']);
 
-      const template = await this.prisma.reportTemplate.create({
+      const template: any = await this.prisma.reportTemplate.create({
         data: {
           name: data.name,
           type: data.type,
@@ -106,14 +106,14 @@ export class ReportTemplateService extends BaseService {
   ): Promise<ReportTemplate> {
     try {
       // Check if template exists and belongs to tenant
-      const existing = await this.prisma.reportTemplate.findFirst({
+      const existing: any = await this.prisma.reportTemplate.findFirst({
         where: { id: templateId, tenantId }
       });
 
       this.assertExists(existing, 'ReportTemplate', templateId);
 
       // Update template
-      const template = await this.prisma.reportTemplate.update({
+      const template: any = await this.prisma.reportTemplate.update({
         where: { id: templateId },
         data: {
           ...(data.name && { name: data.name }),
@@ -136,7 +136,7 @@ export class ReportTemplateService extends BaseService {
    */
   async deleteTemplate(templateId: string, tenantId: string): Promise<void> {
     try {
-      const template = await this.prisma.reportTemplate.findFirst({
+      const template: any = await this.prisma.reportTemplate.findFirst({
         where: { id: templateId, tenantId }
       });
 

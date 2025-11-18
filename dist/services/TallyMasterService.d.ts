@@ -13,7 +13,7 @@ export declare class TallyMasterService extends BaseService {
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
@@ -35,20 +35,7 @@ export declare class TallyMasterService extends BaseService {
             pages: number;
         };
     }>;
-    certifyTotals(categoryId: string, userId: string, userRole: UserRole): Promise<{
-        name: string;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        description: string | null;
-        contestId: string;
-        scoreCap: number | null;
-        timeLimit: number | null;
-        contestantMin: number | null;
-        contestantMax: number | null;
-        totalsCertified: boolean;
-    }>;
+    certifyTotals(categoryId: string, userId: string, userRole: UserRole): Promise<any>;
     getScoreReview(categoryId: string): Promise<{
         category: {
             id: any;
@@ -91,7 +78,7 @@ export declare class TallyMasterService extends BaseService {
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
@@ -125,7 +112,7 @@ export declare class TallyMasterService extends BaseService {
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;

@@ -9,20 +9,20 @@ export declare class JudgeUncertificationService extends BaseService {
         requestedByUser: never;
     } & {
         id: string;
-        categoryId: string;
+        judgeId: string;
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        judgeId: string;
-        reason: string;
+        categoryId: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
+        rejectionReason: string | null;
+        reason: string;
         requestedBy: string;
+        requestedAt: Date;
         approvedBy: string | null;
         approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
-        rejectionReason: string | null;
     })[]>;
     createUncertificationRequest(data: any): Promise<{
         [x: string]: never;
@@ -30,42 +30,23 @@ export declare class JudgeUncertificationService extends BaseService {
         [x: symbol]: never;
     } & {
         id: string;
-        categoryId: string;
+        judgeId: string;
         createdAt: Date;
         updatedAt: Date;
         tenantId: string;
-        judgeId: string;
-        reason: string;
+        categoryId: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
+        rejectionReason: string | null;
+        reason: string;
         requestedBy: string;
+        requestedAt: Date;
         approvedBy: string | null;
         approvedAt: Date | null;
         rejectedBy: string | null;
         rejectedAt: Date | null;
-        rejectionReason: string | null;
     }>;
     signRequest(id: string, data: any): Promise<{
-        request: {
-            category: never;
-            judge: never;
-        } & {
-            id: string;
-            categoryId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            judgeId: string;
-            reason: string;
-            status: import(".prisma/client").$Enums.RequestStatus;
-            requestedAt: Date;
-            requestedBy: string;
-            approvedBy: string | null;
-            approvedAt: Date | null;
-            rejectedBy: string | null;
-            rejectedAt: Date | null;
-            rejectionReason: string | null;
-        };
+        request: any;
         allSigned: boolean;
     }>;
     executeUncertification(id: string): Promise<{

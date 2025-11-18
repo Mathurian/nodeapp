@@ -35,33 +35,17 @@ export declare class AdminService extends BaseService {
     }>;
     getActivityLogs(limit?: number): Promise<any>;
     getAuditLogs(limit?: number): Promise<any>;
-    getDatabaseTables(): Promise<{
-        name: string;
-        rowCount: number;
-        size: string;
-    }[]>;
+    getDatabaseTables(): Promise<any[]>;
     getTableStructure(tableName: string): Promise<{
         tableName: string;
-        columns: {
-            column_name: string;
-            data_type: string;
-            character_maximum_length: number;
-            numeric_precision: number;
-            numeric_scale: number;
-            is_nullable: string;
-            column_default: string;
-        }[];
-        primaryKeys: string[];
-        foreignKeys: {
-            column_name: string;
-            foreign_table_name: string;
-            foreign_column_name: string;
-        }[];
-        columnCount: number;
+        columns: any;
+        primaryKeys: any;
+        foreignKeys: any;
+        columnCount: any;
     }>;
     getTableData(tableName: string, page?: number, limit?: number, orderBy?: string, orderDirection?: string): Promise<{
         tableName: string;
-        rows: Record<string, any>[];
+        rows: any;
         columns: string[];
         pagination: {
             page: number;
@@ -74,9 +58,9 @@ export declare class AdminService extends BaseService {
         rowCount: number;
     }>;
     executeDatabaseQuery(query: string, limit?: number): Promise<{
-        rows: Record<string, any>[];
+        rows: any;
         columns: string[];
-        rowCount: number;
+        rowCount: any;
     }>;
 }
 //# sourceMappingURL=AdminService.d.ts.map

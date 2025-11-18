@@ -15,13 +15,9 @@ export declare class WinnerService extends BaseService {
         }[];
         totalPossibleScore: any;
         allSigned: boolean;
-        boardSigned: boolean;
-        canShowWinners: boolean;
-        signatures: {
-            userId: string;
-            role: string;
-            certifiedAt: Date;
-        }[];
+        boardSigned: any;
+        canShowWinners: any;
+        signatures: any;
         message: string;
     }>;
     getWinnersByContest(contestId: string, _userRole: string, includeCategoryBreakdown?: boolean): Promise<{

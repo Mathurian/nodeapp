@@ -38,7 +38,7 @@ export class EventTemplateService extends BaseService {
       throw this.badRequestError('Name, contests, and categories are required');
     }
 
-    const template = await this.prisma.eventTemplate.create({
+    const template: any = await this.prisma.eventTemplate.create({
       data: {
         name: data.name,
         description: data.description || null,
@@ -60,7 +60,7 @@ export class EventTemplateService extends BaseService {
   }
 
   async getAll(tenantId: string) {
-    const templates = await this.prisma.eventTemplate.findMany({
+    const templates: any = await this.prisma.eventTemplate.findMany({
       where: { tenantId },
       include: {
         creator: {
@@ -87,7 +87,7 @@ export class EventTemplateService extends BaseService {
   }
 
   async getById(id: string, tenantId: string) {
-    const template = await this.prisma.eventTemplate.findFirst({
+    const template: any = await this.prisma.eventTemplate.findFirst({
       where: { id, tenantId },
       include: {
         creator: {
@@ -122,14 +122,14 @@ export class EventTemplateService extends BaseService {
     }
 
     // Verify template belongs to tenant
-    const existing = await this.prisma.eventTemplate.findFirst({
+    const existing: any = await this.prisma.eventTemplate.findFirst({
       where: { id, tenantId }
     });
     if (!existing) {
       throw this.notFoundError('Template', id);
     }
 
-    const template = await this.prisma.eventTemplate.update({
+    const template: any = await this.prisma.eventTemplate.update({
       where: { id },
       data: {
         name: data.name,
@@ -151,7 +151,7 @@ export class EventTemplateService extends BaseService {
 
   async delete(id: string, tenantId: string) {
     // Verify template belongs to tenant
-    const existing = await this.prisma.eventTemplate.findFirst({
+    const existing: any = await this.prisma.eventTemplate.findFirst({
       where: { id, tenantId }
     });
     if (!existing) {
@@ -166,7 +166,7 @@ export class EventTemplateService extends BaseService {
       throw this.badRequestError('Template ID, event name, start date, and end date are required');
     }
 
-    const template = await this.prisma.eventTemplate.findFirst({
+    const template: any = await this.prisma.eventTemplate.findFirst({
       where: { id: data.templateId, tenantId: data.tenantId }
     });
 
@@ -177,7 +177,7 @@ export class EventTemplateService extends BaseService {
     const contests = JSON.parse(template.contests as string);
     const categories = JSON.parse(template.categories as string);
 
-    const event = await this.prisma.event.create({
+    const event: any = await this.prisma.event.create({
       data: {
         name: data.eventName,
         description: data.eventDescription || null,
@@ -188,7 +188,7 @@ export class EventTemplateService extends BaseService {
     });
 
     for (const contestTemplate of contests) {
-      const contest = await this.prisma.contest.create({
+      const contest: any = await this.prisma.contest.create({
         data: {
           eventId: event.id,
           name: contestTemplate.name,
@@ -199,7 +199,7 @@ export class EventTemplateService extends BaseService {
 
       const contestCategories = categories.filter((cat: any) => cat.contestId === contestTemplate.id);
       for (const categoryTemplate of contestCategories) {
-        const createdCategory = await this.prisma.category.create({
+        const createdCategory: any = await this.prisma.category.create({
           data: {
             contestId: contest.id,
             name: categoryTemplate.name,

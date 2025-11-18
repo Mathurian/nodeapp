@@ -11,18 +11,9 @@ export declare class AuditorCertificationService extends BaseService {
         alreadyCertified: boolean;
         tallyCertifications: {
             required: any;
-            completed: number;
+            completed: any;
             missing: number;
-            certifications: {
-                id: string;
-                role: string;
-                tenantId: string;
-                categoryId: string;
-                certifiedAt: Date;
-                userId: string;
-                comments: string | null;
-                signatureName: string | null;
-            }[];
+            certifications: any;
         };
         scoreStatus: {
             total: any;
@@ -31,20 +22,11 @@ export declare class AuditorCertificationService extends BaseService {
         };
         auditorCertified: boolean;
         auditorCertification: {
-            certifiedAt: Date;
-            certifiedBy: string;
+            certifiedAt: any;
+            certifiedBy: any;
         };
     }>;
-    submitFinalCertification(categoryId: string, userId: string, _userRole: string, confirmations: any): Promise<{
-        id: string;
-        role: string;
-        tenantId: string;
-        categoryId: string;
-        certifiedAt: Date;
-        userId: string;
-        comments: string | null;
-        signatureName: string | null;
-    }>;
+    submitFinalCertification(categoryId: string, userId: string, _userRole: string, confirmations: any): Promise<any>;
     private getFinalCertificationStatusInternal;
 }
 //# sourceMappingURL=AuditorCertificationService.d.ts.map

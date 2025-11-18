@@ -28,12 +28,12 @@ export class ScoreRemovalService extends BaseService {
       throw this.badRequestError('Judge ID, category ID, reason, and tenant ID are required');
     }
 
-    const category = await this.prisma.category.findFirst({
+    const category: any = await this.prisma.category.findFirst({
       where: { id: data.categoryId, tenantId: data.tenantId }
     });
     if (!category) throw this.notFoundError('Category', data.categoryId);
 
-    const judge = await this.prisma.judge.findFirst({
+    const judge: any = await this.prisma.judge.findFirst({
       where: { id: data.judgeId, tenantId: data.tenantId }
     });
     if (!judge) throw this.notFoundError('Judge', data.judgeId);
@@ -78,7 +78,7 @@ export class ScoreRemovalService extends BaseService {
   }
 
   async getById(id: string, tenantId: string) {
-    const request = await this.prisma.scoreRemovalRequest.findFirst({
+    const request: any = await this.prisma.scoreRemovalRequest.findFirst({
       where: { id, tenantId },
       include: {
         judge: { select: { id: true, name: true, email: true } },
@@ -100,7 +100,7 @@ export class ScoreRemovalService extends BaseService {
       throw this.badRequestError('Signature name is required');
     }
 
-    const request = await this.prisma.scoreRemovalRequest.findFirst({
+    const request: any = await this.prisma.scoreRemovalRequest.findFirst({
       where: { id, tenantId }
     });
 
@@ -138,7 +138,7 @@ export class ScoreRemovalService extends BaseService {
       updateData.updatedAt = signedAt;
     }
 
-    const updatedRequest = await this.prisma.scoreRemovalRequest.update({
+    const updatedRequest: any = await this.prisma.scoreRemovalRequest.update({
       where: { id },
       data: updateData,
       include: {
@@ -158,7 +158,7 @@ export class ScoreRemovalService extends BaseService {
   }
 
   async executeRemoval(id: string, tenantId: string) {
-    const request = await this.prisma.scoreRemovalRequest.findFirst({
+    const request: any = await this.prisma.scoreRemovalRequest.findFirst({
       where: { id, tenantId },
       include: {
         judge: { select: { id: true } },
@@ -172,7 +172,7 @@ export class ScoreRemovalService extends BaseService {
       throw this.badRequestError('Request must be approved before execution');
     }
 
-    const deletedScores = await this.prisma.score.deleteMany({
+    const deletedScores: any = await this.prisma.score.deleteMany({
       where: {
         categoryId: request.categoryId,
         judgeId: request.judgeId,

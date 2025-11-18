@@ -18,7 +18,7 @@ export class SMSService extends BaseService {
 
   async getSettings(): Promise<SMSSettings> {
     try {
-      const settings = await this.prisma.systemSetting.findMany({
+      const settings: any = await this.prisma.systemSetting.findMany({
         where: {
           key: {
             in: ['SMS_ENABLED', 'SMS_API_KEY', 'SMS_API_SECRET', 'SMS_FROM_NUMBER', 'SMS_PROVIDER']

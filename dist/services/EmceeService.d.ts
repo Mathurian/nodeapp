@@ -13,19 +13,7 @@ export declare class EmceeService extends BaseService {
         eventId?: string;
         contestId?: string;
         categoryId?: string;
-    }): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
-        contestId: string | null;
-        title: string;
-        order: number | null;
-        content: string;
-        file_path: string | null;
-    }[]>;
+    }): Promise<any>;
     getScript(scriptId: string): Promise<any>;
     getContestantBios(filters: {
         eventId?: string;
@@ -46,7 +34,7 @@ export declare class EmceeService extends BaseService {
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
@@ -59,19 +47,7 @@ export declare class EmceeService extends BaseService {
         categoryId?: string | null;
         order?: number;
         tenantId?: string;
-    }): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
-        contestId: string | null;
-        title: string;
-        order: number | null;
-        content: string;
-        file_path: string | null;
-    }>;
+    }): Promise<any>;
     updateScript(id: string, data: {
         title?: string;
         content?: string;
@@ -79,32 +55,8 @@ export declare class EmceeService extends BaseService {
         contestId?: string | null;
         categoryId?: string | null;
         order?: number;
-    }): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
-        contestId: string | null;
-        title: string;
-        order: number | null;
-        content: string;
-        file_path: string | null;
-    }>;
+    }): Promise<any>;
     deleteScript(id: string): Promise<void>;
-    getScriptFileInfo(scriptId: string): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string | null;
-        contestId: string | null;
-        title: string;
-        order: number | null;
-        content: string;
-        file_path: string | null;
-    }>;
+    getScriptFileInfo(scriptId: string): Promise<any>;
 }
 //# sourceMappingURL=EmceeService.d.ts.map

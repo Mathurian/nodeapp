@@ -129,7 +129,7 @@ export class CommentaryService extends BaseService {
   }
 
   async update(id: string, data: UpdateCommentDto, userId: string, userRole: string) {
-    const existingComment = await this.prisma.scoreComment.findUnique({
+    const existingComment: any = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
 
@@ -159,7 +159,7 @@ export class CommentaryService extends BaseService {
   }
 
   async delete(id: string, userId: string, userRole: string) {
-    const existingComment = await this.prisma.scoreComment.findUnique({
+    const existingComment: any = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
 

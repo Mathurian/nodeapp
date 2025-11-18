@@ -26,49 +26,40 @@ export declare class EventTemplateService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     create(data: CreateTemplateDto): Promise<{
-        id: string;
-        name: string;
-        description: string;
+        id: any;
+        name: any;
+        description: any;
         contests: any;
         categories: any;
-        createdAt: Date;
+        createdAt: any;
     }>;
-    getAll(tenantId: string): Promise<{
-        id: string;
-        name: string;
-        description: string;
-        contests: any;
-        categories: any;
-        creator: never;
-        createdAt: Date;
-        updatedAt: Date;
-    }[]>;
+    getAll(tenantId: string): Promise<any>;
     getById(id: string, tenantId: string): Promise<{
-        id: string;
-        name: string;
-        description: string;
+        id: any;
+        name: any;
+        description: any;
         contests: any;
         categories: any;
-        creator: never;
-        createdAt: Date;
-        updatedAt: Date;
+        creator: any;
+        createdAt: any;
+        updatedAt: any;
     }>;
     update(id: string, tenantId: string, data: UpdateTemplateDto): Promise<{
-        id: string;
-        name: string;
-        description: string;
+        id: any;
+        name: any;
+        description: any;
         contests: any;
         categories: any;
-        updatedAt: Date;
+        updatedAt: any;
     }>;
     delete(id: string, tenantId: string): Promise<void>;
     createEventFromTemplate(data: CreateEventFromTemplateDto): Promise<{
-        id: string;
-        name: string;
-        description: string;
-        startDate: Date;
-        endDate: Date;
-        createdAt: Date;
+        id: any;
+        name: any;
+        description: any;
+        startDate: any;
+        endDate: any;
+        createdAt: any;
     }>;
 }
 export {};

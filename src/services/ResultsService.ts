@@ -127,9 +127,9 @@ export class ResultsService extends BaseService {
         break;
 
       case 'JUDGE': {
-        const judgeUser = await this.prisma.user.findUnique({
+        const judgeUser: any = await this.prisma.user.findUnique({
           where: { id: userId },
-          include: { judge: true } as any,
+          include: { judge: true },
         });
 
         if (!judgeUser?.judge) {
@@ -141,12 +141,12 @@ export class ResultsService extends BaseService {
             { judgeId: judgeUser.judge.id },
             { category: { judges: { some: { judgeId: judgeUser.judge.id } } } },
           ],
-        };
+        } as any;
         break;
       }
 
       case 'CONTESTANT': {
-        const user = await this.prisma.user.findUnique({
+        const user: any = await this.prisma.user.findUnique({
           where: { id: userId },
           select: { contestantId: true },
         });
@@ -156,13 +156,13 @@ export class ResultsService extends BaseService {
         }
 
         // Get visibility settings
-        const canViewOverallResults = await this.prisma.systemSetting.findUnique({
+        const canViewOverallResults: any = await this.prisma.systemSetting.findUnique({
           where: { key: 'contestant_can_view_overall_results' },
         });
         const canViewOverall = (canViewOverallResults?.value || 'true') === 'true';
 
         // Get certified category IDs
-        const certifiedCategories = await this.prisma.category.findMany({
+        const certifiedCategories: any = await this.prisma.category.findMany({
           where: { totalsCertified: true },
           select: { id: true },
         });
@@ -189,7 +189,7 @@ export class ResultsService extends BaseService {
         throw new Error('Insufficient permissions');
     }
 
-    const results = await this.prisma.score.findMany({
+    const results: any = await this.prisma.score.findMany({
       where: whereClause,
       select: selectClause,
       orderBy: { createdAt: 'desc' },
@@ -197,7 +197,7 @@ export class ResultsService extends BaseService {
       take: limit,
     });
 
-    const total = await this.prisma.score.count({
+    const total: any = await this.prisma.score.count({
       where: whereClause,
     });
 
@@ -278,7 +278,7 @@ export class ResultsService extends BaseService {
 
     // CONTESTANT can only see their own results
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -287,9 +287,9 @@ export class ResultsService extends BaseService {
         throw new Error('Access denied. You can only view your own results.');
       }
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true } as any,
+        include: { judge: true },
       });
 
       if (!judgeUser?.judge) {
@@ -325,7 +325,7 @@ export class ResultsService extends BaseService {
     const { categoryId, userRole, userId } = filter;
 
     // Verify category exists
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -336,7 +336,7 @@ export class ResultsService extends BaseService {
     let whereClause: any = { categoryId };
 
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -347,9 +347,9 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true } as any,
+        include: { judge: true },
       });
 
       if (!judgeUser?.judge) {
@@ -357,7 +357,7 @@ export class ResultsService extends BaseService {
       }
 
       // Check assignment
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           categoryId,
@@ -366,7 +366,7 @@ export class ResultsService extends BaseService {
       });
 
       if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        const hasScores: any = await this.prisma.score.findFirst({
           where: {
             categoryId,
             judgeId: judgeUser.judge.id,
@@ -442,7 +442,7 @@ export class ResultsService extends BaseService {
     const { contestId, userRole, userId } = filter;
 
     // Verify contest exists
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId },
     });
 
@@ -457,7 +457,7 @@ export class ResultsService extends BaseService {
     };
 
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -468,16 +468,16 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true } as any,
+        include: { judge: true },
       });
 
       if (!judgeUser?.judge) {
         return [];
       }
 
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           contestId,
@@ -486,7 +486,7 @@ export class ResultsService extends BaseService {
       });
 
       if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        const hasScores: any = await this.prisma.score.findFirst({
           where: {
             judgeId: judgeUser.judge.id,
             category: {
@@ -520,7 +520,7 @@ export class ResultsService extends BaseService {
     const { eventId, userRole, userId } = filter;
 
     // Verify event exists
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
 
@@ -537,7 +537,7 @@ export class ResultsService extends BaseService {
     };
 
     if (userRole === 'CONTESTANT') {
-      const user = await this.prisma.user.findUnique({
+      const user: any = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
       });
@@ -548,16 +548,16 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
+      const judgeUser: any = await this.prisma.user.findUnique({
         where: { id: userId },
-        include: { judge: true } as any,
+        include: { judge: true },
       });
 
       if (!judgeUser?.judge) {
         return [];
       }
 
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           eventId,
@@ -566,7 +566,7 @@ export class ResultsService extends BaseService {
       });
 
       if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        const hasScores: any = await this.prisma.score.findFirst({
           where: {
             judgeId: judgeUser.judge.id,
             category: {

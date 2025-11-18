@@ -27,10 +27,10 @@ export declare class ScoreRemovalService extends BaseService {
         updatedAt: Date;
         tenantId: string;
         categoryId: string;
-        reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
+        reason: string;
         requestedBy: string;
+        requestedAt: Date;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -52,10 +52,10 @@ export declare class ScoreRemovalService extends BaseService {
         updatedAt: Date;
         tenantId: string;
         categoryId: string;
-        reason: string;
         status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
+        reason: string;
         requestedBy: string;
+        requestedAt: Date;
         tallySignature: string | null;
         tallySignedAt: Date | null;
         tallySignedBy: string | null;
@@ -66,60 +66,13 @@ export declare class ScoreRemovalService extends BaseService {
         boardSignedAt: Date | null;
         boardSignedBy: string | null;
     })[]>;
-    getById(id: string, tenantId: string): Promise<{
-        category: never;
-        judge: never;
-        requestedByUser: never;
-    } & {
-        id: string;
-        judgeId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
-        categoryId: string;
-        reason: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
-        requestedBy: string;
-        tallySignature: string | null;
-        tallySignedAt: Date | null;
-        tallySignedBy: string | null;
-        auditorSignature: string | null;
-        auditorSignedAt: Date | null;
-        auditorSignedBy: string | null;
-        boardSignature: string | null;
-        boardSignedAt: Date | null;
-        boardSignedBy: string | null;
-    }>;
+    getById(id: string, tenantId: string): Promise<any>;
     signRequest(id: string, tenantId: string, data: SignRequestDto): Promise<{
-        request: {
-            category: never;
-            judge: never;
-        } & {
-            id: string;
-            judgeId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            tenantId: string;
-            categoryId: string;
-            reason: string;
-            status: import(".prisma/client").$Enums.RequestStatus;
-            requestedAt: Date;
-            requestedBy: string;
-            tallySignature: string | null;
-            tallySignedAt: Date | null;
-            tallySignedBy: string | null;
-            auditorSignature: string | null;
-            auditorSignedAt: Date | null;
-            auditorSignedBy: string | null;
-            boardSignature: string | null;
-            boardSignedAt: Date | null;
-            boardSignedBy: string | null;
-        };
+        request: any;
         allSigned: boolean;
     }>;
     executeRemoval(id: string, tenantId: string): Promise<{
-        deletedCount: number;
+        deletedCount: any;
     }>;
 }
 export {};

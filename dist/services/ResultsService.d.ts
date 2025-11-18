@@ -30,14 +30,8 @@ export declare class ResultsService extends BaseService {
     protected prisma: PrismaClient;
     constructor(prisma: PrismaClient);
     getAllResults(filter: ResultsFilter): Promise<{
-        results: {
-            certificationStatus: string;
-            certifiedBy: never;
-            certifiedAt: never;
-            totalEarned: any;
-            totalPossible: any;
-        }[];
-        total: number;
+        results: any[];
+        total: any;
     }>;
     getCategories(): Promise<any>;
     getContestantResults(filter: ContestantResultsFilter): Promise<({
@@ -46,21 +40,21 @@ export declare class ResultsService extends BaseService {
         [x: symbol]: never;
     } & {
         id: string;
+        judgeId: string;
+        contestantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        score: number | null;
         categoryId: string;
         certifiedAt: Date | null;
-        tenantId: string;
-        createdAt: Date;
-        contestantId: string;
-        judgeId: string;
-        criterionId: string | null;
-        score: number | null;
-        updatedAt: Date;
-        allowCommentEdit: boolean;
         certifiedBy: string | null;
-        comment: string | null;
-        isCertified: boolean;
         isLocked: boolean;
         lockedAt: Date | null;
+        criterionId: string | null;
+        allowCommentEdit: boolean;
+        comment: string | null;
+        isCertified: boolean;
         lockedBy: string | null;
     })[]>;
     getCategoryResults(filter: CategoryResultsFilter): Promise<any[]>;
@@ -70,21 +64,21 @@ export declare class ResultsService extends BaseService {
         [x: symbol]: never;
     } & {
         id: string;
+        judgeId: string;
+        contestantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        score: number | null;
         categoryId: string;
         certifiedAt: Date | null;
-        tenantId: string;
-        createdAt: Date;
-        contestantId: string;
-        judgeId: string;
-        criterionId: string | null;
-        score: number | null;
-        updatedAt: Date;
-        allowCommentEdit: boolean;
         certifiedBy: string | null;
-        comment: string | null;
-        isCertified: boolean;
         isLocked: boolean;
         lockedAt: Date | null;
+        criterionId: string | null;
+        allowCommentEdit: boolean;
+        comment: string | null;
+        isCertified: boolean;
         lockedBy: string | null;
     })[]>;
     getEventResults(filter: EventResultsFilter): Promise<({
@@ -93,21 +87,21 @@ export declare class ResultsService extends BaseService {
         [x: symbol]: never;
     } & {
         id: string;
+        judgeId: string;
+        contestantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        score: number | null;
         categoryId: string;
         certifiedAt: Date | null;
-        tenantId: string;
-        createdAt: Date;
-        contestantId: string;
-        judgeId: string;
-        criterionId: string | null;
-        score: number | null;
-        updatedAt: Date;
-        allowCommentEdit: boolean;
         certifiedBy: string | null;
-        comment: string | null;
-        isCertified: boolean;
         isLocked: boolean;
         lockedAt: Date | null;
+        criterionId: string | null;
+        allowCommentEdit: boolean;
+        comment: string | null;
+        isCertified: boolean;
         lockedBy: string | null;
     })[]>;
 }

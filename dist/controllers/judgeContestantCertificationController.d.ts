@@ -5,21 +5,21 @@ export declare class JudgeContestantCertificationController {
     constructor();
     getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
+        judgeId: string;
+        contestantId: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
         comments: string | null;
-        tenantId: string;
-        contestantId: string;
-        judgeId: string;
     }[]>, Record<string, any>>>;
     certify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
+        judgeId: string;
+        contestantId: string;
+        tenantId: string;
         categoryId: string;
         certifiedAt: Date;
         comments: string | null;
-        tenantId: string;
-        contestantId: string;
-        judgeId: string;
     }>, Record<string, any>>>;
     uncertify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
     certifyContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
@@ -28,21 +28,21 @@ export declare class JudgeContestantCertificationController {
 }
 export declare const getCertifications: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
+    judgeId: string;
+    contestantId: string;
+    tenantId: string;
     categoryId: string;
     certifiedAt: Date;
     comments: string | null;
-    tenantId: string;
-    contestantId: string;
-    judgeId: string;
 }[]>, Record<string, any>>>;
 export declare const certify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
+    judgeId: string;
+    contestantId: string;
+    tenantId: string;
     categoryId: string;
     certifiedAt: Date;
     comments: string | null;
-    tenantId: string;
-    contestantId: string;
-    judgeId: string;
 }>, Record<string, any>>>;
 export declare const uncertify: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 export declare const certifyContestantScores: (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;

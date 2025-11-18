@@ -5,31 +5,13 @@ export declare class PerformanceController {
     logPerformance: (req: Request, res: Response, next: NextFunction) => void;
     getPerformanceStats: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         timeRange: "1h" | "24h" | "7d" | "30d";
-        totalRequests: number;
+        totalRequests: any;
         averageResponseTime: number;
-        minResponseTime: number;
-        maxResponseTime: number;
-        responseTimeDistribution: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-            _count: {
-                id: number;
-            };
-            _avg: {
-                responseTime: number;
-            };
-        })[];
-        slowEndpoints: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "endpoint"[]> & {
-            _count: {
-                id: number;
-            };
-            _avg: {
-                responseTime: number;
-            };
-        })[];
-        errorStats: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-            _count: {
-                id: number;
-            };
-        })[];
+        minResponseTime: any;
+        maxResponseTime: any;
+        responseTimeDistribution: any;
+        slowEndpoints: any;
+        errorStats: any;
         errorRate: string;
     }>, Record<string, any>>>;
     getSystemMetrics: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
@@ -60,7 +42,7 @@ export declare class PerformanceController {
         };
         database: {
             status: string;
-            connectionCount: number | bigint;
+            connectionCount: any;
         };
         disk: {
             available: boolean;
@@ -69,61 +51,30 @@ export declare class PerformanceController {
         };
     }>, Record<string, any>>>;
     getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        logs: {
-            id: string;
-            categoryId: string | null;
-            userId: string | null;
-            ipAddress: string | null;
-            userAgent: string | null;
-            createdAt: Date;
-            contestId: string | null;
-            eventId: string | null;
-            endpoint: string;
-            method: string;
-            responseTime: number;
-            statusCode: number;
-        }[];
+        logs: any;
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>, Record<string, any>>>;
     clearPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         message: string;
-        count: number;
+        count: any;
     }>, Record<string, any>>>;
     getHealthCheck: (_req: Request, res: Response, _next: NextFunction) => Promise<Response<any, Record<string, any>>>;
 }
 export declare const logPerformance: (req: Request, res: Response, next: NextFunction) => void;
 export declare const getPerformanceStats: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     timeRange: "1h" | "24h" | "7d" | "30d";
-    totalRequests: number;
+    totalRequests: any;
     averageResponseTime: number;
-    minResponseTime: number;
-    maxResponseTime: number;
-    responseTimeDistribution: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-        _count: {
-            id: number;
-        };
-        _avg: {
-            responseTime: number;
-        };
-    })[];
-    slowEndpoints: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "endpoint"[]> & {
-        _count: {
-            id: number;
-        };
-        _avg: {
-            responseTime: number;
-        };
-    })[];
-    errorStats: (import(".prisma/client").Prisma.PickEnumerable<import(".prisma/client").Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-        _count: {
-            id: number;
-        };
-    })[];
+    minResponseTime: any;
+    maxResponseTime: any;
+    responseTimeDistribution: any;
+    slowEndpoints: any;
+    errorStats: any;
     errorRate: string;
 }>, Record<string, any>>>;
 export declare const getSystemMetrics: (_req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
@@ -154,7 +105,7 @@ export declare const getSystemMetrics: (_req: Request, res: Response, next: Next
     };
     database: {
         status: string;
-        connectionCount: number | bigint;
+        connectionCount: any;
     };
     disk: {
         available: boolean;
@@ -163,30 +114,17 @@ export declare const getSystemMetrics: (_req: Request, res: Response, next: Next
     };
 }>, Record<string, any>>>;
 export declare const getPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    logs: {
-        id: string;
-        categoryId: string | null;
-        userId: string | null;
-        ipAddress: string | null;
-        userAgent: string | null;
-        createdAt: Date;
-        contestId: string | null;
-        eventId: string | null;
-        endpoint: string;
-        method: string;
-        responseTime: number;
-        statusCode: number;
-    }[];
+    logs: any;
     pagination: {
         page: number;
         limit: number;
-        total: number;
+        total: any;
         pages: number;
     };
 }>, Record<string, any>>>;
 export declare const clearPerformanceLogs: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     message: string;
-    count: number;
+    count: any;
 }>, Record<string, any>>>;
 export declare const getHealthCheck: (_req: Request, res: Response, _next: NextFunction) => Promise<Response<any, Record<string, any>>>;
 //# sourceMappingURL=performanceController.d.ts.map

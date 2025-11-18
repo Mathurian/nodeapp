@@ -156,7 +156,7 @@ export class DeductionService extends BaseService {
     if (userRole === 'JUDGE') {
       const user: any = await prisma.user.findFirst({
         where: { id: approvedBy, tenantId },
-        include: { judge: true } as any
+        include: { judge: true }
       } as any);
       if (user?.judge) {
         isHeadJudge = user.judge.isHeadJudge;

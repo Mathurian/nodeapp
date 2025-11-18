@@ -15,8 +15,8 @@ export class BoardService extends BaseService {
    * Get board dashboard statistics
    */
   async getStats() {
-    const totalContests = await this.prisma.contest.count();
-    const totalCategories = await this.prisma.category.count();
+    const totalContests: any = await this.prisma.contest.count();
+    const totalCategories: any = await this.prisma.category.count();
 
     const categories: any = await (this.prisma.category.findMany as any)({
       include: {
@@ -40,7 +40,7 @@ export class BoardService extends BaseService {
    * Get all certifications
    */
   async getCertifications() {
-    const categories: any = await this.prisma.category.findMany({
+    const categories: any = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           include: {
@@ -174,7 +174,7 @@ export class BoardService extends BaseService {
   }) {
     this.validateRequired(data, ['title', 'content', 'tenantId']);
 
-    const script = await this.prisma.emceeScript.create({
+    const script: any = await this.prisma.emceeScript.create({
       data: {
         tenantId: data.tenantId,
         title: data.title,
@@ -206,7 +206,7 @@ export class BoardService extends BaseService {
       isActive?: boolean;
     }
   ) {
-    const script = await this.prisma.emceeScript.update({
+    const script: any = await this.prisma.emceeScript.update({
       where: { id: scriptId },
       data,
     });
@@ -256,7 +256,7 @@ export class BoardService extends BaseService {
       take: limit,
     });
 
-    const total = await this.prisma.judgeScoreRemovalRequest.count({
+    const total: any = await this.prisma.judgeScoreRemovalRequest.count({
       where: whereClause,
     });
 
@@ -277,7 +277,7 @@ export class BoardService extends BaseService {
   async approveScoreRemoval(requestId: string, userId: string, reason?: string) {
     const request: any = await this.prisma.judgeScoreRemovalRequest.findUnique({
       where: { id: requestId },
-      include: { score: true } as any,
+      include: { score: true },
     });
 
     if (!request) {
@@ -290,7 +290,7 @@ export class BoardService extends BaseService {
     });
 
     // Update request status
-    const updatedRequest = await this.prisma.judgeScoreRemovalRequest.update({
+    const updatedRequest: any = await this.prisma.judgeScoreRemovalRequest.update({
       where: { id: requestId },
       data: {
         status: 'APPROVED',
@@ -306,7 +306,7 @@ export class BoardService extends BaseService {
    * Reject score removal
    */
   async rejectScoreRemoval(requestId: string, userId: string, reason?: string) {
-    const updatedRequest = await this.prisma.judgeScoreRemovalRequest.update({
+    const updatedRequest: any = await this.prisma.judgeScoreRemovalRequest.update({
       where: { id: requestId },
       data: {
         status: 'REJECTED',

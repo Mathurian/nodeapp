@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
 interface PerformanceLogData {
     endpoint: string;
@@ -47,31 +47,13 @@ export declare class PerformanceService extends BaseService {
     logPerformance(data: PerformanceLogData): Promise<void>;
     getPerformanceStats(query: PerformanceStatsQuery): Promise<{
         timeRange: "1h" | "24h" | "7d" | "30d";
-        totalRequests: number;
+        totalRequests: any;
         averageResponseTime: number;
-        minResponseTime: number;
-        maxResponseTime: number;
-        responseTimeDistribution: (Prisma.PickEnumerable<Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-            _avg: {
-                responseTime: number;
-            };
-            _count: {
-                id: number;
-            };
-        })[];
-        slowEndpoints: (Prisma.PickEnumerable<Prisma.PerformanceLogGroupByOutputType, "endpoint"[]> & {
-            _avg: {
-                responseTime: number;
-            };
-            _count: {
-                id: number;
-            };
-        })[];
-        errorStats: (Prisma.PickEnumerable<Prisma.PerformanceLogGroupByOutputType, "statusCode"[]> & {
-            _count: {
-                id: number;
-            };
-        })[];
+        minResponseTime: any;
+        maxResponseTime: any;
+        responseTimeDistribution: any;
+        slowEndpoints: any;
+        errorStats: any;
         errorRate: string;
     }>;
     getSystemMetrics(): Promise<{
@@ -102,7 +84,7 @@ export declare class PerformanceService extends BaseService {
         };
         database: {
             status: string;
-            connectionCount: number | bigint;
+            connectionCount: any;
         };
         disk: {
             available: boolean;
@@ -111,30 +93,17 @@ export declare class PerformanceService extends BaseService {
         };
     }>;
     getPerformanceLogs(query: PerformanceLogsQuery): Promise<{
-        logs: {
-            id: string;
-            createdAt: Date;
-            categoryId: string | null;
-            eventId: string | null;
-            contestId: string | null;
-            userId: string | null;
-            ipAddress: string | null;
-            userAgent: string | null;
-            endpoint: string;
-            method: string;
-            responseTime: number;
-            statusCode: number;
-        }[];
+        logs: any;
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
     clearPerformanceLogs(olderThan?: string): Promise<{
         message: string;
-        count: number;
+        count: any;
     }>;
     getHealthCheck(): Promise<HealthCheckResult>;
 }

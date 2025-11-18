@@ -93,7 +93,7 @@ export class ExportService extends BaseService {
   async exportJudgePerformanceToXML(judgeId: string): Promise<string> {
     await this.ensureExportDir();
 
-    const judge = await this.prisma.judge.findUnique({
+    const judge: any = await this.prisma.judge.findUnique({
       where: { id: judgeId },
     }) as any;
 

@@ -6,7 +6,7 @@ export declare class TrackerController {
     getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         contestId: any;
         contestName: any;
-        eventName: string;
+        eventName: any;
         categories: any[];
         overallCompletion: number;
     }>, Record<string, any>>>;
@@ -14,7 +14,7 @@ export declare class TrackerController {
         categoryId: any;
         categoryName: any;
         contestName: any;
-        eventName: string;
+        eventName: any;
         totalContestants: any;
         totalJudges: any;
         totalScores: any;
@@ -28,7 +28,7 @@ export declare class TrackerController {
 export declare const getScoringProgressByContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     contestId: any;
     contestName: any;
-    eventName: string;
+    eventName: any;
     categories: any[];
     overallCompletion: number;
 }>, Record<string, any>>>;
@@ -36,7 +36,7 @@ export declare const getScoringProgressByCategory: (req: Request, res: Response,
     categoryId: any;
     categoryName: any;
     contestName: any;
-    eventName: string;
+    eventName: any;
     totalContestants: any;
     totalJudges: any;
     totalScores: any;

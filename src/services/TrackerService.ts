@@ -30,7 +30,7 @@ export class TrackerService extends BaseService {
     if (!contest) throw this.notFoundError('Contest', contestId);
 
     // Get event name separately
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: contest.eventId },
       select: { id: true, name: true }
     });
@@ -101,7 +101,7 @@ export class TrackerService extends BaseService {
     if (!category) throw this.notFoundError('Category', categoryId);
 
     // Get event name separately
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: category.contest.eventId },
       select: { id: true, name: true }
     });

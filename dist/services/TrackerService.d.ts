@@ -6,7 +6,7 @@ export declare class TrackerService extends BaseService {
     getScoringProgressByContest(contestId: string): Promise<{
         contestId: any;
         contestName: any;
-        eventName: string;
+        eventName: any;
         categories: any[];
         overallCompletion: number;
     }>;
@@ -14,7 +14,7 @@ export declare class TrackerService extends BaseService {
         categoryId: any;
         categoryName: any;
         contestName: any;
-        eventName: string;
+        eventName: any;
         totalContestants: any;
         totalJudges: any;
         totalScores: any;

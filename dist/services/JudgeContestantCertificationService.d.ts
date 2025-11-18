@@ -24,23 +24,15 @@ export declare class JudgeContestantCertificationService extends BaseService {
     uncertify(id: string): Promise<void>;
     getCategoryCertificationStatus(categoryId: string): Promise<{
         categoryId: string;
-        categoryName: string;
+        categoryName: any;
         totalJudges: number;
         totalContestants: number;
         expectedCertifications: number;
-        completedCertifications: number;
+        completedCertifications: any;
         completionPercentage: number;
         certificationsByJudge: unknown[];
         certificationsByContestant: unknown[];
-        allCertifications: {
-            id: string;
-            judgeId: string;
-            contestantId: string;
-            tenantId: string;
-            categoryId: string;
-            certifiedAt: Date;
-            comments: string | null;
-        }[];
+        allCertifications: any;
     }>;
 }
 //# sourceMappingURL=JudgeContestantCertificationService.d.ts.map

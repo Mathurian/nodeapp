@@ -143,7 +143,7 @@ export class PrintService extends BaseService {
     input: PrintEventReportInput,
     userName: string
   ): Promise<PrintOutput> {
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: input.eventId },
       include: {
         contests: {
@@ -179,7 +179,7 @@ export class PrintService extends BaseService {
     input: PrintContestResultsInput,
     userName: string
   ): Promise<PrintOutput> {
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: input.contestId },
       include: {
         event: true,
@@ -212,7 +212,7 @@ export class PrintService extends BaseService {
     input: PrintJudgePerformanceInput,
     userName: string
   ): Promise<PrintOutput> {
-    const judge = await this.prisma.user.findUnique({
+    const judge: any = await this.prisma.user.findUnique({
       where: { id: input.judgeId },
     });
 
@@ -221,7 +221,7 @@ export class PrintService extends BaseService {
     }
 
     // Get scores for this judge
-    const scores = await this.prisma.score.findMany({
+    const scores: any = await this.prisma.score.findMany({
       where: { judgeId: input.judgeId },
       include: {
         category: true,
@@ -262,7 +262,7 @@ export class PrintService extends BaseService {
    * Get contestant report data
    */
   async getContestantReport(id: string): Promise<any> {
-    const contestant = await this.prisma.contestant.findUnique({
+    const contestant: any = await this.prisma.contestant.findUnique({
       where: { id },
       include: {
         categoryContestants: {
@@ -292,7 +292,7 @@ export class PrintService extends BaseService {
    * Get judge report data
    */
   async getJudgeReport(id: string): Promise<any> {
-    const judge = await this.prisma.judge.findUnique({
+    const judge: any = await this.prisma.judge.findUnique({
       where: { id },
       include: {
         assignments: {
@@ -322,7 +322,7 @@ export class PrintService extends BaseService {
    * Get category report data
    */
   async getCategoryReport(id: string): Promise<any> {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id },
       include: {
         contest: {
@@ -362,7 +362,7 @@ export class PrintService extends BaseService {
    * Get contest report data
    */
   async getContestReport(id: string): Promise<any> {
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id },
       include: {
         event: true,
@@ -397,7 +397,7 @@ export class PrintService extends BaseService {
    * Get archived contest report data
    */
   async getArchivedContestReport(id: string): Promise<any> {
-    const contest = await this.prisma.contest.findFirst({
+    const contest: any = await this.prisma.contest.findFirst({
       where: {
         id,
         archived: true,

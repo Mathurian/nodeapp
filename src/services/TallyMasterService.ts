@@ -55,7 +55,7 @@ export class TallyMasterService extends BaseService {
       take: limit,
     } as any);
 
-    const total = await this.prisma.category.count({
+    const total: any = await this.prisma.category.count({
       where: { totalsCertified: true },
     });
 
@@ -110,7 +110,7 @@ export class TallyMasterService extends BaseService {
     // Filter categories where all judges have certified but tally master hasn't
     const pendingItems = await Promise.all(
       allCategories.map(async (category: any) => {
-        const hasJudgeCategoryCert = await this.prisma.judgeCertification.findFirst({
+        const hasJudgeCategoryCert: any = await this.prisma.judgeCertification.findFirst({
           where: { categoryId: category.id },
         });
         const hasTallyCert = category.categoryCertifications.length > 0;
@@ -177,7 +177,7 @@ export class TallyMasterService extends BaseService {
 
     const pendingItems = await Promise.all(
       allCategories.map(async (category: any) => {
-        const hasJudgeCategoryCert = await this.prisma.judgeCertification.findFirst({
+        const hasJudgeCategoryCert: any = await this.prisma.judgeCertification.findFirst({
           where: { categoryId: category.id },
         });
         const hasTallyCert = category.categoryCertifications.length > 0;
@@ -271,7 +271,7 @@ export class TallyMasterService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    const updatedCategory = await this.prisma.category.update({
+    const updatedCategory: any = await this.prisma.category.update({
       where: { id: categoryId },
       data: {
         totalsCertified: true,
@@ -517,7 +517,7 @@ export class TallyMasterService extends BaseService {
       take: limit,
     } as any);
 
-    const total = await this.prisma.category.count();
+    const total: any = await this.prisma.category.count();
 
     return {
       categories,
@@ -780,7 +780,7 @@ export class TallyMasterService extends BaseService {
         const actualScores = Array.isArray(category.scores) ? category.scores.length : 0;
         
         // Get certifications for this category
-        const certifications = await this.prisma.judgeContestantCertification.findMany({
+        const certifications: any = await this.prisma.judgeContestantCertification.findMany({
           where: { categoryId: category.id }
         });
 
@@ -840,7 +840,7 @@ export class TallyMasterService extends BaseService {
     }
     if (contestId) {
       // If contestId is provided, get all categories for that contest first
-      const categories = await this.prisma.category.findMany({
+      const categories: any = await this.prisma.category.findMany({
         where: { contestId },
         select: { id: true }
       });
@@ -938,7 +938,7 @@ export class TallyMasterService extends BaseService {
       })
     );
 
-    const total = await this.prisma.judgeScoreRemovalRequest.count({
+    const total: any = await this.prisma.judgeScoreRemovalRequest.count({
       where: whereClause,
     });
 

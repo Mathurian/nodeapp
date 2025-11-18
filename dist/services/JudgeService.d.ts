@@ -19,32 +19,8 @@ export declare class JudgeService extends BaseService {
         completedAssignments: number;
         totalScores: number;
     }>;
-    getAssignments(userId: string, userRole: string, tenantId: string): Promise<{
-        id: string;
-        judgeId: string;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string;
-        contestId: string;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        notes: string | null;
-        assignedAt: Date;
-        assignedBy: string;
-        priority: number;
-    }[]>;
-    updateAssignmentStatus(assignmentId: string, status: string, userId: string, userRole: string, tenantId: string): Promise<{
-        id: string;
-        judgeId: string;
-        tenantId: string;
-        categoryId: string | null;
-        eventId: string;
-        contestId: string;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        notes: string | null;
-        assignedAt: Date;
-        assignedBy: string;
-        priority: number;
-    }>;
+    getAssignments(userId: string, userRole: string, tenantId: string): Promise<any>;
+    updateAssignmentStatus(assignmentId: string, status: string, userId: string, userRole: string, tenantId: string): Promise<any>;
     getScoringInterface(categoryId: string, userId: string, tenantId: string): Promise<{
         category: {
             id: any;
@@ -61,49 +37,37 @@ export declare class JudgeService extends BaseService {
         contestants: any;
         scores: any;
         assignment: {
-            id: string;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
-            assignedAt: Date;
+            id: any;
+            status: any;
+            assignedAt: any;
         };
     }>;
     submitScore(data: SubmitScoreData, userId: string): Promise<any>;
     getCertificationWorkflow(categoryId: string, userId: string, tenantId: string): Promise<{
         category: any;
-        assignment: {
-            id: string;
-            judgeId: string;
-            tenantId: string;
-            categoryId: string | null;
-            eventId: string;
-            contestId: string;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
-            notes: string | null;
-            assignedAt: Date;
-            assignedBy: string;
-            priority: number;
-        };
+        assignment: any;
         certifications: any[];
     }>;
     getContestantBios(categoryId: string, userId: string, tenantId: string): Promise<any>;
     getContestantBio(contestantId: string, userId: string, tenantId: string): Promise<any>;
     getJudgeHistory(userId: string, tenantId: string, query?: any): Promise<{
         scores: {
-            score: number | null;
             id: string;
             judgeId: string;
             contestantId: string;
             createdAt: Date;
             updatedAt: Date;
             tenantId: string;
-            isLocked: boolean;
-            lockedAt: Date | null;
+            score: number | null;
             categoryId: string;
-            criterionId: string | null;
-            allowCommentEdit: boolean;
             certifiedAt: Date | null;
             certifiedBy: string | null;
+            criterionId: string | null;
+            allowCommentEdit: boolean;
             comment: string | null;
             isCertified: boolean;
+            isLocked: boolean;
+            lockedAt: Date | null;
             lockedBy: string | null;
         }[];
         pagination: {

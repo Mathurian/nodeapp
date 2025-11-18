@@ -8,24 +8,16 @@ export declare class ContestCertificationController {
         auditor: boolean;
         board: boolean;
         organizer: boolean;
-        certifications: {
-            id: string;
-            role: string;
-            userId: string;
-            certifiedAt: Date;
-            comments: string | null;
-            tenantId: string;
-            contestId: string;
-        }[];
+        certifications: any;
     }>, Record<string, any>>>;
     certifyContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
         id: string;
         role: string;
+        tenantId: string;
         userId: string;
+        contestId: string;
         certifiedAt: Date;
         comments: string | null;
-        tenantId: string;
-        contestId: string;
     }>, Record<string, any>>>;
 }
 export declare const getContestCertificationProgress: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
@@ -34,23 +26,15 @@ export declare const getContestCertificationProgress: (req: Request, res: Respon
     auditor: boolean;
     board: boolean;
     organizer: boolean;
-    certifications: {
-        id: string;
-        role: string;
-        userId: string;
-        certifiedAt: Date;
-        comments: string | null;
-        tenantId: string;
-        contestId: string;
-    }[];
+    certifications: any;
 }>, Record<string, any>>>;
 export declare const certifyContest: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     id: string;
     role: string;
+    tenantId: string;
     userId: string;
+    contestId: string;
     certifiedAt: Date;
     comments: string | null;
-    tenantId: string;
-    contestId: string;
 }>, Record<string, any>>>;
 //# sourceMappingURL=contestCertificationController.d.ts.map

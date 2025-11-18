@@ -41,7 +41,7 @@ export class RestrictionService extends BaseService {
     }
 
     if (dto.eventId) {
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: dto.eventId }
       });
 
@@ -68,7 +68,7 @@ export class RestrictionService extends BaseService {
         });
       }
     } else if (dto.contestId) {
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: dto.contestId }
       });
 
@@ -123,7 +123,7 @@ export class RestrictionService extends BaseService {
 
       return true;
     } else if (eventId) {
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: eventId }
       });
 
@@ -158,7 +158,7 @@ export class RestrictionService extends BaseService {
     }
 
     if (dto.eventId) {
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: dto.eventId }
       });
 
@@ -193,7 +193,7 @@ export class RestrictionService extends BaseService {
         }
 
         // Verify the verifier is an admin/organizer/board
-        const verifier = await this.prisma.user.findUnique({
+        const verifier: any = await this.prisma.user.findUnique({
           where: { id: dto.verifiedBy },
           select: { role: true }
         });
@@ -220,7 +220,7 @@ export class RestrictionService extends BaseService {
         });
       }
     } else if (dto.contestId) {
-      const contest = await this.prisma.contest.findUnique({
+      const contest: any = await this.prisma.contest.findUnique({
         where: { id: dto.contestId }
       });
 
@@ -244,7 +244,7 @@ export class RestrictionService extends BaseService {
           throw this.validationError('Unlocking requires verification from a different admin/organizer/board user');
         }
 
-        const verifier = await this.prisma.user.findUnique({
+        const verifier: any = await this.prisma.user.findUnique({
           where: { id: dto.verifiedBy },
           select: { role: true }
         });
@@ -289,7 +289,7 @@ export class RestrictionService extends BaseService {
 
       return contest.isLocked;
     } else if (eventId) {
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: eventId }
       });
 

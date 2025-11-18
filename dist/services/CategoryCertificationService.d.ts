@@ -6,7 +6,7 @@ export declare class CategoryCertificationService extends BaseService {
     getCertificationProgress(categoryId: string): Promise<{
         categoryId: string;
         judgeProgress: {
-            contestantsCertified: number;
+            contestantsCertified: any;
             totalContestants: any;
             isCategoryCertified: boolean;
         };
@@ -24,9 +24,9 @@ export declare class CategoryCertificationService extends BaseService {
         id: string;
         role: string;
         tenantId: string;
+        userId: string;
         categoryId: string;
         certifiedAt: Date;
-        userId: string;
         comments: string | null;
         signatureName: string | null;
     }>;

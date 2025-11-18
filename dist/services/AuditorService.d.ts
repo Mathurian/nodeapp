@@ -4,7 +4,7 @@ export declare class AuditorService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     getStats(): Promise<{
-        totalCategories: number;
+        totalCategories: any;
         pendingAudits: any;
         completedAudits: any;
     }>;
@@ -28,33 +28,11 @@ export declare class AuditorService extends BaseService {
     }>;
     finalCertification(categoryId: string, userId: string): Promise<{
         message: string;
-        certification: {
-            id: string;
-            categoryId: string;
-            role: string;
-            userId: string;
-            signatureName: string | null;
-            certifiedAt: Date;
-            comments: string | null;
-            tenantId: string;
-        };
+        certification: any;
     }>;
     rejectAudit(categoryId: string, userId: string, reason: string): Promise<{
         message: string;
-        activityLog: {
-            id: string;
-            userId: string | null;
-            userName: string | null;
-            userRole: string | null;
-            action: string;
-            resourceType: string | null;
-            resourceId: string | null;
-            ipAddress: string | null;
-            userAgent: string | null;
-            logLevel: import(".prisma/client").$Enums.LogLevel;
-            createdAt: Date;
-            details: import("@prisma/client/runtime/library").JsonValue | null;
-        };
+        activityLog: any;
     }>;
     getScoreVerification(categoryId: string, contestantId?: string): Promise<{
         categoryId: string;
@@ -66,25 +44,7 @@ export declare class AuditorService extends BaseService {
         verified: boolean;
         comments?: string;
         issues?: string;
-    }): Promise<{
-        id: string;
-        categoryId: string;
-        certifiedAt: Date | null;
-        tenantId: string;
-        createdAt: Date;
-        contestantId: string;
-        judgeId: string;
-        criterionId: string | null;
-        score: number | null;
-        updatedAt: Date;
-        allowCommentEdit: boolean;
-        certifiedBy: string | null;
-        comment: string | null;
-        isCertified: boolean;
-        isLocked: boolean;
-        lockedAt: Date | null;
-        lockedBy: string | null;
-    }>;
+    }): Promise<any>;
     getTallyMasterStatus(categoryId: string): Promise<{
         categoryId: any;
         categoryName: any;
@@ -146,7 +106,7 @@ export declare class AuditorService extends BaseService {
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;

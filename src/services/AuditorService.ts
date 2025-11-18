@@ -15,7 +15,7 @@ export class AuditorService extends BaseService {
    * Get auditor dashboard statistics
    */
   async getStats() {
-    const totalCategories = await this.prisma.category.count();
+    const totalCategories: any = await this.prisma.category.count();
     const categoriesWithCertifications: any = await (this.prisma.category.findMany as any)({
       include: {
         categoryCertifications: true,
@@ -45,7 +45,7 @@ export class AuditorService extends BaseService {
   async getPendingAudits(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const categories: any = await this.prisma.category.findMany({
+    const categories: any = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           select: {
@@ -91,7 +91,7 @@ export class AuditorService extends BaseService {
   async getCompletedAudits(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const categories: any = await this.prisma.category.findMany({
+    const categories: any = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           select: {
@@ -149,7 +149,7 @@ export class AuditorService extends BaseService {
     }
 
     // Create auditor category certification
-    const certification = await this.prisma.categoryCertification.create({
+    const certification: any = await this.prisma.categoryCertification.create({
       data: {
         tenantId: category.tenantId,
         categoryId,
@@ -167,7 +167,7 @@ export class AuditorService extends BaseService {
    */
   async rejectAudit(categoryId: string, userId: string, reason: string) {
     // Record rejection as activity log
-    const activityLog = await this.prisma.activityLog.create({
+    const activityLog: any = await this.prisma.activityLog.create({
       data: {
         userId,
         action: 'AUDIT_REJECTED',
@@ -184,7 +184,7 @@ export class AuditorService extends BaseService {
    * Get score verification data for a category
    */
   async getScoreVerification(categoryId: string, contestantId?: string) {
-    const categoryExists = await this.prisma.category.findUnique({
+    const categoryExists: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -293,7 +293,7 @@ export class AuditorService extends BaseService {
 
     // Note: verification fields don't exist in Score schema
     // Score has isCertified, certifiedBy, certifiedAt instead
-    const updatedScore = await this.prisma.score.update({
+    const updatedScore: any = await this.prisma.score.update({
       where: { id: scoreId },
       data: {
         isCertified: data.verified,
@@ -587,7 +587,7 @@ export class AuditorService extends BaseService {
       take: limit,
     });
 
-    const total = await this.prisma.activityLog.count({
+    const total: any = await this.prisma.activityLog.count({
       where: whereClause,
     });
 

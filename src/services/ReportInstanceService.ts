@@ -40,7 +40,7 @@ export class ReportInstanceService extends BaseService {
     try {
       this.validateRequired(data, ['type', 'name', 'generatedById', 'format', 'tenantId']);
 
-      const instance = await this.prisma.reportInstance.create({
+      const instance: any = await this.prisma.reportInstance.create({
         data: {
           tenantId: data.tenantId,
           type: data.type,
@@ -92,7 +92,7 @@ export class ReportInstanceService extends BaseService {
         }
       }
 
-      const instances = await this.prisma.reportInstance.findMany({
+      const instances: any = await this.prisma.reportInstance.findMany({
         where,
         orderBy: { generatedAt: 'desc' }
       });
@@ -108,7 +108,7 @@ export class ReportInstanceService extends BaseService {
    */
   async getInstanceById(instanceId: string): Promise<ReportInstance> {
     try {
-      const instance = await this.prisma.reportInstance.findUnique({
+      const instance: any = await this.prisma.reportInstance.findUnique({
         where: { id: instanceId }
       });
 
@@ -125,7 +125,7 @@ export class ReportInstanceService extends BaseService {
    */
   async deleteInstance(instanceId: string): Promise<void> {
     try {
-      const instance = await this.prisma.reportInstance.findUnique({
+      const instance: any = await this.prisma.reportInstance.findUnique({
         where: { id: instanceId }
       });
 
@@ -152,7 +152,7 @@ export class ReportInstanceService extends BaseService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-      const result = await this.prisma.reportInstance.deleteMany({
+      const result: any = await this.prisma.reportInstance.deleteMany({
         where: {
           generatedAt: {
             lt: cutoffDate
@@ -201,7 +201,7 @@ export class ReportInstanceService extends BaseService {
         }
       }
 
-      const instances = await this.prisma.reportInstance.findMany({
+      const instances: any = await this.prisma.reportInstance.findMany({
         where
       });
 

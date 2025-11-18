@@ -10,18 +10,9 @@ export declare class AuditorCertificationController {
         alreadyCertified: boolean;
         tallyCertifications: {
             required: any;
-            completed: number;
+            completed: any;
             missing: number;
-            certifications: {
-                id: string;
-                categoryId: string;
-                role: string;
-                userId: string;
-                signatureName: string | null;
-                certifiedAt: Date;
-                comments: string | null;
-                tenantId: string;
-            }[];
+            certifications: any;
         };
         scoreStatus: {
             total: any;
@@ -30,20 +21,11 @@ export declare class AuditorCertificationController {
         };
         auditorCertified: boolean;
         auditorCertification: {
-            certifiedAt: Date;
-            certifiedBy: string;
+            certifiedAt: any;
+            certifiedBy: any;
         };
     }>, Record<string, any>>>;
-    submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-        id: string;
-        categoryId: string;
-        role: string;
-        userId: string;
-        signatureName: string | null;
-        certifiedAt: Date;
-        comments: string | null;
-        tenantId: string;
-    }>, Record<string, any>>>;
+    submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 }
 export declare const getFinalCertificationStatus: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
     categoryId: string;
@@ -53,18 +35,9 @@ export declare const getFinalCertificationStatus: (req: Request, res: Response, 
     alreadyCertified: boolean;
     tallyCertifications: {
         required: any;
-        completed: number;
+        completed: any;
         missing: number;
-        certifications: {
-            id: string;
-            categoryId: string;
-            role: string;
-            userId: string;
-            signatureName: string | null;
-            certifiedAt: Date;
-            comments: string | null;
-            tenantId: string;
-        }[];
+        certifications: any;
     };
     scoreStatus: {
         total: any;
@@ -73,18 +46,9 @@ export declare const getFinalCertificationStatus: (req: Request, res: Response, 
     };
     auditorCertified: boolean;
     auditorCertification: {
-        certifiedAt: Date;
-        certifiedBy: string;
+        certifiedAt: any;
+        certifiedBy: any;
     };
 }>, Record<string, any>>>;
-export declare const submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<{
-    id: string;
-    categoryId: string;
-    role: string;
-    userId: string;
-    signatureName: string | null;
-    certifiedAt: Date;
-    comments: string | null;
-    tenantId: string;
-}>, Record<string, any>>>;
+export declare const submitFinalCertification: (req: Request, res: Response, next: NextFunction) => Promise<void | Response<import("../types/api/responses.types").SuccessResponse<any>, Record<string, any>>>;
 //# sourceMappingURL=auditorCertificationController.d.ts.map

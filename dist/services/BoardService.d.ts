@@ -4,8 +4,8 @@ export declare class BoardService extends BaseService {
     private prisma;
     constructor(prisma: PrismaClient);
     getStats(): Promise<{
-        contests: number;
-        categories: number;
+        contests: any;
+        categories: any;
         certified: any;
         pending: any;
     }>;
@@ -26,12 +26,12 @@ export declare class BoardService extends BaseService {
     }>;
     getEmceeScripts(): Promise<{
         id: string;
-        categoryId: string | null;
-        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
-        contestId: string | null;
+        tenantId: string;
         eventId: string | null;
+        contestId: string | null;
+        categoryId: string | null;
         title: string;
         content: string;
         order: number | null;
@@ -48,19 +48,7 @@ export declare class BoardService extends BaseService {
         notes?: string;
         userId: string;
         tenantId: string;
-    }): Promise<{
-        id: string;
-        categoryId: string | null;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        contestId: string | null;
-        eventId: string | null;
-        title: string;
-        content: string;
-        order: number | null;
-        file_path: string | null;
-    }>;
+    }): Promise<any>;
     updateEmceeScript(scriptId: string, data: {
         title?: string;
         content?: string;
@@ -71,19 +59,7 @@ export declare class BoardService extends BaseService {
         order?: number;
         notes?: string;
         isActive?: boolean;
-    }): Promise<{
-        id: string;
-        categoryId: string | null;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        contestId: string | null;
-        eventId: string | null;
-        title: string;
-        content: string;
-        order: number | null;
-        file_path: string | null;
-    }>;
+    }): Promise<any>;
     deleteEmceeScript(scriptId: string): Promise<{
         message: string;
     }>;
@@ -92,33 +68,11 @@ export declare class BoardService extends BaseService {
         pagination: {
             page: number;
             limit: number;
-            total: number;
+            total: any;
             pages: number;
         };
     }>;
-    approveScoreRemoval(requestId: string, userId: string, reason?: string): Promise<{
-        id: string;
-        categoryId: string;
-        tenantId: string;
-        reason: string;
-        contestantId: string;
-        judgeId: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
-        reviewedAt: Date | null;
-        reviewedById: string | null;
-    }>;
-    rejectScoreRemoval(requestId: string, userId: string, reason?: string): Promise<{
-        id: string;
-        categoryId: string;
-        tenantId: string;
-        reason: string;
-        contestantId: string;
-        judgeId: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
-        requestedAt: Date;
-        reviewedAt: Date | null;
-        reviewedById: string | null;
-    }>;
+    approveScoreRemoval(requestId: string, userId: string, reason?: string): Promise<any>;
+    rejectScoreRemoval(requestId: string, userId: string, reason?: string): Promise<any>;
 }
 //# sourceMappingURL=BoardService.d.ts.map

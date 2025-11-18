@@ -66,7 +66,7 @@ export class AdminService extends BaseService {
       let databaseSize = 'N/A';
       try {
         // Try using Prisma first (more reliable)
-        const result = await this.prisma.$queryRaw<Array<{ size: bigint }>>`
+        const result: any = await this.prisma.$queryRaw<Array<{ size: bigint }>>`
           SELECT pg_size_pretty(pg_database_size(current_database())) as size
         `;
         if (result && result[0] && result[0].size) {
@@ -83,7 +83,7 @@ export class AdminService extends BaseService {
         log.warn('Could not get database size', { error: (error as Error).message });
         // Try alternative method using Prisma
         try {
-          const result = await this.prisma.$queryRawUnsafe(
+          const result: any = await this.prisma.$queryRawUnsafe(
             `SELECT pg_size_pretty(pg_database_size(current_database())) as size`
           ) as Array<{ size: string }>;
           if (result && result[0] && result[0].size) {
@@ -146,7 +146,7 @@ export class AdminService extends BaseService {
   }
 
   async getSystemHealth() {
-    const dbHealth = await this.prisma.$queryRaw`SELECT 1`;
+    const dbHealth: any = await this.prisma.$queryRaw`SELECT 1`;
     return {
       database: dbHealth ? 'healthy' : 'unhealthy',
       uptime: process.uptime(),
@@ -209,7 +209,7 @@ export class AdminService extends BaseService {
   async getDatabaseTables() {
     try {
       // Use Prisma to query information_schema directly for all tables
-      const tables = await this.prisma.$queryRawUnsafe(`
+      const tables: any = await this.prisma.$queryRawUnsafe(`
         SELECT 
           table_name as name
         FROM information_schema.tables
@@ -222,7 +222,7 @@ export class AdminService extends BaseService {
       const tablesWithCounts = await Promise.all(
         tables.map(async (table) => {
           try {
-            const result = await this.prisma.$queryRawUnsafe(
+            const result: any = await this.prisma.$queryRawUnsafe(
               `SELECT COUNT(*) as count FROM "${table.name}"`
             ) as Array<{ count: bigint }>;
             const rowCount = result[0]?.count ? Number(result[0].count) : 0;
@@ -258,7 +258,7 @@ export class AdminService extends BaseService {
       const tablesWithCounts = await Promise.all(
         fallbackTables.map(async (tableName) => {
           try {
-            const result = await this.prisma.$queryRawUnsafe(
+            const result: any = await this.prisma.$queryRawUnsafe(
               `SELECT COUNT(*) as count FROM "${tableName}"`
             ) as Array<{ count: bigint }>;
             const rowCount = result[0]?.count ? Number(result[0].count) : 0;
@@ -289,7 +289,7 @@ export class AdminService extends BaseService {
       }
 
       // Get column information - use parameterized query
-      const columns = await this.prisma.$queryRawUnsafe(`
+      const columns: any = await this.prisma.$queryRawUnsafe(`
         SELECT 
           column_name,
           data_type,
@@ -312,7 +312,7 @@ export class AdminService extends BaseService {
       }>;
 
       // Get primary keys
-      const primaryKeys = await this.prisma.$queryRawUnsafe(`
+      const primaryKeys: any = await this.prisma.$queryRawUnsafe(`
         SELECT column_name
         FROM information_schema.table_constraints tc
         JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name)
@@ -322,7 +322,7 @@ export class AdminService extends BaseService {
       `) as Array<{ column_name: string }>;
 
       // Get foreign keys
-      const foreignKeys = await this.prisma.$queryRawUnsafe(`
+      const foreignKeys: any = await this.prisma.$queryRawUnsafe(`
         SELECT
           kcu.column_name,
           ccu.table_name AS foreign_table_name,
@@ -384,7 +384,7 @@ export class AdminService extends BaseService {
       const offset = (page - 1) * limit;
       
       // Get total row count
-      const countResult = await this.prisma.$queryRawUnsafe(
+      const countResult: any = await this.prisma.$queryRawUnsafe(
         `SELECT COUNT(*) as count FROM "${tableName}"`
       ) as Array<{ count: bigint }>;
       const totalRows = Number(countResult[0]?.count || 0);
@@ -397,7 +397,7 @@ export class AdminService extends BaseService {
       }
 
       // Get table data - use parameterized query for limit/offset
-      const rows = await this.prisma.$queryRawUnsafe(
+      const rows: any = await this.prisma.$queryRawUnsafe(
         `SELECT * FROM "${tableName}" ${orderByClause} LIMIT ${limit} OFFSET ${offset}`
       ) as Array<Record<string, any>>;
 
@@ -442,7 +442,7 @@ export class AdminService extends BaseService {
 
       // Execute query with limit
       const limitedQuery = query.replace(/;?\s*$/, '') + ` LIMIT ${limit}`;
-      const rows = await this.prisma.$queryRawUnsafe(limitedQuery) as Array<Record<string, any>>;
+      const rows: any = await this.prisma.$queryRawUnsafe(limitedQuery) as Array<Record<string, any>>;
 
       return {
         rows: rows,

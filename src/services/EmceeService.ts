@@ -36,7 +36,7 @@ export class EmceeService extends BaseService {
     if (filters.contestId) whereClause.contestId = filters.contestId;
     if (filters.categoryId) whereClause.categoryId = filters.categoryId;
 
-    const scripts = await this.prisma.emceeScript.findMany({
+    const scripts: any = await this.prisma.emceeScript.findMany({
       where: whereClause,
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
@@ -169,19 +169,19 @@ export class EmceeService extends BaseService {
     let categoryIds: string[] = [];
 
     if (filters.eventId) {
-      const contests = await this.prisma.contest.findMany({
+      const contests: any = await this.prisma.contest.findMany({
         where: { eventId: filters.eventId },
         select: { id: true },
       });
 
-      const categories = await this.prisma.category.findMany({
+      const categories: any = await this.prisma.category.findMany({
         where: { contestId: { in: contests.map((c: any) => c.id) } },
         select: { id: true },
       });
 
       categoryIds = categories.map((c: any) => c.id);
     } else if (filters.contestId) {
-      const categories = await this.prisma.category.findMany({
+      const categories: any = await this.prisma.category.findMany({
         where: { contestId: filters.contestId },
         select: { id: true },
       });
@@ -265,7 +265,7 @@ export class EmceeService extends BaseService {
       let contestIds: string[] = [];
 
       if (filters.eventId) {
-        const contests = await this.prisma.contest.findMany({
+        const contests: any = await this.prisma.contest.findMany({
           where: { eventId: filters.eventId },
           select: { id: true },
         });
@@ -283,7 +283,7 @@ export class EmceeService extends BaseService {
         assignmentFilter.contestId = { in: contestIds };
       }
 
-      const assignments = await this.prisma.assignment.findMany({
+      const assignments: any = await this.prisma.assignment.findMany({
         where: assignmentFilter,
         select: { judgeId: true },
         distinct: ['judgeId'],
@@ -491,13 +491,13 @@ export class EmceeService extends BaseService {
         event: true,
         contest: true,
         category: true,
-      } as any,
+      } ,
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
     } as any);
 
-    const total = await this.prisma.emceeScript.count();
+    const total: any = await this.prisma.emceeScript.count();
 
     return {
       scripts,
@@ -529,7 +529,7 @@ export class EmceeService extends BaseService {
       throw this.validationError('Content or file is required');
     }
 
-    const script = await this.prisma.emceeScript.create({
+    const script: any = await this.prisma.emceeScript.create({
       data: {
         tenantId: data.tenantId!,
         title: data.title,
@@ -559,7 +559,7 @@ export class EmceeService extends BaseService {
       order?: number;
     }
   ) {
-    const script = await this.prisma.emceeScript.update({
+    const script: any = await this.prisma.emceeScript.update({
       where: { id },
       data: {
         title: data.title,
@@ -587,7 +587,7 @@ export class EmceeService extends BaseService {
    * Get script file info
    */
   async getScriptFileInfo(scriptId: string) {
-    const script = await this.prisma.emceeScript.findUnique({
+    const script: any = await this.prisma.emceeScript.findUnique({
       where: { id: scriptId },
     });
 
