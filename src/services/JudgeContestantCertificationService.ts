@@ -27,7 +27,7 @@ export class JudgeContestantCertificationService extends BaseService {
       throw this.badRequestError('Judge ID, category ID, and contestant ID are required');
     }
 
-    const existing = await this.prisma.judgeContestantCertification.findFirst({
+    const existing: any = await this.prisma.judgeContestantCertification.findFirst({
       where: { judgeId, categoryId, contestantId }
     });
 
@@ -41,7 +41,7 @@ export class JudgeContestantCertificationService extends BaseService {
   }
 
   async uncertify(id: string) {
-    const cert = await this.prisma.judgeContestantCertification.findUnique({
+    const cert: any = await this.prisma.judgeContestantCertification.findUnique({
       where: { id }
     });
 
@@ -56,13 +56,13 @@ export class JudgeContestantCertificationService extends BaseService {
 
   async getCategoryCertificationStatus(categoryId: string) {
     // Get all certifications for this category
-    const certifications = await this.prisma.judgeContestantCertification.findMany({
+    const certifications: any = await this.prisma.judgeContestantCertification.findMany({
       where: { categoryId },
       // include removed - no relations in schema
     });
 
     // Get all judges assigned to this category
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       // include removed - no relations in schema
     });

@@ -42,7 +42,7 @@ export class ReportGenerationService extends BaseService {
   async calculateContestWinners(contest: any): Promise<ContestantScore[]> {
     try {
       // Get all criteria for all categories to calculate total possible scores
-      const allCriteria = await this.prisma.criterion.findMany({
+      const allCriteria: any = await this.prisma.criterion.findMany({
         where: {
           categoryId: { in: contest.categories.map((c: any) => c.id) }
         }
@@ -134,7 +134,7 @@ export class ReportGenerationService extends BaseService {
    */
   async calculateCategoryTotalPossible(category: any): Promise<number | null> {
     try {
-      const criteria = await this.prisma.criterion.findMany({
+      const criteria: any = await this.prisma.criterion.findMany({
         where: { categoryId: category.id }
       });
 

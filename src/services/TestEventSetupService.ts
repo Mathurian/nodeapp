@@ -74,7 +74,7 @@ export class TestEventSetupService extends BaseService {
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 7);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result: any = await this.prisma.$transaction(async (tx) => {
       // Create event
       const event = await tx.event.create({
         data: {

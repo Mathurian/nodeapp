@@ -7,7 +7,7 @@ import { Contest } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
-import { CacheService } from './cacheService';
+import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
 
 interface CreateContestDto {

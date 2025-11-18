@@ -136,6 +136,7 @@ export class BoardController {
         order,
         notes,
         userId,
+        tenantId: req.user!.tenantId,
       });
 
       res.status(201).json(script);

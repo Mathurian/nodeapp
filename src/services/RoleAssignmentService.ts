@@ -59,10 +59,10 @@ export class RoleAssignmentService extends BaseService {
       throw this.badRequestError('Invalid role');
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
+    const user: any = await this.prisma.user.findUnique({ where: { id: data.userId } });
     if (!user) throw this.notFoundError('User', data.userId);
 
-    const existingAssignment = await this.prisma.roleAssignment.findFirst({
+    const existingAssignment: any = await this.prisma.roleAssignment.findFirst({
       where: {
         userId: data.userId,
         role: data.role,
@@ -91,7 +91,7 @@ export class RoleAssignmentService extends BaseService {
   }
 
   async update(id: string, data: UpdateRoleAssignmentDto) {
-    const assignment = await this.prisma.roleAssignment.findUnique({ where: { id } });
+    const assignment: any = await this.prisma.roleAssignment.findUnique({ where: { id } });
     if (!assignment) throw this.notFoundError('Assignment', id);
 
     return await this.prisma.roleAssignment.update({
@@ -103,7 +103,7 @@ export class RoleAssignmentService extends BaseService {
   }
 
   async delete(id: string) {
-    const assignment = await this.prisma.roleAssignment.findUnique({ where: { id } });
+    const assignment: any = await this.prisma.roleAssignment.findUnique({ where: { id } });
     if (!assignment) throw this.notFoundError('Assignment', id);
     await this.prisma.roleAssignment.delete({ where: { id } });
   }

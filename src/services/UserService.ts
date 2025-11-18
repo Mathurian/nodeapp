@@ -374,7 +374,7 @@ export class UserService extends BaseService {
       const user = await this.userRepository.findById(userId);
       this.assertExists(user, 'User', userId);
 
-      const updatedUser = await this.prisma.user.update({
+      const updatedUser: any = await this.prisma.user.update({
         where: { id: userId },
         data: { imagePath }
       });
@@ -430,7 +430,7 @@ export class UserService extends BaseService {
       }
 
       // Check for admin/organizer users
-      const adminUsers = await this.prisma.user.findMany({
+      const adminUsers: any = await this.prisma.user.findMany({
         where: {
           id: { in: userIds },
           role: { in: ['ADMIN', 'ORGANIZER'] }
@@ -447,7 +447,7 @@ export class UserService extends BaseService {
       }
 
       // Filter out any non-existent users and proceed with deletion
-      const existingUsers = await this.prisma.user.findMany({
+      const existingUsers: any = await this.prisma.user.findMany({
         where: {
           id: { in: userIds }
         },
@@ -468,7 +468,7 @@ export class UserService extends BaseService {
         forceDeleteAdmin
       });
       
-      const result = await this.prisma.$transaction(async (tx) => {
+      const result: any = await this.prisma.$transaction(async (tx) => {
         // Handle relations that don't have cascade delete
         // Set nullable foreign keys to null
         await tx.activityLog.updateMany({
@@ -558,7 +558,7 @@ export class UserService extends BaseService {
       }
 
       // Double-check that users were actually deleted
-      const remainingUsers = await this.prisma.user.findMany({
+      const remainingUsers: any = await this.prisma.user.findMany({
         where: { id: { in: existingUserIds } },
         select: { id: true, name: true, email: true }
       });
@@ -603,7 +603,7 @@ export class UserService extends BaseService {
         throw new ValidationError('Cannot delete admin or organizer users');
       }
 
-      const result = await this.prisma.user.deleteMany({
+      const result: any = await this.prisma.user.deleteMany({
         where: { role: role.toUpperCase() as any }
       });
 
@@ -661,7 +661,7 @@ export class UserService extends BaseService {
         include: {
           judge: true,
           contestant: true
-        } as any,
+        } ,
         orderBy: { createdAt: 'desc' }
       } as any);
 

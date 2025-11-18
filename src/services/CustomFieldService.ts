@@ -49,7 +49,7 @@ export class CustomFieldService {
    */
   async createCustomField(data: CreateCustomFieldDTO): Promise<CustomField> {
     try {
-      const field = await this.prisma.customField.create({
+      const field: any = await this.prisma.customField.create({
         data: {
           name: data.name,
           key: data.key,
@@ -83,7 +83,7 @@ export class CustomFieldService {
         where.active = true;
       }
 
-      const fields = await this.prisma.customField.findMany({
+      const fields: any = await this.prisma.customField.findMany({
         where,
         orderBy: { order: 'asc' },
       });
@@ -100,7 +100,7 @@ export class CustomFieldService {
    */
   async getCustomFieldById(id: string, tenantId: string): Promise<CustomField | null> {
     try {
-      const field = await this.prisma.customField.findFirst({
+      const field: any = await this.prisma.customField.findFirst({
         where: { id, tenantId },
         // No values relation in schema
       });
@@ -117,7 +117,7 @@ export class CustomFieldService {
    */
   async getCustomFieldByKey(key: string, entityType: string, tenantId: string): Promise<CustomField | null> {
     try {
-      const field = await this.prisma.customField.findFirst({
+      const field: any = await this.prisma.customField.findFirst({
         where: {
           key,
           entityType,
@@ -138,7 +138,7 @@ export class CustomFieldService {
   async updateCustomField(id: string, tenantId: string, data: UpdateCustomFieldDTO): Promise<CustomField> {
     try {
       // Verify field belongs to tenant
-      const existing = await this.prisma.customField.findFirst({
+      const existing: any = await this.prisma.customField.findFirst({
         where: { id, tenantId }
       });
       if (!existing) {
@@ -156,7 +156,7 @@ export class CustomFieldService {
       if (data.order !== undefined) updateData.order = data.order;
       if (data.active !== undefined) updateData.active = data.active;
 
-      const field = await this.prisma.customField.update({
+      const field: any = await this.prisma.customField.update({
         where: { id },
         data: updateData,
       });
@@ -175,7 +175,7 @@ export class CustomFieldService {
   async deleteCustomField(id: string, tenantId: string): Promise<void> {
     try {
       // Verify field belongs to tenant
-      const existing = await this.prisma.customField.findFirst({
+      const existing: any = await this.prisma.customField.findFirst({
         where: { id, tenantId }
       });
       if (!existing) {
@@ -199,7 +199,7 @@ export class CustomFieldService {
   async setCustomFieldValue(data: SetCustomFieldValueDTO): Promise<CustomFieldValue> {
     try {
       // Verify field belongs to tenant
-      const field = await this.prisma.customField.findFirst({
+      const field: any = await this.prisma.customField.findFirst({
         where: { id: data.fieldId, tenantId: data.tenantId }
       });
       if (!field) {
@@ -207,7 +207,7 @@ export class CustomFieldService {
       }
 
       // Upsert the value
-      const value = await this.prisma.customFieldValue.upsert({
+      const value: any = await this.prisma.customFieldValue.upsert({
         where: {
           tenantId_customFieldId_entityId: {
             tenantId: data.tenantId,
@@ -240,7 +240,7 @@ export class CustomFieldService {
   async getCustomFieldValues(entityId: string, entityType: string, tenantId: string): Promise<CustomFieldValue[]> {
     try {
       // Get all custom fields for this entity type
-      const fields = await this.prisma.customField.findMany({
+      const fields: any = await this.prisma.customField.findMany({
         where: {
           entityType,
           tenantId,
@@ -251,7 +251,7 @@ export class CustomFieldService {
       const fieldIds = fields.map(f => f.id);
 
       // Get values for these fields
-      const values = await this.prisma.customFieldValue.findMany({
+      const values: any = await this.prisma.customFieldValue.findMany({
         where: {
           entityId,
           tenantId,
@@ -271,7 +271,7 @@ export class CustomFieldService {
    */
   async getCustomFieldValue(fieldId: string, entityId: string, tenantId: string): Promise<CustomFieldValue | null> {
     try {
-      const value = await this.prisma.customFieldValue.findFirst({
+      const value: any = await this.prisma.customFieldValue.findFirst({
         where: {
           customFieldId: fieldId,
           entityId,
@@ -292,7 +292,7 @@ export class CustomFieldService {
   async deleteCustomFieldValue(fieldId: string, entityId: string, tenantId: string): Promise<void> {
     try {
       // Verify value belongs to tenant
-      const value = await this.prisma.customFieldValue.findFirst({
+      const value: any = await this.prisma.customFieldValue.findFirst({
         where: {
           customFieldId: fieldId,
           entityId,
@@ -458,7 +458,7 @@ export class CustomFieldService {
   async reorderCustomFields(fieldIds: string[], entityType: string, tenantId: string): Promise<void> {
     try {
       // Verify all fields belong to tenant
-      const fields = await this.prisma.customField.findMany({
+      const fields: any = await this.prisma.customField.findMany({
         where: {
           id: { in: fieldIds },
           tenantId,

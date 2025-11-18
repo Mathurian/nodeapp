@@ -1,4 +1,3 @@
-// @ts-nocheck - FIXME: Schema mismatches need to be resolved
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
@@ -16,11 +15,11 @@ export class ArchiveService extends BaseService {
    * Get all archives
    */
   async getAllArchives() {
-    return await this.prisma.archivedEvent.findMany({
+    return await (this.prisma.archivedEvent.findMany as any)({
       include: {
         event: true,
-      },
-      orderBy: { createdAt: 'desc' },
+      } ,
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -37,8 +36,8 @@ export class ArchiveService extends BaseService {
             contestants: true,
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
+      } as any,
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -55,8 +54,8 @@ export class ArchiveService extends BaseService {
             contestants: true,
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
+      } as any,
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -64,11 +63,24 @@ export class ArchiveService extends BaseService {
    * Archive an item
    */
   async archiveItem(id: string, reason?: string, userId?: string) {
-    const archive = await this.prisma.archivedEvent.create({
+    // Fetch event to get required fields
+    const event: any = await this.prisma.event.findUnique({
+      where: { id },
+    });
+
+    if (!event) {
+      throw this.notFoundError('Event', id);
+    }
+
+    const archive: any = await this.prisma.archivedEvent.create({
       data: {
+        tenantId: event.tenantId,
         eventId: id,
-        reason,
-        archivedBy: userId,
+        name: event.name,
+        description: event.description,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        archivedById: userId || 'system',
       },
     });
 
@@ -105,7 +117,7 @@ export class ArchiveService extends BaseService {
    * Archive an event
    */
   async archiveEvent(eventId: string, userId: string, reason?: string) {
-    const event = await this.prisma.event.findUnique({
+    const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
 
@@ -120,8 +132,9 @@ export class ArchiveService extends BaseService {
     });
 
     // Create archived event record
-    const archive = await this.prisma.archivedEvent.create({
+    const archive: any = await this.prisma.archivedEvent.create({
       data: {
+        tenantId: event.tenantId,
         eventId,
         name: event.name,
         description: event.description,

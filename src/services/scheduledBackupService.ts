@@ -53,7 +53,7 @@ class ScheduledBackupService {
         return;
       }
 
-      const settings = await this.prisma.backupSetting.findMany()
+      const settings: any = await this.prisma.backupSetting.findMany()
       for (const setting of settings) {
         if (setting.enabled) {
           await this.scheduleBackup(setting)
@@ -120,7 +120,7 @@ class ScheduledBackupService {
       }
 
       // Create backup log entry
-      const backupLog = await this.prisma.backupLog.create({
+      const backupLog: any = await this.prisma.backupLog.create({
         data: {
           tenantId: 'default_tenant',
           type: setting.backupType,
@@ -210,7 +210,7 @@ class ScheduledBackupService {
       cutoffDate.setDate(cutoffDate.getDate() - setting.retentionDays)
 
       // Find old backup files
-      const oldBackups = await this.prisma.backupLog.findMany({
+      const oldBackups: any = await this.prisma.backupLog.findMany({
         where: {
           type: setting.backupType,
           createdAt: {
@@ -268,7 +268,7 @@ class ScheduledBackupService {
   // Method to manually trigger a backup (for testing/debugging)
   async runManualBackup(settingId: string): Promise<{success: boolean, message?: string, error?: string}> {
     try {
-      const setting = await this.prisma.backupSetting.findUnique({
+      const setting: any = await this.prisma.backupSetting.findUnique({
         where: { id: settingId }
       })
 

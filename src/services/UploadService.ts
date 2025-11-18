@@ -68,7 +68,7 @@ export class UploadService extends BaseService {
 
     // Save to database - use relative path
     const relativePath = path.relative(process.cwd(), file.path);
-    const dbFile = await this.prisma.file.create({
+    const dbFile: any = await this.prisma.file.create({
       data: {
         filename: file.filename,
         originalName: file.originalname,
@@ -141,7 +141,7 @@ export class UploadService extends BaseService {
   async deleteFile(fileId: string): Promise<void> {
     // Try to find in database first
     try {
-      const file = await this.prisma.file.findUnique({
+      const file: any = await this.prisma.file.findUnique({
         where: { id: fileId },
       });
 
@@ -179,7 +179,7 @@ export class UploadService extends BaseService {
    */
   async getFileById(fileId: string): Promise<any> {
     try {
-      const file = await this.prisma.file.findUnique({
+      const file: any = await this.prisma.file.findUnique({
         where: { id: fileId },
       });
 

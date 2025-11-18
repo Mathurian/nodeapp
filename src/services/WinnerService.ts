@@ -90,7 +90,7 @@ export class WinnerService extends BaseService {
     } as any);
 
     // Get overall deductions for this category
-    const deductions = await this.prisma.overallDeduction.findMany({
+    const deductions: any = await this.prisma.overallDeduction.findMany({
       where: { categoryId },
     });
 
@@ -149,12 +149,12 @@ export class WinnerService extends BaseService {
       .sort((a, b) => b.totalScore - a.totalScore);
 
     // Get certification status
-    const categoryCertifications = await this.prisma.categoryCertification.findMany({
+    const categoryCertifications: any = await this.prisma.categoryCertification.findMany({
       where: { categoryId }
       // include removed - no user relation in schema
     });
 
-    const judgeCertifications = await this.prisma.judgeCertification.findMany({
+    const judgeCertifications: any = await this.prisma.judgeCertification.findMany({
       where: { categoryId },
     });
 

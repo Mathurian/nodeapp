@@ -43,7 +43,7 @@ export class ScoringService extends BaseService {
             contestant: true,
             judge: true,
             category: true
-          } as any,
+          } ,
           orderBy: { createdAt: 'desc' }
         } as any)) as any;
       }
@@ -102,7 +102,7 @@ export class ScoringService extends BaseService {
       this.logDebug('Judge ID retrieved', { judgeId });
 
       // Validate judge assignment to this category
-      const assignment = await this.prisma.assignment.findFirst({
+      const assignment: any = await this.prisma.assignment.findFirst({
         where: {
           tenantId,
           judgeId: userWithJudge.judge.id,
@@ -119,7 +119,7 @@ export class ScoringService extends BaseService {
       }
 
       // Check if there's an existing score for this judge/contestant/category
-      const existingScore = await this.prisma.score.findFirst({
+      const existingScore: any = await this.prisma.score.findFirst({
         where: {
           tenantId,
           categoryId,
@@ -134,7 +134,7 @@ export class ScoringService extends BaseService {
       }
 
       // Create the score
-      const newScore = await this.prisma.score.create({
+      const newScore: any = await this.prisma.score.create({
         data: {
           categoryId,
           contestantId,
@@ -174,7 +174,7 @@ export class ScoringService extends BaseService {
       const existingScore = await this.scoreRepository.findById(scoreId);
       this.assertExists(existingScore, 'Score', scoreId);
 
-      const updatedScore = await this.prisma.score.update({
+      const updatedScore: any = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           score: data.score !== undefined ? data.score : existingScore!.score,
@@ -217,7 +217,7 @@ export class ScoringService extends BaseService {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
-      const certifiedScore = await this.prisma.score.update({
+      const certifiedScore: any = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           certifiedAt: new Date(),
@@ -242,7 +242,7 @@ export class ScoringService extends BaseService {
    */
   async certifyScores(categoryId: string, certifiedBy: string, tenantId: string): Promise<{ certified: number }> {
     try {
-      const result = await this.prisma.score.updateMany({
+      const result: any = await this.prisma.score.updateMany({
         where: {
           categoryId,
           tenantId,
@@ -274,7 +274,7 @@ export class ScoringService extends BaseService {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
-      const unsignedScore = await this.prisma.score.update({
+      const unsignedScore: any = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           certifiedAt: null,

@@ -17,7 +17,7 @@ export class EmailService extends BaseService {
   }
 
   async getConfig(): Promise<EmailConfig> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings: any = await this.prisma.systemSetting.findMany({
       where: {
         key: { in: ['EMAIL_ENABLED', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_FROM'] }
       }
