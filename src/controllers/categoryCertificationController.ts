@@ -29,7 +29,8 @@ export class CategoryCertificationController {
       const certification = await this.categoryCertificationService.certifyCategory(
         categoryId,
         req.user!.id,
-        req.user!.role
+        req.user!.role,
+        req.user!.tenantId
       );
       return sendSuccess(res, certification, 'Category certified successfully');
     } catch (error) {

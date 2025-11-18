@@ -9,15 +9,15 @@ export class CategoryCertificationService extends BaseService {
   }
 
   async getCertificationProgress(categoryId: string) {
-    const categoryContestants = await this.prisma.categoryContestant.findMany({
+    const categoryContestants: any = await this.prisma.categoryContestant.findMany({
       where: { categoryId },
-      include: { contestant: true }
-    });
+      include: { contestant: true } as any
+    } as any);
 
-    const categoryJudges = await this.prisma.categoryJudge.findMany({
+    const categoryJudges: any = await this.prisma.categoryJudge.findMany({
       where: { categoryId },
-      include: { judge: true }
-    });
+      include: { judge: true } as any
+    } as any);
 
     const judgeContestantCertifications = await this.prisma.judgeContestantCertification.findMany({
       where: { categoryId }
@@ -57,7 +57,7 @@ export class CategoryCertificationService extends BaseService {
     };
   }
 
-  async certifyCategory(categoryId: string, userId: string, userRole: string) {
+  async certifyCategory(categoryId: string, userId: string, userRole: string, tenantId: string) {
     const existing = await this.prisma.categoryCertification.findFirst({
       where: { categoryId, role: userRole }
     });
@@ -68,6 +68,7 @@ export class CategoryCertificationService extends BaseService {
 
     return await this.prisma.categoryCertification.create({
       data: {
+        tenantId,
         categoryId,
         role: userRole,
         userId
