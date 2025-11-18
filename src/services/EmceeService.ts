@@ -497,9 +497,7 @@ export class EmceeService extends BaseService {
       take: limit,
     } as any);
 
-    const total = await this.prisma.emceeScript.count({
-      where: { isActive: true },
-    });
+    const total = await this.prisma.emceeScript.count();
 
     return {
       scripts,
@@ -534,7 +532,7 @@ export class EmceeService extends BaseService {
       data: {
         title: data.title,
         content: data.content || `Script file: ${data.filePath}`,
-        filePath: data.filePath || null,
+        file_path: data.filePath || null,
         eventId: data.eventId || null,
         contestId: data.contestId || null,
         categoryId: data.categoryId || null,
@@ -591,7 +589,7 @@ export class EmceeService extends BaseService {
       where: { id: scriptId },
     });
 
-    if (!script || !script.filePath) {
+    if (!script || !script.file_path) {
       throw this.notFoundError('Script file', scriptId);
     }
 

@@ -63,11 +63,24 @@ export class ArchiveService extends BaseService {
    * Archive an item
    */
   async archiveItem(id: string, reason?: string, userId?: string) {
+    // Fetch event to get required fields
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+    });
+
+    if (!event) {
+      throw this.notFoundError('Event', id);
+    }
+
     const archive = await this.prisma.archivedEvent.create({
       data: {
+        tenantId: event.tenantId,
         eventId: id,
-        reason,
-        archivedBy: userId,
+        name: event.name,
+        description: event.description,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        archivedById: userId || 'system',
       },
     });
 
@@ -121,6 +134,7 @@ export class ArchiveService extends BaseService {
     // Create archived event record
     const archive = await this.prisma.archivedEvent.create({
       data: {
+        tenantId: event.tenantId,
         eventId,
         name: event.name,
         description: event.description,
