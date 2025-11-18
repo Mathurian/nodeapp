@@ -113,7 +113,7 @@ const formatDate = (date: Date, formatStr: string): string => {
 }
 
 // Write log to file
-const writeToFile = async (level: string, category: string, message: string, meta: Record<string, unknown> = {}): Promise<void> => {
+const writeToFile = async (level: string, category: string, message: string, meta: unknown = {}): Promise<void> => {
   // Skip file writing if disabled (e.g., in test environment with permission issues)
   if (DISABLE_FILE_LOGGING) {
     return;
@@ -165,25 +165,26 @@ class Logger {
     this.category = category;
   }
 
-  async log(level: string, message: string, meta: Record<string, unknown> = {}) {
+  async log(level: string, message: string, meta: unknown = {}) {
     // Check if we should log this message
     if (!shouldLog(level, this.category)) {
       return
     }
-    
+
     // Always output to console for immediate visibility
-    const consoleMethod = level === 'ERROR' ? console.error : 
+    const consoleMethod = level === 'ERROR' ? console.error :
                          level === 'WARN' ? console.warn :
                          level === 'DEBUG' ? console.debug :
                          console.log
-    
+
     const formattedMessage = `[${this.category.toUpperCase()}] ${message}`
-    if (Object.keys(meta).length > 0) {
+    const metaObj = meta && typeof meta === 'object' ? meta : {};
+    if (Object.keys(metaObj).length > 0) {
       consoleMethod(formattedMessage, meta)
     } else {
       consoleMethod(formattedMessage)
     }
-    
+
     // Write to file asynchronously (don't await to avoid blocking)
     writeToFile(level, this.category, message, meta).catch((err: unknown) => {
       const errorObj = err as { message?: string };
@@ -191,19 +192,19 @@ class Logger {
     });
   }
 
-  error(message: string, meta: Record<string, unknown> = {}) {
+  error(message: string, meta: unknown = {}) {
     return this.log('ERROR', message, meta)
   }
 
-  warn(message: string, meta: Record<string, unknown> = {}) {
+  warn(message: string, meta: unknown = {}) {
     return this.log('WARN', message, meta)
   }
 
-  info(message: string, meta: Record<string, unknown> = {}) {
+  info(message: string, meta: unknown = {}) {
     return this.log('INFO', message, meta)
   }
 
-  debug(message: string, meta: Record<string, unknown> = {}) {
+  debug(message: string, meta: unknown = {}) {
     return this.log('DEBUG', message, meta)
   }
 }
@@ -214,42 +215,44 @@ loadLogLevels().catch(err => {
 })
 
 // Create a request-aware logger that includes user context
-const createRequestLogger = (req: Record<string, unknown>, category: string = 'default') => {
+const createRequestLogger = (req: unknown, category: string = 'default') => {
   const baseLogger = new Logger(category);
 
   // Safely get request metadata
-  const getRequestMeta = (meta: Record<string, unknown> = {}) => {
+  const getRequestMeta = (meta: unknown = {}) => {
     if (!req || typeof req !== 'object') {
       return meta
     }
+    const reqObj = req as Record<string, unknown>;
+    const metaObj = meta && typeof meta === 'object' ? meta as Record<string, unknown> : {};
     return {
-      ...meta,
-      requestId: req.id || (req.headers && req.headers['x-request-id']) || 'unknown',
-      method: req.method || 'UNKNOWN',
-      path: req.path || req.url || 'unknown',
-      user: req.user ? {
-        id: req.user.id,
-        email: req.user.email,
-        role: req.user.role
+      ...metaObj,
+      requestId: reqObj.id || (reqObj.headers && (reqObj.headers as Record<string, unknown>)['x-request-id']) || 'unknown',
+      method: reqObj.method || 'UNKNOWN',
+      path: reqObj.path || reqObj.url || 'unknown',
+      user: reqObj.user ? {
+        id: (reqObj.user as { id?: unknown }).id,
+        email: (reqObj.user as { email?: unknown }).email,
+        role: (reqObj.user as { role?: unknown }).role
       } : null,
-      ip: req.ip || (req.connection && req.connection.remoteAddress) || 'unknown'
+      ip: reqObj.ip || (reqObj.connection && (reqObj.connection as { remoteAddress?: unknown }).remoteAddress) || 'unknown'
     }
   }
-  
+
   return {
-    error: (message: string, meta: Record<string, unknown> = {}) => {
+    error: (message: string, meta: unknown = {}) => {
       return baseLogger.error(message, getRequestMeta(meta));
     },
-    warn: (message: string, meta: Record<string, unknown> = {}) => {
+    warn: (message: string, meta: unknown = {}) => {
       return baseLogger.warn(message, getRequestMeta(meta));
     },
-    info: (message: string, meta: Record<string, unknown> = {}) => {
+    info: (message: string, meta: unknown = {}) => {
       return baseLogger.info(message, getRequestMeta(meta));
     },
-    debug: (message: string, meta: Record<string, unknown> = {}) => {
+    debug: (message: string, meta: unknown = {}) => {
       return baseLogger.debug(message, getRequestMeta(meta));
     },
-    log: (level: string, message: string, meta: Record<string, unknown> = {}) => {
+    log: (level: string, message: string, meta: unknown = {}) => {
       return baseLogger.log(level, message, getRequestMeta(meta));
     }
   };

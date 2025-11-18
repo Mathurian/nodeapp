@@ -103,7 +103,7 @@ function getDurationCategory(duration: number): string {
  * Should be placed after all routes
  */
 const errorLogging = (err: unknown, req: Request, res: Response, next: NextFunction): void => {
-  const log = req.logger || createRequestLogger(req as Record<string, unknown>, 'error')
+  const log = req.logger || createRequestLogger(req, 'error')
   const error = err as { message?: string; stack?: string; statusCode?: number };
 
   log.error('Request error occurred', {
