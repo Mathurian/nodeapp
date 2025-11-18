@@ -39,7 +39,7 @@ export class WinnerService extends BaseService {
    * Get winners by category
    */
   async getWinnersByCategory(categoryId: string, _userRole: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -53,15 +53,15 @@ export class WinnerService extends BaseService {
             maxScore: true,
           },
         },
-      },
-    }) as any;
+      } as any,
+    } as any);
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Get all scores for this category
-    const scores = await this.prisma.score.findMany({
+    const scores: any = await this.prisma.score.findMany({
       where: {
         categoryId,
         score: { not: null },
@@ -86,8 +86,8 @@ export class WinnerService extends BaseService {
             maxScore: true,
           },
         },
-      },
-    });
+      } as any,
+    } as any);
 
     // Get overall deductions for this category
     const deductions = await this.prisma.overallDeduction.findMany({
@@ -186,7 +186,7 @@ export class WinnerService extends BaseService {
     _userRole: string,
     includeCategoryBreakdown = true
   ) {
-    const contest = await this.prisma.contest.findUnique({
+    const contest: any = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         event: true,
@@ -200,8 +200,8 @@ export class WinnerService extends BaseService {
             },
           },
         },
-      },
-    });
+      } as any,
+    } as any);
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
@@ -284,7 +284,7 @@ export class WinnerService extends BaseService {
     ipAddress?: string,
     userAgent?: string
   ) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -313,7 +313,7 @@ export class WinnerService extends BaseService {
    * Get signature status for a category
    */
   async getSignatureStatus(categoryId: string, userId: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -337,7 +337,7 @@ export class WinnerService extends BaseService {
    * Get certification progress for a category
    */
   async getCertificationProgress(categoryId: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -362,7 +362,7 @@ export class WinnerService extends BaseService {
    * Get role-specific certification status
    */
   async getRoleCertificationStatus(categoryId: string, role: string) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -389,7 +389,7 @@ export class WinnerService extends BaseService {
     userId: string,
     userRole: string
   ) {
-    const category = await this.prisma.category.findUnique({
+    const category: any = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -419,7 +419,7 @@ export class WinnerService extends BaseService {
     }
 
     if (eventId) {
-      const event = await this.prisma.event.findUnique({
+      const event: any = await this.prisma.event.findUnique({
         where: { id: eventId },
         include: {
           contests: {
@@ -436,8 +436,8 @@ export class WinnerService extends BaseService {
               },
             },
           },
-        },
-      });
+        } as any,
+      } as any);
 
       if (!event) {
         throw this.notFoundError('Event', eventId);
