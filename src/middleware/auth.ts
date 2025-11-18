@@ -177,6 +177,42 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+/**
+ * Check if an organizer has permission to access a specific event/contest/category
+ * SECURITY FIX: Prevents cross-resource access by organizers
+ */
+const checkOrganizerPermission = async (
+  userId: string,
+  tenantId: string,
+  eventId?: string,
+  contestId?: string,
+  categoryId?: string
+): Promise<boolean> => {
+  try {
+    // If no resource IDs provided, allow access (e.g., for list endpoints)
+    if (!eventId && !contestId && !categoryId) {
+      return true;
+    }
+
+    // Check if organizer has created any assignments for this resource
+    // This indicates they have been involved in managing this event/contest
+    const assignmentExists = await prisma.assignment.findFirst({
+      where: {
+        assignedBy: userId,
+        tenantId: tenantId,
+        ...(eventId && { eventId }),
+        ...(contestId && { contestId }),
+        ...(categoryId && { categoryId })
+      }
+    });
+
+    return !!assignmentExists;
+  } catch (error) {
+    console.error('checkOrganizerPermission error:', error);
+    return false; // Fail closed on errors
+  }
+};
+
 const requireRole = (roles: string[]): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     // CRITICAL: Check if req.user exists - this MUST be set by authenticateToken
@@ -220,9 +256,41 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       return;
     }
 
-    // ORGANIZER also has access to most things
+    // ORGANIZER access with resource scoping
+    // SECURITY FIX: Check if organizer has permission for this specific resource
     if (userRole === 'ORGANIZER') {
-      next();
+      // Extract resource IDs from request params, query, or body
+      const eventId = req.params.eventId || req.query.eventId || req.body?.eventId;
+      const contestId = req.params.contestId || req.query.contestId || req.body?.contestId;
+      const categoryId = req.params.categoryId || req.query.categoryId || req.body?.categoryId;
+
+      // Check permission asynchronously
+      checkOrganizerPermission(
+        req.user!.id,
+        req.tenantId || '',
+        eventId as string,
+        contestId as string,
+        categoryId as string
+      ).then(hasPermission => {
+        if (hasPermission) {
+          next();
+        } else {
+          console.warn('requireRole: ORGANIZER permission denied', {
+            userId: req.user!.id,
+            eventId,
+            contestId,
+            categoryId,
+            path: req.path
+          });
+          res.status(403).json({
+            error: 'Access denied',
+            message: 'You do not have permission to access this resource'
+          });
+        }
+      }).catch(error => {
+        console.error('requireRole: ORGANIZER permission check error', error);
+        res.status(500).json({ error: 'Permission check failed' });
+      });
       return;
     }
 
@@ -297,5 +365,6 @@ export {
   authenticateToken,
   requireRole,
   requirePermission,
-  checkRoles
+  checkRoles,
+  checkOrganizerPermission
  }
