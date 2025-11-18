@@ -26,7 +26,7 @@ import { UserService } from '../services/UserService';
 import { EventService } from '../services/EventService';
 import { ContestService } from '../services/ContestService';
 import { CategoryService } from '../services/CategoryService';
-import CacheServiceInstance, { CacheService } from '../services/cacheService';
+import { CacheService } from '../services/CacheService';
 import { ScoringService } from '../services/ScoringService';
 import { ReportGenerationService } from '../services/ReportGenerationService';
 import { ReportExportService } from '../services/ReportExportService';
@@ -210,8 +210,10 @@ export function setupContainer(): void {
   });
 
   // Register services
-  container.register(CacheService, { useValue: CacheServiceInstance });
-  container.register('CacheService', { useValue: CacheServiceInstance });
+  // Create singleton CacheService instance
+  const cacheServiceInstance = new CacheService();
+  container.register(CacheService, { useValue: cacheServiceInstance });
+  container.register('CacheService', { useValue: cacheServiceInstance });
 
   container.register(UserService, UserService);
   container.register(EventService, EventService);
