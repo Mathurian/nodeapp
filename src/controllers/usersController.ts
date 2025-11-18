@@ -8,7 +8,7 @@ import { container } from 'tsyringe';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
 import { sendSuccess, sendCreated, sendError, sendNoContent, sendNotFound, sendBadRequest } from '../utils/responseHelpers';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 
@@ -113,7 +113,7 @@ export class UsersController {
       }
 
       // Create user with role-specific data
-      const userData: any = {
+      const userData = {
         name: data.name,
         email: data.email,
         password: data.password,
@@ -231,7 +231,7 @@ export class UsersController {
         newRole: data.role
       });
 
-      const userData: any = {};
+      const userData: Record<string, any> = {};
 
       if (data.name !== undefined) userData.name = data.name;
       if (data.email !== undefined) userData.email = data.email;
@@ -784,7 +784,7 @@ export class UsersController {
           }
 
           // Build user data object
-          const userData: any = {};
+          const userData: Record<string, any> = {};
           headers.forEach((header, index) => {
             const value = values[index]?.trim() || '';
             if (value) {
