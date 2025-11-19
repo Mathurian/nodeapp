@@ -149,12 +149,12 @@ const CustomFieldsPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to manage custom fields.
           </p>
         </div>
@@ -164,21 +164,21 @@ const CustomFieldsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading custom fields...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading custom fields...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
               Custom Fields
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
               Define custom fields for events, contests, categories, and users
             </p>
           </div>
@@ -188,7 +188,7 @@ const CustomFieldsPage: React.FC = () => {
               setEditingField(null)
               setShowModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             Create Field
@@ -206,16 +206,16 @@ const CustomFieldsPage: React.FC = () => {
           {['EVENT', 'CONTEST', 'CATEGORY', 'USER', 'CONTESTANT'].map((entityType) => {
             const entityFields = getFieldsByEntity(entityType)
             return (
-              <div key={entityType} className="bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <div key={entityType} className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white flex items-center gap-2">
                     <Squares2X2Icon className="h-6 w-6" />
                     {entityType} Fields ({entityFields.length})
                   </h2>
                 </div>
                 <div className="p-6">
                   {entityFields.length === 0 ? (
-                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    <p className="text-center text-gray-500 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 py-8">
                       No custom fields defined for {entityType.toLowerCase()}s
                     </p>
                   ) : (
@@ -223,14 +223,14 @@ const CustomFieldsPage: React.FC = () => {
                       {entityFields.map((field) => (
                         <div
                           key={field.id}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                          className="border border-gray-200 dark:border-gray-700 dark:border-gray-700 rounded-lg p-4"
                         >
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h3 className="font-semibold text-gray-900 dark:text-white">
+                              <h3 className="font-semibold text-gray-900 dark:text-white dark:text-white">
                                 {field.label}
                               </h3>
-                              <p className="text-xs text-gray-500 dark:text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                                 {field.name}
                               </p>
                             </div>
@@ -249,14 +249,14 @@ const CustomFieldsPage: React.FC = () => {
 
                           {field.options && field.options.length > 0 && (
                             <div className="mb-3">
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                                 Options:
                               </p>
                               <div className="flex flex-wrap gap-1">
                                 {field.options.map((option, idx) => (
                                   <span
                                     key={idx}
-                                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
+                                    className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 rounded"
                                   >
                                     {option}
                                   </span>
@@ -268,14 +268,14 @@ const CustomFieldsPage: React.FC = () => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => openEditModal(field)}
-                              className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                              className="flex-1 px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
                             >
                               <PencilIcon className="h-4 w-4 inline mr-1" />
                               Edit
                             </button>
                             <button
                               onClick={() => deleteField(field.id)}
-                              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                              className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded text-sm hover:bg-red-700 dark:hover:bg-red-600"
                             >
                               <TrashIcon className="h-4 w-4" />
                             </button>
@@ -293,14 +293,14 @@ const CustomFieldsPage: React.FC = () => {
         {/* Create/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
                 {editingField ? 'Edit Field' : 'Create Field'}
               </h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Field Name (Internal)
                     </label>
                     <input
@@ -308,11 +308,11 @@ const CustomFieldsPage: React.FC = () => {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="field_name"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Label (Display)
                     </label>
                     <input
@@ -320,20 +320,20 @@ const CustomFieldsPage: React.FC = () => {
                       value={formData.label}
                       onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                       placeholder="Field Label"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Field Type
                     </label>
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                     >
                       <option value="TEXT">Text</option>
                       <option value="NUMBER">Number</option>
@@ -344,13 +344,13 @@ const CustomFieldsPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Entity Type
                     </label>
                     <select
                       value={formData.entityType}
                       onChange={(e) => setFormData({ ...formData, entityType: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                     >
                       <option value="EVENT">Event</option>
                       <option value="CONTEST">Contest</option>
@@ -369,7 +369,7 @@ const CustomFieldsPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, required: e.target.checked })}
                       className="h-4 w-4 text-blue-600 rounded"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-300">
                       Required field
                     </span>
                   </label>
@@ -377,7 +377,7 @@ const CustomFieldsPage: React.FC = () => {
 
                 {formData.type === 'SELECT' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Options
                     </label>
                     <div className="space-y-2">
@@ -388,11 +388,11 @@ const CustomFieldsPage: React.FC = () => {
                             value={option}
                             onChange={(e) => updateOption(index, e.target.value)}
                             placeholder={`Option ${index + 1}`}
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                           />
                           <button
                             onClick={() => removeOption(index)}
-                            className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600"
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -400,7 +400,7 @@ const CustomFieldsPage: React.FC = () => {
                       ))}
                       <button
                         onClick={addOption}
-                        className="w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500"
+                        className="w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 hover:border-blue-500 hover:text-blue-500"
                       >
                         Add Option
                       </button>
@@ -409,21 +409,21 @@ const CustomFieldsPage: React.FC = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Default Value (Optional)
                   </label>
                   <input
                     type="text"
                     value={formData.defaultValue}
                     onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                   />
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={editingField ? updateField : createField}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                 >
                   {editingField ? 'Update' : 'Create'}
                 </button>
@@ -433,7 +433,7 @@ const CustomFieldsPage: React.FC = () => {
                     setEditingField(null)
                     resetForm()
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>

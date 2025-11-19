@@ -191,16 +191,16 @@ const ContestsPage: React.FC = () => {
   }) || []
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
               <TrophyIcon className="h-8 w-8 mr-3 text-blue-600" />
               Contests
             </h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               Manage competition contests and categories
             </p>
           </div>
@@ -210,7 +210,7 @@ const ContestsPage: React.FC = () => {
                 resetForm()
                 setIsFormOpen(true)
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center"
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Contest
@@ -219,19 +219,19 @@ const ContestsPage: React.FC = () => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white shadow rounded-lg p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               </div>
               <input
                 type="text"
                 placeholder="Search contests..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -239,7 +239,7 @@ const ContestsPage: React.FC = () => {
             <select
               value={selectedEventFilter}
               onChange={(e) => setSelectedEventFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Events</option>
               {events?.map((event) => (
@@ -266,9 +266,9 @@ const ContestsPage: React.FC = () => {
 
         {/* Contests List */}
         {isLoading ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-sm text-gray-500">Loading contests...</p>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading contests...</p>
           </div>
         ) : filteredContests.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -282,11 +282,11 @@ const ContestsPage: React.FC = () => {
                 {/* Contest Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                       {contest.name}
                     </h3>
                     {contest.event && (
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                         <CalendarIcon className="h-4 w-4 mr-1" />
                         {contest.event.name}
                       </div>
@@ -308,14 +308,14 @@ const ContestsPage: React.FC = () => {
 
                 {/* Description */}
                 {contest.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mb-4 line-clamp-3">
                     {contest.description}
                   </p>
                 )}
 
                 {/* Stats */}
                 {contest._count && (
-                  <div className="text-sm text-gray-500 mb-4">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4">
                     {contest._count.categories} categor{contest._count.categories === 1 ? 'y' : 'ies'}
                   </div>
                 )}
@@ -325,14 +325,14 @@ const ContestsPage: React.FC = () => {
                   <div className="flex gap-2 pt-4 border-t">
                     <button
                       onClick={() => handleEdit(contest)}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center text-sm"
+                      className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
                     >
                       <PencilIcon className="h-4 w-4 mr-1" />
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(contest)}
-                      className="flex-1 px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center text-sm"
+                      className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                     >
                       <TrashIcon className="h-4 w-4 mr-1" />
                       Delete
@@ -343,9 +343,9 @@ const ContestsPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <TrophyIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <TrophyIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               {searchQuery || selectedEventFilter
                 ? 'No contests found matching your filters'
                 : 'No contests yet. Create your first contest to get started.'}
@@ -356,14 +356,14 @@ const ContestsPage: React.FC = () => {
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {editingContest ? 'Edit Contest' : 'Create New Contest'}
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -372,14 +372,14 @@ const ContestsPage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Event Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Event <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.eventId}
                     onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select an event...</option>
                     {events?.map((event) => (
@@ -392,7 +392,7 @@ const ContestsPage: React.FC = () => {
 
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Contest Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -400,21 +400,21 @@ const ContestsPage: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter contest name"
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter contest description"
                   />
                 </div>
@@ -424,14 +424,14 @@ const ContestsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createMutation.isLoading || updateMutation.isLoading}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+                    className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
                   >
                     {createMutation.isLoading || updateMutation.isLoading ? (
                       <>

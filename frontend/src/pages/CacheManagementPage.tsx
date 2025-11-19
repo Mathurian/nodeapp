@@ -39,7 +39,8 @@ const CacheManagementPage: React.FC = () => {
   const fetchStats = async () => {
     try {
       const response = await api.get('/cache/stats')
-      setStats(response.data)
+      const unwrapped = response.data.data || response.data
+      setStats(unwrapped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load cache stats')
     }
@@ -49,7 +50,8 @@ const CacheManagementPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get('/cache/keys')
-      setKeys(response.data)
+      const unwrappedKeys = response.data.data || response.data
+        setKeys(unwrappedKeys)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load cache keys')
     } finally {
@@ -96,12 +98,12 @@ const CacheManagementPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only administrators can access cache management.
           </p>
         </div>
@@ -110,20 +112,20 @@ const CacheManagementPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
               Cache Management
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
               Monitor and manage application cache
             </p>
           </div>
           <button
             onClick={clearCache}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
           >
             <TrashIcon className="h-5 w-5" />
             Clear All Cache
@@ -139,48 +141,48 @@ const CacheManagementPage: React.FC = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center gap-3">
                 <KeyIcon className="h-10 w-10 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Keys</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Total Keys</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                     {stats.keys.toLocaleString()}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center gap-3">
                 <ServerStackIcon className="h-10 w-10 text-green-600 dark:text-green-400" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Memory Used</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Memory Used</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                     {formatSize(stats.memory)}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center gap-3">
                 <ChartBarIcon className="h-10 w-10 text-purple-600 dark:text-purple-400" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Hit Rate</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Hit Rate</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                     {stats.hitRate.toFixed(1)}%
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center gap-3">
                 <ArrowPathIcon className="h-10 w-10 text-orange-600 dark:text-orange-400" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Hits / Misses</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Hits / Misses</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                     {stats.hits} / {stats.misses}
                   </p>
                 </div>
@@ -190,10 +192,10 @@ const CacheManagementPage: React.FC = () => {
         )}
 
         {/* Cache Keys */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
                 Cache Keys
               </h2>
               <div className="flex gap-3">
@@ -202,11 +204,11 @@ const CacheManagementPage: React.FC = () => {
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                   placeholder="Filter keys..."
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                 />
                 <button
                   onClick={fetchKeys}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                 >
                   <ArrowPathIcon className="h-5 w-5" />
                 </button>
@@ -216,23 +218,23 @@ const CacheManagementPage: React.FC = () => {
 
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="p-12 text-center text-gray-600 dark:text-gray-400">
+              <div className="p-12 text-center text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                 Loading cache keys...
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Key
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Size
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       TTL
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -240,20 +242,20 @@ const CacheManagementPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredKeys.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                         {filter ? 'No matching keys found' : 'No cache keys'}
                       </td>
                     </tr>
                   ) : (
                     filteredKeys.map((cacheKey) => (
-                      <tr key={cacheKey.key} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-mono">
+                      <tr key={cacheKey.key} className="hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700">
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white dark:text-white font-mono">
                           {cacheKey.key}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 whitespace-nowrap">
                           {formatSize(cacheKey.size)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 whitespace-nowrap">
                           {formatTTL(cacheKey.ttl)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

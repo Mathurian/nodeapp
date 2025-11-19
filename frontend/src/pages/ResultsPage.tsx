@@ -231,30 +231,30 @@ const ResultsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
             <TrophyIcon className="h-8 w-8 mr-3 text-yellow-600" />
             Competition Results
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             View winners, rankings, and score breakdowns
           </p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
           <div className="flex items-center mb-4">
-            <FunnelIcon className="h-5 w-5 mr-2 text-gray-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Filter Results</h2>
+            <FunnelIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Results</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Event Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Event
               </label>
               <select
@@ -264,7 +264,7 @@ const ResultsPage: React.FC = () => {
                   setSelectedContestId('')
                   setSelectedCategoryId('')
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={eventsLoading}
               >
                 <option value="">Select an event...</option>
@@ -278,7 +278,7 @@ const ResultsPage: React.FC = () => {
 
             {/* Contest Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contest
               </label>
               <select
@@ -287,7 +287,7 @@ const ResultsPage: React.FC = () => {
                   setSelectedContestId(e.target.value)
                   setSelectedCategoryId('')
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!selectedEventId || contestsLoading}
               >
                 <option value="">Select a contest...</option>
@@ -301,13 +301,13 @@ const ResultsPage: React.FC = () => {
 
             {/* Category Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Category
               </label>
               <select
                 value={selectedCategoryId}
                 onChange={(e) => setSelectedCategoryId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!selectedContestId || categoriesLoading}
               >
                 <option value="">Select a category...</option>
@@ -326,7 +326,7 @@ const ResultsPage: React.FC = () => {
             <div className="mt-4 flex gap-2">
               <button
                 onClick={handleExportResults}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
+                className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center"
               >
                 <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
                 Export to Excel
@@ -340,7 +340,7 @@ const ResultsPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowScoreBreakdowns(!showScoreBreakdowns)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
               >
                 <ChartBarIcon className="h-5 w-5 mr-2" />
                 {showScoreBreakdowns ? 'Hide' : 'Show'} Score Breakdowns
@@ -351,18 +351,18 @@ const ResultsPage: React.FC = () => {
 
         {/* Results Display */}
         {resultsLoading ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
             <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
-            <p className="mt-4 text-sm text-gray-500">Loading results...</p>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading results...</p>
           </div>
         ) : categoryResults && categoryResults.winners?.length > 0 ? (
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             {/* Category Header */}
             <div className="mb-6 pb-4 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {categoryResults.category.name}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 {categoryResults.category.contest?.name}
               </p>
               <div className="mt-2 flex items-center">
@@ -382,7 +382,7 @@ const ResultsPage: React.FC = () => {
 
             {/* Winners List */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                 <TrophyIcon className="h-6 w-6 mr-2 text-yellow-600" />
                 Winners & Rankings
               </h3>
@@ -407,18 +407,18 @@ const ResultsPage: React.FC = () => {
                           />
                         ) : (
                           <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-gray-600 font-semibold">
+                            <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500 font-semibold">
                               {winner.contestant.name.charAt(0)}
                             </span>
                           </div>
                         )}
 
                         <div>
-                          <div className="font-semibold text-gray-900">
+                          <div className="font-semibold text-gray-900 dark:text-white">
                             {winner.contestant.name}
                           </div>
                           {winner.contestant.contestantNumber && (
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
                               Contestant #{winner.contestant.contestantNumber}
                             </div>
                           )}
@@ -426,10 +426,10 @@ const ResultsPage: React.FC = () => {
                       </div>
 
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900">
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
                           {winner.totalScore}
                           {winner.category.scoreCap && (
-                            <span className="text-sm text-gray-500 ml-1">
+                            <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 ml-1">
                               / {winner.category.scoreCap}
                             </span>
                           )}
@@ -445,18 +445,18 @@ const ResultsPage: React.FC = () => {
 
                     {/* Score Breakdown (if enabled) */}
                     {showScoreBreakdowns && categoryResults.scoreBreakdowns?.[winner.contestantId] && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="text-sm font-medium text-gray-700 mb-2">
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Score Breakdown by Judge:
                         </div>
                         <div className="space-y-1">
                           {categoryResults.scoreBreakdowns[winner.contestantId].map((breakdown, idx) => (
                             <div key={idx} className="flex justify-between text-sm">
-                              <span className="text-gray-600">
+                              <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500">
                                 {breakdown.judgeName}
                                 {breakdown.criterionName && ` - ${breakdown.criterionName}`}
                               </span>
-                              <span className="font-medium text-gray-900">
+                              <span className="font-medium text-gray-900 dark:text-white">
                                 {breakdown.score}
                                 {breakdown.deduction > 0 && (
                                   <span className="text-red-600 ml-1">
@@ -475,16 +475,16 @@ const ResultsPage: React.FC = () => {
             </div>
           </div>
         ) : selectedCategoryId ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <TrophyIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <TrophyIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No results available for this category yet
             </p>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Select an event, contest, and category to view results
             </p>
           </div>

@@ -100,20 +100,20 @@ const MFASettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading MFA settings...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading MFA settings...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
             Multi-Factor Authentication
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
             Add an extra layer of security to your account
           </p>
         </div>
@@ -125,7 +125,7 @@ const MFASettingsPage: React.FC = () => {
         )}
 
         {/* Current Status */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <ShieldCheckIcon className={`h-12 w-12 ${
@@ -134,10 +134,10 @@ const MFASettingsPage: React.FC = () => {
                   : 'text-gray-400'
               }`} />
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
                   MFA Status
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   {settings.enabled ? (
                     <>
                       <CheckCircleIcon className="h-4 w-4 inline text-green-600 mr-1" />
@@ -155,14 +155,14 @@ const MFASettingsPage: React.FC = () => {
             {settings.enabled ? (
               <button
                 onClick={disableMFA}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
               >
                 Disable MFA
               </button>
             ) : (
               <button
                 onClick={enableMFA}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Enable MFA
               </button>
@@ -172,32 +172,32 @@ const MFASettingsPage: React.FC = () => {
 
         {/* Setup MFA */}
         {qrCode && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Set Up Authenticator App
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                <h3 className="font-medium text-gray-900 dark:text-white dark:text-white mb-2">
                   Step 1: Scan QR Code
                 </h3>
-                <div className="bg-white p-4 rounded-lg inline-block">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg inline-block">
                   <img src={qrCode} alt="QR Code" className="w-64 h-64" />
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
                   Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
                 </p>
               </div>
               <div>
-                <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                <h3 className="font-medium text-gray-900 dark:text-white dark:text-white mb-2">
                   Step 2: Or Enter Secret Key
                 </h3>
                 <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-4">
-                  <code className="text-sm text-gray-900 dark:text-white break-all">
+                  <code className="text-sm text-gray-900 dark:text-white dark:text-white break-all">
                     {secret}
                   </code>
                 </div>
-                <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                <h3 className="font-medium text-gray-900 dark:text-white dark:text-white mb-2">
                   Step 3: Verify Code
                 </h3>
                 <input
@@ -206,12 +206,12 @@ const MFASettingsPage: React.FC = () => {
                   onChange={(e) => setVerificationCode(e.target.value)}
                   placeholder="Enter 6-digit code"
                   maxLength={6}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-3"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white mb-3"
                 />
                 <button
                   onClick={verifyAndActivate}
                   disabled={verificationCode.length !== 6}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="w-full px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
                 >
                   Verify and Activate
                 </button>
@@ -222,13 +222,13 @@ const MFASettingsPage: React.FC = () => {
 
         {/* Backup Codes */}
         {settings.enabled && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
                   Backup Codes
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Save these codes in a secure place. Each can be used once if you lose access to your authenticator.
                 </p>
               </div>
@@ -240,14 +240,14 @@ const MFASettingsPage: React.FC = () => {
               </button>
             </div>
             {showBackupCodes && settings.backupCodes.length > 0 && (
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <div className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700 p-4 rounded-lg">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {settings.backupCodes.map((code, index) => (
                     <div
                       key={index}
-                      className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-600"
+                      className="bg-white dark:bg-gray-800 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 dark:border-gray-600"
                     >
-                      <code className="text-sm text-gray-900 dark:text-white">
+                      <code className="text-sm text-gray-900 dark:text-white dark:text-white">
                         {code}
                       </code>
                     </div>

@@ -35,7 +35,8 @@ const ArchivePage: React.FC = () => {
     try {
       setLoading(true)
       const response = await archiveAPI.getAll()
-      setItems(response.data)
+      const unwrapped = response.data.data || response.data
+      setItems(unwrapped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load archived items')
     } finally {
@@ -67,12 +68,12 @@ const ArchivePage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to access the archive.
           </p>
         </div>
@@ -82,20 +83,20 @@ const ArchivePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading archive...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading archive...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
             Archive
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
             View and restore archived events, contests, and categories
           </p>
         </div>
@@ -112,7 +113,7 @@ const ArchivePage: React.FC = () => {
             onClick={() => setFilter('ALL')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'ALL'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -122,7 +123,7 @@ const ArchivePage: React.FC = () => {
             onClick={() => setFilter('EVENT')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'EVENT'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -132,7 +133,7 @@ const ArchivePage: React.FC = () => {
             onClick={() => setFilter('CONTEST')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'CONTEST'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -142,7 +143,7 @@ const ArchivePage: React.FC = () => {
             onClick={() => setFilter('CATEGORY')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'CATEGORY'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -151,39 +152,39 @@ const ArchivePage: React.FC = () => {
         </div>
 
         {/* Archived Items */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           {filteredItems.length === 0 ? (
             <div className="p-12 text-center">
-              <ArchiveBoxIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">
+              <ArchiveBoxIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                 {filter === 'ALL' ? 'No archived items' : `No archived ${filter.toLowerCase()}s`}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Reason
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Archived
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <tr key={item.id} className="hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                           {item.type}
@@ -192,19 +193,19 @@ const ArchivePage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {item.type === 'EVENT' ? (
-                            <CalendarIcon className="h-5 w-5 text-gray-400" />
+                            <CalendarIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                           ) : (
-                            <FolderIcon className="h-5 w-5 text-gray-400" />
+                            <FolderIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                           )}
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white dark:text-white">
                             {item.name}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                         {item.reason || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                         {format(new Date(item.archivedAt), 'MMM d, yyyy')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

@@ -204,11 +204,11 @@ const ScoringPage: React.FC = () => {
   // Authorization check
   if (!isJudge) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <XCircleIcon className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="mt-2 text-lg font-medium text-gray-900">Access Denied</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
             You must be a judge to access the scoring page.
           </p>
         </div>
@@ -219,25 +219,25 @@ const ScoringPage: React.FC = () => {
   // Loading state
   if (categoriesLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
-          <p className="mt-2 text-sm text-gray-500">Loading categories...</p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading categories...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
             <TrophyIcon className="h-8 w-8 mr-3 text-blue-600" />
             Scoring Dashboard
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             Select a category and contestant to begin scoring
           </p>
         </div>
@@ -245,8 +245,8 @@ const ScoringPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Categories */}
           <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Your Categories
               </h2>
               {categories && categories.length > 0 ? (
@@ -264,9 +264,9 @@ const ScoringPage: React.FC = () => {
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="font-medium text-gray-900">{category.name}</div>
-                      <div className="text-sm text-gray-500">{category.contest.name}</div>
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="font-medium text-gray-900 dark:text-white">{category.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{category.contest.name}</div>
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                         {category._count.scores} scores • {category._count.contestants} contestants
                       </div>
                     </button>
@@ -274,8 +274,8 @@ const ScoringPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">
+                  <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     No categories assigned yet
                   </p>
                 </div>
@@ -285,8 +285,8 @@ const ScoringPage: React.FC = () => {
 
           {/* Middle Column: Contestants */}
           <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Contestants
               </h2>
               {selectedCategory ? (
@@ -314,12 +314,12 @@ const ScoringPage: React.FC = () => {
                               className="h-10 w-10 rounded-full mr-3"
                             />
                           ) : (
-                            <UserIcon className="h-10 w-10 rounded-full mr-3 text-gray-400" />
+                            <UserIcon className="h-10 w-10 rounded-full mr-3 text-gray-400 dark:text-gray-500" />
                           )}
                           <div>
-                            <div className="font-medium text-gray-900">{contestant.name}</div>
+                            <div className="font-medium text-gray-900 dark:text-white">{contestant.name}</div>
                             {contestant.contestantNumber && (
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                                 #{contestant.contestantNumber}
                               </div>
                             )}
@@ -330,15 +330,15 @@ const ScoringPage: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500">
+                    <UserIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                       No contestants in this category
                     </p>
                   </div>
                 )
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     Select a category to view contestants
                   </p>
                 </div>
@@ -348,16 +348,16 @@ const ScoringPage: React.FC = () => {
 
           {/* Right Column: Scoring Form */}
           <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Score Sheet
               </h2>
               {selectedCategory && selectedContestant ? (
                 <div>
                   {/* Contestant Info */}
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="font-medium text-gray-900">{selectedContestant.name}</div>
-                    <div className="text-sm text-gray-500">{selectedCategory.name}</div>
+                  <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                    <div className="font-medium text-gray-900 dark:text-white">{selectedContestant.name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{selectedCategory.name}</div>
                   </div>
 
                   {/* Scoring Criteria */}
@@ -369,14 +369,14 @@ const ScoringPage: React.FC = () => {
                     <div className="space-y-6">
                       {criteria.map(criterion => (
                         <div key={criterion.id} className="border-b pb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             {criterion.name}
-                            <span className="text-gray-500 ml-1">
+                            <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500 ml-1">
                               (Max: {criterion.maxScore})
                             </span>
                           </label>
                           {criterion.description && (
-                            <p className="text-xs text-gray-500 mb-2">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">
                               {criterion.description}
                             </p>
                           )}
@@ -386,14 +386,14 @@ const ScoringPage: React.FC = () => {
                             max={criterion.maxScore}
                             value={scoreFormData[criterion.id]?.score || 0}
                             onChange={(e) => handleScoreChange(criterion.id, 'score', Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                           <textarea
                             placeholder="Comments (optional)"
                             value={scoreFormData[criterion.id]?.comment || ''}
                             onChange={(e) => handleScoreChange(criterion.id, 'comment', e.target.value)}
                             rows={2}
-                            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
                       ))}
@@ -401,11 +401,11 @@ const ScoringPage: React.FC = () => {
                       {/* Total Score */}
                       <div className="pt-4 border-t">
                         <div className="flex justify-between items-center">
-                          <span className="text-lg font-semibold text-gray-900">Total Score:</span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-white">Total Score:</span>
                           <span className="text-2xl font-bold text-blue-600">
                             {getTotalScore()}
                             {selectedCategory.scoreCap && (
-                              <span className="text-sm text-gray-500 ml-1">
+                              <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 ml-1">
                                 / {selectedCategory.scoreCap}
                               </span>
                             )}
@@ -417,7 +417,7 @@ const ScoringPage: React.FC = () => {
                       <button
                         onClick={handleSubmitScores}
                         disabled={isSubmitting}
-                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center"
                       >
                         {isSubmitting ? (
                           <>
@@ -434,7 +434,7 @@ const ScoringPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                         No scoring criteria defined for this category
                       </p>
                     </div>
@@ -442,8 +442,8 @@ const ScoringPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <PencilIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">
+                  <PencilIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     Select a category and contestant to begin scoring
                   </p>
                 </div>

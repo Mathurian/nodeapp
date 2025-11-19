@@ -50,13 +50,14 @@ const EventTemplatesPage = lazy(() => import('./pages/EventTemplatesPage'))
 const BulkOperationsPage = lazy(() => import('./pages/BulkOperationsPage'))
 const CommentaryPage = lazy(() => import('./pages/CommentaryPage'))
 const CategoryTypesPage = lazy(() => import('./pages/CategoryTypesPage'))
+const HelpPage = lazy(() => import('./pages/HelpPage'))
 
 // Loading fallback component
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50">
+  <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
     <div className="text-center">
-      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-      <p className="text-gray-600">Loading...</p>
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+      <p className="text-gray-600 dark:text-gray-400">Loading...</p>
     </div>
   </div>
 )
@@ -132,7 +133,7 @@ function App() {
                   <CommandPaletteOnboardingWrapper
                     onComplete={() => setIsCommandPaletteOpen(true)}
                   />
-                  <div className="min-h-screen bg-gray-50">
+                  <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
                     <Suspense fallback={<LoadingFallback />}>
                       <Routes>
                         <Route path="/login" element={<LoginPage />} />
@@ -179,6 +180,7 @@ function App() {
                                     <Route path="/bulk-operations" element={<BulkOperationsPage />} />
                                     <Route path="/commentary" element={<CommentaryPage />} />
                                     <Route path="/category-types" element={<CategoryTypesPage />} />
+                                    <Route path="/help" element={<HelpPage />} />
                                   </Routes>
                                 </Suspense>
                               </Layout>

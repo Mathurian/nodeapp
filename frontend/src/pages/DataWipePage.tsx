@@ -43,12 +43,12 @@ const DataWipePage: React.FC = () => {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only system administrators can access data wipe functions.
           </p>
         </div>
@@ -57,7 +57,7 @@ const DataWipePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -66,7 +66,7 @@ const DataWipePage: React.FC = () => {
               DANGER ZONE - Data Wipe
             </h1>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Permanently delete data from the system. THIS ACTION CANNOT BE UNDONE.
           </p>
         </div>
@@ -105,12 +105,12 @@ const DataWipePage: React.FC = () => {
         )}
 
         {/* Wipe Options */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Select Data Scope
           </h2>
           <div className="space-y-3">
-            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors">
               <input
                 type="radio"
                 name="scope"
@@ -120,14 +120,14 @@ const DataWipePage: React.FC = () => {
                 className="h-4 w-4 text-red-600"
               />
               <div>
-                <p className="font-semibold text-gray-900 dark:text-white">Events Only</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="font-semibold text-gray-900 dark:text-white dark:text-white">Events Only</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Delete all events, contests, categories, and related scores
                 </p>
               </div>
             </label>
 
-            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors">
               <input
                 type="radio"
                 name="scope"
@@ -137,14 +137,14 @@ const DataWipePage: React.FC = () => {
                 className="h-4 w-4 text-red-600"
               />
               <div>
-                <p className="font-semibold text-gray-900 dark:text-white">Users Only</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="font-semibold text-gray-900 dark:text-white dark:text-white">Users Only</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Delete all non-admin users (keeps system administrators)
                 </p>
               </div>
             </label>
 
-            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors">
               <input
                 type="radio"
                 name="scope"
@@ -154,8 +154,8 @@ const DataWipePage: React.FC = () => {
                 className="h-4 w-4 text-red-600"
               />
               <div>
-                <p className="font-semibold text-gray-900 dark:text-white">Scores Only</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="font-semibold text-gray-900 dark:text-white dark:text-white">Scores Only</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Delete all scoring data (keeps events and users)
                 </p>
               </div>
@@ -183,11 +183,11 @@ const DataWipePage: React.FC = () => {
         </div>
 
         {/* Confirmation */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Confirmation Required
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mb-4">
             To proceed, type exactly: <span className="font-mono font-semibold">WIPE {selectedScope} DATA</span>
           </p>
           <input
@@ -195,12 +195,12 @@ const DataWipePage: React.FC = () => {
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder={`WIPE ${selectedScope} DATA`}
-            className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono mb-4"
+            className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white font-mono mb-4"
           />
           <button
             onClick={wipeData}
             disabled={loading || confirmText !== `WIPE ${selectedScope} DATA`}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             <TrashIcon className="h-5 w-5" />
             {loading ? 'Wiping Data...' : `Wipe ${selectedScope} Data`}

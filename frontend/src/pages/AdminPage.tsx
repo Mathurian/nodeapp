@@ -17,18 +17,24 @@ import {
 import { Link } from 'react-router-dom'
 
 interface DashboardStats {
-  events: number
-  contests: number
-  categories: number
-  users: number
-  contestants: number
-  judges: number
-  scores: number
-  activeUsers: number
+  totalEvents: number
+  totalContests: number
+  totalCategories: number
+  totalUsers: number
   totalScores: number
-  averageScore: number
-  completedCategories: number
+  activeUsers: number
   pendingCertifications: number
+  certificationBreakdown?: {
+    judge: number
+    tallyMaster: number
+    auditor: number
+    board: number
+  }
+  systemHealth?: 'HEALTHY' | 'WARNING' | 'CRITICAL'
+  lastBackup?: string | null
+  databaseSize?: string
+  uptime?: string
+  uptimeSeconds?: number
 }
 
 const AdminPage: React.FC = () => {
@@ -39,7 +45,8 @@ const AdminPage: React.FC = () => {
     'admin-stats',
     async () => {
       const response = await adminAPI.getStats()
-      return response.data
+      // Backend wraps response: { success, message, data: {...stats...}, timestamp }
+      return response.data.data || response.data
     },
     {
       refetchInterval: 30000,
@@ -51,11 +58,11 @@ const AdminPage: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <ShieldCheckIcon className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="mt-2 text-lg font-medium text-gray-900">Access Denied</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             You must be an administrator to access this page.
           </p>
         </div>
@@ -96,7 +103,7 @@ const AdminPage: React.FC = () => {
       title: 'Backup Management',
       description: 'Database backup and restore',
       icon: ServerIcon,
-      link: '/backup',
+      link: '/backups',
       color: 'red',
     },
     {
@@ -124,132 +131,132 @@ const AdminPage: React.FC = () => {
 
   const getColorClasses = (color: string) => {
     const colors: Record<string, string> = {
-      blue: 'bg-blue-100 text-blue-600',
-      green: 'bg-green-100 text-green-600',
-      purple: 'bg-purple-100 text-purple-600',
-      yellow: 'bg-yellow-100 text-yellow-600',
-      red: 'bg-red-100 text-red-600',
-      indigo: 'bg-indigo-100 text-indigo-600',
-      pink: 'bg-pink-100 text-pink-600',
-      orange: 'bg-orange-100 text-orange-600',
+      blue: 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400',
+      green: 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400',
+      purple: 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400',
+      yellow: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400',
+      red: 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400',
+      indigo: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400',
+      pink: 'bg-pink-100 dark:bg-pink-900 text-pink-600 dark:text-pink-400',
+      orange: 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400',
     }
     return colors[color] || colors.blue
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <ShieldCheckIcon className="h-8 w-8 mr-3 text-blue-600" />
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
+            <ShieldCheckIcon className="h-8 w-8 mr-3 text-blue-600 dark:text-blue-400" />
             Admin Dashboard
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             System overview and administrative controls
           </p>
         </div>
 
         {/* Statistics Grid */}
         {isLoading ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center mb-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-sm text-gray-500">Loading statistics...</p>
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center mb-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading statistics...</p>
           </div>
         ) : stats ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Events</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.events}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Events</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalEvents || 0}</p>
                 </div>
-                <div className="bg-blue-100 rounded-full p-3">
-                  <CalendarIcon className="h-6 w-6 text-blue-600" />
+                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-3">
+                  <CalendarIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Contests</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.contests}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Contests</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalContests || 0}</p>
                 </div>
-                <div className="bg-purple-100 rounded-full p-3">
-                  <TrophyIcon className="h-6 w-6 text-purple-600" />
+                <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
+                  <TrophyIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Categories</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.categories}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Categories</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalCategories || 0}</p>
                 </div>
-                <div className="bg-green-100 rounded-full p-3">
-                  <ChartBarIcon className="h-6 w-6 text-green-600" />
+                <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
+                  <ChartBarIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.users}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalUsers || 0}</p>
                 </div>
-                <div className="bg-yellow-100 rounded-full p-3">
-                  <UsersIcon className="h-6 w-6 text-yellow-600" />
+                <div className="bg-yellow-100 dark:bg-yellow-900 rounded-full p-3">
+                  <UsersIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Users</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.activeUsers}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Users</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.activeUsers || 0}</p>
                 </div>
-                <div className="bg-green-100 rounded-full p-3">
-                  <ClockIcon className="h-6 w-6 text-green-600" />
+                <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
+                  <ClockIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Scores</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.totalScores}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Scores</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalScores || 0}</p>
                 </div>
-                <div className="bg-indigo-100 rounded-full p-3">
-                  <CheckCircleIcon className="h-6 w-6 text-indigo-600" />
+                <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-3">
+                  <CheckCircleIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Completed Categories</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.completedCategories}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">System Uptime</p>
+                  <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{stats.uptime || 'N/A'}</p>
                 </div>
-                <div className="bg-green-100 rounded-full p-3">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
+                  <ClockIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending Certifications</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{stats.pendingCertifications}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Certifications</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingCertifications || 0}</p>
                 </div>
-                <div className="bg-orange-100 rounded-full p-3">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-orange-600" />
+                <div className="bg-orange-100 dark:bg-orange-900 rounded-full p-3">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                 </div>
               </div>
             </div>
@@ -258,21 +265,21 @@ const AdminPage: React.FC = () => {
 
         {/* Admin Action Cards */}
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {adminCards.map((card, index) => (
               <Link
                 key={index}
                 to={card.link}
-                className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition-shadow"
+                className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 hover:shadow-lg transition-shadow"
               >
                 <div className={`rounded-full p-3 inline-flex ${getColorClasses(card.color)} mb-4`}>
                   <card.icon className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {card.title}
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {card.description}
                 </p>
               </Link>
