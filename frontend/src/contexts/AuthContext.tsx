@@ -10,6 +10,7 @@ interface User {
   role: string
   phone?: string
   gender?: string
+  pronouns?: string
   bio?: string
   judge?: any
   contestant?: any

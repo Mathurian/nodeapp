@@ -16,6 +16,7 @@ interface ProfileFormData {
   email: string
   phone: string
   gender: string
+  pronouns: string
   bio: string
 }
 
@@ -37,6 +38,7 @@ const ProfilePage: React.FC = () => {
     email: user?.email || '',
     phone: user?.phone || '',
     gender: user?.gender || '',
+    pronouns: user?.pronouns || '',
     bio: user?.bio || '',
   })
   const [passwordData, setPasswordData] = useState<PasswordFormData>({
@@ -98,6 +100,7 @@ const ProfilePage: React.FC = () => {
       email: user?.email || '',
       phone: user?.phone || '',
       gender: user?.gender || '',
+      pronouns: user?.pronouns || '',
       bio: user?.bio || '',
     })
     setIsEditing(false)
@@ -225,24 +228,34 @@ const ProfilePage: React.FC = () => {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Gender
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select...</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
-                  </select>
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Male, Female, Non-binary, etc."
+                  />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pronouns
+                </label>
+                <input
+                  type="text"
+                  value={formData.pronouns}
+                  onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., he/him, she/her, they/them, etc."
+                />
               </div>
 
               <div>
@@ -311,6 +324,10 @@ const ProfilePage: React.FC = () => {
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Gender</p>
                   <p className="mt-1 text-gray-900 dark:text-white">{user?.gender || 'Not set'}</p>
                 </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Pronouns</p>
+                <p className="mt-1 text-gray-900 dark:text-white">{user?.pronouns || 'Not set'}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Role</p>
