@@ -229,7 +229,9 @@ export const createActionCommands = (options: {
       name: 'Open Help Documentation',
       description: 'View help and documentation',
       icon: ShareIcon,
-      action: () => window.open('/help', '_blank'),
+      action: () => {
+        window.open('/help', '_blank')
+      },
       keywords: ['help', 'docs', 'documentation', 'support'],
       category: 'action',
       group: 'Help',

@@ -62,13 +62,18 @@ export const useCommands = (options: {
   }, [navigate, logout, registry])
 
   // Execute command with callback
-  const executeCommand = useCallback((commandId: string) => {
-    const success = registry.executeCommand(commandId, user?.role)
-    if (success && onCommandExecute) {
-      onCommandExecute(commandId)
+  const executeCommand = useCallback(async (commandId: string) => {
+    try {
+      await registry.executeCommand(commandId)
+      if (onCommandExecute) {
+        onCommandExecute(commandId)
+      }
+      return true
+    } catch (error) {
+      console.error('Command execution failed:', error)
+      return false
     }
-    return success
-  }, [registry, user?.role, onCommandExecute])
+  }, [registry, onCommandExecute])
 
   // Get shortcuts for all commands
   const shortcuts = useMemo(() => {
@@ -130,8 +135,17 @@ export const useCommands = (options: {
       registry.search(query, options),
     getRecentCommands: () => registry.getRecentCommands(),
     getFavoriteCommands: () => registry.getFavoriteCommands(),
-    getAllCommands: (options?: { role?: string; context?: string; category?: string; limit?: number }) =>
-      registry.getAllCommands(options),
+    getAllCommands: (options?: { role?: string; context?: string; category?: 'navigation' | 'action' | 'admin' | 'quick' | 'search'; limit?: number }) => {
+      if (options) {
+        const results = registry.search('', {
+          role: options.role,
+          context: options.context,
+          category: options.category
+        })
+        return options.limit ? results.slice(0, options.limit) : results
+      }
+      return registry.getAllCommands()
+    },
     addFavorite: (commandId: string) => registry.addFavorite(commandId),
     removeFavorite: (commandId: string) => registry.removeFavorite(commandId),
     isFavorite: (commandId: string) => registry.isFavorite(commandId)
