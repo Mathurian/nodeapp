@@ -14,6 +14,7 @@ import {
   PrinterIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import * as XLSX from 'xlsx'
 
 interface Event {
   id: string
@@ -136,13 +137,75 @@ const ResultsPage: React.FC = () => {
   )
 
   const handleExportResults = async () => {
-    if (!selectedCategoryId) return
+    if (!selectedCategoryId || !categoryResults) return
 
     try {
-      // Trigger export to Excel
-      toast.success('Export functionality will trigger Excel download')
-      // TODO: Implement actual export
-      // const response = await exportAPI.exportCategoryResults(selectedCategoryId)
+      // Create a new workbook
+      const workbook = XLSX.utils.book_new()
+
+      // Prepare winners data for Excel
+      const winnersData = categoryResults.winners.map((winner) => ({
+        Rank: winner.rank,
+        'Contestant Number': winner.contestant.contestantNumber || 'N/A',
+        'Contestant Name': winner.contestant.name,
+        'Total Score': winner.totalScore,
+        'Score Cap': winner.category.scoreCap || 'N/A',
+        'Certified': winner.isCertified ? 'Yes' : 'No',
+        'Certified At': winner.certifiedAt ? format(new Date(winner.certifiedAt), 'PPpp') : 'N/A',
+      }))
+
+      // Create winners worksheet
+      const winnersWorksheet = XLSX.utils.json_to_sheet(winnersData)
+
+      // Add winners worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, winnersWorksheet, 'Winners')
+
+      // If score breakdowns are available, add them as a separate sheet
+      if (categoryResults.scoreBreakdowns && Object.keys(categoryResults.scoreBreakdowns).length > 0) {
+        const breakdownData: Array<{
+          'Contestant Name': string
+          'Contestant Number': string | number
+          'Judge': string
+          'Criterion': string
+          'Score': number
+          'Deduction': number
+          'Net Score': number
+          'Comment': string
+        }> = []
+
+        categoryResults.winners.forEach((winner) => {
+          const breakdowns = categoryResults.scoreBreakdowns[winner.contestantId]
+          if (breakdowns && breakdowns.length > 0) {
+            breakdowns.forEach((breakdown) => {
+              breakdownData.push({
+                'Contestant Name': winner.contestant.name,
+                'Contestant Number': winner.contestant.contestantNumber || 'N/A',
+                'Judge': breakdown.judgeName,
+                'Criterion': breakdown.criterionName || 'Overall',
+                'Score': breakdown.score,
+                'Deduction': breakdown.deduction,
+                'Net Score': breakdown.score - breakdown.deduction,
+                'Comment': breakdown.comment || '',
+              })
+            })
+          }
+        })
+
+        if (breakdownData.length > 0) {
+          const breakdownWorksheet = XLSX.utils.json_to_sheet(breakdownData)
+          XLSX.utils.book_append_sheet(workbook, breakdownWorksheet, 'Score Breakdowns')
+        }
+      }
+
+      // Generate filename with category name and timestamp
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss')
+      const categoryName = categoryResults.category.name.replace(/[^a-z0-9]/gi, '_')
+      const filename = `Results_${categoryName}_${timestamp}.xlsx`
+
+      // Write and download the file
+      XLSX.writeFile(workbook, filename)
+
+      toast.success('Results exported successfully!')
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Export failed'
       toast.error(`Export failed: ${errorMessage}`)
