@@ -38,8 +38,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Cookie expired or invalid - redirect to login
-      // No need to clear localStorage (we're not using it anymore)
-      window.location.href = '/login'
+      // But ONLY if we're not already on the login page (prevent redirect loop)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
