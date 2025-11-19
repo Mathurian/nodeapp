@@ -1,9 +1,10 @@
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
 import { env } from '../config/env';
 import { templateRenderer } from '../utils/templateRenderer';
+import { ErrorLogService } from './ErrorLogService';
 
 // Prisma payload types
 type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
@@ -95,6 +96,22 @@ export class EmailService extends BaseService {
     } catch (error) {
       console.error('EmailService: Failed to initialize SMTP transporter:', error);
       this.transporter = null;
+
+      // Log SMTP initialization failure to ErrorLogService
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        await errorLogService.logException(
+          error as Error,
+          'EmailService:initializeTransporter',
+          {
+            smtpHost: env.get('SMTP_HOST'),
+            smtpPort: env.get('SMTP_PORT'),
+            smtpUser: env.get('SMTP_USER'),
+          }
+        );
+      } catch (logError) {
+        console.error('Failed to log SMTP initialization error:', logError);
+      }
     }
   }
 
@@ -224,6 +241,24 @@ export class EmailService extends BaseService {
       options?.template,
       options?.variables as Record<string, any>
     );
+
+    // Log email sending failure to ErrorLogService
+    try {
+      const errorLogService = container.resolve(ErrorLogService);
+      await errorLogService.logException(
+        lastError as Error,
+        'EmailService:sendEmail',
+        {
+          to,
+          subject,
+          template: options?.template,
+          attempts: this.maxRetries,
+          smtpHost: env.get('SMTP_HOST'),
+        }
+      );
+    } catch (logError) {
+      console.error('Failed to log email sending error:', logError);
+    }
 
     throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   }

@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import { container } from 'tsyringe';
 import prisma from '../utils/prisma';
 import { env } from '../config/env';
+import { ErrorLogService } from '../services/ErrorLogService';
 
 const logActivity = (action: string, resourceType: string | null = null, resourceId: string | null = null) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -113,45 +115,42 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     stack: env.isProduction() ? undefined : error.stack,
   })
 
-  // Log critical errors to database asynchronously
-  if ((error.statusCode && error.statusCode >= 500) || !error.statusCode) {
-    setImmediate(async () => {
-      try {
-        // Use ActivityLog instead of errorLog (which doesn't exist in schema)
-        if (!prisma || !prisma.activityLog) {
-          return;
-        }
+  // Log ALL errors to database using ErrorLogService
+  setImmediate(async () => {
+    try {
+      const errorLogService = container.resolve(ErrorLogService);
+      const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
 
-        await prisma.activityLog.create({
-          data: {
-            action: 'ERROR',
-            details: JSON.stringify({
-              message: error.message,
-              name: error.name,
-              stack: error.stack,
-              statusCode: error.statusCode || 500,
-              method: req.method,
-              path: req.path,
-              ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
-              userAgent: req.get('User-Agent') || 'Unknown',
-              requestId: (() => {
-                const id = req.id || req.headers['x-request-id'];
-                if (typeof id === 'string') return id;
-                if (Array.isArray(id)) return id[0] || null;
-                return null;
-              })(),
-              body: req.body || {},
-              query: req.query || {},
-              params: req.params || {},
-            }),
-            userId: req.user?.id || null,
-          },
-        })
-      } catch (logError) {
-        console.error('Failed to log error to database:', logError)
-      }
-    })
-  }
+      // Create error object with stack trace
+      const errorObj = new Error(error.message || 'Unknown error');
+      errorObj.stack = error.stack;
+      errorObj.name = error.name || 'Error';
+
+      await errorLogService.logHttpError({
+        error: errorObj,
+        path: req.path,
+        method: req.method,
+        statusCode: error.statusCode || 500,
+        userId: req.user?.id,
+        tenantId,
+        metadata: {
+          errorCode: error.code,
+          requestId: (() => {
+            const id = req.id || req.headers['x-request-id'];
+            if (typeof id === 'string') return id;
+            if (Array.isArray(id)) return id[0] || null;
+            return null;
+          })(),
+          query: req.query || {},
+          params: req.params || {},
+          ipAddress: req.ip || req.connection?.remoteAddress || 'Unknown',
+          userAgent: req.get('User-Agent') || 'Unknown',
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log error to database:', logError);
+    }
+  });
 
   // Handle specific error types
   if (error.name === 'ValidationError') {

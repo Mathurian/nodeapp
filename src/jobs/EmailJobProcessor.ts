@@ -1,6 +1,8 @@
 import { Job } from 'bullmq';
+import { container } from 'tsyringe';
 import { BaseJobProcessor } from './BaseJobProcessor';
 import { EmailService } from '../services/EmailService';
+import { ErrorLogService } from '../services/ErrorLogService';
 import queueService from '../services/QueueService';
 import { Logger } from '../utils/logger';
 import { templateRenderer } from '../utils/templateRenderer';
@@ -200,17 +202,32 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
   protected override async onFailed(job: Job<EmailJobData>, error: Error): Promise<void> {
     await super.onFailed(job, error);
 
-    // Log failed email to database
+    // Log failed email to database using ErrorLogService
     try {
-      // TODO: Save to email_logs table
-      this.logger.error('Email permanently failed - saving to database', {
+      const errorLogService = container.resolve(ErrorLogService);
+      const tenantId = (job.data as any)?.tenantId;
+
+      await errorLogService.logException(
+        error,
+        'EmailJobProcessor:job-failed',
+        {
+          jobId: job.id,
+          to: job.data.to,
+          subject: job.data.subject,
+          template: job.data.template?.name,
+          attempts: job.attemptsMade,
+          maxAttempts: job.opts.attempts,
+        },
+        tenantId
+      );
+
+      this.logger.info('Email job failure logged to database', {
         jobId: job.id,
         to: job.data.to,
         subject: job.data.subject,
-        error: error.message,
       });
     } catch (logError) {
-      this.logger.error('Failed to log email failure', { error: logError });
+      this.logger.error('Failed to log email job error to database', { error: logError });
     }
   }
 }

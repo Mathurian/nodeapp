@@ -4,7 +4,7 @@
  * password resets, and permission checks
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -14,6 +14,7 @@ import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissi
 import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 import { EmailService } from './EmailService';
+import { ErrorLogService } from './ErrorLogService';
 import { env } from '../config/env';
 
 const JWT_SECRET = env.get('JWT_SECRET');
@@ -171,11 +172,48 @@ export class AuthService {
 
     // Validate credentials
     if (!user || !await bcrypt.compare(password, user.password)) {
+      // Log authentication failure to database
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        await errorLogService.logException(
+          new Error('Invalid credentials'),
+          'AuthService:login',
+          {
+            email,
+            tenantId,
+            ipAddress: ipAddress || 'unknown',
+            userAgent: userAgent || 'unknown',
+            reason: 'invalid_credentials',
+          },
+          tenantId
+        );
+      } catch (logError) {
+        console.error('Failed to log authentication error:', logError);
+      }
       throw new Error('Invalid credentials');
     }
 
     // Check if user is active
     if (!user.isActive) {
+      // Log inactive account login attempt
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        await errorLogService.logException(
+          new Error('Account is inactive'),
+          'AuthService:login',
+          {
+            email,
+            userId: user.id,
+            tenantId,
+            ipAddress: ipAddress || 'unknown',
+            userAgent: userAgent || 'unknown',
+            reason: 'inactive_account',
+          },
+          tenantId
+        );
+      } catch (logError) {
+        console.error('Failed to log authentication error:', logError);
+      }
       throw new Error('Account is inactive');
     }
 
@@ -311,6 +349,22 @@ export class AuthService {
     try {
       return jwt.verify(token, JWT_SECRET) as TokenPayload;
     } catch (error) {
+      // Log token verification failure
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        errorLogService.logException(
+          error as Error,
+          'AuthService:verifyToken',
+          {
+            tokenLength: token?.length,
+            errorMessage: (error as Error).message,
+          }
+        ).catch(logError => {
+          console.error('Failed to log token verification error:', logError);
+        });
+      } catch (logError) {
+        console.error('Failed to log token verification error:', logError);
+      }
       throw new Error('Invalid or expired token');
     }
   }
