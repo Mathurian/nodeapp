@@ -3,6 +3,7 @@ import { BaseJobProcessor } from './BaseJobProcessor';
 import { EmailService } from '../services/EmailService';
 import queueService from '../services/QueueService';
 import { Logger } from '../utils/logger';
+import { templateRenderer } from '../utils/templateRenderer';
 
 /**
  * Email Job Data Interface
@@ -51,10 +52,11 @@ export interface EmailJobData {
  * ```
  */
 export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
-  constructor(_emailService: EmailService) {
+  private emailService: EmailService;
+
+  constructor(emailService: EmailService) {
     super('email-job-processor');
-    // Email service ready for use when email sending is implemented
-    // Store for future use: this._emailService = _emailService;
+    this.emailService = emailService;
   }
 
   /**
@@ -82,8 +84,8 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
   async process(job: Job<EmailJobData>): Promise<any> {
     this.validate(job.data);
 
-    const { to, subject, html, text, template } = job.data;
-    // Note: from, cc, bcc, attachments not currently used but available in job.data
+    const { to, subject, html, text, template, attachments } = job.data;
+    // Note: from, cc, bcc are available in job.data but not currently used
 
     try {
       // Update progress
@@ -93,36 +95,95 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
       let emailHtml = html;
       let emailText = text;
 
-      // If template is specified, render it
+      // If template is specified, render it using Handlebars
       if (template) {
-        // TODO: Implement template rendering
-        this.logger.info('Email template rendering', {
+        this.logger.info('Rendering email template with Handlebars', {
           template: template.name,
           jobId: job.id,
         });
+
+        try {
+          emailHtml = await templateRenderer.render(template.name, template.data);
+          this.logger.info('Template rendered successfully', {
+            template: template.name,
+            jobId: job.id,
+          });
+        } catch (renderError) {
+          this.logger.error('Template rendering failed', {
+            template: template.name,
+            jobId: job.id,
+            error: renderError instanceof Error ? renderError.message : 'Unknown error',
+          });
+          throw renderError;
+        }
+
         await job.updateProgress(50);
       } else {
         await job.updateProgress(50);
       }
 
-      // Send email - EmailService.sendEmail takes 3 arguments: to, subject, body
-      // TODO: Implement actual email sending
-      this.logger.info('Would send email via emailService', {
-        to: Array.isArray(to) ? to[0] : to,
-        subject,
-        hasHtml: !!emailHtml,
-        hasText: !!emailText,
-      });
-      // await this.emailService.sendEmail(toAddress, subject, emailBody);
+      // Determine recipient(s)
+      const recipients = Array.isArray(to) ? to : [to];
+
+      // Send email to each recipient
+      const results = [];
+      for (const recipient of recipients) {
+        try {
+          const result = await this.emailService.sendEmail(
+            recipient,
+            subject,
+            emailText || '',
+            {
+              html: emailHtml,
+              template: template?.name,
+              variables: template?.data,
+              attachments,
+            }
+          );
+
+          results.push(result);
+
+          this.logger.info('Email sent successfully', {
+            to: recipient,
+            subject,
+            messageId: result.messageId,
+            jobId: job.id,
+          });
+        } catch (sendError) {
+          this.logger.error('Failed to send email to recipient', {
+            to: recipient,
+            subject,
+            jobId: job.id,
+            error: sendError instanceof Error ? sendError.message : 'Unknown error',
+          });
+
+          // If sending to one recipient fails, continue with others
+          // but track the failure
+          results.push({
+            success: false,
+            to: recipient,
+            subject,
+            error: sendError instanceof Error ? sendError.message : 'Unknown error',
+          });
+        }
+      }
 
       await job.updateProgress(100);
 
+      // Return aggregated results
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.length - successCount;
+
       return {
-        success: true,
+        success: failureCount === 0,
+        totalRecipients: results.length,
+        successCount,
+        failureCount,
+        results,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error('Failed to send email', {
+      this.logger.error('Failed to process email job', {
         jobId: job.id,
         to,
         subject,

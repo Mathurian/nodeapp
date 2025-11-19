@@ -2,9 +2,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
-import * as fs from 'fs';
-import * as path from 'path';
 import { env } from '../config/env';
+import { templateRenderer } from '../utils/templateRenderer';
 
 // Prisma payload types
 type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
@@ -123,25 +122,17 @@ export class EmailService extends BaseService {
   }
 
   /**
-   * Render email template with variables
+   * Render email template with variables using Handlebars
    */
-  private async renderTemplate(templateName: string, variables: Record<string, string | number | boolean>): Promise<string> {
+  private async renderTemplate(templateName: string, variables: Record<string, string | number | boolean | any>): Promise<string> {
     try {
-      const templatePath = path.join(__dirname, '../templates/email', `${templateName}.html`);
+      // Add .html extension if not present
+      const templateFile = templateName.endsWith('.html') ? templateName : `${templateName}.html`;
 
-      if (!fs.existsSync(templatePath)) {
-        throw new Error(`Email template not found: ${templateName}`);
-      }
+      // Use Handlebars template renderer
+      const rendered = await templateRenderer.render(templateFile, variables as Record<string, any>);
 
-      let template = fs.readFileSync(templatePath, 'utf-8');
-
-      // Replace variables in template
-      Object.keys(variables).forEach(key => {
-        const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-        template = template.replace(regex, String(variables[key]));
-      });
-
-      return template;
+      return rendered;
     } catch (error) {
       console.error('EmailService: Template rendering error:', error);
       throw this.badRequestError(`Failed to render email template: ${templateName}`);
@@ -190,8 +181,17 @@ export class EmailService extends BaseService {
       try {
         const info = await this.transporter.sendMail(mailOptions);
 
-        // Log successful email
-        await this.logEmail(to, subject, 'SENT', info.messageId);
+        // Log successful email with enhanced tracking
+        await this.logEmail(
+          to,
+          subject,
+          'SENT',
+          info.messageId,
+          null,
+          env.get('SMTP_FROM'),
+          options?.template,
+          options?.variables as Record<string, any>
+        );
 
         console.log(`EmailService: Email sent successfully to ${to} (attempt ${attempt}/${this.maxRetries})`);
 
@@ -213,8 +213,17 @@ export class EmailService extends BaseService {
       }
     }
 
-    // All retries failed - log failure
-    await this.logEmail(to, subject, 'FAILED', null, String(lastError));
+    // All retries failed - log failure with enhanced tracking
+    await this.logEmail(
+      to,
+      subject,
+      'FAILED',
+      null,
+      String(lastError),
+      env.get('SMTP_FROM'),
+      options?.template,
+      options?.variables as Record<string, any>
+    );
 
     throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   }
@@ -227,7 +236,10 @@ export class EmailService extends BaseService {
     subject: string,
     status: 'SENT' | 'FAILED' | 'PENDING',
     messageId: string | null = null,
-    errorMessage: string | null = null
+    errorMessage: string | null = null,
+    from?: string,
+    template?: string,
+    metadata?: Record<string, any>
   ): Promise<void> {
     try {
       await this.prisma.emailLog.create({
@@ -237,6 +249,9 @@ export class EmailService extends BaseService {
           status,
           messageId,
           errorMessage,
+          from: from || env.get('SMTP_FROM'),
+          template: template || null,
+          metadata: metadata ? (metadata as any) : null,
           sentAt: new Date()
         }
       });
