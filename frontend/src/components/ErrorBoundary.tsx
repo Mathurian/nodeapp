@@ -26,12 +26,25 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error details to console in development
-    if (import.meta.env.DEV) {
-      console.error('ErrorBoundary caught an error:', error, errorInfo)
+    // ALWAYS log error details to console (including production)
+    console.error('ErrorBoundary caught an error:', error, errorInfo)
+
+    // Log full error details for debugging
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
+    console.error('Component stack:', errorInfo.componentStack)
+
+    // In production, send to error tracking service (Sentry)
+    if (!import.meta.env.DEV && (window as any).Sentry) {
+      (window as any).Sentry.captureException(error, {
+        contexts: {
+          react: {
+            componentStack: errorInfo.componentStack,
+          },
+        },
+      })
     }
 
-    // In production, you could send this to an error tracking service
     this.setState({
       error,
       errorInfo,
