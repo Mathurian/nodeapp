@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/ScoringService';
+import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -75,6 +76,28 @@ export class ScoringController {
       const newScore = await this.scoringService.submitScore(data, req.user.id, req.user!.tenantId);
 
       log.info('Score submitted successfully', { scoreId: newScore.id });
+
+      // Audit log: score submission
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'score.submitted',
+          'Score',
+          newScore.id,
+          req,
+          undefined,
+          {
+            categoryId,
+            contestantId,
+            criteriaId,
+            score,
+            judgeId: req.user.id
+          }
+        );
+      } catch (auditError) {
+        log.error('Failed to log score submission audit', { error: auditError });
+      }
+
       sendCreated(res, newScore);
     } catch (error) {
       log.error('Submit score error', { error: (error as Error).message });
@@ -98,9 +121,30 @@ export class ScoringController {
 
       log.info('Score update requested', { scoreId });
 
+      // Get old score for change tracking
+      const oldScore = await this.prisma.score.findUnique({ where: { id: scoreId } });
+
       const updatedScore = await this.scoringService.updateScore(scoreId, data, req.user!.tenantId);
 
       log.info('Score updated successfully', { scoreId });
+
+      // Audit log: score update with change tracking
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = req.user!.tenantId;
+        await auditLogService.logEntityChange({
+          action: 'score.updated',
+          entityType: 'Score',
+          entityId: scoreId,
+          oldData: oldScore,
+          newData: updatedScore,
+          req,
+          tenantId
+        });
+      } catch (auditError) {
+        log.error('Failed to log score update audit', { error: auditError });
+      }
+
       sendSuccess(res, updatedScore);
     } catch (error) {
       log.error('Update score error', { error: (error as Error).message, scoreId: req.params['scoreId'] });
@@ -118,7 +162,30 @@ export class ScoringController {
 
       log.info('Score deletion requested', { scoreId });
 
+      // Get score data before deletion for audit log
+      const score = await this.prisma.score.findUnique({ where: { id: scoreId } });
+
       await this.scoringService.deleteScore(scoreId, req.user!.tenantId);
+
+      // Audit log: score deletion
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'score.deleted',
+          'Score',
+          scoreId,
+          req,
+          undefined,
+          {
+            categoryId: score?.categoryId,
+            contestantId: score?.contestantId,
+            criterionId: score?.criterionId,
+            score: score?.score
+          }
+        );
+      } catch (auditError) {
+        log.error('Failed to log score deletion audit', { error: auditError });
+      }
 
       log.info('Score deleted successfully', { scoreId });
       sendNoContent(res);
@@ -146,6 +213,22 @@ export class ScoringController {
       const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, req.user!.tenantId);
 
       log.info('Score certified successfully', { scoreId });
+
+      // Audit log: score certification
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'score.certified',
+          'Score',
+          scoreId,
+          req,
+          undefined,
+          { certifiedBy: req.user.id, certifiedAt: new Date() }
+        );
+      } catch (auditError) {
+        log.error('Failed to log score certification audit', { error: auditError });
+      }
+
       sendSuccess(res, certifiedScore);
     } catch (error) {
       log.error('Certify score error', { error: (error as Error).message, scoreId: req.params['scoreId'] });

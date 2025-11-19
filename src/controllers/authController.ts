@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { AuthService } from '../services/AuthService';
+import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendUnauthorized, sendBadRequest, sendNotFound } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { env } from '../config/env';
@@ -56,6 +57,21 @@ export class AuthController {
         role: result.user.role
       });
 
+      // Audit log: successful login
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logAuth({
+          action: 'login',
+          userId: result.user.id,
+          userName: result.user.email,
+          req,
+          tenantId: tenantId,
+          metadata: { role: result.user.role }
+        });
+      } catch (auditError) {
+        log.error('Failed to log authentication audit', { error: auditError });
+      }
+
       // Set token as httpOnly cookie instead of returning it
       res.cookie('access_token', result.token, {
         httpOnly: true, // Prevents XSS attacks by making cookie inaccessible to JavaScript
@@ -94,10 +110,38 @@ export class AuthController {
       });
 
       if (errorMessage === 'Invalid credentials') {
+        // Audit log: failed login attempt
+        try {
+          const auditLogService = container.resolve(AuditLogService);
+          const tenantId = req.tenantId || 'default_tenant';
+          await auditLogService.logAuth({
+            action: 'failed_login',
+            userName: req.body?.email,
+            req,
+            tenantId: tenantId,
+            metadata: { reason: 'Invalid credentials' }
+          });
+        } catch (auditError) {
+          log.error('Failed to log failed login audit', { error: auditError });
+        }
         return sendUnauthorized(res, 'Invalid credentials');
       }
 
       if (errorMessage === 'Account is inactive') {
+        // Audit log: failed login attempt (inactive account)
+        try {
+          const auditLogService = container.resolve(AuditLogService);
+          const tenantId = req.tenantId || 'default_tenant';
+          await auditLogService.logAuth({
+            action: 'failed_login',
+            userName: req.body?.email,
+            req,
+            tenantId: tenantId,
+            metadata: { reason: 'Account is inactive' }
+          });
+        } catch (auditError) {
+          log.error('Failed to log failed login audit', { error: auditError });
+        }
         return sendUnauthorized(res, 'Account is inactive');
       }
 
@@ -196,6 +240,21 @@ export class AuthController {
 
       const resetToken = await this.authService.generatePasswordResetToken(email);
 
+      // Audit log: password reset request
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logAuth({
+          action: 'password_reset',
+          userName: email,
+          req,
+          tenantId: tenantId,
+          metadata: { action_type: 'request' }
+        });
+      } catch (auditError) {
+        log.error('Failed to log password reset request audit', { error: auditError });
+      }
+
       // In production, send this via email
       // For now, return it (ONLY for development)
       log.info('Password reset token generated', { email });
@@ -238,6 +297,20 @@ export class AuthController {
 
       await this.authService.resetPassword(token, newPassword);
 
+      // Audit log: password reset completion
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logAuth({
+          action: 'password_reset',
+          req,
+          tenantId: tenantId,
+          metadata: { action_type: 'completion' }
+        });
+      } catch (auditError) {
+        log.error('Failed to log password reset completion audit', { error: auditError });
+      }
+
       log.info('Password reset successful');
 
       return sendSuccess(res, {}, 'Password reset successfully');
@@ -275,6 +348,22 @@ export class AuthController {
 
       await this.authService.changePassword(userId, currentPassword, newPassword);
 
+      // Audit log: password change
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logAuth({
+          action: 'password_reset',
+          userId: userId,
+          userName: req.user?.name || req.user?.email,
+          req,
+          tenantId: tenantId,
+          metadata: { action_type: 'change', initiated_by_user: true }
+        });
+      } catch (auditError) {
+        log.error('Failed to log password change audit', { error: auditError });
+      }
+
       log.info('Password changed successfully', { userId });
 
       return sendSuccess(res, {}, 'Password changed successfully');
@@ -305,27 +394,20 @@ export class AuthController {
       if (userId) {
         log.debug('User logout', { userId });
 
-        // Log logout activity
-        const { PrismaClient } = require('@prisma/client');
-        const prisma = new PrismaClient();
-
+        // Audit log: logout
         try {
-          await prisma.activityLog.create({
-            data: {
-              userId,
-              userName: req.user?.name || 'Unknown',
-              userRole: req.user?.role || 'UNKNOWN',
-              action: 'LOGOUT',
-              resourceType: 'AUTH',
-              ipAddress: req.ip || 'unknown',
-              userAgent: req.get('User-Agent') || 'unknown',
-              details: {
-                timestamp: new Date().toISOString()
-              }
-            }
+          const auditLogService = container.resolve(AuditLogService);
+          const tenantId = (req as any).tenantId || 'default_tenant';
+          await auditLogService.logAuth({
+            action: 'logout',
+            userId: userId,
+            userName: req.user?.name || req.user?.email,
+            req,
+            tenantId: tenantId,
+            metadata: { role: req.user?.role }
           });
-        } catch (logError) {
-          console.error('Failed to log logout activity:', logError);
+        } catch (auditError) {
+          log.error('Failed to log logout audit', { error: auditError });
         }
 
         log.info('User logged out successfully', { userId });

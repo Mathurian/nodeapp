@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { sendSuccess } from '../utils/responseHelpers';
 import { container } from 'tsyringe';
 import { EventService } from '../services/EventService';
+import { AuditLogService } from '../services/AuditLogService';
 
 /**
  * Success response helper
@@ -145,6 +146,22 @@ export class EventsController {
   createEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const event = await this.eventService.createEvent(req.body);
+
+      // Audit log: event creation
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'event.created',
+          'Event',
+          event.id,
+          req,
+          undefined,
+          { name: event.name, startDate: event.startDate, endDate: event.endDate }
+        );
+      } catch (auditError) {
+        console.error('Failed to log event creation audit:', auditError);
+      }
+
       successResponse(res, event, 'Event created successfully', 201);
     } catch (error) {
       return next(error);
@@ -160,7 +177,29 @@ export class EventsController {
       if (!id) {
         return sendSuccess(res, null, 'Event ID is required', 400);
       }
+
+      // Get old data for change tracking
+      const oldEvent = await this.eventService.getEventById(id);
+
       const event = await this.eventService.updateEvent(id, req.body);
+
+      // Audit log: event update with change tracking
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logEntityChange({
+          action: 'event.updated',
+          entityType: 'Event',
+          entityId: id,
+          oldData: oldEvent,
+          newData: event,
+          req,
+          tenantId
+        });
+      } catch (auditError) {
+        console.error('Failed to log event update audit:', auditError);
+      }
+
       return sendSuccess(res, event, 'Event updated successfully');
     } catch (error) {
       return next(error);
@@ -176,7 +215,27 @@ export class EventsController {
       if (!id) {
         return sendSuccess(res, null, 'Event ID is required', 400);
       }
+
+      // Get event data before deletion for audit log
+      const event = await this.eventService.getEventById(id);
+
       await this.eventService.deleteEvent(id);
+
+      // Audit log: event deletion
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'event.deleted',
+          'Event',
+          id,
+          req,
+          undefined,
+          { name: event.name, startDate: event.startDate, endDate: event.endDate }
+        );
+      } catch (auditError) {
+        console.error('Failed to log event deletion audit:', auditError);
+      }
+
       return sendSuccess(res, null, 'Event deleted successfully', 204);
     } catch (error) {
       return next(error);
@@ -193,6 +252,22 @@ export class EventsController {
         return sendSuccess(res, null, 'Event ID is required', 400);
       }
       const event = await this.eventService.archiveEvent(id);
+
+      // Audit log: event archived
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'event.archived',
+          'Event',
+          id,
+          req,
+          undefined,
+          { name: event.name, archived: true }
+        );
+      } catch (auditError) {
+        console.error('Failed to log event archive audit:', auditError);
+      }
+
       return sendSuccess(res, event, 'Event archived successfully');
     } catch (error) {
       return next(error);
@@ -209,6 +284,22 @@ export class EventsController {
         return sendSuccess(res, null, 'Event ID is required', 400);
       }
       const event = await this.eventService.unarchiveEvent(id);
+
+      // Audit log: event unarchived
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'event.unarchived',
+          'Event',
+          id,
+          req,
+          undefined,
+          { name: event.name, archived: false }
+        );
+      } catch (auditError) {
+        console.error('Failed to log event unarchive audit:', auditError);
+      }
+
       return sendSuccess(res, event, 'Event unarchived successfully');
     } catch (error) {
       return next(error);

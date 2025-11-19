@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileService } from '../services/FileService';
+import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
@@ -27,6 +28,22 @@ export class FileController {
     try {
       const { filename } = req.params;
       const filePath = await this.fileService.getFilePath(filename!);
+
+      // Audit log: file download
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
+        await auditLogService.logFileAccess({
+          action: 'download',
+          fileName: filename!,
+          req,
+          tenantId: tenantId,
+          metadata: { filePath }
+        });
+      } catch (auditError) {
+        console.error('Failed to log file download audit:', auditError);
+      }
+
       res.download(filePath, filename!);
     } catch (error) {
       return next(error);
@@ -37,6 +54,22 @@ export class FileController {
     try {
       const { filename } = req.params;
       await this.fileService.deleteFile(filename!);
+
+      // Audit log: file deletion
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
+        await auditLogService.logFileAccess({
+          action: 'delete',
+          fileName: filename!,
+          req,
+          tenantId: tenantId,
+          metadata: {}
+        });
+      } catch (auditError) {
+        console.error('Failed to log file deletion audit:', auditError);
+      }
+
       return sendSuccess(res, null, 'File deleted');
     } catch (error) {
       return next(error);
@@ -115,6 +148,27 @@ export class FileController {
           });
         })
       );
+
+      // Audit log: file uploads
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        for (const uploadedFile of uploadedFiles) {
+          await auditLogService.logFileAccess({
+            action: 'upload',
+            fileName: uploadedFile.originalName,
+            fileId: uploadedFile.id,
+            req,
+            tenantId: req.user!.tenantId,
+            metadata: {
+              fileSize: uploadedFile.size,
+              mimeType: uploadedFile.mimeType,
+              category: uploadedFile.category
+            }
+          });
+        }
+      } catch (auditError) {
+        console.error('Failed to log file upload audit:', auditError);
+      }
 
       return sendSuccess(res, {
         files: uploadedFiles,
@@ -251,6 +305,25 @@ export class FileController {
           ...(metadata && { metadata: JSON.stringify(metadata) })
         }
       });
+
+      // Audit log: file upload
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFileAccess({
+          action: 'upload',
+          fileName: uploadedFile.originalName,
+          fileId: uploadedFile.id,
+          req,
+          tenantId: req.user.tenantId,
+          metadata: {
+            fileSize: uploadedFile.size,
+            mimeType: uploadedFile.mimeType,
+            category: uploadedFile.category
+          }
+        });
+      } catch (auditError) {
+        console.error('Failed to log file upload audit:', auditError);
+      }
 
       return sendSuccess(res, uploadedFile, 'File uploaded successfully', 201);
     } catch (error) {

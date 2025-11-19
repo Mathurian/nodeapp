@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
+import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendCreated, sendError, sendNoContent, sendNotFound, sendBadRequest } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
 import { userCache } from '../utils/cache';
@@ -206,6 +207,22 @@ export class UsersController {
       });
 
       log.info('User created successfully', { userId: user.id, email: data.email, role: data.role });
+
+      // Audit log: user creation
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'user.created',
+          'User',
+          user.id,
+          req,
+          undefined,
+          { email: data.email, role: data.role, name: data.name }
+        );
+      } catch (auditError) {
+        log.error('Failed to log user creation audit', { error: auditError });
+      }
+
       sendCreated(res, createdUser);
     } catch (error) {
       log.error('Create user error', { error: (error as Error).message, email: req.body['email'] });
@@ -290,6 +307,23 @@ export class UsersController {
 
       log.info('User record updated', { userId: id, email: user.email });
 
+      // Audit log: user update with change tracking
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logEntityChange({
+          action: 'user.updated',
+          entityType: 'User',
+          entityId: id,
+          oldData: currentUser,
+          newData: user,
+          req,
+          tenantId
+        });
+      } catch (auditError) {
+        log.error('Failed to log user update audit', { error: auditError });
+      }
+
       // Update associated Judge record if user is a judge and isHeadJudge is provided
       if (currentUser.role === 'JUDGE' && data.isHeadJudge !== undefined && currentUser.judgeId) {
         log.debug('Updating judge head judge status', { userId: id, judgeId: currentUser.judgeId, isHeadJudge: data.isHeadJudge });
@@ -331,6 +365,21 @@ export class UsersController {
       log.debug('Deleting user record', { userId: id, email: userToDelete.email });
       await this.userService.deleteUser(id);
 
+      // Audit log: user deletion
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'user.deleted',
+          'User',
+          id,
+          req,
+          undefined,
+          { email: userToDelete.email, role: userToDelete.role, name: userToDelete.name }
+        );
+      } catch (auditError) {
+        log.error('Failed to log user deletion audit', { error: auditError });
+      }
+
       log.info('User deleted successfully', { userId: id, email: userToDelete.email, role: userToDelete.role });
       sendNoContent(res);
     } catch (error) {
@@ -354,6 +403,21 @@ export class UsersController {
       }
 
       await this.userService.resetUserPassword(id, newPassword);
+
+      // Audit log: admin password reset
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logAuth({
+          action: 'password_reset',
+          userId: id,
+          req,
+          tenantId: tenantId,
+          metadata: { action_type: 'admin_reset', reset_by: req.user?.id }
+        });
+      } catch (auditError) {
+        log.error('Failed to log password reset audit', { error: auditError });
+      }
 
       log.info('Password reset successfully', { userId: id });
       sendSuccess(res, null, 'Password reset successfully');
