@@ -39,7 +39,7 @@ export const listEventLogs = async (req: Request, res: Response, next: NextFunct
 export const getEventLog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const log = await prisma.eventLog.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params['id'] }
     });
     sendSuccess(res, log);
   } catch (error) {
@@ -75,7 +75,7 @@ export const createWebhook = async (req: Request, res: Response, next: NextFunct
 export const updateWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const webhook = await prisma.webhookConfig.update({
-      where: { id: req.params.id },
+      where: { id: req.params['id'] },
       data: req.body
     });
     sendSuccess(res, webhook, 'Webhook updated');
@@ -87,7 +87,7 @@ export const updateWebhook = async (req: Request, res: Response, next: NextFunct
 export const deleteWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     await prisma.webhookConfig.delete({
-      where: { id: req.params.id }
+      where: { id: req.params['id'] }
     });
     sendSuccess(res, null, 'Webhook deleted');
   } catch (error) {

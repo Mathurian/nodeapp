@@ -16,7 +16,7 @@ export class CertificationController {
   getOverallStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { eventId } = req.params;
-      const status = await this.certificationService.getOverallStatus(eventId);
+      const status = await this.certificationService.getOverallStatus(eventId!);
       return sendSuccess(res, status);
     } catch (error) {
       return next(error);
@@ -26,7 +26,7 @@ export class CertificationController {
   certifyAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { eventId } = req.params;
-      const result = await this.certificationService.certifyAll(eventId, req.user!.id, req.user!.role);
+      const result = await this.certificationService.certifyAll(eventId!, req.user!.id, req.user!.role);
       return sendSuccess(res, result, 'All categories certified');
     } catch (error) {
       return next(error);
@@ -35,12 +35,12 @@ export class CertificationController {
 
   getAllCertifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const status = req.query.status as string | undefined;
-      const eventId = req.query.eventId as string | undefined;
-      const contestId = req.query.contestId as string | undefined;
-      const categoryId = req.query.categoryId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const status = req.query['status'] as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
 
       const skip = (page - 1) * limit;
       const where: any = {};
@@ -397,8 +397,8 @@ export class CertificationController {
 
   getCertificationStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const eventId = req.query.eventId as string | undefined;
-      const contestId = req.query.contestId as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
 
       const where: any = {};
       if (eventId) where.eventId = eventId;

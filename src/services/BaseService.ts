@@ -13,6 +13,7 @@ import {
   createPaginationMetadata,
   createPaginatedResponse
 } from '../utils/pagination';
+import { env } from '../config/env';
 
 // Type definitions
 export interface ValidationErrorDetails {
@@ -346,7 +347,7 @@ export abstract class BaseService {
    * Log debug
    */
   protected logDebug(message: string, data?: Record<string, unknown>): void {
-    if (process.env.NODE_ENV !== 'production') {
+    if (!env.isProduction()) {
       console.log(`[${this.constructor.name}] DEBUG: ${message}`, data || '');
     }
   }

@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getAllTemplates, createTemplate, deleteTemplate } from '../controllers/templatesController';
+import { getAllTemplates, createTemplate } from '../controllers/templatesController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 

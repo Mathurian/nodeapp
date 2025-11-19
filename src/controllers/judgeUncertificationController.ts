@@ -43,7 +43,7 @@ export class JudgeUncertificationController {
     try {
       const { id } = req.params;
       const { signatureName } = req.body;
-      const result = await this.judgeUncertificationService.signRequest(id, {
+      const result = await this.judgeUncertificationService.signRequest(id!, {
         signatureName,
         userId: req.user!.id,
         userRole: req.user!.role
@@ -57,7 +57,7 @@ export class JudgeUncertificationController {
   executeUncertification = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const result = await this.judgeUncertificationService.executeUncertification(id);
+      const result = await this.judgeUncertificationService.executeUncertification(id!);
       return sendSuccess(res, result, 'Uncertification executed successfully');
     } catch (error) {
       return next(error);
@@ -209,10 +209,10 @@ export class JudgeUncertificationController {
   getJudgeUncertificationRequests = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { judgeId } = req.params;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
       const skip = (page - 1) * limit;
-      const status = req.query.status as string | undefined;
+      const status = req.query['status'] as string | undefined;
 
       if (!judgeId) {
         return sendSuccess(res, {}, 'judgeId is required', 400);

@@ -242,7 +242,7 @@ function generateCacheKey(req: Request, varyBy?: string[]): string {
   // Add varyBy properties
   if (varyBy && varyBy.length > 0) {
     varyBy.forEach(prop => {
-      const value = getNestedProperty(req, prop);
+      const value = getNestedProperty(req as unknown as Record<string, unknown>, prop);
       if (value !== undefined) {
         parts.push(`${prop}:${value}`);
       }
@@ -291,7 +291,7 @@ function extractCacheTags(req: Request): string[] {
 
   // Add path-based tags
   const pathParts = req.path.split('/').filter(Boolean);
-  if (pathParts.length > 0) {
+  if (pathParts.length > 0 && pathParts[0]) {
     tags.push(pathParts[0]); // First path segment (e.g., 'users', 'events')
   }
 

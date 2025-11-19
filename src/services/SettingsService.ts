@@ -2,6 +2,7 @@ import { injectable, inject } from 'tsyringe';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import nodemailer from 'nodemailer';
+import { env } from '../config/env';
 
 // Prisma payload types
 type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
@@ -296,17 +297,17 @@ export class SettingsService extends BaseService {
     const emailSettings = await this.getEmailSettings();
 
     const transporter = nodemailer.createTransport({
-      host: emailSettings.smtp_host,
-      port: parseInt(emailSettings.smtp_port || '587'),
-      secure: emailSettings.smtp_secure === 'true',
+      host: emailSettings['smtp_host'],
+      port: parseInt(emailSettings['smtp_port'] || '587'),
+      secure: emailSettings['smtp_secure'] === 'true',
       auth: {
-        user: emailSettings.smtp_user,
-        pass: emailSettings.smtp_password,
+        user: emailSettings['smtp_user'],
+        pass: emailSettings['smtp_password'],
       },
     });
 
     await transporter.sendMail({
-      from: emailSettings.email_from || 'noreply@example.com',
+      from: emailSettings['email_from'] || 'noreply@example.com',
       to: testEmail,
       subject: 'Test Email from Event Manager',
       text: 'This is a test email to verify your SMTP settings are working correctly.',
@@ -473,7 +474,7 @@ export class SettingsService extends BaseService {
    */
   async getDatabaseConnectionInfo(): Promise<Record<string, string>> {
     try {
-      const dbUrl = process.env.DATABASE_URL || '';
+      const dbUrl = env.get('DATABASE_URL');
       const info: Record<string, string> = {
         configured: 'true',
         source: 'environment'
@@ -482,26 +483,26 @@ export class SettingsService extends BaseService {
       if (dbUrl) {
         try {
           const url = new URL(dbUrl);
-          info.host = url.hostname || 'N/A';
-          info.port = url.port || '5432';
-          info.database = url.pathname.slice(1).split('?')[0] || 'N/A';
-          info.user = url.username || 'N/A';
-          info.password = url.password ? '***masked***' : 'Not set';
+          info['host'] = url.hostname || 'N/A';
+          info['port'] = url.port || '5432';
+          info['database'] = url.pathname.slice(1).split('?')[0] || 'N/A';
+          info['user'] = url.username || 'N/A';
+          info['password'] = url.password ? '***masked***' : 'Not set';
         } catch {
           // If URL parsing fails, try individual env vars
-          info.host = process.env.DB_HOST || process.env.DATABASE_HOST || 'N/A';
-          info.port = process.env.DB_PORT || process.env.DATABASE_PORT || '5432';
-          info.database = process.env.DB_NAME || process.env.DATABASE_NAME || 'N/A';
-          info.user = process.env.DB_USER || process.env.DATABASE_USER || 'N/A';
-          info.password = (process.env.DB_PASSWORD || process.env.DATABASE_PASSWORD) ? '***masked***' : 'Not set';
+          info['host'] = process.env['DB_HOST'] || process.env['DATABASE_HOST'] || 'N/A';
+          info['port'] = process.env['DB_PORT'] || process.env['DATABASE_PORT'] || '5432';
+          info['database'] = process.env['DB_NAME'] || process.env['DATABASE_NAME'] || 'N/A';
+          info['user'] = process.env['DB_USER'] || process.env['DATABASE_USER'] || 'N/A';
+          info['password'] = (process.env['DB_PASSWORD'] || process.env['DATABASE_PASSWORD']) ? '***masked***' : 'Not set';
         }
       } else {
         // Try individual environment variables
-        info.host = process.env.DB_HOST || process.env.DATABASE_HOST || 'Not configured';
-        info.port = process.env.DB_PORT || process.env.DATABASE_PORT || '5432';
-        info.database = process.env.DB_NAME || process.env.DATABASE_NAME || 'Not configured';
-        info.user = process.env.DB_USER || process.env.DATABASE_USER || 'Not configured';
-        info.password = (process.env.DB_PASSWORD || process.env.DATABASE_PASSWORD) ? '***masked***' : 'Not configured';
+        info['host'] = process.env['DB_HOST'] || process.env['DATABASE_HOST'] || 'Not configured';
+        info['port'] = process.env['DB_PORT'] || process.env['DATABASE_PORT'] || '5432';
+        info['database'] = process.env['DB_NAME'] || process.env['DATABASE_NAME'] || 'Not configured';
+        info['user'] = process.env['DB_USER'] || process.env['DATABASE_USER'] || 'Not configured';
+        info['password'] = (process.env['DB_PASSWORD'] || process.env['DATABASE_PASSWORD']) ? '***masked***' : 'Not configured';
       }
 
       return info;

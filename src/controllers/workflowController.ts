@@ -18,7 +18,7 @@ export const createTemplate = async (req: Request, res: Response, next: NextFunc
 
 export const getTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const template = await WorkflowService.getTemplate(req.params.id, req.tenantId);
+    const template = await WorkflowService.getTemplate(req.params['id']!, req.tenantId!);
     sendSuccess(res, template);
   } catch (error) {
     return next(error);
@@ -28,7 +28,7 @@ export const getTemplate = async (req: Request, res: Response, next: NextFunctio
 export const listTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { type } = req.query;
-    const templates = await WorkflowService.listTemplates(req.tenantId, type as string);
+    const templates = await WorkflowService.listTemplates(req.tenantId!, type as string);
     sendSuccess(res, templates);
   } catch (error) {
     return next(error);
@@ -59,7 +59,7 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
 
 export const getInstance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const instance = await WorkflowService.getInstance(req.params.id, req.tenantId);
+    const instance = await WorkflowService.getInstance(req.params['id']!, req.tenantId!);
     sendSuccess(res, instance);
   } catch (error) {
     return next(error);
@@ -69,7 +69,7 @@ export const getInstance = async (req: Request, res: Response, next: NextFunctio
 export const listInstancesForEntity = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { entityType, entityId } = req.params;
-    const instances = await WorkflowService.listInstancesForEntity(req.tenantId!, entityType, entityId);
+    const instances = await WorkflowService.listInstancesForEntity(req.tenantId!, entityType!, entityId!);
     sendSuccess(res, instances);
   } catch (error) {
     return next(error);

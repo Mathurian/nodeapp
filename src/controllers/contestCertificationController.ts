@@ -13,7 +13,7 @@ export class ContestCertificationController {
   getContestCertificationProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
-      const progress = await this.contestCertificationService.getCertificationProgress(contestId);
+      const progress = await this.contestCertificationService.getCertificationProgress(contestId!);
       return sendSuccess(res, progress);
     } catch (error) {
       return next(error);
@@ -24,7 +24,7 @@ export class ContestCertificationController {
     try {
       const { contestId } = req.params;
       const certification = await this.contestCertificationService.certifyContest(
-        contestId,
+        contestId!,
         req.user!.id,
         req.user!.role,
         req.user!.tenantId

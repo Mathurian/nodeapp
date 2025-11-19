@@ -32,7 +32,7 @@ export class TemplatesController {
    */
   getTemplateById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
       const template = await this.templateService.getTemplateById(id, req.user!.tenantId);
       sendSuccess(res, template, 'Template retrieved successfully');
     } catch (error) {
@@ -65,7 +65,7 @@ export class TemplatesController {
    */
   updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
       const { name, description, criteria } = req.body;
 
       const template = await this.templateService.updateTemplate(id, req.user!.tenantId, {
@@ -85,7 +85,7 @@ export class TemplatesController {
    */
   deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
       await this.templateService.deleteTemplate(id, req.user!.tenantId);
       sendNoContent(res);
     } catch (error) {
@@ -98,7 +98,7 @@ export class TemplatesController {
    */
   duplicateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
       const template = await this.templateService.duplicateTemplate(id, req.user!.tenantId);
       sendCreated(res, template, 'Template duplicated successfully');
     } catch (error) {

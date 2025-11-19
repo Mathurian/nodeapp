@@ -74,7 +74,7 @@ export class UploadController {
   ): Promise<void> => {
     try {
       const { fileId } = req.params;
-      await this.uploadService.deleteFile(fileId);
+      await this.uploadService.deleteFile(fileId!);
       successResponse(res, null, 'File deleted successfully');
     } catch (error) {
       return next(error);

@@ -16,7 +16,7 @@ export class TrackerController {
   getScoringProgressByContest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestId } = req.params;
-      const progress = await this.trackerService.getScoringProgressByContest(contestId);
+      const progress = await this.trackerService.getScoringProgressByContest(contestId!);
       return sendSuccess(res, progress);
     } catch (error) {
       return next(error);
@@ -26,7 +26,7 @@ export class TrackerController {
   getScoringProgressByCategory = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { categoryId } = req.params;
-      const progress = await this.trackerService.getScoringProgressByCategory(categoryId);
+      const progress = await this.trackerService.getScoringProgressByCategory(categoryId!);
       return sendSuccess(res, progress);
     } catch (error) {
       return next(error);
@@ -36,7 +36,7 @@ export class TrackerController {
   getJudgeScoringProgress = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { judgeId } = req.params;
-      const eventId = req.query.eventId as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
 
       if (!judgeId) {
         return sendSuccess(res, {}, 'Judge ID is required', 400);
@@ -110,8 +110,8 @@ export class TrackerController {
 
   getPendingCertifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const role = req.query.role as string | undefined;
-      const eventId = req.query.eventId as string | undefined;
+      const role = req.query['role'] as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
 
       const where: any = {};
 

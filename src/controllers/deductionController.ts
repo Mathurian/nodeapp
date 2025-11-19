@@ -75,7 +75,7 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
       const { signature, notes } = req.body;
       const approvedBy = req.user!.id;
       const userRole = req.user!.role;
@@ -103,7 +103,7 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
       const { reason } = req.body;
       const rejectedBy = req.user!.id;
 
@@ -124,7 +124,7 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const id = req.params.id as string;
+      const id = req.params['id'] as string;
 
       const status = await this.deductionService.getApprovalStatus(id, req.user!.tenantId);
 

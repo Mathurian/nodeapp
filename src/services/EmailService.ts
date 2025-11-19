@@ -1,9 +1,10 @@
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
-import * as fs from 'fs';
-import * as path from 'path';
+import { env } from '../config/env';
+import { templateRenderer } from '../utils/templateRenderer';
+import { ErrorLogService } from './ErrorLogService';
 
 // Prisma payload types
 type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
@@ -69,7 +70,7 @@ export class EmailService extends BaseService {
    */
   private async initializeTransporter(): Promise<void> {
     try {
-      const smtpEnabled = process.env.SMTP_ENABLED === 'true';
+      const smtpEnabled = env.get('SMTP_ENABLED');
 
       if (!smtpEnabled) {
         console.log('EmailService: SMTP is disabled in environment configuration');
@@ -77,12 +78,12 @@ export class EmailService extends BaseService {
       }
 
       const smtpConfig = {
-        host: process.env.SMTP_HOST || 'localhost',
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
-        secure: process.env.SMTP_SECURE === 'true',
+        host: env.get('SMTP_HOST'),
+        port: env.get('SMTP_PORT'),
+        secure: env.get('SMTP_SECURE'),
         auth: {
-          user: process.env.SMTP_USER || '',
-          pass: process.env.SMTP_PASS || ''
+          user: env.get('SMTP_USER'),
+          pass: env.get('SMTP_PASS')
         }
       };
 
@@ -95,6 +96,22 @@ export class EmailService extends BaseService {
     } catch (error) {
       console.error('EmailService: Failed to initialize SMTP transporter:', error);
       this.transporter = null;
+
+      // Log SMTP initialization failure to ErrorLogService
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        await errorLogService.logException(
+          error as Error,
+          'EmailService:initializeTransporter',
+          {
+            smtpHost: env.get('SMTP_HOST'),
+            smtpPort: env.get('SMTP_PORT'),
+            smtpUser: env.get('SMTP_USER'),
+          }
+        );
+      } catch (logError) {
+        console.error('Failed to log SMTP initialization error:', logError);
+      }
     }
   }
 
@@ -113,34 +130,26 @@ export class EmailService extends BaseService {
     settings.forEach((s) => { config[s.key.toLowerCase()] = s.value; });
 
     return {
-      enabled: config.email_enabled === 'true',
-      host: config.email_host || '',
-      port: parseInt(config.email_port) || 587,
-      user: config.email_user || '',
-      from: config.email_from || ''
+      enabled: config['email_enabled'] === 'true',
+      host: config['email_host'] || '',
+      port: parseInt(config['email_port'] as string) || 587,
+      user: config['email_user'] || '',
+      from: config['email_from'] || ''
     };
   }
 
   /**
-   * Render email template with variables
+   * Render email template with variables using Handlebars
    */
-  private async renderTemplate(templateName: string, variables: Record<string, string | number | boolean>): Promise<string> {
+  private async renderTemplate(templateName: string, variables: Record<string, string | number | boolean | any>): Promise<string> {
     try {
-      const templatePath = path.join(__dirname, '../templates/email', `${templateName}.html`);
+      // Add .html extension if not present
+      const templateFile = templateName.endsWith('.html') ? templateName : `${templateName}.html`;
 
-      if (!fs.existsSync(templatePath)) {
-        throw new Error(`Email template not found: ${templateName}`);
-      }
+      // Use Handlebars template renderer
+      const rendered = await templateRenderer.render(templateFile, variables as Record<string, any>);
 
-      let template = fs.readFileSync(templatePath, 'utf-8');
-
-      // Replace variables in template
-      Object.keys(variables).forEach(key => {
-        const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-        template = template.replace(regex, String(variables[key]));
-      });
-
-      return template;
+      return rendered;
     } catch (error) {
       console.error('EmailService: Template rendering error:', error);
       throw this.badRequestError(`Failed to render email template: ${templateName}`);
@@ -151,7 +160,7 @@ export class EmailService extends BaseService {
    * Send email with retry logic
    */
   async sendEmail(to: string, subject: string, body: string, options?: Partial<EmailOptions>): Promise<EmailSendResult> {
-    const smtpEnabled = process.env.SMTP_ENABLED === 'true';
+    const smtpEnabled = env.get('SMTP_ENABLED');
 
     if (!smtpEnabled) {
       console.log(`EmailService: Email would be sent to ${to} (SMTP disabled)`);
@@ -175,7 +184,7 @@ export class EmailService extends BaseService {
     }
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@example.com',
+      from: env.get('SMTP_FROM'),
       to,
       subject,
       text: body,
@@ -189,8 +198,17 @@ export class EmailService extends BaseService {
       try {
         const info = await this.transporter.sendMail(mailOptions);
 
-        // Log successful email
-        await this.logEmail(to, subject, 'SENT', info.messageId);
+        // Log successful email with enhanced tracking
+        await this.logEmail(
+          to,
+          subject,
+          'SENT',
+          info.messageId,
+          null,
+          env.get('SMTP_FROM'),
+          options?.template,
+          options?.variables as Record<string, any>
+        );
 
         console.log(`EmailService: Email sent successfully to ${to} (attempt ${attempt}/${this.maxRetries})`);
 
@@ -202,7 +220,7 @@ export class EmailService extends BaseService {
           response: info.response
         };
       } catch (error) {
-        lastError = error;
+        lastError = error as Error;
         console.error(`EmailService: Email send failed (attempt ${attempt}/${this.maxRetries}):`, error);
 
         if (attempt < this.maxRetries) {
@@ -212,8 +230,35 @@ export class EmailService extends BaseService {
       }
     }
 
-    // All retries failed - log failure
-    await this.logEmail(to, subject, 'FAILED', null, String(lastError));
+    // All retries failed - log failure with enhanced tracking
+    await this.logEmail(
+      to,
+      subject,
+      'FAILED',
+      null,
+      String(lastError),
+      env.get('SMTP_FROM'),
+      options?.template,
+      options?.variables as Record<string, any>
+    );
+
+    // Log email sending failure to ErrorLogService
+    try {
+      const errorLogService = container.resolve(ErrorLogService);
+      await errorLogService.logException(
+        lastError as Error,
+        'EmailService:sendEmail',
+        {
+          to,
+          subject,
+          template: options?.template,
+          attempts: this.maxRetries,
+          smtpHost: env.get('SMTP_HOST'),
+        }
+      );
+    } catch (logError) {
+      console.error('Failed to log email sending error:', logError);
+    }
 
     throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   }
@@ -226,7 +271,10 @@ export class EmailService extends BaseService {
     subject: string,
     status: 'SENT' | 'FAILED' | 'PENDING',
     messageId: string | null = null,
-    errorMessage: string | null = null
+    errorMessage: string | null = null,
+    from?: string,
+    template?: string,
+    metadata?: Record<string, any>
   ): Promise<void> {
     try {
       await this.prisma.emailLog.create({
@@ -236,6 +284,9 @@ export class EmailService extends BaseService {
           status,
           messageId,
           errorMessage,
+          from: from || env.get('SMTP_FROM'),
+          template: template || null,
+          metadata: metadata ? (metadata as any) : null,
           sentAt: new Date()
         }
       });
@@ -262,7 +313,7 @@ export class EmailService extends BaseService {
       batchResults.forEach((result, index) => {
         const to = batch[index] || '';
         if (result.status === 'fulfilled') {
-          results.push({ to, success: true, ...result.value });
+          results.push({ ...result.value, to, success: true });
         } else {
           results.push({ to, success: false, error: String(result.reason || 'Unknown error') });
         }
@@ -298,8 +349,8 @@ export class EmailService extends BaseService {
       {
         name,
         verificationUrl: verificationUrl || '#',
-        appName: process.env.APP_NAME || 'Event Manager',
-        supportEmail: process.env.SMTP_FROM || 'support@example.com'
+        appName: env.get('APP_NAME'),
+        supportEmail: env.get('SMTP_FROM')
       }
     );
   }
@@ -315,8 +366,8 @@ export class EmailService extends BaseService {
       {
         name,
         resetUrl,
-        appName: process.env.APP_NAME || 'Event Manager',
-        supportEmail: process.env.SMTP_FROM || 'support@example.com'
+        appName: env.get('APP_NAME'),
+        supportEmail: env.get('SMTP_FROM')
       }
     );
   }
@@ -332,9 +383,114 @@ export class EmailService extends BaseService {
       {
         name,
         verificationUrl,
-        appName: process.env.APP_NAME || 'Event Manager',
-        supportEmail: process.env.SMTP_FROM || 'support@example.com'
+        appName: env.get('APP_NAME'),
+        supportEmail: env.get('SMTP_FROM')
       }
+    );
+  }
+
+  /**
+   * Send invitation email for events/contests
+   *
+   * @param email - Recipient email address
+   * @param name - Recipient name
+   * @param eventName - Name of the event/contest
+   * @param role - Role of the invitee (e.g., "Judge", "Contestant")
+   * @param acceptUrl - URL to accept the invitation
+   * @param declineUrl - URL to decline the invitation
+   * @param options - Additional invitation options
+   * @returns Promise<EmailSendResult>
+   */
+  async sendInvitationEmail(
+    email: string,
+    name: string,
+    eventName: string,
+    role: string,
+    acceptUrl: string,
+    declineUrl: string,
+    options?: {
+      eventDate?: string;
+      eventLocation?: string;
+      eventDescription?: string;
+      loginUrl?: string;
+      username?: string;
+      temporaryPassword?: string;
+      registrationUrl?: string;
+    }
+  ): Promise<EmailSendResult> {
+    const variables: Record<string, any> = {
+      email,
+      name,
+      eventName,
+      role,
+      acceptUrl,
+      declineUrl,
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+      eventDate: options?.eventDate || null,
+      eventLocation: options?.eventLocation || null,
+      eventDescription: options?.eventDescription || null,
+      loginUrl: options?.loginUrl || null,
+      username: options?.username || null,
+      temporaryPassword: options?.temporaryPassword || null,
+      registrationUrl: options?.registrationUrl || null,
+      hasCredentials: !!(options?.username || options?.temporaryPassword || options?.loginUrl),
+    };
+
+    return this.sendTemplatedEmail(
+      email,
+      `Invitation: ${eventName} - ${role}`,
+      'invitation',
+      variables
+    );
+  }
+
+  /**
+   * Send virus alert email to security team
+   *
+   * @param details - Virus scan details including filename, virus name, user info, etc.
+   * @returns Promise<EmailSendResult>
+   */
+  async sendVirusAlertEmail(details: {
+    filename: string;
+    virusName: string;
+    fileSize: string;
+    timestamp: string;
+    username?: string;
+    userEmail?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<EmailSendResult> {
+    const securityEmail = env.get('SECURITY_EMAIL');
+
+    if (!securityEmail) {
+      console.warn('SECURITY_EMAIL not configured - virus alert email not sent');
+      return {
+        success: false,
+        to: '',
+        subject: 'Security Alert: Virus Detected',
+        message: 'Security email not configured'
+      };
+    }
+
+    const variables: Record<string, any> = {
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+      filename: details.filename,
+      virusName: details.virusName || 'Unknown',
+      fileSize: details.fileSize,
+      timestamp: details.timestamp,
+      username: details.username || null,
+      userEmail: details.userEmail || null,
+      ipAddress: details.ipAddress || 'Unknown',
+      userAgent: details.userAgent || null,
+    };
+
+    return this.sendTemplatedEmail(
+      securityEmail,
+      `🚨 Security Alert: Virus Detected - ${details.virusName}`,
+      'virus-alert',
+      variables
     );
   }
 }

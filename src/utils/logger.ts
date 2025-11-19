@@ -1,14 +1,15 @@
 import fs from 'fs/promises';
+import { env } from '../config/env';
 import path from 'path';
 import os from 'os';
 
 // Use environment variable for log directory, or default to project logs directory
 // In test environment, use temp directory to avoid permission issues
-const LOG_DIRECTORY = process.env.LOG_DIRECTORY || 
-  (process.env.NODE_ENV === 'test' 
+const LOG_DIRECTORY = process.env['LOG_DIRECTORY'] ||
+  (env.isTest()
     ? path.join(os.tmpdir(), 'event-manager-test-logs')
     : path.join(__dirname, '../../logs'))
-const DISABLE_FILE_LOGGING = process.env.DISABLE_FILE_LOGGING === 'true' || process.env.NODE_ENV === 'test'
+const DISABLE_FILE_LOGGING = process.env['DISABLE_FILE_LOGGING'] === 'true' || env.isTest()
 const LOG_LEVELS = {
   ERROR: 0,
   WARN: 1,
@@ -36,7 +37,7 @@ const ensureLogDirectory = async () => {
     await fs.mkdir(LOG_DIRECTORY, { recursive: true })
   } catch (error) {
     // In test environment, silently fail
-    if (process.env.NODE_ENV !== 'test') {
+    if (!env.isTest()) {
       console.error('Failed to create logs directory:', error)
     }
   }
@@ -131,9 +132,9 @@ const writeToFile = async (level: string, category: string, message: string, met
     
     // Format log entry
     let logEntry = `[${timestamp}] [${level}] [${category.toUpperCase()}] ${message}`
-    
+
     // Add metadata if present
-    if (Object.keys(meta).length > 0) {
+    if (meta && typeof meta === 'object' && Object.keys(meta).length > 0) {
       logEntry += ` | ${JSON.stringify(meta)}`
     }
     
@@ -150,7 +151,7 @@ const writeToFile = async (level: string, category: string, message: string, met
   } catch (error: unknown) {
     // Fallback to console if file writing fails (don't throw in test environment)
     const errorObj = error as { message?: string; code?: string };
-    if (process.env.NODE_ENV !== 'test') {
+    if (!env.isTest()) {
       console.error(`Failed to write log to file: ${errorObj.message || 'Unknown error'}`);
     }
     // In test environment, silently ignore file write errors
@@ -227,15 +228,15 @@ const createRequestLogger = (req: unknown, category: string = 'default') => {
     const metaObj = meta && typeof meta === 'object' ? meta as Record<string, unknown> : {};
     return {
       ...metaObj,
-      requestId: reqObj.id || (reqObj.headers && (reqObj.headers as Record<string, unknown>)['x-request-id']) || 'unknown',
-      method: reqObj.method || 'UNKNOWN',
-      path: reqObj.path || reqObj.url || 'unknown',
-      user: reqObj.user ? {
-        id: (reqObj.user as { id?: unknown }).id,
-        email: (reqObj.user as { email?: unknown }).email,
-        role: (reqObj.user as { role?: unknown }).role
+      requestId: reqObj['id'] || (reqObj['headers'] && (reqObj['headers'] as Record<string, unknown>)['x-request-id']) || 'unknown',
+      method: reqObj['method'] || 'UNKNOWN',
+      path: reqObj['path'] || reqObj['url'] || 'unknown',
+      user: reqObj['user'] ? {
+        id: (reqObj['user'] as { id?: unknown }).id,
+        email: (reqObj['user'] as { email?: unknown }).email,
+        role: (reqObj['user'] as { role?: unknown }).role
       } : null,
-      ip: reqObj.ip || (reqObj.connection && (reqObj.connection as { remoteAddress?: unknown }).remoteAddress) || 'unknown'
+      ip: reqObj['ip'] || (reqObj['connection'] && (reqObj['connection'] as { remoteAddress?: unknown }).remoteAddress) || 'unknown'
     }
   }
 

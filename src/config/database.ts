@@ -4,6 +4,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { container } from 'tsyringe';
+import { env } from './env';
 
 /**
  * Global Prisma instance to prevent multiple connections
@@ -21,13 +23,13 @@ declare global {
  */
 const prismaClientSingleton = () => {
   const client = new PrismaClient({
-    log: process.env.NODE_ENV === 'development'
+    log: env.isDevelopment()
       ? ['query', 'info', 'warn', 'error']
       : ['error'],
 
     datasources: {
       db: {
-        url: process.env.DATABASE_URL
+        url: env.get('DATABASE_URL')
       }
     },
 
@@ -47,7 +49,7 @@ const prismaClientSingleton = () => {
  */
 export const prisma = globalThis.prisma ?? prismaClientSingleton();
 
-if (process.env.NODE_ENV !== 'production') {
+if (!env.isProduction()) {
   globalThis.prisma = prisma;
 }
 
@@ -61,6 +63,23 @@ export async function testDatabaseConnection(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('✗ Database connection failed:', error);
+
+    // Log database connection failure
+    try {
+      const { ErrorLogService } = await import('../services/ErrorLogService');
+      const errorLogService = container.resolve(ErrorLogService);
+      await errorLogService.logException(
+        error as Error,
+        'database:testConnection',
+        {
+          databaseUrl: env.get('DATABASE_URL')?.substring(0, 20) + '...',
+          timestamp: new Date().toISOString(),
+        }
+      );
+    } catch (logError) {
+      console.error('Failed to log database connection error:', logError);
+    }
+
     return false;
   }
 }

@@ -4,7 +4,7 @@
  * password resets, and permission checks
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -14,9 +14,11 @@ import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissi
 import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 import { EmailService } from './EmailService';
+import { ErrorLogService } from './ErrorLogService';
+import { env } from '../config/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_SECRET = env.get('JWT_SECRET');
+const JWT_EXPIRES_IN = env.get('JWT_EXPIRES_IN');
 const RESET_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
 // Prisma payload types
@@ -170,11 +172,48 @@ export class AuthService {
 
     // Validate credentials
     if (!user || !await bcrypt.compare(password, user.password)) {
+      // Log authentication failure to database
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        await errorLogService.logException(
+          new Error('Invalid credentials'),
+          'AuthService:login',
+          {
+            email,
+            tenantId,
+            ipAddress: ipAddress || 'unknown',
+            userAgent: userAgent || 'unknown',
+            reason: 'invalid_credentials',
+          },
+          tenantId
+        );
+      } catch (logError) {
+        console.error('Failed to log authentication error:', logError);
+      }
       throw new Error('Invalid credentials');
     }
 
     // Check if user is active
     if (!user.isActive) {
+      // Log inactive account login attempt
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        await errorLogService.logException(
+          new Error('Account is inactive'),
+          'AuthService:login',
+          {
+            email,
+            userId: user.id,
+            tenantId,
+            ipAddress: ipAddress || 'unknown',
+            userAgent: userAgent || 'unknown',
+            reason: 'inactive_account',
+          },
+          tenantId
+        );
+      } catch (logError) {
+        console.error('Failed to log authentication error:', logError);
+      }
       throw new Error('Account is inactive');
     }
 
@@ -188,9 +227,9 @@ export class AuthService {
     userCache.invalidate(user.id);
 
     // Determine token expiration (admin/organizer get longer sessions)
-    const tokenExpiresIn = (user.role === 'ADMIN' || user.role === 'ORGANIZER')
+    const tokenExpiresIn: string = (user.role === 'ADMIN' || user.role === 'ORGANIZER')
       ? '1h'
-      : JWT_EXPIRES_IN;
+      : (JWT_EXPIRES_IN as string);
 
     // Generate JWT token
     const payload: TokenPayload = {
@@ -201,7 +240,7 @@ export class AuthService {
       tenantId: user.tenantId
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn });
+    const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as any);
 
     // Get user permissions
     const permissions = getRolePermissions(user.role);
@@ -310,6 +349,22 @@ export class AuthService {
     try {
       return jwt.verify(token, JWT_SECRET) as TokenPayload;
     } catch (error) {
+      // Log token verification failure
+      try {
+        const errorLogService = container.resolve(ErrorLogService);
+        errorLogService.logException(
+          error as Error,
+          'AuthService:verifyToken',
+          {
+            tokenLength: token?.length,
+            errorMessage: (error as Error).message,
+          }
+        ).catch(logError => {
+          console.error('Failed to log token verification error:', logError);
+        });
+      } catch (logError) {
+        console.error('Failed to log token verification error:', logError);
+      }
       throw new Error('Invalid or expired token');
     }
   }
@@ -330,7 +385,7 @@ export class AuthService {
     this.resetTokenCache.set(resetToken, user.id);
 
     // Send password reset email (non-blocking)
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const resetUrl = `${env.get('FRONTEND_URL')}/reset-password?token=${resetToken}`;
     this.emailService.sendPasswordResetEmail(
       user.email,
       user.preferredName || user.name,

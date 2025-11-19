@@ -57,7 +57,7 @@ export class LocalSecretStore implements ISecretProvider {
   private deriveEncryptionKey(): Buffer {
     const masterKey =
       this.config.encryptionKey ||
-      process.env.SECRETS_ENCRYPTION_KEY ||
+      process.env['SECRETS_ENCRYPTION_KEY'] ||
       this.generateMasterKey();
 
     // Use PBKDF2 to derive a strong encryption key
@@ -199,7 +199,7 @@ export class LocalSecretStore implements ISecretProvider {
 
       // Delete old backups
       for (let i = keep; i < files.length; i++) {
-        fs.unlinkSync(files[i].path);
+        fs.unlinkSync(files[i]!.path);
       }
     } catch (error) {
       console.error('Error pruning backups:', error);

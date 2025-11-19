@@ -30,7 +30,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     const where: Record<string, unknown> = { eventId };
     
     if (!includeArchivedEvents) {
-      where.event = {
+      where['event'] = {
         archived: false
       };
     }
@@ -49,7 +49,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     const where: Record<string, unknown> = { eventId };
     
     if (!includeArchivedContests) {
-      where.archived = false;
+      where['archived'] = false;
     }
     
     return this.findMany(
@@ -89,7 +89,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Find contest with full details
    */
   async findContestWithDetails(contestId: string): Promise<ContestWithRelations | null> {
-    return this.getModel().findUnique({
+    return (this.getModel() as any).findUnique({
       where: { id: contestId },
       include: {
         event: true,
@@ -163,7 +163,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Find contests with scores
    */
   async findContestWithScores(contestId: string): Promise<any> {
-    return this.getModel().findUnique({
+    return (this.getModel() as any).findUnique({
       where: { id: contestId },
       include: {
         categories: {
@@ -222,7 +222,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     totalJudges: number;
     totalScores: number;
   }> {
-    const contest = await this.getModel().findUnique({
+    const contest = await (this.getModel() as any).findUnique({
       where: { id: contestId },
       include: {
         categories: {

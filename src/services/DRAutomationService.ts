@@ -18,6 +18,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import EventBusService, { AppEventType } from './EventBusService';
 import BackupTransferService from './BackupTransferService';
+import { env } from '../config/env';
 
 const execAsync = promisify(exec);
 const logger = createLogger('DRAutomationService');
@@ -113,7 +114,7 @@ export interface RTORPOViolationCheck {
   rtoMinutes: number;
   rpoMinutes: number;
   lastBackup: Date | null;
-  minutesSinceLastBackup: number | null;
+  minutesSinceLastBackup: number;
 }
 
 export interface DRDashboard {
@@ -307,7 +308,7 @@ export class DRAutomationService {
           tenantId: input.tenantId,
           name: input.name,
           type: input.type,
-          config: input.config,
+          config: input.config as any,
           enabled: input.enabled !== false,
           priority: input.priority || 0
         }
@@ -328,7 +329,7 @@ export class DRAutomationService {
     try {
       const target = await prisma.backupTarget.update({
         where: { id },
-        data: input
+        data: input as any
       });
 
       logger.info(`Updated backup target ${id}`);
@@ -437,7 +438,7 @@ export class DRAutomationService {
       });
 
       // Get database connection details
-      const dbUrl = new URL(process.env.DATABASE_URL || '');
+      const dbUrl = new URL(env.get('DATABASE_URL'));
       const host = dbUrl.hostname;
       const port = dbUrl.port || '5432';
       const database = dbUrl.pathname.slice(1).split('?')[0];
@@ -712,12 +713,12 @@ export class DRAutomationService {
 
       // Calculate statistics
       const totalBackups = recentBackups.length;
-      const successfulBackups = recentBackups.filter(b => b.status === 'success').length;
+      const successfulBackups = recentBackups.filter(b => (b as any).status === 'success').length;
       const failedBackups = totalBackups - successfulBackups;
       const successRate = totalBackups > 0 ? (successfulBackups / totalBackups) * 100 : 0;
 
       const totalTests = recentTests.length;
-      const passedTests = recentTests.filter(t => t.status === 'success').length;
+      const passedTests = recentTests.filter(t => (t as any).status === 'success').length;
       const testPassRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
 
       const avgBackupDuration = recentBackups
@@ -800,10 +801,10 @@ export class DRAutomationService {
         rpoViolation,
         rtoMinutes: config.rtoMinutes,
         rpoMinutes: config.rpoMinutes,
-        lastBackup: lastBackup?.completedAt,
-        minutesSinceLastBackup: lastBackup
+        lastBackup: lastBackup?.completedAt ?? null,
+        minutesSinceLastBackup: (lastBackup
           ? Math.floor((Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000))
-          : null
+          : null) as number
       };
     } catch (error) {
       logger.error('Error checking RTO/RPO violations:', error);

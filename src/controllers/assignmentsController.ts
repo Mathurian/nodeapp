@@ -26,11 +26,11 @@ export class AssignmentsController {
   ): Promise<Response | void> => {
     try {
       const filters: AssignmentFilters = {
-        status: req.query.status as string,
-        judgeId: req.query.judgeId as string,
-        categoryId: req.query.categoryId as string,
-        contestId: req.query.contestId as string,
-        eventId: req.query.eventId as string,
+        status: req.query['status'] as string,
+        judgeId: req.query['judgeId'] as string,
+        categoryId: req.query['categoryId'] as string,
+        contestId: req.query['contestId'] as string,
+        eventId: req.query['eventId'] as string,
       };
 
       const assignments = await this.assignmentService.getAllAssignments(filters);
@@ -289,7 +289,7 @@ export class AssignmentsController {
         }
 
         if (results.length === 0 && errors.length > 0) {
-          return sendError(res, `Failed to assign contestant: ${errors[0].error}`, 400);
+          return sendError(res, `Failed to assign contestant: ${errors[0]?.error}`, 400);
         }
 
         log.info('Contestant assigned to contest successfully', { contestId, contestantId, categoryCount: results.length });
@@ -342,8 +342,8 @@ export class AssignmentsController {
   getAllContestantAssignments = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const filters = {
-        categoryId: req.query.categoryId as string | undefined,
-        contestId: req.query.contestId as string | undefined,
+        categoryId: req.query['categoryId'] as string | undefined,
+        contestId: req.query['contestId'] as string | undefined,
       };
       const assignments = await this.assignmentService.getAllContestantAssignments(filters);
       return sendSuccess(res, assignments, 'Contestant assignments retrieved successfully');

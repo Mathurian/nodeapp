@@ -3,28 +3,34 @@
  * Validates required environment variables in production
  */
 
+import { env } from '../config/env';
+
 export const validateProductionConfig = (): void => {
   const errors: string[] = [];
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = env.isProduction();
 
   if (isProduction) {
     // Validate JWT_SECRET
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-this-in-production') {
+    const jwtSecret = env.get('JWT_SECRET');
+    if (!jwtSecret || jwtSecret === 'your-super-secret-jwt-key-change-this-in-production') {
       errors.push('JWT_SECRET is required in production and must be changed from default value');
     }
 
     // Validate CSRF_SECRET
-    if (!process.env.CSRF_SECRET || process.env.CSRF_SECRET === 'super-secret-csrf-key-change-in-production') {
+    const csrfSecret = env.get('CSRF_SECRET');
+    if (!csrfSecret || csrfSecret === 'super-secret-csrf-key-change-in-production') {
       errors.push('CSRF_SECRET is required in production and must be changed from default value');
     }
 
     // Validate DATABASE_URL
-    if (!process.env.DATABASE_URL) {
+    const databaseUrl = env.get('DATABASE_URL');
+    if (!databaseUrl) {
       errors.push('DATABASE_URL is required in production');
     }
 
     // Warn if CORS is too permissive (no ALLOWED_ORIGINS set)
-    if (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS.trim() === '') {
+    const allowedOrigins = env.get('ALLOWED_ORIGINS');
+    if (!allowedOrigins || allowedOrigins.trim() === '') {
       console.warn('⚠️  WARNING: ALLOWED_ORIGINS not set in production. CORS will deny all origins.');
     }
   }
@@ -35,23 +41,22 @@ export const validateProductionConfig = (): void => {
   }
 };
 
-// Get max file size in bytes (default 20MB)
+// Get max file size in bytes
 const getMaxFileSize = (): number => {
-  const mb = parseInt(process.env.MAX_FILE_SIZE_MB || '20', 10);
-  return mb * 1024 * 1024;
+  return env.get('MAX_FILE_SIZE');
 };
 
-// Get performance logging sample rate (default 0.2 = 20%)
+// Get performance logging sample rate
 const getPerfSampleRate = (): number => {
-  return parseFloat(process.env.PERF_SAMPLE_RATE || '0.2');
+  return parseFloat(process.env['PERF_SAMPLE_RATE'] || '0.2');
 };
 
 // Export configuration values
-export const jwtSecret: string = process.env.JWT_SECRET || 'your-secret-key';
-export const csrfSecret: string = process.env.CSRF_SECRET || 'super-secret-csrf-key-change-in-production';
-export const databaseUrl: string | undefined = process.env.DATABASE_URL;
-export const nodeEnv: string = process.env.NODE_ENV || 'development';
+export const jwtSecret: string = env.get('JWT_SECRET');
+export const csrfSecret: string = env.get('CSRF_SECRET');
+export const databaseUrl: string = env.get('DATABASE_URL');
+export const nodeEnv: string = env.get('NODE_ENV');
 export const maxFileSize: number = getMaxFileSize();
-export const maxFileSizeMB: number = parseInt(process.env.MAX_FILE_SIZE_MB || '20', 10);
+export const maxFileSizeMB: number = Math.round(env.get('MAX_FILE_SIZE') / (1024 * 1024));
 export const perfSampleRate: number = getPerfSampleRate();
 

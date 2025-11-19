@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { BoardService } from '../services/BoardService';
 import { createRequestLogger } from '../utils/logger';
+import { RequestStatus } from '@prisma/client';
 
 /**
  * Controller for Board functionality
@@ -222,9 +223,9 @@ export class BoardController {
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
-      const status = req.query.status as string;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const status = req.query['status'] as RequestStatus | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.boardService.getScoreRemovalRequests(status, page, limit);
       res.json(result);

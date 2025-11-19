@@ -4,6 +4,7 @@
  */
 
 import fs from 'fs/promises';
+import { env } from '../config/env';
 import path from 'path';
 
 /**
@@ -54,8 +55,8 @@ class ErrorTracker {
 
   constructor() {
     // Use temp directory in test environment to avoid permission issues
-    const logDir = process.env.NODE_ENV === 'test' 
-      ? path.join(process.env.LOG_DIRECTORY || require('os').tmpdir(), 'event-manager-test-logs')
+    const logDir = env.isTest()
+      ? path.join(process.env['LOG_DIRECTORY'] || require('os').tmpdir(), 'event-manager-test-logs')
       : path.join(process.cwd(), 'logs');
     this.errorLogPath = path.join(logDir, 'errors.json');
     this.ensureLogDirectory();
@@ -71,7 +72,7 @@ class ErrorTracker {
       await fs.mkdir(logDir, { recursive: true });
     } catch (error) {
       // Silently fail in test environment
-      if (process.env.NODE_ENV !== 'test') {
+      if (!env.isTest()) {
         console.error('Failed to create log directory:', error);
       }
     }
@@ -98,7 +99,7 @@ class ErrorTracker {
    */
   private async saveErrorsToDisk() {
     // Skip file writing in test environment to avoid permission issues
-    if (process.env.NODE_ENV === 'test' || process.env.DISABLE_FILE_LOGGING === 'true') {
+    if (env.isTest() || process.env['DISABLE_FILE_LOGGING'] === 'true') {
       return;
     }
     
@@ -110,7 +111,7 @@ class ErrorTracker {
       );
     } catch (error) {
       // Silently fail in test environment
-      if (process.env.NODE_ENV !== 'test') {
+      if (!env.isTest()) {
         console.error('Failed to save errors to disk:', error);
       }
     }
@@ -128,8 +129,8 @@ class ErrorTracker {
       id: this.generateErrorId(),
       timestamp: new Date().toISOString(),
       severity,
-      message: error?.message || String(error),
-      stack: error?.stack,
+      message: (error as any)?.message || String(error),
+      stack: (error as any)?.stack,
       context,
       error: this.sanitizeError(error)
     };
@@ -149,7 +150,7 @@ class ErrorTracker {
 
     // In production, you could send to external monitoring service
     // e.g., Sentry, DataDog, New Relic
-    if (process.env.NODE_ENV === 'production' && severity === ErrorSeverity.CRITICAL) {
+    if (env.isProduction() && severity === ErrorSeverity.CRITICAL) {
       this.notifyCriticalError(errorEntry);
     }
 
@@ -180,8 +181,8 @@ class ErrorTracker {
     const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'authorization'];
 
     if (err.context) {
-      sanitized.context = { ...err.context };
-      const context = sanitized.context as Record<string, unknown>;
+      sanitized['context'] = { ...err.context };
+      const context = sanitized['context'] as Record<string, unknown>;
       sensitiveFields.forEach(field => {
         if (field in context) {
           context[field] = '[REDACTED]';
@@ -216,7 +217,7 @@ class ErrorTracker {
       console.error(`  Request ID: ${errorEntry.context.requestId}`);
     }
 
-    if (errorEntry.stack && process.env.NODE_ENV === 'development') {
+    if (errorEntry.stack && env.isDevelopment()) {
       console.error(errorEntry.stack);
     }
   }

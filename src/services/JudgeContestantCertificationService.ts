@@ -80,9 +80,13 @@ export class JudgeContestantCertificationService extends BaseService {
     }
 
     // Calculate certification progress
-    // Note: Need to query judges and contestants separately as relations aren't in schema
-    const totalJudges = 0; // TODO: Query judges count from JudgeCategoryAssignment
-    const totalContestants = 0; // TODO: Query contestants count from CategoryContestant
+    // Query judges and contestants assigned to this category
+    const totalJudges = await this.prisma.categoryJudge.count({
+      where: { categoryId }
+    });
+    const totalContestants = await this.prisma.categoryContestant.count({
+      where: { categoryId }
+    });
     const expectedCertifications = totalJudges * totalContestants;
     const completedCertifications = certifications.length;
 

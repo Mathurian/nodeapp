@@ -4,29 +4,30 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
-import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+import { PaginationOptions, PaginatedResponse, createPaginatedResponse } from '../utils/pagination';
+import { env } from '../config/env';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
 
-// Type definitions
-interface DatabaseSizeResult {
+// Type definitions - Export all for external use
+export interface DatabaseSizeResult {
   size: string;
 }
 
-interface DatabaseHealth {
+export interface DatabaseHealth {
   result: number;
 }
 
-interface TableInfo {
+export interface TableInfo {
   name: string;
 }
 
-interface RowCountResult {
+export interface RowCountResult {
   count: bigint;
 }
 
-interface ColumnInfo {
+export interface ColumnInfo {
   column_name: string;
   data_type: string;
   character_maximum_length: number | null;
@@ -36,17 +37,17 @@ interface ColumnInfo {
   column_default: string | null;
 }
 
-interface PrimaryKeyInfo {
+export interface PrimaryKeyInfo {
   column_name: string;
 }
 
-interface ForeignKeyInfo {
+export interface ForeignKeyInfo {
   column_name: string;
   foreign_table_name: string;
   foreign_column_name: string;
 }
 
-interface ActivityLogWithUser {
+export interface ActivityLogWithUser {
   id: string;
   userId: string | null;
   action: string;
@@ -65,7 +66,7 @@ interface ActivityLogWithUser {
 }
 
 // P2-4: Formatted activity log type for API responses
-interface FormattedActivityLog {
+export interface FormattedActivityLog {
   id: string;
   userId: string | null;
   action: string;
@@ -84,7 +85,7 @@ interface FormattedActivityLog {
   } | null;
 }
 
-interface DashboardStats {
+export interface DashboardStats {
   totalUsers: number;
   totalEvents: number;
   totalContests: number;
@@ -105,19 +106,19 @@ interface DashboardStats {
   uptimeSeconds: number;
 }
 
-interface SystemHealth {
+export interface SystemHealth {
   database: 'healthy' | 'unhealthy';
   uptime: number;
   memory: NodeJS.MemoryUsage;
 }
 
-interface TableWithCount {
+export interface TableWithCount {
   name: string;
   rowCount: number;
   size: string;
 }
 
-interface TableStructure {
+export interface TableStructure {
   tableName: string;
   columns: Array<{
     column_name: string;
@@ -137,7 +138,7 @@ interface TableStructure {
   columnCount: number;
 }
 
-interface TableDataResponse {
+export interface TableDataResponse {
   tableName: string;
   rows: Array<Record<string, unknown>>;
   columns: string[];
@@ -217,9 +218,9 @@ export class AdminService extends BaseService {
           databaseSize = String(result[0].size).trim();
         } else {
           // Fallback to psql command
-          const dbName = process.env.DATABASE_URL?.split('/').pop()?.split('?')[0] || 'event_manager';
+          const dbName = env.get('DATABASE_URL').split('/').pop()?.split('?')[0] || 'event_manager';
           const { stdout } = await execAsync(
-            `psql -U ${process.env.DATABASE_USER || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
+            `psql -U ${process.env['DATABASE_USER'] || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
           );
           databaseSize = stdout.trim() || 'N/A';
         }
@@ -330,8 +331,8 @@ export class AdminService extends BaseService {
         id: log.id,
         userId: log.userId,
         action: log.action,
-        resourceType: log.resourceType,
-        resource: log.resourceType, // For compatibility
+        resourceType: log.resourceType ?? '',
+        resource: log.resourceType ?? '', // For compatibility
         resourceId: log.resourceId,
         details: log.details,
         ipAddress: log.ipAddress,
@@ -345,7 +346,7 @@ export class AdminService extends BaseService {
         } : null
       }));
 
-      return this.createPaginatedResponse(formattedLogs, total, options);
+      return createPaginatedResponse(formattedLogs, total, options);
     } catch (error) {
       log.error('Error getting activity logs', { error: (error as Error).message });
       throw error;
@@ -355,7 +356,7 @@ export class AdminService extends BaseService {
   async getAuditLogs(limit: number = 100) {
     // For now, use ActivityLog as audit logs
     // In the future, you might want a separate AuditLog table
-    return this.getActivityLogs(limit);
+    return this.getActivityLogs({ limit });
   }
 
   async getDatabaseTables(): Promise<TableWithCount[]> {
@@ -542,7 +543,7 @@ export class AdminService extends BaseService {
       );
 
       // Get column names from first row or from table structure
-      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const columns = rows.length > 0 ? Object.keys(rows[0]!) : [];
 
       return {
         tableName,
@@ -564,7 +565,7 @@ export class AdminService extends BaseService {
     }
   }
 
-  async executeDatabaseQuery(query: string, limit: number = 100) {
+  async executeDatabaseQuery(_query: string, _limit: number = 100) {
     // SECURITY FIX: This method has been disabled due to SQL injection vulnerability
     // Direct SQL query execution is extremely dangerous and should never be exposed to users
     //

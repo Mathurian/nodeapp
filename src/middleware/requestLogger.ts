@@ -19,7 +19,7 @@ const requestLogging = (req: Request, res: Response, next: NextFunction): void =
   const log = createRequestLogger(req, 'request')
 
   // Attach logger to request for use in controllers
-  req.logger = log
+  req.logger = log as any
 
   const start = Date.now()
 
@@ -102,7 +102,7 @@ function getDurationCategory(duration: number): string {
  * Logs any errors that occur during request processing
  * Should be placed after all routes
  */
-const errorLogging = (err: unknown, req: Request, res: Response, next: NextFunction): void => {
+const errorLogging = (err: unknown, req: Request, _res: Response, next: NextFunction): void => {
   const log = req.logger || createRequestLogger(req, 'error')
   const error = err as { message?: string; stack?: string; statusCode?: number };
 

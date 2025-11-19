@@ -36,7 +36,7 @@ router.use(authenticateToken);
  *       201:
  *         description: Judge created successfully
  */
-router.get('/', async (req, res, next) => {
+router.get('/', async (_req, res, next) => {
   try {
     const assignmentService = container.resolve(AssignmentService);
     const judges = await assignmentService.getJudges();
@@ -66,7 +66,7 @@ router.put('/:id',
   async (req, res, next) => {
     try {
       const assignmentService = container.resolve(AssignmentService);
-      const judge = await assignmentService.updateJudge(req.params.id, req.body);
+      const judge = await assignmentService.updateJudge(req.params['id']!, req.body);
       return sendSuccess(res, judge, 'Judge updated successfully');
     } catch (error) {
       return next(error);
@@ -98,7 +98,7 @@ router.delete('/:id',
   async (req, res, next) => {
     try {
       const assignmentService = container.resolve(AssignmentService);
-      await assignmentService.deleteJudge(req.params.id);
+      await assignmentService.deleteJudge(req.params['id']!);
       return sendSuccess(res, null, 'Judge deleted successfully');
     } catch (error) {
       return next(error);

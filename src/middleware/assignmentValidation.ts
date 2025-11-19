@@ -204,7 +204,7 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
 // Validate assignment update
 const validateAssignmentUpdate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const assignmentId = req.params.id || req.params.assignmentId
+    const assignmentId = req.params['id'] || req.params['assignmentId']
     const { status } = req.body
 
     // Check if assignment exists
@@ -322,7 +322,7 @@ const validateAssignmentUpdate = async (req: Request, res: Response, next: NextF
 // Validate assignment deletion
 const validateAssignmentDeletion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const id = req.params.id || req.params.assignmentId
+    const id = req.params['id'] || req.params['assignmentId']
 
     if (!id) {
       res.status(400).json({ error: 'Assignment ID is required' }); return;

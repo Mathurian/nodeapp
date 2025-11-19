@@ -7,6 +7,9 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError } from './BaseService';
 import { ReportData } from './ReportGenerationService';
 import { ReportExportService, ExportFormat } from './ReportExportService';
+import { EmailService } from './EmailService';
+import queueService from './QueueService';
+import { EmailJobData } from '../jobs/EmailJobProcessor';
 
 export interface EmailReportDTO {
   recipients: string[];
@@ -26,7 +29,8 @@ export interface EmailTemplate {
 @injectable()
 export class ReportEmailService extends BaseService {
   constructor(
-    @inject(ReportExportService) private exportService: ReportExportService
+    @inject(ReportExportService) private exportService: ReportExportService,
+    @inject(EmailService) private emailService: EmailService
   ) {
     super();
   }
@@ -36,7 +40,7 @@ export class ReportEmailService extends BaseService {
    */
   async sendReportEmail(data: EmailReportDTO): Promise<void> {
     try {
-      this.validateRequired(data, ['recipients', 'reportData', 'format', 'userId']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['recipients', 'reportData', 'format', 'userId']);
 
       // Validate email addresses
       const invalidEmails = data.recipients.filter(email => !this.isValidEmail(email));
@@ -58,7 +62,7 @@ export class ReportEmailService extends BaseService {
         generatedAt: data.reportData.metadata?.generatedAt || new Date().toISOString()
       });
 
-      // Log email attempt (actual sending would be done via email service like SendGrid, Nodemailer, etc.)
+      // Log email attempt
       this.logInfo('Report email prepared', {
         recipients: data.recipients,
         format: data.format,
@@ -66,24 +70,43 @@ export class ReportEmailService extends BaseService {
         bufferSize: buffer.length
       });
 
-      // TODO: Integrate with actual email service
-      // Example with Nodemailer:
-      // await this.mailer.sendMail({
-      //   from: process.env.EMAIL_FROM,
-      //   to: data.recipients,
-      //   subject: data.subject || emailTemplate.subject,
-      //   html: emailTemplate.html,
-      //   text: emailTemplate.text,
-      //   attachments: [{
-      //     filename,
-      //     content: buffer
-      //   }]
-      // });
+      // Send email via EmailService with attachment
+      const subject = data.subject || emailTemplate.subject;
 
-      // For now, we'll just log that email would be sent
-      console.log(`[EMAIL] Would send ${data.format} report to: ${data.recipients.join(', ')}`);
-      console.log(`[EMAIL] Subject: ${data.subject || emailTemplate.subject}`);
-      console.log(`[EMAIL] Attachment: ${filename} (${buffer.length} bytes)`);
+      // Send to each recipient
+      const emailResults = await Promise.allSettled(
+        data.recipients.map(recipient =>
+          this.emailService.sendEmail(
+            recipient,
+            subject,
+            emailTemplate.text,
+            {
+              html: emailTemplate.html,
+              attachments: [{
+                filename,
+                content: buffer
+              }]
+            }
+          )
+        )
+      );
+
+      // Log results
+      const successCount = emailResults.filter(r => r.status === 'fulfilled').length;
+      const failureCount = emailResults.length - successCount;
+
+      this.logInfo('Report emails sent', {
+        total: data.recipients.length,
+        success: successCount,
+        failed: failureCount,
+        format: data.format,
+        filename
+      });
+
+      // If all failed, throw error
+      if (successCount === 0 && data.recipients.length > 0) {
+        throw new Error('Failed to send report email to all recipients');
+      }
 
     } catch (error) {
       this.handleError(error, { method: 'sendReportEmail', recipients: data.recipients });
@@ -186,17 +209,64 @@ Please do not reply to this email.
   }
 
   /**
-   * Schedule report email (placeholder for future implementation)
+   * Schedule report email via job queue
    */
   async scheduleReportEmail(
     data: EmailReportDTO,
     scheduledAt: Date
-  ): Promise<{ scheduled: boolean; scheduledAt: Date }> {
+  ): Promise<{ scheduled: boolean; scheduledAt: Date; jobId?: string }> {
     try {
-      // TODO: Integrate with job queue (Bull, Agenda, etc.)
-      this.logInfo('Report email scheduled', {
+      // Generate report attachment
+      const buffer = await this.exportService.exportReport(data.reportData, data.format);
+      const filename = this.exportService.generateFilename(
+        data.reportData.metadata?.reportType || 'report',
+        data.format
+      );
+
+      // Render email template
+      const emailTemplate = this.renderEmailTemplate({
+        reportType: data.reportData.metadata?.reportType || 'Report',
+        message: data.message || 'Please find the attached report.',
+        generatedAt: data.reportData.metadata?.generatedAt || new Date().toISOString()
+      });
+
+      const subject = data.subject || emailTemplate.subject;
+
+      // Queue email job for each recipient
+      const delay = scheduledAt.getTime() - Date.now();
+
+      for (const recipient of data.recipients) {
+        const emailJobData: EmailJobData = {
+          to: recipient,
+          subject,
+          text: emailTemplate.text,
+          html: emailTemplate.html,
+          attachments: [{
+            filename,
+            content: buffer
+          }]
+        };
+
+        await queueService.addJob(
+          'email',
+          'send-report-email',
+          emailJobData,
+          {
+            delay: delay > 0 ? delay : 0,
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 2000
+            }
+          }
+        );
+      }
+
+      this.logInfo('Report email scheduled via job queue', {
         recipients: data.recipients,
-        scheduledAt: scheduledAt.toISOString()
+        scheduledAt: scheduledAt.toISOString(),
+        delay,
+        format: data.format
       });
 
       return {
@@ -207,4 +277,5 @@ Please do not reply to this email.
       this.handleError(error, { method: 'scheduleReportEmail' });
     }
   }
+
 }

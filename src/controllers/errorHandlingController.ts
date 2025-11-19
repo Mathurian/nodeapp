@@ -34,7 +34,7 @@ export class ErrorHandlingController {
 
   getErrorStatistics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const days = parseInt(req.query.days as string) || 7;
+      const days = parseInt(req.query['days'] as string) || 7;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       // Get error logs from activity log (action='ERROR')
@@ -54,16 +54,16 @@ export class ErrorHandlingController {
       // Calculate statistics
       const stats = {
         total: errorLogs.length,
-        byType: errorLogs.reduce((acc: any, log) => {
+        byType: errorLogs.reduce((acc: Record<string, number>, log) => {
           const type = log.resourceType || 'UNKNOWN';
           acc[type] = (acc[type] || 0) + 1;
           return acc;
-        }, {}),
-        byDay: errorLogs.reduce((acc: any, log) => {
-          const day = log.createdAt.toISOString().split('T')[0];
+        }, {} as Record<string, number>),
+        byDay: errorLogs.reduce((acc: Record<string, number>, log) => {
+          const day = log.createdAt.toISOString().split('T')[0]!;
           acc[day] = (acc[day] || 0) + 1;
           return acc;
-        }, {}),
+        }, {} as Record<string, number>),
         timeRange: { days, since }
       };
 
@@ -76,8 +76,8 @@ export class ErrorHandlingController {
   getErrorDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
       const skip = (page - 1) * limit;
 
       if (id) {
@@ -171,7 +171,7 @@ export class ErrorHandlingController {
 
   getErrorTrends = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const days = parseInt(req.query.days as string) || 30;
+      const days = parseInt(req.query['days'] as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       const errorLogs = await this.prisma.activityLog.findMany({
@@ -187,8 +187,8 @@ export class ErrorHandlingController {
       });
 
       // Group by day
-      const trendsByDay = errorLogs.reduce((acc: any, log) => {
-        const day = log.createdAt.toISOString().split('T')[0];
+      const trendsByDay = errorLogs.reduce((acc: Record<string, { total: number; byType: Record<string, number> }>, log) => {
+        const day = log.createdAt.toISOString().split('T')[0]!;
         if (!acc[day]) {
           acc[day] = { total: 0, byType: {} };
         }
@@ -196,7 +196,7 @@ export class ErrorHandlingController {
         const type = log.resourceType || 'UNKNOWN';
         acc[day].byType[type] = (acc[day].byType[type] || 0) + 1;
         return acc;
-      }, {});
+      }, {} as Record<string, { total: number; byType: Record<string, number> }>);
 
       // Calculate moving average
       const dailyTotals = Object.values(trendsByDay).map((d: any) => d.total);
@@ -248,9 +248,9 @@ export class ErrorHandlingController {
 
   exportErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const format = (req.query.format as string) || 'json';
-      const limit = parseInt(req.query.limit as string) || 1000;
-      const days = parseInt(req.query.days as string) || 30;
+      const format = (req.query['format'] as string) || 'json';
+      const limit = parseInt(req.query['limit'] as string) || 1000;
+      const days = parseInt(req.query['days'] as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       const errorLogs: any = await this.prisma.activityLog.findMany({
@@ -273,7 +273,7 @@ export class ErrorHandlingController {
 
       if (format === 'csv') {
         const headers = ['ID', 'User', 'Type', 'Details', 'IP Address', 'Date'];
-        const rows = errorLogs.map(log => [
+        const rows = errorLogs.map((log: any) => [
           log.id,
           log.user?.name || 'System',
           log.resourceType || 'UNKNOWN',
@@ -284,7 +284,7 @@ export class ErrorHandlingController {
 
         const csvContent = [
           headers.join(','),
-          ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+          ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(','))
         ].join('\n');
 
         res.setHeader('Content-Type', 'text/csv');

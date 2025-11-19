@@ -24,7 +24,7 @@ export class LogFilesController {
       const { filename } = req.params;
       const { lines } = req.query;
       const result = await this.logFilesService.getLogFileContents(
-        filename,
+        filename!,
         lines ? parseInt(lines as string) : 500
       );
       return sendSuccess(res, result);
@@ -36,8 +36,8 @@ export class LogFilesController {
   downloadLogFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
-      const filePath = await this.logFilesService.getLogFilePath(filename);
-      res.download(filePath, filename);
+      const filePath = await this.logFilesService.getLogFilePath(filename!);
+      res.download(filePath, filename!);
     } catch (error) {
       return next(error);
     }
@@ -56,7 +56,7 @@ export class LogFilesController {
   deleteLogFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
-      await this.logFilesService.deleteLogFile(filename);
+      await this.logFilesService.deleteLogFile(filename!);
       return sendSuccess(res, null, `Log file "${filename}" deleted successfully`);
     } catch (error) {
       return next(error);

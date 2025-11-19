@@ -131,13 +131,6 @@ export class AssignmentService extends BaseService {
   }
 
   /**
-   * P2-3: Cache key generator
-   */
-  private getCacheKey(id: string): string {
-    return `assignment:${id}`;
-  }
-
-  /**
    * P2-3: Invalidate assignment caches
    */
   private async invalidateAssignmentCaches(judgeId?: string, categoryId?: string): Promise<void> {
@@ -265,9 +258,11 @@ export class AssignmentService extends BaseService {
 
     // Convert CategoryJudge entries to assignment-like objects
     const categoryJudgeAssignments = categoryJudges
-      .map((cj) => {
-        const contest = cj.category.contest;
-        const event = contest.event;
+      .map((cj: any) => {
+        const contest = cj.category?.contest;
+        if (!contest) return null;
+        const event = contest?.event;
+        if (!event) return null;
 
         // Apply filters
         if (filters.contestId && contest.id !== filters.contestId) return null;
@@ -286,10 +281,10 @@ export class AssignmentService extends BaseService {
           priority: 0,
           judge: cj.judge,
           category: {
-            id: cj.category.id,
-            name: cj.category.name,
-            description: cj.category.description,
-            scoreCap: cj.category.scoreCap,
+            id: cj.category?.id,
+            name: cj.category?.name,
+            description: cj.category?.description,
+            scoreCap: cj.category?.scoreCap,
           },
           contest: {
             id: contest.id,
@@ -313,6 +308,7 @@ export class AssignmentService extends BaseService {
     
     // First add CategoryJudge entries
     categoryJudgeAssignments.forEach((assignment) => {
+      if (!assignment) return;
       const key = `${assignment.judgeId}_${assignment.categoryId}`;
       assignmentMap.set(key, assignment);
     });
@@ -338,7 +334,7 @@ export class AssignmentService extends BaseService {
     data: CreateAssignmentInput,
     userId: string
   ): Promise<any> {
-    this.validateRequired(data, ['judgeId']);
+    this.validateRequired(data as unknown as Record<string, unknown>, ['judgeId']);
 
     if (!data.categoryId && !data.contestId) {
       throw this.createBadRequestError(
@@ -413,15 +409,15 @@ export class AssignmentService extends BaseService {
       data: {
         tenantId,
         judgeId: data.judgeId,
-        categoryId: data.categoryId || null,
-        contestId: finalContestId || null,
-        eventId: finalEventId || null,
-        notes: data.notes || null,
-        priority: data.priority || 0,
+        categoryId: data.categoryId ?? undefined,
+        contestId: finalContestId ?? undefined,
+        eventId: finalEventId ?? undefined,
+        notes: data.notes ?? undefined,
+        priority: data.priority ?? 0,
         status: 'PENDING',
         assignedBy: userId,
         assignedAt: new Date(),
-      },
+      } as any,
       include: {
         judge: true,
         category: true,
@@ -456,7 +452,7 @@ export class AssignmentService extends BaseService {
       throw this.createNotFoundError('Assignment not found');
     }
 
-    return assignment;
+    return assignment as any;
   }
 
   /**
@@ -484,12 +480,12 @@ export class AssignmentService extends BaseService {
         event: true,
         assignedByUser: true,
       } as any,
-    }) as AssignmentWithRelations;
+    });
 
     // P2-3: Invalidate assignment caches
-    await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId);
+    await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId ?? undefined);
 
-    return updated;
+    return updated as any;
   }
 
   /**
@@ -509,7 +505,7 @@ export class AssignmentService extends BaseService {
     });
 
     // P2-3: Invalidate assignment caches
-    await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId);
+    await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId ?? undefined);
   }
 
   /**
@@ -536,7 +532,7 @@ export class AssignmentService extends BaseService {
     // P2-3: Cache result (TTL: 15 min)
     await this.cacheService.set(cacheKey, assignments, 900);
 
-    return assignments;
+    return assignments as any;
   }
 
   /**
@@ -562,7 +558,7 @@ export class AssignmentService extends BaseService {
     // P2-3: Cache result (TTL: 15 min)
     await this.cacheService.set(cacheKey, assignments, 900);
 
-    return assignments;
+    return assignments as any;
   }
 
   /**
@@ -685,11 +681,11 @@ export class AssignmentService extends BaseService {
     });
 
     // Map contestants to include user email if available, otherwise use contestant email
-    return contestants.map(contestant => ({
+    return contestants.map((contestant: any) => ({
       id: contestant.id,
       name: contestant.name,
-      email: contestant.users && contestant.users.length > 0 
-        ? contestant.users.find(u => u.role === 'CONTESTANT')?.email || contestant.users[0].email || contestant.email
+      email: contestant.users && contestant.users.length > 0
+        ? contestant.users.find((u: any) => u.role === 'CONTESTANT')?.email || contestant.users[0].email || contestant.email
         : contestant.email,
       contestantNumber: contestant.contestantNumber,
       bio: contestant.bio,
@@ -781,7 +777,7 @@ export class AssignmentService extends BaseService {
       };
     }
 
-    return await this.prisma.categoryContestant.findMany({
+    const result = await this.prisma.categoryContestant.findMany({
       where,
       include: {
         contestant: {
@@ -811,6 +807,8 @@ export class AssignmentService extends BaseService {
         contestantId: 'asc',
       },
     });
+
+    return result as any;
   }
 
   /**
@@ -847,7 +845,7 @@ export class AssignmentService extends BaseService {
       },
     });
 
-    return contestants;
+    return contestants as any;
   }
 
   /**
@@ -909,7 +907,7 @@ export class AssignmentService extends BaseService {
       throw this.conflictError('Contestant is already assigned to this category');
     }
 
-    return await this.prisma.categoryContestant.create({
+    const result = await this.prisma.categoryContestant.create({
       data: {
         tenantId: category.tenantId,
         categoryId,
@@ -940,6 +938,8 @@ export class AssignmentService extends BaseService {
         },
       },
     });
+
+    return result as any;
   }
 
   /**
@@ -960,17 +960,17 @@ export class AssignmentService extends BaseService {
    * Create a new judge
    */
   async createJudge(data: CreateJudgeInput): Promise<Prisma.JudgeGetPayload<{}>> {
-    this.validateRequired(data, ['name']);
+    this.validateRequired(data as unknown as Record<string, unknown>, ['name']);
 
     return await this.prisma.judge.create({
       data: {
         tenantId: data.tenantId,
         name: data.name,
-        email: data.email || null,
-        bio: data.bio || null,
-        isHeadJudge: data.isHeadJudge || false,
-        gender: data.gender || null,
-        pronouns: data.pronouns || null,
+        email: data.email ?? undefined,
+        bio: data.bio ?? undefined,
+        isHeadJudge: data.isHeadJudge ?? false,
+        gender: data.gender ?? undefined,
+        pronouns: data.pronouns ?? undefined,
       },
     });
   }
@@ -983,11 +983,11 @@ export class AssignmentService extends BaseService {
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
-        ...(data.email !== undefined && { email: data.email || null }),
-        ...(data.bio !== undefined && { bio: data.bio || null }),
+        ...(data.email !== undefined && { email: data.email ?? undefined }),
+        ...(data.bio !== undefined && { bio: data.bio ?? undefined }),
         ...(data.isHeadJudge !== undefined && { isHeadJudge: data.isHeadJudge }),
-        ...(data.gender !== undefined && { gender: data.gender || null }),
-        ...(data.pronouns !== undefined && { pronouns: data.pronouns || null }),
+        ...(data.gender !== undefined && { gender: data.gender ?? undefined }),
+        ...(data.pronouns !== undefined && { pronouns: data.pronouns ?? undefined }),
       },
     });
   }
@@ -1005,17 +1005,17 @@ export class AssignmentService extends BaseService {
    * Create a new contestant
    */
   async createContestant(data: CreateContestantInput): Promise<Prisma.ContestantGetPayload<{}>> {
-    this.validateRequired(data, ['name']);
+    this.validateRequired(data as unknown as Record<string, unknown>, ['name']);
 
     return await this.prisma.contestant.create({
       data: {
         tenantId: data.tenantId,
         name: data.name,
-        email: data.email || null,
-        contestantNumber: data.contestantNumber || null,
-        bio: data.bio || null,
-        gender: data.gender || null,
-        pronouns: data.pronouns || null,
+        email: data.email ?? undefined,
+        contestantNumber: data.contestantNumber ? parseInt(data.contestantNumber, 10) : undefined,
+        bio: data.bio ?? undefined,
+        gender: data.gender ?? undefined,
+        pronouns: data.pronouns ?? undefined,
       },
     });
   }
@@ -1024,16 +1024,18 @@ export class AssignmentService extends BaseService {
    * Update a contestant
    */
   async updateContestant(id: string, data: UpdateContestantInput): Promise<Prisma.ContestantGetPayload<{}>> {
+    const updateData: any = {
+      ...(data.name && { name: data.name }),
+      ...(data.email !== undefined && { email: data.email ?? undefined }),
+      ...(data.contestantNumber !== undefined && { contestantNumber: data.contestantNumber ? parseInt(data.contestantNumber, 10) : undefined }),
+      ...(data.bio !== undefined && { bio: data.bio ?? undefined }),
+      ...(data.gender !== undefined && { gender: data.gender ?? undefined }),
+      ...(data.pronouns !== undefined && { pronouns: data.pronouns ?? undefined }),
+    };
+
     return await this.prisma.contestant.update({
       where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.email !== undefined && { email: data.email || null }),
-        ...(data.contestantNumber !== undefined && { contestantNumber: data.contestantNumber || null }),
-        ...(data.bio !== undefined && { bio: data.bio || null }),
-        ...(data.gender !== undefined && { gender: data.gender || null }),
-        ...(data.pronouns !== undefined && { pronouns: data.pronouns || null }),
-      },
+      data: updateData,
     });
   }
 

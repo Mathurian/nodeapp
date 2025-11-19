@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { env } from '../config/env';
 
 /**
  * Standardized API Response Utilities
@@ -41,7 +42,7 @@ export const successResponse = (
   };
 
   if (meta) {
-    response.meta = meta;
+    response['meta'] = meta;
   }
 
   return res.status(statusCode).json(response);
@@ -63,12 +64,12 @@ export const errorResponse = (
   };
 
   if (errors) {
-    response.errors = errors;
+    response['errors'] = errors;
   }
 
   // Add stack trace only in development
-  if (process.env.NODE_ENV !== 'production' && errors && typeof errors === 'object' && 'stack' in errors) {
-    response.stack = (errors as { stack: string }).stack;
+  if (!env.isProduction() && errors && typeof errors === 'object' && 'stack' in errors) {
+    response['stack'] = (errors as { stack: string }).stack;
   }
 
   return res.status(statusCode).json(response);

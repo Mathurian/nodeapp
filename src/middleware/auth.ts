@@ -1,14 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { User } from '@prisma/client';
 import { isAdmin, hasPermission } from './permissions';
 import { jwtSecret } from '../utils/config';
 import prisma from '../utils/prisma';
 import { userCache } from '../utils/cache';
+import { env } from '../config/env';
 
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // Read token from httpOnly cookie instead of Authorization header
-  const token = req.cookies?.access_token;
+  const token = req.cookies?.['access_token'];
 
   if (!token) {
     // Enhanced logging for sensitive endpoints that frequently have issues
@@ -24,7 +26,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         method: req.method,
         originalUrl: req.originalUrl,
         url: req.url,
-        hasCookie: !!req.cookies?.access_token
+        hasCookie: !!req.cookies?.['access_token']
       });
     }
     res.status(401).json({ error: 'Access token required' });
@@ -35,7 +37,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string; sessionVersion?: number };
 
     // Try to get user from cache first (50-70% reduction in DB queries)
-    let user = userCache.getById(decoded.userId);
+    let user = userCache.getById(decoded.userId) as (User & { judge?: any; contestant?: any }) | null;
     let fromCache = false;
 
     if (!user) {
@@ -89,7 +91,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       // Clear the invalid cookie
       res.clearCookie('access_token', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: env.isProduction(),
         sameSite: 'strict',
         path: '/',
       });
@@ -135,7 +137,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       console.error('authenticateToken: Authentication failed for sensitive endpoint', {
         error: errorObj.message,
         errorName: errorObj.name,
-        hasCookie: !!req.cookies?.access_token,
+        hasCookie: !!req.cookies?.['access_token'],
         path: req.path,
         method: req.method,
         originalUrl: req.originalUrl,
@@ -146,7 +148,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       console.warn('Authentication failed:', {
         error: errorObj.message,
         errorName: errorObj.name,
-        hasCookie: !!req.cookies?.access_token,
+        hasCookie: !!req.cookies?.['access_token'],
         path: req.path,
         method: req.method
       });
@@ -155,7 +157,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     // Clear the invalid cookie
     res.clearCookie('access_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: env.isProduction(),
       sameSite: 'strict',
       path: '/',
     });
@@ -220,7 +222,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       console.error('requireRole: CRITICAL - No user object found (authenticateToken may have failed)', {
         path: req.path,
         method: req.method,
-        hasCookie: !!req.cookies?.access_token,
+        hasCookie: !!req.cookies?.['access_token'],
         originalUrl: req.originalUrl,
         url: req.url,
         timestamp: new Date().toISOString()
@@ -260,9 +262,9 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
     // SECURITY FIX: Check if organizer has permission for this specific resource
     if (userRole === 'ORGANIZER') {
       // Extract resource IDs from request params, query, or body
-      const eventId = req.params.eventId || req.query.eventId || req.body?.eventId;
-      const contestId = req.params.contestId || req.query.contestId || req.body?.contestId;
-      const categoryId = req.params.categoryId || req.query.categoryId || req.body?.categoryId;
+      const eventId = req.params['eventId'] || req.query['eventId'] || req.body?.eventId;
+      const contestId = req.params['contestId'] || req.query['contestId'] || req.body?.contestId;
+      const categoryId = req.params['categoryId'] || req.query['categoryId'] || req.body?.categoryId;
 
       // Check permission asynchronously
       checkOrganizerPermission(

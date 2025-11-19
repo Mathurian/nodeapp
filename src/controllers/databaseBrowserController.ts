@@ -27,7 +27,7 @@ export class DatabaseBrowserController {
       const { tableName } = req.params;
       const { page, limit } = req.query;
       const result = await this.databaseBrowserService.getTableData(
-        tableName,
+        tableName!,
         page ? parseInt(page as string) : 1,
         limit ? parseInt(limit as string) : 50
       );
@@ -40,7 +40,7 @@ export class DatabaseBrowserController {
   getTableSchema = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
-      const schema = await this.databaseBrowserService.getTableSchema(tableName);
+      const schema = await this.databaseBrowserService.getTableSchema(tableName!);
       return sendSuccess(res, schema);
     } catch (error) {
       return next(error);
@@ -86,8 +86,8 @@ export class DatabaseBrowserController {
 
   getQueryHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
       const skip = (page - 1) * limit;
 
       const [queries, total]: any = await Promise.all([

@@ -34,7 +34,7 @@ export class FileBackupController {
   deleteBackup = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { backupName } = req.params;
-      await this.fileBackupService.deleteBackup(backupName);
+      await this.fileBackupService.deleteBackup(backupName!);
       return sendSuccess(res, null, 'Backup deleted');
     } catch (error) {
       return next(error);
@@ -122,10 +122,10 @@ export class FileBackupController {
 
   listFileBackups = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const type = req.query.type as string | undefined;
-      const status = req.query.status as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const type = req.query['type'] as string | undefined;
+      const status = req.query['status'] as string | undefined;
 
       const skip = (page - 1) * limit;
       const where: any = {};

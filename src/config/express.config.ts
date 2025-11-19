@@ -7,18 +7,19 @@ import express, { Application } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
+import { env } from './env'
 
 /**
  * Parse allowed origins from environment
  */
 export const parseAllowedOrigins = (): string[] => {
-  const origins = (process.env.ALLOWED_ORIGINS || '')
+  const origins = env.get('ALLOWED_ORIGINS')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean)
 
   // In development with no env set, allow localhost for convenience
-  if (process.env.NODE_ENV === 'development' && origins.length === 0) {
+  if (env.isDevelopment() && origins.length === 0) {
     return [
       'http://localhost:3000',
       'http://localhost:5173',
@@ -38,7 +39,7 @@ export const isAllowedOrigin = (origin: string | undefined, allowedOrigins: stri
 
   if (allowedOrigins.length === 0) {
     // If no origins configured in production, deny all
-    if (process.env.NODE_ENV === 'production') return false
+    if (env.isProduction()) return false
     // Development fallback
     return true
   }
@@ -86,7 +87,7 @@ export const createCorsOptions = (allowedOrigins: string[]) => ({
  * Build CSP connectSrc dynamically from allowed origins
  */
 export const buildConnectSrc = (allowedOrigins: string[]): string[] => {
-  const socketOrigins = (process.env.SOCKET_ORIGINS || '')
+  const socketOrigins = env.get('SOCKET_ORIGINS')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean)
@@ -132,7 +133,7 @@ export const configureMiddleware = (app: Application, allowedOrigins: string[]):
           connectSrc,
           frameSrc: ["'none'"],
           objectSrc: ["'none'"],
-          ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: null } : {}),
+          ...(env.isProduction() ? { upgradeInsecureRequests: null } : {}),
         },
       },
       // HSTS disabled - handled by reverse proxy (SSL termination upstream)

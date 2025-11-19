@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import { container } from 'tsyringe';
 import prisma from '../utils/prisma';
+import { env } from '../config/env';
+import { ErrorLogService } from '../services/ErrorLogService';
+import { captureException, setUser } from '../config/sentry';
 
 const logActivity = (action: string, resourceType: string | null = null, resourceId: string | null = null) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -20,13 +24,13 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
             let finalResourceId = resourceId
             if (!finalResourceId && req.params) {
               // Try common parameter names
-              finalResourceId = req.params.id || 
-                               req.params.userId || 
-                               req.params.eventId || 
-                               req.params.contestId || 
-                               req.params.categoryId || 
-                               req.params.scoreId ||
-                               req.params.deductionId ||
+              finalResourceId = req.params['id'] || 
+                               req.params['userId'] || 
+                               req.params['eventId'] || 
+                               req.params['contestId'] || 
+                               req.params['categoryId'] || 
+                               req.params['scoreId'] ||
+                               req.params['deductionId'] ||
                                null
             }
             
@@ -109,48 +113,71 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
   console.error('[ERROR]', {
     ...errorDetails,
     // Exclude stack trace from console in production
-    stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
+    stack: env.isProduction() ? undefined : error.stack,
   })
 
-  // Log critical errors to database asynchronously
-  if ((error.statusCode && error.statusCode >= 500) || !error.statusCode) {
-    setImmediate(async () => {
-      try {
-        // Use ActivityLog instead of errorLog (which doesn't exist in schema)
-        if (!prisma || !prisma.activityLog) {
-          return;
-        }
-
-        await prisma.activityLog.create({
-          data: {
-            action: 'ERROR',
-            details: JSON.stringify({
-              message: error.message,
-              name: error.name,
-              stack: error.stack,
-              statusCode: error.statusCode || 500,
-              method: req.method,
-              path: req.path,
-              ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
-              userAgent: req.get('User-Agent') || 'Unknown',
-              requestId: (() => {
-                const id = req.id || req.headers['x-request-id'];
-                if (typeof id === 'string') return id;
-                if (Array.isArray(id)) return id[0] || null;
-                return null;
-              })(),
-              body: req.body || {},
-              query: req.query || {},
-              params: req.params || {},
-            }),
-            userId: req.user?.id || null,
-          },
-        })
-      } catch (logError) {
-        console.error('Failed to log error to database:', logError)
-      }
-    })
+  // Set user context for Sentry if available
+  if (req.user) {
+    setUser({
+      id: req.user.id,
+      email: req.user.email,
+      username: req.user.name,
+    });
   }
+
+  // Capture exception in Sentry for critical errors (500+)
+  const errorStatusCode = error.statusCode || 500;
+  if (errorStatusCode >= 500) {
+    const errorObj = new Error(error.message || 'Unknown error');
+    errorObj.stack = error.stack;
+    errorObj.name = error.name || 'Error';
+
+    captureException(errorObj, {
+      method: req.method,
+      path: req.path,
+      statusCode: errorStatusCode,
+      userId: req.user?.id,
+      requestId: req.id || (req.headers['x-request-id'] as string),
+      ip: req.ip || req.connection.remoteAddress,
+    });
+  }
+
+  // Log ALL errors to database using ErrorLogService
+  setImmediate(async () => {
+    try {
+      const errorLogService = container.resolve(ErrorLogService);
+      const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
+
+      // Create error object with stack trace
+      const errorObj = new Error(error.message || 'Unknown error');
+      errorObj.stack = error.stack;
+      errorObj.name = error.name || 'Error';
+
+      await errorLogService.logHttpError({
+        error: errorObj,
+        path: req.path,
+        method: req.method,
+        statusCode: error.statusCode || 500,
+        userId: req.user?.id,
+        tenantId,
+        metadata: {
+          errorCode: error.code,
+          requestId: (() => {
+            const id = req.id || req.headers['x-request-id'];
+            if (typeof id === 'string') return id;
+            if (Array.isArray(id)) return id[0] || null;
+            return null;
+          })(),
+          query: req.query || {},
+          params: req.params || {},
+          ipAddress: req.ip || req.connection?.remoteAddress || 'Unknown',
+          userAgent: req.get('User-Agent') || 'Unknown',
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log error to database:', logError);
+    }
+  });
 
   // Handle specific error types
   if (error.name === 'ValidationError') {
@@ -220,10 +247,10 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
   res.status(statusCode).json({
     success: false,
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message,
+    message: env.isProduction() ? 'An unexpected error occurred' : error.message,
     timestamp: new Date().toISOString(),
     // Include stack trace only in development
-    ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+    ...(!env.isProduction() && { stack: error.stack }),
   })
 }
 

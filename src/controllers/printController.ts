@@ -54,7 +54,7 @@ export class PrintController {
         return;
       }
 
-      const template = await this.printService.createPrintTemplate(data, userId);
+      const template = await this.printService.createPrintTemplate(data);
       successResponse(res, { template }, 'Print template created successfully', 201);
     } catch (error) {
       return next(error);

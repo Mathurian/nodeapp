@@ -7,12 +7,13 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
+import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendCreated, sendError, sendNoContent, sendNotFound, sendBadRequest } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 
-interface AuthenticatedRequest extends Request {
+type AuthenticatedRequest = Request & {
   user?: {
     id: string;
     role: string;
@@ -20,7 +21,7 @@ interface AuthenticatedRequest extends Request {
   };
   tenantId?: string;
   file?: Express.Multer.File;
-}
+};
 
 interface UserWithRelations extends User {
   judge?: Judge | null;
@@ -61,7 +62,7 @@ export class UsersController {
   getUserById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const id = req.params.id!;
+      const id = req.params['id']!;
       log.debug('Fetching user by ID', { userId: id });
 
       const user = await this.userService.getUserByIdWithRelations(id);
@@ -75,7 +76,7 @@ export class UsersController {
       log.debug('User retrieved successfully', { userId: id, email: user.email });
       sendSuccess(res, { data: user });
     } catch (error) {
-      log.error('Get user error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Get user error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -130,29 +131,29 @@ export class UsersController {
       }
 
       // Create user with role-specific data
-      const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null> = {
+      const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
         name: data.name,
         email: data.email,
         password: data.password,
         role: data.role,
-        preferredName: data.preferredName || null,
-        gender: data.gender || null,
-        pronouns: data.pronouns || null,
-        phone: data.phone || null,
-        address: data.address || null,
-        bio: data.bio || null,
+        preferredName: data.preferredName ?? undefined,
+        gender: data.gender ?? undefined,
+        pronouns: data.pronouns ?? undefined,
+        phone: data.phone ?? undefined,
+        address: data.address ?? undefined,
+        bio: data.bio ?? undefined,
         isActive: true
       };
 
       // Add role-specific fields
       if (data.role === 'JUDGE') {
-        userData.judgeBio = data.bio || null;
-        userData.judgeCertifications = data.judgeLevel || null;
+        userData['judgeBio'] = data.bio ?? undefined;
+        userData['judgeCertifications'] = data.judgeLevel ?? undefined;
       } else if (data.role === 'CONTESTANT') {
-        userData.contestantBio = data.bio || null;
-        userData.contestantNumber = data.contestantNumber || null;
-        userData.contestantAge = data.age ? parseInt(String(data.age)) : null;
-        userData.contestantSchool = data.school || null;
+        userData['contestantBio'] = data.bio ?? undefined;
+        userData.contestantNumber = data.contestantNumber ?? undefined;
+        userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
+        userData['contestantSchool'] = data.school ?? undefined;
       }
 
       const user = await this.userService.createUser(userData as CreateUserDTO);
@@ -206,9 +207,25 @@ export class UsersController {
       });
 
       log.info('User created successfully', { userId: user.id, email: data.email, role: data.role });
+
+      // Audit log: user creation
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'user.created',
+          'User',
+          user.id,
+          req,
+          undefined,
+          { email: data.email, role: data.role, name: data.name }
+        );
+      } catch (auditError) {
+        log.error('Failed to log user creation audit', { error: auditError });
+      }
+
       sendCreated(res, createdUser);
     } catch (error) {
-      log.error('Create user error', { error: (error as Error).message, email: req.body.email });
+      log.error('Create user error', { error: (error as Error).message, email: req.body['email'] });
       const prismaError = error as Prisma.PrismaClientKnownRequestError;
       if (prismaError.code === 'P2002') {
         sendError(res, 'User with this email already exists', 400);
@@ -224,7 +241,7 @@ export class UsersController {
   updateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const id = req.params.id!;
+      const id = req.params['id']!;
       const data: UpdateUserDTO = req.body;
 
       log.info('User update requested', { userId: id });
@@ -247,38 +264,38 @@ export class UsersController {
         newRole: data.role
       });
 
-      const userData: Partial<UpdateUserDTO> & Record<string, string | number | boolean | null> = {};
+      const userData: Partial<UpdateUserDTO> & Record<string, string | number | boolean | null | undefined> = {};
 
       if (data.name !== undefined) userData.name = data.name;
       if (data.email !== undefined) userData.email = data.email;
       if (data.role !== undefined) userData.role = data.role;
-      if (data.phone !== undefined) userData.phone = data.phone || null;
-      if (data.address !== undefined) userData.address = data.address || null;
-      if (data.city !== undefined) userData.city = data.city || null;
-      if (data.state !== undefined) userData.state = data.state || null;
-      if (data.country !== undefined) userData.country = data.country || null;
-      if (data.bio !== undefined) userData.bio = data.bio || null;
-      if (data.preferredName !== undefined) userData.preferredName = data.preferredName || null;
-      if (data.pronouns !== undefined) userData.pronouns = data.pronouns || null;
-      if (data.gender !== undefined) userData.gender = data.gender || null;
+      if (data.phone !== undefined) userData.phone = data.phone ?? undefined;
+      if (data.address !== undefined) userData.address = data.address ?? undefined;
+      if (data.city !== undefined) userData.city = data.city ?? undefined;
+      if (data.state !== undefined) userData.state = data.state ?? undefined;
+      if (data.country !== undefined) userData.country = data.country ?? undefined;
+      if (data.bio !== undefined) userData.bio = data.bio ?? undefined;
+      if (data.preferredName !== undefined) userData.preferredName = data.preferredName ?? undefined;
+      if (data.pronouns !== undefined) userData.pronouns = data.pronouns ?? undefined;
+      if (data.gender !== undefined) userData.gender = data.gender ?? undefined;
       if (data.isActive !== undefined) userData.isActive = data.isActive;
 
       // Add role-specific fields for User model
       if (data.role === 'JUDGE') {
-        if (data.bio !== undefined) userData.judgeBio = data.bio || null;
-        if (data.judgeLevel !== undefined) userData.judgeCertifications = data.judgeLevel || null;
+        if (data.bio !== undefined) userData['judgeBio'] = data.bio ?? undefined;
+        if (data.judgeLevel !== undefined) userData['judgeCertifications'] = data.judgeLevel ?? undefined;
       } else if (data.role === 'CONTESTANT') {
-        if (data.bio !== undefined) userData.contestantBio = data.bio || null;
-        if (data.contestantNumber !== undefined) userData.contestantNumber = data.contestantNumber || null;
-        if (data.age !== undefined) userData.contestantAge = data.age ? parseInt(String(data.age)) : null;
-        if (data.school !== undefined) userData.contestantSchool = data.school || null;
+        if (data.bio !== undefined) userData['contestantBio'] = data.bio ?? undefined;
+        if (data.contestantNumber !== undefined) userData.contestantNumber = data.contestantNumber ?? undefined;
+        if (data.age !== undefined) userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
+        if (data.school !== undefined) userData['contestantSchool'] = data.school ?? undefined;
       }
 
       // Update user
       log.debug('Updating user record', { userId: id });
       const user = await this.prisma.user.update({
         where: { id },
-        data: userData,
+        data: userData as Prisma.UserUpdateInput,
         include: {
           judge: true,
           contestant: true
@@ -289,6 +306,23 @@ export class UsersController {
       userCache.invalidate(id);
 
       log.info('User record updated', { userId: id, email: user.email });
+
+      // Audit log: user update with change tracking
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logEntityChange({
+          action: 'user.updated',
+          entityType: 'User',
+          entityId: id,
+          oldData: currentUser,
+          newData: user,
+          req,
+          tenantId
+        });
+      } catch (auditError) {
+        log.error('Failed to log user update audit', { error: auditError });
+      }
 
       // Update associated Judge record if user is a judge and isHeadJudge is provided
       if (currentUser.role === 'JUDGE' && data.isHeadJudge !== undefined && currentUser.judgeId) {
@@ -302,7 +336,7 @@ export class UsersController {
       log.info('User updated successfully', { userId: id, email: user.email });
       sendSuccess(res, user);
     } catch (error) {
-      log.error('Update user error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Update user error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -313,7 +347,7 @@ export class UsersController {
   deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const id = req.params.id!;
+      const id = req.params['id']!;
       log.info('User deletion requested', { userId: id });
 
       // Fetch user before deletion for logging
@@ -331,10 +365,25 @@ export class UsersController {
       log.debug('Deleting user record', { userId: id, email: userToDelete.email });
       await this.userService.deleteUser(id);
 
+      // Audit log: user deletion
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'user.deleted',
+          'User',
+          id,
+          req,
+          undefined,
+          { email: userToDelete.email, role: userToDelete.role, name: userToDelete.name }
+        );
+      } catch (auditError) {
+        log.error('Failed to log user deletion audit', { error: auditError });
+      }
+
       log.info('User deleted successfully', { userId: id, email: userToDelete.email, role: userToDelete.role });
       sendNoContent(res);
     } catch (error) {
-      log.error('Delete user error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Delete user error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -345,7 +394,7 @@ export class UsersController {
   resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const id = req.params.id!;
+      const id = req.params['id']!;
       const { newPassword } = req.body;
 
       if (!newPassword) {
@@ -355,10 +404,25 @@ export class UsersController {
 
       await this.userService.resetUserPassword(id, newPassword);
 
+      // Audit log: admin password reset
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        const tenantId = (req as any).tenantId || 'default_tenant';
+        await auditLogService.logAuth({
+          action: 'password_reset',
+          userId: id,
+          req,
+          tenantId: tenantId,
+          metadata: { action_type: 'admin_reset', reset_by: req.user?.id }
+        });
+      } catch (auditError) {
+        log.error('Failed to log password reset audit', { error: auditError });
+      }
+
       log.info('Password reset successfully', { userId: id });
       sendSuccess(res, null, 'Password reset successfully');
     } catch (error) {
-      log.error('Reset password error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Reset password error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -369,7 +433,7 @@ export class UsersController {
   getUsersByRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const role = req.params.role!;
+      const role = req.params['role']!;
 
       const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
       if (!validRoles.includes(role)) {
@@ -389,7 +453,7 @@ export class UsersController {
       log.info('Users by role retrieved', { role, count: users.length });
       sendSuccess(res, users);
     } catch (error) {
-      log.error('Get users by role error', { error: (error as Error).message, role: req.params.role });
+      log.error('Get users by role error', { error: (error as Error).message, role: req.params['role'] });
       return next(error);
     }
   };
@@ -400,7 +464,7 @@ export class UsersController {
   updateLastLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const id = req.params.id!;
+      const id = req.params['id']!;
 
       const user = await this.userService.updateLastLogin(id);
 
@@ -411,7 +475,7 @@ export class UsersController {
         lastLoginAt: user.lastLoginAt
       });
     } catch (error) {
-      log.error('Update last login error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Update last login error', { error: (error as Error).message, userId: req.params['id'] });
       const prismaError = error as Prisma.PrismaClientKnownRequestError;
       if (prismaError.code === 'P2025') {
         sendNotFound(res, 'User not found');
@@ -453,7 +517,7 @@ export class UsersController {
   removeAllUsersByRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const role = req.params.role!;
+      const role = req.params['role']!;
 
       const result = await this.userService.deleteUsersByRole(role);
 
@@ -463,7 +527,7 @@ export class UsersController {
         deletedCount: result.deletedCount
       });
     } catch (error) {
-      log.error('Remove all users by role error', { error: (error as Error).message, role: req.params.role });
+      log.error('Remove all users by role error', { error: (error as Error).message, role: req.params['role'] });
       return next(error);
     }
   };
@@ -491,7 +555,7 @@ export class UsersController {
     const log = createRequestLogger(req, 'users');
     try {
       const authReq = req as AuthenticatedRequest;
-      const id = authReq.params.id!;
+      const id = authReq.params['id']!;
       const requestingUserId = authReq.user?.id || '';
       const requestingUserRole = authReq.user?.role || '';
 
@@ -537,7 +601,7 @@ export class UsersController {
         user
       });
     } catch (error) {
-      log.error('Upload user image error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Upload user image error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -582,7 +646,7 @@ export class UsersController {
         return sendNotFound(res, 'User not found');
       }
 
-      const updateData: Partial<User> & Record<string, string | number | boolean | null> = {};
+      const updateData: Partial<User> & Record<string, string | number | boolean | null | undefined> = {};
 
       // Update based on role
       if (currentUser.role === 'JUDGE') {
@@ -591,7 +655,7 @@ export class UsersController {
 
         // Also update linked Judge record if exists
         if (currentUser.judgeId) {
-          const judgeUpdateData: Partial<Judge> & Record<string, string | boolean | null> = {};
+          const judgeUpdateData: Partial<Judge> & Record<string, string | boolean | null | undefined> = {};
           if (roleFieldsData.bio !== undefined) judgeUpdateData.bio = roleFieldsData.bio;
           if (roleFieldsData.isHeadJudge !== undefined) judgeUpdateData.isHeadJudge = roleFieldsData.isHeadJudge;
           if (roleFieldsData.gender !== undefined) judgeUpdateData.gender = roleFieldsData.gender;
@@ -613,7 +677,7 @@ export class UsersController {
 
         // Also update linked Contestant record if exists
         if (currentUser.contestantId) {
-          const contestantUpdateData: Partial<Contestant> & Record<string, string | number | null> = {};
+          const contestantUpdateData: Partial<Contestant> & Record<string, string | number | null | undefined> = {};
           if (roleFieldsData.bio !== undefined) contestantUpdateData.bio = roleFieldsData.bio;
           if (roleFieldsData.contestantNumber !== undefined) contestantUpdateData.contestantNumber = roleFieldsData.contestantNumber;
           if (roleFieldsData.gender !== undefined) contestantUpdateData.gender = roleFieldsData.gender;
@@ -633,7 +697,7 @@ export class UsersController {
       if (Object.keys(updateData).length > 0) {
         const updatedUser = await this.prisma.user.update({
           where: { id },
-          data: updateData,
+          data: updateData as Prisma.UserUpdateInput,
           include: {
             judge: true,
             contestant: true
@@ -651,7 +715,7 @@ export class UsersController {
       }
     } catch (error) {
       const log = createRequestLogger(req, 'users');
-      log.error('Update user role fields error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Update user role fields error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -717,7 +781,7 @@ export class UsersController {
       }
 
       // Update user bio field with file path reference
-      const updateData: Partial<User> & Record<string, string | null> = {
+      const updateData: Partial<User> & Record<string, string | null | undefined> = {
         bio: `[Bio file uploaded: ${bioFilePath}]`
       };
 
@@ -729,7 +793,7 @@ export class UsersController {
 
       const updatedUser = await this.prisma.user.update({
         where: { id },
-        data: updateData,
+        data: updateData as Prisma.UserUpdateInput,
         include: {
           judge: true,
           contestant: true
@@ -747,7 +811,7 @@ export class UsersController {
       });
     } catch (error) {
       const log = createRequestLogger(req, 'users');
-      log.error('Upload user bio file error', { error: (error as Error).message, userId: req.params.id });
+      log.error('Upload user bio file error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
     }
   };
@@ -766,15 +830,15 @@ export class UsersController {
 
       // Parse CSV file
       const csvContent = authReq.file.buffer.toString('utf-8');
-      const lines = csvContent.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
-      
+      const lines = csvContent.split('\n').filter((line: string) => line.trim() && !line.trim().startsWith('#'));
+
       if (lines.length < 2) {
         log.warn('Bulk upload failed: CSV file is empty or has no data rows');
         return sendError(res, 'CSV file must contain at least a header row and one data row', 400);
       }
 
       // Parse header row
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const headers = lines[0]!.split(',').map((h: string) => h.trim().toLowerCase());
       const requiredHeaders = ['name', 'email', 'password', 'role'];
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       
@@ -791,7 +855,7 @@ export class UsersController {
 
       // Process each row
       for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
+        const line = lines[i]!.trim();
         if (!line) continue;
 
         try {
@@ -805,81 +869,81 @@ export class UsersController {
           }
 
           // Build user data object
-          const userData: Record<string, string | number | boolean | null> = {};
-          headers.forEach((header, index) => {
+          const userData: Record<string, string | number | boolean | null | undefined> = {};
+          headers.forEach((header: string, index: number) => {
             const value = values[index]?.trim() || '';
             if (value) {
               // Map CSV headers to user data fields
               switch (header) {
                 case 'name':
-                  userData.name = value;
+                  userData['name'] = value;
                   break;
                 case 'email':
-                  userData.email = value;
+                  userData['email'] = value;
                   break;
                 case 'password':
-                  userData.password = value;
+                  userData['password'] = value;
                   break;
                 case 'role':
-                  userData.role = value.toUpperCase();
+                  userData['role'] = value.toUpperCase();
                   break;
                 case 'preferredname':
-                  userData.preferredName = value;
+                  userData['preferredName'] = value;
                   break;
                 case 'pronouns':
-                  userData.pronouns = value;
+                  userData['pronouns'] = value;
                   break;
                 case 'gender':
-                  userData.gender = value;
+                  userData['gender'] = value;
                   break;
                 case 'phone':
-                  userData.phone = value;
+                  userData['phone'] = value;
                   break;
                 case 'address':
-                  userData.address = value;
+                  userData['address'] = value;
                   break;
                 case 'bio':
-                  userData.bio = value;
+                  userData['bio'] = value;
                   break;
                 case 'judgenumber':
-                  userData.judgeNumber = value;
+                  userData['judgeNumber'] = value;
                   break;
                 case 'judgelevel':
-                  userData.judgeLevel = value.toUpperCase();
+                  userData['judgeLevel'] = value.toUpperCase();
                   break;
                 case 'isheadjudge':
-                  userData.isHeadJudge = value.toLowerCase() === 'true';
+                  userData['isHeadJudge'] = value.toLowerCase() === 'true';
                   break;
                 case 'contestantnumber':
-                  userData.contestantNumber = value;
+                  userData['contestantNumber'] = value;
                   break;
                 case 'age':
-                  userData.age = parseInt(value, 10);
+                  userData['age'] = parseInt(value, 10);
                   break;
                 case 'parentguardian':
-                  userData.parentGuardian = value;
+                  userData['parentGuardian'] = value;
                   break;
                 case 'parentphone':
-                  userData.parentPhone = value;
+                  userData['parentPhone'] = value;
                   break;
                 case 'school':
-                  userData.school = value;
+                  userData['school'] = value;
                   break;
                 case 'grade':
-                  userData.grade = value;
+                  userData['grade'] = value;
                   break;
                 case 'contestid':
-                  userData.contestId = value;
+                  userData['contestId'] = value;
                   break;
                 case 'categoryid':
-                  userData.categoryId = value;
+                  userData['categoryId'] = value;
                   break;
               }
             }
           });
 
           // Validate required fields
-          if (!userData.name || !userData.email || !userData.password || !userData.role) {
+          if (!userData['name'] || !userData['email'] || !userData['password'] || !userData['role']) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Missing required fields`);
             continue;
@@ -887,7 +951,7 @@ export class UsersController {
 
           // Validate email format
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(userData.email)) {
+          if (!emailRegex.test(userData['email'] as string)) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Invalid email format`);
             continue;
@@ -895,15 +959,15 @@ export class UsersController {
 
           // Validate role
           const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
-          if (!validRoles.includes(userData.role)) {
+          if (!validRoles.includes(userData['role'] as string)) {
             results.failed++;
-            results.errors.push(`Row ${i + 1}: Invalid role "${userData.role}"`);
+            results.errors.push(`Row ${i + 1}: Invalid role "${userData['role']}"`);
             continue;
           }
 
           // Check if email already exists
           const existingUser = await this.prisma.user.findUnique({
-            where: { tenantId_email: { tenantId: authReq.tenantId!, email: String(userData.email) } }
+            where: { tenantId_email: { tenantId: authReq.tenantId!, email: String(userData['email']) } }
           });
 
           if (existingUser) {
@@ -913,48 +977,48 @@ export class UsersController {
           }
 
           // Build user data object with role-specific fields
-          const createUserData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null> = {
-            name: userData.name,
-            email: userData.email,
-            password: userData.password,
-            role: userData.role,
-            preferredName: userData.preferredName || null,
-            gender: userData.gender || null,
-            pronouns: userData.pronouns || null,
-            phone: userData.phone || null,
-            address: userData.address || null,
-            bio: userData.bio || null,
+          const createUserData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
+            name: userData['name'] as string,
+            email: userData['email'] as string,
+            password: userData['password'] as string,
+            role: userData['role'] as string,
+            preferredName: (userData['preferredName'] as string | undefined) ?? undefined,
+            gender: (userData['gender'] as string | undefined) ?? undefined,
+            pronouns: (userData['pronouns'] as string | undefined) ?? undefined,
+            phone: (userData['phone'] as string | undefined) ?? undefined,
+            address: (userData['address'] as string | undefined) ?? undefined,
+            bio: (userData['bio'] as string | undefined) ?? undefined,
             isActive: true
           };
 
           // Add role-specific fields to User model
-          if (userData.role === 'JUDGE') {
-            createUserData.judgeBio = userData.bio || null;
-            createUserData.judgeCertifications = userData.judgeLevel || null;
-          } else if (userData.role === 'CONTESTANT') {
-            createUserData.contestantBio = userData.bio || null;
-            createUserData.contestantNumber = userData.contestantNumber || null;
-            createUserData.contestantAge = userData.age ? parseInt(String(userData.age)) : null;
-            createUserData.contestantSchool = userData.school || null;
+          if (userData['role'] === 'JUDGE') {
+            createUserData['judgeBio'] = (userData['bio'] as string | undefined) ?? undefined;
+            createUserData['judgeCertifications'] = (userData['judgeLevel'] as string | undefined) ?? undefined;
+          } else if (userData['role'] === 'CONTESTANT') {
+            createUserData['contestantBio'] = (userData['bio'] as string | undefined) ?? undefined;
+            createUserData['contestantNumber'] = (userData['contestantNumber'] as number | undefined) ?? undefined;
+            createUserData['contestantAge'] = userData['age'] ? parseInt(String(userData['age'])) : undefined;
+            createUserData['contestantSchool'] = (userData['school'] as string | undefined) ?? undefined;
           }
 
           // Create user
-          const user = await this.userService.createUser(createUserData);
+          const user = await this.userService.createUser(createUserData as CreateUserDTO);
 
           // Create associated Judge or Contestant record if applicable
           let judgeId: string | null = null;
           let contestantId: string | null = null;
 
-          if (userData.role === 'JUDGE') {
+          if (userData['role'] === 'JUDGE') {
             const judge = await this.prisma.judge.create({
               data: {
                 tenantId: authReq.tenantId!,
-                name: String(userData.name),
-                email: String(userData.email),
-                gender: userData.gender ? String(userData.gender) : null,
-                pronouns: userData.pronouns ? String(userData.pronouns) : null,
-                bio: userData.bio ? String(userData.bio) : null,
-                isHeadJudge: Boolean(userData.isHeadJudge)
+                name: String(userData['name']),
+                email: String(userData['email']),
+                gender: userData['gender'] ? String(userData['gender']) : null,
+                pronouns: userData['pronouns'] ? String(userData['pronouns']) : null,
+                bio: userData['bio'] ? String(userData['bio']) : null,
+                isHeadJudge: Boolean(userData['isHeadJudge'])
               }
             });
 
@@ -963,16 +1027,16 @@ export class UsersController {
               where: { id: user.id },
               data: { judgeId: judge.id }
             });
-          } else if (userData.role === 'CONTESTANT') {
+          } else if (userData['role'] === 'CONTESTANT') {
             const contestant = await this.prisma.contestant.create({
               data: {
                 tenantId: authReq.tenantId!,
-                name: String(userData.name),
-                email: String(userData.email),
-                contestantNumber: userData.contestantNumber ? parseInt(String(userData.contestantNumber)) : null,
-                bio: userData.bio ? String(userData.bio) : null,
-                gender: userData.gender ? String(userData.gender) : null,
-                pronouns: userData.pronouns ? String(userData.pronouns) : null
+                name: String(userData['name']),
+                email: String(userData['email']),
+                contestantNumber: userData['contestantNumber'] ? parseInt(String(userData['contestantNumber'])) : null,
+                bio: userData['bio'] ? String(userData['bio']) : null,
+                gender: userData['gender'] ? String(userData['gender']) : null,
+                pronouns: userData['pronouns'] ? String(userData['pronouns']) : null
               }
             });
 
@@ -985,26 +1049,26 @@ export class UsersController {
 
           // Handle assignments
           const userId = authReq.user?.id || '';
-          if (userData.role === 'JUDGE' && judgeId && (userData.contestId || userData.categoryId)) {
+          if (userData['role'] === 'JUDGE' && judgeId && (userData['contestId'] || userData['categoryId'])) {
             try {
-              if (userData.categoryId) {
+              if (userData['categoryId']) {
                 // Assign to specific category
                 await this.assignmentService.createAssignment({
                   judgeId,
-                  categoryId: String(userData.categoryId)
+                  categoryId: String(userData['categoryId'])
                 }, userId);
-                log.debug('Judge assigned to category', { judgeId, categoryId: userData.categoryId });
-              } else if (userData.contestId) {
+                log.debug('Judge assigned to category', { judgeId, categoryId: userData['categoryId'] });
+              } else if (userData['contestId']) {
                 // Assign to all categories in contest
                 const categories = await this.prisma.category.findMany({
-                  where: { contestId: String(userData.contestId) }
+                  where: { contestId: String(userData['contestId']) }
                 });
                 for (const category of categories) {
                   try {
                     await this.assignmentService.createAssignment({
                       judgeId,
                       categoryId: category.id,
-                      contestId: String(userData.contestId)
+                      contestId: String(userData['contestId'])
                     }, userId);
                   } catch (err) {
                     // Skip if already assigned
@@ -1014,7 +1078,7 @@ export class UsersController {
                     }
                   }
                 }
-                log.debug('Judge assigned to all categories in contest', { judgeId, contestId: userData.contestId, categoryCount: categories.length });
+                log.debug('Judge assigned to all categories in contest', { judgeId, contestId: userData['contestId'], categoryCount: categories.length });
               }
             } catch (assignmentError) {
               // Log assignment error but don't fail user creation
@@ -1022,16 +1086,16 @@ export class UsersController {
               log.warn('Failed to assign judge', { judgeId, error: error.message });
               results.errors.push(`Row ${i + 1}: User created but assignment failed: ${error.message}`);
             }
-          } else if (userData.role === 'CONTESTANT' && contestantId && (userData.contestId || userData.categoryId)) {
+          } else if (userData['role'] === 'CONTESTANT' && contestantId && (userData['contestId'] || userData['categoryId'])) {
             try {
-              if (userData.categoryId) {
+              if (userData['categoryId']) {
                 // Assign to specific category
-                await this.assignmentService.assignContestantToCategory(String(userData.categoryId), contestantId);
-                log.debug('Contestant assigned to category', { contestantId, categoryId: userData.categoryId });
-              } else if (userData.contestId) {
+                await this.assignmentService.assignContestantToCategory(String(userData['categoryId']), contestantId);
+                log.debug('Contestant assigned to category', { contestantId, categoryId: userData['categoryId'] });
+              } else if (userData['contestId']) {
                 // Assign to all categories in contest
                 const categories = await this.prisma.category.findMany({
-                  where: { contestId: String(userData.contestId) }
+                  where: { contestId: String(userData['contestId']) }
                 });
                 for (const category of categories) {
                   try {
@@ -1044,7 +1108,7 @@ export class UsersController {
                     }
                   }
                 }
-                log.debug('Contestant assigned to all categories in contest', { contestantId, contestId: userData.contestId, categoryCount: categories.length });
+                log.debug('Contestant assigned to all categories in contest', { contestantId, contestId: userData['contestId'], categoryCount: categories.length });
               }
             } catch (assignmentError) {
               // Log assignment error but don't fail user creation
@@ -1055,7 +1119,7 @@ export class UsersController {
           }
 
           results.success++;
-          log.debug('User created from bulk upload', { email: userData.email, role: userData.role });
+          log.debug('User created from bulk upload', { email: userData['email'], role: userData['role'] });
 
         } catch (error) {
           results.failed++;

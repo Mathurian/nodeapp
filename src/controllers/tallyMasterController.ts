@@ -37,8 +37,8 @@ export class TallyMasterController {
   getCertifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.tallyMasterService.getCertifications(page, limit);
       res.json(result);
@@ -54,8 +54,8 @@ export class TallyMasterController {
   getCertificationQueue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.tallyMasterService.getCertificationQueue(page, limit);
       res.json(result);
@@ -71,8 +71,8 @@ export class TallyMasterController {
   getPendingCertifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.tallyMasterService.getPendingCertifications(page, limit);
       res.json(result);
@@ -139,7 +139,7 @@ export class TallyMasterController {
       const category = await this.tallyMasterService.getScoreReview(categoryId);
 
       const certificationStatus = {
-        totalsCertified: category.category.scoreCap > 0,
+        totalsCertified: (category.category.scoreCap ?? 0) > 0,
         currentStep: 1,
         totalSteps: 2,
         canProceed: true,
@@ -183,8 +183,8 @@ export class TallyMasterController {
   getTallyMasterHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 10;
 
       const result = await this.tallyMasterService.getTallyMasterHistory(page, limit);
       res.json(result);
@@ -201,7 +201,6 @@ export class TallyMasterController {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
       const { categoryId, contestId, judgeId, contestantId, reason } = req.body;
-      const userId = (req as any).user?.id;
 
       if (!judgeId) {
         res.status(400).json({ error: 'Judge ID is required' });
@@ -297,11 +296,11 @@ export class TallyMasterController {
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
-      const status = req.query.status as string | undefined;
-      const categoryId = req.query.categoryId as string | undefined;
-      const contestId = req.query.contestId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
+      const status = req.query['status'] as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
 
       const result = await this.tallyMasterService.getScoreRemovalRequests(page, limit, status, categoryId, contestId);
       res.json(result);

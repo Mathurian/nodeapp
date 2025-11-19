@@ -46,14 +46,14 @@ export class BioController {
     try {
       const { contestantId } = req.params;
       const { bio } = req.body;
-      let imagePath = req.body.imagePath || undefined;
+      let imagePath = req.body['imagePath'] || undefined;
 
       // Handle file upload if present
       if (req.file) {
         imagePath = `/uploads/bios/${req.file.filename}`;
       }
 
-      const contestant = await this.bioService.updateContestantBio(contestantId, {
+      const contestant = await this.bioService.updateContestantBio(contestantId!, {
         bio,
         imagePath
       });
@@ -68,14 +68,14 @@ export class BioController {
     try {
       const { judgeId } = req.params;
       const { bio } = req.body;
-      let imagePath = req.body.imagePath || undefined;
+      let imagePath = req.body['imagePath'] || undefined;
 
       // Handle file upload if present
       if (req.file) {
         imagePath = `/uploads/bios/${req.file.filename}`;
       }
 
-      const judge = await this.bioService.updateJudgeBio(judgeId, {
+      const judge = await this.bioService.updateJudgeBio(judgeId!, {
         bio,
         imagePath
       });

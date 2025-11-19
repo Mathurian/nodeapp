@@ -13,7 +13,7 @@ export class AuditorCertificationController {
   getFinalCertificationStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { categoryId } = req.params;
-      const status = await this.auditorCertificationService.getFinalCertificationStatus(categoryId);
+      const status = await this.auditorCertificationService.getFinalCertificationStatus(categoryId!);
       return sendSuccess(res, status);
     } catch (error) {
       return next(error);
@@ -25,7 +25,7 @@ export class AuditorCertificationController {
       const { categoryId } = req.params;
       const { confirmation1, confirmation2 } = req.body;
       const certification = await this.auditorCertificationService.submitFinalCertification(
-        categoryId,
+        categoryId!,
         req.user!.id,
         req.user!.role,
         { confirmation1, confirmation2 }

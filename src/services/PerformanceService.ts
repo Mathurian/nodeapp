@@ -4,6 +4,7 @@ import * as os from 'os';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { BaseService } from './BaseService';
+import { env } from '../config/env';
 
 interface PerformanceLogData {
   endpoint: string;
@@ -65,7 +66,7 @@ export class PerformanceService extends BaseService {
   async logPerformance(data: PerformanceLogData): Promise<void> {
     try {
       // Sample rate: only log a percentage of requests (default 20%)
-      const sampleRate = parseFloat(process.env.PERF_SAMPLE_RATE || '0.2');
+      const sampleRate = parseFloat(process.env['PERF_SAMPLE_RATE'] || '0.2');
       if (Math.random() > sampleRate) {
         return; // Skip logging this request
       }
@@ -85,7 +86,7 @@ export class PerformanceService extends BaseService {
       });
     } catch (error) {
       // Silently fail performance logging to avoid impacting request handling
-      if (process.env.NODE_ENV === 'development') {
+      if (env.isDevelopment()) {
         console.error('Performance logging error:', error);
       }
     }

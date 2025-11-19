@@ -11,6 +11,7 @@ import {
   PaginationMeta,
   ValidationError
 } from '../types/api/responses.types';
+import { env } from '../config/env';
 
 /**
  * Send a success response
@@ -75,7 +76,7 @@ export function sendError(
   }
 
   // Only include stack trace in development
-  if (stack && process.env.NODE_ENV !== 'production') {
+  if (stack && !env.isProduction()) {
     response.stack = stack;
   }
 
@@ -201,8 +202,8 @@ export function calculatePagination(
  * Parse pagination parameters from query
  */
 export function parsePaginationParams(query: Record<string, unknown>): { page: number; limit: number } {
-  const page = Math.max(1, parseInt(query.page as string) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 10));
+  const page = Math.max(1, parseInt(query['page'] as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query['limit'] as string) || 10));
 
   return { page, limit };
 }

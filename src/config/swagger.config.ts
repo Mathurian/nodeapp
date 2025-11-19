@@ -7,6 +7,7 @@
  */
 
 import * as swaggerJsdoc from 'swagger-jsdoc';
+import { env } from './env';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -66,7 +67,7 @@ All requests must include tenant context. This can be provided via:
     },
     servers: [
       {
-        url: process.env.API_URL || 'http://localhost:3000',
+        url: env.get('API_URL'),
         description: 'Development server',
       },
       {

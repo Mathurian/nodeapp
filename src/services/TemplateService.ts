@@ -26,7 +26,7 @@ export class TemplateService extends BaseService {
    * Get template by ID
    */
   async getTemplateById(id: string, tenantId: string): Promise<TemplateWithCriteria> {
-    this.validateRequired({ id }, ['id']);
+    this.validateRequired({ id } as unknown as Record<string, unknown>, ['id']);
 
     const template = await this.templateRepo.findByIdWithCriteria(id, tenantId);
 
@@ -41,7 +41,7 @@ export class TemplateService extends BaseService {
    * Create new template
    */
   async createTemplate(data: CreateTemplateData): Promise<TemplateWithCriteria> {
-    this.validateRequired(data, ['name', 'tenantId']);
+    this.validateRequired(data as unknown as Record<string, unknown>, ['name', 'tenantId']);
 
     return await this.templateRepo.createWithCriteria(data);
   }
@@ -50,7 +50,7 @@ export class TemplateService extends BaseService {
    * Update template
    */
   async updateTemplate(id: string, tenantId: string, data: UpdateTemplateData): Promise<TemplateWithCriteria> {
-    this.validateRequired({ id }, ['id']);
+    this.validateRequired({ id } as unknown as Record<string, unknown>, ['id']);
 
     // Verify template exists
     await this.getTemplateById(id, tenantId);
@@ -62,7 +62,7 @@ export class TemplateService extends BaseService {
    * Delete template
    */
   async deleteTemplate(id: string, tenantId: string): Promise<void> {
-    this.validateRequired({ id }, ['id']);
+    this.validateRequired({ id } as unknown as Record<string, unknown>, ['id']);
 
     // Verify template exists
     await this.getTemplateById(id, tenantId);
@@ -74,7 +74,7 @@ export class TemplateService extends BaseService {
    * Duplicate template
    */
   async duplicateTemplate(id: string, tenantId: string): Promise<TemplateWithCriteria> {
-    this.validateRequired({ id }, ['id']);
+    this.validateRequired({ id } as unknown as Record<string, unknown>, ['id']);
 
     const duplicated = await this.templateRepo.duplicateTemplate(id, tenantId);
 

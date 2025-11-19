@@ -127,7 +127,7 @@ export class CacheAdminController {
       const { namespace } = req.query;
 
       const cacheService = getCacheService();
-      const success = await cacheService.delete(key, namespace as string);
+      const success = await cacheService.delete(key!, namespace as string);
 
       res.json({
         success,
@@ -154,7 +154,7 @@ export class CacheAdminController {
       const { tag } = req.params;
 
       const cacheService = getCacheService();
-      const deletedCount = await cacheService.invalidateTag(tag);
+      const deletedCount = await cacheService.invalidateTag(tag!);
 
       res.json({
         success: true,

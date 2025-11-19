@@ -35,7 +35,7 @@ export class CategoryRepository extends BaseRepository<Category> {
    * Find category with full details
    */
   async findCategoryWithDetails(categoryId: string): Promise<any> {
-    return this.getModel().findUnique({
+    return (this.getModel() as any).findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -93,7 +93,7 @@ export class CategoryRepository extends BaseRepository<Category> {
     totalJudges: number;
     totalCriteria: number;
   }> {
-    const category = await this.getModel().findUnique({
+    const category = await (this.getModel() as any).findUnique({
       where: { id: categoryId },
       include: {
         _count: {

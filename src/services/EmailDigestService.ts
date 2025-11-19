@@ -8,6 +8,7 @@ import { NotificationRepository } from '../repositories/NotificationRepository';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
 import { EmailService } from './EmailService';
 import prisma from '../config/database';
+import { env } from '../config/env';
 
 export interface DigestNotification {
   id: string;
@@ -296,12 +297,12 @@ export class EmailDigestService {
 
     html += `
             <div style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL}/notifications" class="button">View All Notifications</a>
+              <a href="${env.get('FRONTEND_URL')}/notifications" class="button">View All Notifications</a>
             </div>
           </div>
           <div class="footer">
             <p>You're receiving this email because you've enabled ${frequency} email digests.</p>
-            <p><a href="${process.env.FRONTEND_URL}/settings/notifications" style="color: #667eea;">Manage notification preferences</a></p>
+            <p><a href="${env.get('FRONTEND_URL')}/settings/notifications" style="color: #667eea;">Manage notification preferences</a></p>
           </div>
         </body>
       </html>

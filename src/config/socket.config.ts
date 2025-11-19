@@ -7,7 +7,8 @@ import { Server as SocketIOServer, Socket } from 'socket.io'
 import { isAllowedOrigin } from './express.config'
 import { container } from 'tsyringe'
 import { NotificationService } from '../services/NotificationService'
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
+import { env } from './env';
 
 /**
  * Create and configure Socket.IO server
@@ -57,14 +58,14 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
 
   // Middleware to authenticate socket connections
   io.use((socket: Socket, next) => {
-    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '')
+    const token = socket.handshake.auth['token'] || socket.handshake.headers.authorization?.replace('Bearer ', '')
 
     if (!token) {
       return next(new Error('Authentication error: No token provided'))
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string; tenantId: string }
+      const decoded = jwt.verify(token, env.get('JWT_SECRET')) as { userId: string; tenantId: string }
       ;(socket as any).userId = decoded.userId
       ;(socket as any).tenantId = decoded.tenantId
       next()

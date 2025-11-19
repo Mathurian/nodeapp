@@ -52,11 +52,11 @@ export class TenantController {
   static async listTenants(req: Request, res: Response): Promise<void> {
     try {
       const params = {
-        skip: req.query.skip ? parseInt(req.query.skip as string) : 0,
-        take: req.query.take ? parseInt(req.query.take as string) : 50,
-        isActive: req.query.isActive ? req.query.isActive === 'true' : undefined,
-        planType: req.query.planType as string,
-        search: req.query.search as string,
+        skip: req.query['skip'] ? parseInt(req.query['skip'] as string) : 0,
+        take: req.query['take'] ? parseInt(req.query['take'] as string) : 50,
+        isActive: req.query['isActive'] ? req.query['isActive'] === 'true' : undefined,
+        planType: req.query['planType'] as string,
+        search: req.query['search'] as string,
       };
 
       const { tenants, total } = await TenantService.listTenants(params);
@@ -118,12 +118,12 @@ export class TenantController {
 
       // Non-super admins cannot change certain fields
       if (!req.isSuperAdmin) {
-        delete req.body.planType;
-        delete req.body.subscriptionStatus;
-        delete req.body.subscriptionEndsAt;
-        delete req.body.maxUsers;
-        delete req.body.maxEvents;
-        delete req.body.maxStorage;
+        delete req.body['planType'];
+        delete req.body['subscriptionStatus'];
+        delete req.body['subscriptionEndsAt'];
+        delete req.body['maxUsers'];
+        delete req.body['maxEvents'];
+        delete req.body['maxStorage'];
       }
 
       const tenant = await TenantService.updateTenant(id, req.body);
@@ -195,7 +195,7 @@ export class TenantController {
   static async deleteTenant(req: Request, res: Response): Promise<void> {
     try {
       const id = getRequiredParam(req, 'id');
-      const hard = req.query.hard === 'true';
+      const hard = req.query['hard'] === 'true';
 
       await TenantService.deleteTenant(id, hard);
 

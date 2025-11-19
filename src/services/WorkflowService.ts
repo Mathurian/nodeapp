@@ -71,7 +71,7 @@ export class WorkflowService {
   /**
    * List workflow templates
    */
-  static async listTemplates(tenantId: string, type?: string): Promise<any[]> {
+  static async listTemplates(tenantId: string, _type?: string): Promise<any[]> {
     try {
       return await prisma.workflowTemplate.findMany({
         where: {

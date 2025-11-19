@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, Prisma, Event, ArchivedEvent } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
@@ -75,7 +75,7 @@ export class ArchiveService extends BaseService {
       }),
     ]);
 
-    return this.createPaginatedResponse(events, total, options);
+    return this.createPaginatedResponse(events as any, total, options);
   }
 
   /**
@@ -104,13 +104,13 @@ export class ArchiveService extends BaseService {
       }),
     ]);
 
-    return this.createPaginatedResponse(events, total, options);
+    return this.createPaginatedResponse(events as any, total, options);
   }
 
   /**
    * Archive an item
    */
-  async archiveItem(id: string, reason?: string, userId?: string) {
+  async archiveItem(id: string, _reason?: string, userId?: string) {
     // Fetch event to get required fields
     const event: any = await this.prisma.event.findUnique({
       where: { id },
@@ -164,7 +164,7 @@ export class ArchiveService extends BaseService {
   /**
    * Archive an event
    */
-  async archiveEvent(eventId: string, userId: string, reason?: string) {
+  async archiveEvent(eventId: string, userId: string, _reason?: string) {
     const event: any = await this.prisma.event.findUnique({
       where: { id: eventId },
     });

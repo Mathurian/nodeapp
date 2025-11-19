@@ -85,59 +85,11 @@ type ContestWithDetails = Prisma.ContestGetPayload<{
   };
 }>;
 
-type EventWithContests = Prisma.EventGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    contests: {
-      select: {
-        id: true;
-        name: true;
-        categories: {
-          select: {
-            id: true;
-            name: true;
-            criteria: {
-              select: {
-                id: true;
-                maxScore: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
-
-type OverallDeduction = Prisma.OverallDeductionGetPayload<{
-  select: {
-    contestantId: true;
-    deduction: true;
-  };
-}>;
-
-type CategoryCertification = Prisma.CategoryCertificationGetPayload<{
-  select: {
-    userId: true;
-    role: true;
-    certifiedAt: true;
-  };
-}>;
-
-type JudgeCertification = Prisma.JudgeCertificationGetPayload<{
-  select: {
-    judgeId: true;
-    certifiedAt: true;
-    signatureName: true;
-  };
-}>;
-
 interface ContestantTotals {
   contestant: {
     id: string;
     name: string;
-    contestantNumber: number | null;
+    contestantNumber: number;
   };
   totalScore: number;
   scores: ScoreWithRelations[];
@@ -148,10 +100,10 @@ interface CategoryWinner {
   contestant: {
     id: string;
     name: string;
-    contestantNumber: number | null;
+    contestantNumber: number;
   };
   totalScore: number;
-  totalPossibleScore: number | null;
+  totalPossibleScore: number;
   scores: ScoreWithRelations[];
   judgesScored: string[];
 }
@@ -160,7 +112,7 @@ interface ContestWinner {
   contestant: {
     id: string;
     name: string;
-    contestantNumber: number | null;
+    contestantNumber: number;
   };
   totalScore: number;
   totalPossibleScore: number;
@@ -287,7 +239,11 @@ export class WinnerService extends BaseService {
 
       if (!contestantTotals.has(score.contestantId)) {
         contestantTotals.set(score.contestantId, {
-          contestant: contestant,
+          contestant: {
+            id: contestant.id,
+            name: contestant.name,
+            contestantNumber: contestant.contestantNumber ?? 0
+          },
           totalScore: 0,
           scores: [],
           judgesScored: new Set(),
@@ -403,7 +359,7 @@ export class WinnerService extends BaseService {
     const categoryWinners: Array<{
       category: CategoryWithDetails;
       contestants: CategoryWinner[];
-      totalPossibleScore: number | null;
+      totalPossibleScore: number;
       allSigned: boolean;
       boardSigned: boolean;
       canShowWinners: boolean;
@@ -415,8 +371,8 @@ export class WinnerService extends BaseService {
         const categoryResult = await this.getWinnersByCategory(category.id, _userRole);
         categoryWinners.push({
           category: categoryResult.category,
-          contestants: categoryResult.contestants,
-          totalPossibleScore: categoryResult.totalPossibleScore,
+          contestants: categoryResult.contestants as any,
+          totalPossibleScore: categoryResult.totalPossibleScore ?? 0,
           allSigned: categoryResult.allSigned,
           boardSigned: categoryResult.boardSigned,
           canShowWinners: categoryResult.canShowWinners,
@@ -849,14 +805,14 @@ export class WinnerService extends BaseService {
         (updates.boardApproved ?? certificationWorkflow.boardApproved);
 
       if (allCertified) {
-        updates.status = 'CERTIFIED';
-      } else if (certificationWorkflow.status === 'PENDING') {
-        updates.status = 'IN_PROGRESS';
+        (updates as any).status = 'CERTIFIED';
+      } else if ((certificationWorkflow as any).status === 'PENDING') {
+        (updates as any).status = 'IN_PROGRESS';
       }
 
       await this.prisma.certification.update({
         where: { id: certificationWorkflow.id },
-        data: updates,
+        data: updates as any,
       });
     }
 
@@ -923,7 +879,7 @@ export class WinnerService extends BaseService {
         categories?: Array<{
           category: CategoryWithDetails;
           contestants: CategoryWinner[];
-          totalPossibleScore: number | null;
+          totalPossibleScore: number;
           allSigned: boolean;
           boardSigned: boolean;
           canShowWinners: boolean;

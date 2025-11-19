@@ -34,8 +34,8 @@ export class AuditorController {
   getPendingAudits = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'auditor');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.auditorService.getPendingAudits(page, limit);
       res.json(result);
@@ -51,8 +51,8 @@ export class AuditorController {
   getCompletedAudits = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'auditor');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.auditorService.getCompletedAudits(page, limit);
       res.json(result);
@@ -226,8 +226,8 @@ export class AuditorController {
     const log = createRequestLogger(req, 'auditor');
     try {
       const { categoryId } = req.query;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 20;
 
       const result = await this.auditorService.getAuditHistory(categoryId as string, page, limit);
       res.json(result);

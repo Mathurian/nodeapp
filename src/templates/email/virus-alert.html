@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Alert: Virus Detected - {{ appName }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .alert-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 20px;
+        }
+        .critical-box {
+            background-color: #fef2f2;
+            border: 2px solid #dc2626;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        .critical-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #991b1b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .critical-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .detail-table tr {
+            border-bottom: 1px solid #fee2e2;
+        }
+        .detail-table tr:last-child {
+            border-bottom: none;
+        }
+        .detail-table td {
+            padding: 12px 0;
+            font-size: 14px;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #7f1d1d;
+            width: 40%;
+        }
+        .detail-value {
+            color: #991b1b;
+            word-break: break-word;
+        }
+        .virus-name {
+            background-color: #7f1d1d;
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .action-box {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+        .action-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #92400e;
+            margin-bottom: 12px;
+        }
+        .action-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .action-list li {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.8;
+            margin-bottom: 8px;
+        }
+        .info-box {
+            background-color: #eff6ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-text {
+            font-size: 14px;
+            color: #1e40af;
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        .footer-link {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 30px 0;
+        }
+        .timestamp {
+            font-family: 'Courier New', monospace;
+            background-color: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">🛡️</div>
+            <h1>SECURITY ALERT</h1>
+        </div>
+
+        <div class="content">
+            <div class="alert-title">⚠️ Virus Detected and Blocked</div>
+
+            <p class="text">
+                The {{ appName }} security system has detected and blocked a potentially malicious file upload.
+                This alert contains critical information about the security incident that requires immediate attention.
+            </p>
+
+            <div class="critical-box">
+                <div class="critical-title">
+                    <span class="critical-icon">🦠</span>
+                    Threat Information
+                </div>
+
+                <table class="detail-table">
+                    <tr>
+                        <td class="detail-label">Virus Detected:</td>
+                        <td class="detail-value">
+                            <div class="virus-name">{{ virusName }}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="detail-label">Infected File:</td>
+                        <td class="detail-value">{{ filename }}</td>
+                    </tr>
+                    <tr>
+                        <td class="detail-label">File Size:</td>
+                        <td class="detail-value">{{ fileSize }}</td>
+                    </tr>
+                    <tr>
+                        <td class="detail-label">Detection Time:</td>
+                        <td class="detail-value">
+                            <span class="timestamp">{{ timestamp }}</span>
+                        </td>
+                    </tr>
+                    {{#if username}}
+                    <tr>
+                        <td class="detail-label">Uploaded By:</td>
+                        <td class="detail-value">{{ username }} ({{ userEmail }})</td>
+                    </tr>
+                    {{/if}}
+                    {{#if ipAddress}}
+                    <tr>
+                        <td class="detail-label">Source IP:</td>
+                        <td class="detail-value">{{ ipAddress }}</td>
+                    </tr>
+                    {{/if}}
+                    {{#if userAgent}}
+                    <tr>
+                        <td class="detail-label">User Agent:</td>
+                        <td class="detail-value" style="font-size: 12px;">{{ userAgent }}</td>
+                    </tr>
+                    {{/if}}
+                </table>
+
+                <div class="info-box" style="margin-top: 20px;">
+                    <p class="info-text" style="margin-top: 0;">
+                        <strong>✓ File has been quarantined and deleted</strong>
+                    </p>
+                    <p class="info-text" style="margin-bottom: 0;">
+                        <strong>✓ Upload was blocked and user was notified</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="action-box">
+                <div class="action-title">🔍 Recommended Actions</div>
+                <ul class="action-list">
+                    <li><strong>Review user activity:</strong> Check the user's recent upload history and account activity for any suspicious patterns</li>
+                    <li><strong>Monitor IP address:</strong> Review other uploads from the same IP address ({{ ipAddress }})</li>
+                    <li><strong>User notification:</strong> The user has been automatically notified that their file was rejected</li>
+                    <li><strong>Account review:</strong> Consider reviewing the user's account security settings</li>
+                    {{#if username}}
+                    <li><strong>Direct contact:</strong> If this appears to be a targeted attack, contact the user at {{ userEmail }} to ensure their account hasn't been compromised</li>
+                    {{/if}}
+                    <li><strong>Log analysis:</strong> Review system logs for additional context around this security event</li>
+                </ul>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="text">
+                <strong>Security Note:</strong> This incident has been automatically logged in the system's security audit trail.
+                All infected files are immediately quarantined and deleted to prevent any potential harm to the system or other users.
+            </p>
+
+            <p class="text">
+                The {{ appName }} virus scanning system uses ClamAV with regularly updated virus definitions to protect against known threats.
+                However, if you notice any unusual patterns or have concerns about system security, please investigate immediately.
+            </p>
+
+            <p class="text" style="margin-top: 30px;">
+                Best regards,<br>
+                <strong>{{ appName }} Security System</strong>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text" style="font-weight: 600; color: #dc2626;">
+                This is an automated security alert. Please do not reply to this email.
+            </p>
+            <p class="footer-text">
+                <a href="mailto:{{ supportEmail }}" class="footer-link">Contact Security Team</a>
+            </p>
+            <p class="footer-text" style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+                © 2024 {{ appName }}. All rights reserved. | Security Alert System
+            </p>
+        </div>
+    </div>
+</body>
+</html>

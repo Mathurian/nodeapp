@@ -7,6 +7,11 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 
+// Initialize Sentry as early as possible (before other imports)
+import { initializeSentry, closeSentry } from './config/sentry';
+import * as Sentry from '@sentry/node';
+initializeSentry();
+
 import express, { Application, Request, Response, NextFunction } from 'express';
 import http from 'http';
 import path from 'path';
@@ -31,12 +36,13 @@ import { generalLimiter, authLimiter } from './middleware/rateLimiting';
 import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
-import { tenantMiddleware, optionalTenantMiddleware } from './middleware/tenantMiddleware';
+import { tenantMiddleware } from './middleware/tenantMiddleware';
 
 // Utilities
 import { createLogger } from './utils/logger';
 import { validateProductionConfig } from './utils/config';
 import { ensureDefaultTenant } from './utils/ensureDefaultTenant';
+import { env } from './config/env';
 
 // Services
 import ScheduledBackupService from './services/scheduledBackupService';
@@ -64,7 +70,7 @@ try {
  */
 const app: Application = express();
 const server = http.createServer(app);
-const PORT: number = parseInt(process.env.PORT || '3000', 10);
+const PORT: number = env.get('PORT');
 
 /**
  * Setup Dependency Injection Container
@@ -108,6 +114,11 @@ uploadDirs.forEach(dir => {
     appLogger.info(`Created upload directory: ${dir}`);
   }
 });
+
+/**
+ * Sentry Request Handler (must be before routes)
+ * Note: In Sentry v10+, tracing is set up automatically via init()
+ */
 
 /**
  * Rate limiting
@@ -157,7 +168,7 @@ app.get('/api/csrf-token', getCsrfToken);
  * Accessible at /api-docs
  * Always enabled - can be disabled by setting ENABLE_API_DOCS=false
  */
-if (process.env.ENABLE_API_DOCS !== 'false') {
+if (env.get('NODE_ENV') !== 'production') {
   app.use('/api-docs', swaggerUi.serve);
   app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
   app.get('/api-docs.json', (_req: Request, res: Response) => {
@@ -181,7 +192,7 @@ app.use('/api', tenantMiddleware);
  */
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   // Skip CSRF protection in test environment
-  if (process.env.NODE_ENV === 'test') {
+  if (env.isTest()) {
     return next();
   }
 
@@ -233,7 +244,7 @@ const frontendDistExists = fs.existsSync(frontendDistPath);
 if (frontendDistExists) {
   // Serve static assets (JS, CSS, images, etc.)
   app.use(express.static(frontendDistPath, {
-    maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0', // Cache in production
+    maxAge: env.isProduction() ? '1y' : '0', // Cache in production
     etag: true,
     lastModified: true,
   }));
@@ -275,6 +286,9 @@ if (frontendDistExists) {
 /**
  * Error Handlers (must be last)
  */
+// Sentry error handler must be before other error handlers (v10 API)
+Sentry.setupExpressErrorHandler(app);
+
 app.use(csrfErrorHandler);
 app.use(errorLogging);
 app.use(errorHandler);
@@ -284,7 +298,7 @@ app.use(errorHandler);
  */
 const startServer = async (): Promise<void> => {
   // Don't start server in test environment
-  if (process.env.NODE_ENV === 'test') {
+  if (env.isTest()) {
     return;
   }
 
@@ -302,12 +316,12 @@ const startServer = async (): Promise<void> => {
     // Start HTTP server
     server.listen(PORT, () => {
       appLogger.info(`🚀 Event Manager API server running on port ${PORT}`);
-      appLogger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+      appLogger.info(`📝 Environment: ${env.get('NODE_ENV')}`);
       appLogger.info(`🔒 CORS: ${allowedOrigins.length > 0 ? 'configured' : 'open (dev mode)'}`);
     });
 
     // Start scheduled backup service (skip in test mode)
-    if (process.env.NODE_ENV !== 'test') {
+    if (!env.isTest()) {
       try {
         await scheduledBackupService.start();
         backupLogger.info('Scheduled backup service started');
@@ -344,6 +358,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
     io.close(() => {
       appLogger.info('Socket.IO closed');
     });
+
+    // Close Sentry
+    await closeSentry();
 
     appLogger.info('Graceful shutdown complete');
     process.exit(0);
@@ -384,7 +401,7 @@ process.on('unhandledRejection', (reason: any) => {
 /**
  * Start the server (only in non-test environments)
  */
-if (process.env.NODE_ENV !== 'test') {
+if (!env.isTest()) {
   startServer();
 }
 

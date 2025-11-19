@@ -1,8 +1,7 @@
 import express, { Router } from 'express';
 import {
   getPerformanceStats,
-  getSystemMetrics,
-  getHealthCheck
+  getSystemMetrics
 } from '../controllers/performanceController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 

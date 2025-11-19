@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import { env } from '../config/env';
 
 
 class ScheduledBackupService {
@@ -49,7 +50,7 @@ class ScheduledBackupService {
   async loadBackupSettings() {
     try {
       // Skip in test environment
-      if (process.env.NODE_ENV === 'test') {
+      if (env.isTest()) {
         return;
       }
 
@@ -61,7 +62,7 @@ class ScheduledBackupService {
       }
     } catch (error) {
       // Only log errors in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
+      if (!env.isTest()) {
         console.error('Error loading backup settings:', error)
       }
     }
@@ -133,7 +134,7 @@ class ScheduledBackupService {
       })
 
       // Parse DATABASE_URL to extract connection details
-      const dbUrl = new URL(process.env.DATABASE_URL || '');
+      const dbUrl = new URL(env.get('DATABASE_URL'));
       const host = dbUrl.hostname;
       const port = dbUrl.port || '5432';
       const database = dbUrl.pathname.slice(1).split('?')[0];
@@ -165,7 +166,7 @@ class ScheduledBackupService {
           return
       }
 
-      exec(command, async (error: any, stdout: string, stderr: string) => {
+      exec(command, async (error: any, _stdout: string, _stderr: string) => {
         if (error) {
           console.error('Scheduled backup error:', error)
           await this.prisma.backupLog.update({
@@ -288,9 +289,9 @@ class ScheduledBackupService {
   // Method to get all active backup schedules
   getActiveSchedules(): Array<{backupType: string, frequency: string, isActive: boolean}> {
     const schedules: Array<{backupType: string, frequency: string, isActive: boolean}> = [];
-    this.jobs.forEach((job: any, key: string) => {
+    this.jobs.forEach((_job: any, key: string) => {
       const [backupType, frequency] = key.split('_');
-      schedules.push({ backupType, frequency, isActive: true });
+      schedules.push({ backupType: backupType ?? '', frequency: frequency ?? '', isActive: true });
     });
     return schedules;
   }

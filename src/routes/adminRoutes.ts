@@ -3,7 +3,6 @@ import {
   getDatabaseTables,
   getTableStructure,
   getTableData,
-  executeDatabaseQuery,
   getStats,
   getLogs,
   getActiveUsers,

@@ -256,9 +256,10 @@ const getNavigationItems = (userRole: string): any[] => {
 
   // Combine base items with role-specific items
   const allItems = [...baseItems];
-  
-  if (roleSpecificItems[userRole as keyof typeof roleSpecificItems]) {
-    allItems.push(...roleSpecificItems[userRole as keyof typeof roleSpecificItems]);
+
+  const roleItems = roleSpecificItems[userRole as keyof typeof roleSpecificItems];
+  if (roleItems) {
+    allItems.push(...roleItems);
   }
 
   // Filter items based on user role

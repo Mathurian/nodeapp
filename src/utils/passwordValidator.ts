@@ -3,6 +3,8 @@
  * Enforces password complexity requirements based on environment configuration
  */
 
+import { env } from '../config/env';
+
 interface PasswordRequirements {
   minLength: number
   requireUppercase: boolean
@@ -22,11 +24,11 @@ interface PasswordValidationResult {
  */
 export const getPasswordRequirements = (): PasswordRequirements => {
   return {
-    minLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '8', 10),
-    requireUppercase: process.env.PASSWORD_REQUIRE_UPPERCASE === 'true',
-    requireLowercase: process.env.PASSWORD_REQUIRE_LOWERCASE === 'true',
-    requireNumber: process.env.PASSWORD_REQUIRE_NUMBER === 'true',
-    requireSpecial: process.env.PASSWORD_REQUIRE_SPECIAL === 'true'
+    minLength: env.get('PASSWORD_MIN_LENGTH'),
+    requireUppercase: env.get('PASSWORD_REQUIRE_UPPERCASE'),
+    requireLowercase: env.get('PASSWORD_REQUIRE_LOWERCASE'),
+    requireNumber: env.get('PASSWORD_REQUIRE_NUMBER'),
+    requireSpecial: env.get('PASSWORD_REQUIRE_SPECIAL')
   }
 }
 
@@ -179,8 +181,8 @@ export const isPasswordSimilarToUserInfo = (
 
   // Check against email (username part)
   if (userInfo.email) {
-    const emailUsername = userInfo.email.split('@')[0].toLowerCase()
-    if (emailUsername.length >= 3 && lowerPassword.includes(emailUsername)) {
+    const emailUsername = userInfo.email.split('@')[0]?.toLowerCase()
+    if (emailUsername && emailUsername.length >= 3 && lowerPassword.includes(emailUsername)) {
       return true
     }
   }

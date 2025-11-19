@@ -9,17 +9,18 @@ import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { getRequiredParam } from '../utils/routeHelpers';
 
-interface AuthenticatedRequest extends Request {
+type AuthenticatedRequest = Request & {
   user?: {
     id: string;
     tenantId: string;
   };
-}
+  tenantId?: string;
+};
 
 const logger = createLogger('CustomFieldsController');
 const customFieldService = new CustomFieldService(prisma);
 
-const VALID_FIELD_TYPES: CustomFieldType[] = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTISELECT', 'CHECKBOX', 'TEXTAREA', 'EMAIL', 'PHONE', 'URL'];
+const VALID_FIELD_TYPES: CustomFieldType[] = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOLEAN', 'TEXT_AREA', 'EMAIL', 'PHONE', 'URL'];
 
 /**
  * Create custom field
@@ -84,8 +85,8 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
 export const getCustomFieldsByEntityType = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const entityType = getRequiredParam(authReq, 'entityType');
-    const activeOnly = authReq.query.activeOnly !== 'false';
+    const entityType = getRequiredParam(req, 'entityType');
+    const activeOnly = authReq.query['activeOnly'] !== 'false';
 
     const fields = await customFieldService.getCustomFieldsByEntityType(entityType, authReq.user?.tenantId || 'default', activeOnly);
 
@@ -110,7 +111,7 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
 export const getCustomFieldById = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const id = getRequiredParam(authReq, 'id');
+    const id = getRequiredParam(req, 'id');
 
     const field = await customFieldService.getCustomFieldById(id, authReq.user?.tenantId || 'default');
 
@@ -143,7 +144,7 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
 export const updateCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const id = getRequiredParam(authReq, 'id');
+    const id = getRequiredParam(req, 'id');
     const updateData = authReq.body;
 
     const field = await customFieldService.updateCustomField(id, authReq.user?.tenantId || 'default', updateData);
@@ -171,7 +172,7 @@ export const updateCustomField = async (req: Request, res: Response): Promise<vo
 export const deleteCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const id = getRequiredParam(authReq, 'id');
+    const id = getRequiredParam(req, 'id');
 
     await customFieldService.deleteCustomField(id, authReq.user?.tenantId || 'default');
 
@@ -289,7 +290,7 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
 export const getCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const entityId = getRequiredParam(authReq, 'entityId');
+    const entityId = getRequiredParam(req, 'entityId');
     const { entityType } = authReq.query;
 
     if (!entityType) {
@@ -325,7 +326,7 @@ export const deleteCustomFieldValue = async (req: Request, res: Response): Promi
     const authReq = req as AuthenticatedRequest;
     const { customFieldId, entityId } = authReq.params;
 
-    await customFieldService.deleteCustomFieldValue(customFieldId, entityId, authReq.user?.tenantId || 'default');
+    await customFieldService.deleteCustomFieldValue(customFieldId!, entityId!, authReq.user?.tenantId || 'default');
 
     res.json({
       success: true,

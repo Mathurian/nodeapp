@@ -1,5 +1,7 @@
 import { Job } from 'bullmq';
+import { container } from 'tsyringe';
 import { Logger } from '../utils/logger';
+import { ErrorLogService } from '../services/ErrorLogService';
 
 /**
  * Base Job Processor
@@ -84,6 +86,26 @@ export abstract class BaseJobProcessor<T = any> {
       error: error.message,
       attempts: job.attemptsMade,
     });
+
+    // Log job failure to database
+    try {
+      const errorLogService = container.resolve(ErrorLogService);
+      const tenantId = (job.data as any)?.tenantId;
+
+      await errorLogService.logException(
+        error,
+        `${this.jobName}:job-failed`,
+        {
+          jobId: job.id,
+          jobName: job.name,
+          attempts: job.attemptsMade,
+          failedAt: new Date().toISOString(),
+        },
+        tenantId
+      );
+    } catch (logError) {
+      this.logger.error('Failed to log job error to database', { error: logError });
+    }
   }
 
   /**

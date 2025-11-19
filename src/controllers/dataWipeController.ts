@@ -55,7 +55,7 @@ export class DataWipeController {
       }
 
       await this.dataWipeService.wipeEventData(
-        eventId,
+        eventId!,
         req.user.id,
         req.user.role
       );

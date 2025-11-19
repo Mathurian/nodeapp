@@ -90,7 +90,7 @@ export class VirusScanAdminController {
     try {
       const { filename } = req.params;
       const virusScanService = getVirusScanService();
-      const metadata = virusScanService.getQuarantineMetadata(filename);
+      const metadata = virusScanService.getQuarantineMetadata(filename!);
 
       if (!metadata) {
         res.status(404).json({
@@ -120,7 +120,7 @@ export class VirusScanAdminController {
     try {
       const { filename } = req.params;
       const virusScanService = getVirusScanService();
-      const success = virusScanService.deleteQuarantinedFile(filename);
+      const success = virusScanService.deleteQuarantinedFile(filename!);
 
       if (success) {
         res.json({

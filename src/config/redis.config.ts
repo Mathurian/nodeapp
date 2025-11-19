@@ -9,6 +9,7 @@
  */
 
 import { RedisOptions } from 'ioredis';
+import { env } from './env';
 
 export type RedisMode = 'docker' | 'native' | 'socket' | 'memory' | 'disabled';
 
@@ -35,17 +36,17 @@ export interface RedisConfig {
  */
 export const detectRedisMode = (): RedisMode => {
   // Check if explicitly disabled
-  if (process.env.REDIS_ENABLED === 'false') {
+  if (!env.get('REDIS_ENABLE')) {
     return 'disabled';
   }
 
   // Check for Unix socket path
-  if (process.env.REDIS_SOCKET) {
+  if (process.env['REDIS_SOCKET']) {
     return 'socket';
   }
 
-  // Check if in Docker environment
-  if (process.env.REDIS_HOST === 'redis' || process.env.DOCKER_ENV === 'true') {
+  // Check if in Docker environment (custom env variable)
+  if (process.env['REDIS_HOST'] === 'redis' || process.env['DOCKER_ENV'] === 'true') {
     return 'docker';
   }
 
@@ -57,28 +58,42 @@ export const detectRedisMode = (): RedisMode => {
  * Get Redis configuration from environment
  */
 export const getRedisConfig = (): RedisConfig => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = env.isProduction();
   const mode = detectRedisMode();
-  const enabled = process.env.REDIS_ENABLED !== 'false';
+  const enabled = env.get('REDIS_ENABLE');
 
-  // Unix socket configuration
-  const socketPath = process.env.REDIS_SOCKET || undefined;
+  // Unix socket configuration (custom optional variable)
+  const socketPath = process.env['REDIS_SOCKET'] || undefined;
+
+  // Parse Redis URL if provided
+  const redisUrl = env.get('REDIS_URL');
+  let host = 'localhost';
+  let port = 6379;
+
+  // Extract host/port from URL
+  try {
+    const url = new URL(redisUrl);
+    host = url.hostname || 'localhost';
+    port = parseInt(url.port, 10) || 6379;
+  } catch (e) {
+    // Invalid URL, use defaults
+  }
 
   return {
     enabled,
     mode,
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    host: process.env['REDIS_HOST'] || host,
+    port: parseInt(process.env['REDIS_PORT'] || String(port), 10),
     path: socketPath,
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB || '0', 10),
-    keyPrefix: process.env.REDIS_KEY_PREFIX || 'event-manager:',
+    password: env.get('REDIS_PASSWORD'),
+    db: env.get('REDIS_DB'),
+    keyPrefix: process.env['REDIS_KEY_PREFIX'] || 'event-manager:',
     enableOfflineQueue: true,
     maxRetriesPerRequest: mode === 'disabled' ? 0 : 3,
     connectTimeout: 10000,
     lazyConnect: false,
     showFriendlyErrorStack: !isProduction,
-    fallbackToMemory: process.env.REDIS_FALLBACK_TO_MEMORY !== 'false',
+    fallbackToMemory: env.get('REDIS_FALLBACK_TO_MEMORY'),
     retryStrategy: (times: number) => {
       // Don't retry if disabled
       if (!enabled) {
@@ -90,7 +105,7 @@ export const getRedisConfig = (): RedisConfig => {
       console.warn(`Redis retry attempt ${times}, waiting ${delay}ms`);
 
       // Stop retrying after 10 attempts if fallback is enabled
-      if (process.env.REDIS_FALLBACK_TO_MEMORY !== 'false' && times > 10) {
+      if (env.get('REDIS_FALLBACK_TO_MEMORY') && times > 10) {
         console.warn('Redis max retries reached, will use in-memory fallback');
         return undefined;
       }
