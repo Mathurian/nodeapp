@@ -78,12 +78,12 @@ const EventTemplatesPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to manage event templates.
           </p>
         </div>
@@ -93,27 +93,27 @@ const EventTemplatesPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading templates...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading templates...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
               Event Templates
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
               Create reusable event templates for quick setup
             </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             Create Template
@@ -128,21 +128,21 @@ const EventTemplatesPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {templates.length === 0 ? (
-            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-              <DocumentDuplicateIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">
+            <div className="col-span-3 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+              <DocumentDuplicateIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                 No event templates yet. Create your first template to streamline event creation.
               </p>
             </div>
           ) : (
             templates.map((template) => (
-              <div key={template.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div key={template.id} className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white dark:text-white mb-1">
                       {template.name}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                       {template.description}
                     </p>
                   </div>
@@ -150,7 +150,7 @@ const EventTemplatesPage: React.FC = () => {
                 </div>
 
                 <div className="mb-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 space-y-1">
                     <p>Contests: {template.templateData.contests?.length || 0}</p>
                     <p>
                       Categories: {template.templateData.contests?.reduce((sum, c) => sum + (c.categories?.length || 0), 0) || 0}
@@ -162,14 +162,14 @@ const EventTemplatesPage: React.FC = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={() => createEventFromTemplate(template.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-sm"
                   >
                     <RocketLaunchIcon className="h-4 w-4" />
                     Use Template
                   </button>
                   <button
                     onClick={() => deleteTemplate(template.id)}
-                    className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors text-sm"
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>

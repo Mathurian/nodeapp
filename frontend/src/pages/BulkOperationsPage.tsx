@@ -107,12 +107,12 @@ const BulkOperationsPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to perform bulk operations.
           </p>
         </div>
@@ -121,13 +121,13 @@ const BulkOperationsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
             Bulk Operations
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
             Import users, send bulk emails, and perform batch operations
           </p>
         </div>
@@ -150,7 +150,7 @@ const BulkOperationsPage: React.FC = () => {
             onClick={() => setActiveTab('import')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               activeTab === 'import'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -161,7 +161,7 @@ const BulkOperationsPage: React.FC = () => {
             onClick={() => setActiveTab('email')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               activeTab === 'email'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -172,19 +172,19 @@ const BulkOperationsPage: React.FC = () => {
 
         {/* User Import Tab */}
         {activeTab === 'import' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Import Users from CSV
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   User Type
                 </label>
                 <select
                   value={userType}
                   onChange={(e) => setUserType(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                 >
                   <option value="CONTESTANT">Contestants</option>
                   <option value="JUDGE">Judges</option>
@@ -194,7 +194,7 @@ const BulkOperationsPage: React.FC = () => {
               <div>
                 <button
                   onClick={downloadTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
                   <DocumentTextIcon className="h-5 w-5" />
                   Download CSV Template
@@ -202,21 +202,21 @@ const BulkOperationsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Upload CSV File
                 </label>
                 <input
                   type="file"
                   accept=".csv"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="w-full text-gray-900 dark:text-white"
+                  className="w-full text-gray-900 dark:text-white dark:text-white"
                 />
               </div>
 
               <button
                 onClick={handleImport}
                 disabled={!file || loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <CloudArrowUpIcon className="h-5 w-5" />
                 {loading ? 'Importing...' : 'Import Users'}
@@ -234,13 +234,13 @@ const BulkOperationsPage: React.FC = () => {
 
         {/* Bulk Email Tab */}
         {activeTab === 'email' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Send Bulk Email
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
                   Select Recipient Roles
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -252,40 +252,40 @@ const BulkOperationsPage: React.FC = () => {
                         onChange={() => toggleRole(role)}
                         className="h-4 w-4 text-blue-600 rounded"
                       />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-300">{role}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Subject
                 </label>
                 <input
                   type="text"
                   value={emailData.subject}
                   onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Email Content
                 </label>
                 <textarea
                   value={emailData.content}
                   onChange={(e) => setEmailData({ ...emailData, content: e.target.value })}
                   rows={10}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                 />
               </div>
 
               <button
                 onClick={handleBulkEmail}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <EnvelopeIcon className="h-5 w-5" />
                 {loading ? 'Sending...' : 'Send Bulk Email'}

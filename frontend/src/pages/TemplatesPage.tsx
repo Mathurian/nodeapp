@@ -41,15 +41,15 @@ const TemplatesPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
             <DocumentDuplicateIcon className="h-8 w-8 mr-3 text-blue-600" />
             Templates
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             Manage reusable templates for events and communications
           </p>
         </div>
@@ -60,19 +60,19 @@ const TemplatesPage: React.FC = () => {
             <Link
               key={index}
               to={category.link}
-              className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition-shadow"
+              className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 hover:shadow-lg transition-shadow"
             >
               <div className={`rounded-full p-3 inline-flex ${getColorClasses(category.color)} mb-4`}>
                 <category.icon className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 {category.title}
               </h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mb-4">
                 {category.description}
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   {category.count} template{category.count !== 1 ? 's' : ''}
                 </span>
                 <span className="text-blue-600 text-sm font-medium">

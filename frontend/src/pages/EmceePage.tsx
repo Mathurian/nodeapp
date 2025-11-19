@@ -86,11 +86,11 @@ const EmceePage: React.FC = () => {
 
   if (!isEmcee) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <MicrophoneIcon className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="mt-2 text-lg font-medium text-gray-900">Access Denied</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
             You must be an emcee to access this page.
           </p>
         </div>
@@ -102,25 +102,25 @@ const EmceePage: React.FC = () => {
   const selectedContest = contests?.find(c => c.id === selectedContestId)
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
             <MicrophoneIcon className="h-8 w-8 mr-3 text-blue-600" />
             Emcee Dashboard
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             Competition overview and announcements
           </p>
         </div>
 
         {/* Event Selection */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Event</h2>
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Event</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Event
               </label>
               <select
@@ -129,7 +129,7 @@ const EmceePage: React.FC = () => {
                   setSelectedEventId(e.target.value)
                   setSelectedContestId('')
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select an event...</option>
                 {events?.map((event) => (
@@ -141,13 +141,13 @@ const EmceePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contest
               </label>
               <select
                 value={selectedContestId}
                 onChange={(e) => setSelectedContestId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!selectedEventId}
               >
                 <option value="">Select a contest...</option>
@@ -163,32 +163,32 @@ const EmceePage: React.FC = () => {
 
         {/* Event Information */}
         {selectedEvent && (
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <DocumentTextIcon className="h-6 w-6 mr-2 text-gray-600" />
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <DocumentTextIcon className="h-6 w-6 mr-2 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
               Event Information
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-gray-600">Event Name</p>
-                <p className="text-lg text-gray-900">{selectedEvent.name}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Event Name</p>
+                <p className="text-lg text-gray-900 dark:text-white">{selectedEvent.name}</p>
               </div>
               {selectedEvent.description && (
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Description</p>
-                  <p className="text-gray-900">{selectedEvent.description}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Description</p>
+                  <p className="text-gray-900 dark:text-white">{selectedEvent.description}</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Start Date</p>
-                  <p className="text-gray-900">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Start Date</p>
+                  <p className="text-gray-900 dark:text-white">
                     {new Date(selectedEvent.startDate).toLocaleDateString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">End Date</p>
-                  <p className="text-gray-900">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">End Date</p>
+                  <p className="text-gray-900 dark:text-white">
                     {new Date(selectedEvent.endDate).toLocaleDateString()}
                   </p>
                 </div>
@@ -199,20 +199,20 @@ const EmceePage: React.FC = () => {
 
         {/* Contest Information */}
         {selectedContest && (
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <TrophyIcon className="h-6 w-6 mr-2 text-gray-600" />
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <TrophyIcon className="h-6 w-6 mr-2 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
               Contest Information
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-gray-600">Contest Name</p>
-                <p className="text-lg text-gray-900">{selectedContest.name}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Contest Name</p>
+                <p className="text-lg text-gray-900 dark:text-white">{selectedContest.name}</p>
               </div>
               {selectedContest.description && (
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Description</p>
-                  <p className="text-gray-900">{selectedContest.description}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Description</p>
+                  <p className="text-gray-900 dark:text-white">{selectedContest.description}</p>
                 </div>
               )}
             </div>
@@ -221,26 +221,26 @@ const EmceePage: React.FC = () => {
 
         {/* Categories Overview */}
         {selectedContestId && categories && categories.length > 0 ? (
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <UserGroupIcon className="h-6 w-6 mr-2 text-gray-600" />
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <UserGroupIcon className="h-6 w-6 mr-2 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
               Categories
             </h2>
             <div className="space-y-3">
               {categories.map((category) => (
                 <div
                   key={category.id}
-                  className="border-l-4 border-blue-500 pl-4 py-3 hover:bg-gray-50 transition-colors"
+                  className="border-l-4 border-blue-500 pl-4 py-3 hover:bg-gray-50 dark:bg-gray-900 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="text-md font-semibold text-gray-900">
+                      <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                         {category.name}
                       </h3>
                       {category.description && (
-                        <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">{category.description}</p>
                       )}
-                      <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                      <div className="flex gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                         <span className="flex items-center">
                           <UserGroupIcon className="h-4 w-4 mr-1" />
                           {category._count?.contestants || 0} contestants
@@ -276,23 +276,23 @@ const EmceePage: React.FC = () => {
             </div>
           </div>
         ) : selectedContestId ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No categories in this contest yet
             </p>
           </div>
         ) : selectedEventId ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <TrophyIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <TrophyIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Select a contest to view categories
             </p>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <MicrophoneIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <MicrophoneIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Select an event to begin
             </p>
           </div>

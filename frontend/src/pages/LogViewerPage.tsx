@@ -85,12 +85,12 @@ const LogViewerPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only administrators can view system logs.
           </p>
         </div>
@@ -99,20 +99,20 @@ const LogViewerPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
               Log Viewer
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
               View and download application logs
             </p>
           </div>
           <button
             onClick={downloadLogs}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <CloudArrowDownIcon className="h-5 w-5" />
             Download Logs
@@ -126,16 +126,16 @@ const LogViewerPage: React.FC = () => {
         )}
 
         {/* Filters */}
-        <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <div className="mb-6 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                 Log Level
               </label>
               <select
                 value={levelFilter}
                 onChange={(e) => setLevelFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
               >
                 <option value="ALL">All Levels</option>
                 <option value="ERROR">Errors Only</option>
@@ -145,17 +145,17 @@ const LogViewerPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                 Search
               </label>
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search logs..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                 />
               </div>
             </div>
@@ -163,38 +163,38 @@ const LogViewerPage: React.FC = () => {
         </div>
 
         {/* Logs */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
           {loading ? (
-            <div className="p-12 text-center text-gray-600 dark:text-gray-400">
+            <div className="p-12 text-center text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
               Loading logs...
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="p-12 text-center">
-              <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">
+              <DocumentTextIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                 {searchTerm ? 'No matching logs found' : 'No logs available'}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[calc(100vh-400px)] overflow-y-auto">
               {filteredLogs.map((log, index) => (
-                <div key={index} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <div key={index} className="p-4 hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700">
                   <div className="flex items-start gap-4">
                     <span className={`px-2 py-1 text-xs font-semibold rounded ${getLevelColor(log.level)}`}>
                       {log.level}
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4 mb-1">
-                        <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
+                        <p className="text-sm text-gray-900 dark:text-white dark:text-white font-mono break-all">
                           {log.message}
                         </p>
-                        <span className="text-xs text-gray-500 dark:text-gray-500 whitespace-nowrap">
+                        <span className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 whitespace-nowrap">
                           {log.timestamp}
                         </span>
                       </div>
                       {log.context && Object.keys(log.context).length > 0 && (
                         <details className="mt-2">
-                          <summary className="text-xs text-gray-500 dark:text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
+                          <summary className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-300">
                             View context
                           </summary>
                           <pre className="mt-2 text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded overflow-x-auto">

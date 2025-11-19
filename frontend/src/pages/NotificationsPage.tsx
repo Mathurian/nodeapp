@@ -130,29 +130,29 @@ const NotificationsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading notifications...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading notifications...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
               Notifications
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
               {notifications.filter(n => !n.isRead).length} unread notifications
             </p>
           </div>
           <div className="flex gap-3">
             <button
               onClick={() => setShowPreferences(!showPreferences)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
               <Cog6ToothIcon className="h-5 w-5" />
               Preferences
@@ -160,7 +160,7 @@ const NotificationsPage: React.FC = () => {
             {notifications.some(n => !n.isRead) && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 <CheckCircleIcon className="h-5 w-5" />
                 Mark All as Read
@@ -177,8 +177,8 @@ const NotificationsPage: React.FC = () => {
 
         {/* Preferences Panel */}
         {showPreferences && (
-          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="mb-6 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Notification Preferences
             </h2>
             <div className="space-y-4">
@@ -189,7 +189,7 @@ const NotificationsPage: React.FC = () => {
                   onChange={(e) => setPreferences({ ...preferences, emailNotifications: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
-                <span className="text-gray-900 dark:text-white">Email Notifications</span>
+                <span className="text-gray-900 dark:text-white dark:text-white">Email Notifications</span>
               </label>
               <label className="flex items-center gap-3">
                 <input
@@ -198,7 +198,7 @@ const NotificationsPage: React.FC = () => {
                   onChange={(e) => setPreferences({ ...preferences, pushNotifications: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
-                <span className="text-gray-900 dark:text-white">Push Notifications</span>
+                <span className="text-gray-900 dark:text-white dark:text-white">Push Notifications</span>
               </label>
               <label className="flex items-center gap-3">
                 <input
@@ -207,7 +207,7 @@ const NotificationsPage: React.FC = () => {
                   onChange={(e) => setPreferences({ ...preferences, eventUpdates: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
-                <span className="text-gray-900 dark:text-white">Event Updates</span>
+                <span className="text-gray-900 dark:text-white dark:text-white">Event Updates</span>
               </label>
               <label className="flex items-center gap-3">
                 <input
@@ -216,7 +216,7 @@ const NotificationsPage: React.FC = () => {
                   onChange={(e) => setPreferences({ ...preferences, scoreUpdates: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
-                <span className="text-gray-900 dark:text-white">Score Updates</span>
+                <span className="text-gray-900 dark:text-white dark:text-white">Score Updates</span>
               </label>
               <label className="flex items-center gap-3">
                 <input
@@ -225,19 +225,19 @@ const NotificationsPage: React.FC = () => {
                   onChange={(e) => setPreferences({ ...preferences, systemAlerts: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
-                <span className="text-gray-900 dark:text-white">System Alerts</span>
+                <span className="text-gray-900 dark:text-white dark:text-white">System Alerts</span>
               </label>
             </div>
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => updatePreferences(preferences)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Save Preferences
               </button>
               <button
                 onClick={() => setShowPreferences(false)}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancel
               </button>
@@ -251,7 +251,7 @@ const NotificationsPage: React.FC = () => {
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'all'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -261,7 +261,7 @@ const NotificationsPage: React.FC = () => {
             onClick={() => setFilter('unread')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'unread'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -271,7 +271,7 @@ const NotificationsPage: React.FC = () => {
             onClick={() => setFilter('read')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               filter === 'read'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
@@ -282,9 +282,9 @@ const NotificationsPage: React.FC = () => {
         {/* Notifications List */}
         <div className="space-y-4">
           {filteredNotifications.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-              <BellIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">No notifications to display</p>
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+              <BellIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">No notifications to display</p>
             </div>
           ) : (
             filteredNotifications.map((notification) => {
@@ -300,13 +300,13 @@ const NotificationsPage: React.FC = () => {
                     <div className="flex gap-4 flex-1">
                       <Icon className={`h-6 w-6 mt-1 ${!notification.isRead ? 'text-blue-600' : 'text-gray-400'}`} />
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white dark:text-white mb-1">
                           {notification.title}
                         </h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-2">
+                        <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mb-2">
                           {notification.message}
                         </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                           {format(new Date(notification.createdAt), 'MMM d, yyyy h:mm a')}
                         </p>
                       </div>

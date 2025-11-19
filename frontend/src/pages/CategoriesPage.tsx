@@ -235,16 +235,16 @@ const CategoriesPage: React.FC = () => {
   }) || []
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
               <ListBulletIcon className="h-8 w-8 mr-3 text-blue-600" />
               Categories
             </h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               Manage competition categories and judging criteria
             </p>
           </div>
@@ -254,7 +254,7 @@ const CategoriesPage: React.FC = () => {
                 resetForm()
                 setIsFormOpen(true)
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center"
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Category
@@ -263,19 +263,19 @@ const CategoriesPage: React.FC = () => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white shadow rounded-lg p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               </div>
               <input
                 type="text"
                 placeholder="Search categories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -283,7 +283,7 @@ const CategoriesPage: React.FC = () => {
             <select
               value={selectedContestFilter}
               onChange={(e) => setSelectedContestFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Contests</option>
               {contests?.map((contest) => (
@@ -297,28 +297,28 @@ const CategoriesPage: React.FC = () => {
 
         {/* Categories List */}
         {isLoading ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-sm text-gray-500">Loading categories...</p>
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading categories...</p>
           </div>
         ) : filteredCategories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCategories.map((category) => (
-              <div key={category.id} className="bg-white shadow rounded-lg p-6">
+              <div key={category.id} className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                 {/* Category Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                       {category.name}
                     </h3>
                     {category.contest && (
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                         <TrophyIcon className="h-4 w-4 mr-1" />
                         {category.contest.name}
                       </div>
                     )}
                     {category.contest?.event && (
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                         {category.contest.event.name}
                       </div>
                     )}
@@ -332,7 +332,7 @@ const CategoriesPage: React.FC = () => {
 
                 {/* Description */}
                 {category.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mb-4 line-clamp-2">
                     {category.description}
                   </p>
                 )}
@@ -340,19 +340,19 @@ const CategoriesPage: React.FC = () => {
                 {/* Category Details */}
                 <div className="space-y-2 mb-4 text-sm">
                   {category.scoreCap && (
-                    <div className="flex justify-between text-gray-600">
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400 dark:text-gray-500">
                       <span>Score Cap:</span>
                       <span className="font-medium">{category.scoreCap}</span>
                     </div>
                   )}
                   {category.timeLimit && (
-                    <div className="flex justify-between text-gray-600">
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400 dark:text-gray-500">
                       <span>Time Limit:</span>
                       <span className="font-medium">{category.timeLimit} min</span>
                     </div>
                   )}
                   {(category.contestantMin || category.contestantMax) && (
-                    <div className="flex justify-between text-gray-600">
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400 dark:text-gray-500">
                       <span>Contestants:</span>
                       <span className="font-medium">
                         {category.contestantMin || 0} - {category.contestantMax || '∞'}
@@ -363,7 +363,7 @@ const CategoriesPage: React.FC = () => {
 
                 {/* Stats */}
                 {category._count && (
-                  <div className="flex gap-4 text-sm text-gray-500 mb-4">
+                  <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4">
                     <div>{category._count.contestants} contestants</div>
                     <div>{category._count.scores} scores</div>
                   </div>
@@ -374,14 +374,14 @@ const CategoriesPage: React.FC = () => {
                   <div className="flex gap-2 pt-4 border-t">
                     <button
                       onClick={() => handleEdit(category)}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center text-sm"
+                      className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
                     >
                       <PencilIcon className="h-4 w-4 mr-1" />
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(category)}
-                      className="flex-1 px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center text-sm"
+                      className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                     >
                       <TrashIcon className="h-4 w-4 mr-1" />
                       Delete
@@ -392,9 +392,9 @@ const CategoriesPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <ListBulletIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+            <ListBulletIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               {searchQuery || selectedContestFilter
                 ? 'No categories found matching your filters'
                 : 'No categories yet. Create your first category to get started.'}
@@ -405,14 +405,14 @@ const CategoriesPage: React.FC = () => {
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {editingCategory ? 'Edit Category' : 'Create New Category'}
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -421,14 +421,14 @@ const CategoriesPage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Contest Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Contest <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.contestId}
                     onChange={(e) => setFormData({ ...formData, contestId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select a contest...</option>
                     {contests?.map((contest) => (
@@ -442,7 +442,7 @@ const CategoriesPage: React.FC = () => {
 
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Category Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -450,21 +450,21 @@ const CategoriesPage: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter category name"
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter category description"
                   />
                 </div>
@@ -472,7 +472,7 @@ const CategoriesPage: React.FC = () => {
                 {/* Scoring and Limits */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Score Cap
                     </label>
                     <input
@@ -480,12 +480,12 @@ const CategoriesPage: React.FC = () => {
                       min="0"
                       value={formData.scoreCap}
                       onChange={(e) => setFormData({ ...formData, scoreCap: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Max score"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Time Limit (minutes)
                     </label>
                     <input
@@ -493,7 +493,7 @@ const CategoriesPage: React.FC = () => {
                       min="0"
                       value={formData.timeLimit}
                       onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Minutes"
                     />
                   </div>
@@ -502,7 +502,7 @@ const CategoriesPage: React.FC = () => {
                 {/* Contestant Limits */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Min Contestants
                     </label>
                     <input
@@ -510,12 +510,12 @@ const CategoriesPage: React.FC = () => {
                       min="0"
                       value={formData.contestantMin}
                       onChange={(e) => setFormData({ ...formData, contestantMin: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Minimum"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Max Contestants
                     </label>
                     <input
@@ -523,7 +523,7 @@ const CategoriesPage: React.FC = () => {
                       min="0"
                       value={formData.contestantMax}
                       onChange={(e) => setFormData({ ...formData, contestantMax: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Maximum"
                     />
                   </div>
@@ -534,14 +534,14 @@ const CategoriesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createMutation.isLoading || updateMutation.isLoading}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+                    className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
                   >
                     {createMutation.isLoading || updateMutation.isLoading ? (
                       <>

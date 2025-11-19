@@ -89,13 +89,13 @@ const SearchPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Search
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Search across events, contests, categories, users, and more
           </p>
         </div>
@@ -104,21 +104,21 @@ const SearchPage: React.FC = () => {
         <div className="mb-6">
           <div className="flex gap-3">
             <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Search for events, contests, users..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-800 text-gray-900 dark:text-white dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`px-4 py-3 rounded-lg transition-colors ${
                 showFilters
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
               }`}
             >
@@ -127,7 +127,7 @@ const SearchPage: React.FC = () => {
             <button
               onClick={search}
               disabled={loading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
             >
               {loading ? 'Searching...' : 'Search'}
             </button>
@@ -135,19 +135,19 @@ const SearchPage: React.FC = () => {
 
           {/* Filters */}
           {showFilters && (
-            <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            <div className="mt-4 p-4 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white dark:text-white mb-3">
                 Filters
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Type
                   </label>
                   <select
                     value={filters.type}
                     onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                   >
                     <option value="ALL">All Types</option>
                     <option value="EVENT">Events</option>
@@ -165,7 +165,7 @@ const SearchPage: React.FC = () => {
                       onChange={(e) => setFilters({ ...filters, includeArchived: e.target.checked })}
                       className="h-4 w-4 text-blue-600 rounded"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-300">
                       Include archived items
                     </span>
                   </label>
@@ -183,20 +183,20 @@ const SearchPage: React.FC = () => {
 
         {/* Results */}
         {query && !loading && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
                 {results.length} {results.length === 1 ? 'Result' : 'Results'}
               </h2>
             </div>
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {results.length === 0 ? (
                 <div className="p-12 text-center">
-                  <MagnifyingGlassIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <MagnifyingGlassIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                     No results found for "{query}"
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
                     Try adjusting your search terms or filters
                   </p>
                 </div>
@@ -208,7 +208,7 @@ const SearchPage: React.FC = () => {
                   return (
                     <div
                       key={result.id}
-                      className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      className="p-6 hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors"
                     >
                       <div className="flex items-start gap-4">
                         <Icon className={`h-6 w-6 mt-1 ${colorClass}`} />
@@ -218,7 +218,7 @@ const SearchPage: React.FC = () => {
                               {result.type}
                             </span>
                             {result.subtitle && (
-                              <span className="text-sm text-gray-500 dark:text-gray-500">
+                              <span className="text-sm text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                                 {result.subtitle}
                               </span>
                             )}
@@ -231,12 +231,12 @@ const SearchPage: React.FC = () => {
                               {result.title}
                             </Link>
                           ) : (
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white dark:text-white">
                               {result.title}
                             </h3>
                           )}
                           {result.description && (
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">
+                            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-1">
                               {result.description}
                             </p>
                           )}
@@ -245,7 +245,7 @@ const SearchPage: React.FC = () => {
                               {Object.entries(result.metadata).map(([key, value]) => (
                                 <span
                                   key={key}
-                                  className="text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
+                                  className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
                                 >
                                   <span className="font-semibold">{key}:</span> {String(value)}
                                 </span>
@@ -264,16 +264,16 @@ const SearchPage: React.FC = () => {
 
         {/* Empty State */}
         {!query && !loading && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-            <MagnifyingGlassIcon className="h-20 w-20 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+            <MagnifyingGlassIcon className="h-20 w-20 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-2">
               Start Searching
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
               Enter a search term to find events, contests, users, and more
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              <span className="text-sm text-gray-500 dark:text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 Try searching for:
               </span>
               {['Championship', 'Judge', 'Dance', 'Competition'].map((term) => (
