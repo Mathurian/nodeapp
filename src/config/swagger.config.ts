@@ -67,7 +67,7 @@ All requests must include tenant context. This can be provided via:
     },
     servers: [
       {
-        url: env.get('API_URL') || 'http://localhost:3000',
+        url: env.get('API_URL'),
         description: 'Development server',
       },
       {

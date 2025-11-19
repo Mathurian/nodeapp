@@ -35,7 +35,7 @@ export class QueueService {
     this.logger = new Logger('QueueService');
 
     // Create Redis connection
-    const redisUrl = env.get('REDIS_URL') || 'redis://localhost:6379';
+    const redisUrl = env.get('REDIS_URL');
     this.connection = new Redis(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,

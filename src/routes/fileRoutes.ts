@@ -11,7 +11,7 @@ import { env } from '../config/env';
 // Configure multer for file uploads
 const _storage = multer.diskStorage({
   destination: function (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
-    cb(null, env.get('UPLOAD_DIR') || 'uploads/');
+    cb(null, env.get('UPLOAD_DIR'));
   },
   filename: function (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

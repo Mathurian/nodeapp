@@ -218,7 +218,7 @@ export class AdminService extends BaseService {
           databaseSize = String(result[0].size).trim();
         } else {
           // Fallback to psql command
-          const dbName = env.get('DATABASE_URL')?.split('/').pop()?.split('?')[0] || 'event_manager';
+          const dbName = env.get('DATABASE_URL').split('/').pop()?.split('?')[0] || 'event_manager';
           const { stdout } = await execAsync(
             `psql -U ${process.env['DATABASE_USER'] || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
           );

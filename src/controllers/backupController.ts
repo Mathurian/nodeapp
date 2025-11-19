@@ -54,7 +54,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     });
 
     // Parse DATABASE_URL
-    const dbUrl = new URL(env.get('DATABASE_URL') || '');
+    const dbUrl = new URL(env.get('DATABASE_URL'));
     const host = dbUrl.hostname;
     const port = dbUrl.port || '5432';
     const database = dbUrl.pathname.slice(1).split('?')[0];
@@ -180,7 +180,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const dbUrl = new URL(env.get('DATABASE_URL') || '');
+    const dbUrl = new URL(env.get('DATABASE_URL'));
     const host = dbUrl.hostname;
     const port = dbUrl.port || '5432';
     const database = dbUrl.pathname.slice(1).split('?')[0];

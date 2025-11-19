@@ -438,7 +438,7 @@ export class DRAutomationService {
       });
 
       // Get database connection details
-      const dbUrl = new URL(env.get('DATABASE_URL') || '');
+      const dbUrl = new URL(env.get('DATABASE_URL'));
       const host = dbUrl.hostname;
       const port = dbUrl.port || '5432';
       const database = dbUrl.pathname.slice(1).split('?')[0];

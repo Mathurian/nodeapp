@@ -65,7 +65,7 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
     }
 
     try {
-      const decoded = jwt.verify(token, env.get('JWT_SECRET') as string) as { userId: string; tenantId: string }
+      const decoded = jwt.verify(token, env.get('JWT_SECRET')) as { userId: string; tenantId: string }
       ;(socket as any).userId = decoded.userId
       ;(socket as any).tenantId = decoded.tenantId
       next()

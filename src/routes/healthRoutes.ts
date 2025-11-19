@@ -52,7 +52,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     uptime: process.uptime(),
     service: 'event-manager',
     version: process.env['npm_package_version'] || '1.0.0',
-    environment: env.get('NODE_ENV') || 'development',
+    environment: env.get('NODE_ENV'),
     checks: {}
   };
 

@@ -5,7 +5,6 @@
 
 import Redis from 'ioredis';
 import { injectable } from 'tsyringe';
-import { env } from '../config/env';
 
 @injectable()
 export class CacheService {

@@ -39,7 +39,7 @@ let subClient: ReturnType<typeof createClient>;
  */
 export async function setupRedisAdapter(io: SocketIOServer): Promise<void> {
   try {
-    const redisUrl = env.get('REDIS_URL') || 'redis://localhost:6379';
+    const redisUrl = env.get('REDIS_URL');
     const enableClustering = process.env['SOCKET_IO_CLUSTERING_ENABLED'] === 'true';
 
     if (!enableClustering) {

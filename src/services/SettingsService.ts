@@ -474,7 +474,7 @@ export class SettingsService extends BaseService {
    */
   async getDatabaseConnectionInfo(): Promise<Record<string, string>> {
     try {
-      const dbUrl = env.get('DATABASE_URL') || '';
+      const dbUrl = env.get('DATABASE_URL');
       const info: Record<string, string> = {
         configured: 'true',
         source: 'environment'

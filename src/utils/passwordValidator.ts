@@ -24,11 +24,11 @@ interface PasswordValidationResult {
  */
 export const getPasswordRequirements = (): PasswordRequirements => {
   return {
-    minLength: parseInt(env.get('PASSWORD_MIN_LENGTH') || '8', 10),
-    requireUppercase: env.get('PASSWORD_REQUIRE_UPPERCASE') === 'true',
-    requireLowercase: env.get('PASSWORD_REQUIRE_LOWERCASE') === 'true',
-    requireNumber: env.get('PASSWORD_REQUIRE_NUMBER') === 'true',
-    requireSpecial: env.get('PASSWORD_REQUIRE_SPECIAL') === 'true'
+    minLength: env.get('PASSWORD_MIN_LENGTH'),
+    requireUppercase: env.get('PASSWORD_REQUIRE_UPPERCASE'),
+    requireLowercase: env.get('PASSWORD_REQUIRE_LOWERCASE'),
+    requireNumber: env.get('PASSWORD_REQUIRE_NUMBER'),
+    requireSpecial: env.get('PASSWORD_REQUIRE_SPECIAL')
   }
 }
 
