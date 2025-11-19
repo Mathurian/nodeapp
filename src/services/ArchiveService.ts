@@ -1,7 +1,23 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, Event, ArchivedEvent } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+
+// P2-4: Proper type definitions for archive responses
+type ArchivedEventWithEvent = Prisma.ArchivedEventGetPayload<{
+  include: { event: true };
+}>;
+
+type EventWithCounts = Prisma.EventGetPayload<{
+  include: {
+    _count: {
+      select: {
+        contests: true;
+        contestants: true;
+      };
+    };
+  };
+}>;
 
 /**
  * Service for Archive management
@@ -13,9 +29,9 @@ export class ArchiveService extends BaseService {
     super();
   }
   /**
-   * Get all archives (P2-1: Add pagination)
+   * Get all archives (P2-1: Add pagination, P2-4: Proper typing)
    */
-  async getAllArchives(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+  async getAllArchives(options?: PaginationOptions): Promise<PaginatedResponse<ArchivedEventWithEvent>> {
     const { skip, take } = this.getPaginationParams(options);
 
     const [archives, total] = await Promise.all([
@@ -34,9 +50,9 @@ export class ArchiveService extends BaseService {
   }
 
   /**
-   * Get active events (P2-1: Add pagination)
+   * Get active events (P2-1: Add pagination, P2-4: Proper typing)
    */
-  async getActiveEvents(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+  async getActiveEvents(options?: PaginationOptions): Promise<PaginatedResponse<EventWithCounts>> {
     const { skip, take } = this.getPaginationParams(options);
 
     const [events, total] = await Promise.all([
@@ -63,9 +79,9 @@ export class ArchiveService extends BaseService {
   }
 
   /**
-   * Get archived events (P2-1: Add pagination)
+   * Get archived events (P2-1: Add pagination, P2-4: Proper typing)
    */
-  async getArchivedEvents(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+  async getArchivedEvents(options?: PaginationOptions): Promise<PaginatedResponse<EventWithCounts>> {
     const { skip, take } = this.getPaginationParams(options);
 
     const [events, total] = await Promise.all([

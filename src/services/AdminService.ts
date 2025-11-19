@@ -64,6 +64,26 @@ interface ActivityLogWithUser {
   } | null;
 }
 
+// P2-4: Formatted activity log type for API responses
+interface FormattedActivityLog {
+  id: string;
+  userId: string | null;
+  action: string;
+  resourceType: string;
+  resource: string; // For backward compatibility
+  resourceId: string | null;
+  details: Prisma.JsonValue;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string; // ISO string format
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}
+
 interface DashboardStats {
   totalUsers: number;
   totalEvents: number;
@@ -283,7 +303,7 @@ export class AdminService extends BaseService {
     return { success: true, message: 'Cache cleared' };
   }
 
-  async getActivityLogs(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+  async getActivityLogs(options?: PaginationOptions): Promise<PaginatedResponse<FormattedActivityLog>> {
     try {
       const { skip, take } = this.getPaginationParams(options);
 

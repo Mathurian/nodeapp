@@ -1,8 +1,64 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, AssignmentStatus } from '@prisma/client';
+import { PrismaClient, AssignmentStatus, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+
+// P2-4: Proper type definitions for assignment responses
+type AssignmentWithRelations = Prisma.AssignmentGetPayload<{
+  include: {
+    judge: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+        bio: true;
+        isHeadJudge: true;
+      };
+    };
+    assignedByUser: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+        role: true;
+      };
+    };
+    category: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        scoreCap: true;
+      };
+    };
+    contest: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+      };
+    };
+    event: {
+      select: {
+        id: true;
+        name: true;
+        startDate: true;
+        endDate: true;
+      };
+    };
+  };
+}>;
+
+type JudgeWithPagination = Prisma.JudgeGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    email: true;
+    bio: true;
+    isHeadJudge: true;
+  };
+}>;
 
 export interface CreateAssignmentInput {
   judgeId: string;
@@ -57,13 +113,13 @@ export class AssignmentService extends BaseService {
   }
 
   /**
-   * Get all assignments with optional filters
+   * Get all assignments with optional filters (P2-4: Proper typing)
    * Includes both Assignment records and CategoryJudge relationships
    */
-  async getAllAssignments(filters: AssignmentFilters): Promise<any[]> {
+  async getAllAssignments(filters: AssignmentFilters): Promise<AssignmentWithRelations[]> {
     // P2-3: Check cache
     const cacheKey = `assignments:list:${JSON.stringify(filters)}`;
-    const cached = await this.cacheService.get<any[]>(cacheKey);
+    const cached = await this.cacheService.get<AssignmentWithRelations[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -346,8 +402,8 @@ export class AssignmentService extends BaseService {
   /**
    * Get assignment by ID
    */
-  async getAssignmentById(id: string): Promise<any> {
-    const assignment: any = await this.prisma.assignment.findUnique({
+  async getAssignmentById(id: string): Promise<AssignmentWithRelations | null> {
+    const assignment = await this.prisma.assignment.findUnique({
       where: { id },
       include: {
         judge: true,
@@ -421,10 +477,10 @@ export class AssignmentService extends BaseService {
   /**
    * Get assignments for a judge
    */
-  async getAssignmentsForJudge(judgeId: string): Promise<any[]> {
+  async getAssignmentsForJudge(judgeId: string): Promise<AssignmentWithRelations[]> {
     // P2-3: Check cache
     const cacheKey = `assignments:judge:${judgeId}`;
-    const cached = await this.cacheService.get<any[]>(cacheKey);
+    const cached = await this.cacheService.get<AssignmentWithRelations[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -448,10 +504,10 @@ export class AssignmentService extends BaseService {
   /**
    * Get assignments for a category
    */
-  async getAssignmentsForCategory(categoryId: string): Promise<any[]> {
+  async getAssignmentsForCategory(categoryId: string): Promise<AssignmentWithRelations[]> {
     // P2-3: Check cache
     const cacheKey = `assignments:category:${categoryId}`;
-    const cached = await this.cacheService.get<any[]>(cacheKey);
+    const cached = await this.cacheService.get<AssignmentWithRelations[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -537,9 +593,9 @@ export class AssignmentService extends BaseService {
   }
 
   /**
-   * Get all judges (P2-1: Add pagination)
+   * Get all judges (P2-1: Add pagination, P2-4: Proper typing)
    */
-  async getJudges(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+  async getJudges(options?: PaginationOptions): Promise<PaginatedResponse<JudgeWithPagination>> {
     const { skip, take } = this.getPaginationParams(options);
 
     const [judges, total] = await Promise.all([
