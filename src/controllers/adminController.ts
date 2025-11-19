@@ -3,6 +3,7 @@ import { container } from '../config/container';
 import { AdminService } from '../services/AdminService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { parsePaginationQuery } from '../utils/pagination';
 
 export class AdminController {
   private adminService: AdminService;
@@ -97,9 +98,9 @@ export class AdminController {
 
   getLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const logs = await this.adminService.getActivityLogs(limit);
-      return sendSuccess(res, logs);
+      const paginationOptions = parsePaginationQuery(req.query);
+      const result = await this.adminService.getActivityLogs(paginationOptions);
+      return sendSuccess(res, result);
     } catch (error) {
       return next(error);
     }
@@ -395,9 +396,9 @@ export class AdminController {
 
   getActivityLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const logs = await this.adminService.getActivityLogs(limit);
-      return sendSuccess(res, logs);
+      const paginationOptions = parsePaginationQuery(req.query);
+      const result = await this.adminService.getActivityLogs(paginationOptions);
+      return sendSuccess(res, result);
     } catch (error) {
       return next(error);
     }
