@@ -7,6 +7,11 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 
+// Initialize Sentry as early as possible (before other imports)
+import { initializeSentry, closeSentry } from './config/sentry';
+import * as Sentry from '@sentry/node';
+initializeSentry();
+
 import express, { Application, Request, Response, NextFunction } from 'express';
 import http from 'http';
 import path from 'path';
@@ -109,6 +114,11 @@ uploadDirs.forEach(dir => {
     appLogger.info(`Created upload directory: ${dir}`);
   }
 });
+
+/**
+ * Sentry Request Handler (must be before routes)
+ * Note: In Sentry v10+, tracing is set up automatically via init()
+ */
 
 /**
  * Rate limiting
@@ -276,6 +286,9 @@ if (frontendDistExists) {
 /**
  * Error Handlers (must be last)
  */
+// Sentry error handler must be before other error handlers (v10 API)
+Sentry.setupExpressErrorHandler(app);
+
 app.use(csrfErrorHandler);
 app.use(errorLogging);
 app.use(errorHandler);
@@ -345,6 +358,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
     io.close(() => {
       appLogger.info('Socket.IO closed');
     });
+
+    // Close Sentry
+    await closeSentry();
 
     appLogger.info('Graceful shutdown complete');
     process.exit(0);

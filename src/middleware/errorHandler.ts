@@ -3,6 +3,7 @@ import { container } from 'tsyringe';
 import prisma from '../utils/prisma';
 import { env } from '../config/env';
 import { ErrorLogService } from '../services/ErrorLogService';
+import { captureException, setUser } from '../config/sentry';
 
 const logActivity = (action: string, resourceType: string | null = null, resourceId: string | null = null) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -114,6 +115,32 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     // Exclude stack trace from console in production
     stack: env.isProduction() ? undefined : error.stack,
   })
+
+  // Set user context for Sentry if available
+  if (req.user) {
+    setUser({
+      id: req.user.id,
+      email: req.user.email,
+      username: req.user.name,
+    });
+  }
+
+  // Capture exception in Sentry for critical errors (500+)
+  const errorStatusCode = error.statusCode || 500;
+  if (errorStatusCode >= 500) {
+    const errorObj = new Error(error.message || 'Unknown error');
+    errorObj.stack = error.stack;
+    errorObj.name = error.name || 'Error';
+
+    captureException(errorObj, {
+      method: req.method,
+      path: req.path,
+      statusCode: errorStatusCode,
+      userId: req.user?.id,
+      requestId: req.id || (req.headers['x-request-id'] as string),
+      ip: req.ip || req.connection.remoteAddress,
+    });
+  }
 
   // Log ALL errors to database using ErrorLogService
   setImmediate(async () => {

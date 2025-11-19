@@ -388,4 +388,60 @@ export class EmailService extends BaseService {
       }
     );
   }
+
+  /**
+   * Send invitation email for events/contests
+   *
+   * @param email - Recipient email address
+   * @param name - Recipient name
+   * @param eventName - Name of the event/contest
+   * @param role - Role of the invitee (e.g., "Judge", "Contestant")
+   * @param acceptUrl - URL to accept the invitation
+   * @param declineUrl - URL to decline the invitation
+   * @param options - Additional invitation options
+   * @returns Promise<EmailSendResult>
+   */
+  async sendInvitationEmail(
+    email: string,
+    name: string,
+    eventName: string,
+    role: string,
+    acceptUrl: string,
+    declineUrl: string,
+    options?: {
+      eventDate?: string;
+      eventLocation?: string;
+      eventDescription?: string;
+      loginUrl?: string;
+      username?: string;
+      temporaryPassword?: string;
+      registrationUrl?: string;
+    }
+  ): Promise<EmailSendResult> {
+    const variables: Record<string, any> = {
+      email,
+      name,
+      eventName,
+      role,
+      acceptUrl,
+      declineUrl,
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+      eventDate: options?.eventDate || null,
+      eventLocation: options?.eventLocation || null,
+      eventDescription: options?.eventDescription || null,
+      loginUrl: options?.loginUrl || null,
+      username: options?.username || null,
+      temporaryPassword: options?.temporaryPassword || null,
+      registrationUrl: options?.registrationUrl || null,
+      hasCredentials: !!(options?.username || options?.temporaryPassword || options?.loginUrl),
+    };
+
+    return this.sendTemplatedEmail(
+      email,
+      `Invitation: ${eventName} - ${role}`,
+      'invitation',
+      variables
+    );
+  }
 }
