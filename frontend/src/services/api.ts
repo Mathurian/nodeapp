@@ -280,6 +280,28 @@ export const settingsAPI = {
   // JWT configuration
   getJWTConfig: () => api.get('/settings/jwt-config'),
   updateJWTConfig: (config: any) => api.put('/settings/jwt-config', config),
+  // Theme settings
+  updateThemeSettings: (settings: any) => api.put('/settings/theme', settings),
+  uploadThemeLogo: (file: File) => {
+    const formData = new FormData()
+    formData.append('logo', file)
+    return api.post('/settings/theme/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  uploadThemeFavicon: (file: File) => {
+    const formData = new FormData()
+    formData.append('favicon', file)
+    return api.post('/settings/theme/favicon', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  // Contestant visibility settings
+  getContestantVisibilitySettings: () => api.get('/settings/contestant-visibility'),
+  updateContestantVisibilitySettings: (settings: any) => api.put('/settings/contestant-visibility', settings),
+  // Password policy
+  getPasswordPolicy: () => publicApi.get('/settings/password-policy'),
+  updatePasswordPolicy: (policy: any) => api.put('/settings/password-policy', policy),
 }
 
 export const assignmentsAPI = {
