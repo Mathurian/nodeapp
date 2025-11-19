@@ -36,6 +36,7 @@ import { tenantMiddleware, optionalTenantMiddleware } from './middleware/tenantM
 // Utilities
 import { createLogger } from './utils/logger';
 import { validateProductionConfig } from './utils/config';
+import { ensureDefaultTenant } from './utils/ensureDefaultTenant';
 
 // Services
 import ScheduledBackupService from './services/scheduledBackupService';
@@ -294,6 +295,9 @@ const startServer = async (): Promise<void> => {
       appLogger.error('Failed to connect to database');
       process.exit(1);
     }
+
+    // Ensure default tenant exists
+    await ensureDefaultTenant();
 
     // Start HTTP server
     server.listen(PORT, () => {
