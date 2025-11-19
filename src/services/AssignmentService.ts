@@ -2,6 +2,7 @@ import { injectable, inject } from 'tsyringe';
 import { PrismaClient, AssignmentStatus } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 export interface CreateAssignmentInput {
   judgeId: string;
@@ -536,21 +537,30 @@ export class AssignmentService extends BaseService {
   }
 
   /**
-   * Get all judges
+   * Get all judges (P2-1: Add pagination)
    */
-  async getJudges(): Promise<any[]> {
-    return await this.prisma.judge.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        bio: true,
-        isHeadJudge: true,
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+  async getJudges(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+    const { skip, take } = this.getPaginationParams(options);
+
+    const [judges, total] = await Promise.all([
+      this.prisma.judge.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          bio: true,
+          isHeadJudge: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+        skip,
+        take,
+      }),
+      this.prisma.judge.count(),
+    ]);
+
+    return this.createPaginatedResponse(judges, total, options);
   }
 
   /**

@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 /**
  * Service for Archive management
@@ -12,51 +13,82 @@ export class ArchiveService extends BaseService {
     super();
   }
   /**
-   * Get all archives
+   * Get all archives (P2-1: Add pagination)
    */
-  async getAllArchives() {
-    return await (this.prisma.archivedEvent.findMany as any)({
-      include: {
-        event: true,
-      } ,
-      orderBy: { id: 'desc' },
-    });
+  async getAllArchives(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+    const { skip, take } = this.getPaginationParams(options);
+
+    const [archives, total] = await Promise.all([
+      (this.prisma.archivedEvent.findMany as any)({
+        include: {
+          event: true,
+        },
+        orderBy: { id: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.archivedEvent.count(),
+    ]);
+
+    return this.createPaginatedResponse(archives, total, options);
   }
 
   /**
-   * Get active events
+   * Get active events (P2-1: Add pagination)
    */
-  async getActiveEvents() {
-    return await this.prisma.event.findMany({
-      where: { archived: false },
-      include: {
-        _count: {
-          select: {
-            contests: true,
-            contestants: true,
+  async getActiveEvents(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+    const { skip, take } = this.getPaginationParams(options);
+
+    const [events, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where: { archived: false },
+        include: {
+          _count: {
+            select: {
+              contests: true,
+              contestants: true,
+            },
           },
-        },
-      } as any,
-      orderBy: { id: 'desc' },
-    });
+        } as any,
+        orderBy: { id: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.event.count({
+        where: { archived: false },
+      }),
+    ]);
+
+    return this.createPaginatedResponse(events, total, options);
   }
 
   /**
-   * Get archived events
+   * Get archived events (P2-1: Add pagination)
    */
-  async getArchivedEvents() {
-    return await this.prisma.event.findMany({
-      where: { archived: true },
-      include: {
-        _count: {
-          select: {
-            contests: true,
-            contestants: true,
+  async getArchivedEvents(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
+    const { skip, take } = this.getPaginationParams(options);
+
+    const [events, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where: { archived: true },
+        include: {
+          _count: {
+            select: {
+              contests: true,
+              contestants: true,
+            },
           },
-        },
-      } as any,
-      orderBy: { id: 'desc' },
-    });
+        } as any,
+        orderBy: { id: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.event.count({
+        where: { archived: true },
+      }),
+    ]);
+
+    return this.createPaginatedResponse(events, total, options);
   }
 
   /**

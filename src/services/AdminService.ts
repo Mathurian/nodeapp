@@ -4,6 +4,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
@@ -282,24 +283,30 @@ export class AdminService extends BaseService {
     return { success: true, message: 'Cache cleared' };
   }
 
-  async getActivityLogs(limit: number = 100) {
+  async getActivityLogs(options?: PaginationOptions): Promise<PaginatedResponse<any>> {
     try {
-      const logs = await this.prisma.activityLog.findMany({
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit
-      });
+      const { skip, take } = this.getPaginationParams(options);
 
-      return logs.map(log => ({
+      const [logs, total] = await Promise.all([
+        this.prisma.activityLog.findMany({
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take
+        }),
+        this.prisma.activityLog.count()
+      ]);
+
+      const formattedLogs = logs.map(log => ({
         id: log.id,
         userId: log.userId,
         action: log.action,
@@ -317,6 +324,8 @@ export class AdminService extends BaseService {
           role: log.user.role
         } : null
       }));
+
+      return this.createPaginatedResponse(formattedLogs, total, options);
     } catch (error) {
       log.error('Error getting activity logs', { error: (error as Error).message });
       throw error;
