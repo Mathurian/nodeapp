@@ -64,20 +64,37 @@ const onboardingSteps: OnboardingStep[] = [
 
 interface CommandPaletteOnboardingProps {
   onComplete: () => void;
+  isAuthenticated: boolean;
 }
 
-const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({ onComplete }) => {
+const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({
+  onComplete,
+  isAuthenticated
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [hasShownAfterLogin, setHasShownAfterLogin] = useState(false);
 
   useEffect(() => {
-    // Check if user has seen onboarding
-    const hasSeenOnboarding = localStorage.getItem('commandPaletteOnboardingSeen');
-    if (!hasSeenOnboarding) {
-      // Show onboarding after a brief delay
-      setTimeout(() => setIsOpen(true), 1000);
+    // Only show onboarding after successful login
+    if (!isAuthenticated) {
+      setHasShownAfterLogin(false);
+      return;
     }
-  }, []);
+
+    // Check if user has seen onboarding or disabled it
+    const hasSeenOnboarding = localStorage.getItem('commandPaletteOnboardingSeen');
+    const isDisabled = localStorage.getItem('commandPaletteOnboardingDisabled');
+
+    if (!hasSeenOnboarding && !isDisabled && !hasShownAfterLogin) {
+      // Show onboarding after a brief delay following login
+      setTimeout(() => {
+        setIsOpen(true);
+        setHasShownAfterLogin(true);
+      }, 1500);
+    }
+  }, [isAuthenticated, hasShownAfterLogin]);
 
   const handleNext = () => {
     if (currentStep < onboardingSteps.length - 1) {
@@ -95,12 +112,18 @@ const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({ onC
 
   const handleComplete = () => {
     localStorage.setItem('commandPaletteOnboardingSeen', 'true');
+    if (dontShowAgain) {
+      localStorage.setItem('commandPaletteOnboardingDisabled', 'true');
+    }
     setIsOpen(false);
     onComplete();
   };
 
   const handleSkip = () => {
     localStorage.setItem('commandPaletteOnboardingSeen', 'true');
+    if (dontShowAgain) {
+      localStorage.setItem('commandPaletteOnboardingDisabled', 'true');
+    }
     setIsOpen(false);
   };
 
@@ -199,6 +222,21 @@ const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({ onC
                     aria-label={`Go to step ${index + 1}`}
                   />
                 ))}
+              </div>
+
+              {/* Don't show again checkbox */}
+              <div className="flex items-center justify-center mb-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={dontShowAgain}
+                    onChange={(e) => setDontShowAgain(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Don't show this again
+                  </span>
+                </label>
               </div>
 
               {/* Navigation buttons */}

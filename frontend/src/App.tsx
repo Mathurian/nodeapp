@@ -9,7 +9,7 @@ import { SystemSettingsProvider } from './contexts/SystemSettingsContext'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
-import CommandPaletteOnboarding from './components/CommandPaletteOnboarding'
+import CommandPaletteOnboardingWrapper from './components/CommandPaletteOnboardingWrapper'
 import './index.css'
 
 // Lazy load all pages for code splitting
@@ -129,7 +129,7 @@ function App() {
                       onClose={() => setIsCommandPaletteOpen(false)}
                     />
                   </Suspense>
-                  <CommandPaletteOnboarding
+                  <CommandPaletteOnboardingWrapper
                     onComplete={() => setIsCommandPaletteOpen(true)}
                   />
                   <div className="min-h-screen bg-gray-50">
