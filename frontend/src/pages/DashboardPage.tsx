@@ -58,7 +58,9 @@ const DashboardPage: React.FC = () => {
     'dashboard-stats',
     async () => {
       const response = await adminAPI.getStats()
-      return response.data
+      // Backend wraps response: { success, message, data: {...stats...}, timestamp }
+      // So we need: response.data.data
+      return response.data.data || response.data
     },
     {
       refetchInterval: 30000, // Refresh every 30 seconds
