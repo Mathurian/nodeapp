@@ -3,6 +3,8 @@
  * Validates required environment variables in production
  */
 
+import { env } from './environment';
+
 export const validateProductionConfig = (): void => {
   const errors: string[] = [];
   const isProduction = env.isProduction();

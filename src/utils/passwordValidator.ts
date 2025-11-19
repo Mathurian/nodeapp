@@ -3,6 +3,8 @@
  * Enforces password complexity requirements based on environment configuration
  */
 
+import { env } from './environment';
+
 interface PasswordRequirements {
   minLength: number
   requireUppercase: boolean
@@ -180,7 +182,7 @@ export const isPasswordSimilarToUserInfo = (
   // Check against email (username part)
   if (userInfo.email) {
     const emailUsername = userInfo.email.split('@')[0]?.toLowerCase()
-    if (emailUsername.length >= 3 && lowerPassword.includes(emailUsername)) {
+    if (emailUsername && emailUsername.length >= 3 && lowerPassword.includes(emailUsername)) {
       return true
     }
   }

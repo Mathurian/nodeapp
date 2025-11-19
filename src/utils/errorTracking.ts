@@ -6,7 +6,6 @@
 import fs from 'fs/promises';
 import { env } from '../config/env';
 import path from 'path';
-import { env } from '../config/env';
 
 /**
  * Error severity levels
@@ -56,8 +55,8 @@ class ErrorTracker {
 
   constructor() {
     // Use temp directory in test environment to avoid permission issues
-    const logDir = env.isTest() 
-      ? path.join(env.get('LOG_DIRECTORY') || require('os').tmpdir(), 'event-manager-test-logs')
+    const logDir = env.isTest()
+      ? path.join(process.env['LOG_DIRECTORY'] || require('os').tmpdir(), 'event-manager-test-logs')
       : path.join(process.cwd(), 'logs');
     this.errorLogPath = path.join(logDir, 'errors.json');
     this.ensureLogDirectory();
@@ -100,7 +99,7 @@ class ErrorTracker {
    */
   private async saveErrorsToDisk() {
     // Skip file writing in test environment to avoid permission issues
-    if (env.isTest() || env.get('DISABLE_FILE_LOGGING') === 'true') {
+    if (env.isTest() || process.env['DISABLE_FILE_LOGGING'] === 'true') {
       return;
     }
     
@@ -130,8 +129,8 @@ class ErrorTracker {
       id: this.generateErrorId(),
       timestamp: new Date().toISOString(),
       severity,
-      message: error?.message || String(error),
-      stack: error?.stack,
+      message: (error as any)?.message || String(error),
+      stack: (error as any)?.stack,
       context,
       error: this.sanitizeError(error)
     };

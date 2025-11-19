@@ -46,10 +46,10 @@ export class RateLimitService {
    */
   private initializeRedis(): void {
     try {
-      const redisHost = env.get('REDIS_HOST') || 'localhost';
-      const redisPort = parseInt(env.get('REDIS_PORT') || '6379', 10);
-      const redisPassword = env.get('REDIS_PASSWORD') || undefined;
-      const redisDb = parseInt(env.get('REDIS_DB') || '1', 10); // Use DB 1 for rate limiting
+      const redisHost = process.env['REDIS_HOST'] || 'localhost';
+      const redisPort = parseInt(process.env['REDIS_PORT'] || '6379', 10);
+      const redisPassword = process.env['REDIS_PASSWORD'] || undefined;
+      const redisDb = parseInt(process.env['REDIS_DB'] || '1', 10); // Use DB 1 for rate limiting
 
       this.redis = new Redis({
         host: redisHost,

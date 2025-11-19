@@ -414,7 +414,7 @@ export class AuditorService extends BaseService {
         };
       }
       acc[key].scores.push(score);
-      acc[key].totalScore += score.score;
+      acc[key].totalScore += score.score ?? 0;
       return acc;
     }, {});
 
@@ -650,9 +650,9 @@ export class AuditorService extends BaseService {
     const uniqueContestants = new Set(category.scores.map((s) => s.contestantId)).size;
     const uniqueJudges = new Set(category.scores.map((s) => s.judgeId)).size;
     const averageScore =
-      totalScores > 0 ? category.scores.reduce((sum, s) => sum + s.score, 0) / totalScores : 0;
-    const maxScore = Math.max(...category.scores.map((s) => s.score), 0);
-    const minScore = Math.min(...category.scores.map((s) => s.score), 0);
+      totalScores > 0 ? category.scores.reduce((sum, s) => sum + (s.score ?? 0), 0) / totalScores : 0;
+    const maxScore = Math.max(...category.scores.map((s) => s.score ?? 0), 0);
+    const minScore = Math.min(...category.scores.map((s) => s.score ?? 0), 0);
 
     // Group by contestant for rankings
     const contestantScores = category.scores.reduce((acc: Record<string, {
@@ -672,7 +672,7 @@ export class AuditorService extends BaseService {
         };
       }
       acc[key].scores.push(score);
-      acc[key].totalScore += score.score;
+      acc[key].totalScore += score.score ?? 0;
       return acc;
     }, {});
 

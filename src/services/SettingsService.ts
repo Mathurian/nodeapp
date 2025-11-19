@@ -490,19 +490,19 @@ export class SettingsService extends BaseService {
           info['password'] = url.password ? '***masked***' : 'Not set';
         } catch {
           // If URL parsing fails, try individual env vars
-          info['host'] = env.get('DB_HOST') || env.get('DATABASE_HOST') || 'N/A';
-          info['port'] = env.get('DB_PORT') || env.get('DATABASE_PORT') || '5432';
-          info['database'] = env.get('DB_NAME') || env.get('DATABASE_NAME') || 'N/A';
-          info['user'] = env.get('DB_USER') || env.get('DATABASE_USER') || 'N/A';
-          info['password'] = (env.get('DB_PASSWORD') || env.get('DATABASE_PASSWORD')) ? '***masked***' : 'Not set';
+          info['host'] = process.env['DB_HOST'] || process.env['DATABASE_HOST'] || 'N/A';
+          info['port'] = process.env['DB_PORT'] || process.env['DATABASE_PORT'] || '5432';
+          info['database'] = process.env['DB_NAME'] || process.env['DATABASE_NAME'] || 'N/A';
+          info['user'] = process.env['DB_USER'] || process.env['DATABASE_USER'] || 'N/A';
+          info['password'] = (process.env['DB_PASSWORD'] || process.env['DATABASE_PASSWORD']) ? '***masked***' : 'Not set';
         }
       } else {
         // Try individual environment variables
-        info['host'] = env.get('DB_HOST') || env.get('DATABASE_HOST') || 'Not configured';
-        info['port'] = env.get('DB_PORT') || env.get('DATABASE_PORT') || '5432';
-        info['database'] = env.get('DB_NAME') || env.get('DATABASE_NAME') || 'Not configured';
-        info['user'] = env.get('DB_USER') || env.get('DATABASE_USER') || 'Not configured';
-        info['password'] = (env.get('DB_PASSWORD') || env.get('DATABASE_PASSWORD')) ? '***masked***' : 'Not configured';
+        info['host'] = process.env['DB_HOST'] || process.env['DATABASE_HOST'] || 'Not configured';
+        info['port'] = process.env['DB_PORT'] || process.env['DATABASE_PORT'] || '5432';
+        info['database'] = process.env['DB_NAME'] || process.env['DATABASE_NAME'] || 'Not configured';
+        info['user'] = process.env['DB_USER'] || process.env['DATABASE_USER'] || 'Not configured';
+        info['password'] = (process.env['DB_PASSWORD'] || process.env['DATABASE_PASSWORD']) ? '***masked***' : 'Not configured';
       }
 
       return info;
