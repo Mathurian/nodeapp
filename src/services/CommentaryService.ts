@@ -1,6 +1,65 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for commentary responses
+type ScoreCommentWithJudge = Prisma.ScoreCommentGetPayload<{
+  include: {
+    judge: {
+      select: {
+        name: true;
+        email: true;
+      };
+    };
+  };
+}>;
+
+type ScoreCommentWithDetails = Prisma.ScoreCommentGetPayload<{
+  include: {
+    judge: {
+      select: {
+        name: true;
+        email: true;
+      };
+    };
+    criterion: {
+      select: {
+        name: true;
+        description: true;
+      };
+    };
+  };
+}>;
+
+type ScoreCommentWithFullDetails = Prisma.ScoreCommentGetPayload<{
+  include: {
+    judge: {
+      select: {
+        name: true;
+        email: true;
+      };
+    };
+    criterion: {
+      select: {
+        name: true;
+        maxScore: true;
+      };
+    };
+    score: {
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
 
 interface CreateCommentDto {
   scoreId: string;
@@ -22,13 +81,13 @@ export class CommentaryService extends BaseService {
     super();
   }
 
-  async create(data: CreateCommentDto) {
+  async create(data: CreateCommentDto): Promise<ScoreCommentWithJudge> {
     if (!data.scoreId || !data.criterionId || !data.contestantId || !data.comment) {
       throw this.badRequestError('Score ID, criterion ID, contestant ID, and comment are required');
     }
 
     // Fetch score to get tenantId
-    const score: any = await this.prisma.score.findUnique({
+    const score = await this.prisma.score.findUnique({
       where: { id: data.scoreId },
       select: { tenantId: true },
     });
@@ -55,11 +114,11 @@ export class CommentaryService extends BaseService {
           }
         }
       } as any
-    });
+    }) as ScoreCommentWithJudge;
   }
 
-  async getCommentsForScore(scoreId: string, userRole: string) {
-    const whereClause: any = { scoreId };
+  async getCommentsForScore(scoreId: string, userRole: string): Promise<ScoreCommentWithDetails[]> {
+    const whereClause: Prisma.ScoreCommentWhereInput = { scoreId };
 
     if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
       whereClause.isPrivate = false;
@@ -82,11 +141,11 @@ export class CommentaryService extends BaseService {
         }
       } as any,
       orderBy: { createdAt: 'asc' }
-    });
+    }) as ScoreCommentWithDetails[];
   }
 
-  async getCommentsByContestant(contestantId: string, userRole: string) {
-    const whereClause: any = { contestantId };
+  async getCommentsByContestant(contestantId: string, userRole: string): Promise<ScoreCommentWithFullDetails[]> {
+    const whereClause: Prisma.ScoreCommentWhereInput = { contestantId };
 
     if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
       whereClause.isPrivate = false;
@@ -125,11 +184,11 @@ export class CommentaryService extends BaseService {
         { scoreId: 'desc' as any },
         { createdAt: 'asc' }
       ]
-    });
+    }) as ScoreCommentWithFullDetails[];
   }
 
-  async update(id: string, data: UpdateCommentDto, userId: string, userRole: string) {
-    const existingComment: any = await this.prisma.scoreComment.findUnique({
+  async update(id: string, data: UpdateCommentDto, userId: string, userRole: string): Promise<ScoreCommentWithJudge> {
+    const existingComment = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
 
@@ -155,11 +214,11 @@ export class CommentaryService extends BaseService {
           }
         }
       } as any
-    });
+    }) as ScoreCommentWithJudge;
   }
 
-  async delete(id: string, userId: string, userRole: string) {
-    const existingComment: any = await this.prisma.scoreComment.findUnique({
+  async delete(id: string, userId: string, userRole: string): Promise<void> {
+    const existingComment = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
 

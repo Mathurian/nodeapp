@@ -72,7 +72,7 @@ export const cacheMiddleware = (options: CacheMiddlewareOptions = {}) => {
       const originalJson = res.json.bind(res);
 
       // Override json method to cache the response
-      res.json = function (body: any): Response {
+      res.json = function (body: unknown): Response {
         // Only cache successful responses
         if (res.statusCode >= 200 && res.statusCode < 300) {
           const cachedResponse: CachedResponse = {
@@ -152,7 +152,7 @@ export const invalidateCache = (patterns: string | string[], namespace?: string)
     const originalJson = res.json.bind(res);
 
     // Override json method to invalidate cache after successful response
-    res.json = function (body: any): Response {
+    res.json = function (body: unknown): Response {
       // Only invalidate on successful responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
         const patternArray = Array.isArray(patterns) ? patterns : [patterns];
@@ -184,7 +184,7 @@ export const invalidateCacheTag = (tag: string | string[]) => {
     const originalJson = res.json.bind(res);
 
     // Override json method to invalidate cache after successful response
-    res.json = function (body: any): Response {
+    res.json = function (body: unknown): Response {
       // Only invalidate on successful responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
         const tags = Array.isArray(tag) ? tag : [tag];
@@ -219,7 +219,7 @@ export const noCache = (_req: Request, res: Response, next: NextFunction): void 
 
 interface CachedResponse {
   status: number;
-  body: any;
+  body: unknown;
   headers: Record<string, string>;
   cachedAt: string;
 }
@@ -257,9 +257,12 @@ function generateCacheKey(req: Request, varyBy?: string[]): string {
 /**
  * Get nested property from object
  */
-function getNestedProperty(obj: any, path: string): any {
-  return path.split('.').reduce((current, prop) => {
-    return current?.[prop];
+function getNestedProperty(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce((current: unknown, prop: string) => {
+    if (current && typeof current === 'object') {
+      return (current as Record<string, unknown>)[prop];
+    }
+    return undefined;
   }, obj);
 }
 

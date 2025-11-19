@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { DRAutomationService } from '../services/DRAutomationService';
 import { sendSuccess } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 /**
  * Get DR configuration
@@ -25,7 +26,7 @@ export const getDRConfig = async (req: Request, res: Response, next: NextFunctio
  */
 export const updateDRConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     const config = await DRAutomationService.updateDRConfig(id, req.body);
     sendSuccess(res, config, 'DR configuration updated successfully');
   } catch (error) {
@@ -54,7 +55,7 @@ export const createBackupSchedule = async (req: Request, res: Response, next: Ne
  */
 export const updateBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     const schedule = await DRAutomationService.updateBackupSchedule(id, req.body);
     sendSuccess(res, schedule, 'Backup schedule updated successfully');
   } catch (error) {
@@ -67,7 +68,7 @@ export const updateBackupSchedule = async (req: Request, res: Response, next: Ne
  */
 export const deleteBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     await DRAutomationService.deleteBackupSchedule(id);
     sendSuccess(res, null, 'Backup schedule deleted successfully');
   } catch (error) {
@@ -109,7 +110,7 @@ export const createBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const updateBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     const target = await DRAutomationService.updateBackupTarget(id, req.body);
     sendSuccess(res, target, 'Backup target updated successfully');
   } catch (error) {
@@ -122,7 +123,7 @@ export const updateBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const deleteBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     await DRAutomationService.deleteBackupTarget(id);
     sendSuccess(res, null, 'Backup target deleted successfully');
   } catch (error) {
@@ -148,7 +149,7 @@ export const listBackupTargets = async (req: Request, res: Response, next: NextF
  */
 export const verifyBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getRequiredParam(req, 'id');
     const verified = await DRAutomationService.verifyBackupTarget(id);
     sendSuccess(res, { verified }, verified ? 'Backup target verified successfully' : 'Backup target verification failed');
   } catch (error) {

@@ -14,7 +14,13 @@ export type ExportFormat = 'pdf' | 'excel' | 'csv';
 export interface ExportOptions {
   format: ExportFormat;
   filename?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>;
+}
+
+interface CSVRow {
+  field: string;
+  value: string | number;
 }
 
 @injectable()
@@ -210,7 +216,7 @@ export class ReportExportService extends BaseService {
    */
   async generateCSVBuffer(reportData: ReportData): Promise<Buffer> {
     try {
-      const rows: any[] = [];
+      const rows: CSVRow[] = [];
 
       // Header
       rows.push({ field: 'Event Report', value: '' });

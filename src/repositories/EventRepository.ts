@@ -7,7 +7,17 @@ import { Event } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
 
-export type EventWithRelations = any; // Simplified due to Prisma type inference issues with nested includes
+// Type for Event with common relations
+export type EventWithRelations = Event & {
+  contests?: Array<{
+    categories: Array<{ [key: string]: unknown }>;
+    contestants: Array<{ userId: string; [key: string]: unknown }>;
+    judges: Array<{ userId: string; [key: string]: unknown }>;
+    _count: { scores: number };
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
 
 @injectable()
 export class EventRepository extends BaseRepository<Event> {
@@ -222,17 +232,17 @@ export class EventRepository extends BaseRepository<Event> {
       };
     }
 
-    const totalCategories = event.contests.reduce((sum: number, contest: any) =>
+    const totalCategories = event.contests.reduce((sum: number, contest) =>
       sum + contest.categories.length, 0
     );
 
-    const contestantIds = new Set();
-    const judgeIds = new Set();
+    const contestantIds = new Set<string>();
+    const judgeIds = new Set<string>();
     let totalScores = 0;
 
-    event.contests.forEach((contest: any) => {
-      contest.contestants.forEach((c: any) => contestantIds.add(c.userId));
-      contest.judges.forEach((j: any) => judgeIds.add(j.userId));
+    event.contests.forEach((contest) => {
+      contest.contestants.forEach((c) => contestantIds.add(c.userId));
+      contest.judges.forEach((j) => judgeIds.add(j.userId));
       totalScores += contest._count.scores;
     });
 

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ArchiveService } from '../services/ArchiveService';
 import { createRequestLogger } from '../utils/logger';
+import { parsePaginationQuery } from '../utils/pagination';
 
 /**
  * Controller for Archive management
@@ -15,13 +16,14 @@ export class ArchiveController {
   }
 
   /**
-   * Get all archives
+   * Get all archives (P2-1: With pagination support)
    */
   getAllArchives = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const archives = await this.archiveService.getAllArchives();
-      res.json(archives);
+      const paginationOptions = parsePaginationQuery(req.query);
+      const result = await this.archiveService.getAllArchives(paginationOptions);
+      res.json(result);
     } catch (error) {
       log.error('Get archives error:', error);
       return next(error);
@@ -29,13 +31,14 @@ export class ArchiveController {
   };
 
   /**
-   * Get active events
+   * Get active events (P2-1: With pagination support)
    */
   getActiveEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const events = await this.archiveService.getActiveEvents();
-      res.json(events);
+      const paginationOptions = parsePaginationQuery(req.query);
+      const result = await this.archiveService.getActiveEvents(paginationOptions);
+      res.json(result);
     } catch (error) {
       log.error('Get active events error:', error);
       return next(error);
@@ -43,13 +46,14 @@ export class ArchiveController {
   };
 
   /**
-   * Get archived events
+   * Get archived events (P2-1: With pagination support)
    */
   getArchivedEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'archive');
     try {
-      const events = await this.archiveService.getArchivedEvents();
-      res.json(events);
+      const paginationOptions = parsePaginationQuery(req.query);
+      const result = await this.archiveService.getArchivedEvents(paginationOptions);
+      res.json(result);
     } catch (error) {
       log.error('Get archived events error:', error);
       return next(error);

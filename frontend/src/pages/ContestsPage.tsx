@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { contestsAPI, eventsAPI } from '../services/api'
 import {
@@ -89,10 +90,11 @@ const ContestsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('contests')
         resetForm()
-        alert('Contest created successfully!')
+        toast.success('Contest created successfully!')
       },
       onError: (error: any) => {
-        alert(`Error creating contest: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create contest'
+        toast.error(`Error creating contest: ${errorMessage}`)
       },
     }
   )
@@ -107,10 +109,11 @@ const ContestsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('contests')
         resetForm()
-        alert('Contest updated successfully!')
+        toast.success('Contest updated successfully!')
       },
       onError: (error: any) => {
-        alert(`Error updating contest: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update contest'
+        toast.error(`Error updating contest: ${errorMessage}`)
       },
     }
   )
@@ -124,10 +127,11 @@ const ContestsPage: React.FC = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('contests')
-        alert('Contest deleted successfully!')
+        toast.success('Contest deleted successfully!')
       },
       onError: (error: any) => {
-        alert(`Error deleting contest: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to delete contest'
+        toast.error(`Error deleting contest: ${errorMessage}`)
       },
     }
   )
@@ -162,7 +166,7 @@ const ContestsPage: React.FC = () => {
     e.preventDefault()
 
     if (!formData.name || !formData.eventId) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in all required fields')
       return
     }
 

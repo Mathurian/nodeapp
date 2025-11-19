@@ -3,9 +3,30 @@
  * Resets the entire certification process in bulk
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
+
+// P2-4: Proper type definitions
+type ContestWithCategories = Prisma.ContestGetPayload<{
+  include: {
+    categories: {
+      select: { id: true };
+    };
+  };
+}>;
+
+type EventWithContestsAndCategories = Prisma.EventGetPayload<{
+  include: {
+    contests: {
+      include: {
+        categories: {
+          select: { id: true };
+        };
+      };
+    };
+  };
+}>;
 
 export interface BulkCertificationResetDTO {
   eventId?: string;
@@ -81,7 +102,7 @@ export class BulkCertificationResetService extends BaseService {
       };
     } else if (dto.categoryId) {
       // Reset certifications for a specific category
-      const category: any = await this.prisma.category.findUnique({
+      const category = await this.prisma.category.findUnique({
         where: { id: dto.categoryId }
       });
 
@@ -150,14 +171,14 @@ export class BulkCertificationResetService extends BaseService {
       };
     } else if (dto.contestId) {
       // Reset certifications for a specific contest
-      const contest: any = await this.prisma.contest.findUnique({
+      const contest = await this.prisma.contest.findUnique({
         where: { id: dto.contestId },
         include: {
           categories: {
             select: { id: true }
           }
         } as any
-      } as any);
+      }) as ContestWithCategories | null;
 
       if (!contest) {
         throw this.createNotFoundError('Contest not found');
@@ -244,7 +265,7 @@ export class BulkCertificationResetService extends BaseService {
       };
     } else if (dto.eventId) {
       // Reset certifications for a specific event
-      const event: any = await this.prisma.event.findUnique({
+      const event = await this.prisma.event.findUnique({
         where: { id: dto.eventId },
         include: {
           contests: {
@@ -255,7 +276,7 @@ export class BulkCertificationResetService extends BaseService {
             }
           }
         } as any
-      } as any);
+      }) as EventWithContestsAndCategories | null;
 
       if (!event) {
         throw this.createNotFoundError('Event not found');

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CommentaryService } from '../services/CommentaryService';
 import { sendSuccess } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 export class CommentaryController {
   private commentaryService: CommentaryService;
@@ -29,7 +30,7 @@ export class CommentaryController {
 
   getCommentsForScore = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { scoreId } = req.params;
+      const scoreId = getRequiredParam(req, 'scoreId');
       const comments = await this.commentaryService.getCommentsForScore(scoreId, req.user!.role);
       return sendSuccess(res, comments);
     } catch (error) {
@@ -39,7 +40,7 @@ export class CommentaryController {
 
   getCommentsByContestant = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { contestantId } = req.params;
+      const contestantId = getRequiredParam(req, 'contestantId');
       const comments = await this.commentaryService.getCommentsByContestant(contestantId, req.user!.role);
       return sendSuccess(res, comments);
     } catch (error) {
@@ -49,7 +50,7 @@ export class CommentaryController {
 
   updateComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const { comment, isPrivate } = req.body;
       const updatedComment = await this.commentaryService.update(id, { comment, isPrivate }, req.user!.id, req.user!.role);
       return sendSuccess(res, updatedComment, 'Comment updated');
@@ -60,7 +61,7 @@ export class CommentaryController {
 
   deleteComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       await this.commentaryService.delete(id, req.user!.id, req.user!.role);
       return sendSuccess(res, null, 'Comment deleted');
     } catch (error) {

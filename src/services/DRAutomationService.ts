@@ -10,6 +10,7 @@
  */
 
 import prisma from '../config/database';
+import { Prisma } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -21,6 +22,24 @@ import BackupTransferService from './BackupTransferService';
 const execAsync = promisify(exec);
 const logger = createLogger('DRAutomationService');
 
+// Prisma payload types for DR models
+type DRConfig = Prisma.DrConfigGetPayload<{}>;
+type BackupSchedule = Prisma.BackupScheduleGetPayload<{}>;
+type BackupTarget = Prisma.BackupTargetGetPayload<{}>;
+type BackupLog = Prisma.BackupLogGetPayload<{}>;
+type DRTestLog = Prisma.DrTestLogGetPayload<{}>;
+type DRMetric = Prisma.DrMetricGetPayload<{}>;
+
+export interface BackupLocation {
+  type: string;
+  path?: string;
+  region?: string;
+  bucket?: string;
+  endpoint?: string;
+}
+
+export type BackupTargetConfig = Prisma.JsonValue;
+
 export interface DRConfigInput {
   tenantId?: string;
   backupFrequency?: string;
@@ -29,7 +48,7 @@ export interface DRConfigInput {
   enablePITR?: boolean;
   enableDRTesting?: boolean;
   drTestFrequency?: string;
-  backupLocations?: any[];
+  backupLocations?: Prisma.InputJsonValue;
   rtoMinutes?: number;
   rpoMinutes?: number;
   alertEmail?: string;
@@ -44,7 +63,7 @@ export interface BackupScheduleInput {
   frequency: string;
   enabled?: boolean;
   retentionDays?: number;
-  targets?: any[];
+  targets?: string[];
   compression?: boolean;
   encryption?: boolean;
 }
@@ -53,7 +72,7 @@ export interface BackupTargetInput {
   tenantId?: string;
   name: string;
   type: string; // local, s3, ftp, sftp, azure, gcp
-  config: any;
+  config: BackupTargetConfig;
   enabled?: boolean;
   priority?: number;
 }
@@ -73,11 +92,71 @@ export interface RestoreResult {
   error?: string;
 }
 
+export interface DRTestResult {
+  success: boolean;
+  duration: number;
+  results: DRTestResultDetails;
+}
+
+export interface DRTestResultDetails {
+  testType: string;
+  backupId: string;
+  backupLocation: string;
+  backupSize: string | number;
+  note?: string;
+  fileExists?: boolean;
+  fileSize?: number;
+}
+
+export interface RTORPOViolationCheck {
+  rpoViolation: boolean;
+  rtoMinutes: number;
+  rpoMinutes: number;
+  lastBackup: Date | null;
+  minutesSinceLastBackup: number | null;
+}
+
+export interface DRDashboard {
+  config: DRConfig;
+  schedules: {
+    total: number;
+    enabled: number;
+    disabled: number;
+    list: BackupSchedule[];
+  };
+  targets: {
+    total: number;
+    enabled: number;
+    verified: number;
+    list: BackupTarget[];
+  };
+  backups: {
+    total: number;
+    successful: number;
+    failed: number;
+    successRate: number;
+    avgDuration: number;
+    totalSize: number;
+    recent: BackupLog[];
+  };
+  tests: {
+    total: number;
+    passed: number;
+    passRate: number;
+    recent: DRTestLog[];
+  };
+  metrics: {
+    recent: DRMetric[];
+    rto: number;
+    rpo: number;
+  };
+}
+
 export class DRAutomationService {
   /**
    * Get or create DR configuration for a tenant
    */
-  static async getDRConfig(tenantId?: string): Promise<any> {
+  static async getDRConfig(tenantId?: string): Promise<DRConfig> {
     try {
       let config = await prisma.drConfig.findFirst({
         where: tenantId ? { tenantId } : {},
@@ -113,7 +192,7 @@ export class DRAutomationService {
   /**
    * Update DR configuration
    */
-  static async updateDRConfig(id: string, input: DRConfigInput): Promise<any> {
+  static async updateDRConfig(id: string, input: DRConfigInput): Promise<DRConfig> {
     try {
       const config = await prisma.drConfig.update({
         where: { id },
@@ -139,7 +218,7 @@ export class DRAutomationService {
   /**
    * Create backup schedule
    */
-  static async createBackupSchedule(input: BackupScheduleInput): Promise<any> {
+  static async createBackupSchedule(input: BackupScheduleInput): Promise<BackupSchedule> {
     try {
       const nextRunAt = this.calculateNextRun(input.frequency);
 
@@ -169,9 +248,9 @@ export class DRAutomationService {
   /**
    * Update backup schedule
    */
-  static async updateBackupSchedule(id: string, input: Partial<BackupScheduleInput>): Promise<any> {
+  static async updateBackupSchedule(id: string, input: Partial<BackupScheduleInput>): Promise<BackupSchedule> {
     try {
-      const updateData: any = { ...input };
+      const updateData: Partial<BackupScheduleInput> & { nextRunAt?: Date } = { ...input };
 
       if (input.frequency) {
         updateData.nextRunAt = this.calculateNextRun(input.frequency);
@@ -206,7 +285,7 @@ export class DRAutomationService {
   /**
    * List backup schedules
    */
-  static async listBackupSchedules(tenantId?: string): Promise<any[]> {
+  static async listBackupSchedules(tenantId?: string): Promise<BackupSchedule[]> {
     try {
       return await prisma.backupSchedule.findMany({
         where: tenantId ? { tenantId } : {},
@@ -221,7 +300,7 @@ export class DRAutomationService {
   /**
    * Create backup target
    */
-  static async createBackupTarget(input: BackupTargetInput): Promise<any> {
+  static async createBackupTarget(input: BackupTargetInput): Promise<BackupTarget> {
     try {
       const target = await prisma.backupTarget.create({
         data: {
@@ -245,7 +324,7 @@ export class DRAutomationService {
   /**
    * Update backup target
    */
-  static async updateBackupTarget(id: string, input: Partial<BackupTargetInput>): Promise<any> {
+  static async updateBackupTarget(id: string, input: Partial<BackupTargetInput>): Promise<BackupTarget> {
     try {
       const target = await prisma.backupTarget.update({
         where: { id },
@@ -276,7 +355,7 @@ export class DRAutomationService {
   /**
    * List backup targets
    */
-  static async listBackupTargets(tenantId?: string): Promise<any[]> {
+  static async listBackupTargets(tenantId?: string): Promise<BackupTarget[]> {
     try {
       return await prisma.backupTarget.findMany({
         where: tenantId ? { tenantId } : {},
@@ -299,7 +378,15 @@ export class DRAutomationService {
       }
 
       // Use BackupTransferService to test connection
-      const verified = await BackupTransferService.testConnection(target as any);
+      const targetForTransfer = {
+        id: target.id,
+        name: target.name,
+        type: target.type as 'local' | 's3' | 'ftp' | 'sftp' | 'azure' | 'gcp',
+        config: target.config,
+        enabled: target.enabled,
+        priority: target.priority
+      };
+      const verified = await BackupTransferService.testConnection(targetForTransfer);
 
       await prisma.backupTarget.update({
         where: { id },
@@ -459,8 +546,9 @@ export class DRAutomationService {
         size,
         duration
       };
-    } catch (error: any) {
+    } catch (error) {
       const duration = Math.floor((Date.now() - startTime) / 1000);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
       logger.error('Backup failed:', error);
 
@@ -475,7 +563,7 @@ export class DRAutomationService {
 
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         duration
       };
     }
@@ -484,7 +572,7 @@ export class DRAutomationService {
   /**
    * Execute DR test
    */
-  static async executeDRTest(backupId: string, testType: string = 'restore'): Promise<any> {
+  static async executeDRTest(backupId: string, testType: string = 'restore'): Promise<DRTestResult> {
     const startTime = Date.now();
 
     try {
@@ -506,11 +594,11 @@ export class DRAutomationService {
         }
       });
 
-      let testResults: any = {
+      const testResults: DRTestResultDetails = {
         testType,
         backupId,
         backupLocation: backup.location,
-        backupSize: backup.size
+        backupSize: Number(backup.size)
       };
 
       let success = false;
@@ -555,7 +643,7 @@ export class DRAutomationService {
           status: success ? 'success' : 'failed',
           completedAt: new Date(),
           duration,
-          testResults
+          testResults: testResults as unknown as Prisma.InputJsonValue
         }
       });
 
@@ -566,7 +654,7 @@ export class DRAutomationService {
         duration,
         results: testResults
       };
-    } catch (error: any) {
+    } catch (error) {
       logger.error('DR test failed:', error);
       throw error;
     }
@@ -575,7 +663,7 @@ export class DRAutomationService {
   /**
    * Get DR metrics
    */
-  static async getDRMetrics(tenantId?: string, metricType?: string, days: number = 30): Promise<any[]> {
+  static async getDRMetrics(tenantId?: string, metricType?: string, days: number = 30): Promise<DRMetric[]> {
     try {
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -596,7 +684,7 @@ export class DRAutomationService {
   /**
    * Get DR dashboard summary
    */
-  static async getDRDashboard(tenantId?: string): Promise<any> {
+  static async getDRDashboard(tenantId?: string): Promise<DRDashboard> {
     try {
       const [
         config,
@@ -684,7 +772,7 @@ export class DRAutomationService {
   /**
    * Check for RTO/RPO violations
    */
-  static async checkRTORPOViolations(tenantId?: string): Promise<any> {
+  static async checkRTORPOViolations(tenantId?: string): Promise<RTORPOViolationCheck> {
     try {
       const config = await this.getDRConfig(tenantId);
 
@@ -766,7 +854,7 @@ export class DRAutomationService {
         try {
           await this.replicateToTarget(filepath, target);
           logger.info(`Replicated to target: ${target.name} (${target.type})`);
-        } catch (error: any) {
+        } catch (error) {
           logger.error(`Failed to replicate to target ${target.name}:`, error);
         }
       }
@@ -778,8 +866,16 @@ export class DRAutomationService {
   /**
    * Replicate backup to a single target
    */
-  private static async replicateToTarget(filepath: string, target: any): Promise<void> {
-    const result = await BackupTransferService.uploadToTarget(filepath, target);
+  private static async replicateToTarget(filepath: string, target: BackupTarget): Promise<void> {
+    const targetForTransfer = {
+      id: target.id,
+      name: target.name,
+      type: target.type as 'local' | 's3' | 'ftp' | 'sftp' | 'azure' | 'gcp',
+      config: target.config,
+      enabled: target.enabled,
+      priority: target.priority
+    };
+    const result = await BackupTransferService.uploadToTarget(filepath, targetForTransfer);
 
     if (!result.success) {
       throw new Error(result.error || 'Upload failed');
@@ -796,7 +892,7 @@ export class DRAutomationService {
     metricType: string,
     value: number,
     unit: string,
-    metadata?: any
+    metadata?: Prisma.InputJsonValue
   ): Promise<void> {
     try {
       await prisma.drMetric.create({

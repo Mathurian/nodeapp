@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { promises as fs } from 'fs';
 import * as path from 'path';
@@ -9,6 +9,94 @@ import PDFDocument from 'pdfkit';
 import { createWriteStream } from 'fs';
 
 const EXPORT_DIR = path.join(__dirname, '../exports');
+
+// Proper type definitions for export data
+type EventWithContests = Prisma.EventGetPayload<{
+  include: {
+    contests: {
+      include: {
+        categories: {
+          include: {
+            criteria: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestWithDetails = Prisma.ContestGetPayload<{
+  include: {
+    event: true;
+    categories: {
+      include: {
+        criteria: true;
+      };
+    };
+  };
+}>;
+
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  include: {
+    contestant: {
+      select: {
+        id: true;
+        name: true;
+        contestantNumber: true;
+      };
+    };
+    judge: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    criterion: {
+      select: {
+        id: true;
+        name: true;
+        maxScore: true;
+      };
+    };
+    category: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
+}>;
+
+type JudgeWithUser = Prisma.JudgeGetPayload<{
+  include: {
+    user: {
+      select: {
+        name: true;
+        email: true;
+      };
+    };
+  };
+}>;
+
+interface ScoreCSVRow {
+  'Contest Name': string;
+  'Category': string;
+  'Contestant Number': string | number;
+  'Contestant Name': string;
+  'Judge Name': string;
+  'Criterion': string;
+  'Max Score': number | string;
+  'Score': number | null;
+  'Deduction': number;
+  'Scored At': string;
+}
+
+interface EventSummary {
+  name: string;
+  eventDate: Date | null;
+  status: string | null;
+  createdAt: Date;
+}
 
 @injectable()
 export class ExportService extends BaseService {
@@ -35,7 +123,7 @@ export class ExportService extends BaseService {
   async exportEventToExcel(eventId: string, includeDetails = false): Promise<string> {
     await this.ensureExportDir();
 
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -47,8 +135,8 @@ export class ExportService extends BaseService {
             },
           },
         },
-      } as any,
-    } as any);
+      },
+    });
 
     if (!event) {
       throw this.notFoundError('Event', eventId);
@@ -151,7 +239,7 @@ export class ExportService extends BaseService {
   async exportContestResultsToCSV(contestId: string): Promise<string> {
     await this.ensureExportDir();
 
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         event: true,
@@ -160,15 +248,15 @@ export class ExportService extends BaseService {
             criteria: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    });
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
     }
 
     // Get all scores for this contest
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: {
         category: {
           contestId: contestId,
@@ -210,7 +298,7 @@ export class ExportService extends BaseService {
     });
 
     // Prepare CSV data
-    const csvData = scores.map((score: any) => ({
+    const csvData: ScoreCSVRow[] = scores.map((score) => ({
       'Contest Name': contest.name,
       'Category': score.category?.name || 'N/A',
       'Contestant Number': score.contestant?.contestantNumber || 'N/A',
@@ -254,7 +342,7 @@ export class ExportService extends BaseService {
   async exportJudgePerformanceToXML(judgeId: string): Promise<string> {
     await this.ensureExportDir();
 
-    const judge: any = await this.prisma.judge.findUnique({
+    const judge = await this.prisma.judge.findUnique({
       where: { id: judgeId },
       include: {
         user: {
@@ -264,14 +352,14 @@ export class ExportService extends BaseService {
           },
         },
       },
-    }) as any;
+    });
 
     if (!judge) {
       throw this.notFoundError('Judge', judgeId);
     }
 
     // Get judge's scoring activity
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: {
         judgeId: judgeId,
         score: { not: null },
@@ -304,9 +392,9 @@ export class ExportService extends BaseService {
 
     // Calculate statistics
     const totalScores = scores.length;
-    const categoriesJudged = new Set(scores.map((s: any) => s.category?.id)).size;
+    const categoriesJudged = new Set(scores.map((s) => s.category?.id)).size;
     const averageScore = totalScores > 0
-      ? scores.reduce((sum: number, s: any) => sum + (s.score || 0), 0) / totalScores
+      ? scores.reduce((sum: number, s) => sum + (s.score || 0), 0) / totalScores
       : 0;
 
     // Build XML
@@ -365,7 +453,12 @@ export class ExportService extends BaseService {
     await this.ensureExportDir();
 
     // Gather analytics data between startDate and endDate
-    const whereClause: any = {};
+    const whereClause: {
+      createdAt?: {
+        gte?: Date;
+        lte?: Date;
+      };
+    } = {};
 
     if (startDate || endDate) {
       whereClause.createdAt = {};
@@ -446,7 +539,7 @@ export class ExportService extends BaseService {
           doc.moveDown();
 
           doc.fontSize(10);
-          recentEvents.forEach((event: any) => {
+          recentEvents.forEach((event) => {
             doc.text(`• ${event.name}`, { continued: true });
             doc.text(` - ${event.status || 'N/A'}`, { continued: true });
             doc.text(
@@ -500,16 +593,16 @@ export class ExportService extends BaseService {
    * Get export history for a user
    */
   async getExportHistory(userId: string, limit = 50) {
-    const exports = await (this.prisma as any).report?.findMany({
-      where: {
-        generatedBy: userId,
-        type: {
-          in: ['EXCEL_EXPORT', 'CSV_EXPORT', 'XML_EXPORT', 'PDF_EXPORT'],
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    }) || [];
+    // Check if reportInstance table exists in schema
+    const exports = 'reportInstance' in this.prisma
+      ? await this.prisma.reportInstance.findMany({
+          where: {
+            generatedById: userId,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+        })
+      : [];
 
     return {
       exports,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
 import {
@@ -99,9 +100,10 @@ const ScoringPage: React.FC = () => {
     ['category-contestants', selectedCategory?.id],
     async () => {
       if (!selectedCategory) return []
-      // Assuming there's an endpoint to get contestants by category
-      const response = await scoringAPI.getScores(selectedCategory.id, '')
-      return response.data.contestants || []
+      // Get contestants from the category API
+      const response = await scoringAPI.getCategories()
+      const category = response.data.find((cat: any) => cat.id === selectedCategory.id)
+      return category?.contestants || []
     },
     {
       enabled: !!selectedCategory,
@@ -113,9 +115,9 @@ const ScoringPage: React.FC = () => {
     ['category-criteria', selectedCategory?.id],
     async () => {
       if (!selectedCategory) return []
-      // Assuming there's an endpoint to get criteria by category
-      const response = await scoringAPI.getScores(selectedCategory.id, '')
-      return response.data.criteria || []
+      // Use the dedicated getCriteria endpoint
+      const response = await scoringAPI.getCriteria(selectedCategory.id)
+      return response.data || []
     },
     {
       enabled: !!selectedCategory,
@@ -186,9 +188,10 @@ const ScoringPage: React.FC = () => {
         contestantId: selectedContestant.id,
         scores,
       })
-      alert('Scores submitted successfully!')
+      toast.success('Scores submitted successfully!')
     } catch (error: any) {
-      alert(`Error submitting scores: ${error.message}`)
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit scores'
+      toast.error(`Error submitting scores: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
     }

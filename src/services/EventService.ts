@@ -3,13 +3,38 @@
  * Business logic layer for Event entity with caching support
  */
 
-import { Event } from '@prisma/client';
+import { Event, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { EventRepository } from '../repositories/EventRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+
+// Proper type definitions for event responses
+type EventWithDetails = Prisma.EventGetPayload<{
+  include: {
+    contests: {
+      include: {
+        categories: {
+          include: {
+            criteria: true;
+            contestants: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+interface EventStats {
+  totalContests: number;
+  totalCategories: number;
+  totalContestants: number;
+  totalScores: number;
+  completionPercentage: number;
+  averageScoresPerContest: number;
+}
 
 interface CreateEventDto {
   name: string;
@@ -141,7 +166,7 @@ export class EventService extends BaseService {
   /**
    * Get event with full details
    */
-  async getEventWithDetails(id: string): Promise<any> {
+  async getEventWithDetails(id: string): Promise<EventWithDetails> {
     try {
       const cacheKey = `event:details:${id}`;
       const cached = await this.cacheService.get(cacheKey);
@@ -422,7 +447,7 @@ export class EventService extends BaseService {
   /**
    * Get event statistics
    */
-  async getEventStats(id: string): Promise<any> {
+  async getEventStats(id: string): Promise<EventStats> {
     try {
       const cacheKey = `events:stats:${id}`;
       const cached = await this.cacheService.get(cacheKey);

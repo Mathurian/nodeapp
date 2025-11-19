@@ -150,7 +150,7 @@ export const sanitizePhoneNumber = (phone: string): string => {
  * @returns Sanitized integer or null if invalid
  */
 export const sanitizeInteger = (
-  input: any,
+  input: unknown,
   options: {
     min?: number
     max?: number
@@ -180,7 +180,7 @@ export const sanitizeInteger = (
  * @returns Sanitized float or null if invalid
  */
 export const sanitizeFloat = (
-  input: any,
+  input: unknown,
   options: {
     min?: number
     max?: number
@@ -214,7 +214,7 @@ export const sanitizeFloat = (
  * @param input - The input to convert to boolean
  * @returns Boolean value
  */
-export const sanitizeBoolean = (input: any): boolean => {
+export const sanitizeBoolean = (input: unknown): boolean => {
   if (typeof input === 'boolean') {
     return input
   }
@@ -237,7 +237,7 @@ export const sanitizeBoolean = (input: any): boolean => {
  * @param options - Sanitization options
  * @returns Sanitized object
  */
-export const sanitizeObject = <T extends Record<string, any>>(
+export const sanitizeObject = <T extends Record<string, unknown>>(
   obj: T,
   options: {
     allowHtml?: boolean
@@ -248,7 +248,7 @@ export const sanitizeObject = <T extends Record<string, any>>(
     return obj
   }
 
-  const sanitized: any = Array.isArray(obj) ? [] : {}
+  const sanitized: Record<string, unknown> = Array.isArray(obj) ? [] : {}
 
   for (const key in obj) {
     if (obj.hasOwnProperty(key)) {

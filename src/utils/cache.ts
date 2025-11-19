@@ -5,7 +5,7 @@
  */
 
 class InMemoryCache {
-  private cache: Map<string, any>;
+  private cache: Map<string, unknown>;
   private ttlMap: Map<string, number>;
 
   constructor() {
@@ -16,7 +16,7 @@ class InMemoryCache {
   /**
    * Get a value from cache
    */
-  get(key: string): any | null {
+  get(key: string): unknown {
     // Check if key exists and hasn't expired
     const ttl = this.ttlMap.get(key);
     if (ttl && Date.now() > ttl) {
@@ -31,7 +31,7 @@ class InMemoryCache {
   /**
    * Set a value in cache with TTL
    */
-  set(key: string, value: any, ttlSeconds: number = 3600): void {
+  set(key: string, value: unknown, ttlSeconds: number = 3600): void {
     this.cache.set(key, value);
     this.ttlMap.set(key, Date.now() + (ttlSeconds * 1000));
   }
@@ -85,14 +85,14 @@ const userCache = {
   /**
    * Get user by ID from cache
    */
-  getById(userId: string): any | null {
+  getById(userId: string): unknown {
     return cache.get(`user:${userId}`);
   },
 
   /**
    * Set user in cache by ID
    */
-  setById(userId: string, user: any, ttlSeconds: number = 3600): void {
+  setById(userId: string, user: unknown, ttlSeconds: number = 3600): void {
     cache.set(`user:${userId}`, user, ttlSeconds);
   },
 

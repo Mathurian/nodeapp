@@ -32,9 +32,9 @@ export interface ErrorEntry {
     path?: string;
     ip?: string;
     userAgent?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  error?: any;
+  error?: unknown;
 }
 
 /**
@@ -120,7 +120,7 @@ class ErrorTracker {
    * Track an error
    */
   async trackError(
-    error: Error | any,
+    error: Error | unknown,
     severity: ErrorSeverity = ErrorSeverity.MEDIUM,
     context?: ErrorEntry['context']
   ): Promise<string> {
@@ -166,23 +166,25 @@ class ErrorTracker {
   /**
    * Sanitize error object (remove sensitive data)
    */
-  private sanitizeError(error: any): any {
+  private sanitizeError(error: unknown): Record<string, unknown> | null {
     if (!error) return null;
 
-    const sanitized: any = {
-      name: error.name,
-      message: error.message,
-      code: error.code
+    const err = error as { name?: string; message?: string; code?: string; context?: Record<string, unknown> };
+    const sanitized: Record<string, unknown> = {
+      name: err.name,
+      message: err.message,
+      code: err.code
     };
 
     // Remove potentially sensitive fields
     const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'authorization'];
 
-    if (error.context) {
-      sanitized.context = { ...error.context };
+    if (err.context) {
+      sanitized.context = { ...err.context };
+      const context = sanitized.context as Record<string, unknown>;
       sensitiveFields.forEach(field => {
-        if (field in sanitized.context) {
-          sanitized.context[field] = '[REDACTED]';
+        if (field in context) {
+          context[field] = '[REDACTED]';
         }
       });
     }
@@ -321,7 +323,7 @@ const errorTracker = new ErrorTracker();
  * Track an error
  */
 export function trackError(
-  error: Error | any,
+  error: Error | unknown,
   severity: ErrorSeverity = ErrorSeverity.MEDIUM,
   context?: ErrorEntry['context']
 ): Promise<string> {

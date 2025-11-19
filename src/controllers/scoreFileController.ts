@@ -9,6 +9,7 @@ import { ScoreFileService } from '../services/ScoreFileService';
 import { sendSuccess, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { promises as fs } from 'fs';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 export class ScoreFileController {
   private scoreFileService: ScoreFileService;
@@ -58,7 +59,7 @@ export class ScoreFileController {
   getScoreFileById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       const file = await this.scoreFileService.getScoreFileById(id, req.user!.tenantId);
 
@@ -81,7 +82,7 @@ export class ScoreFileController {
   getScoreFilesByCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { categoryId } = req.params;
+      const categoryId = getRequiredParam(req, 'categoryId');
 
       const files = await this.scoreFileService.getScoreFilesByCategory(categoryId, req.user!.tenantId);
 
@@ -99,7 +100,7 @@ export class ScoreFileController {
   getScoreFilesByJudge = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { judgeId } = req.params;
+      const judgeId = getRequiredParam(req, 'judgeId');
 
       const files = await this.scoreFileService.getScoreFilesByJudge(judgeId, req.user!.tenantId);
 
@@ -117,7 +118,7 @@ export class ScoreFileController {
   getScoreFilesByContestant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { contestantId } = req.params;
+      const contestantId = getRequiredParam(req, 'contestantId');
 
       const files = await this.scoreFileService.getScoreFilesByContestant(contestantId, req.user!.tenantId);
 
@@ -158,7 +159,7 @@ export class ScoreFileController {
   updateScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const { status, notes } = req.body;
 
       if (!req.user) {
@@ -187,7 +188,7 @@ export class ScoreFileController {
   deleteScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       if (!req.user) {
         throw new Error('User not authenticated');
@@ -214,7 +215,7 @@ export class ScoreFileController {
   downloadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       if (!req.user) {
         throw new Error('User not authenticated');

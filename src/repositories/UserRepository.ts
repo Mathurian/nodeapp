@@ -3,11 +3,17 @@
  * Data access layer for User entity
  */
 
-import { User } from '@prisma/client';
+import { User, Prisma } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
 
-export type UserWithRelations = any; // Simplified due to Prisma type inference issues with includes
+// Type for User with common relations
+export type UserWithRelations = User & {
+  judge?: unknown | null;
+  contestant?: unknown | null;
+  assignedAssignments?: Array<{ eventId: string; [key: string]: unknown }>;
+  [key: string]: unknown;
+};
 
 @injectable()
 export class UserRepository extends BaseRepository<User> {
@@ -145,7 +151,7 @@ export class UserRepository extends BaseRepository<User> {
     }
 
     const eventIds = new Set([
-      ...user.assignedAssignments.map((a: any) => a.eventId)
+      ...user.assignedAssignments.map((a: { eventId: string }) => a.eventId)
     ]);
 
     return {

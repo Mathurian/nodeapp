@@ -2,9 +2,58 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileManagementService } from '../services/FileManagementService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+
+interface FileAnalyticsByCategory {
+  [category: string]: {
+    count: number;
+    size: number;
+  };
+}
+
+interface FileAnalyticsByMimeType {
+  [mimeType: string]: {
+    count: number;
+    size: number;
+  };
+}
+
+interface FileAnalyticsByDay {
+  [day: string]: {
+    count: number;
+    size: number;
+  };
+}
+
+interface FileAnalyticsByUser {
+  [userId: string]: {
+    count: number;
+    size: number;
+  };
+}
+
+interface TopUploader {
+  userId: string;
+  count: number;
+  size: number;
+}
+
+interface BulkOperationResult {
+  processed: number;
+  failed: number;
+  total: number;
+}
+
+interface IntegrityCheckResult {
+  id: string;
+  filename?: string;
+  integrity: 'OK' | 'FAILED' | 'NOT_FOUND' | 'ERROR';
+  reason?: string;
+  sizeMatch?: boolean;
+  checksumMatch?: boolean | null;
+}
 
 export class FileManagementController {
   private fileManagementService: FileManagementService;
@@ -67,7 +116,7 @@ export class FileManagementController {
       const startDate = req.query.startDate as string | undefined;
       const endDate = req.query.endDate as string | undefined;
 
-      const where: any = {};
+      const where: Prisma.FileWhereInput = {};
 
       if (category) where.category = category;
       if (eventId) where.eventId = eventId;
@@ -141,7 +190,7 @@ export class FileManagementController {
         return sendSuccess(res, { processed: 0 }, 'No files to process');
       }
 
-      let result: any = { processed: 0, failed: 0, total: fileIds.length };
+      let result: BulkOperationResult = { processed: 0, failed: 0, total: fileIds.length };
 
       switch (operation) {
         case 'delete':
@@ -160,7 +209,7 @@ export class FileManagementController {
           if (!options) {
             return sendSuccess(res, {}, 'options object is required for update operation', 400);
           }
-          const updateData: any = {};
+          const updateData: Prisma.FileUpdateInput = {};
           if (options.category !== undefined) updateData.category = options.category;
           if (options.isPublic !== undefined) updateData.isPublic = options.isPublic;
           if (options.eventId !== undefined) updateData.eventId = options.eventId;
@@ -269,7 +318,7 @@ export class FileManagementController {
         totalSize: files.reduce((sum, f) => sum + f.size, 0),
         totalSizeMB: (files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2),
 
-        byCategory: files.reduce((acc: any, file) => {
+        byCategory: files.reduce((acc: FileAnalyticsByCategory, file) => {
           const cat = file.category || 'UNKNOWN';
           if (!acc[cat]) {
             acc[cat] = { count: 0, size: 0 };
@@ -279,7 +328,7 @@ export class FileManagementController {
           return acc;
         }, {}),
 
-        byMimeType: files.reduce((acc: any, file) => {
+        byMimeType: files.reduce((acc: FileAnalyticsByMimeType, file) => {
           const mime = file.mimeType || 'unknown';
           if (!acc[mime]) {
             acc[mime] = { count: 0, size: 0 };
@@ -289,7 +338,7 @@ export class FileManagementController {
           return acc;
         }, {}),
 
-        uploadsByDay: files.reduce((acc: any, file) => {
+        uploadsByDay: files.reduce((acc: FileAnalyticsByDay, file) => {
           const day = file.uploadedAt.toISOString().split('T')[0];
           if (!acc[day]) {
             acc[day] = { count: 0, size: 0 };
@@ -300,7 +349,7 @@ export class FileManagementController {
         }, {}),
 
         topUploaders: Object.entries(
-          files.reduce((acc: any, file) => {
+          files.reduce((acc: FileAnalyticsByUser, file) => {
             const userId = file.uploadedBy;
             if (!acc[userId]) {
               acc[userId] = { count: 0, size: 0 };
@@ -310,7 +359,7 @@ export class FileManagementController {
             return acc;
           }, {})
         )
-          .map(([userId, stats]: any) => ({ userId, ...stats }))
+          .map(([userId, stats]: [string, { count: number; size: number }]): TopUploader => ({ userId, ...stats }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10)
       };
@@ -457,10 +506,10 @@ export class FileManagementController {
 
       const summary = {
         total: fileIds.length,
-        ok: processedResults.filter((r: any) => r.integrity === 'OK').length,
-        failed: processedResults.filter((r: any) => r.integrity === 'FAILED').length,
-        notFound: processedResults.filter((r: any) => r.integrity === 'NOT_FOUND').length,
-        errors: processedResults.filter((r: any) => r.integrity === 'ERROR').length
+        ok: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'OK').length,
+        failed: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'FAILED').length,
+        notFound: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'NOT_FOUND').length,
+        errors: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'ERROR').length
       };
 
       return sendSuccess(res, {

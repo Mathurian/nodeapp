@@ -3,19 +3,31 @@
  * Generic repository pattern for data access abstraction
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+// Type for Prisma where clause
+export type WhereInput = Record<string, unknown>;
+
+// Type for Prisma data input
+export type DataInput = Record<string, unknown>;
+
+// Type for Prisma order by
+export type OrderByInput = Record<string, unknown> | Array<Record<string, unknown>>;
+
+// Type for Prisma include/select
+export type IncludeSelect = Record<string, unknown>;
 
 /**
  * Base Repository Interface
  */
 export interface IBaseRepository<T> {
   findById(id: string): Promise<T | null>;
-  findMany(where?: any, options?: FindManyOptions): Promise<T[]>;
-  findFirst(where: any): Promise<T | null>;
-  create(data: any): Promise<T>;
-  update(id: string, data: any): Promise<T>;
+  findMany(where?: WhereInput, options?: FindManyOptions): Promise<T[]>;
+  findFirst(where: WhereInput): Promise<T | null>;
+  create(data: DataInput): Promise<T>;
+  update(id: string, data: DataInput): Promise<T>;
   delete(id: string): Promise<void>;
-  count(where?: any): Promise<number>;
+  count(where?: WhereInput): Promise<number>;
   exists(id: string): Promise<boolean>;
 }
 
@@ -25,9 +37,9 @@ export interface IBaseRepository<T> {
 export interface FindManyOptions {
   skip?: number;
   take?: number;
-  orderBy?: any;
-  include?: any;
-  select?: any;
+  orderBy?: OrderByInput;
+  include?: IncludeSelect;
+  select?: IncludeSelect;
 }
 
 /**
@@ -36,8 +48,8 @@ export interface FindManyOptions {
 export interface PaginationOptions {
   page: number;
   limit: number;
-  orderBy?: any;
-  include?: any;
+  orderBy?: OrderByInput;
+  include?: IncludeSelect;
 }
 
 /**
@@ -71,48 +83,57 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
 
   /**
    * Get the Prisma delegate for this model
+   * Note: Returns unknown as Prisma model delegates have dynamic types
    */
-  protected getModel(): any {
+  protected getModel(): unknown {
     const modelName = this.getModelName();
-    return (this.prisma as any)[modelName];
+    return (this.prisma as Record<string, unknown>)[modelName];
   }
 
   /**
    * Find a record by ID
    */
   async findById(id: string): Promise<T | null> {
-    return this.getModel().findUnique({
+    return (this.getModel() as {
+      findUnique: (args: { where: { id: string } }) => Promise<T | null>;
+    }).findUnique({
       where: { id }
-    }) as Promise<T | null>;
+    });
   }
 
   /**
    * Find a record by ID with relations
    */
-  async findByIdWithRelations(id: string, include: any): Promise<T | null> {
-    return this.getModel().findUnique({
+  async findByIdWithRelations(id: string, include: IncludeSelect): Promise<T | null> {
+    return (this.getModel() as {
+      findUnique: (args: { where: { id: string }; include: IncludeSelect }) => Promise<T | null>;
+    }).findUnique({
       where: { id },
       include
-    }) as Promise<T | null>;
+    });
   }
 
   /**
    * Find many records
    */
-  async findMany(where: any = {}, options: FindManyOptions = {}): Promise<T[]> {
-    return this.getModel().findMany({
+  async findMany(where: WhereInput = {}, options: FindManyOptions = {}): Promise<T[]> {
+    return (this.getModel() as {
+      findMany: (args: WhereInput & FindManyOptions) => Promise<T[]>;
+    }).findMany({
       where,
       ...options
-    }) as Promise<T[]>;
+    });
   }
 
   /**
    * Find first record matching criteria
    */
-  async findFirst(where: any): Promise<T | null> {
-    return this.getModel().findFirst({
+  async findFirst(where: WhereInput): Promise<T | null> {
+    return (this.getModel() as {
+      findFirst: (args: { where: WhereInput }) => Promise<T | null>;
+    }).findFirst({
       where
-    }) as Promise<T | null>;
+    });
   }
 
   /**
@@ -125,17 +146,21 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Create a new record
    */
-  async create(data: any): Promise<T> {
-    return this.getModel().create({
+  async create(data: DataInput): Promise<T> {
+    return (this.getModel() as {
+      create: (args: { data: DataInput }) => Promise<T>;
+    }).create({
       data
-    }) as Promise<T>;
+    });
   }
 
   /**
    * Create many records
    */
-  async createMany(data: any[]): Promise<number> {
-    const result = await this.getModel().createMany({
+  async createMany(data: DataInput[]): Promise<number> {
+    const result = await (this.getModel() as {
+      createMany: (args: { data: DataInput[] }) => Promise<{ count: number }>;
+    }).createMany({
       data
     });
     return result.count;
@@ -144,18 +169,22 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Update a record by ID
    */
-  async update(id: string, data: any): Promise<T> {
-    return this.getModel().update({
+  async update(id: string, data: DataInput): Promise<T> {
+    return (this.getModel() as {
+      update: (args: { where: { id: string }; data: DataInput }) => Promise<T>;
+    }).update({
       where: { id },
       data
-    }) as Promise<T>;
+    });
   }
 
   /**
    * Update many records
    */
-  async updateMany(where: any, data: any): Promise<number> {
-    const result = await this.getModel().updateMany({
+  async updateMany(where: WhereInput, data: DataInput): Promise<number> {
+    const result = await (this.getModel() as {
+      updateMany: (args: { where: WhereInput; data: DataInput }) => Promise<{ count: number }>;
+    }).updateMany({
       where,
       data
     });
@@ -166,7 +195,9 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
    * Delete a record by ID
    */
   async delete(id: string): Promise<void> {
-    await this.getModel().delete({
+    await (this.getModel() as {
+      delete: (args: { where: { id: string } }) => Promise<unknown>;
+    }).delete({
       where: { id }
     });
   }
@@ -174,8 +205,10 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Delete many records
    */
-  async deleteMany(where: any): Promise<number> {
-    const result = await this.getModel().deleteMany({
+  async deleteMany(where: WhereInput): Promise<number> {
+    const result = await (this.getModel() as {
+      deleteMany: (args: { where: WhereInput }) => Promise<{ count: number }>;
+    }).deleteMany({
       where
     });
     return result.count;
@@ -184,8 +217,10 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Count records matching criteria
    */
-  async count(where: any = {}): Promise<number> {
-    return this.getModel().count({
+  async count(where: WhereInput = {}): Promise<number> {
+    return (this.getModel() as {
+      count: (args: { where: WhereInput }) => Promise<number>;
+    }).count({
       where
     });
   }
@@ -194,7 +229,9 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
    * Check if a record exists by ID
    */
   async exists(id: string): Promise<boolean> {
-    const count = await this.getModel().count({
+    const count = await (this.getModel() as {
+      count: (args: { where: { id: string } }) => Promise<number>;
+    }).count({
       where: { id }
     });
     return count > 0;
@@ -203,8 +240,10 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Check if any records exist matching criteria
    */
-  async existsWhere(where: any): Promise<boolean> {
-    const count = await this.getModel().count({
+  async existsWhere(where: WhereInput): Promise<boolean> {
+    const count = await (this.getModel() as {
+      count: (args: { where: WhereInput }) => Promise<number>;
+    }).count({
       where
     });
     return count > 0;
@@ -213,19 +252,21 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Upsert a record (create or update)
    */
-  async upsert(where: any, create: any, update: any): Promise<T> {
-    return this.getModel().upsert({
+  async upsert(where: WhereInput, create: DataInput, update: DataInput): Promise<T> {
+    return (this.getModel() as {
+      upsert: (args: { where: WhereInput; create: DataInput; update: DataInput }) => Promise<T>;
+    }).upsert({
       where,
       create,
       update
-    }) as Promise<T>;
+    });
   }
 
   /**
    * Find with pagination
    */
   async findManyPaginated(
-    where: any = {},
+    where: WhereInput = {},
     options: PaginationOptions
   ): Promise<PaginatedResult<T>> {
     const { page, limit, orderBy, include } = options;
@@ -258,14 +299,14 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
   /**
    * Execute a raw query
    */
-  async executeRaw(query: string, params: any[] = []): Promise<any> {
+  async executeRaw(query: string, params: unknown[] = []): Promise<number> {
     return this.prisma.$executeRawUnsafe(query, ...params);
   }
 
   /**
    * Query raw
    */
-  async queryRaw<R = any>(query: string, params: any[] = []): Promise<R> {
+  async queryRaw<R = unknown>(query: string, params: unknown[] = []): Promise<R> {
     return this.prisma.$queryRawUnsafe(query, ...params);
   }
 
@@ -273,7 +314,7 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
    * Execute in transaction
    */
   async transaction<R>(
-    callback: (tx: any) => Promise<R>
+    callback: (tx: Prisma.TransactionClient) => Promise<R>
   ): Promise<R> {
     return this.prisma.$transaction(callback);
   }

@@ -4,7 +4,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, ReportInstance } from '@prisma/client';
+import { PrismaClient, Prisma, ReportInstance } from '@prisma/client';
 import { BaseService } from './BaseService';
 
 export interface CreateReportInstanceDTO {
@@ -38,9 +38,9 @@ export class ReportInstanceService extends BaseService {
    */
   async createInstance(data: CreateReportInstanceDTO): Promise<ReportInstance> {
     try {
-      this.validateRequired(data, ['type', 'name', 'generatedById', 'format', 'tenantId']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['type', 'name', 'generatedById', 'format', 'tenantId']);
 
-      const instance: any = await this.prisma.reportInstance.create({
+      const instance = await this.prisma.reportInstance.create({
         data: {
           tenantId: data.tenantId,
           type: data.type,
@@ -68,7 +68,7 @@ export class ReportInstanceService extends BaseService {
    */
   async getInstances(filters?: ReportInstanceFilters): Promise<ReportInstance[]> {
     try {
-      const where: any = {};
+      const where: Prisma.ReportInstanceWhereInput = {};
 
       if (filters?.type) {
         where.type = filters.type;
@@ -92,7 +92,7 @@ export class ReportInstanceService extends BaseService {
         }
       }
 
-      const instances: any = await this.prisma.reportInstance.findMany({
+      const instances = await this.prisma.reportInstance.findMany({
         where,
         orderBy: { generatedAt: 'desc' }
       });
@@ -108,13 +108,13 @@ export class ReportInstanceService extends BaseService {
    */
   async getInstanceById(instanceId: string): Promise<ReportInstance> {
     try {
-      const instance: any = await this.prisma.reportInstance.findUnique({
+      const instance = await this.prisma.reportInstance.findUnique({
         where: { id: instanceId }
       });
 
       this.assertExists(instance, 'ReportInstance', instanceId);
 
-      return instance;
+      return instance!;
     } catch (error) {
       this.handleError(error, { method: 'getInstanceById', instanceId });
     }
@@ -125,7 +125,7 @@ export class ReportInstanceService extends BaseService {
    */
   async deleteInstance(instanceId: string): Promise<void> {
     try {
-      const instance: any = await this.prisma.reportInstance.findUnique({
+      const instance = await this.prisma.reportInstance.findUnique({
         where: { id: instanceId }
       });
 
@@ -152,7 +152,7 @@ export class ReportInstanceService extends BaseService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-      const result: any = await this.prisma.reportInstance.deleteMany({
+      const result = await this.prisma.reportInstance.deleteMany({
         where: {
           generatedAt: {
             lt: cutoffDate
@@ -185,7 +185,7 @@ export class ReportInstanceService extends BaseService {
     topGenerators: Array<{ userId: string; userName: string; count: number }>;
   }> {
     try {
-      const where: any = {};
+      const where: Prisma.ReportInstanceWhereInput = {};
 
       if (filters?.type) {
         where.type = filters.type;
@@ -201,7 +201,7 @@ export class ReportInstanceService extends BaseService {
         }
       }
 
-      const instances: any = await this.prisma.reportInstance.findMany({
+      const instances = await this.prisma.reportInstance.findMany({
         where
       });
 

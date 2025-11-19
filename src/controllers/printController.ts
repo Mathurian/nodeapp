@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { PrintService } from '../services/PrintService';
 import { successResponse } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 import {
   PrintTemplateInput,
   PrintEventReportInput,
@@ -69,7 +70,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const data: Partial<PrintTemplateInput> = req.body;
 
       const template = await this.printService.updatePrintTemplate(id, data);
@@ -88,7 +89,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       await this.printService.deletePrintTemplate(id);
       successResponse(res, null, 'Print template deleted successfully');
     } catch (error) {
@@ -180,7 +181,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const contestant = await this.printService.getContestantReport(id);
       successResponse(res, contestant, 'Contestant report retrieved successfully');
     } catch (error) {
@@ -197,7 +198,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const judge = await this.printService.getJudgeReport(id);
       successResponse(res, judge, 'Judge report retrieved successfully');
     } catch (error) {
@@ -214,7 +215,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const category = await this.printService.getCategoryReport(id);
       successResponse(res, category, 'Category report retrieved successfully');
     } catch (error) {
@@ -231,7 +232,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const contest = await this.printService.getContestReport(id);
       successResponse(res, contest, 'Contest report retrieved successfully');
     } catch (error) {
@@ -248,7 +249,7 @@ export class PrintController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const contest = await this.printService.getArchivedContestReport(id);
       successResponse(res, contest, 'Archived contest report retrieved successfully');
     } catch (error) {

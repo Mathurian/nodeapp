@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = loggerFactory('EmailTemplateController');
 const prisma = new PrismaClient();
@@ -20,9 +21,10 @@ export class EmailTemplateController {
       const templates = await emailTemplateService.getAllEmailTemplates(eventId as string, req.user!.tenantId);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve email templates';
       logger.error('Error in getAllTemplates', { error });
-      sendError(res, error.message || 'Failed to retrieve email templates', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -32,7 +34,7 @@ export class EmailTemplateController {
    */
   async getTemplateById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       const template = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
 
@@ -42,9 +44,10 @@ export class EmailTemplateController {
       }
 
       sendSuccess(res, template, 'Email template retrieved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve email template';
       logger.error('Error in getTemplateById', { error });
-      sendError(res, error.message || 'Failed to retrieve email template', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -54,15 +57,16 @@ export class EmailTemplateController {
    */
   async getTemplatesByType(req: Request, res: Response): Promise<void> {
     try {
-      const { type } = req.params;
+      const type = getRequiredParam(req, 'type');
       const { eventId } = req.query;
 
       const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string, req.user!.tenantId);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve email templates';
       logger.error('Error in getTemplatesByType', { error });
-      sendError(res, error.message || 'Failed to retrieve email templates', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -73,7 +77,7 @@ export class EmailTemplateController {
   async createTemplate(req: Request, res: Response): Promise<void> {
     try {
       const data = req.body;
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         sendError(res, 'Unauthorized', 401);
@@ -91,9 +95,10 @@ export class EmailTemplateController {
       const template = await emailTemplateService.createEmailTemplate(data);
 
       sendSuccess(res, template, 'Email template created successfully', 201);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create email template';
       logger.error('Error in createTemplate', { error });
-      sendError(res, error.message || 'Failed to create email template', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -103,7 +108,7 @@ export class EmailTemplateController {
    */
   async updateTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const data = req.body;
 
       const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
@@ -115,9 +120,10 @@ export class EmailTemplateController {
       const template = await emailTemplateService.updateEmailTemplate(id, req.user!.tenantId, data);
 
       sendSuccess(res, template, 'Email template updated successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update email template';
       logger.error('Error in updateTemplate', { error });
-      sendError(res, error.message || 'Failed to update email template', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -127,7 +133,7 @@ export class EmailTemplateController {
    */
   async deleteTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
       if (!existing) {
@@ -138,9 +144,10 @@ export class EmailTemplateController {
       await emailTemplateService.deleteEmailTemplate(id, req.user!.tenantId);
 
       sendSuccess(res, null, 'Email template deleted successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete email template';
       logger.error('Error in deleteTemplate', { error });
-      sendError(res, error.message || 'Failed to delete email template', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -150,8 +157,8 @@ export class EmailTemplateController {
    */
   async cloneTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
-      const userId = (req as any).user?.id;
+      const id = getRequiredParam(req, 'id');
+      const userId = req.user?.id;
 
       if (!userId) {
         sendError(res, 'Unauthorized', 401);
@@ -161,9 +168,10 @@ export class EmailTemplateController {
       const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, req.user!.tenantId);
 
       sendSuccess(res, cloned, 'Email template cloned successfully', 201);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to clone email template';
       logger.error('Error in cloneTemplate', { error });
-      sendError(res, error.message || 'Failed to clone email template', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -173,15 +181,16 @@ export class EmailTemplateController {
    */
   async previewTemplate(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const { variables } = req.body;
 
       const preview = await emailTemplateService.previewEmailTemplate(id, req.user!.tenantId, variables);
 
       sendSuccess(res, preview, 'Email template preview generated successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to preview email template';
       logger.error('Error in previewTemplate', { error });
-      sendError(res, error.message || 'Failed to preview email template', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 
@@ -191,14 +200,15 @@ export class EmailTemplateController {
    */
   async getAvailableVariables(req: Request, res: Response): Promise<void> {
     try {
-      const { type } = req.params;
+      const type = getRequiredParam(req, 'type');
 
       const variables = emailTemplateService.getAvailableVariables(type);
 
       sendSuccess(res, variables, 'Available variables retrieved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve available variables';
       logger.error('Error in getAvailableVariables', { error });
-      sendError(res, error.message || 'Failed to retrieve available variables', 500);
+      sendError(res, errorMessage, 500);
     }
   }
 }

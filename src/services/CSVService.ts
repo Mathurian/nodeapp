@@ -9,15 +9,16 @@ export interface CSVParseError {
   row: number;
   field: string;
   error: string;
-  value?: any;
+  value?: unknown;
 }
 
-export interface CSVImportResult {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface CSVImportResult<T = any> {
   total: number;
   successful: number;
   failed: number;
   errors: CSVParseError[];
-  data: any[];
+  data: T[];
 }
 
 @injectable()
@@ -31,6 +32,7 @@ export class CSVService {
    * @param fileBuffer CSV file buffer
    * @param columns Optional column definitions
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parseCSV(fileBuffer: Buffer, columns?: string[]): any[] {
     try {
       const records = parse(fileBuffer, {
@@ -53,6 +55,7 @@ export class CSVService {
    * Validate and import users from CSV
    * @param csvData Parsed CSV data
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async validateUsersImport(csvData: any[]): Promise<CSVImportResult> {
     const result: CSVImportResult = {
       total: csvData.length,
@@ -131,6 +134,7 @@ export class CSVService {
    * Validate and import contestants from CSV
    * @param csvData Parsed CSV data
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async validateContestantsImport(csvData: any[]): Promise<CSVImportResult> {
     const result: CSVImportResult = {
       total: csvData.length,
@@ -196,6 +200,7 @@ export class CSVService {
    * Validate and import judges from CSV
    * @param csvData Parsed CSV data
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async validateJudgesImport(csvData: any[]): Promise<CSVImportResult> {
     const result: CSVImportResult = {
       total: csvData.length,
@@ -264,6 +269,7 @@ export class CSVService {
    * @param columns Column definitions (field names)
    * @param headers Optional header labels (defaults to field names)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exportToCSV(
     data: any[],
     columns: string[],

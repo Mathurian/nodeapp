@@ -1,6 +1,100 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, EmceeScript, RequestStatus } from '@prisma/client';
+
+// Proper type definitions for board responses
+type CategoryWithCertifications = Prisma.CategoryGetPayload<{
+  include: {
+    categoryCertifications: true;
+  };
+}>;
+
+type CategoryWithFullDetails = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+    scores: {
+      include: {
+        judge: true;
+        contestant: true;
+      };
+    };
+    categoryCertifications: true;
+  };
+}>;
+
+type CategoryWithContest = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+  };
+}>;
+
+type ScoreRemovalRequestWithDetails = Prisma.JudgeScoreRemovalRequestGetPayload<{
+  include: {
+    judge: true;
+    category: {
+      include: {
+        contest: {
+          include: {
+            event: true;
+          };
+        };
+      };
+    };
+    score: {
+      include: {
+        contestant: true;
+      };
+    };
+  };
+}>;
+
+type ScoreRemovalRequestWithScore = Prisma.JudgeScoreRemovalRequestGetPayload<{
+  include: {
+    score: true;
+  };
+}>;
+
+// Interface types for complex return objects
+interface BoardStats {
+  contests: number;
+  categories: number;
+  certified: number;
+  pending: number;
+}
+
+interface CertificationStatus {
+  total: number;
+  pending: number;
+  certified: number;
+  approved: number;
+}
+
+interface ScoreRemovalRequestsResponse {
+  requests: ScoreRemovalRequestWithDetails[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+interface ApprovalResponse {
+  message: string;
+  category: CategoryWithContest;
+}
+
+interface DeleteResponse {
+  message: string;
+}
 
 /**
  * Service for Board functionality
@@ -14,19 +108,19 @@ export class BoardService extends BaseService {
   /**
    * Get board dashboard statistics
    */
-  async getStats() {
-    const totalContests: any = await this.prisma.contest.count();
-    const totalCategories: any = await this.prisma.category.count();
+  async getStats(): Promise<BoardStats> {
+    const totalContests: number = await this.prisma.contest.count();
+    const totalCategories: number = await this.prisma.category.count();
 
-    const categories: any = await (this.prisma.category.findMany as any)({
+    const categories: CategoryWithCertifications[] = await (this.prisma.category.findMany as any)({
       include: {
-        certifications: true,
+        categoryCertifications: true,
       },
     });
 
-    const certified = categories.filter((cat: any) => cat.certifications.some((cert: any) => cert.type === 'FINAL')).length;
+    const certified = categories.filter((cat) => cat.categoryCertifications.some((cert) => cert.role === 'FINAL')).length;
 
-    const pending = categories.filter((cat: any) => !cat.certifications.some((cert: any) => cert.type === 'FINAL')).length;
+    const pending = categories.filter((cat) => !cat.categoryCertifications.some((cert) => cert.role === 'FINAL')).length;
 
     return {
       contests: totalContests,
@@ -39,40 +133,40 @@ export class BoardService extends BaseService {
   /**
    * Get all certifications
    */
-  async getCertifications() {
-    const categories: any = await (this.prisma.category.findMany as any)({
+  async getCertifications(): Promise<CategoryWithFullDetails[]> {
+    const categories: CategoryWithFullDetails[] = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
         scores: {
           include: {
             judge: true,
             contestant: true,
-          } as any,
+          },
         },
-        certifications: true,
+        categoryCertifications: true,
       },
       orderBy: { createdAt: 'desc' },
     });
 
     // Filter for categories with FINAL certification
-    return categories.filter((cat: any) => cat.certifications.some((cert: any) => cert.type === 'FINAL'));
+    return categories.filter((cat) => cat.categoryCertifications.some((cert) => cert.role === 'FINAL'));
   }
 
   /**
    * Approve category certification
    */
-  async approveCertification(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+  async approveCertification(categoryId: string): Promise<ApprovalResponse> {
+    const category: CategoryWithContest | null = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
       },
     });
@@ -92,14 +186,14 @@ export class BoardService extends BaseService {
   /**
    * Reject category certification
    */
-  async rejectCertification(categoryId: string, reason?: string) {
-    const category: any = await this.prisma.category.findUnique({
+  async rejectCertification(categoryId: string, reason?: string): Promise<ApprovalResponse> {
+    const category: CategoryWithContest | null = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
       },
     });
@@ -123,25 +217,19 @@ export class BoardService extends BaseService {
   /**
    * Get certification status summary
    */
-  async getCertificationStatus() {
-    const categories: any = await (this.prisma.category.findMany as any)({
+  async getCertificationStatus(): Promise<CertificationStatus> {
+    const categories: CategoryWithCertifications[] = await (this.prisma.category.findMany as any)({
       include: {
-        certifications: {
-          where: {
-            status: {
-              in: ['CERTIFIED', 'PENDING', 'IN_PROGRESS'],
-            },
-          },
-        },
+        categoryCertifications: true,
       },
     });
 
-    const status = {
+    const status: CertificationStatus = {
       total: categories.length,
       pending: categories.filter(
-        (cat: any) => cat.certifications.length === 0 || cat.certifications.every((cert: any) => cert.status !== 'CERTIFIED')
+        (cat) => cat.categoryCertifications.length === 0
       ).length,
-      certified: categories.filter((cat: any) => cat.certifications.some((cert: any) => cert.status === 'CERTIFIED')).length,
+      certified: categories.filter((cat) => cat.categoryCertifications.length > 0).length,
       approved: 0,
     };
 
@@ -151,7 +239,7 @@ export class BoardService extends BaseService {
   /**
    * Get all emcee scripts
    */
-  async getEmceeScripts() {
+  async getEmceeScripts(): Promise<EmceeScript[]> {
     return await this.prisma.emceeScript.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -171,10 +259,10 @@ export class BoardService extends BaseService {
     notes?: string;
     userId: string;
     tenantId: string;
-  }) {
+  }): Promise<EmceeScript> {
     this.validateRequired(data, ['title', 'content', 'tenantId']);
 
-    const script: any = await this.prisma.emceeScript.create({
+    const script: EmceeScript = await this.prisma.emceeScript.create({
       data: {
         tenantId: data.tenantId,
         title: data.title,
@@ -205,8 +293,8 @@ export class BoardService extends BaseService {
       notes?: string;
       isActive?: boolean;
     }
-  ) {
-    const script: any = await this.prisma.emceeScript.update({
+  ): Promise<EmceeScript> {
+    const script: EmceeScript = await this.prisma.emceeScript.update({
       where: { id: scriptId },
       data,
     });
@@ -217,7 +305,7 @@ export class BoardService extends BaseService {
   /**
    * Delete emcee script
    */
-  async deleteEmceeScript(scriptId: string) {
+  async deleteEmceeScript(scriptId: string): Promise<DeleteResponse> {
     await this.prisma.emceeScript.delete({
       where: { id: scriptId },
     });
@@ -228,11 +316,11 @@ export class BoardService extends BaseService {
   /**
    * Get score removal requests
    */
-  async getScoreRemovalRequests(status?: string, page: number = 1, limit: number = 20) {
-    const whereClause: any = {};
+  async getScoreRemovalRequests(status?: RequestStatus, page: number = 1, limit: number = 20): Promise<ScoreRemovalRequestsResponse> {
+    const whereClause: Prisma.JudgeScoreRemovalRequestWhereInput = {};
     if (status) whereClause.status = status;
 
-    const requests: any = await this.prisma.judgeScoreRemovalRequest.findMany({
+    const requests: ScoreRemovalRequestWithDetails[] = await this.prisma.judgeScoreRemovalRequest.findMany({
       where: whereClause,
       include: {
         judge: true,
@@ -241,14 +329,14 @@ export class BoardService extends BaseService {
             contest: {
               include: {
                 event: true,
-              } as any,
+              },
             },
           },
         },
         score: {
           include: {
             contestant: true,
-          } as any,
+          },
         },
       },
       orderBy: { requestedAt: 'desc' },
@@ -256,7 +344,7 @@ export class BoardService extends BaseService {
       take: limit,
     });
 
-    const total: any = await this.prisma.judgeScoreRemovalRequest.count({
+    const total: number = await this.prisma.judgeScoreRemovalRequest.count({
       where: whereClause,
     });
 
@@ -274,8 +362,8 @@ export class BoardService extends BaseService {
   /**
    * Approve score removal
    */
-  async approveScoreRemoval(requestId: string, userId: string, reason?: string) {
-    const request: any = await this.prisma.judgeScoreRemovalRequest.findUnique({
+  async approveScoreRemoval(requestId: string, userId: string, reason?: string): Promise<Prisma.JudgeScoreRemovalRequestGetPayload<{}>> {
+    const request: ScoreRemovalRequestWithScore | null = await this.prisma.judgeScoreRemovalRequest.findUnique({
       where: { id: requestId },
       include: { score: true },
     });
@@ -290,7 +378,7 @@ export class BoardService extends BaseService {
     });
 
     // Update request status
-    const updatedRequest: any = await this.prisma.judgeScoreRemovalRequest.update({
+    const updatedRequest: Prisma.JudgeScoreRemovalRequestGetPayload<{}> = await this.prisma.judgeScoreRemovalRequest.update({
       where: { id: requestId },
       data: {
         status: 'APPROVED',
@@ -305,8 +393,8 @@ export class BoardService extends BaseService {
   /**
    * Reject score removal
    */
-  async rejectScoreRemoval(requestId: string, userId: string, reason?: string) {
-    const updatedRequest: any = await this.prisma.judgeScoreRemovalRequest.update({
+  async rejectScoreRemoval(requestId: string, userId: string, reason?: string): Promise<Prisma.JudgeScoreRemovalRequestGetPayload<{}>> {
+    const updatedRequest: Prisma.JudgeScoreRemovalRequestGetPayload<{}> = await this.prisma.judgeScoreRemovalRequest.update({
       where: { id: requestId },
       data: {
         status: 'REJECTED',

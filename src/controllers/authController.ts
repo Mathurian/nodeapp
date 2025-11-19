@@ -66,10 +66,12 @@ export class AuthController {
 
       // Return user data only (not the token)
       return sendSuccess(res, { user: result.user }, 'Login successful');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       log.error('Login error', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
         email: req.body?.email,
         origin: req.headers?.origin,
         host: req.headers?.host,
@@ -81,7 +83,7 @@ export class AuthController {
 
       // Log to console for debugging
       console.error('Login error details:', {
-        error: error.message,
+        error: errorMessage,
         origin: req.headers?.origin,
         host: req.headers?.host,
         ip: req.ip,
@@ -90,11 +92,11 @@ export class AuthController {
         email: req.body?.email
       });
 
-      if (error.message === 'Invalid credentials') {
+      if (errorMessage === 'Invalid credentials') {
         return sendUnauthorized(res, 'Invalid credentials');
       }
 
-      if (error.message === 'Account is inactive') {
+      if (errorMessage === 'Account is inactive') {
         return sendUnauthorized(res, 'Account is inactive');
       }
 
@@ -109,7 +111,7 @@ export class AuthController {
     const log = createRequestLogger(req, 'auth');
 
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return sendUnauthorized(res, 'User not authenticated');
@@ -122,14 +124,16 @@ export class AuthController {
       log.debug('Profile fetched successfully', { userId, role: profile.role });
 
       return sendSuccess(res, profile, 'Profile retrieved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       log.error('Profile error', {
-        error: error.message,
-        stack: error.stack,
-        userId: (req as any).user?.id
+        error: errorMessage,
+        stack: errorStack,
+        userId: req.user?.id
       });
 
-      if (error.message === 'User not found') {
+      if (errorMessage === 'User not found') {
         return sendNotFound(res, 'User not found');
       }
 
@@ -144,7 +148,7 @@ export class AuthController {
     const log = createRequestLogger(req, 'auth');
 
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return sendUnauthorized(res, 'User not authenticated');
@@ -157,14 +161,16 @@ export class AuthController {
       log.debug('Permissions fetched successfully', { userId, role: permissions.role });
 
       return sendSuccess(res, permissions, 'Permissions retrieved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       log.error('Get permissions error', {
-        error: error.message,
-        stack: error.stack,
-        userId: (req as any).user?.id
+        error: errorMessage,
+        stack: errorStack,
+        userId: req.user?.id
       });
 
-      if (error.message === 'User not found') {
+      if (errorMessage === 'User not found') {
         return sendNotFound(res, 'User not found');
       }
 
@@ -198,9 +204,10 @@ export class AuthController {
         { resetToken }, // Remove this in production
         'Password reset instructions sent to email'
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       log.error('Password reset request error', {
-        error: error.message,
+        error: errorMessage,
         email: req.body?.email
       });
 
@@ -233,10 +240,11 @@ export class AuthController {
       log.info('Password reset successful');
 
       return sendSuccess(res, {}, 'Password reset successfully');
-    } catch (error: any) {
-      log.error('Password reset error', { error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Password reset error', { error: errorMessage });
 
-      if (error.message === 'Invalid or expired reset token') {
+      if (errorMessage === 'Invalid or expired reset token') {
         return sendBadRequest(res, 'Invalid or expired reset token');
       }
 
@@ -251,7 +259,7 @@ export class AuthController {
     const log = createRequestLogger(req, 'auth');
 
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       const { currentPassword, newPassword } = req.body;
 
       if (!userId) {
@@ -269,13 +277,14 @@ export class AuthController {
       log.info('Password changed successfully', { userId });
 
       return sendSuccess(res, {}, 'Password changed successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       log.error('Password change error', {
-        error: error.message,
-        userId: (req as any).user?.id
+        error: errorMessage,
+        userId: req.user?.id
       });
 
-      if (error.message === 'Current password is incorrect') {
+      if (errorMessage === 'Current password is incorrect') {
         return sendBadRequest(res, 'Current password is incorrect');
       }
 
@@ -290,7 +299,7 @@ export class AuthController {
     const log = createRequestLogger(req, 'auth');
 
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (userId) {
         log.debug('User logout', { userId });
@@ -303,8 +312,8 @@ export class AuthController {
           await prisma.activityLog.create({
             data: {
               userId,
-              userName: (req as any).user?.name || 'Unknown',
-              userRole: (req as any).user?.role || 'UNKNOWN',
+              userName: req.user?.name || 'Unknown',
+              userRole: req.user?.role || 'UNKNOWN',
               action: 'LOGOUT',
               resourceType: 'AUTH',
               ipAddress: req.ip || 'unknown',
@@ -330,8 +339,9 @@ export class AuthController {
       });
 
       return sendSuccess(res, {}, 'Logged out successfully');
-    } catch (error: any) {
-      log.error('Logout error', { error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Logout error', { error: errorMessage });
       return next(error);
     }
   };

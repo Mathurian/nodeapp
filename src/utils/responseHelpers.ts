@@ -61,7 +61,7 @@ export function sendError(
   res: Response,
   message: string,
   statusCode: number = 500,
-  errors?: ValidationError[] | any,
+  errors?: ValidationError[] | unknown,
   stack?: string
 ): Response<ErrorResponse> {
   const response: ErrorResponse = {
@@ -200,7 +200,7 @@ export function calculatePagination(
 /**
  * Parse pagination parameters from query
  */
-export function parsePaginationParams(query: any): { page: number; limit: number } {
+export function parsePaginationParams(query: Record<string, unknown>): { page: number; limit: number } {
   const page = Math.max(1, parseInt(query.page as string) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 10));
 
@@ -210,8 +210,8 @@ export function parsePaginationParams(query: any): { page: number; limit: number
 /**
  * Wrap async route handler with error handling
  */
-export function asyncHandler(fn: Function) {
-  return (req: any, res: any, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+export function asyncHandler(fn: (...args: unknown[]) => Promise<unknown>) {
+  return (req: unknown, res: unknown, next: unknown) => {
+    Promise.resolve(fn(req, res, next)).catch(next as (err: unknown) => void);
   };
 }

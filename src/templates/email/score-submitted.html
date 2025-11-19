@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Score Submitted - {{ appName }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .icon-circle {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 30px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 20px;
+        }
+        .text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 20px;
+        }
+        .score-card {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 2px solid #e9d5ff;
+        }
+        .score-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .score-title {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        .score-value {
+            font-size: 48px;
+            font-weight: 800;
+            color: #7c3aed;
+            line-height: 1;
+        }
+        .score-details {
+            border-top: 1px solid #e9d5ff;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3e8ff;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        .detail-value {
+            font-size: 14px;
+            color: #111827;
+            font-weight: 600;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #7c3aed;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #6d28d9;
+        }
+        .info-box {
+            background-color: #eff6ff;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-left: 4px solid #3b82f6;
+        }
+        .info-text {
+            font-size: 14px;
+            color: #1e40af;
+            margin: 0;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        .footer-link {
+            color: #7c3aed;
+            text-decoration: none;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon-circle">🎯</div>
+            <h1>Score Submitted</h1>
+        </div>
+
+        <div class="content">
+            <div class="greeting">Hello, {{ name }}!</div>
+
+            <p class="text">
+                A new score has been submitted for <strong>{{ contestantName }}</strong> in the contest <strong>{{ contestName }}</strong>.
+            </p>
+
+            <div class="score-card">
+                <div class="score-header">
+                    <div class="score-title">Score</div>
+                    <div class="score-value">{{ score }}</div>
+                </div>
+
+                <div class="score-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Contestant</span>
+                        <span class="detail-value">{{ contestantName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Contest</span>
+                        <span class="detail-value">{{ contestName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Event</span>
+                        <span class="detail-value">{{ eventName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Judge</span>
+                        <span class="detail-value">{{ judgeName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Submitted At</span>
+                        <span class="detail-value">{{ submittedAt }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{ viewUrl }}" class="button">View Full Details</a>
+            </div>
+
+            <div class="info-box">
+                <p class="info-text">
+                    <strong>Note:</strong> This score is now part of the official contest records. You can view all scores and rankings in the contest dashboard.
+                </p>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="text" style="font-size: 14px; color: #6b7280;">
+                If you have any questions about this score submission, please contact the event organizer or our support team at <a href="mailto:{{ supportEmail }}" style="color: #7c3aed; text-decoration: none;">{{ supportEmail }}</a>.
+            </p>
+
+            <p class="text" style="margin-top: 30px;">
+                Best regards,<br>
+                <strong>The {{ appName }} Team</strong>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                You're receiving this notification because you're involved in this contest on {{ appName }}.
+            </p>
+            <p class="footer-text">
+                <a href="{{ viewUrl }}" class="footer-link">View Contest</a> |
+                <a href="{{ preferencesUrl }}" class="footer-link">Notification Preferences</a> |
+                <a href="mailto:{{ supportEmail }}" class="footer-link">Contact Support</a>
+            </p>
+            <p class="footer-text" style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+                © 2024 {{ appName }}. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,12 +1,156 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
+import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
+
+// Type definitions
+interface DatabaseSizeResult {
+  size: string;
+}
+
+interface DatabaseHealth {
+  result: number;
+}
+
+interface TableInfo {
+  name: string;
+}
+
+interface RowCountResult {
+  count: bigint;
+}
+
+interface ColumnInfo {
+  column_name: string;
+  data_type: string;
+  character_maximum_length: number | null;
+  numeric_precision: number | null;
+  numeric_scale: number | null;
+  is_nullable: string;
+  column_default: string | null;
+}
+
+interface PrimaryKeyInfo {
+  column_name: string;
+}
+
+interface ForeignKeyInfo {
+  column_name: string;
+  foreign_table_name: string;
+  foreign_column_name: string;
+}
+
+interface ActivityLogWithUser {
+  id: string;
+  userId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  details: Prisma.JsonValue;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}
+
+// P2-4: Formatted activity log type for API responses
+interface FormattedActivityLog {
+  id: string;
+  userId: string | null;
+  action: string;
+  resourceType: string;
+  resource: string; // For backward compatibility
+  resourceId: string | null;
+  details: Prisma.JsonValue;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string; // ISO string format
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}
+
+interface DashboardStats {
+  totalUsers: number;
+  totalEvents: number;
+  totalContests: number;
+  totalCategories: number;
+  totalScores: number;
+  activeUsers: number;
+  pendingCertifications: number;
+  certificationBreakdown: {
+    judge: number;
+    tallyMaster: number;
+    auditor: number;
+    board: number;
+  };
+  systemHealth: 'HEALTHY' | 'WARNING' | 'CRITICAL';
+  lastBackup: string | null;
+  databaseSize: string;
+  uptime: string;
+  uptimeSeconds: number;
+}
+
+interface SystemHealth {
+  database: 'healthy' | 'unhealthy';
+  uptime: number;
+  memory: NodeJS.MemoryUsage;
+}
+
+interface TableWithCount {
+  name: string;
+  rowCount: number;
+  size: string;
+}
+
+interface TableStructure {
+  tableName: string;
+  columns: Array<{
+    column_name: string;
+    data_type: string;
+    character_maximum_length: number | null;
+    numeric_precision: number | null;
+    numeric_scale: number | null;
+    is_nullable: string;
+    column_default: string | null;
+  }>;
+  primaryKeys: string[];
+  foreignKeys: Array<{
+    column_name: string;
+    foreign_table_name: string;
+    foreign_column_name: string;
+  }>;
+  columnCount: number;
+}
+
+interface TableDataResponse {
+  tableName: string;
+  rows: Array<Record<string, unknown>>;
+  columns: string[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalRows: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  rowCount: number;
+}
 
 @injectable()
 export class AdminService extends BaseService {
@@ -17,7 +161,7 @@ export class AdminService extends BaseService {
     this.startTime = Date.now();
   }
 
-  async getDashboardStats() {
+  async getDashboardStats(): Promise<DashboardStats> {
     try {
       const [
         totalUsers,
@@ -66,7 +210,7 @@ export class AdminService extends BaseService {
       let databaseSize = 'N/A';
       try {
         // Try using Prisma first (more reliable)
-        const result: any = await this.prisma.$queryRaw<Array<{ size: bigint }>>`
+        const result = await this.prisma.$queryRaw<DatabaseSizeResult[]>`
           SELECT pg_size_pretty(pg_database_size(current_database())) as size
         `;
         if (result && result[0] && result[0].size) {
@@ -83,9 +227,9 @@ export class AdminService extends BaseService {
         log.warn('Could not get database size', { error: (error as Error).message });
         // Try alternative method using Prisma
         try {
-          const result: any = await this.prisma.$queryRawUnsafe(
+          const result = await this.prisma.$queryRawUnsafe<DatabaseSizeResult[]>(
             `SELECT pg_size_pretty(pg_database_size(current_database())) as size`
-          ) as Array<{ size: string }>;
+          );
           if (result && result[0] && result[0].size) {
             databaseSize = String(result[0].size).trim();
           }
@@ -145,8 +289,8 @@ export class AdminService extends BaseService {
     }
   }
 
-  async getSystemHealth() {
-    const dbHealth: any = await this.prisma.$queryRaw`SELECT 1`;
+  async getSystemHealth(): Promise<SystemHealth> {
+    const dbHealth = await this.prisma.$queryRaw<DatabaseHealth[]>`SELECT 1`;
     return {
       database: dbHealth ? 'healthy' : 'unhealthy',
       uptime: process.uptime(),
@@ -159,24 +303,30 @@ export class AdminService extends BaseService {
     return { success: true, message: 'Cache cleared' };
   }
 
-  async getActivityLogs(limit: number = 100) {
+  async getActivityLogs(options?: PaginationOptions): Promise<PaginatedResponse<FormattedActivityLog>> {
     try {
-      const logs: any = await this.prisma.activityLog.findMany({
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
-          }
-        } as any,
-        orderBy: { createdAt: 'desc' },
-        take: limit
-      } as any);
+      const { skip, take } = this.getPaginationParams(options);
 
-      return logs.map(log => ({
+      const [logs, total] = await Promise.all([
+        this.prisma.activityLog.findMany({
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take
+        }),
+        this.prisma.activityLog.count()
+      ]);
+
+      const formattedLogs = logs.map(log => ({
         id: log.id,
         userId: log.userId,
         action: log.action,
@@ -194,6 +344,8 @@ export class AdminService extends BaseService {
           role: log.user.role
         } : null
       }));
+
+      return this.createPaginatedResponse(formattedLogs, total, options);
     } catch (error) {
       log.error('Error getting activity logs', { error: (error as Error).message });
       throw error;
@@ -206,25 +358,25 @@ export class AdminService extends BaseService {
     return this.getActivityLogs(limit);
   }
 
-  async getDatabaseTables() {
+  async getDatabaseTables(): Promise<TableWithCount[]> {
     try {
       // Use Prisma to query information_schema directly for all tables
-      const tables: any = await this.prisma.$queryRawUnsafe(`
-        SELECT 
+      const tables = await this.prisma.$queryRawUnsafe<TableInfo[]>(`
+        SELECT
           table_name as name
         FROM information_schema.tables
-        WHERE table_schema = 'public' 
+        WHERE table_schema = 'public'
           AND table_type = 'BASE TABLE'
         ORDER BY table_name;
-      `) as Array<{ name: string }>;
+      `);
 
       // Get row counts for each table
       const tablesWithCounts = await Promise.all(
-        tables.map(async (table) => {
+        tables.map(async (table): Promise<TableWithCount> => {
           try {
-            const result: any = await this.prisma.$queryRawUnsafe(
+            const result = await this.prisma.$queryRawUnsafe<RowCountResult[]>(
               `SELECT COUNT(*) as count FROM "${table.name}"`
-            ) as Array<{ count: bigint }>;
+            );
             const rowCount = result[0]?.count ? Number(result[0].count) : 0;
             
             return {
@@ -256,11 +408,11 @@ export class AdminService extends BaseService {
       ];
       
       const tablesWithCounts = await Promise.all(
-        fallbackTables.map(async (tableName) => {
+        fallbackTables.map(async (tableName): Promise<TableWithCount> => {
           try {
-            const result: any = await this.prisma.$queryRawUnsafe(
+            const result = await this.prisma.$queryRawUnsafe<RowCountResult[]>(
               `SELECT COUNT(*) as count FROM "${tableName}"`
-            ) as Array<{ count: bigint }>;
+            );
             const rowCount = result[0]?.count ? Number(result[0].count) : 0;
             return {
               name: tableName,
@@ -281,7 +433,7 @@ export class AdminService extends BaseService {
     }
   }
 
-  async getTableStructure(tableName: string) {
+  async getTableStructure(tableName: string): Promise<TableStructure> {
     try {
       // Validate table name to prevent SQL injection
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
@@ -289,8 +441,8 @@ export class AdminService extends BaseService {
       }
 
       // Get column information - use parameterized query
-      const columns: any = await this.prisma.$queryRawUnsafe(`
-        SELECT 
+      const columns = await this.prisma.$queryRawUnsafe<ColumnInfo[]>(`
+        SELECT
           column_name,
           data_type,
           character_maximum_length,
@@ -301,28 +453,20 @@ export class AdminService extends BaseService {
         FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = '${tableName}'
         ORDER BY ordinal_position
-      `) as Array<{
-        column_name: string;
-        data_type: string;
-        character_maximum_length: number | null;
-        numeric_precision: number | null;
-        numeric_scale: number | null;
-        is_nullable: string;
-        column_default: string | null;
-      }>;
+      `);
 
       // Get primary keys
-      const primaryKeys: any = await this.prisma.$queryRawUnsafe(`
+      const primaryKeys = await this.prisma.$queryRawUnsafe<PrimaryKeyInfo[]>(`
         SELECT column_name
         FROM information_schema.table_constraints tc
         JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name)
-        WHERE tc.constraint_type = 'PRIMARY KEY' 
-          AND tc.table_schema = 'public' 
+        WHERE tc.constraint_type = 'PRIMARY KEY'
+          AND tc.table_schema = 'public'
           AND tc.table_name = '${tableName}'
-      `) as Array<{ column_name: string }>;
+      `);
 
       // Get foreign keys
-      const foreignKeys: any = await this.prisma.$queryRawUnsafe(`
+      const foreignKeys = await this.prisma.$queryRawUnsafe<ForeignKeyInfo[]>(`
         SELECT
           kcu.column_name,
           ccu.table_name AS foreign_table_name,
@@ -337,11 +481,7 @@ export class AdminService extends BaseService {
         WHERE tc.constraint_type = 'FOREIGN KEY'
           AND tc.table_schema = 'public'
           AND tc.table_name = '${tableName}'
-      `) as Array<{
-        column_name: string;
-        foreign_table_name: string;
-        foreign_column_name: string;
-      }>;
+      `);
 
       return {
         tableName,
@@ -374,7 +514,7 @@ export class AdminService extends BaseService {
     limit: number = 50,
     orderBy?: string,
     orderDirection: string = 'asc'
-  ) {
+  ): Promise<TableDataResponse> {
     try {
       // Validate table name to prevent SQL injection
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
@@ -382,11 +522,11 @@ export class AdminService extends BaseService {
       }
 
       const offset = (page - 1) * limit;
-      
+
       // Get total row count
-      const countResult: any = await this.prisma.$queryRawUnsafe(
+      const countResult = await this.prisma.$queryRawUnsafe<RowCountResult[]>(
         `SELECT COUNT(*) as count FROM "${tableName}"`
-      ) as Array<{ count: bigint }>;
+      );
       const totalRows = Number(countResult[0]?.count || 0);
 
       // Build ORDER BY clause
@@ -397,9 +537,9 @@ export class AdminService extends BaseService {
       }
 
       // Get table data - use parameterized query for limit/offset
-      const rows: any = await this.prisma.$queryRawUnsafe(
+      const rows = await this.prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
         `SELECT * FROM "${tableName}" ${orderByClause} LIMIT ${limit} OFFSET ${offset}`
-      ) as Array<Record<string, any>>;
+      );
 
       // Get column names from first row or from table structure
       const columns = rows.length > 0 ? Object.keys(rows[0]) : [];

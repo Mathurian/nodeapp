@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import TenantService from '../services/TenantService';
 import { logger } from '../utils/logger';
+import { getRequiredParam } from '../utils/routeHelpers';
 
 export class TenantController {
   /**
@@ -81,7 +82,7 @@ export class TenantController {
    */
   static async getTenant(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       // Non-super admins can only view their own tenant
       if (!req.isSuperAdmin && req.tenantId !== id) {
@@ -107,7 +108,7 @@ export class TenantController {
    */
   static async updateTenant(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       // Non-super admins can only update their own tenant
       if (!req.isSuperAdmin && req.tenantId !== id) {
@@ -147,7 +148,7 @@ export class TenantController {
    */
   static async activateTenant(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const tenant = await TenantService.activateTenant(id);
 
       res.json({
@@ -170,7 +171,7 @@ export class TenantController {
    */
   static async deactivateTenant(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const tenant = await TenantService.deactivateTenant(id);
 
       res.json({
@@ -193,7 +194,7 @@ export class TenantController {
    */
   static async deleteTenant(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const hard = req.query.hard === 'true';
 
       await TenantService.deleteTenant(id, hard);
@@ -216,7 +217,7 @@ export class TenantController {
    */
   static async getTenantAnalytics(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
 
       // Non-super admins can only view their own tenant analytics
       if (!req.isSuperAdmin && req.tenantId !== id) {
@@ -254,7 +255,7 @@ export class TenantController {
    */
   static async inviteUser(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = getRequiredParam(req, 'id');
       const { email, name, role } = req.body;
 
       // Non-super admins can only invite to their own tenant

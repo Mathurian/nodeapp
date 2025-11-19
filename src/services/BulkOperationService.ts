@@ -1,14 +1,14 @@
 import { injectable } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 
 const Logger = createLogger('BulkOperationService');
 
-export interface BulkOperationResult {
+export interface BulkOperationResult<T = unknown> {
   total: number;
   successful: number;
   failed: number;
-  errors: Array<{ item: any; error: string }>;
+  errors: Array<{ item: T; error: string }>;
 }
 
 export interface BulkOperationOptions {
@@ -91,7 +91,7 @@ export class BulkOperationService {
    * @param items Array of items to process
    */
   async executeBulkOperationWithTransaction<T>(
-    operation: (items: T[], tx: any) => Promise<void>,
+    operation: (items: T[], tx: Prisma.TransactionClient) => Promise<void>,
     items: T[]
   ): Promise<void> {
     try {

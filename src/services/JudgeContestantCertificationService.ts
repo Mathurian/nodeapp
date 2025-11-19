@@ -1,6 +1,14 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for judge contestant certification responses
+interface CertifyData {
+  judgeId: string;
+  categoryId: string;
+  contestantId: string;
+  tenantId: string;
+}
 
 @injectable()
 export class JudgeContestantCertificationService extends BaseService {
@@ -8,8 +16,8 @@ export class JudgeContestantCertificationService extends BaseService {
     super();
   }
 
-  async getCertifications(judgeId?: string, categoryId?: string, contestantId?: string) {
-    const where: any = {};
+  async getCertifications(judgeId?: string, categoryId?: string, contestantId?: string): Promise<Prisma.JudgeContestantCertificationGetPayload<{}>[]> {
+    const where: Prisma.JudgeContestantCertificationWhereInput = {};
     if (judgeId) where.judgeId = judgeId;
     if (categoryId) where.categoryId = categoryId;
     if (contestantId) where.contestantId = contestantId;
@@ -20,14 +28,14 @@ export class JudgeContestantCertificationService extends BaseService {
     });
   }
 
-  async certify(data: any) {
+  async certify(data: CertifyData): Promise<Prisma.JudgeContestantCertificationGetPayload<{}>> {
     const { judgeId, categoryId, contestantId, tenantId } = data;
 
     if (!judgeId || !categoryId || !contestantId) {
       throw this.badRequestError('Judge ID, category ID, and contestant ID are required');
     }
 
-    const existing: any = await this.prisma.judgeContestantCertification.findFirst({
+    const existing = await this.prisma.judgeContestantCertification.findFirst({
       where: { judgeId, categoryId, contestantId }
     });
 
@@ -40,8 +48,8 @@ export class JudgeContestantCertificationService extends BaseService {
     });
   }
 
-  async uncertify(id: string) {
-    const cert: any = await this.prisma.judgeContestantCertification.findUnique({
+  async uncertify(id: string): Promise<void> {
+    const cert = await this.prisma.judgeContestantCertification.findUnique({
       where: { id }
     });
 
@@ -56,13 +64,13 @@ export class JudgeContestantCertificationService extends BaseService {
 
   async getCategoryCertificationStatus(categoryId: string) {
     // Get all certifications for this category
-    const certifications: any = await this.prisma.judgeContestantCertification.findMany({
+    const certifications = await this.prisma.judgeContestantCertification.findMany({
       where: { categoryId },
       // include removed - no relations in schema
     });
 
     // Get all judges assigned to this category
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       // include removed - no relations in schema
     });
@@ -79,11 +87,14 @@ export class JudgeContestantCertificationService extends BaseService {
     const completedCertifications = certifications.length;
 
     // Group certifications by judge
-    const certificationsByJudge = certifications.reduce((acc: any, cert: any) => {
+    const certificationsByJudge = certifications.reduce((acc: Record<string, {
+      judge: null;
+      certifications: Prisma.JudgeContestantCertificationGetPayload<{}>[];
+    }>, cert) => {
       const judgeId = cert.judgeId;
       if (!acc[judgeId]) {
         acc[judgeId] = {
-          judge: cert.judge,
+          judge: null,
           certifications: []
         };
       }
@@ -92,11 +103,14 @@ export class JudgeContestantCertificationService extends BaseService {
     }, {});
 
     // Group certifications by contestant
-    const certificationsByContestant = certifications.reduce((acc: any, cert: any) => {
+    const certificationsByContestant = certifications.reduce((acc: Record<string, {
+      contestant: null;
+      certifications: Prisma.JudgeContestantCertificationGetPayload<{}>[];
+    }>, cert) => {
       const contestantId = cert.contestantId;
       if (!acc[contestantId]) {
         acc[contestantId] = {
-          contestant: cert.contestant,
+          contestant: null,
           certifications: []
         };
       }

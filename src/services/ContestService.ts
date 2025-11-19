@@ -3,12 +3,33 @@
  * Business logic layer for Contest entity with caching support
  */
 
-import { Contest } from '@prisma/client';
+import { Contest, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
+
+// Proper type definitions for contest responses
+type ContestWithDetails = Prisma.ContestGetPayload<{
+  include: {
+    event: true;
+    categories: {
+      include: {
+        criteria: true;
+        contestants: true;
+      };
+    };
+  };
+}>;
+
+interface ContestStats {
+  totalCategories: number;
+  totalContestants: number;
+  totalScores: number;
+  averageScoresPerCategory: number;
+  completionPercentage: number;
+}
 
 interface CreateContestDto {
   eventId: string;
@@ -101,7 +122,7 @@ export class ContestService extends BaseService {
   /**
    * Get contest with full details
    */
-  async getContestWithDetails(id: string): Promise<any> {
+  async getContestWithDetails(id: string): Promise<ContestWithDetails> {
     try {
       const cacheKey = `contest:details:${id}`;
       const cached = await this.cacheService.get(cacheKey);
@@ -248,7 +269,7 @@ export class ContestService extends BaseService {
   /**
    * Get contest statistics
    */
-  async getContestStats(id: string): Promise<any> {
+  async getContestStats(id: string): Promise<ContestStats> {
     try {
       const cacheKey = `contest:stats:${id}`;
       const cached = await this.cacheService.get(cacheKey);

@@ -20,14 +20,14 @@ export function validate(schema: ZodSchema, target: ValidationTarget = 'body') {
     try {
       const data = req[target];
       const validated = await schema.parseAsync(data);
-      (req as any)[target] = validated; // Replace with validated data
+      (req as Record<string, unknown>)[target] = validated; // Replace with validated data
       next();
     } catch (error) {
       if (error instanceof ZodError) {
         const validationErrors = error.issues.map((err: z.ZodIssue) => ({
           field: err.path.join('.'),
           message: err.message,
-          value: err.path.reduce((obj: any, key: PropertyKey) => obj?.[key], req[target]),
+          value: err.path.reduce((obj: Record<PropertyKey, unknown> | undefined, key: PropertyKey) => obj?.[key] as Record<PropertyKey, unknown> | undefined, req[target] as Record<PropertyKey, unknown>),
           rule: err.code
         }));
 
@@ -50,14 +50,15 @@ export function validateMultiple(schemas: {
 }) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const reqWithValidation = req as Record<string, unknown>;
       if (schemas.body) {
-        (req as any).body = await schemas.body.parseAsync(req.body);
+        reqWithValidation.body = await schemas.body.parseAsync(req.body);
       }
       if (schemas.query) {
-        (req as any).query = await schemas.query.parseAsync(req.query);
+        reqWithValidation.query = await schemas.query.parseAsync(req.query);
       }
       if (schemas.params) {
-        (req as any).params = await schemas.params.parseAsync(req.params);
+        reqWithValidation.params = await schemas.params.parseAsync(req.params);
       }
       next();
     } catch (error) {

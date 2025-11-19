@@ -12,6 +12,28 @@ import {
   DeductionWithRelations
 } from '../repositories/DeductionRepository';
 import { prisma } from '../config/database';
+import { Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for deduction responses
+type UserWithJudge = Prisma.UserGetPayload<{
+  include: {
+    judge: {
+      include: {
+        categoryJudges: {
+          select: {
+            categoryId: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type UserWithJudgeBasic = Prisma.UserGetPayload<{
+  include: {
+    judge: true;
+  };
+}>;
 
 interface ApprovalStatus {
   hasHeadJudgeApproval: boolean;
@@ -84,7 +106,7 @@ export class DeductionService extends BaseService {
     // Role-based filtering
     if (userRole === 'JUDGE') {
       // Get categories assigned to this judge through CategoryJudge
-      const user: any = await prisma.user.findFirst({
+      const user = await prisma.user.findFirst({
         where: { id: userId, tenantId },
         include: {
           judge: {
@@ -95,10 +117,10 @@ export class DeductionService extends BaseService {
             }
           }
         } as any
-      } as any);
+      }) as UserWithJudge | null;
 
       if (user?.judge) {
-        categoryIds = user.judge.categoryJudges.map((cj: any) => cj.categoryId);
+        categoryIds = user.judge.categoryJudges.map((cj) => cj.categoryId);
       } else {
         categoryIds = [];
       }
@@ -154,10 +176,10 @@ export class DeductionService extends BaseService {
     // Check if user is a head judge
     let isHeadJudge = false;
     if (userRole === 'JUDGE') {
-      const user: any = await prisma.user.findFirst({
+      const user = await prisma.user.findFirst({
         where: { id: approvedBy, tenantId },
         include: { judge: true }
-      } as any);
+      } as any) as UserWithJudgeBasic | null;
       if (user?.judge) {
         isHeadJudge = user.judge.isHeadJudge;
       }
@@ -291,7 +313,7 @@ export class DeductionService extends BaseService {
    * Calculate approval status
    */
   private calculateApprovalStatus(
-    approvals: any[],
+    approvals: Array<{ role: string; isHeadJudge: boolean }>,
     _currentUserId: string
   ): ApprovalStatus {
     const hasHeadJudgeApproval = approvals.some(a => a.isHeadJudge);

@@ -1,6 +1,167 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for auditor responses
+type CategoryWithCertifications = Prisma.CategoryGetPayload<{
+  include: {
+    categoryCertifications: true;
+  };
+}>;
+
+type CategoryWithContestAndCertifications = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      select: {
+        id: true;
+        eventId: true;
+        name: true;
+        description: true;
+        createdAt: true;
+        updatedAt: true;
+        contestantNumberingMode: true;
+        nextContestantNumber: true;
+        event: true;
+      };
+    };
+    categoryCertifications: true;
+  };
+}>;
+
+type CategoryWithContestEvent = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+  };
+}>;
+
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  include: {
+    judge: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+        role: true;
+      };
+    };
+    contestant: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+        contestantNumber: true;
+      };
+    };
+    criterion: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        maxScore: true;
+      };
+    };
+    category: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        maxScore: true;
+      };
+    };
+  };
+}>;
+
+type ScoreWithJudgeContestantCriterion = Prisma.ScoreGetPayload<{
+  include: {
+    judge: true;
+    contestant: true;
+    criterion: true;
+  };
+}>;
+
+type CategoryWithScoresAndCertifications = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+    scores: {
+      include: {
+        judge: true;
+        contestant: true;
+        criterion: true;
+      };
+    };
+    categoryCertifications: true;
+  };
+}>;
+
+type CategoryWithScoresForReport = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+    scores: {
+      include: {
+        judge: {
+          select: {
+            id: true;
+            name: true;
+            preferredName: true;
+            email: true;
+          };
+        };
+        contestant: {
+          select: {
+            id: true;
+            name: true;
+            preferredName: true;
+            email: true;
+            contestantNumber: true;
+          };
+        };
+        criterion: {
+          select: {
+            id: true;
+            name: true;
+            description: true;
+            maxScore: true;
+          };
+        };
+      };
+    };
+    categoryCertifications: true;
+  };
+}>;
+
+type ActivityLogWithUser = Prisma.ActivityLogGetPayload<{
+  include: {
+    user: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+        role: true;
+      };
+    };
+  };
+}>;
+
+interface AuditorStats {
+  totalCategories: number;
+  pendingAudits: number;
+  completedAudits: number;
+}
 
 /**
  * Service for Auditor functionality
@@ -12,24 +173,24 @@ export class AuditorService extends BaseService {
     super();
   }
   /**
-   * Get auditor dashboard statistics
+   * Get auditor dashboard statistics (P2-4: Proper typing)
    */
-  async getStats() {
-    const totalCategories: any = await this.prisma.category.count();
-    const categoriesWithCertifications: any = await (this.prisma.category.findMany as any)({
+  async getStats(): Promise<AuditorStats> {
+    const totalCategories = await this.prisma.category.count();
+    const categoriesWithCertifications = await this.prisma.category.findMany({
       include: {
         categoryCertifications: true,
       },
-    });
+    }) as CategoryWithCertifications[];
 
-    const pendingAudits = categoriesWithCertifications.filter((c: any) => {
-      const hasTally = c.categoryCertifications?.some((cert: any) => cert.role === 'TALLY_MASTER');
-      const hasAuditor = c.categoryCertifications?.some((cert: any) => cert.role === 'AUDITOR');
+    const pendingAudits = categoriesWithCertifications.filter(c => {
+      const hasTally = c.categoryCertifications?.some(cert => cert.role === 'TALLY_MASTER');
+      const hasAuditor = c.categoryCertifications?.some(cert => cert.role === 'AUDITOR');
       return hasTally && !hasAuditor;
     }).length;
 
-    const completedAudits = categoriesWithCertifications.filter((c: any) =>
-      c.categoryCertifications?.some((cert: any) => cert.role === 'AUDITOR')
+    const completedAudits = categoriesWithCertifications.filter(c =>
+      c.categoryCertifications?.some(cert => cert.role === 'AUDITOR')
     ).length;
 
     return {
@@ -45,7 +206,7 @@ export class AuditorService extends BaseService {
   async getPendingAudits(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const categories: any = await (this.prisma.category.findMany as any)({
+    const categories = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           select: {
@@ -68,9 +229,9 @@ export class AuditorService extends BaseService {
     });
 
     // Filter for categories where tally master certified but auditor hasn't
-    const pendingCategories = categories.filter((cat: any) => {
-      const hasTally = cat.categoryCertifications?.some((cert: any) => cert.role === 'TALLY_MASTER');
-      const hasAuditor = cat.categoryCertifications?.some((cert: any) => cert.role === 'AUDITOR');
+    const pendingCategories = (categories as CategoryWithContestAndCertifications[]).filter((cat) => {
+      const hasTally = cat.categoryCertifications?.some((cert) => cert.role === 'TALLY_MASTER');
+      const hasAuditor = cat.categoryCertifications?.some((cert) => cert.role === 'AUDITOR');
       return hasTally && !hasAuditor;
     });
 
@@ -91,7 +252,7 @@ export class AuditorService extends BaseService {
   async getCompletedAudits(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const categories: any = await (this.prisma.category.findMany as any)({
+    const categories = await (this.prisma.category.findMany as any)({
       include: {
         contest: {
           select: {
@@ -114,8 +275,8 @@ export class AuditorService extends BaseService {
     });
 
     // Filter for completed audits
-    const completedCategories = categories.filter((cat: any) =>
-      cat.categoryCertifications?.some((cert: any) => cert.role === 'AUDITOR')
+    const completedCategories = (categories as CategoryWithContestAndCertifications[]).filter((cat) =>
+      cat.categoryCertifications?.some((cert) => cert.role === 'AUDITOR')
     );
 
     return {
@@ -133,7 +294,7 @@ export class AuditorService extends BaseService {
    * Final certification for a category
    */
   async finalCertification(categoryId: string, userId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -142,14 +303,14 @@ export class AuditorService extends BaseService {
           } as any,
         },
       },
-    });
+    }) as CategoryWithContestEvent | null;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Create auditor category certification
-    const certification: any = await this.prisma.categoryCertification.create({
+    const certification = await this.prisma.categoryCertification.create({
       data: {
         tenantId: category.tenantId,
         categoryId,
@@ -167,7 +328,7 @@ export class AuditorService extends BaseService {
    */
   async rejectAudit(categoryId: string, userId: string, reason: string) {
     // Record rejection as activity log
-    const activityLog: any = await this.prisma.activityLog.create({
+    const activityLog = await this.prisma.activityLog.create({
       data: {
         userId,
         action: 'AUDIT_REJECTED',
@@ -184,7 +345,7 @@ export class AuditorService extends BaseService {
    * Get score verification data for a category
    */
   async getScoreVerification(categoryId: string, contestantId?: string) {
-    const categoryExists: any = await this.prisma.category.findUnique({
+    const categoryExists = await this.prisma.category.findUnique({
       where: { id: categoryId },
     });
 
@@ -192,7 +353,7 @@ export class AuditorService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: {
         categoryId,
         ...(contestantId && { contestantId }),
@@ -234,10 +395,15 @@ export class AuditorService extends BaseService {
         },
       } as any,
       orderBy: [{ contestantId: 'asc' }, { criterionId: 'asc' }],
-    });
+    }) as ScoreWithRelations[];
 
     // Group scores by contestant
-    const groupedScores = scores.reduce((acc: any, score: any) => {
+    const groupedScores = scores.reduce((acc: Record<string, {
+      contestant: ScoreWithRelations['contestant'];
+      scores: ScoreWithRelations[];
+      totalScore: number;
+      averageScore: number;
+    }>, score) => {
       const key = score.contestantId;
       if (!acc[key]) {
         acc[key] = {
@@ -253,7 +419,7 @@ export class AuditorService extends BaseService {
     }, {});
 
     // Calculate averages
-    Object.values(groupedScores).forEach((group: any) => {
+    Object.values(groupedScores).forEach((group) => {
       group.averageScore = group.scores.length > 0 ? group.totalScore / group.scores.length : 0;
     });
 
@@ -277,7 +443,7 @@ export class AuditorService extends BaseService {
       issues?: string;
     }
   ) {
-    const score: any = await this.prisma.score.findUnique({
+    const score = await this.prisma.score.findUnique({
       where: { id: scoreId },
       include: {
         judge: true,
@@ -285,7 +451,7 @@ export class AuditorService extends BaseService {
         criterion: true,
         category: true,
       } as any,
-    });
+    }) as ScoreWithJudgeContestantCriterion | null;
 
     if (!score) {
       throw this.notFoundError('Score', scoreId);
@@ -293,7 +459,7 @@ export class AuditorService extends BaseService {
 
     // Note: verification fields don't exist in Score schema
     // Score has isCertified, certifiedBy, certifiedAt instead
-    const updatedScore: any = await this.prisma.score.update({
+    const updatedScore = await this.prisma.score.update({
       where: { id: scoreId },
       data: {
         isCertified: data.verified,
@@ -309,7 +475,7 @@ export class AuditorService extends BaseService {
    * Get tally master status for a category
    */
   async getTallyMasterStatus(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -326,20 +492,20 @@ export class AuditorService extends BaseService {
         },
         categoryCertifications: true,
       },
-    });
+    }) as CategoryWithScoresAndCertifications | null;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
-    const totalScores = (category as any).scores.length;
-    const verifiedScores = category.scores.filter((s: any) => s.verified).length;
+    const totalScores = category.scores.length;
+    const verifiedScores = category.scores.filter((s) => s.verified).length;
     const pendingVerification = totalScores - verifiedScores;
 
     // Check certification status
-    const tallyMasterCert = category.certifications?.some((c: any) => c.type === 'TALLY_MASTER');
-    const auditorCert = category.certifications?.some((c: any) => c.type === 'AUDITOR');
-    const finalCert = category.certifications?.some((c: any) => c.type === 'FINAL');
+    const tallyMasterCert = category.certifications?.some((c) => c.type === 'TALLY_MASTER');
+    const auditorCert = category.certifications?.some((c) => c.type === 'AUDITOR');
+    const finalCert = category.certifications?.some((c) => c.type === 'FINAL');
 
     return {
       categoryId: category.id,
@@ -358,7 +524,7 @@ export class AuditorService extends BaseService {
    * Get certification workflow for a category
    */
   async getCertificationWorkflow(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -375,16 +541,16 @@ export class AuditorService extends BaseService {
         },
         categoryCertifications: true,
       },
-    });
+    }) as CategoryWithScoresAndCertifications | null;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Check certification status
-    const tallyMasterCert = category.certifications?.find((c: any) => c.type === 'TALLY_MASTER');
-    const auditorCert = category.certifications?.find((c: any) => c.type === 'AUDITOR');
-    const finalCert = category.certifications?.find((c: any) => c.type === 'FINAL');
+    const tallyMasterCert = category.certifications?.find((c) => c.type === 'TALLY_MASTER');
+    const auditorCert = category.certifications?.find((c) => c.type === 'AUDITOR');
+    const finalCert = category.certifications?.find((c) => c.type === 'FINAL');
 
     const workflow = {
       categoryId: category.id,
@@ -394,9 +560,9 @@ export class AuditorService extends BaseService {
       steps: [
         {
           name: 'Judge Scoring',
-          status: (category as any).scores.length > 0 ? 'COMPLETED' : 'PENDING',
-          completedAt: (category as any).scores.length > 0 ? category.scores[0].createdAt : null,
-          details: `${(category as any).scores.length} scores submitted`,
+          status: category.scores.length > 0 ? 'COMPLETED' : 'PENDING',
+          completedAt: category.scores.length > 0 ? category.scores[0].createdAt : null,
+          details: `${category.scores.length} scores submitted`,
         },
         {
           name: 'Tally Master Review',
@@ -434,7 +600,7 @@ export class AuditorService extends BaseService {
    * Generate summary report for a category
    */
   async generateSummaryReport(categoryId: string, userId: string, includeDetails: boolean = false) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -473,23 +639,29 @@ export class AuditorService extends BaseService {
         },
         categoryCertifications: true,
       },
-    });
+    }) as CategoryWithScoresForReport | null;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Calculate summary statistics
-    const totalScores = (category as any).scores.length;
-    const uniqueContestants = new Set((category as any).scores.map((s: any) => s.contestantId)).size;
-    const uniqueJudges = new Set((category as any).scores.map((s: any) => s.judgeId)).size;
+    const totalScores = category.scores.length;
+    const uniqueContestants = new Set(category.scores.map((s) => s.contestantId)).size;
+    const uniqueJudges = new Set(category.scores.map((s) => s.judgeId)).size;
     const averageScore =
-      totalScores > 0 ? (category as any).scores.reduce((sum: any, s: any) => sum + s.score, 0) / totalScores : 0;
-    const maxScore = Math.max(...(category as any).scores.map((s: any) => s.score), 0);
-    const minScore = Math.min(...(category as any).scores.map((s: any) => s.score), 0);
+      totalScores > 0 ? category.scores.reduce((sum, s) => sum + s.score, 0) / totalScores : 0;
+    const maxScore = Math.max(...category.scores.map((s) => s.score), 0);
+    const minScore = Math.min(...category.scores.map((s) => s.score), 0);
 
     // Group by contestant for rankings
-    const contestantScores = (category as any).scores.reduce((acc: any, score: any) => {
+    const contestantScores = category.scores.reduce((acc: Record<string, {
+      contestant: CategoryWithScoresForReport['scores'][0]['contestant'];
+      scores: CategoryWithScoresForReport['scores'];
+      totalScore: number;
+      averageScore: number;
+      rank?: number;
+    }>, score) => {
       const key = score.contestantId;
       if (!acc[key]) {
         acc[key] = {
@@ -506,14 +678,14 @@ export class AuditorService extends BaseService {
 
     // Calculate averages and rankings
     const rankings = Object.values(contestantScores)
-      .map((group: any) => {
+      .map((group) => {
         group.averageScore = group.scores.length > 0 ? group.totalScore / group.scores.length : 0;
         return group;
       })
-      .sort((a: any, b: any) => b.averageScore - a.averageScore);
+      .sort((a, b) => b.averageScore - a.averageScore);
 
     // Add rank to each contestant
-    rankings.forEach((contestant: any, index) => {
+    rankings.forEach((contestant, index) => {
       contestant.rank = index + 1;
     });
 
@@ -540,7 +712,7 @@ export class AuditorService extends BaseService {
       },
       rankings: includeDetails
         ? rankings
-        : rankings.map((r: any) => ({
+        : rankings.map((r) => ({
             rank: r.rank,
             contestant: r.contestant,
             totalScore: r.totalScore,
@@ -548,9 +720,9 @@ export class AuditorService extends BaseService {
             scoreCount: r.scores.length,
           })),
       certification: {
-        tallyMasterCertified: category.certifications?.some((c: any) => c.type === 'TALLY_MASTER') || false,
-        auditorCertified: category.certifications?.some((c: any) => c.type === 'AUDITOR') || false,
-        finalCertified: category.certifications?.some((c: any) => c.type === 'FINAL') || false,
+        tallyMasterCertified: category.certifications?.some((c) => c.type === 'TALLY_MASTER') || false,
+        auditorCertified: category.certifications?.some((c) => c.type === 'AUDITOR') || false,
+        finalCertified: category.certifications?.some((c) => c.type === 'FINAL') || false,
         certifications: category.certifications || [],
       },
       generatedAt: new Date().toISOString(),
@@ -564,12 +736,12 @@ export class AuditorService extends BaseService {
    * Get audit history
    */
   async getAuditHistory(categoryId?: string, page: number = 1, limit: number = 20) {
-    const whereClause: any = {
+    const whereClause: Prisma.ActivityLogWhereInput = {
       ...(categoryId && { categoryId }),
       resourceType: 'CATEGORY',
     };
 
-    const auditLogs: any = await this.prisma.activityLog.findMany({
+    const auditLogs = await this.prisma.activityLog.findMany({
       where: whereClause,
       include: {
         user: {
@@ -585,9 +757,9 @@ export class AuditorService extends BaseService {
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
-    });
+    }) as ActivityLogWithUser[];
 
-    const total: any = await this.prisma.activityLog.count({
+    const total = await this.prisma.activityLog.count({
       where: whereClause,
     });
 

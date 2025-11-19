@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissions';
 import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
@@ -19,14 +19,56 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const RESET_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
+// Prisma payload types
+type UserBasic = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    preferredName: true;
+    email: true;
+    password: true;
+    role: true;
+    sessionVersion: true;
+    isActive: true;
+    judgeId: true;
+    contestantId: true;
+    gender: true;
+    pronouns: true;
+    tenantId: true;
+  };
+}>;
+
 interface LoginCredentials {
   email: string;
   password: string;
 }
 
+interface UserProfile {
+  id: string;
+  name: string;
+  preferredName: string | null;
+  email: string;
+  role: string;
+  sessionVersion: number;
+  permissions: string[];
+  hasAdminAccess: boolean;
+  judgeId: string | null;
+  contestantId: string | null;
+  gender: string | null;
+  pronouns: string | null;
+  tenantId?: string;
+}
+
 interface LoginResult {
   token: string;
-  user: any;
+  user: UserProfile;
+}
+
+interface UserPermissions {
+  role: string;
+  permissions: string[];
+  hasAdminAccess: boolean;
+  permissionsMatrix: typeof PERMISSIONS;
 }
 
 interface TokenPayload {
@@ -52,6 +94,58 @@ export class AuthService {
   }
 
   /**
+   * P2-5: Check if password was used in recent history
+   * @param userId - User ID
+   * @param newPassword - New password to check
+   * @param historyLimit - Number of previous passwords to check (default: 5)
+   * @returns true if password was used recently
+   */
+  private async isPasswordInHistory(userId: string, newPassword: string, historyLimit: number = 5): Promise<boolean> {
+    const passwordHistories = await this.prisma.passwordHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: historyLimit
+    });
+
+    for (const history of passwordHistories) {
+      if (await bcrypt.compare(newPassword, history.password)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * P2-5: Save password to history
+   * @param userId - User ID
+   * @param hashedPassword - Hashed password to save
+   */
+  private async savePasswordToHistory(userId: string, hashedPassword: string): Promise<void> {
+    await this.prisma.passwordHistory.create({
+      data: {
+        userId,
+        password: hashedPassword
+      }
+    });
+
+    // Keep only the last 10 password histories
+    const allHistories = await this.prisma.passwordHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip: 10
+    });
+
+    if (allHistories.length > 0) {
+      await this.prisma.passwordHistory.deleteMany({
+        where: {
+          id: { in: allHistories.map(h => h.id) }
+        }
+      });
+    }
+  }
+
+  /**
    * Authenticate user and generate JWT token
    */
   async login(credentials: LoginCredentials, tenantId: string, ipAddress?: string, userAgent?: string): Promise<LoginResult> {
@@ -67,7 +161,7 @@ export class AuthService {
 
     // Find user with related data
     // SECURITY FIX: Filter by tenantId to prevent cross-tenant authentication bypass
-    const user: any = await this.prisma.user.findFirst({
+    const user: UserBasic | null = await this.prisma.user.findFirst({
       where: {
         email,
         tenantId
@@ -107,7 +201,7 @@ export class AuthService {
       tenantId: user.tenantId
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn } as any);
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn });
 
     // Get user permissions
     const permissions = getRolePermissions(user.role);
@@ -158,8 +252,8 @@ export class AuthService {
   /**
    * Get user profile by ID
    */
-  async getProfile(userId: string): Promise<any> {
-    const user: any = await this.prisma.user.findUnique({
+  async getProfile(userId: string): Promise<UserProfile> {
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -189,8 +283,8 @@ export class AuthService {
   /**
    * Get user permissions
    */
-  async getPermissions(userId: string): Promise<any> {
-    const user: any = await this.prisma.user.findUnique({
+  async getPermissions(userId: string): Promise<UserPermissions> {
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -224,7 +318,7 @@ export class AuthService {
    * Generate password reset token
    */
   async generatePasswordResetToken(email: string): Promise<string> {
-    const user: any = await this.prisma.user.findFirst({
+    const user: UserBasic | null = await this.prisma.user.findFirst({
       where: { email }
     });
 
@@ -267,7 +361,7 @@ export class AuthService {
     }
 
     // Get user info for password similarity check
-    const user: any = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -289,6 +383,11 @@ export class AuthService {
       throw new Error('Password is too similar to your personal information');
     }
 
+    // P2-5: Check password history
+    if (await this.isPasswordInHistory(userId, newPassword, 5)) {
+      throw new Error('Password has been used recently. Please choose a different password');
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await this.prisma.user.update({
@@ -299,6 +398,9 @@ export class AuthService {
       }
     });
 
+    // P2-5: Save password to history
+    await this.savePasswordToHistory(userId, hashedPassword);
+
     // Invalidate the token after use
     this.resetTokenCache.del(token);
     userCache.invalidate(userId);
@@ -308,7 +410,7 @@ export class AuthService {
    * Change user password (authenticated)
    */
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    const user: any = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -340,6 +442,11 @@ export class AuthService {
       throw new Error('New password must be different from current password');
     }
 
+    // P2-5: Check password history
+    if (await this.isPasswordInHistory(userId, newPassword, 5)) {
+      throw new Error('Password has been used recently. Please choose a different password');
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await this.prisma.user.update({
@@ -349,6 +456,9 @@ export class AuthService {
         sessionVersion: { increment: 1 }
       }
     });
+
+    // P2-5: Save password to history
+    await this.savePasswordToHistory(userId, hashedPassword);
 
     userCache.invalidate(userId);
   }
@@ -371,7 +481,7 @@ export class AuthService {
    * Check if user has specific permission
    */
   async hasPermission(userId: string, permission: string): Promise<boolean> {
-    const user: any = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 

@@ -1,7 +1,18 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import nodemailer from 'nodemailer';
+
+// Prisma payload types
+type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
+  select: {
+    key: true;
+    value: true;
+    category: true;
+  };
+}>;
+
+type SystemSettingFull = Prisma.SystemSettingGetPayload<object>;
 
 export interface PublicSettings {
   appName: string;
@@ -26,14 +37,14 @@ export class SettingsService extends BaseService {
   /**
    * Get all settings
    */
-  async getAllSettings(): Promise<any[]> {
+  async getAllSettings(): Promise<SystemSettingFull[]> {
     return await this.prisma.systemSetting.findMany();
   }
 
   /**
    * Get settings by category
    */
-  async getSettingsByCategory(category: string): Promise<any[]> {
+  async getSettingsByCategory(category: string): Promise<SystemSettingFull[]> {
     return await this.prisma.systemSetting.findMany({
       where: { category },
     });
@@ -71,8 +82,13 @@ export class SettingsService extends BaseService {
       'footer_contactEmail',
     ];
 
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { key: { in: keys } },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -128,7 +144,7 @@ export class SettingsService extends BaseService {
     key: string,
     value: string,
     userId: string
-  ): Promise<any> {
+  ): Promise<SystemSettingFull> {
     const category = this.determineCategoryFromKey(key);
 
     return await this.prisma.systemSetting.upsert({
@@ -152,8 +168,13 @@ export class SettingsService extends BaseService {
    * Get logging levels
    */
   async getLoggingLevels(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'logging_' } },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -165,7 +186,7 @@ export class SettingsService extends BaseService {
   async updateLoggingLevel(
     level: string,
     userId: string
-  ): Promise<any> {
+  ): Promise<SystemSettingFull> {
     return await this.updateSetting('logging_level', level, userId);
   }
 
@@ -173,8 +194,13 @@ export class SettingsService extends BaseService {
    * Get security settings
    */
   async getSecuritySettings(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { category: 'security' },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -201,8 +227,13 @@ export class SettingsService extends BaseService {
    * Get backup settings
    */
   async getBackupSettings(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { category: 'backup' },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -229,8 +260,13 @@ export class SettingsService extends BaseService {
    * Get email settings
    */
   async getEmailSettings(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { category: 'email' },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -283,8 +319,13 @@ export class SettingsService extends BaseService {
    * Get password policy
    */
   async getPasswordPolicy(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'password_' } },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -311,8 +352,13 @@ export class SettingsService extends BaseService {
    * Get JWT configuration
    */
   async getJWTConfig(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'jwt_' } },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -339,8 +385,13 @@ export class SettingsService extends BaseService {
    * Get theme settings
    */
   async getThemeSettings(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { category: 'theme' },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));
@@ -367,8 +418,13 @@ export class SettingsService extends BaseService {
    * Get contestant visibility settings
    */
   async getContestantVisibilitySettings(): Promise<Record<string, string>> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: { key: { startsWith: 'contestant_visibility_' } },
+      select: {
+        key: true,
+        value: true,
+        category: true
+      }
     });
 
     return Object.fromEntries(settings.map((s) => [s.key, s.value]));

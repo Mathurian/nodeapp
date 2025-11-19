@@ -11,7 +11,7 @@ import { EventService } from '../services/EventService';
 /**
  * Success response helper
  */
-const successResponse = (res: Response, data: any, message?: string, status: number = 200) => {
+const successResponse = (res: Response, data: unknown, message?: string, status: number = 200) => {
   return res.status(status).json({
     success: true,
     message,
@@ -36,7 +36,7 @@ export class EventsController {
     try {
       const { archived, search } = req.query;
 
-      const filters: any = {};
+      const filters: { archived?: boolean; search?: string } = {};
       if (archived !== undefined) {
         filters.archived = archived === 'true';
       }
@@ -74,7 +74,7 @@ export class EventsController {
   /**
    * Get event by ID
    */
-  getEventById = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getEventById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -90,7 +90,7 @@ export class EventsController {
   /**
    * Get event with full details
    */
-  getEventWithDetails = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getEventWithDetails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -106,7 +106,7 @@ export class EventsController {
   /**
    * Get upcoming events
    */
-  getUpcomingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getUpcomingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const events = await this.eventService.getUpcomingEvents();
       return sendSuccess(res, events);
@@ -118,7 +118,7 @@ export class EventsController {
   /**
    * Get ongoing events
    */
-  getOngoingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getOngoingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const events = await this.eventService.getOngoingEvents();
       return sendSuccess(res, events);
@@ -130,7 +130,7 @@ export class EventsController {
   /**
    * Get past events
    */
-  getPastEvents = async (_req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getPastEvents = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const events = await this.eventService.getPastEvents();
       return sendSuccess(res, events);
@@ -154,7 +154,7 @@ export class EventsController {
   /**
    * Update event
    */
-  updateEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  updateEvent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -170,7 +170,7 @@ export class EventsController {
   /**
    * Delete event
    */
-  deleteEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  deleteEvent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -186,7 +186,7 @@ export class EventsController {
   /**
    * Archive event
    */
-  archiveEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  archiveEvent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -202,7 +202,7 @@ export class EventsController {
   /**
    * Unarchive event
    */
-  unarchiveEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  unarchiveEvent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -218,7 +218,7 @@ export class EventsController {
   /**
    * Get event statistics
    */
-  getEventStats = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  getEventStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       if (!id) {
@@ -234,7 +234,7 @@ export class EventsController {
   /**
    * Search events
    */
-  searchEvents = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  searchEvents = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { q } = req.query;
 

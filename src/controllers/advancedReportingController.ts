@@ -2,7 +2,48 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { AdvancedReportingService } from '../services/AdvancedReportingService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, Event, Contest, Category, Judge, Contestant, Score } from '@prisma/client';
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    tenantId: string;
+    role: string;
+  };
+}
+
+interface EventWithContests extends Event {
+  contests: ContestWithCategories[];
+}
+
+interface ContestWithCategories extends Contest {
+  categories: CategoryWithCount[];
+}
+
+interface CategoryWithCount extends Category {
+  _count: {
+    scores: number;
+  };
+}
+
+interface ScoreWithRelations extends Score {
+  category: {
+    id: string;
+    name: string;
+    contest: {
+      id: string;
+      name: string;
+    };
+  };
+  contestant: {
+    id: string;
+    name: string;
+  };
+  judge: {
+    id: string;
+    name: string;
+  };
+}
 
 export class AdvancedReportingController {
   private advancedReportingService: AdvancedReportingService;
@@ -13,7 +54,7 @@ export class AdvancedReportingController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  generateScoreReport = async (req: Request, res: Response, next: NextFunction) => {
+  generateScoreReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, contestId, categoryId } = req.query;
       const report = await this.advancedReportingService.generateScoreReport(
@@ -27,7 +68,7 @@ export class AdvancedReportingController {
     }
   };
 
-  generateSummaryReport = async (req: Request, res: Response, next: NextFunction) => {
+  generateSummaryReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId } = req.params;
       const report = await this.advancedReportingService.generateSummaryReport(eventId);
@@ -39,14 +80,15 @@ export class AdvancedReportingController {
 
   generateEventReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { eventId } = req.params;
+      const authReq = req as AuthenticatedRequest;
+      const { eventId } = authReq.params;
 
       if (!eventId) {
         return sendSuccess(res, {}, 'eventId is required', 400);
       }
 
       // Get event with all related data
-      const event: any = await this.prisma.event.findUnique({
+      const event = await this.prisma.event.findUnique({
         where: { id: eventId },
         include: {
           contests: {
@@ -62,11 +104,11 @@ export class AdvancedReportingController {
               }
             }
           }
-        } as any
-      } as any);
+        }
+      }) as EventWithContests | null;
 
       // Verify tenant access
-      if (event && event.tenantId !== req.user!.tenantId) {
+      if (event && event.tenantId !== authReq.user!.tenantId) {
         return sendSuccess(res, {}, 'Event not found', 404);
       }
 
@@ -76,14 +118,14 @@ export class AdvancedReportingController {
 
       // Get contest IDs for this event
       const contests = await this.prisma.contest.findMany({
-        where: { eventId, tenantId: req.user!.tenantId },
+        where: { eventId, tenantId: authReq.user!.tenantId },
         select: { id: true }
       });
       const contestIds = contests.map(c => c.id);
 
       // Get category IDs for these contests
       const categories = await this.prisma.category.findMany({
-        where: { contestId: { in: contestIds }, tenantId: req.user!.tenantId },
+        where: { contestId: { in: contestIds }, tenantId: authReq.user!.tenantId },
         select: { id: true }
       });
       const categoryIds = categories.map(c => c.id);
@@ -92,26 +134,26 @@ export class AdvancedReportingController {
       const [totalScores, totalContestants, totalCategories, totalJudges] = await Promise.all([
         this.prisma.score.count({
           where: {
-            tenantId: req.user!.tenantId,
+            tenantId: authReq.user!.tenantId,
             categoryId: { in: categoryIds }
           }
         }),
         this.prisma.contestContestant.count({
           where: {
-            tenantId: req.user!.tenantId,
+            tenantId: authReq.user!.tenantId,
             contestId: { in: contestIds }
           }
         }),
         this.prisma.category.count({
           where: {
-            tenantId: req.user!.tenantId,
+            tenantId: authReq.user!.tenantId,
             contestId: { in: contestIds }
           }
         }),
         this.prisma.assignment.count({
           where: {
             eventId,
-            tenantId: req.user!.tenantId
+            tenantId: authReq.user!.tenantId
           }
         })
       ]);
@@ -133,10 +175,10 @@ export class AdvancedReportingController {
           totalJudges,
           totalScores
         },
-        contests: event.contests.map((contest: any) => ({
+        contests: event.contests.map((contest) => ({
           id: contest.id,
           name: contest.name,
-          categories: contest.categories.map((cat: any) => ({
+          categories: contest.categories.map((cat) => ({
             id: cat.id,
             name: cat.name,
             scores: cat._count.scores
@@ -153,9 +195,10 @@ export class AdvancedReportingController {
 
   generateJudgePerformanceReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { judgeId } = req.params;
-      const eventId = req.query.eventId as string | undefined;
-      const contestId = req.query.contestId as string | undefined;
+      const authReq = req as AuthenticatedRequest;
+      const { judgeId } = authReq.params;
+      const eventId = authReq.query.eventId as string | undefined;
+      const contestId = authReq.query.contestId as string | undefined;
 
       if (!judgeId) {
         return sendSuccess(res, {}, 'judgeId is required', 400);
@@ -165,7 +208,7 @@ export class AdvancedReportingController {
       const judge = await this.prisma.judge.findUnique({
         where: {
           id: judgeId,
-          tenantId: req.user!.tenantId
+          tenantId: authReq.user!.tenantId
         }
       });
 
@@ -174,7 +217,7 @@ export class AdvancedReportingController {
       }
 
       // Build where clause for scores
-      let categoryFilter: any = undefined;
+      let categoryFilter: Prisma.CategoryWhereInput | undefined = undefined;
       if (eventId && contestId) {
         categoryFilter = {
           contestId,
@@ -192,12 +235,12 @@ export class AdvancedReportingController {
 
       const scoreWhere: Prisma.ScoreWhereInput = {
         judgeId,
-        tenantId: req.user!.tenantId,
+        tenantId: authReq.user!.tenantId,
         ...(categoryFilter && { category: categoryFilter })
       };
 
       // Get all scores by this judge
-      const scores: any = await this.prisma.score.findMany({
+      const scores = await this.prisma.score.findMany({
         where: scoreWhere,
         include: {
           category: {
@@ -217,9 +260,15 @@ export class AdvancedReportingController {
               id: true,
               name: true
             }
+          },
+          judge: {
+            select: {
+              id: true,
+              name: true
+            }
           }
-        } as any
-      } as any);
+        }
+      }) as ScoreWithRelations[];
 
       // Calculate statistics
       const totalScores = scores.length;
@@ -232,7 +281,16 @@ export class AdvancedReportingController {
       const minScore = scoreValues.length > 0 ? Math.min(...scoreValues) : 0;
 
       // Group by category
-      const byCategory = scores.reduce((acc: any, score) => {
+      interface CategoryStats {
+        categoryId: string;
+        categoryName: string;
+        contestName: string;
+        count: number;
+        total: number;
+        avg: number;
+      }
+
+      const byCategory = scores.reduce((acc: Record<string, CategoryStats>, score) => {
         const catId = score.category.id;
         if (!acc[catId]) {
           acc[catId] = {
@@ -280,11 +338,12 @@ export class AdvancedReportingController {
 
   generateSystemAnalyticsReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const days = parseInt(req.query.days as string) || 30;
+      const authReq = req as AuthenticatedRequest;
+      const days = parseInt(authReq.query.days as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       // Get comprehensive system statistics
-      const tenantId = req.user!.tenantId;
+      const tenantId = authReq.user!.tenantId;
       const [
         totalUsers,
         totalEvents,
@@ -399,14 +458,15 @@ export class AdvancedReportingController {
 
   generateContestResultsReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { contestId } = req.params;
+      const authReq = req as AuthenticatedRequest;
+      const { contestId } = authReq.params;
 
       if (!contestId) {
         return sendSuccess(res, {}, 'contestId is required', 400);
       }
 
       // Get contest with all related data
-      const contest: any = await this.prisma.contest.findUnique({
+      const contest = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
           categories: {
@@ -418,15 +478,15 @@ export class AdvancedReportingController {
               }
             }
           }
-        } as any
-      } as any);
+        }
+      }) as ContestWithCategories | null;
 
       if (!contest) {
         return sendSuccess(res, {}, 'Contest not found', 404);
       }
 
       // Verify contest tenant access
-      if (contest.tenantId !== req.user!.tenantId) {
+      if (contest.tenantId !== authReq.user!.tenantId) {
         return sendSuccess(res, {}, 'Contest not found', 404);
       }
 
@@ -443,12 +503,25 @@ export class AdvancedReportingController {
 
       // Get results for each category
       const categoryResults = await Promise.all(
-        contest.categories.map(async (category: any) => {
+        contest.categories.map(async (category) => {
+          interface ContestantScore {
+            contestantId: string;
+            contestantName: string;
+            scores: {
+              judgeName: string;
+              score: number;
+              certified: boolean;
+            }[];
+            total: number;
+            average: number;
+            rank: number;
+          }
+
           // Get all scores for this category, grouped by contestant
-          const scores: any = await this.prisma.score.findMany({
+          const scores = await this.prisma.score.findMany({
             where: {
               categoryId: category.id,
-              tenantId: req.user!.tenantId
+              tenantId: authReq.user!.tenantId
             },
             include: {
               contestant: {
@@ -463,11 +536,11 @@ export class AdvancedReportingController {
                   name: true
                 }
               }
-            } as any
-          } as any);
+            }
+          }) as ScoreWithRelations[];
 
           // Calculate total scores per contestant
-          const contestantScores = scores.reduce((acc: any, score) => {
+          const contestantScores = scores.reduce((acc: Record<string, ContestantScore>, score) => {
             const cId = score.contestantId;
             if (!acc[cId]) {
               acc[cId] = {
@@ -490,12 +563,12 @@ export class AdvancedReportingController {
 
           // Calculate averages and sort by total score
           const rankings = Object.values(contestantScores)
-            .map((c: any) => {
+            .map((c) => {
               c.average = c.scores.length > 0 ? c.total / c.scores.length : 0;
               return c;
             })
-            .sort((a: any, b: any) => b.total - a.total)
-            .map((c: any, index: number) => {
+            .sort((a, b) => b.total - a.total)
+            .map((c, index: number) => {
               c.rank = index + 1;
               return c;
             });
@@ -504,7 +577,7 @@ export class AdvancedReportingController {
           const contestantCount = await this.prisma.contestContestant.count({
             where: {
               contestId,
-              tenantId: req.user!.tenantId
+              tenantId: authReq.user!.tenantId
             }
           });
 
@@ -527,8 +600,8 @@ export class AdvancedReportingController {
         categories: categoryResults,
         summary: {
           totalCategories: contest.categories.length,
-          totalContestants: categoryResults.reduce((sum: any, cat: any) => sum + cat.totalContestants, 0),
-          totalScores: categoryResults.reduce((sum: any, cat: any) => sum + cat.totalScores, 0)
+          totalContestants: categoryResults.reduce((sum, cat) => sum + cat.totalContestants, 0),
+          totalScores: categoryResults.reduce((sum, cat) => sum + cat.totalScores, 0)
         },
         generatedAt: new Date()
       };

@@ -3,12 +3,28 @@
  * Business logic layer for Category entity with caching support
  */
 
-import { Category } from '@prisma/client';
+import { Category, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { CacheService } from './CacheService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+
+// Proper type definitions for category responses
+type CategoryWithDetails = Prisma.CategoryGetPayload<{
+  include: {
+    contest: true;
+    criteria: true;
+    contestants: true;
+  };
+}>;
+
+interface CategoryStats {
+  totalContestants: number;
+  totalScores: number;
+  averageScore: number;
+  completionPercentage: number;
+}
 
 interface CreateCategoryDto {
   contestId: string;
@@ -86,7 +102,7 @@ export class CategoryService extends BaseService {
     }
   }
 
-  async getCategoryWithDetails(id: string): Promise<any> {
+  async getCategoryWithDetails(id: string): Promise<CategoryWithDetails> {
     try {
       const cacheKey = `category:details:${id}`;
       const cached = await this.cacheService.get(cacheKey);
@@ -211,7 +227,7 @@ export class CategoryService extends BaseService {
     }
   }
 
-  async getCategoryStats(id: string): Promise<any> {
+  async getCategoryStats(id: string): Promise<CategoryStats> {
     try {
       const cacheKey = `category:stats:${id}`;
       const cached = await this.cacheService.get(cacheKey);

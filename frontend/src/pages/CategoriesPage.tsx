@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { categoriesAPI, contestsAPI } from '../services/api'
 import {
@@ -118,10 +119,11 @@ const CategoriesPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('categories')
         resetForm()
-        alert('Category created successfully!')
+        toast.success('Category created successfully!')
       },
       onError: (error: any) => {
-        alert(`Error creating category: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create category'
+        toast.error(`Error creating category: ${errorMessage}`)
       },
     }
   )
@@ -145,10 +147,11 @@ const CategoriesPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('categories')
         resetForm()
-        alert('Category updated successfully!')
+        toast.success('Category updated successfully!')
       },
       onError: (error: any) => {
-        alert(`Error updating category: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update category'
+        toast.error(`Error updating category: ${errorMessage}`)
       },
     }
   )
@@ -162,10 +165,11 @@ const CategoriesPage: React.FC = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('categories')
-        alert('Category deleted successfully!')
+        toast.success('Category deleted successfully!')
       },
       onError: (error: any) => {
-        alert(`Error deleting category: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to delete category'
+        toast.error(`Error deleting category: ${errorMessage}`)
       },
     }
   )
@@ -208,7 +212,7 @@ const CategoriesPage: React.FC = () => {
     e.preventDefault()
 
     if (!formData.name || !formData.contestId) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in all required fields')
       return
     }
 
