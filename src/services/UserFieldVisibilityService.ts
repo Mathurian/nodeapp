@@ -73,7 +73,7 @@ export class UserFieldVisibilityService extends BaseService {
    * Update field visibility
    */
   async updateFieldVisibility(field: string, visible: boolean, required?: boolean, userId?: string) {
-    this.validateRequired({ field, visible }, ['field', 'visible']);
+    this.validateRequired({ field, visible } as unknown as Record<string, unknown>, ['field', 'visible']);
 
     const value = JSON.stringify({ visible, required: required || false });
 

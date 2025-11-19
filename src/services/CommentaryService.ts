@@ -114,7 +114,7 @@ export class CommentaryService extends BaseService {
           }
         }
       } as any
-    }) as ScoreCommentWithJudge;
+    }) as any;
   }
 
   async getCommentsForScore(scoreId: string, userRole: string): Promise<ScoreCommentWithDetails[]> {
@@ -141,7 +141,7 @@ export class CommentaryService extends BaseService {
         }
       } as any,
       orderBy: { createdAt: 'asc' }
-    }) as ScoreCommentWithDetails[];
+    }) as any;
   }
 
   async getCommentsByContestant(contestantId: string, userRole: string): Promise<ScoreCommentWithFullDetails[]> {
@@ -214,7 +214,7 @@ export class CommentaryService extends BaseService {
           }
         }
       } as any
-    }) as ScoreCommentWithJudge;
+    }) as any;
   }
 
   async delete(id: string, userId: string, userRole: string): Promise<void> {

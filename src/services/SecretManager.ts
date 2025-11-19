@@ -5,7 +5,7 @@
  * Implements strategy pattern for easy provider switching
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import {
   ISecretProvider,
   SecretsProviderConfig,
@@ -63,26 +63,26 @@ export class SecretManager {
     switch (provider) {
       case 'local':
         config.local = {
-          encryptionKey: env.get('SECRETS_ENCRYPTION_KEY'),
-          storePath: env.get('SECRETS_STORE_PATH') || './secrets.encrypted',
-          backupPath: env.get('SECRETS_BACKUP_PATH') || './backups/secrets',
+          encryptionKey: (env.get('SECRETS_ENCRYPTION_KEY') as string | undefined),
+          storePath: (env.get('SECRETS_STORE_PATH') as string | undefined) || './secrets.encrypted',
+          backupPath: (env.get('SECRETS_BACKUP_PATH') as string | undefined) || './backups/secrets',
           autoBackup: env.get('SECRETS_AUTO_BACKUP') !== 'false',
         };
         break;
 
       case 'aws':
         config.aws = {
-          region: env.get('AWS_REGION') || 'us-east-1',
-          accessKeyId: env.get('AWS_ACCESS_KEY_ID'),
-          secretAccessKey: env.get('AWS_SECRET_ACCESS_KEY'),
-          prefix: env.get('AWS_SECRETS_PREFIX') || 'event-manager',
+          region: (env.get('AWS_REGION') as string | undefined) || 'us-east-1',
+          accessKeyId: (env.get('AWS_ACCESS_KEY_ID') as string | undefined),
+          secretAccessKey: (env.get('AWS_SECRET_ACCESS_KEY') as string | undefined),
+          prefix: (env.get('AWS_SECRETS_PREFIX') as string | undefined) || 'event-manager',
         };
         break;
 
       case 'vault':
         config.vault = {
-          address: env.get('VAULT_ADDR') || 'http://localhost:8200',
-          token: env.get('VAULT_TOKEN'),
+          address: (env.get('VAULT_ADDR') as string | undefined) || 'http://localhost:8200',
+          token: (env.get('VAULT_TOKEN') as string | undefined),
           namespace: env.get('VAULT_NAMESPACE'),
           path: env.get('VAULT_PATH') || 'secret',
           version: (env.get('VAULT_KV_VERSION') || 'v2') as 'v1' | 'v2',

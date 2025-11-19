@@ -211,7 +211,7 @@ export class AuditLogService extends BaseService {
     }
 
     if (params.action) {
-      where.action = { contains: params.action };
+      where.action = { contains: params.action } as any;
     }
 
     if (params.entityType) {
@@ -287,7 +287,7 @@ export class AuditLogService extends BaseService {
 
       // Count by day
       const day = log.timestamp.toISOString().split('T')[0];
-      stats.byDay[day] = (stats.byDay[day] || 0) + 1;
+      stats.byDay[day] = ((stats.byDay as any)[day] || 0) + 1;
     });
 
     return stats;

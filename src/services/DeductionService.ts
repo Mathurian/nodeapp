@@ -59,7 +59,7 @@ export class DeductionService extends BaseService {
   async createDeductionRequest(
     data: CreateDeductionData
   ): Promise<DeductionWithRelations> {
-    this.validateRequired(data, [
+    this.validateRequired(data as unknown as Record<string, unknown>, [
       'contestantId',
       'categoryId',
       'amount',
@@ -144,13 +144,13 @@ export class DeductionService extends BaseService {
     userRole: string,
     tenantId: string,
     signature: string,
-    notes?: string
+    _notes?: string
   ): Promise<{
     approval: any;
     isFullyApproved: boolean;
     message: string;
   }> {
-    this.validateRequired({ id, approvedBy, signature }, [
+    this.validateRequired({ id, approvedBy, signature } as unknown as Record<string, unknown>, [
       'id',
       'approvedBy',
       'signature'
@@ -226,7 +226,7 @@ export class DeductionService extends BaseService {
     reason: string,
     tenantId: string
   ): Promise<void> {
-    this.validateRequired({ id, reason }, ['id', 'reason']);
+    this.validateRequired({ id, reason } as unknown as Record<string, unknown>, ['id', 'reason']);
 
     const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
 

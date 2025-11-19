@@ -581,7 +581,7 @@ export class TallyMasterService extends BaseService {
     const categoriesWithStatus = categories.map((category) => {
       const allJudgesCertified =
         category.scores.length > 0 && category.scores.every((s) => s.isCertified === true);
-      const judgeStatus = allJudgesCertified ? 'COMPLETED' : 'PENDING';
+      const _judgeStatus = allJudgesCertified ? 'COMPLETED' : 'PENDING';
 
       let currentStep = 1;
       const totalSteps = 4;
@@ -636,7 +636,7 @@ export class TallyMasterService extends BaseService {
   /**
    * Certify category totals
    */
-  async certifyTotals(categoryId: string, userId: string, userRole: UserRole): Promise<Prisma.CategoryGetPayload<{
+  async certifyTotals(categoryId: string, _userId: string, _userRole: UserRole): Promise<Prisma.CategoryGetPayload<{
     include: {
       contest: {
         include: {
@@ -645,7 +645,7 @@ export class TallyMasterService extends BaseService {
       };
     };
   }>> {
-    this.validateRequired({ categoryId }, ['categoryId']);
+    this.validateRequired({ categoryId } as unknown as Record<string, unknown>, ['categoryId']);
 
     const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
@@ -761,9 +761,9 @@ export class TallyMasterService extends BaseService {
           scoreCount: 0,
         };
       }
-      acc[key].scores.push(score);
-      acc[key].totalScore += score.score;
-      acc[key].scoreCount += 1;
+      acc[key]!.scores.push(score);
+      acc[key]!.totalScore += score.score;
+      acc[key]!.scoreCount += 1;
       return acc;
     }, {} as Record<string, ContestantScoreGroup>);
 
@@ -863,9 +863,9 @@ export class TallyMasterService extends BaseService {
           scoreCount: 0,
         };
       }
-      acc[key].scores.push({ id: score.id, score: score.score });
-      acc[key].totalScore += score.score;
-      acc[key].scoreCount += 1;
+      acc[key]!.scores.push({ id: score.id, score: score.score });
+      acc[key]!.totalScore += score.score;
+      acc[key]!.scoreCount += 1;
       return acc;
     }, {} as Record<string, JudgeScoreGroup>);
 
@@ -1048,16 +1048,16 @@ export class TallyMasterService extends BaseService {
             totalScore: 0,
           };
         }
-        judgeBreakdown[judgeId].scores.push({
+        judgeBreakdown[judgeId]!.scores.push({
           id: score.id,
           score: score.score,
           categoryId: category.id,
           categoryName: category.name
         });
-        judgeBreakdown[judgeId].categories.add(category.id);
-        judgeBreakdown[judgeId].contestants.add(score.contestantId);
+        judgeBreakdown[judgeId]!.categories.add(category.id);
+        judgeBreakdown[judgeId]!.contestants.add(score.contestantId);
         if (score.score) {
-          judgeBreakdown[judgeId].totalScore += score.score;
+          judgeBreakdown[judgeId]!.totalScore += score.score;
         }
       });
     });
@@ -1101,16 +1101,16 @@ export class TallyMasterService extends BaseService {
             totalScore: 0,
           };
         }
-        contestantBreakdown[contestantId].scores.push({
+        contestantBreakdown[contestantId]!.scores.push({
           id: score.id,
           score: score.score,
           categoryId: category.id,
           categoryName: category.name
         });
-        contestantBreakdown[contestantId].categories.add(category.id);
-        contestantBreakdown[contestantId].judges.add(score.judgeId);
+        contestantBreakdown[contestantId]!.categories.add(category.id);
+        contestantBreakdown[contestantId]!.judges.add(score.judgeId);
         if (score.score) {
-          contestantBreakdown[contestantId].totalScore += score.score;
+          contestantBreakdown[contestantId]!.totalScore += score.score;
         }
       });
     });

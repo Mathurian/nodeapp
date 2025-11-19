@@ -1,7 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { createRequestLogger } from '../utils/logger';
 
 // Prisma payload types for complex includes
 type EmceeScriptWithRelations = Prisma.EmceeScriptGetPayload<{
@@ -843,7 +842,7 @@ export class EmceeService extends BaseService {
     order?: number;
     tenantId?: string;
   }): Promise<Prisma.EmceeScriptGetPayload<{}>> {
-    this.validateRequired(data, ['title', 'tenantId']);
+    this.validateRequired(data as unknown as Record<string, unknown>, ['title', 'tenantId']);
 
     if (!data.content && !data.filePath) {
       throw this.validationError('Content or file is required');

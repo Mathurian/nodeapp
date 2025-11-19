@@ -186,7 +186,7 @@ export class BoardService extends BaseService {
   /**
    * Reject category certification
    */
-  async rejectCertification(categoryId: string, reason?: string): Promise<ApprovalResponse> {
+  async rejectCertification(categoryId: string, _reason?: string): Promise<ApprovalResponse> {
     const category: CategoryWithContest | null = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
@@ -260,7 +260,7 @@ export class BoardService extends BaseService {
     userId: string;
     tenantId: string;
   }): Promise<EmceeScript> {
-    this.validateRequired(data, ['title', 'content', 'tenantId']);
+    this.validateRequired(data as unknown as Record<string, unknown>, ['title', 'content', 'tenantId']);
 
     const script: EmceeScript = await this.prisma.emceeScript.create({
       data: {
@@ -362,7 +362,7 @@ export class BoardService extends BaseService {
   /**
    * Approve score removal
    */
-  async approveScoreRemoval(requestId: string, userId: string, reason?: string): Promise<Prisma.JudgeScoreRemovalRequestGetPayload<{}>> {
+  async approveScoreRemoval(requestId: string, userId: string, _reason?: string): Promise<Prisma.JudgeScoreRemovalRequestGetPayload<{}>> {
     const request: ScoreRemovalRequestWithScore | null = await this.prisma.judgeScoreRemovalRequest.findUnique({
       where: { id: requestId },
       include: { score: true },
@@ -374,7 +374,7 @@ export class BoardService extends BaseService {
 
     // Delete the score
     await this.prisma.score.delete({
-      where: { id: request.scoreId },
+      where: { id: request.scoreId ?? undefined },
     });
 
     // Update request status
@@ -393,7 +393,7 @@ export class BoardService extends BaseService {
   /**
    * Reject score removal
    */
-  async rejectScoreRemoval(requestId: string, userId: string, reason?: string): Promise<Prisma.JudgeScoreRemovalRequestGetPayload<{}>> {
+  async rejectScoreRemoval(requestId: string, userId: string, _reason?: string): Promise<Prisma.JudgeScoreRemovalRequestGetPayload<{}>> {
     const updatedRequest: Prisma.JudgeScoreRemovalRequestGetPayload<{}> = await this.prisma.judgeScoreRemovalRequest.update({
       where: { id: requestId },
       data: {

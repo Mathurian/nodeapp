@@ -64,7 +64,7 @@ export class CategoryService extends BaseService {
 
   async createCategory(data: CreateCategoryDto): Promise<Category> {
     try {
-      this.validateRequired(data, ['contestId', 'name']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['contestId', 'name']);
 
       if (data.scoreCap !== undefined && data.scoreCap < 0) {
         throw new ValidationError('Score cap must be non-negative');
@@ -108,7 +108,7 @@ export class CategoryService extends BaseService {
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
-        return cached;
+        return cached as any;
       }
 
       const category = await this.categoryRepo.findCategoryWithDetails(id);

@@ -27,7 +27,7 @@ export class SMSService extends BaseService {
       });
 
       const config: any = {};
-      settings.forEach(setting => {
+      settings.forEach((setting: any) => {
         config[setting.key.toLowerCase()] = setting.value;
       });
 

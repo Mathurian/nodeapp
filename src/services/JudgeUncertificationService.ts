@@ -71,7 +71,7 @@ export class JudgeUncertificationService extends BaseService {
 
   async getUncertificationRequests(status?: string): Promise<UncertificationRequestWithRelations[]> {
     const where: Prisma.JudgeUncertificationRequestWhereInput = {};
-    if (status) where.status = status;
+    if (status) where.status = status as any;
 
     return await this.prisma.judgeUncertificationRequest.findMany({
       where,
@@ -122,7 +122,7 @@ export class JudgeUncertificationService extends BaseService {
   }
 
   async signRequest(id: string, data: SignRequestData) {
-    const { signatureName, userId, userRole } = data;
+    const { signatureName, userId: _userId, userRole: _userRole } = data;
 
     if (!signatureName) {
       throw this.badRequestError('Signature name is required');

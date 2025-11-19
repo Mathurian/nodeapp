@@ -97,7 +97,7 @@ export class EventService extends BaseService {
   async createEvent(data: CreateEventDto): Promise<Event> {
     try {
       // Validate required fields
-      this.validateRequired(data, ['name', 'startDate', 'endDate']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['name', 'startDate', 'endDate']);
 
       // Validate dates
       const startDate = new Date(data.startDate);

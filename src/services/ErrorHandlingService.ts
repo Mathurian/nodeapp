@@ -3,7 +3,7 @@ import { BaseService } from './BaseService';
 
 @injectable()
 export class ErrorHandlingService extends BaseService {
-  logError(error: any, context?: any) {
+  override logError(error: any, context?: any) {
     // TODO: Implement error logging to database or external service
     console.error('Error logged:', error, context);
 

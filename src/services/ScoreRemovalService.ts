@@ -129,7 +129,7 @@ export class ScoreRemovalService extends BaseService {
 
   async getAll(tenantId: string, status?: string): Promise<ScoreRemovalRequestWithRelations[]> {
     const where: Prisma.ScoreRemovalRequestWhereInput = { tenantId };
-    if (status) where.status = status;
+    if (status) where.status = status as any;
 
     return await this.prisma.scoreRemovalRequest.findMany({
       where,

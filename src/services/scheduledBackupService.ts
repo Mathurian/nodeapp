@@ -166,7 +166,7 @@ class ScheduledBackupService {
           return
       }
 
-      exec(command, async (error: any, stdout: string, stderr: string) => {
+      exec(command, async (error: any, _stdout: string, _stderr: string) => {
         if (error) {
           console.error('Scheduled backup error:', error)
           await this.prisma.backupLog.update({
@@ -289,7 +289,7 @@ class ScheduledBackupService {
   // Method to get all active backup schedules
   getActiveSchedules(): Array<{backupType: string, frequency: string, isActive: boolean}> {
     const schedules: Array<{backupType: string, frequency: string, isActive: boolean}> = [];
-    this.jobs.forEach((job: any, key: string) => {
+    this.jobs.forEach((_job: any, key: string) => {
       const [backupType, frequency] = key.split('_');
       schedules.push({ backupType, frequency, isActive: true });
     });

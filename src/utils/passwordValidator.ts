@@ -179,7 +179,7 @@ export const isPasswordSimilarToUserInfo = (
 
   // Check against email (username part)
   if (userInfo.email) {
-    const emailUsername = userInfo.email.split('@')[0].toLowerCase()
+    const emailUsername = userInfo.email.split('@')[0]?.toLowerCase()
     if (emailUsername.length >= 3 && lowerPassword.includes(emailUsername)) {
       return true
     }

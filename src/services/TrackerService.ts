@@ -37,7 +37,7 @@ export class TrackerService extends BaseService {
 
     const categoryProgress = await Promise.all(contest.categories.map(async (category: any) => {
       const totalContestants = category.contestants.length;
-      const uniqueJudges = new Set(category.scores.map(s => s.judgeId));
+      const uniqueJudges = new Set(category.scores.map((s: any) => s.judgeId));
       const totalJudgeScores = category.scores.length;
       const expectedScores = totalContestants * uniqueJudges.size;
       const completionPercentage = expectedScores > 0 
@@ -45,7 +45,7 @@ export class TrackerService extends BaseService {
         : 0;
 
       const judgeCompletion = await Promise.all(Array.from(uniqueJudges).map(async (judgeId) => {
-        const judgeScores = category.scores.filter(s => s.judgeId === judgeId).length;
+        const judgeScores = category.scores.filter((s: any) => s.judgeId === judgeId).length;
         const judgeCompletionPct = totalContestants > 0 
           ? Math.round((judgeScores / totalContestants) * 100) 
           : 0;

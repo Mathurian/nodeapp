@@ -36,7 +36,7 @@ export class ReportEmailService extends BaseService {
    */
   async sendReportEmail(data: EmailReportDTO): Promise<void> {
     try {
-      this.validateRequired(data, ['recipients', 'reportData', 'format', 'userId']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['recipients', 'reportData', 'format', 'userId']);
 
       // Validate email addresses
       const invalidEmails = data.recipients.filter(email => !this.isValidEmail(email));

@@ -199,7 +199,7 @@ export class LocalSecretStore implements ISecretProvider {
 
       // Delete old backups
       for (let i = keep; i < files.length; i++) {
-        fs.unlinkSync(files[i].path);
+        fs.unlinkSync(files[i]!.path);
       }
     } catch (error) {
       console.error('Error pruning backups:', error);

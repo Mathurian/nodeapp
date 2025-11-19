@@ -801,7 +801,7 @@ export class DRAutomationService {
         rpoViolation,
         rtoMinutes: config.rtoMinutes,
         rpoMinutes: config.rpoMinutes,
-        lastBackup: lastBackup?.completedAt,
+        lastBackup: lastBackup?.completedAt ?? null,
         minutesSinceLastBackup: lastBackup
           ? Math.floor((Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000))
           : null

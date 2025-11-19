@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 // P2-4: Proper type definitions for auditor responses
 type CategoryWithCertifications = Prisma.CategoryGetPayload<{
@@ -503,9 +503,9 @@ export class AuditorService extends BaseService {
     const pendingVerification = totalScores - verifiedScores;
 
     // Check certification status
-    const tallyMasterCert = category.certifications?.some((c) => c.type === 'TALLY_MASTER');
-    const auditorCert = category.certifications?.some((c) => c.type === 'AUDITOR');
-    const finalCert = category.certifications?.some((c) => c.type === 'FINAL');
+    const tallyMasterCert = category.certifications?.some((c: any) => c.type === 'TALLY_MASTER');
+    const auditorCert = category.certifications?.some((c: any) => c.type === 'AUDITOR');
+    const finalCert = category.certifications?.some((c: any) => c.type === 'FINAL');
 
     return {
       categoryId: category.id,
@@ -548,9 +548,9 @@ export class AuditorService extends BaseService {
     }
 
     // Check certification status
-    const tallyMasterCert = category.certifications?.find((c) => c.type === 'TALLY_MASTER');
-    const auditorCert = category.certifications?.find((c) => c.type === 'AUDITOR');
-    const finalCert = category.certifications?.find((c) => c.type === 'FINAL');
+    const tallyMasterCert = category.certifications?.find((c: any) => c.type === 'TALLY_MASTER');
+    const auditorCert = category.certifications?.find((c: any) => c.type === 'AUDITOR');
+    const finalCert = category.certifications?.find((c: any) => c.type === 'FINAL');
 
     const workflow = {
       categoryId: category.id,
@@ -561,7 +561,7 @@ export class AuditorService extends BaseService {
         {
           name: 'Judge Scoring',
           status: category.scores.length > 0 ? 'COMPLETED' : 'PENDING',
-          completedAt: category.scores.length > 0 ? category.scores[0].createdAt : null,
+          completedAt: category.scores.length > 0 ? category.scores[0]?.createdAt : null,
           details: `${category.scores.length} scores submitted`,
         },
         {
@@ -720,9 +720,9 @@ export class AuditorService extends BaseService {
             scoreCount: r.scores.length,
           })),
       certification: {
-        tallyMasterCertified: category.certifications?.some((c) => c.type === 'TALLY_MASTER') || false,
-        auditorCertified: category.certifications?.some((c) => c.type === 'AUDITOR') || false,
-        finalCertified: category.certifications?.some((c) => c.type === 'FINAL') || false,
+        tallyMasterCertified: category.certifications?.some((c: any) => c.type === 'TALLY_MASTER') || false,
+        auditorCertified: category.certifications?.some((c: any) => c.type === 'AUDITOR') || false,
+        finalCertified: category.certifications?.some((c: any) => c.type === 'FINAL') || false,
         certifications: category.certifications || [],
       },
       generatedAt: new Date().toISOString(),

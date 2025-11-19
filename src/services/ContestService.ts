@@ -77,7 +77,7 @@ export class ContestService extends BaseService {
   async createContest(data: CreateContestDto): Promise<Contest> {
     try {
       // Validate required fields
-      this.validateRequired(data, ['eventId', 'name']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['eventId', 'name']);
 
       // Create contest
       const contest = await this.contestRepo.create(data);

@@ -130,7 +130,7 @@ export class RateLimitService {
     }
 
     // Return default if not found
-    return this.configCache.get('public') || defaults[0];
+    return this.configCache.get('public') || defaults[0]!;
   }
 
   /**

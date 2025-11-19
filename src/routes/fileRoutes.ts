@@ -9,7 +9,7 @@ import { authenticateToken } from '../middleware/auth';
 import { env } from '../config/env';
 
 // Configure multer for file uploads
-const storage = multer.diskStorage({
+const _storage = multer.diskStorage({
   destination: function (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
     cb(null, env.get('UPLOAD_DIR') || 'uploads/');
   },

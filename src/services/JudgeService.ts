@@ -364,7 +364,7 @@ export class JudgeService extends BaseService {
         id: category.id,
         name: category.name,
         description: category.description,
-        scoreCap: category.scoreCap,
+        scoreCap: category.scoreCap ?? 0,
       },
       contest: {
         id: category.contest.id,

@@ -203,7 +203,7 @@ export class EmailService extends BaseService {
           response: info.response
         };
       } catch (error) {
-        lastError = error;
+        lastError = error as Error;
         console.error(`EmailService: Email send failed (attempt ${attempt}/${this.maxRetries}):`, error);
 
         if (attempt < this.maxRetries) {

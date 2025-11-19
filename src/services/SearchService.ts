@@ -9,7 +9,6 @@ import {
   SearchOptions,
   SearchResult,
   CreateSavedSearchDTO,
-  CreateSearchHistoryDTO,
 } from '../repositories/SearchRepository';
 import { SavedSearch, SearchHistory, SearchAnalytic } from '@prisma/client';
 
@@ -66,7 +65,7 @@ export class SearchService {
     await this.searchRepository.createSearchHistory({
       userId,
       tenantId: options.tenantId,
-      query: options.query,
+      query: options.query || '',
       filters: options.filters,
       entityTypes: options.entityTypes,
       resultCount: results.length,
@@ -83,7 +82,7 @@ export class SearchService {
       totalCount: results.length,
       page,
       pageSize: options.limit || 20,
-      query: options.query,
+      query: options.query || '',
     };
   }
 
@@ -124,7 +123,7 @@ export class SearchService {
     await this.searchRepository.createSearchHistory({
       userId,
       tenantId: options.tenantId,
-      query: options.query,
+      query: options.query ?? '',
       filters: options.filters,
       entityTypes: [entityType],
       resultCount: results.length,

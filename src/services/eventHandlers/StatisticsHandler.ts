@@ -48,7 +48,7 @@ export class StatisticsHandler {
  * Track user login for analytics
  */
 async function trackUserLogin(event: AppEvent) {
-  const { userId, ipAddress } = event.payload;
+  const { userId, ipAddress: _ipAddress } = event.payload;
 
   if (!userId) return;
 

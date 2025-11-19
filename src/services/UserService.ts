@@ -273,7 +273,7 @@ export class UserService extends BaseService {
   async createUser(data: CreateUserDTO): Promise<User> {
     try {
       // Validate required fields
-      this.validateRequired(data, ['name', 'email', 'password', 'role']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['name', 'email', 'password', 'role']);
 
       // Validate email format
       if (!this.isValidEmail(data.email)) {
@@ -391,7 +391,7 @@ export class UserService extends BaseService {
    */
   async changePassword(userId: string, data: ChangePasswordDTO): Promise<void> {
     try {
-      this.validateRequired(data, ['currentPassword', 'newPassword']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['currentPassword', 'newPassword']);
 
       // Get user with password
       const user = await this.userRepository.findById(userId);
