@@ -63,7 +63,9 @@ const DashboardPage: React.FC = () => {
     'recent-activity',
     async () => {
       const response = await adminAPI.getActivityLogs()
-      return response.data
+      // Backend returns paginated response: { data: [...], pagination: {...} }
+      // We need the actual array from response.data.data
+      return response.data.data || []
     },
     {
       refetchInterval: 30000,
