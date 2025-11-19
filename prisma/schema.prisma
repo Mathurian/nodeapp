@@ -204,6 +204,8 @@ model Score {
   judgeId          String
   criterionId      String?
   score            Int?
+  deduction        Int?      @default(0)
+  deductionReason  String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   allowCommentEdit Boolean   @default(true)
@@ -635,13 +637,15 @@ model Report {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  userId     String
+  userId     String?
+  userName   String?
   action     String
   entityType String
-  entityId   String
-  changes    String?
+  entityId   String?
+  changes    Json?
   ipAddress  String?
   userAgent  String?
+  metadata   Json?
   timestamp  DateTime @default(now())
   tenantId   String
 
@@ -910,17 +914,26 @@ model DrTestLog {
 }
 
 model EmailLog {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   to           String
+  from         String?
   subject      String
-  status       String
-  sentAt       DateTime @default(now())
+  template     String?
+  status       String    @default("pending")
   messageId    String?
   errorMessage String?
-  createdAt    DateTime @default(now())
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenantId     String?
+  userId       String?
+  metadata     Json?
 
-  @@index([sentAt])
+  @@index([tenantId])
   @@index([status])
+  @@index([sentAt])
+  @@index([tenantId, status])
+  @@index([tenantId, userId])
   @@map("email_logs")
 }
 
@@ -1647,6 +1660,31 @@ model WorkflowTransition {
   @@map("workflow_transitions")
 }
 
+model ErrorLog {
+  id          String    @id @default(cuid())
+  message     String
+  stack       String?
+  level       LogLevel  @default(ERROR)
+  context     String?
+  userId      String?
+  path        String?
+  method      String?
+  statusCode  Int?
+  metadata    Json?
+  resolved    Boolean   @default(false)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime  @default(now())
+  tenantId    String?
+
+  @@index([tenantId])
+  @@index([level])
+  @@index([resolved])
+  @@index([createdAt])
+  @@index([tenantId, level])
+  @@map("error_logs")
+}
+
 enum UserRole {
   ADMIN
   ORGANIZER
@@ -1746,4 +1784,13 @@ enum FileCategory {
   REPORT
   BACKUP
   OTHER
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  QUEUED
+  BOUNCED
+  DELIVERED
 }
