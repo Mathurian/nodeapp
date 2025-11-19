@@ -135,11 +135,8 @@ export const configureMiddleware = (app: Application, allowedOrigins: string[]):
           ...(process.env.NODE_ENV === 'production' ? { upgradeInsecureRequests: null } : {}),
         },
       },
-      hsts: {
-        maxAge: 31536000, // 1 year in seconds
-        includeSubDomains: true,
-        preload: true,
-      },
+      // HSTS disabled - handled by reverse proxy (SSL termination upstream)
+      hsts: false,
       frameguard: {
         action: 'deny', // Prevent clickjacking
       },
