@@ -1,6 +1,19 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for auditor responses
+type CategoryWithCertifications = Prisma.CategoryGetPayload<{
+  include: {
+    categoryCertifications: true;
+  };
+}>;
+
+interface AuditorStats {
+  totalCategories: number;
+  pendingAudits: number;
+  completedAudits: number;
+}
 
 /**
  * Service for Auditor functionality
@@ -12,24 +25,24 @@ export class AuditorService extends BaseService {
     super();
   }
   /**
-   * Get auditor dashboard statistics
+   * Get auditor dashboard statistics (P2-4: Proper typing)
    */
-  async getStats() {
-    const totalCategories: any = await this.prisma.category.count();
-    const categoriesWithCertifications: any = await (this.prisma.category.findMany as any)({
+  async getStats(): Promise<AuditorStats> {
+    const totalCategories = await this.prisma.category.count();
+    const categoriesWithCertifications = await this.prisma.category.findMany({
       include: {
         categoryCertifications: true,
       },
-    });
+    }) as CategoryWithCertifications[];
 
-    const pendingAudits = categoriesWithCertifications.filter((c: any) => {
-      const hasTally = c.categoryCertifications?.some((cert: any) => cert.role === 'TALLY_MASTER');
-      const hasAuditor = c.categoryCertifications?.some((cert: any) => cert.role === 'AUDITOR');
+    const pendingAudits = categoriesWithCertifications.filter(c => {
+      const hasTally = c.categoryCertifications?.some(cert => cert.role === 'TALLY_MASTER');
+      const hasAuditor = c.categoryCertifications?.some(cert => cert.role === 'AUDITOR');
       return hasTally && !hasAuditor;
     }).length;
 
-    const completedAudits = categoriesWithCertifications.filter((c: any) =>
-      c.categoryCertifications?.some((cert: any) => cert.role === 'AUDITOR')
+    const completedAudits = categoriesWithCertifications.filter(c =>
+      c.categoryCertifications?.some(cert => cert.role === 'AUDITOR')
     ).length;
 
     return {
