@@ -232,7 +232,7 @@ export class ExportService extends BaseService {
       'Judge Name': score.judge?.name || 'N/A',
       'Criterion': score.criterion?.name || 'N/A',
       'Max Score': score.criterion?.maxScore || 'N/A',
-      'Score': score.score,
+      'Score': score.score ?? 0,
       'Deduction': score.deduction || 0,
       'Scored At': score.createdAt ? new Date(score.createdAt).toISOString() : 'N/A',
     }));
@@ -271,7 +271,7 @@ export class ExportService extends BaseService {
     const judge = await this.prisma.judge.findUnique({
       where: { id: judgeId },
       include: {
-        user: {
+        users: {
           select: {
             name: true,
             email: true,

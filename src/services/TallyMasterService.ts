@@ -667,9 +667,16 @@ export class TallyMasterService extends BaseService {
       data: {
         totalsCertified: true,
       },
+      include: {
+        contest: {
+          include: {
+            event: true,
+          },
+        },
+      },
     });
 
-    return updatedCategory;
+    return updatedCategory as any;
   }
 
   /**
@@ -754,15 +761,19 @@ export class TallyMasterService extends BaseService {
       const key = score.contestantId;
       if (!acc[key]) {
         acc[key] = {
-          contestant: score.contestant,
+          contestant: {
+            id: score.contestant.id,
+            name: score.contestant.name,
+            contestantNumber: String(score.contestant.contestantNumber ?? '')
+          },
           scores: [],
           totalScore: 0,
           averageScore: 0,
           scoreCount: 0,
         };
       }
-      acc[key]!.scores.push(score);
-      acc[key]!.totalScore += score.score;
+      acc[key]!.scores.push(score as any);
+      acc[key]!.totalScore += score.score ?? 0;
       acc[key]!.scoreCount += 1;
       return acc;
     }, {} as Record<string, ContestantScoreGroup>);
@@ -780,9 +791,9 @@ export class TallyMasterService extends BaseService {
       category: {
         id: category.id,
         name: category.name,
-        description: category.description,
-        scoreCap: category.scoreCap,
-        maxScore: category.scoreCap,
+        description: category.description ?? '',
+        scoreCap: category.scoreCap ?? 0,
+        maxScore: category.scoreCap ?? 0,
       },
       contest: {
         id: category.contest.id,
@@ -852,15 +863,21 @@ export class TallyMasterService extends BaseService {
       const key = score.judgeId;
       if (!acc[key]) {
         acc[key] = {
-          judge: score.judge,
+          judge: {
+            id: score.judge.id,
+            name: score.judge.name,
+            preferredName: '',
+            email: score.judge.email ?? '',
+            role: 'JUDGE' as any
+          },
           scores: [],
           totalScore: 0,
           averageScore: 0,
           scoreCount: 0,
         };
       }
-      acc[key]!.scores.push({ id: score.id, score: score.score });
-      acc[key]!.totalScore += score.score;
+      acc[key]!.scores.push({ id: score.id, score: score.score ?? 0 });
+      acc[key]!.totalScore += score.score ?? 0;
       acc[key]!.scoreCount += 1;
       return acc;
     }, {} as Record<string, JudgeScoreGroup>);
@@ -873,7 +890,7 @@ export class TallyMasterService extends BaseService {
     // Calculate overall average
     const overallAverage =
       category.scores.length > 0
-        ? category.scores.reduce((sum, s) => sum + s.score, 0) / category.scores.length
+        ? category.scores.reduce((sum, s) => sum + (s.score ?? 0), 0) / category.scores.length
         : 0;
 
     // Identify potential bias
@@ -897,7 +914,7 @@ export class TallyMasterService extends BaseService {
       category: {
         id: category.id,
         name: category.name,
-        description: category.description,
+        description: category.description ?? '',
         maxScore: (category as any).maxScore,
       },
       overallAverage: parseFloat(overallAverage.toFixed(2)),
@@ -1037,7 +1054,11 @@ export class TallyMasterService extends BaseService {
         const judgeId = score.judgeId;
         if (!judgeBreakdown[judgeId]) {
           judgeBreakdown[judgeId] = {
-            judge: score.judge,
+            judge: {
+              id: score.judge.id,
+              name: score.judge.name,
+              email: score.judge.email ?? ''
+            },
             categories: new Set(),
             contestants: new Set(),
             scores: [],
@@ -1046,7 +1067,7 @@ export class TallyMasterService extends BaseService {
         }
         judgeBreakdown[judgeId]!.scores.push({
           id: score.id,
-          score: score.score,
+          score: score.score ?? 0,
           categoryId: category.id,
           categoryName: category.name
         });
@@ -1090,7 +1111,11 @@ export class TallyMasterService extends BaseService {
         const contestantId = score.contestantId;
         if (!contestantBreakdown[contestantId]) {
           contestantBreakdown[contestantId] = {
-            contestant: score.contestant,
+            contestant: {
+              id: score.contestant.id,
+              name: score.contestant.name,
+              contestantNumber: String(score.contestant.contestantNumber ?? '')
+            },
             categories: new Set(),
             judges: new Set(),
             scores: [],
@@ -1099,7 +1124,7 @@ export class TallyMasterService extends BaseService {
         }
         contestantBreakdown[contestantId]!.scores.push({
           id: score.id,
-          score: score.score,
+          score: score.score ?? 0,
           categoryId: category.id,
           categoryName: category.name
         });
@@ -1174,7 +1199,11 @@ export class TallyMasterService extends BaseService {
     }>();
     category.scores.forEach((score) => {
       if (score.judge && !uniqueJudgesMap.has(score.judge.id)) {
-        uniqueJudgesMap.set(score.judge.id, score.judge);
+        uniqueJudgesMap.set(score.judge.id, {
+          id: score.judge.id,
+          name: score.judge.name,
+          email: score.judge.email ?? ''
+        });
       }
     });
 
@@ -1479,7 +1508,7 @@ export class TallyMasterService extends BaseService {
           status: (req as any).status,
           requestedAt: req.requestedAt,
           reviewedAt: req.reviewedAt,
-          reviewedById: req.reviewedById,
+          reviewedById: req.reviewedById ?? '',
           category: category,
           contestant: contestant
             ? {
@@ -1504,7 +1533,7 @@ export class TallyMasterService extends BaseService {
     });
 
     return {
-      requests: requestsWithDetails,
+      requests: requestsWithDetails as any,
       pagination: {
         page,
         limit,

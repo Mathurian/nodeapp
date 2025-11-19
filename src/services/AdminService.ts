@@ -331,8 +331,8 @@ export class AdminService extends BaseService {
         id: log.id,
         userId: log.userId,
         action: log.action,
-        resourceType: log.resourceType,
-        resource: log.resourceType, // For compatibility
+        resourceType: log.resourceType ?? '',
+        resource: log.resourceType ?? '', // For compatibility
         resourceId: log.resourceId,
         details: log.details,
         ipAddress: log.ipAddress,

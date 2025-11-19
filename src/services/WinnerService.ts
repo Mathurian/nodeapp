@@ -239,7 +239,11 @@ export class WinnerService extends BaseService {
 
       if (!contestantTotals.has(score.contestantId)) {
         contestantTotals.set(score.contestantId, {
-          contestant: contestant,
+          contestant: {
+            id: contestant.id,
+            name: contestant.name,
+            contestantNumber: contestant.contestantNumber ?? 0
+          },
           totalScore: 0,
           scores: [],
           judgesScored: new Set(),
@@ -367,8 +371,8 @@ export class WinnerService extends BaseService {
         const categoryResult = await this.getWinnersByCategory(category.id, _userRole);
         categoryWinners.push({
           category: categoryResult.category,
-          contestants: categoryResult.contestants,
-          totalPossibleScore: categoryResult.totalPossibleScore,
+          contestants: categoryResult.contestants as any,
+          totalPossibleScore: categoryResult.totalPossibleScore ?? 0,
           allSigned: categoryResult.allSigned,
           boardSigned: categoryResult.boardSigned,
           canShowWinners: categoryResult.canShowWinners,
@@ -808,7 +812,7 @@ export class WinnerService extends BaseService {
 
       await this.prisma.certification.update({
         where: { id: certificationWorkflow.id },
-        data: updates,
+        data: updates as any,
       });
     }
 

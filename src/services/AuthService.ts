@@ -189,9 +189,9 @@ export class AuthService {
     userCache.invalidate(user.id);
 
     // Determine token expiration (admin/organizer get longer sessions)
-    const tokenExpiresIn = (user.role === 'ADMIN' || user.role === 'ORGANIZER')
+    const tokenExpiresIn: string = (user.role === 'ADMIN' || user.role === 'ORGANIZER')
       ? '1h'
-      : JWT_EXPIRES_IN;
+      : (JWT_EXPIRES_IN as string);
 
     // Generate JWT token
     const payload: TokenPayload = {
@@ -202,7 +202,7 @@ export class AuthService {
       tenantId: user.tenantId
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn });
+    const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as any);
 
     // Get user permissions
     const permissions = getRolePermissions(user.role);

@@ -116,7 +116,7 @@ export class EmailService extends BaseService {
     return {
       enabled: config['email_enabled'] === 'true',
       host: config['email_host'] || '',
-      port: parseInt(config['email_port']) || 587,
+      port: parseInt(config['email_port'] as string) || 587,
       user: config['email_user'] || '',
       from: config['email_from'] || ''
     };
@@ -262,8 +262,8 @@ export class EmailService extends BaseService {
 
       batchResults.forEach((result, index) => {
         const to = batch[index] || '';
-        if ((result as any).status === 'fulfilled') {
-          results.push({ to, success: true, ...result.value });
+        if (result.status === 'fulfilled') {
+          results.push({ ...result.value, to, success: true });
         } else {
           results.push({ to, success: false, error: String(result.reason || 'Unknown error') });
         }

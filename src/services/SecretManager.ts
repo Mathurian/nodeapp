@@ -15,7 +15,7 @@ import {
 } from '../types/secrets.types';
 import { LocalSecretStore } from './secrets/LocalSecretStore';
 import { EnvSecretStore } from './secrets/EnvSecretStore';
-import { env } from '../config/env';
+// import { env } from '../config/env';
 
 @injectable()
 export class SecretManager {

@@ -75,7 +75,7 @@ export class ArchiveService extends BaseService {
       }),
     ]);
 
-    return this.createPaginatedResponse(events, total, options);
+    return this.createPaginatedResponse(events as any, total, options);
   }
 
   /**
@@ -104,7 +104,7 @@ export class ArchiveService extends BaseService {
       }),
     ]);
 
-    return this.createPaginatedResponse(events, total, options);
+    return this.createPaginatedResponse(events as any, total, options);
   }
 
   /**

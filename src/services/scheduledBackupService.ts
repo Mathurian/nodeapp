@@ -291,7 +291,7 @@ class ScheduledBackupService {
     const schedules: Array<{backupType: string, frequency: string, isActive: boolean}> = [];
     this.jobs.forEach((_job: any, key: string) => {
       const [backupType, frequency] = key.split('_');
-      schedules.push({ backupType, frequency, isActive: true });
+      schedules.push({ backupType: backupType ?? '', frequency: frequency ?? '', isActive: true });
     });
     return schedules;
   }

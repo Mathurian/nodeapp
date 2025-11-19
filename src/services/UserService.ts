@@ -147,7 +147,7 @@ export class UserService extends BaseService {
     try {
       const user = await this.userRepository.findById(userId);
       this.assertExists(user, 'User', userId);
-      return this.sanitizeUser(user);
+      return this.sanitizeUser(user) as any;
     } catch (error) {
       this.handleError(error, { method: 'getUserById', userId });
     }
@@ -159,7 +159,7 @@ export class UserService extends BaseService {
   async getUserByName(name: string): Promise<User | null> {
     try {
       const user = await this.userRepository.findByName(name);
-      return user ? this.sanitizeUser(user) : null;
+      return user ? this.sanitizeUser(user) as any : null;
     } catch (error) {
       this.handleError(error, { method: 'getUserByName', name });
     }
@@ -171,7 +171,7 @@ export class UserService extends BaseService {
   async getUserByEmail(email: string): Promise<User | null> {
     try {
       const user = await this.userRepository.findByEmail(email);
-      return user ? this.sanitizeUser(user) : null;
+      return user ? this.sanitizeUser(user) as any : null;
     } catch (error) {
       this.handleError(error, { method: 'getUserByEmail', email });
     }
@@ -200,7 +200,7 @@ export class UserService extends BaseService {
       const result = await this.userRepository.findAllPaginated({ page, limit });
 
       return {
-        data: result.data.map(user => this.sanitizeUser(user)),
+        data: result.data.map(user => this.sanitizeUser(user)) as any,
         pagination: {
           page: result.page,
           limit: result.limit,
@@ -226,7 +226,7 @@ export class UserService extends BaseService {
       const result = await this.userRepository.findActiveUsersPaginated({ page, limit });
 
       return {
-        data: result.data.map(user => this.sanitizeUser(user)),
+        data: result.data.map(user => this.sanitizeUser(user)) as any,
         pagination: {
           page: result.page,
           limit: result.limit,
@@ -252,7 +252,7 @@ export class UserService extends BaseService {
       const result = await this.userRepository.findByRolePaginated(role, { page, limit });
 
       return {
-        data: result.data.map(user => this.sanitizeUser(user)),
+        data: result.data.map(user => this.sanitizeUser(user)) as any,
         pagination: {
           page: result.page,
           limit: result.limit,
@@ -336,7 +336,7 @@ export class UserService extends BaseService {
       // Invalidate cache
       await invalidateCache('users:*');
 
-      return this.sanitizeUser(user);
+      return this.sanitizeUser(user) as any;
     } catch (error) {
       this.handleError(error, { method: 'createUser', name: data.name });
     }
@@ -372,7 +372,7 @@ export class UserService extends BaseService {
       }
 
       // Update user
-      const updatedUser = await this.userRepository.update(userId, data);
+      const updatedUser = await this.userRepository.update(userId, data as any);
 
       this.logInfo('User updated', { userId, name: updatedUser.name });
 
@@ -380,7 +380,7 @@ export class UserService extends BaseService {
       await invalidateCache('users:*');
       await invalidateCache(`user:${userId}`);
 
-      return this.sanitizeUser(updatedUser);
+      return this.sanitizeUser(updatedUser) as any;
     } catch (error) {
       this.handleError(error, { method: 'updateUser', userId });
     }
@@ -447,7 +447,7 @@ export class UserService extends BaseService {
       await invalidateCache('users:*');
       await invalidateCache(`user:${userId}`);
 
-      return this.sanitizeUser(user);
+      return this.sanitizeUser(user) as any;
     } catch (error) {
       this.handleError(error, { method: 'toggleUserActiveStatus', userId });
     }
@@ -532,7 +532,7 @@ export class UserService extends BaseService {
       userCache.invalidate(userId);
       this.logInfo('User image updated', { userId, imagePath });
 
-      return this.sanitizeUser(updatedUser);
+      return this.sanitizeUser(updatedUser) as any;
     } catch (error) {
       this.handleError(error, { method: 'updateUserImage', userId });
     }
@@ -580,7 +580,7 @@ export class UserService extends BaseService {
     try {
       const user = await this.userRepository.updateLastLogin(userId);
       userCache.invalidate(userId);
-      return this.sanitizeUser(user);
+      return this.sanitizeUser(user) as any;
     } catch (error) {
       this.handleError(error, { method: 'updateLastLogin', userId });
     }
@@ -834,10 +834,10 @@ export class UserService extends BaseService {
       // Map lastLoginAt to lastLogin for frontend compatibility
       const mappedUsers: UserWithRelations[] = users.map(user => ({
         ...this.sanitizeUser(user),
-        judge: user.judge,
+        judge: user.judge ? { ...user.judge, judgeNumber: undefined } : user.judge,
         contestant: user.contestant,
         lastLogin: user.lastLoginAt || null
-      }));
+      })) as any;
 
       return mappedUsers;
     } catch (error) {
@@ -862,9 +862,9 @@ export class UserService extends BaseService {
 
       return {
         ...this.sanitizeUser(user!),
-        judge: user!.judge,
+        judge: user!.judge ? { ...user!.judge, judgeNumber: undefined } : user!.judge,
         contestant: user!.contestant
-      };
+      } as any;
     } catch (error) {
       this.handleError(error, { method: 'getUserByIdWithRelations', userId });
     }

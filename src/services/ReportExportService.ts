@@ -81,8 +81,8 @@ export class ReportExportService extends BaseService {
           doc.fontSize(16).text('Event Information', { underline: true });
           doc.fontSize(12);
           doc.text(`Name: ${reportData.event.name}`);
-          if (reportData.event.description) {
-            doc.text(`Description: ${reportData.event.description}`);
+          if ((reportData.event as any).description) {
+            doc.text(`Description: ${(reportData.event as any).description}`);
           }
           doc.moveDown();
         }
@@ -92,8 +92,8 @@ export class ReportExportService extends BaseService {
           doc.fontSize(16).text('Contest Information', { underline: true });
           doc.fontSize(12);
           doc.text(`Name: ${reportData.contest.name}`);
-          if (reportData.contest.description) {
-            doc.text(`Description: ${reportData.contest.description}`);
+          if ((reportData.contest as any).description) {
+            doc.text(`Description: ${(reportData.contest as any).description}`);
           }
           doc.moveDown();
         }
@@ -161,8 +161,8 @@ export class ReportExportService extends BaseService {
       if (reportData.event) {
         worksheet.addRow(['Event Information']);
         worksheet.addRow(['Name:', reportData.event.name]);
-        if (reportData.event.description) {
-          worksheet.addRow(['Description:', reportData.event.description]);
+        if ((reportData.event as any).description) {
+          worksheet.addRow(['Description:', (reportData.event as any).description]);
         }
         worksheet.addRow([]);
       }
@@ -234,8 +234,8 @@ export class ReportExportService extends BaseService {
       if (reportData.event) {
         rows.push({ field: 'Event Information', value: '' });
         rows.push({ field: 'Name', value: reportData.event.name });
-        if (reportData.event.description) {
-          rows.push({ field: 'Description', value: reportData.event.description });
+        if ((reportData.event as any).description) {
+          rows.push({ field: 'Description', value: (reportData.event as any).description });
         }
         rows.push({ field: '', value: '' });
       }
@@ -249,7 +249,7 @@ export class ReportExportService extends BaseService {
           const name = winner.contestant?.name || 'Unknown';
           const score = winner.totalScore;
           const possible = winner.totalPossibleScore || 'N/A';
-          rows.push({ field: index + 1, value: `${name},${score},${possible}` });
+          rows.push({ field: String(index + 1), value: `${name},${score},${possible}` });
         });
         rows.push({ field: '', value: '' });
       }

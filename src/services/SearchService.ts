@@ -59,7 +59,7 @@ export class SearchService {
 
     // Track search analytics
     const responseTime = Date.now() - startTime;
-    await this.searchRepository.trackSearch(options.query, results.length, responseTime);
+    await this.searchRepository.trackSearch(options.query ?? '', results.length, responseTime);
 
     // Record search history
     await this.searchRepository.createSearchHistory({
@@ -118,7 +118,7 @@ export class SearchService {
     }
 
     const responseTime = Date.now() - startTime;
-    await this.searchRepository.trackSearch(options.query, results.length, responseTime);
+    await this.searchRepository.trackSearch(options.query ?? '', results.length, responseTime);
 
     await this.searchRepository.createSearchHistory({
       userId,
@@ -181,9 +181,9 @@ export class SearchService {
 
     results.forEach((result) => {
       if (result.metadata?.['startDate']) {
-        const date = new Date(result.metadata['startDate']).toISOString().split('T')[0];
-        const count = dateCounts.get(date) || 0;
-        dateCounts.set(date, count + 1);
+        const date = new Date(result.metadata['startDate'] as string).toISOString().split('T')[0];
+        const count = dateCounts.get(date as string) || 0;
+        dateCounts.set(date as string, count + 1);
       }
     });
 

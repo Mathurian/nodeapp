@@ -35,7 +35,7 @@ export class RateLimitService {
   private log = createLogger('rate-limit');
 
   constructor(
-    @inject('PrismaClient') private _prisma: PrismaClient
+    @inject('PrismaClient') _prisma: PrismaClient
   ) {
     this.initializeRedis();
     this.initializeDefaultConfigs();

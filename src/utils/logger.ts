@@ -132,9 +132,9 @@ const writeToFile = async (level: string, category: string, message: string, met
     
     // Format log entry
     let logEntry = `[${timestamp}] [${level}] [${category.toUpperCase()}] ${message}`
-    
+
     // Add metadata if present
-    if (Object.keys(meta).length > 0) {
+    if (meta && typeof meta === 'object' && Object.keys(meta).length > 0) {
       logEntry += ` | ${JSON.stringify(meta)}`
     }
     

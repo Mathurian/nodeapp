@@ -759,7 +759,7 @@ export class RedisCacheService {
       try {
         const info = await this.client.info('memory');
         const memoryMatch = info.match(/used_memory:(\d+)/);
-        if (memoryMatch) {
+        if (memoryMatch && memoryMatch[1]) {
           memoryUsage = parseInt(memoryMatch[1], 10);
         }
 

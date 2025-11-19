@@ -69,7 +69,7 @@ export class AuditLogHandler {
  */
 function extractEntityType(eventType: AppEventType): string {
   const parts = eventType.split('.');
-  return parts[0]; // e.g., 'user' from 'user.created'
+  return parts[0] ?? ''; // e.g., 'user' from 'user.created'
 }
 
 /**

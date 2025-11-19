@@ -80,7 +80,7 @@ export class ContestService extends BaseService {
       this.validateRequired(data as unknown as Record<string, unknown>, ['eventId', 'name']);
 
       // Create contest
-      const contest = await this.contestRepo.create(data);
+      const contest = await this.contestRepo.create(data as any);
 
       // Invalidate caches
       await this.invalidateContestCache(undefined, data.eventId);
@@ -128,7 +128,7 @@ export class ContestService extends BaseService {
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
-        return cached;
+        return cached as ContestWithDetails;
       }
 
       const contest = await this.contestRepo.findContestWithDetails(id);
@@ -140,7 +140,7 @@ export class ContestService extends BaseService {
       // Cache for 15 minutes
       await this.cacheService.set(cacheKey, contest, 900);
 
-      return contest;
+      return contest as ContestWithDetails;
     } catch (error) {
       return this.handleError(error, { operation: 'getContestWithDetails', id });
     }
@@ -275,7 +275,7 @@ export class ContestService extends BaseService {
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
-        return cached;
+        return cached as ContestStats;
       }
 
       const stats = await this.contestRepo.getContestStats(id);
@@ -283,7 +283,7 @@ export class ContestService extends BaseService {
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, stats, 300);
 
-      return stats;
+      return stats as unknown as ContestStats;
     } catch (error) {
       return this.handleError(error, { operation: 'getContestStats', id });
     }

@@ -249,7 +249,7 @@ export const sanitizeObject = <T extends Record<string, unknown>>(
     return obj
   }
 
-  const sanitized: Record<string, unknown> = Array.isArray(obj) ? [] : {}
+  const sanitized: Record<string, unknown> = (Array.isArray(obj) ? [] : {}) as Record<string, unknown>
 
   for (const key in obj) {
     if (obj.hasOwnProperty(key)) {
@@ -258,7 +258,7 @@ export const sanitizeObject = <T extends Record<string, unknown>>(
       if (typeof value === 'string') {
         sanitized[key] = sanitizeString(value, options)
       } else if (typeof value === 'object' && value !== null) {
-        sanitized[key] = sanitizeObject(value, options)
+        sanitized[key] = sanitizeObject(value as Record<string, unknown>, options)
       } else {
         sanitized[key] = value
       }

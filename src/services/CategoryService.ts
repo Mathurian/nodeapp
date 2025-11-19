@@ -70,7 +70,7 @@ export class CategoryService extends BaseService {
         throw new ValidationError('Score cap must be non-negative');
       }
 
-      const category = await this.categoryRepo.create(data);
+      const category = await this.categoryRepo.create(data as any);
       await this.invalidateCategoryCache(undefined, data.contestId);
 
       this.logInfo('Category created', { categoryId: category.id, contestId: data.contestId });
@@ -233,13 +233,13 @@ export class CategoryService extends BaseService {
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
-        return cached;
+        return cached as CategoryStats;
       }
 
       const stats = await this.categoryRepo.getCategoryStats(id);
       await this.cacheService.set(cacheKey, stats, 300);
 
-      return stats;
+      return stats as unknown as CategoryStats;
     } catch (error) {
       return this.handleError(error, { operation: 'getCategoryStats', id });
     }

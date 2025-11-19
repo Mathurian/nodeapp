@@ -172,7 +172,7 @@ export class EventService extends BaseService {
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
-        return cached;
+        return cached as EventWithDetails;
       }
 
       const event = await this.eventRepo.findEventWithDetails(id);
@@ -184,7 +184,7 @@ export class EventService extends BaseService {
       // Cache for 30 minutes
       await this.cacheService.set(cacheKey, event, 1800);
 
-      return event;
+      return event as unknown as EventWithDetails;
     } catch (error) {
       return this.handleError(error, { operation: 'getEventWithDetails', id });
     }
@@ -453,7 +453,7 @@ export class EventService extends BaseService {
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
-        return cached;
+        return cached as EventStats;
       }
 
       const stats = await this.eventRepo.getEventStats(id);
@@ -461,7 +461,7 @@ export class EventService extends BaseService {
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, stats, 300);
 
-      return stats;
+      return stats as unknown as EventStats;
     } catch (error) {
       return this.handleError(error, { operation: 'getEventStats', id });
     }

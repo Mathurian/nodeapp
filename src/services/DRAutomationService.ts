@@ -308,7 +308,7 @@ export class DRAutomationService {
           tenantId: input.tenantId,
           name: input.name,
           type: input.type,
-          config: input.config,
+          config: input.config as any,
           enabled: input.enabled !== false,
           priority: input.priority || 0
         }
@@ -329,7 +329,7 @@ export class DRAutomationService {
     try {
       const target = await prisma.backupTarget.update({
         where: { id },
-        data: input
+        data: input as any
       });
 
       logger.info(`Updated backup target ${id}`);
@@ -802,9 +802,9 @@ export class DRAutomationService {
         rtoMinutes: config.rtoMinutes,
         rpoMinutes: config.rpoMinutes,
         lastBackup: lastBackup?.completedAt ?? null,
-        minutesSinceLastBackup: lastBackup
+        minutesSinceLastBackup: (lastBackup
           ? Math.floor((Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000))
-          : null
+          : null) as number
       };
     } catch (error) {
       logger.error('Error checking RTO/RPO violations:', error);

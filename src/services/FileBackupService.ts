@@ -6,7 +6,7 @@ import * as path from 'path';
 @injectable()
 export class FileBackupService extends BaseService {
   private readonly BACKUP_DIR = path.join(__dirname, '../../backups');
-  private readonly _UPLOAD_DIR = path.join(__dirname, '../../uploads');
+  // private readonly _UPLOAD_DIR = path.join(__dirname, '../../uploads');
 
   async createBackup() {
     try {
