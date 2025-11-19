@@ -1,7 +1,178 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 
+// Prisma payload types for proper type safety
+type UserWithJudge = Prisma.UserGetPayload<{
+  include: { judge: true };
+}>;
+
+type UserWithContestantId = Prisma.UserGetPayload<{
+  select: { contestantId: true };
+}>;
+
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  select: {
+    id: true;
+    score: true;
+    comment: true;
+    createdAt: true;
+    updatedAt: true;
+    categoryId: true;
+    contestantId: true;
+    judgeId: true;
+    criterionId: true;
+    isCertified: true;
+    certifiedBy: true;
+    certifiedAt: true;
+    category: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        scoreCap: true;
+        totalsCertified: true;
+        contestId: true;
+        contest: {
+          select: {
+            id: true;
+            name: true;
+            description: true;
+            eventId: true;
+            createdAt: true;
+            updatedAt: true;
+            event: {
+              select: {
+                id: true;
+                name: true;
+                startDate: true;
+                endDate: true;
+                createdAt: true;
+                updatedAt: true;
+              };
+            };
+          };
+        };
+      };
+    };
+    contestant: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+        contestantNumber: true;
+      };
+    };
+    judge: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    criterion: {
+      select: {
+        id: true;
+        name: true;
+        maxScore: true;
+        categoryId: true;
+        createdAt: true;
+        updatedAt: true;
+      };
+    };
+  };
+}>;
+
+type CategoryScore = Prisma.ScoreGetPayload<{
+  select: {
+    id: true;
+    score: true;
+    categoryId: true;
+    contestantId: true;
+    criterionId: true;
+    category: {
+      select: {
+        id: true;
+        name: true;
+        scoreCap: true;
+        totalsCertified: true;
+      };
+    };
+    criterion: {
+      select: {
+        id: true;
+        name: true;
+        maxScore: true;
+        categoryId: true;
+        createdAt: true;
+        updatedAt: true;
+      };
+    };
+  };
+}>;
+
+type CategoryWithContest = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+  };
+}>;
+
+type ContestantScore = Prisma.ScoreGetPayload<{
+  include: {
+    category: {
+      include: {
+        contest: {
+          include: {
+            event: true;
+          };
+        };
+      };
+    };
+    judge: true;
+  };
+}>;
+
+type CategoryScoreDetailed = Prisma.ScoreGetPayload<{
+  include: {
+    contestant: true;
+    judge: true;
+    category: true;
+    criterion: true;
+  };
+}>;
+
+type ContestScore = Prisma.ScoreGetPayload<{
+  include: {
+    category: true;
+    contestant: true;
+    judge: true;
+  };
+}>;
+
+type EventScore = Prisma.ScoreGetPayload<{
+  include: {
+    category: {
+      include: {
+        contest: true;
+      };
+    };
+    contestant: true;
+    judge: true;
+  };
+}>;
+
+type SystemSetting = Prisma.SystemSettingGetPayload<{}>;
+type Category = Prisma.CategoryGetPayload<{ select: { id: true } }>;
+type CategoryFull = Prisma.CategoryGetPayload<{}>;
+type Contest = Prisma.ContestGetPayload<{}>;
+type Event = Prisma.EventGetPayload<{}>;
+type Assignment = Prisma.AssignmentGetPayload<{}>;
+
+// Filter interfaces
 interface ResultsFilter {
   userRole: UserRole;
   userId: string;
@@ -33,6 +204,28 @@ interface EventResultsFilter {
   userId: string;
 }
 
+// Complex return type interfaces
+interface ResultWithTotals extends ScoreWithRelations {
+  certificationStatus: 'CERTIFIED' | 'PENDING';
+  totalEarned: number;
+  totalPossible: number;
+}
+
+interface AllResultsResponse {
+  results: ResultWithTotals[];
+  total: number;
+}
+
+interface CategoryResultWithRanking {
+  contestant: CategoryScoreDetailed['contestant'];
+  category: CategoryScoreDetailed['category'];
+  totalScore: number;
+  averageScore: number;
+  scoreCount: number;
+  scores: CategoryScoreDetailed[];
+  rank?: number;
+}
+
 @injectable()
 export class ResultsService extends BaseService {
   constructor(@inject('PrismaClient') protected prisma: PrismaClient) {
@@ -42,11 +235,11 @@ export class ResultsService extends BaseService {
   /**
    * Get all results with role-based filtering and pagination
    */
-  async getAllResults(filter: ResultsFilter) {
+  async getAllResults(filter: ResultsFilter): Promise<AllResultsResponse> {
     const { userRole, userId, offset = 0, limit = 50 } = filter;
 
-    let whereClause: any = {};
-    const selectClause: any = {
+    let whereClause: Prisma.ScoreWhereInput = {};
+    const selectClause: Prisma.ScoreSelect = {
       id: true,
       score: true,
       comment: true,
@@ -127,45 +320,42 @@ export class ResultsService extends BaseService {
         break;
 
       case 'JUDGE': {
-        const judgeUser: any = await this.prisma.user.findUnique({
+        const judgeUser = await this.prisma.user.findUnique({
           where: { id: userId },
           include: { judge: true },
-        });
+        }) as UserWithJudge | null;
 
         if (!judgeUser?.judge) {
           return { results: [], total: 0 };
         }
 
         whereClause = {
-          OR: [
-            { judgeId: judgeUser.judge.id },
-            { category: { judges: { some: { judgeId: judgeUser.judge.id } } } },
-          ],
-        } as any;
+          judgeId: judgeUser.judge.id,
+        };
         break;
       }
 
       case 'CONTESTANT': {
-        const user: any = await this.prisma.user.findUnique({
+        const user = await this.prisma.user.findUnique({
           where: { id: userId },
           select: { contestantId: true },
-        });
+        }) as UserWithContestantId | null;
 
         if (!user?.contestantId) {
           return { results: [], total: 0 };
         }
 
         // Get visibility settings
-        const canViewOverallResults: any = await this.prisma.systemSetting.findUnique({
+        const canViewOverallResults = await this.prisma.systemSetting.findUnique({
           where: { key: 'contestant_can_view_overall_results' },
-        });
+        }) as SystemSetting | null;
         const canViewOverall = (canViewOverallResults?.value || 'true') === 'true';
 
         // Get certified category IDs
-        const certifiedCategories: any = await this.prisma.category.findMany({
+        const certifiedCategories = await this.prisma.category.findMany({
           where: { totalsCertified: true },
           select: { id: true },
-        });
+        }) as Category[];
         const certifiedCategoryIds = certifiedCategories.map((c) => c.id);
 
         if (certifiedCategoryIds.length === 0) {
@@ -189,22 +379,22 @@ export class ResultsService extends BaseService {
         throw new Error('Insufficient permissions');
     }
 
-    const results: any = await this.prisma.score.findMany({
+    const results = await this.prisma.score.findMany({
       where: whereClause,
       select: selectClause,
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
-    });
+    }) as unknown as ScoreWithRelations[];
 
-    const total: any = await this.prisma.score.count({
+    const total = await this.prisma.score.count({
       where: whereClause,
     });
 
     // Calculate totals for each result
-    const resultsWithTotals = await Promise.all(
-      results.map(async (result) => {
-        const categoryScores: any = await this.prisma.score.findMany({
+    const resultsWithTotals: ResultWithTotals[] = await Promise.all(
+      results.map(async (result): Promise<ResultWithTotals> => {
+        const categoryScores = await this.prisma.score.findMany({
           where: {
             categoryId: result.categoryId,
             contestantId: result.contestantId,
@@ -233,8 +423,8 @@ export class ResultsService extends BaseService {
                 updatedAt: true,
               },
             },
-          } as any,
-        });
+          },
+        }) as CategoryScore[];
 
         const earned = categoryScores.reduce((sum, s) => sum + (s.score || 0), 0);
         const possible = result.category?.scoreCap || 0;
@@ -256,8 +446,8 @@ export class ResultsService extends BaseService {
   /**
    * Get all categories with related data
    */
-  async getCategories() {
-    return await (this.prisma.category.findMany as any)({
+  async getCategories(): Promise<CategoryWithContest[]> {
+    return await this.prisma.category.findMany({
       include: {
         contest: {
           include: {
@@ -265,32 +455,32 @@ export class ResultsService extends BaseService {
           },
         },
       },
-    });
+    }) as CategoryWithContest[];
   }
 
   /**
    * Get results for a specific contestant
    */
-  async getContestantResults(filter: ContestantResultsFilter) {
+  async getContestantResults(filter: ContestantResultsFilter): Promise<ContestantScore[]> {
     const { contestantId, userRole, userId } = filter;
 
-    let whereClause: any = { contestantId };
+    let whereClause: Prisma.ScoreWhereInput = { contestantId };
 
     // CONTESTANT can only see their own results
     if (userRole === 'CONTESTANT') {
-      const user: any = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
-      });
+      }) as UserWithContestantId | null;
 
       if (!user?.contestantId || user.contestantId !== contestantId) {
         throw new Error('Access denied. You can only view your own results.');
       }
     } else if (userRole === 'JUDGE') {
-      const judgeUser: any = await this.prisma.user.findUnique({
+      const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
-      });
+      }) as UserWithJudge | null;
 
       if (!judgeUser?.judge) {
         return [];
@@ -314,32 +504,32 @@ export class ResultsService extends BaseService {
           },
         },
         judge: true,
-      } as any,
-    });
+      },
+    }) as ContestantScore[];
   }
 
   /**
    * Get results for a specific category with rankings
    */
-  async getCategoryResults(filter: CategoryResultsFilter) {
+  async getCategoryResults(filter: CategoryResultsFilter): Promise<CategoryResultWithRanking[]> {
     const { categoryId, userRole, userId } = filter;
 
     // Verify category exists
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
-    });
+    }) as CategoryFull | null;
 
     if (!category) {
       throw new Error('Category not found');
     }
 
-    let whereClause: any = { categoryId };
+    let whereClause: Prisma.ScoreWhereInput = { categoryId };
 
     if (userRole === 'CONTESTANT') {
-      const user: any = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
-      });
+      }) as UserWithContestantId | null;
 
       if (!user?.contestantId) {
         return [];
@@ -347,26 +537,26 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser: any = await this.prisma.user.findUnique({
+      const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
-      });
+      }) as UserWithJudge | null;
 
       if (!judgeUser?.judge) {
         return [];
       }
 
       // Check assignment
-      const assignment: any = await this.prisma.assignment.findFirst({
+      const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           categoryId,
           status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
         },
-      });
+      }) as Assignment | null;
 
       if (!assignment) {
-        const hasScores: any = await this.prisma.score.findFirst({
+        const hasScores = await this.prisma.score.findFirst({
           where: {
             categoryId,
             judgeId: judgeUser.judge.id,
@@ -381,18 +571,18 @@ export class ResultsService extends BaseService {
       throw new Error('Insufficient permissions');
     }
 
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: whereClause,
       include: {
         contestant: true,
         judge: true,
         category: true,
         criterion: true,
-      } as any,
-    });
+      },
+    }) as CategoryScoreDetailed[];
 
     // Group by contestant and calculate totals
-    const resultsMap = new Map();
+    const resultsMap = new Map<string, CategoryResultWithRanking>();
 
     scores.forEach((score) => {
       if (!score.contestant) return;
@@ -410,7 +600,7 @@ export class ResultsService extends BaseService {
         });
       }
 
-      const result = resultsMap.get(contestantId);
+      const result = resultsMap.get(contestantId)!;
       if (score.score !== null && score.score !== undefined) {
         result.totalScore += score.score;
         result.scoreCount++;
@@ -419,7 +609,7 @@ export class ResultsService extends BaseService {
     });
 
     // Calculate averages and create final results array
-    const results = Array.from(resultsMap.values()).map((result) => ({
+    const results: CategoryResultWithRanking[] = Array.from(resultsMap.values()).map((result) => ({
       ...result,
       averageScore: result.scoreCount > 0 ? result.totalScore / result.scoreCount : 0,
     }));
@@ -438,29 +628,29 @@ export class ResultsService extends BaseService {
   /**
    * Get results for a specific contest
    */
-  async getContestResults(filter: ContestResultsFilter) {
+  async getContestResults(filter: ContestResultsFilter): Promise<ContestScore[]> {
     const { contestId, userRole, userId } = filter;
 
     // Verify contest exists
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
-    });
+    }) as Contest | null;
 
     if (!contest) {
       throw new Error('Contest not found');
     }
 
-    let whereClause: any = {
+    let whereClause: Prisma.ScoreWhereInput = {
       category: {
         contestId,
       },
     };
 
     if (userRole === 'CONTESTANT') {
-      const user: any = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
-      });
+      }) as UserWithContestantId | null;
 
       if (!user?.contestantId) {
         return [];
@@ -468,31 +658,31 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser: any = await this.prisma.user.findUnique({
+      const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
-      });
+      }) as UserWithJudge | null;
 
       if (!judgeUser?.judge) {
         return [];
       }
 
-      const assignment: any = await this.prisma.assignment.findFirst({
+      const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           contestId,
           status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
         },
-      });
+      }) as Assignment | null;
 
       if (!assignment) {
-        const hasScores: any = await this.prisma.score.findFirst({
+        const hasScores = await this.prisma.score.findFirst({
           where: {
             judgeId: judgeUser.judge.id,
             category: {
               contestId,
             },
-          } as any,
+          },
         });
 
         if (!hasScores) {
@@ -509,26 +699,26 @@ export class ResultsService extends BaseService {
         category: true,
         contestant: true,
         judge: true,
-      } as any,
-    });
+      },
+    }) as ContestScore[];
   }
 
   /**
    * Get results for a specific event
    */
-  async getEventResults(filter: EventResultsFilter) {
+  async getEventResults(filter: EventResultsFilter): Promise<EventScore[]> {
     const { eventId, userRole, userId } = filter;
 
     // Verify event exists
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-    });
+    }) as Event | null;
 
     if (!event) {
       throw new Error('Event not found');
     }
 
-    let whereClause: any = {
+    let whereClause: Prisma.ScoreWhereInput = {
       category: {
         contest: {
           eventId,
@@ -537,10 +727,10 @@ export class ResultsService extends BaseService {
     };
 
     if (userRole === 'CONTESTANT') {
-      const user: any = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { contestantId: true },
-      });
+      }) as UserWithContestantId | null;
 
       if (!user?.contestantId) {
         return [];
@@ -548,25 +738,25 @@ export class ResultsService extends BaseService {
 
       whereClause.contestantId = user.contestantId;
     } else if (userRole === 'JUDGE') {
-      const judgeUser: any = await this.prisma.user.findUnique({
+      const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { judge: true },
-      });
+      }) as UserWithJudge | null;
 
       if (!judgeUser?.judge) {
         return [];
       }
 
-      const assignment: any = await this.prisma.assignment.findFirst({
+      const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
           eventId,
           status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
         },
-      });
+      }) as Assignment | null;
 
       if (!assignment) {
-        const hasScores: any = await this.prisma.score.findFirst({
+        const hasScores = await this.prisma.score.findFirst({
           where: {
             judgeId: judgeUser.judge.id,
             category: {
@@ -574,7 +764,7 @@ export class ResultsService extends BaseService {
                 eventId,
               },
             },
-          } as any,
+          },
         });
 
         if (!hasScores) {
@@ -595,7 +785,7 @@ export class ResultsService extends BaseService {
         },
         contestant: true,
         judge: true,
-      } as any,
-    });
+      },
+    }) as EventScore[];
   }
 }

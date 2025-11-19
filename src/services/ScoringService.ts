@@ -3,11 +3,81 @@
  * Business logic for score management
  */
 
-import { Score, PrismaClient } from '@prisma/client';
+import { Score, PrismaClient, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, NotFoundError, ValidationError, ForbiddenError, ConflictError } from './BaseService';
 import { ScoreRepository } from '../repositories/ScoreRepository';
 import { CacheService } from './CacheService';
+
+// P2-4: Proper type definitions for score responses
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  select: {
+    id: true;
+    categoryId: true;
+    contestantId: true;
+    judgeId: true;
+    criterionId: true;
+    score: true;
+    comment: true;
+    certifiedAt: true;
+    certifiedBy: true;
+    createdAt: true;
+    updatedAt: true;
+    tenantId: true;
+    contestant: {
+      select: {
+        id: true;
+        name: true;
+        contestantNumber: true;
+      };
+    };
+    judge: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    category: {
+      select: {
+        id: true;
+        name: true;
+        scoreCap: true;
+      };
+    };
+  };
+}>;
+
+type CategoryWithContest = Prisma.CategoryGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    contestId: true;
+    contest: {
+      select: {
+        id: true;
+        eventId: true;
+        event: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type UserWithJudge = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    role: true;
+    judge: {
+      select: {
+        id: true;
+      };
+    };
+  };
+}>;
 
 export interface SubmitScoreDTO {
   categoryId: string;
@@ -21,6 +91,17 @@ export interface SubmitScoreDTO {
 export interface UpdateScoreDTO {
   score?: number;
   comments?: string;
+}
+
+export interface CertifyScoresResult {
+  certified: number;
+}
+
+export interface ContestStatsResult {
+  totalScores: number;
+  averageScore: number;
+  highestScore: number;
+  lowestScore: number;
 }
 
 @injectable()
@@ -71,7 +152,7 @@ export class ScoringService extends BaseService {
             judgeId: true,
             criterionId: true,
             score: true,
-            comments: true,
+            comment: true,
             createdAt: true,
             updatedAt: true,
             tenantId: true,
@@ -79,27 +160,14 @@ export class ScoringService extends BaseService {
             contestant: {
               select: {
                 id: true,
-                contestantNumber: true,
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    preferredName: true
-                  }
-                }
+                name: true,
+                contestantNumber: true
               }
             },
             judge: {
               select: {
                 id: true,
-                judgeNumber: true,
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    preferredName: true
-                  }
-                }
+                name: true
               }
             },
             category: {
@@ -111,7 +179,7 @@ export class ScoringService extends BaseService {
             }
           },
           orderBy: { createdAt: 'desc' }
-        } as any)) as any;
+        })) as unknown as Score[];
       }
 
       return await this.scoreRepository.findByCategory(categoryId, tenantId);
@@ -123,7 +191,7 @@ export class ScoringService extends BaseService {
   /**
    * Submit a score
    */
-  async submitScore(data: SubmitScoreDTO, userId: string, tenantId: string): Promise<Score> {
+  async submitScore(data: SubmitScoreDTO, userId: string, tenantId: string): Promise<ScoreWithRelations> {
     try {
       const { categoryId, contestantId, criteriaId, score, comments } = data;
 
@@ -138,7 +206,7 @@ export class ScoringService extends BaseService {
 
       // Verify category exists and get context
       // P2-2 OPTIMIZATION: Selective field loading
-      const category: any = (await this.prisma.category.findUnique({
+      const category = await this.prisma.category.findUnique({
         where: { id: categoryId },
         select: {
           id: true,
@@ -156,8 +224,8 @@ export class ScoringService extends BaseService {
               }
             }
           }
-        } as any
-      } as any)) as any;
+        }
+      }) as CategoryWithContest | null;
 
       if (!category) {
         throw new NotFoundError('Category', categoryId);
@@ -165,7 +233,7 @@ export class ScoringService extends BaseService {
 
       // Get the Judge record from the User
       // P2-2 OPTIMIZATION: Selective field loading
-      const userWithJudge: any = (await this.prisma.user.findUnique({
+      const userWithJudge = await this.prisma.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -175,8 +243,8 @@ export class ScoringService extends BaseService {
               id: true
             }
           }
-        } as any
-      } as any)) as any;
+        }
+      }) as UserWithJudge | null;
 
       if (!userWithJudge?.judge) {
         throw new ValidationError('User is not linked to a Judge record');
@@ -186,7 +254,7 @@ export class ScoringService extends BaseService {
       this.logDebug('Judge ID retrieved', { judgeId });
 
       // Validate judge assignment to this category
-      const assignment: any = await this.prisma.assignment.findFirst({
+      const assignment = await this.prisma.assignment.findFirst({
         where: {
           tenantId,
           judgeId: userWithJudge.judge.id,
@@ -203,7 +271,7 @@ export class ScoringService extends BaseService {
       }
 
       // Check if there's an existing score for this judge/contestant/category
-      const existingScore: any = await this.prisma.score.findFirst({
+      const existingScore = await this.prisma.score.findFirst({
         where: {
           tenantId,
           categoryId,
@@ -219,7 +287,7 @@ export class ScoringService extends BaseService {
 
       // Create the score
       // P2-2 OPTIMIZATION: Selective field loading
-      const newScore: any = await this.prisma.score.create({
+      const newScore = await this.prisma.score.create({
         data: {
           categoryId,
           contestantId,
@@ -237,34 +305,23 @@ export class ScoringService extends BaseService {
           judgeId: true,
           criterionId: true,
           score: true,
-          comments: true,
+          comment: true,
+          certifiedAt: true,
+          certifiedBy: true,
           createdAt: true,
           updatedAt: true,
           tenantId: true,
           contestant: {
             select: {
               id: true,
-              contestantNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true,
+              contestantNumber: true
             }
           },
           judge: {
             select: {
               id: true,
-              judgeNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true
             }
           },
           category: {
@@ -274,8 +331,8 @@ export class ScoringService extends BaseService {
               scoreCap: true
             }
           }
-        } as any
-      } as any);
+        }
+      }) as ScoreWithRelations;
 
       this.logInfo('Score submitted successfully', {
         scoreId: newScore.id,
@@ -297,13 +354,13 @@ export class ScoringService extends BaseService {
   /**
    * Update an existing score
    */
-  async updateScore(scoreId: string, data: UpdateScoreDTO, tenantId: string): Promise<Score> {
+  async updateScore(scoreId: string, data: UpdateScoreDTO, _tenantId: string): Promise<ScoreWithRelations> {
     try {
       const existingScore = await this.scoreRepository.findById(scoreId);
       this.assertExists(existingScore, 'Score', scoreId);
 
       // P2-2 OPTIMIZATION: Selective field loading
-      const updatedScore: any = await this.prisma.score.update({
+      const updatedScore = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           score: data.score !== undefined ? data.score : existingScore!.score,
@@ -315,34 +372,23 @@ export class ScoringService extends BaseService {
           judgeId: true,
           criterionId: true,
           score: true,
-          comments: true,
+          comment: true,
+          certifiedAt: true,
+          certifiedBy: true,
           createdAt: true,
           updatedAt: true,
           tenantId: true,
           contestant: {
             select: {
               id: true,
-              contestantNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true,
+              contestantNumber: true
             }
           },
           judge: {
             select: {
               id: true,
-              judgeNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true
             }
           },
           category: {
@@ -352,8 +398,8 @@ export class ScoringService extends BaseService {
               scoreCap: true
             }
           }
-        } as any
-      } as any);
+        }
+      }) as ScoreWithRelations;
 
       this.logInfo('Score updated successfully', { scoreId });
 
@@ -373,7 +419,7 @@ export class ScoringService extends BaseService {
   /**
    * Delete a score
    */
-  async deleteScore(scoreId: string, tenantId: string): Promise<void> {
+  async deleteScore(scoreId: string, _tenantId: string): Promise<void> {
     try {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
@@ -396,13 +442,13 @@ export class ScoringService extends BaseService {
   /**
    * Certify a single score
    */
-  async certifyScore(scoreId: string, certifiedBy: string, tenantId: string): Promise<Score> {
+  async certifyScore(scoreId: string, certifiedBy: string, _tenantId: string): Promise<ScoreWithRelations> {
     try {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
       // P2-2 OPTIMIZATION: Selective field loading
-      const certifiedScore: any = await this.prisma.score.update({
+      const certifiedScore = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           certifiedAt: new Date(),
@@ -415,7 +461,7 @@ export class ScoringService extends BaseService {
           judgeId: true,
           criterionId: true,
           score: true,
-          comments: true,
+          comment: true,
           certifiedAt: true,
           certifiedBy: true,
           createdAt: true,
@@ -424,27 +470,14 @@ export class ScoringService extends BaseService {
           contestant: {
             select: {
               id: true,
-              contestantNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true,
+              contestantNumber: true
             }
           },
           judge: {
             select: {
               id: true,
-              judgeNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true
             }
           },
           category: {
@@ -454,8 +487,8 @@ export class ScoringService extends BaseService {
               scoreCap: true
             }
           }
-        } as any
-      } as any);
+        }
+      }) as ScoreWithRelations;
 
       this.logInfo('Score certified successfully', { scoreId, certifiedBy });
 
@@ -475,9 +508,9 @@ export class ScoringService extends BaseService {
   /**
    * Certify all scores for a category
    */
-  async certifyScores(categoryId: string, certifiedBy: string, tenantId: string): Promise<{ certified: number }> {
+  async certifyScores(categoryId: string, certifiedBy: string, tenantId: string): Promise<CertifyScoresResult> {
     try {
-      const result: any = await this.prisma.score.updateMany({
+      const result = await this.prisma.score.updateMany({
         where: {
           categoryId,
           tenantId,
@@ -507,13 +540,13 @@ export class ScoringService extends BaseService {
   /**
    * Unsign a score (remove certification)
    */
-  async unsignScore(scoreId: string, tenantId: string): Promise<Score> {
+  async unsignScore(scoreId: string, _tenantId: string): Promise<ScoreWithRelations> {
     try {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
 
       // P2-2 OPTIMIZATION: Selective field loading
-      const unsignedScore: any = await this.prisma.score.update({
+      const unsignedScore = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
           certifiedAt: null,
@@ -526,7 +559,7 @@ export class ScoringService extends BaseService {
           judgeId: true,
           criterionId: true,
           score: true,
-          comments: true,
+          comment: true,
           certifiedAt: true,
           certifiedBy: true,
           createdAt: true,
@@ -535,27 +568,14 @@ export class ScoringService extends BaseService {
           contestant: {
             select: {
               id: true,
-              contestantNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true,
+              contestantNumber: true
             }
           },
           judge: {
             select: {
               id: true,
-              judgeNumber: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true
-                }
-              }
+              name: true
             }
           },
           category: {
@@ -565,8 +585,8 @@ export class ScoringService extends BaseService {
               scoreCap: true
             }
           }
-        } as any
-      } as any);
+        }
+      }) as ScoreWithRelations;
 
       this.logInfo('Score unsigned successfully', { scoreId });
 
@@ -634,7 +654,7 @@ export class ScoringService extends BaseService {
   /**
    * Get contest score statistics
    */
-  async getContestStats(contestId: string, tenantId: string): Promise<any> {
+  async getContestStats(contestId: string, tenantId: string): Promise<ContestStatsResult> {
     try {
       return await this.scoreRepository.getContestScoreStats(contestId, tenantId);
     } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { usersAPI } from '../services/api'
 import {
@@ -103,10 +104,11 @@ const UsersPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('users')
         resetForm()
-        alert('User created successfully!')
+        toast.success('User created successfully!')
       },
       onError: (error: any) => {
-        alert(`Error creating user: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create user'
+        toast.error(`Error creating user: ${errorMessage}`)
       },
     }
   )
@@ -121,10 +123,11 @@ const UsersPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('users')
         resetForm()
-        alert('User updated successfully!')
+        toast.success('User updated successfully!')
       },
       onError: (error: any) => {
-        alert(`Error updating user: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update user'
+        toast.error(`Error updating user: ${errorMessage}`)
       },
     }
   )
@@ -138,10 +141,11 @@ const UsersPage: React.FC = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('users')
-        alert('User deleted successfully!')
+        toast.success('User deleted successfully!')
       },
       onError: (error: any) => {
-        alert(`Error deleting user: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to delete user'
+        toast.error(`Error deleting user: ${errorMessage}`)
       },
     }
   )
@@ -157,10 +161,11 @@ const UsersPage: React.FC = () => {
         setIsResetPasswordOpen(false)
         setResetPasswordUserId('')
         setNewPassword('')
-        alert('Password reset successfully!')
+        toast.success('Password reset successfully!')
       },
       onError: (error: any) => {
-        alert(`Error resetting password: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to reset password'
+        toast.error(`Error resetting password: ${errorMessage}`)
       },
     }
   )
@@ -197,7 +202,7 @@ const UsersPage: React.FC = () => {
 
   const handleDelete = (user: User) => {
     if (user.id === currentUser?.id) {
-      alert('You cannot delete your own account!')
+      toast.error('You cannot delete your own account!')
       return
     }
     if (window.confirm(`Are you sure you want to delete user "${user.name}"? This action cannot be undone.`)) {
@@ -214,7 +219,7 @@ const UsersPage: React.FC = () => {
   const handleSubmitResetPassword = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newPassword || newPassword.length < 8) {
-      alert('Password must be at least 8 characters long')
+      toast.error('Password must be at least 8 characters long')
       return
     }
     resetPasswordMutation.mutate({ id: resetPasswordUserId, password: newPassword })
@@ -224,17 +229,17 @@ const UsersPage: React.FC = () => {
     e.preventDefault()
 
     if (!formData.name || !formData.email || !formData.role) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in all required fields')
       return
     }
 
     if (!editingUser && !formData.password) {
-      alert('Password is required for new users')
+      toast.error('Password is required for new users')
       return
     }
 
     if (formData.password && formData.password.length < 8) {
-      alert('Password must be at least 8 characters long')
+      toast.error('Password must be at least 8 characters long')
       return
     }
 

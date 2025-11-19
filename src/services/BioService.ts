@@ -1,6 +1,101 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+// Prisma payload types
+type ContestantWithRelations = Prisma.ContestantGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    bio: true;
+    imagePath: true;
+    gender: true;
+    pronouns: true;
+    contestantNumber: true;
+    contestContestants: {
+      select: {
+        contest: {
+          select: {
+            id: true;
+            name: true;
+            event: {
+              select: {
+                id: true;
+                name: true;
+              };
+            };
+          };
+        };
+      };
+    };
+    categoryContestants: {
+      select: {
+        category: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type JudgeWithRelations = Prisma.JudgeGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    bio: true;
+    imagePath: true;
+    gender: true;
+    pronouns: true;
+    isHeadJudge: true;
+    contestJudges: {
+      select: {
+        contest: {
+          select: {
+            id: true;
+            name: true;
+            event: {
+              select: {
+                id: true;
+                name: true;
+              };
+            };
+          };
+        };
+      };
+    };
+    categoryJudges: {
+      select: {
+        category: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestantBasic = Prisma.ContestantGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    bio: true;
+    imagePath: true;
+  };
+}>;
+
+type JudgeBasic = Prisma.JudgeGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    bio: true;
+    imagePath: true;
+  };
+}>;
 
 interface BioQueryFilters {
   eventId?: string;
@@ -22,8 +117,8 @@ export class BioService extends BaseService {
   /**
    * Get contestant bios with filters
    */
-  async getContestantBios(filters: BioQueryFilters) {
-    const where: any = {};
+  async getContestantBios(filters: BioQueryFilters): Promise<ContestantWithRelations[]> {
+    const where: Prisma.ContestantWhereInput = {};
 
     if (filters.eventId) {
       where.contestContestants = {
@@ -76,7 +171,7 @@ export class BioService extends BaseService {
               }
             }
           }
-        } as any,
+        },
         categoryContestants: {
           select: {
             category: {
@@ -86,17 +181,17 @@ export class BioService extends BaseService {
               }
             }
           }
-        } as any
-      } as any,
+        }
+      },
       orderBy: { contestantNumber: 'asc' }
-    } as any);
+    });
   }
 
   /**
    * Get judge bios with filters
    */
-  async getJudgeBios(filters: BioQueryFilters) {
-    const where: any = {};
+  async getJudgeBios(filters: BioQueryFilters): Promise<JudgeWithRelations[]> {
+    const where: Prisma.JudgeWhereInput = {};
 
     if (filters.eventId) {
       where.contestJudges = {
@@ -149,7 +244,7 @@ export class BioService extends BaseService {
               }
             }
           }
-        } as any,
+        },
         categoryJudges: {
           select: {
             category: {
@@ -159,17 +254,17 @@ export class BioService extends BaseService {
               }
             }
           }
-        } as any
-      } as any,
+        }
+      },
       orderBy: { name: 'asc' }
-    } as any);
+    });
   }
 
   /**
    * Update contestant bio and image
    */
-  async updateContestantBio(contestantId: string, data: UpdateBioDto) {
-    const updateData: any = {};
+  async updateContestantBio(contestantId: string, data: UpdateBioDto): Promise<ContestantBasic> {
+    const updateData: Prisma.ContestantUpdateInput = {};
 
     if (data.bio !== undefined) {
       updateData.bio = data.bio;
@@ -180,7 +275,7 @@ export class BioService extends BaseService {
     }
 
     // Verify contestant exists
-    const contestant: any = await this.prisma.contestant.findUnique({
+    const contestant = await this.prisma.contestant.findUnique({
       where: { id: contestantId }
     });
 
@@ -203,8 +298,8 @@ export class BioService extends BaseService {
   /**
    * Update judge bio and image
    */
-  async updateJudgeBio(judgeId: string, data: UpdateBioDto) {
-    const updateData: any = {};
+  async updateJudgeBio(judgeId: string, data: UpdateBioDto): Promise<JudgeBasic> {
+    const updateData: Prisma.JudgeUpdateInput = {};
 
     if (data.bio !== undefined) {
       updateData.bio = data.bio;
@@ -215,7 +310,7 @@ export class BioService extends BaseService {
     }
 
     // Verify judge exists
-    const judge: any = await this.prisma.judge.findUnique({
+    const judge = await this.prisma.judge.findUnique({
       where: { id: judgeId }
     });
 

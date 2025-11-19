@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { eventsAPI } from '../services/api'
 import {
@@ -80,10 +81,11 @@ const EventsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('events')
         resetForm()
-        alert('Event created successfully!')
+        toast.success('Event created successfully!')
       },
       onError: (error: any) => {
-        alert(`Error creating event: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create event'
+        toast.error(`Error creating event: ${errorMessage}`)
       },
     }
   )
@@ -98,10 +100,11 @@ const EventsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries('events')
         resetForm()
-        alert('Event updated successfully!')
+        toast.success('Event updated successfully!')
       },
       onError: (error: any) => {
-        alert(`Error updating event: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update event'
+        toast.error(`Error updating event: ${errorMessage}`)
       },
     }
   )
@@ -115,10 +118,11 @@ const EventsPage: React.FC = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('events')
-        alert('Event deleted successfully!')
+        toast.success('Event deleted successfully!')
       },
       onError: (error: any) => {
-        alert(`Error deleting event: ${error.message}`)
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to delete event'
+        toast.error(`Error deleting event: ${errorMessage}`)
       },
     }
   )
@@ -157,12 +161,12 @@ const EventsPage: React.FC = () => {
     e.preventDefault()
 
     if (!formData.name || !formData.startDate || !formData.endDate) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in all required fields')
       return
     }
 
     if (new Date(formData.startDate) > new Date(formData.endDate)) {
-      alert('Start date must be before end date')
+      toast.error('Start date must be before end date')
       return
     }
 

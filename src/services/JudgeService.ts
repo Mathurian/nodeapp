@@ -1,6 +1,161 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, AssignmentStatus } from '@prisma/client';
 import { BaseService } from './BaseService';
+
+// Prisma payload types for proper type safety
+type UserWithJudge = Prisma.UserGetPayload<{
+  include: { judge: true };
+}>;
+
+type Assignment = Prisma.AssignmentGetPayload<{}>;
+
+type CategoryWithContestAndEvent = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+  };
+}>;
+
+type Criterion = Prisma.CriterionGetPayload<{}>;
+
+type CategoryContestantWithContestant = Prisma.CategoryContestantGetPayload<{
+  include: {
+    contestant: {
+      include: {
+        users: {
+          select: {
+            id: true;
+            name: true;
+            preferredName: true;
+            email: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestantWithUsers = Prisma.ContestantGetPayload<{
+  include: {
+    users: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+      };
+    };
+  };
+}>;
+
+type ContestantWithBioUsers = Prisma.ContestantGetPayload<{
+  include: {
+    users: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+        bio: true;
+      };
+    };
+  };
+}>;
+
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  include: {
+    criterion: true;
+    contestant: true;
+  };
+}>;
+
+type CategoryContestantWithCategory = Prisma.CategoryContestantGetPayload<{
+  include: {
+    category: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
+}>;
+
+type ScoreWithAllRelations = Prisma.ScoreGetPayload<{
+  include: {
+    category: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    contestant: true;
+    criterion: true;
+  };
+}>;
+
+// Interface types for complex return objects
+interface JudgeStats {
+  totalAssignments: number;
+  pendingAssignments: number;
+  activeAssignments: number;
+  completedAssignments: number;
+  totalScores: number;
+}
+
+interface ScoringInterface {
+  category: {
+    id: string;
+    name: string;
+    description: string | null;
+    scoreCap: number;
+  };
+  contest: {
+    id: string;
+    name: string;
+    eventName: string;
+  };
+  criteria: Criterion[];
+  contestants: ContestantWithUsers[];
+  scores: ScoreWithRelations[];
+  assignment: {
+    id: string;
+    status: string;
+    assignedAt: Date;
+  };
+}
+
+interface CertificationWorkflow {
+  category: CategoryWithContestAndEvent;
+  assignment: Assignment;
+  certifications: any[];
+}
+
+interface ContestantBioWithCategory extends ContestantWithBioUsers {
+  category: {
+    id: string;
+    name: string;
+  };
+}
+
+interface JudgeHistoryQueryParams {
+  page?: number;
+  limit?: number;
+  categoryId?: string;
+  eventId?: string;
+}
+
+interface JudgeHistoryResponse {
+  scores: ScoreWithAllRelations[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
 
 interface SubmitScoreData {
   categoryId: string;
@@ -23,10 +178,10 @@ export class JudgeService extends BaseService {
    * Get Judge ID from User ID
    */
   async getJudgeIdFromUser(userId: string, tenantId: string): Promise<string | null> {
-    const userWithJudge: any = await this.prisma.user.findFirst({
+    const userWithJudge = await this.prisma.user.findFirst({
       where: { id: userId, tenantId },
       include: { judge: true },
-    } as any);
+    }) as UserWithJudge | null;
 
     if (!userWithJudge || !userWithJudge.judge) {
       return null;
@@ -38,7 +193,7 @@ export class JudgeService extends BaseService {
   /**
    * Get judge dashboard statistics
    */
-  async getStats(userId: string, tenantId: string) {
+  async getStats(userId: string, tenantId: string): Promise<JudgeStats> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
@@ -53,9 +208,9 @@ export class JudgeService extends BaseService {
       totalScores,
     ] = await Promise.all([
       this.prisma.assignment.count({ where: { judgeId, tenantId } }),
-      this.prisma.assignment.count({ where: { judgeId, tenantId, status: 'PENDING' } }),
-      this.prisma.assignment.count({ where: { judgeId, tenantId, status: 'ACTIVE' } }),
-      this.prisma.assignment.count({ where: { judgeId, tenantId, status: 'COMPLETED' } }),
+      this.prisma.assignment.count({ where: { judgeId, tenantId, status: AssignmentStatus.PENDING } }),
+      this.prisma.assignment.count({ where: { judgeId, tenantId, status: AssignmentStatus.ACTIVE } }),
+      this.prisma.assignment.count({ where: { judgeId, tenantId, status: AssignmentStatus.COMPLETED } }),
       this.prisma.score.count({ where: { judgeId, tenantId } }),
     ]);
 
@@ -71,7 +226,7 @@ export class JudgeService extends BaseService {
   /**
    * Get assignments for a judge (or all for admin/organizer)
    */
-  async getAssignments(userId: string, userRole: string, tenantId: string) {
+  async getAssignments(userId: string, userRole: string, tenantId: string): Promise<Assignment[]> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     // For JUDGE role, they must be linked to a Judge record
@@ -83,7 +238,7 @@ export class JudgeService extends BaseService {
     const whereClause: Prisma.AssignmentWhereInput =
       userRole === 'JUDGE' && judgeId ? { judgeId, tenantId } : { tenantId };
 
-    const assignments: any = await this.prisma.assignment.findMany({
+    const assignments = await this.prisma.assignment.findMany({
       where: whereClause,
       orderBy: { assignedAt: 'desc' },
     });
@@ -100,7 +255,7 @@ export class JudgeService extends BaseService {
     userId: string,
     userRole: string,
     tenantId: string
-  ) {
+  ): Promise<Assignment> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     // For JUDGE role, verify they are linked and own this assignment
@@ -109,7 +264,7 @@ export class JudgeService extends BaseService {
         throw this.forbiddenError('User is not linked to a Judge record');
       }
 
-      const assignment: any = await this.prisma.assignment.findFirst({
+      const assignment = await this.prisma.assignment.findFirst({
         where: { id: assignmentId, tenantId },
       });
 
@@ -118,9 +273,9 @@ export class JudgeService extends BaseService {
       }
     }
 
-    const updatedAssignment: any = await this.prisma.assignment.update({
+    const updatedAssignment = await this.prisma.assignment.update({
       where: { id: assignmentId },
-      data: { status: status as any },
+      data: { status: status as AssignmentStatus },
     });
 
     return updatedAssignment;
@@ -129,12 +284,12 @@ export class JudgeService extends BaseService {
   /**
    * Get scoring interface for a category
    */
-  async getScoringInterface(categoryId: string, userId: string, tenantId: string) {
+  async getScoringInterface(categoryId: string, userId: string, tenantId: string): Promise<ScoringInterface> {
     // Get the Judge record linked to this User
-    const user: any = await this.prisma.user.findFirst({
+    const user = await this.prisma.user.findFirst({
       where: { id: userId, tenantId },
       include: { judge: true },
-    } as any);
+    }) as UserWithJudge | null;
 
     if (!user || !user.judge) {
       throw this.forbiddenError('User is not linked to a Judge record');
@@ -143,12 +298,12 @@ export class JudgeService extends BaseService {
     const judgeId = user.judge.id;
 
     // Check if judge is assigned to this category
-    const assignment: any = await this.prisma.assignment.findFirst({
+    const assignment = await this.prisma.assignment.findFirst({
       where: {
         judgeId,
         categoryId,
         tenantId,
-        status: { in: ['ACTIVE', 'COMPLETED'] },
+        status: { in: [AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
       },
     });
 
@@ -156,7 +311,7 @@ export class JudgeService extends BaseService {
       throw this.forbiddenError('Not assigned to this category');
     }
 
-    const category: any = await this.prisma.category.findFirst({
+    const category = await this.prisma.category.findFirst({
       where: { id: categoryId, tenantId },
       include: {
         contest: {
@@ -164,8 +319,8 @@ export class JudgeService extends BaseService {
             event: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    }) as CategoryWithContestAndEvent | null;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
@@ -175,7 +330,7 @@ export class JudgeService extends BaseService {
     const [criteria, categoryContestants, scores] = await Promise.all([
       this.prisma.criterion.findMany({
         where: { categoryId, tenantId },
-      }) as any,
+      }),
       this.prisma.categoryContestant.findMany({
         where: { categoryId, tenantId },
         include: {
@@ -191,18 +346,18 @@ export class JudgeService extends BaseService {
               },
             },
           },
-        } as any,
-      } as any) as any,
+        },
+      }) as Promise<CategoryContestantWithContestant[]>,
       this.prisma.score.findMany({
         where: { judgeId, categoryId, tenantId },
         include: {
           criterion: true,
           contestant: true,
-        } as any,
-      } as any) as any,
+        },
+      }) as Promise<ScoreWithRelations[]>,
     ]);
 
-    const contestants = categoryContestants.map((cc: any) => cc.contestant);
+    const contestants = categoryContestants.map((cc) => cc.contestant);
 
     return {
       category: {
@@ -230,7 +385,7 @@ export class JudgeService extends BaseService {
   /**
    * Submit a score for a contestant
    */
-  async submitScore(data: SubmitScoreData, userId: string) {
+  async submitScore(data: SubmitScoreData, userId: string): Promise<ScoreWithRelations> {
     const { categoryId, contestantId, criterionId, score, comment, tenantId } = data;
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
@@ -239,12 +394,12 @@ export class JudgeService extends BaseService {
     }
 
     // Check if judge is assigned to this category
-    const assignment: any = await this.prisma.assignment.findFirst({
+    const assignment = await this.prisma.assignment.findFirst({
       where: {
         judgeId,
         categoryId,
         tenantId,
-        status: { in: ['ACTIVE', 'COMPLETED'] },
+        status: { in: [AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
       },
     });
 
@@ -275,7 +430,7 @@ export class JudgeService extends BaseService {
     const finalScore = score !== undefined ? score : null;
 
     // Create or update score (using simplified approach)
-    const existingScore: any = await this.prisma.score.findFirst({
+    const existingScore = await this.prisma.score.findFirst({
       where: {
         judgeId,
         categoryId,
@@ -285,7 +440,7 @@ export class JudgeService extends BaseService {
       },
     });
 
-    let scoreRecord;
+    let scoreRecord: ScoreWithRelations;
     if (existingScore) {
       scoreRecord = await this.prisma.score.update({
         where: { id: existingScore.id },
@@ -296,8 +451,8 @@ export class JudgeService extends BaseService {
         include: {
           criterion: true,
           contestant: true,
-        } as any,
-      } as any);
+        },
+      }) as ScoreWithRelations;
     } else {
       scoreRecord = await this.prisma.score.create({
         data: {
@@ -312,8 +467,8 @@ export class JudgeService extends BaseService {
         include: {
           criterion: true,
           contestant: true,
-        } as any,
-      } as any);
+        },
+      }) as ScoreWithRelations;
     }
 
     return scoreRecord;
@@ -322,7 +477,7 @@ export class JudgeService extends BaseService {
   /**
    * Get certification workflow for a category
    */
-  async getCertificationWorkflow(categoryId: string, userId: string, tenantId: string) {
+  async getCertificationWorkflow(categoryId: string, userId: string, tenantId: string): Promise<CertificationWorkflow> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
@@ -330,12 +485,12 @@ export class JudgeService extends BaseService {
     }
 
     // Check if judge is assigned to this category
-    const assignment: any = await this.prisma.assignment.findFirst({
+    const assignment = await this.prisma.assignment.findFirst({
       where: {
         judgeId,
         categoryId,
         tenantId,
-        status: { in: ['ACTIVE', 'COMPLETED'] },
+        status: { in: [AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
       },
     });
 
@@ -343,7 +498,7 @@ export class JudgeService extends BaseService {
       throw this.forbiddenError('Not assigned to this category');
     }
 
-    const category: any = await this.prisma.category.findFirst({
+    const category = await this.prisma.category.findFirst({
       where: { id: categoryId, tenantId },
       include: {
         contest: {
@@ -351,8 +506,8 @@ export class JudgeService extends BaseService {
             event: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    }) as CategoryWithContestAndEvent | null;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
@@ -380,7 +535,7 @@ export class JudgeService extends BaseService {
   /**
    * Get contestant bios for a category
    */
-  async getContestantBios(categoryId: string, userId: string, tenantId: string) {
+  async getContestantBios(categoryId: string, userId: string, tenantId: string): Promise<ContestantWithBioUsers[]> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
@@ -388,7 +543,7 @@ export class JudgeService extends BaseService {
     }
 
     // Check if judge is assigned to this category
-    const assignment: any = await this.prisma.assignment.findFirst({
+    const assignment = await this.prisma.assignment.findFirst({
       where: {
         judgeId,
         categoryId,
@@ -400,7 +555,7 @@ export class JudgeService extends BaseService {
       throw this.forbiddenError('Not assigned to this category');
     }
 
-    const categoryContestants: any = await this.prisma.categoryContestant.findMany({
+    const categoryContestants = await this.prisma.categoryContestant.findMany({
       where: { categoryId, tenantId },
       include: {
         contestant: {
@@ -416,24 +571,24 @@ export class JudgeService extends BaseService {
             },
           },
         },
-      } as any,
-    } as any) as any;
+      },
+    }) as Array<{ contestant: ContestantWithBioUsers }>;
 
-    const contestants = categoryContestants.map((cc: any) => cc.contestant);
+    const contestants = categoryContestants.map((cc) => cc.contestant);
     return contestants;
   }
 
   /**
    * Get a single contestant bio
    */
-  async getContestantBio(contestantId: string, userId: string, tenantId: string) {
+  async getContestantBio(contestantId: string, userId: string, tenantId: string): Promise<ContestantBioWithCategory> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
       throw this.forbiddenError('User is not linked to a Judge record');
     }
 
-    const contestant: any = await this.prisma.contestant.findFirst({
+    const contestant = await this.prisma.contestant.findFirst({
       where: { id: contestantId, tenantId },
       include: {
         users: {
@@ -445,15 +600,15 @@ export class JudgeService extends BaseService {
             bio: true,
           },
         },
-      } as any,
-    } as any) as any;
+      },
+    }) as ContestantWithBioUsers | null;
 
     if (!contestant) {
       throw this.notFoundError('Contestant', contestantId);
     }
 
     // Find which category this contestant is in via CategoryContestant join table
-    const categoryContestant: any = await this.prisma.categoryContestant.findFirst({
+    const categoryContestant = await this.prisma.categoryContestant.findFirst({
       where: {
         contestantId,
         tenantId,
@@ -465,15 +620,15 @@ export class JudgeService extends BaseService {
             name: true,
           },
         },
-      } as any,
-    } as any) as any;
+      },
+    }) as CategoryContestantWithCategory | null;
 
     if (!categoryContestant) {
       throw this.notFoundError('Category assignment for contestant', contestantId);
     }
 
     // Verify judge is assigned to this category
-    const assignment: any = await this.prisma.assignment.findFirst({
+    const assignment = await this.prisma.assignment.findFirst({
       where: {
         judgeId,
         categoryId: categoryContestant.categoryId,
@@ -494,7 +649,7 @@ export class JudgeService extends BaseService {
   /**
    * Get judge scoring history
    */
-  async getJudgeHistory(userId: string, tenantId: string, query: any = {}) {
+  async getJudgeHistory(userId: string, tenantId: string, query: JudgeHistoryQueryParams = {}): Promise<JudgeHistoryResponse> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
@@ -528,11 +683,11 @@ export class JudgeService extends BaseService {
           },
           contestant: true,
           criterion: true,
-        } as any,
+        },
         orderBy: { createdAt: 'desc' },
         skip: (Number(page) - 1) * Number(limit),
         take: Number(limit),
-      } as any),
+      }) as Promise<ScoreWithAllRelations[]>,
       this.prisma.score.count({ where: whereClause }),
     ]);
 

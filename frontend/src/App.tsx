@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from 'react-query'
 import { useEffect, useState, lazy, Suspense } from 'react'
+import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import { SocketProvider } from './contexts/SocketContext'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -98,6 +99,30 @@ function App() {
             <Router>
               <AuthProvider>
                 <SocketProvider>
+                  <Toaster
+                    position="top-right"
+                    toastOptions={{
+                      duration: 4000,
+                      style: {
+                        background: '#fff',
+                        color: '#363636',
+                      },
+                      success: {
+                        duration: 3000,
+                        iconTheme: {
+                          primary: '#10b981',
+                          secondary: '#fff',
+                        },
+                      },
+                      error: {
+                        duration: 5000,
+                        iconTheme: {
+                          primary: '#ef4444',
+                          secondary: '#fff',
+                        },
+                      },
+                    }}
+                  />
                   <Suspense fallback={null}>
                     <CommandPalette
                       isOpen={isCommandPaletteOpen}

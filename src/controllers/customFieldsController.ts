@@ -9,6 +9,13 @@ import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { getRequiredParam } from '../utils/routeHelpers';
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    tenantId: string;
+  };
+}
+
 const logger = createLogger('CustomFieldsController');
 const customFieldService = new CustomFieldService(prisma);
 
@@ -20,7 +27,8 @@ const VALID_FIELD_TYPES: CustomFieldType[] = ['TEXT', 'NUMBER', 'DATE', 'SELECT'
  */
 export const createCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, key, type, entityType, required, defaultValue, options, validation, order } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const { name, key, type, entityType, required, defaultValue, options, validation, order } = authReq.body;
 
     // Validate required fields
     if (!name || !key || !type || !entityType) {
@@ -41,7 +49,7 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
     }
 
     const field = await customFieldService.createCustomField({
-      tenantId: (req as any).user?.tenantId || 'default',
+      tenantId: authReq.user?.tenantId || 'default',
       name,
       key,
       type,
@@ -53,17 +61,18 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
       order
     });
 
-    logger.info(`Custom field created: ${field.id}`, { userId: (req as any).user?.id });
+    logger.info(`Custom field created: ${field.id}`, { userId: authReq.user?.id });
 
     res.status(201).json({
       success: true,
       data: field
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error creating custom field:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to create custom field'
+      message: err.message || 'Failed to create custom field'
     });
   }
 };
@@ -74,20 +83,22 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
  */
 export const getCustomFieldsByEntityType = async (req: Request, res: Response): Promise<void> => {
   try {
-    const entityType = getRequiredParam(req, 'entityType');
-    const activeOnly = req.query.activeOnly !== 'false';
+    const authReq = req as AuthenticatedRequest;
+    const entityType = getRequiredParam(authReq, 'entityType');
+    const activeOnly = authReq.query.activeOnly !== 'false';
 
-    const fields = await customFieldService.getCustomFieldsByEntityType(entityType, (req as any).user?.tenantId || 'default', activeOnly);
+    const fields = await customFieldService.getCustomFieldsByEntityType(entityType, authReq.user?.tenantId || 'default', activeOnly);
 
     res.json({
       success: true,
       data: fields
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error getting custom fields:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get custom fields'
+      message: err.message || 'Failed to get custom fields'
     });
   }
 };
@@ -98,9 +109,10 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
  */
 export const getCustomFieldById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = getRequiredParam(req, 'id');
+    const authReq = req as AuthenticatedRequest;
+    const id = getRequiredParam(authReq, 'id');
 
-    const field = await customFieldService.getCustomFieldById(id, (req as any).user?.tenantId || 'default');
+    const field = await customFieldService.getCustomFieldById(id, authReq.user?.tenantId || 'default');
 
     if (!field) {
       res.status(404).json({
@@ -114,11 +126,12 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
       success: true,
       data: field
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error getting custom field:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get custom field'
+      message: err.message || 'Failed to get custom field'
     });
   }
 };
@@ -129,22 +142,24 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
  */
 export const updateCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = getRequiredParam(req, 'id');
-    const updateData = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const id = getRequiredParam(authReq, 'id');
+    const updateData = authReq.body;
 
-    const field = await customFieldService.updateCustomField(id, (req as any).user?.tenantId || 'default', updateData);
+    const field = await customFieldService.updateCustomField(id, authReq.user?.tenantId || 'default', updateData);
 
-    logger.info(`Custom field updated: ${id}`, { userId: (req as any).user?.id });
+    logger.info(`Custom field updated: ${id}`, { userId: authReq.user?.id });
 
     res.json({
       success: true,
       data: field
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error updating custom field:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to update custom field'
+      message: err.message || 'Failed to update custom field'
     });
   }
 };
@@ -155,21 +170,23 @@ export const updateCustomField = async (req: Request, res: Response): Promise<vo
  */
 export const deleteCustomField = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = getRequiredParam(req, 'id');
+    const authReq = req as AuthenticatedRequest;
+    const id = getRequiredParam(authReq, 'id');
 
-    await customFieldService.deleteCustomField(id, (req as any).user?.tenantId || 'default');
+    await customFieldService.deleteCustomField(id, authReq.user?.tenantId || 'default');
 
-    logger.info(`Custom field deleted: ${id}`, { userId: (req as any).user?.id });
+    logger.info(`Custom field deleted: ${id}`, { userId: authReq.user?.id });
 
     res.json({
       success: true,
       message: 'Custom field deleted successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error deleting custom field:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to delete custom field'
+      message: err.message || 'Failed to delete custom field'
     });
   }
 };
@@ -180,7 +197,8 @@ export const deleteCustomField = async (req: Request, res: Response): Promise<vo
  */
 export const setCustomFieldValue = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customFieldId, entityId, value } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const { customFieldId, entityId, value } = authReq.body;
 
     if (!customFieldId || !entityId) {
       res.status(400).json({
@@ -191,7 +209,7 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
     }
 
     // Get field for validation
-    const field = await customFieldService.getCustomFieldById(customFieldId, (req as any).user?.tenantId || 'default');
+    const field = await customFieldService.getCustomFieldById(customFieldId, authReq.user?.tenantId || 'default');
     if (!field) {
       res.status(404).json({
         success: false,
@@ -214,18 +232,19 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
       fieldId: customFieldId,
       entityId,
       value,
-      tenantId: (req as any).user?.tenantId || 'default'
+      tenantId: authReq.user?.tenantId || 'default'
     });
 
     res.json({
       success: true,
       data: fieldValue
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error setting custom field value:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to set custom field value'
+      message: err.message || 'Failed to set custom field value'
     });
   }
 };
@@ -236,7 +255,8 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
  */
 export const bulkSetCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { entityId, values } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const { entityId, values } = authReq.body;
 
     if (!entityId || !values) {
       res.status(400).json({
@@ -246,17 +266,18 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
       return;
     }
 
-    await customFieldService.bulkSetCustomFieldValues(entityId, (req as any).user?.tenantId || 'default', values);
+    await customFieldService.bulkSetCustomFieldValues(entityId, authReq.user?.tenantId || 'default', values);
 
     res.json({
       success: true,
       message: 'Custom field values set successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error bulk setting custom field values:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to set custom field values'
+      message: err.message || 'Failed to set custom field values'
     });
   }
 };
@@ -267,8 +288,9 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
  */
 export const getCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
   try {
-    const entityId = getRequiredParam(req, 'entityId');
-    const { entityType } = req.query;
+    const authReq = req as AuthenticatedRequest;
+    const entityId = getRequiredParam(authReq, 'entityId');
+    const { entityType } = authReq.query;
 
     if (!entityType) {
       res.status(400).json({
@@ -278,17 +300,18 @@ export const getCustomFieldValues = async (req: Request, res: Response): Promise
       return;
     }
 
-    const values = await customFieldService.getCustomFieldValues(entityId, entityType as string, (req as any).user?.tenantId || 'default');
+    const values = await customFieldService.getCustomFieldValues(entityId, entityType as string, authReq.user?.tenantId || 'default');
 
     res.json({
       success: true,
       data: values
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error getting custom field values:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get custom field values'
+      message: err.message || 'Failed to get custom field values'
     });
   }
 };
@@ -299,19 +322,21 @@ export const getCustomFieldValues = async (req: Request, res: Response): Promise
  */
 export const deleteCustomFieldValue = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customFieldId, entityId } = req.params;
+    const authReq = req as AuthenticatedRequest;
+    const { customFieldId, entityId } = authReq.params;
 
-    await customFieldService.deleteCustomFieldValue(customFieldId, entityId, (req as any).user?.tenantId || 'default');
+    await customFieldService.deleteCustomFieldValue(customFieldId, entityId, authReq.user?.tenantId || 'default');
 
     res.json({
       success: true,
       message: 'Custom field value deleted successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error deleting custom field value:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to delete custom field value'
+      message: err.message || 'Failed to delete custom field value'
     });
   }
 };
@@ -322,7 +347,8 @@ export const deleteCustomFieldValue = async (req: Request, res: Response): Promi
  */
 export const reorderCustomFields = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fieldIds, entityType } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const { fieldIds, entityType } = authReq.body;
 
     if (!fieldIds || !entityType) {
       res.status(400).json({
@@ -332,17 +358,18 @@ export const reorderCustomFields = async (req: Request, res: Response): Promise<
       return;
     }
 
-    await customFieldService.reorderCustomFields(fieldIds, entityType, (req as any).user?.tenantId || 'default');
+    await customFieldService.reorderCustomFields(fieldIds, entityType, authReq.user?.tenantId || 'default');
 
     res.json({
       success: true,
       message: 'Custom fields reordered successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error;
     logger.error('Error reordering custom fields:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to reorder custom fields'
+      message: err.message || 'Failed to reorder custom fields'
     });
   }
 };

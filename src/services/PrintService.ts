@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as puppeteer from 'puppeteer';
 import * as handlebars from 'handlebars';
 import { promises as fs } from 'fs';
@@ -14,6 +14,157 @@ import {
   PrintFormat,
   PrintOutput,
 } from '../types/print.types';
+
+// Prisma payload types for complex queries
+type EventWithContests = Prisma.EventGetPayload<{
+  include: {
+    contests: {
+      include: {
+        categories: true;
+      };
+    };
+  };
+}>;
+
+type ContestWithDetails = Prisma.ContestGetPayload<{
+  include: {
+    event: true;
+    categories: true;
+  };
+}>;
+
+type ScoreWithDetails = Prisma.ScoreGetPayload<{
+  include: {
+    category: true;
+    criterion: true;
+  };
+}>;
+
+type ContestantWithCategories = Prisma.ContestantGetPayload<{
+  include: {
+    categoryContestants: {
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type JudgeWithAssignments = Prisma.JudgeGetPayload<{
+  include: {
+    assignments: {
+      include: {
+        category: {
+          include: {
+            contest: {
+              include: {
+                event: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type CategoryWithDetails = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+    categoryContestants: {
+      include: {
+        contestant: true;
+      };
+    };
+    categoryJudges: {
+      include: {
+        judge: true;
+      };
+    };
+    criteria: true;
+    scores: {
+      include: {
+        criterion: true;
+      };
+    };
+  };
+}>;
+
+type ContestWithCategories = Prisma.ContestGetPayload<{
+  include: {
+    event: true;
+    categories: {
+      include: {
+        categoryContestants: {
+          include: {
+            contestant: true;
+          };
+        };
+        categoryJudges: {
+          include: {
+            judge: true;
+          };
+        };
+        criteria: true;
+      };
+    };
+  };
+}>;
+
+// Interface for template return type
+interface TemplateInfo {
+  name: string;
+  description?: string;
+  type?: string;
+  content?: string;
+  path?: string;
+  filename?: string;
+  id?: string;
+}
+
+// Interface for report generation data
+interface ReportData {
+  event?: EventWithContests;
+  contest?: ContestWithDetails;
+  judge?: Record<string, unknown>;
+  performanceStats?: PerformanceStats;
+  generatedAt: string;
+  generatedBy: string;
+  options?: PrintOptions;
+}
+
+// Interface for performance statistics
+interface PerformanceStats {
+  totalScores: number;
+  averageScore: number;
+  scoreDistribution: Record<string, number>;
+  categoriesJudged: number;
+}
+
+// Interface for print options (PDF generation options)
+interface PrintOptions {
+  format?: puppeteer.PaperFormat;
+  printBackground?: boolean;
+  margin?: {
+    top?: string;
+    right?: string;
+    bottom?: string;
+    left?: string;
+  };
+  [key: string]: unknown;
+}
 
 @injectable()
 export class PrintService extends BaseService {
@@ -57,10 +208,9 @@ export class PrintService extends BaseService {
    * Create custom print template
    */
   async createPrintTemplate(
-    data: PrintTemplateInput,
-    userId: string
-  ): Promise<any> {
-    this.validateRequired(data, ['name', 'content']);
+    data: PrintTemplateInput
+  ): Promise<TemplateInfo> {
+    this.validateRequired(data as unknown as Record<string, unknown>, ['name', 'content']);
 
     await this.ensureTemplatesDir();
 
@@ -76,7 +226,7 @@ export class PrintService extends BaseService {
     const templatePath = path.join(this.templatesDir, `${data.name}.hbs`);
     await fs.writeFile(templatePath, data.content, 'utf8');
 
-    const template = {
+    const template: TemplateInfo = {
       name: data.name,
       description: data.description || '',
       type: data.type || 'PRINT',
@@ -93,7 +243,7 @@ export class PrintService extends BaseService {
   async updatePrintTemplate(
     id: string,
     data: Partial<PrintTemplateInput>
-  ): Promise<any> {
+  ): Promise<TemplateInfo> {
     const templatePath = path.join(this.templatesDir, `${id}.hbs`);
 
     try {
@@ -114,13 +264,15 @@ export class PrintService extends BaseService {
       await fs.writeFile(templatePath, data.content, 'utf8');
     }
 
-    return {
+    const template: TemplateInfo = {
       id,
       name: data.name || id,
       content: data.content,
       description: data.description,
       type: data.type || 'PRINT',
     };
+
+    return template;
   }
 
   /**
@@ -143,16 +295,16 @@ export class PrintService extends BaseService {
     input: PrintEventReportInput,
     userName: string
   ): Promise<PrintOutput> {
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: input.eventId },
       include: {
         contests: {
           include: {
             categories: true,
-          } as any,
+          },
         },
       },
-    });
+    }) as EventWithContests | null;
 
     if (!event) {
       throw this.createNotFoundError('Event not found');
@@ -179,13 +331,13 @@ export class PrintService extends BaseService {
     input: PrintContestResultsInput,
     userName: string
   ): Promise<PrintOutput> {
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: input.contestId },
       include: {
         event: true,
         categories: true,
-      } as any,
-    });
+      },
+    }) as ContestWithDetails | null;
 
     if (!contest) {
       throw this.createNotFoundError('Contest not found');
@@ -212,7 +364,7 @@ export class PrintService extends BaseService {
     input: PrintJudgePerformanceInput,
     userName: string
   ): Promise<PrintOutput> {
-    const judge: any = await this.prisma.user.findUnique({
+    const judge = await this.prisma.user.findUnique({
       where: { id: input.judgeId },
     });
 
@@ -221,15 +373,15 @@ export class PrintService extends BaseService {
     }
 
     // Get scores for this judge
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: { judgeId: input.judgeId },
       include: {
         category: true,
         criterion: true,
-      } as any,
-    });
+      },
+    }) as ScoreWithDetails[];
 
-    const performanceStats = {
+    const performanceStats: PerformanceStats = {
       totalScores: scores.length,
       averageScore: scores.length > 0
         ? scores.reduce((sum, score) => sum + score.score!, 0) / scores.length
@@ -261,8 +413,8 @@ export class PrintService extends BaseService {
   /**
    * Get contestant report data
    */
-  async getContestantReport(id: string): Promise<any> {
-    const contestant: any = await this.prisma.contestant.findUnique({
+  async getContestantReport(id: string): Promise<ContestantWithCategories> {
+    const contestant = await this.prisma.contestant.findUnique({
       where: { id },
       include: {
         categoryContestants: {
@@ -272,14 +424,14 @@ export class PrintService extends BaseService {
                 contest: {
                   include: {
                     event: true,
-                  } as any,
+                  },
                 },
               },
             },
           },
         },
       },
-    });
+    }) as ContestantWithCategories | null;
 
     if (!contestant) {
       throw this.createNotFoundError('Contestant not found');
@@ -291,8 +443,8 @@ export class PrintService extends BaseService {
   /**
    * Get judge report data
    */
-  async getJudgeReport(id: string): Promise<any> {
-    const judge: any = await this.prisma.judge.findUnique({
+  async getJudgeReport(id: string): Promise<JudgeWithAssignments> {
+    const judge = await this.prisma.judge.findUnique({
       where: { id },
       include: {
         assignments: {
@@ -302,14 +454,14 @@ export class PrintService extends BaseService {
                 contest: {
                   include: {
                     event: true,
-                  } as any,
+                  },
                 },
               },
             },
           },
         },
       },
-    });
+    }) as JudgeWithAssignments | null;
 
     if (!judge) {
       throw this.createNotFoundError('Judge not found');
@@ -321,24 +473,24 @@ export class PrintService extends BaseService {
   /**
    * Get category report data
    */
-  async getCategoryReport(id: string): Promise<any> {
-    const category: any = await this.prisma.category.findUnique({
+  async getCategoryReport(id: string): Promise<CategoryWithDetails> {
+    const category = await this.prisma.category.findUnique({
       where: { id },
       include: {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
         categoryContestants: {
           include: {
             contestant: true,
-          } as any,
+          },
         },
         categoryJudges: {
           include: {
             judge: true,
-          } as any,
+          },
         },
         criteria: {
           orderBy: { createdAt: 'asc' },
@@ -346,10 +498,10 @@ export class PrintService extends BaseService {
         scores: {
           include: {
             criterion: true,
-          } as any,
+          },
         },
       },
-    });
+    }) as CategoryWithDetails | null;
 
     if (!category) {
       throw this.createNotFoundError('Category not found');
@@ -361,8 +513,8 @@ export class PrintService extends BaseService {
   /**
    * Get contest report data
    */
-  async getContestReport(id: string): Promise<any> {
-    const contest: any = await this.prisma.contest.findUnique({
+  async getContestReport(id: string): Promise<ContestWithCategories> {
+    const contest = await this.prisma.contest.findUnique({
       where: { id },
       include: {
         event: true,
@@ -371,12 +523,12 @@ export class PrintService extends BaseService {
             categoryContestants: {
               include: {
                 contestant: true,
-              } as any,
+              },
             },
             categoryJudges: {
               include: {
                 judge: true,
-              } as any,
+              },
             },
             criteria: {
               orderBy: { createdAt: 'asc' },
@@ -384,7 +536,7 @@ export class PrintService extends BaseService {
           },
         },
       },
-    });
+    }) as ContestWithCategories | null;
 
     if (!contest) {
       throw this.createNotFoundError('Contest not found');
@@ -396,8 +548,8 @@ export class PrintService extends BaseService {
   /**
    * Get archived contest report data
    */
-  async getArchivedContestReport(id: string): Promise<any> {
-    const contest: any = await this.prisma.contest.findFirst({
+  async getArchivedContestReport(id: string): Promise<ContestWithCategories> {
+    const contest = await this.prisma.contest.findFirst({
       where: {
         id,
         archived: true,
@@ -409,12 +561,12 @@ export class PrintService extends BaseService {
             categoryContestants: {
               include: {
                 contestant: true,
-              } as any,
+              },
             },
             categoryJudges: {
               include: {
                 judge: true,
-              } as any,
+              },
             },
             criteria: {
               orderBy: { createdAt: 'asc' },
@@ -422,7 +574,7 @@ export class PrintService extends BaseService {
           },
         },
       },
-    });
+    }) as ContestWithCategories | null;
 
     if (!contest) {
       throw this.createNotFoundError('Archived contest not found');
@@ -451,10 +603,10 @@ export class PrintService extends BaseService {
    */
   private async generateReport(
     templateContent: string,
-    data: any,
+    data: ReportData,
     format: PrintFormat,
     filename: string,
-    options: any = {}
+    options: PrintOptions = {}
   ): Promise<PrintOutput> {
     const template = handlebars.compile(templateContent);
     const html = template(data);
@@ -500,7 +652,7 @@ export class PrintService extends BaseService {
   /**
    * Helper: Calculate score distribution
    */
-  private calculateScoreDistribution(scores: any[]): Record<string, number> {
+  private calculateScoreDistribution(scores: ScoreWithDetails[]): Record<string, number> {
     const distribution: Record<string, number> = {};
     scores.forEach((score) => {
       const range = Math.floor(score.score! / 10) * 10;

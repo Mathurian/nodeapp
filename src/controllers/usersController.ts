@@ -8,9 +8,25 @@ import { container } from 'tsyringe';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
 import { sendSuccess, sendCreated, sendError, sendNoContent, sendNotFound, sendBadRequest } from '../utils/responseHelpers';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+    tenantId: string;
+  };
+  tenantId?: string;
+  file?: Express.Multer.File;
+}
+
+interface UserWithRelations extends User {
+  judge?: Judge | null;
+  contestant?: Contestant | null;
+  email: string;
+}
 
 export class UsersController {
   private userService: UserService;
@@ -56,7 +72,7 @@ export class UsersController {
         return;
       }
 
-      log.debug('User retrieved successfully', { userId: id, email: (user as any).email });
+      log.debug('User retrieved successfully', { userId: id, email: user.email });
       sendSuccess(res, { data: user });
     } catch (error) {
       log.error('Get user error', { error: (error as Error).message, userId: req.params.id });
@@ -102,8 +118,9 @@ export class UsersController {
       }
 
       // Check if email already exists
+      const authReq = req as AuthenticatedRequest;
       const existingUser = await this.prisma.user.findUnique({
-        where: { tenantId_email: { tenantId: req.tenantId!, email: data.email  } }
+        where: { tenantId_email: { tenantId: authReq.tenantId!, email: data.email  } }
       });
 
       if (existingUser) {
@@ -113,7 +130,7 @@ export class UsersController {
       }
 
       // Create user with role-specific data
-      const userData: Record<string, any> = {
+      const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null> = {
         name: data.name,
         email: data.email,
         password: data.password,
@@ -143,9 +160,10 @@ export class UsersController {
       // Create associated Judge or Contestant record if applicable
       if (data.role === 'JUDGE') {
         log.debug('Creating judge record', { userId: user.id });
+        const authReq = req as AuthenticatedRequest;
         const judge = await this.prisma.judge.create({
           data: {
-            tenantId: (req as any).tenantId!,
+            tenantId: authReq.tenantId!,
             name: data.name,
             email: data.email,
             gender: data.gender || null,
@@ -162,9 +180,10 @@ export class UsersController {
         log.info('Judge record created and linked', { userId: user.id, judgeId: judge.id });
       } else if (data.role === 'CONTESTANT') {
         log.debug('Creating contestant record', { userId: user.id });
+        const authReq = req as AuthenticatedRequest;
         const contestant = await this.prisma.contestant.create({
           data: {
-            tenantId: (req as any).tenantId!,
+            tenantId: authReq.tenantId!,
             name: data.name,
             email: data.email,
             contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
@@ -182,15 +201,16 @@ export class UsersController {
       }
 
       // Fetch the updated user with relations
-      const createdUser = (await this.prisma.user.findUnique({
+      const createdUser = await this.prisma.user.findUnique({
         where: { id: user.id }
-      } as any)) as any;
+      });
 
       log.info('User created successfully', { userId: user.id, email: data.email, role: data.role });
       sendCreated(res, createdUser);
     } catch (error) {
       log.error('Create user error', { error: (error as Error).message, email: req.body.email });
-      if ((error as any).code === 'P2002') {
+      const prismaError = error as Prisma.PrismaClientKnownRequestError;
+      if (prismaError.code === 'P2002') {
         sendError(res, 'User with this email already exists', 400);
       } else {
         return next(error);
@@ -227,11 +247,11 @@ export class UsersController {
         newRole: data.role
       });
 
-      const userData: Record<string, any> = {};
+      const userData: Partial<UpdateUserDTO> & Record<string, string | number | boolean | null> = {};
 
       if (data.name !== undefined) userData.name = data.name;
       if (data.email !== undefined) userData.email = data.email;
-      if (data.role !== undefined) userData.role = data.role as any;
+      if (data.role !== undefined) userData.role = data.role;
       if (data.phone !== undefined) userData.phone = data.phone || null;
       if (data.address !== undefined) userData.address = data.address || null;
       if (data.city !== undefined) userData.city = data.city || null;
@@ -262,13 +282,13 @@ export class UsersController {
         include: {
           judge: true,
           contestant: true
-        } as any
-      } as any);
+        }
+      }) as UserWithRelations;
 
       // Invalidate user cache after update
       userCache.invalidate(id);
 
-      log.info('User record updated', { userId: id, email: (user as any).email });
+      log.info('User record updated', { userId: id, email: user.email });
 
       // Update associated Judge record if user is a judge and isHeadJudge is provided
       if (currentUser.role === 'JUDGE' && data.isHeadJudge !== undefined && currentUser.judgeId) {
@@ -279,7 +299,7 @@ export class UsersController {
         });
       }
 
-      log.info('User updated successfully', { userId: id, email: (user as any).email });
+      log.info('User updated successfully', { userId: id, email: user.email });
       sendSuccess(res, user);
     } catch (error) {
       log.error('Update user error', { error: (error as Error).message, userId: req.params.id });
@@ -358,13 +378,13 @@ export class UsersController {
       }
 
       const users = await this.prisma.user.findMany({
-        where: { role: role as any },
+        where: { role: role as Prisma.EnumUserRoleFilter },
         include: {
           judge: true,
           contestant: true
-        } as any,
+        },
         orderBy: { createdAt: 'desc' }
-      } as any);
+      });
 
       log.info('Users by role retrieved', { role, count: users.length });
       sendSuccess(res, users);
@@ -392,7 +412,8 @@ export class UsersController {
       });
     } catch (error) {
       log.error('Update last login error', { error: (error as Error).message, userId: req.params.id });
-      if ((error as any).code === 'P2025') {
+      const prismaError = error as Prisma.PrismaClientKnownRequestError;
+      if (prismaError.code === 'P2025') {
         sendNotFound(res, 'User not found');
       } else {
         return next(error);
@@ -469,16 +490,17 @@ export class UsersController {
   uploadUserImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
-      const id = req.params.id!;
-      const requestingUserId = req.user?.id || '';
-      const requestingUserRole = req.user?.role || '';
+      const authReq = req as AuthenticatedRequest;
+      const id = authReq.params.id!;
+      const requestingUserId = authReq.user?.id || '';
+      const requestingUserRole = authReq.user?.role || '';
 
       log.info('User image upload requested', {
         userId: id,
         requestingUserId,
         requestingUserRole,
-        fileSize: req.file?.size,
-        mimetype: req.file?.mimetype
+        fileSize: authReq.file?.size,
+        mimetype: authReq.file?.mimetype
       });
 
       // Check permissions: user can upload their own image, or admin/organizer/board can upload for others
@@ -488,7 +510,7 @@ export class UsersController {
         return;
       }
 
-      if (!req.file) {
+      if (!authReq.file) {
         log.warn('User image upload failed: no file provided', { userId: id });
         sendError(res, 'No image file provided', 400);
         return;
@@ -496,13 +518,13 @@ export class UsersController {
 
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      if (!allowedTypes.includes(req.file.mimetype)) {
-        log.warn('User image upload failed: invalid file type', { userId: id, mimetype: req.file.mimetype });
+      if (!allowedTypes.includes(authReq.file.mimetype)) {
+        log.warn('User image upload failed: invalid file type', { userId: id, mimetype: authReq.file.mimetype });
         sendError(res, 'Invalid file type. Only JPEG, PNG, and GIF are allowed.', 400);
         return;
       }
 
-      const imagePath = `/uploads/users/${req.file.filename}`;
+      const imagePath = `/uploads/users/${authReq.file.filename}`;
       log.debug('Updating user with image path', { userId: id, imagePath });
 
       // Update user with image path
@@ -541,8 +563,9 @@ export class UsersController {
   updateUserRoleFields = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const log = createRequestLogger(req, 'users');
-      const { id } = req.params;
-      const roleFieldsData = req.body;
+      const authReq = req as AuthenticatedRequest;
+      const { id } = authReq.params;
+      const roleFieldsData = authReq.body;
 
       if (!id) {
         return sendError(res, 'User ID is required', 400);
@@ -559,7 +582,7 @@ export class UsersController {
         return sendNotFound(res, 'User not found');
       }
 
-      const updateData: any = {};
+      const updateData: Partial<User> & Record<string, string | number | boolean | null> = {};
 
       // Update based on role
       if (currentUser.role === 'JUDGE') {
@@ -568,7 +591,7 @@ export class UsersController {
 
         // Also update linked Judge record if exists
         if (currentUser.judgeId) {
-          const judgeUpdateData: any = {};
+          const judgeUpdateData: Partial<Judge> & Record<string, string | boolean | null> = {};
           if (roleFieldsData.bio !== undefined) judgeUpdateData.bio = roleFieldsData.bio;
           if (roleFieldsData.isHeadJudge !== undefined) judgeUpdateData.isHeadJudge = roleFieldsData.isHeadJudge;
           if (roleFieldsData.gender !== undefined) judgeUpdateData.gender = roleFieldsData.gender;
@@ -590,7 +613,7 @@ export class UsersController {
 
         // Also update linked Contestant record if exists
         if (currentUser.contestantId) {
-          const contestantUpdateData: any = {};
+          const contestantUpdateData: Partial<Contestant> & Record<string, string | number | null> = {};
           if (roleFieldsData.bio !== undefined) contestantUpdateData.bio = roleFieldsData.bio;
           if (roleFieldsData.contestantNumber !== undefined) contestantUpdateData.contestantNumber = roleFieldsData.contestantNumber;
           if (roleFieldsData.gender !== undefined) contestantUpdateData.gender = roleFieldsData.gender;
@@ -608,14 +631,14 @@ export class UsersController {
 
       // Update user record if there are changes
       if (Object.keys(updateData).length > 0) {
-        const updatedUser: any = await this.prisma.user.update({
+        const updatedUser = await this.prisma.user.update({
           where: { id },
           data: updateData,
           include: {
             judge: true,
             contestant: true
-          } as any
-        } as any);
+          }
+        }) as UserWithRelations;
 
         // Invalidate cache
         userCache.invalidate(id);
@@ -636,9 +659,10 @@ export class UsersController {
   uploadUserBioFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const log = createRequestLogger(req, 'users');
-      const { id } = req.params;
-      const requestingUserId = req.user?.id || '';
-      const requestingUserRole = req.user?.role || '';
+      const authReq = req as AuthenticatedRequest;
+      const { id } = authReq.params;
+      const requestingUserId = authReq.user?.id || '';
+      const requestingUserRole = authReq.user?.role || '';
 
       if (!id) {
         return sendError(res, 'User ID is required', 400);
@@ -658,7 +682,7 @@ export class UsersController {
         return sendError(res, 'You do not have permission to upload bio files for this user', 403);
       }
 
-      if (!req.file) {
+      if (!authReq.file) {
         log.warn('User bio file upload failed: no file provided', { userId: id });
         return sendError(res, 'No file provided', 400);
       }
@@ -671,29 +695,29 @@ export class UsersController {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ];
 
-      if (!allowedTypes.includes(req.file.mimetype)) {
-        log.warn('User bio file upload failed: invalid file type', { userId: id, mimetype: req.file.mimetype });
+      if (!allowedTypes.includes(authReq.file.mimetype)) {
+        log.warn('User bio file upload failed: invalid file type', { userId: id, mimetype: authReq.file.mimetype });
         return sendError(res, 'Invalid file type. Only TXT, PDF, and DOCX files are allowed.', 400);
       }
 
-      const bioFilePath = `/uploads/bios/${req.file.filename}`;
+      const bioFilePath = `/uploads/bios/${authReq.file.filename}`;
       log.debug('Updating user with bio file path', { userId: id, bioFilePath });
 
       // Get current user
-      const currentUser: any = await this.prisma.user.findUnique({
+      const currentUser = await this.prisma.user.findUnique({
         where: { id },
         include: {
           judge: true,
           contestant: true
-        } as any
-      } as any);
+        }
+      }) as UserWithRelations | null;
 
       if (!currentUser) {
         return sendNotFound(res, 'User not found');
       }
 
       // Update user bio field with file path reference
-      const updateData: any = {
+      const updateData: Partial<User> & Record<string, string | null> = {
         bio: `[Bio file uploaded: ${bioFilePath}]`
       };
 
@@ -703,14 +727,14 @@ export class UsersController {
         updateData.contestantBio = `[Bio file: ${bioFilePath}]`;
       }
 
-      const updatedUser: any = await this.prisma.user.update({
+      const updatedUser = await this.prisma.user.update({
         where: { id },
         data: updateData,
         include: {
           judge: true,
           contestant: true
-        } as any
-      } as any);
+        }
+      }) as UserWithRelations;
 
       // Invalidate cache
       userCache.invalidate(id);
@@ -731,16 +755,17 @@ export class UsersController {
   bulkUploadUsers = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const log = createRequestLogger(req, 'users');
-      
-      if (!req.file) {
+      const authReq = req as AuthenticatedRequest;
+
+      if (!authReq.file) {
         log.warn('Bulk upload failed: No file provided');
         return sendError(res, 'No file provided', 400);
       }
 
-      log.debug('Processing bulk upload', { filename: req.file.originalname, size: req.file.size });
+      log.debug('Processing bulk upload', { filename: authReq.file.originalname, size: authReq.file.size });
 
       // Parse CSV file
-      const csvContent = req.file.buffer.toString('utf-8');
+      const csvContent = authReq.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
       
       if (lines.length < 2) {
@@ -780,7 +805,7 @@ export class UsersController {
           }
 
           // Build user data object
-          const userData: Record<string, any> = {};
+          const userData: Record<string, string | number | boolean | null> = {};
           headers.forEach((header, index) => {
             const value = values[index]?.trim() || '';
             if (value) {
@@ -878,7 +903,7 @@ export class UsersController {
 
           // Check if email already exists
           const existingUser = await this.prisma.user.findUnique({
-            where: { tenantId_email: { tenantId: req.tenantId!, email: userData.email  } }
+            where: { tenantId_email: { tenantId: authReq.tenantId!, email: String(userData.email) } }
           });
 
           if (existingUser) {
@@ -888,7 +913,7 @@ export class UsersController {
           }
 
           // Build user data object with role-specific fields
-          const createUserData: any = {
+          const createUserData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null> = {
             name: userData.name,
             email: userData.email,
             password: userData.password,
@@ -923,13 +948,13 @@ export class UsersController {
           if (userData.role === 'JUDGE') {
             const judge = await this.prisma.judge.create({
               data: {
-                tenantId: (req as any).tenantId!,
-                name: userData.name,
-                email: userData.email,
-                gender: userData.gender || null,
-                pronouns: userData.pronouns || null,
-                bio: userData.bio || null,
-                isHeadJudge: userData.isHeadJudge || false
+                tenantId: authReq.tenantId!,
+                name: String(userData.name),
+                email: String(userData.email),
+                gender: userData.gender ? String(userData.gender) : null,
+                pronouns: userData.pronouns ? String(userData.pronouns) : null,
+                bio: userData.bio ? String(userData.bio) : null,
+                isHeadJudge: Boolean(userData.isHeadJudge)
               }
             });
 
@@ -941,13 +966,13 @@ export class UsersController {
           } else if (userData.role === 'CONTESTANT') {
             const contestant = await this.prisma.contestant.create({
               data: {
-                tenantId: (req as any).tenantId!,
-                name: userData.name,
-                email: userData.email,
+                tenantId: authReq.tenantId!,
+                name: String(userData.name),
+                email: String(userData.email),
                 contestantNumber: userData.contestantNumber ? parseInt(String(userData.contestantNumber)) : null,
-                bio: userData.bio || null,
-                gender: userData.gender || null,
-                pronouns: userData.pronouns || null
+                bio: userData.bio ? String(userData.bio) : null,
+                gender: userData.gender ? String(userData.gender) : null,
+                pronouns: userData.pronouns ? String(userData.pronouns) : null
               }
             });
 
@@ -959,78 +984,83 @@ export class UsersController {
           }
 
           // Handle assignments
-          const userId = req.user?.id || '';
+          const userId = authReq.user?.id || '';
           if (userData.role === 'JUDGE' && judgeId && (userData.contestId || userData.categoryId)) {
             try {
               if (userData.categoryId) {
                 // Assign to specific category
                 await this.assignmentService.createAssignment({
                   judgeId,
-                  categoryId: userData.categoryId
+                  categoryId: String(userData.categoryId)
                 }, userId);
                 log.debug('Judge assigned to category', { judgeId, categoryId: userData.categoryId });
               } else if (userData.contestId) {
                 // Assign to all categories in contest
                 const categories = await this.prisma.category.findMany({
-                  where: { contestId: userData.contestId }
+                  where: { contestId: String(userData.contestId) }
                 });
                 for (const category of categories) {
                   try {
                     await this.assignmentService.createAssignment({
                       judgeId,
                       categoryId: category.id,
-                      contestId: userData.contestId
+                      contestId: String(userData.contestId)
                     }, userId);
-                  } catch (err: any) {
+                  } catch (err) {
                     // Skip if already assigned
-                    if (!err.message?.includes('already exists')) {
+                    const error = err as Error;
+                    if (!error.message?.includes('already exists')) {
                       throw err;
                     }
                   }
                 }
                 log.debug('Judge assigned to all categories in contest', { judgeId, contestId: userData.contestId, categoryCount: categories.length });
               }
-            } catch (assignmentError: any) {
+            } catch (assignmentError) {
               // Log assignment error but don't fail user creation
-              log.warn('Failed to assign judge', { judgeId, error: assignmentError.message });
-              results.errors.push(`Row ${i + 1}: User created but assignment failed: ${assignmentError.message}`);
+              const error = assignmentError as Error;
+              log.warn('Failed to assign judge', { judgeId, error: error.message });
+              results.errors.push(`Row ${i + 1}: User created but assignment failed: ${error.message}`);
             }
           } else if (userData.role === 'CONTESTANT' && contestantId && (userData.contestId || userData.categoryId)) {
             try {
               if (userData.categoryId) {
                 // Assign to specific category
-                await this.assignmentService.assignContestantToCategory(userData.categoryId, contestantId);
+                await this.assignmentService.assignContestantToCategory(String(userData.categoryId), contestantId);
                 log.debug('Contestant assigned to category', { contestantId, categoryId: userData.categoryId });
               } else if (userData.contestId) {
                 // Assign to all categories in contest
                 const categories = await this.prisma.category.findMany({
-                  where: { contestId: userData.contestId }
+                  where: { contestId: String(userData.contestId) }
                 });
                 for (const category of categories) {
                   try {
                     await this.assignmentService.assignContestantToCategory(category.id, contestantId);
-                  } catch (err: any) {
+                  } catch (err) {
                     // Skip if already assigned
-                    if (!err.message?.includes('already assigned')) {
+                    const error = err as Error;
+                    if (!error.message?.includes('already assigned')) {
                       throw err;
                     }
                   }
                 }
                 log.debug('Contestant assigned to all categories in contest', { contestantId, contestId: userData.contestId, categoryCount: categories.length });
               }
-            } catch (assignmentError: any) {
+            } catch (assignmentError) {
               // Log assignment error but don't fail user creation
-              log.warn('Failed to assign contestant', { contestantId, error: assignmentError.message });
-              results.errors.push(`Row ${i + 1}: User created but assignment failed: ${assignmentError.message}`);
+              const error = assignmentError as Error;
+              log.warn('Failed to assign contestant', { contestantId, error: error.message });
+              results.errors.push(`Row ${i + 1}: User created but assignment failed: ${error.message}`);
             }
           }
 
           results.success++;
           log.debug('User created from bulk upload', { email: userData.email, role: userData.role });
 
-        } catch (error: any) {
+        } catch (error) {
           results.failed++;
-          const errorMsg = error.message || 'Unknown error';
+          const err = error as Error;
+          const errorMsg = err.message || 'Unknown error';
           results.errors.push(`Row ${i + 1}: ${errorMsg}`);
           log.warn('Failed to create user from bulk upload', { row: i + 1, error: errorMsg });
         }
@@ -1081,7 +1111,8 @@ export class UsersController {
 
   bulkDeleteUsers = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { userIds, forceDeleteAdmin } = req.body;
+      const authReq = req as AuthenticatedRequest;
+      const { userIds, forceDeleteAdmin } = authReq.body;
       
       if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
         return sendBadRequest(res, 'User IDs array is required');
@@ -1089,22 +1120,23 @@ export class UsersController {
 
       const log = createRequestLogger(req, 'users');
       log.debug('Bulk deleting users', { 
-        userIdCount: userIds.length, 
+        userIdCount: userIds.length,
         userIds,
         forceDeleteAdmin: forceDeleteAdmin,
         forceDeleteAdminType: typeof forceDeleteAdmin,
         forceDeleteAdminValue: forceDeleteAdmin === true,
-        requestBody: JSON.stringify(req.body)
+        requestBody: JSON.stringify(authReq.body)
       });
 
       const result = await this.userService.bulkDeleteUsers(userIds, forceDeleteAdmin === true);
       
       log.info('Bulk delete completed', { deletedCount: result.deletedCount });
-      
+
       return sendSuccess(res, result, `Successfully deleted ${result.deletedCount} user(s)`);
-    } catch (error: any) {
+    } catch (error) {
       const log = createRequestLogger(req, 'users');
-      log.error('Bulk delete failed', { error: error.message, stack: error.stack });
+      const err = error as Error;
+      log.error('Bulk delete failed', { error: err.message, stack: err.stack });
       return next(error);
     }
   };

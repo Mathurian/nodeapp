@@ -1,7 +1,296 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { createRequestLogger } from '../utils/logger';
+
+// Prisma payload types for complex includes
+type EmceeScriptWithRelations = Prisma.EmceeScriptGetPayload<{
+  include: {
+    event: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        startDate: true;
+        endDate: true;
+      };
+    };
+    contest: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+      };
+    };
+    category: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        scoreCap: true;
+      };
+    };
+  };
+}>;
+
+type ContestantWithFullRelations = Prisma.ContestantGetPayload<{
+  include: {
+    users: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+        pronouns: true;
+        gender: true;
+        imagePath: true;
+        phone: true;
+        address: true;
+        city: true;
+        state: true;
+        country: true;
+        bio: true;
+        contestantBio: true;
+        contestantAge: true;
+        contestantSchool: true;
+      };
+    };
+    contestContestants: {
+      include: {
+        contest: {
+          include: {
+            event: {
+              select: {
+                id: true;
+                name: true;
+                description: true;
+                startDate: true;
+                endDate: true;
+              };
+            };
+          };
+        };
+      };
+    };
+    categoryContestants: {
+      include: {
+        category: {
+          select: {
+            id: true;
+            name: true;
+            description: true;
+            scoreCap: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestantWithBasicRelations = Prisma.ContestantGetPayload<{
+  include: {
+    users: {
+      select: {
+        id: true;
+        name: true;
+        preferredName: true;
+        email: true;
+        pronouns: true;
+      };
+    };
+    contestContestants: {
+      include: {
+        contest: {
+          include: {
+            event: {
+              select: {
+                id: true;
+                name: true;
+                description: true;
+                startDate: true;
+                endDate: true;
+              };
+            };
+          };
+        };
+      };
+    };
+    categoryContestants: {
+      include: {
+        category: {
+          select: {
+            id: true;
+            name: true;
+            description: true;
+            scoreCap: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type CategoryContestantWithContestant = Prisma.CategoryContestantGetPayload<{
+  include: {
+    contestant: {
+      include: {
+        users: {
+          select: {
+            id: true;
+            name: true;
+            preferredName: true;
+            email: true;
+            pronouns: true;
+            gender: true;
+            imagePath: true;
+            phone: true;
+            address: true;
+            city: true;
+            state: true;
+            country: true;
+            bio: true;
+            contestantBio: true;
+            contestantAge: true;
+            contestantSchool: true;
+          };
+        };
+        contestContestants: {
+          include: {
+            contest: {
+              include: {
+                event: {
+                  select: {
+                    id: true;
+                    name: true;
+                    description: true;
+                    startDate: true;
+                    endDate: true;
+                  };
+                };
+              };
+            };
+          };
+        };
+        categoryContestants: {
+          include: {
+            category: {
+              select: {
+                id: true;
+                name: true;
+                description: true;
+                scoreCap: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type JudgeWithUser = Prisma.JudgeGetPayload<{
+  include: {
+    users: {
+      select: { id: true };
+    };
+  };
+}>;
+
+type UserJudgeBio = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    preferredName: true;
+    email: true;
+    role: true;
+    pronouns: true;
+    gender: true;
+    imagePath: true;
+    phone: true;
+    address: true;
+    city: true;
+    state: true;
+    country: true;
+    judgeBio: true;
+    judgeSpecialties: true;
+    judgeCertifications: true;
+    judge: {
+      select: {
+        id: true;
+        bio: true;
+        imagePath: true;
+        isHeadJudge: true;
+      };
+    };
+    createdAt: true;
+  };
+}>;
+
+type EventWithContestsAndCategories = Prisma.EventGetPayload<{
+  include: {
+    contests: {
+      include: {
+        categories: {
+          select: {
+            id: true;
+            name: true;
+            description: true;
+            scoreCap: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestWithEventAndCategories = Prisma.ContestGetPayload<{
+  include: {
+    event: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        startDate: true;
+        endDate: true;
+      };
+    };
+    categories: {
+      select: {
+        id: true;
+        name: true;
+        description: true;
+        scoreCap: true;
+      };
+    };
+  };
+}>;
+
+type EmceeScriptWithBasicRelations = Prisma.EmceeScriptGetPayload<{
+  include: {
+    event: true;
+    contest: true;
+    category: true;
+  };
+}>;
+
+// Interface for pagination response
+interface EmceeHistoryResponse {
+  scripts: EmceeScriptWithBasicRelations[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+// Interface for stats response
+interface EmceeStatsResponse {
+  totalScripts: number;
+  totalEvents: number;
+  totalContests: number;
+  totalCategories: number;
+}
 
 /**
  * Service for managing emcee-related functionality
@@ -15,8 +304,8 @@ export class EmceeService extends BaseService {
   /**
    * Get emcee dashboard statistics
    */
-  async getStats() {
-    const stats = {
+  async getStats(): Promise<EmceeStatsResponse> {
+    const stats: EmceeStatsResponse = {
       totalScripts: await this.prisma.emceeScript.count(),
       totalEvents: await this.prisma.event.count(),
       totalContests: await this.prisma.contest.count(),
@@ -29,14 +318,14 @@ export class EmceeService extends BaseService {
   /**
    * Get scripts filtered by event/contest/category
    */
-  async getScripts(filters: { eventId?: string; contestId?: string; categoryId?: string }) {
-    const whereClause: any = {};
+  async getScripts(filters: { eventId?: string; contestId?: string; categoryId?: string }): Promise<Prisma.EmceeScriptGetPayload<{}>[]> {
+    const whereClause: Prisma.EmceeScriptWhereInput = {};
 
     if (filters.eventId) whereClause.eventId = filters.eventId;
     if (filters.contestId) whereClause.contestId = filters.contestId;
     if (filters.categoryId) whereClause.categoryId = filters.categoryId;
 
-    const scripts: any = await this.prisma.emceeScript.findMany({
+    const scripts = await this.prisma.emceeScript.findMany({
       where: whereClause,
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
@@ -47,8 +336,8 @@ export class EmceeService extends BaseService {
   /**
    * Get a specific script by ID with relations
    */
-  async getScript(scriptId: string) {
-    const script: any = await this.prisma.emceeScript.findUnique({
+  async getScript(scriptId: string): Promise<EmceeScriptWithRelations> {
+    const script = await this.prisma.emceeScript.findUnique({
       where: { id: scriptId },
       include: {
         event: {
@@ -65,8 +354,6 @@ export class EmceeService extends BaseService {
             id: true,
             name: true,
             description: true,
-            startTime: true,
-            endTime: true,
           },
         },
         category: {
@@ -74,19 +361,11 @@ export class EmceeService extends BaseService {
             id: true,
             name: true,
             description: true,
-            maxScore: true,
+            scoreCap: true,
           },
         },
-        author: {
-          select: {
-            id: true,
-            name: true,
-            preferredName: true,
-            email: true,
-          },
-        },
-      } as any,
-    } as any);
+      },
+    });
 
     if (!script) {
       throw this.notFoundError('Script', scriptId);
@@ -98,10 +377,10 @@ export class EmceeService extends BaseService {
   /**
    * Get contestant bios filtered by event/contest/category
    */
-  async getContestantBios(filters: { eventId?: string; contestId?: string; categoryId?: string }) {
+  async getContestantBios(filters: { eventId?: string; contestId?: string; categoryId?: string }): Promise<ContestantWithFullRelations[] | ContestantWithBasicRelations[]> {
     // If categoryId is provided, use direct approach
     if (filters.categoryId) {
-      const assignments: any = await this.prisma.categoryContestant.findMany({
+      const assignments = await this.prisma.categoryContestant.findMany({
         where: { categoryId: filters.categoryId },
         include: {
           contestant: {
@@ -119,13 +398,11 @@ export class EmceeService extends BaseService {
                   address: true,
                   city: true,
                   state: true,
-                  zipCode: true,
                   country: true,
                   bio: true,
                   contestantBio: true,
-                  grade: true,
-                  parentGuardian: true,
-                  parentPhone: true,
+                  contestantAge: true,
+                  contestantSchool: true,
                 },
               },
               contestContestants: {
@@ -141,9 +418,9 @@ export class EmceeService extends BaseService {
                           endDate: true,
                         },
                       },
-                    } as any,
+                    },
                   },
-                } as any,
+                },
               },
               categoryContestants: {
                 include: {
@@ -155,45 +432,45 @@ export class EmceeService extends BaseService {
                       scoreCap: true,
                     },
                   },
-                } as any,
+                },
               },
-            } as any,
+            },
           },
-        } as any,
-      } as any);
+        },
+      }) as CategoryContestantWithContestant[];
 
-      return assignments.map((a: any) => a.contestant);
+      return assignments.map((a) => a.contestant);
     }
 
     // For eventId or contestId, get all categories first
     let categoryIds: string[] = [];
 
     if (filters.eventId) {
-      const contests: any = await this.prisma.contest.findMany({
+      const contests = await this.prisma.contest.findMany({
         where: { eventId: filters.eventId },
         select: { id: true },
       });
 
-      const categories: any = await this.prisma.category.findMany({
-        where: { contestId: { in: contests.map((c: any) => c.id) } },
+      const categories = await this.prisma.category.findMany({
+        where: { contestId: { in: contests.map((c) => c.id) } },
         select: { id: true },
       });
 
-      categoryIds = categories.map((c: any) => c.id);
+      categoryIds = categories.map((c) => c.id);
     } else if (filters.contestId) {
-      const categories: any = await this.prisma.category.findMany({
+      const categories = await this.prisma.category.findMany({
         where: { contestId: filters.contestId },
         select: { id: true },
       });
 
-      categoryIds = categories.map((c: any) => c.id);
+      categoryIds = categories.map((c) => c.id);
     }
 
     if (categoryIds.length === 0) {
       return [];
     }
 
-    const assignments: any = await this.prisma.categoryContestant.findMany({
+    const assignments = await this.prisma.categoryContestant.findMany({
       where: { categoryId: { in: categoryIds } },
       include: {
         contestant: {
@@ -220,9 +497,9 @@ export class EmceeService extends BaseService {
                         endDate: true,
                       },
                     },
-                  } as any,
+                  },
                 },
-              } as any,
+              },
             },
             categoryContestants: {
               include: {
@@ -234,16 +511,61 @@ export class EmceeService extends BaseService {
                     scoreCap: true,
                   },
                 },
-              } as any,
+              },
             },
-          } as any,
+          },
         },
-      } as any,
-    } as any);
+      },
+    }) as Prisma.CategoryContestantGetPayload<{
+      include: {
+        contestant: {
+          include: {
+            users: {
+              select: {
+                id: true;
+                name: true;
+                preferredName: true;
+                email: true;
+                pronouns: true;
+              };
+            };
+            contestContestants: {
+              include: {
+                contest: {
+                  include: {
+                    event: {
+                      select: {
+                        id: true;
+                        name: true;
+                        description: true;
+                        startDate: true;
+                        endDate: true;
+                      };
+                    };
+                  };
+                };
+              };
+            };
+            categoryContestants: {
+              include: {
+                category: {
+                  select: {
+                    id: true;
+                    name: true;
+                    description: true;
+                    scoreCap: true;
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    }>[];
 
     // Dedupe by contestant ID
-    const seen = new Map();
-    const contestants: any[] = [];
+    const seen = new Map<string, boolean>();
+    const contestants: ContestantWithBasicRelations[] = [];
     for (const assignment of assignments) {
       if (!seen.has(assignment.contestant.id)) {
         seen.set(assignment.contestant.id, true);
@@ -251,13 +573,13 @@ export class EmceeService extends BaseService {
       }
     }
 
-    return contestants.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+    return contestants.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }
 
   /**
    * Get judge bios filtered by event/contest/category
    */
-  async getJudgeBios(filters: { eventId?: string; contestId?: string; categoryId?: string }) {
+  async getJudgeBios(filters: { eventId?: string; contestId?: string; categoryId?: string }): Promise<UserJudgeBio[]> {
     let userIds: string[] | null = null;
 
     if (filters.eventId || filters.contestId || filters.categoryId) {
@@ -265,17 +587,17 @@ export class EmceeService extends BaseService {
       let contestIds: string[] = [];
 
       if (filters.eventId) {
-        const contests: any = await this.prisma.contest.findMany({
+        const contests = await this.prisma.contest.findMany({
           where: { eventId: filters.eventId },
           select: { id: true },
         });
-        contestIds = contests.map((c: any) => c.id);
+        contestIds = contests.map((c) => c.id);
       } else if (filters.contestId) {
         contestIds = [filters.contestId];
       }
 
       // Build assignment filter
-      const assignmentFilter: any = {};
+      const assignmentFilter: Prisma.AssignmentWhereInput = {};
       if (filters.categoryId) {
         assignmentFilter.categoryId = filters.categoryId;
       }
@@ -283,35 +605,35 @@ export class EmceeService extends BaseService {
         assignmentFilter.contestId = { in: contestIds };
       }
 
-      const assignments: any = await this.prisma.assignment.findMany({
+      const assignments = await this.prisma.assignment.findMany({
         where: assignmentFilter,
         select: { judgeId: true },
         distinct: ['judgeId'],
       });
 
-      const judgeIds = assignments.map((a: any) => a.judgeId).filter(Boolean);
+      const judgeIds = assignments.map((a) => a.judgeId).filter(Boolean);
 
       if (judgeIds.length === 0) {
         return [];
       }
 
-      const judges: any = await this.prisma.judge.findMany({
+      const judges = await this.prisma.judge.findMany({
         where: { id: { in: judgeIds } },
         include: {
           users: {
             select: { id: true },
           },
-        } as any,
-      } as any);
+        },
+      }) as JudgeWithUser[];
 
-      userIds = judges.flatMap((j: any) => (j.users || []).map((u: any) => u.id));
+      userIds = judges.flatMap((j) => (j.users || []).map((u) => u.id));
 
       if (userIds.length === 0) {
         return [];
       }
     }
 
-    const whereClause: any = {
+    const whereClause: Prisma.UserWhereInput = {
       role: { in: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'] },
       judgeId: { not: null },
     };
@@ -320,7 +642,7 @@ export class EmceeService extends BaseService {
       whereClause.id = { in: userIds };
     }
 
-    const judges: any = await this.prisma.user.findMany({
+    const judges = await this.prisma.user.findMany({
       where: whereClause,
       select: {
         id: true,
@@ -335,7 +657,6 @@ export class EmceeService extends BaseService {
         address: true,
         city: true,
         state: true,
-        zipCode: true,
         country: true,
         judgeBio: true,
         judgeSpecialties: true,
@@ -349,9 +670,9 @@ export class EmceeService extends BaseService {
           },
         },
         createdAt: true,
-      } as any,
+      },
       orderBy: { name: 'asc' },
-    } as any);
+    }) as UserJudgeBio[];
 
     return judges;
   }
@@ -359,8 +680,8 @@ export class EmceeService extends BaseService {
   /**
    * Get all events with contests and categories
    */
-  async getEvents() {
-    const events: any = await this.prisma.event.findMany({
+  async getEvents(): Promise<EventWithContestsAndCategories[]> {
+    const events = await this.prisma.event.findMany({
       include: {
         contests: {
           include: {
@@ -372,11 +693,11 @@ export class EmceeService extends BaseService {
                 scoreCap: true,
               },
             },
-          } as any,
+          },
         },
-      } as any,
+      },
       orderBy: { startDate: 'asc' },
-    } as any);
+    }) as EventWithContestsAndCategories[];
 
     return events;
   }
@@ -384,8 +705,8 @@ export class EmceeService extends BaseService {
   /**
    * Get a specific event by ID
    */
-  async getEvent(eventId: string) {
-    const event: any = await this.prisma.event.findUnique({
+  async getEvent(eventId: string): Promise<EventWithContestsAndCategories> {
+    const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -398,10 +719,10 @@ export class EmceeService extends BaseService {
                 scoreCap: true,
               },
             },
-          } as any,
+          },
         },
-      } as any,
-    } as any);
+      },
+    }) as EventWithContestsAndCategories | null;
 
     if (!event) {
       throw this.notFoundError('Event', eventId);
@@ -413,11 +734,11 @@ export class EmceeService extends BaseService {
   /**
    * Get contests filtered by event
    */
-  async getContests(eventId?: string) {
-    const whereClause: any = {};
+  async getContests(eventId?: string): Promise<ContestWithEventAndCategories[]> {
+    const whereClause: Prisma.ContestWhereInput = {};
     if (eventId) whereClause.eventId = eventId;
 
-    const contests: any = await this.prisma.contest.findMany({
+    const contests = await this.prisma.contest.findMany({
       where: whereClause,
       include: {
         event: {
@@ -438,8 +759,8 @@ export class EmceeService extends BaseService {
           },
           orderBy: { name: 'asc' },
         },
-      } as any,
-    } as any);
+      },
+    }) as ContestWithEventAndCategories[];
 
     return contests;
   }
@@ -447,8 +768,8 @@ export class EmceeService extends BaseService {
   /**
    * Get a specific contest by ID
    */
-  async getContest(contestId: string) {
-    const contest: any = await this.prisma.contest.findUnique({
+  async getContest(contestId: string): Promise<ContestWithEventAndCategories> {
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         event: {
@@ -469,8 +790,8 @@ export class EmceeService extends BaseService {
           },
           orderBy: { name: 'asc' },
         },
-      } as any,
-    } as any);
+      },
+    }) as ContestWithEventAndCategories | null;
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
@@ -482,22 +803,21 @@ export class EmceeService extends BaseService {
   /**
    * Get emcee history with pagination
    */
-  async getEmceeHistory(page: number = 1, limit: number = 10) {
+  async getEmceeHistory(page: number = 1, limit: number = 10): Promise<EmceeHistoryResponse> {
     const offset = (page - 1) * limit;
 
-    const scripts: any = await this.prisma.emceeScript.findMany({
-      where: { isActive: true },
+    const scripts = await this.prisma.emceeScript.findMany({
       include: {
         event: true,
         contest: true,
         category: true,
-      } ,
+      },
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
-    } as any);
+    }) as EmceeScriptWithBasicRelations[];
 
-    const total: any = await this.prisma.emceeScript.count();
+    const total = await this.prisma.emceeScript.count();
 
     return {
       scripts,
@@ -522,14 +842,14 @@ export class EmceeService extends BaseService {
     categoryId?: string | null;
     order?: number;
     tenantId?: string;
-  }) {
+  }): Promise<Prisma.EmceeScriptGetPayload<{}>> {
     this.validateRequired(data, ['title', 'tenantId']);
 
     if (!data.content && !data.filePath) {
       throw this.validationError('Content or file is required');
     }
 
-    const script: any = await this.prisma.emceeScript.create({
+    const script = await this.prisma.emceeScript.create({
       data: {
         tenantId: data.tenantId!,
         title: data.title,
@@ -558,8 +878,8 @@ export class EmceeService extends BaseService {
       categoryId?: string | null;
       order?: number;
     }
-  ) {
-    const script: any = await this.prisma.emceeScript.update({
+  ): Promise<Prisma.EmceeScriptGetPayload<{}>> {
+    const script = await this.prisma.emceeScript.update({
       where: { id },
       data: {
         title: data.title,
@@ -577,7 +897,7 @@ export class EmceeService extends BaseService {
   /**
    * Delete a script
    */
-  async deleteScript(id: string) {
+  async deleteScript(id: string): Promise<void> {
     await this.prisma.emceeScript.delete({
       where: { id },
     });
@@ -586,8 +906,8 @@ export class EmceeService extends BaseService {
   /**
    * Get script file info
    */
-  async getScriptFileInfo(scriptId: string) {
-    const script: any = await this.prisma.emceeScript.findUnique({
+  async getScriptFileInfo(scriptId: string): Promise<Prisma.EmceeScriptGetPayload<{}>> {
+    const script = await this.prisma.emceeScript.findUnique({
       where: { id: scriptId },
     });
 

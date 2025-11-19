@@ -3,9 +3,37 @@
  * Manages contestant view restrictions and edit locks
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
+
+// Prisma payload types
+type EventBasic = Prisma.EventGetPayload<{
+  select: {
+    id: true;
+    contestantViewRestricted: true;
+    contestantViewReleaseDate: true;
+  };
+}>;
+
+type ContestWithEvent = Prisma.ContestGetPayload<{
+  include: {
+    event: {
+      select: {
+        id: true;
+        contestantViewRestricted: true;
+        contestantViewReleaseDate: true;
+        isLocked: true;
+      };
+    };
+  };
+}>;
+
+type UserRole = Prisma.UserGetPayload<{
+  select: {
+    role: true;
+  };
+}>;
 
 export interface SetContestantViewRestrictionDTO {
   eventId?: string;
@@ -41,7 +69,7 @@ export class RestrictionService extends BaseService {
     }
 
     if (dto.eventId) {
-      const event: any = await this.prisma.event.findUnique({
+      const event = await this.prisma.event.findUnique({
         where: { id: dto.eventId }
       });
 
@@ -68,7 +96,7 @@ export class RestrictionService extends BaseService {
         });
       }
     } else if (dto.contestId) {
-      const contest: any = await this.prisma.contest.findUnique({
+      const contest = await this.prisma.contest.findUnique({
         where: { id: dto.contestId }
       });
 
@@ -96,18 +124,19 @@ export class RestrictionService extends BaseService {
     contestId?: string
   ): Promise<boolean> {
     if (contestId) {
-      const contest: any = await this.prisma.contest.findUnique({
+      const contest: ContestWithEvent | null = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
           event: {
             select: {
               id: true,
               contestantViewRestricted: true,
-              contestantViewReleaseDate: true
+              contestantViewReleaseDate: true,
+              isLocked: true
             }
           }
-        } as any
-      } as any);
+        }
+      });
 
       if (!contest) {
         return false;
@@ -123,8 +152,13 @@ export class RestrictionService extends BaseService {
 
       return true;
     } else if (eventId) {
-      const event: any = await this.prisma.event.findUnique({
-        where: { id: eventId }
+      const event: EventBasic | null = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        select: {
+          id: true,
+          contestantViewRestricted: true,
+          contestantViewReleaseDate: true
+        }
       });
 
       if (!event) {
@@ -158,7 +192,7 @@ export class RestrictionService extends BaseService {
     }
 
     if (dto.eventId) {
-      const event: any = await this.prisma.event.findUnique({
+      const event = await this.prisma.event.findUnique({
         where: { id: dto.eventId }
       });
 
@@ -193,7 +227,7 @@ export class RestrictionService extends BaseService {
         }
 
         // Verify the verifier is an admin/organizer/board
-        const verifier: any = await this.prisma.user.findUnique({
+        const verifier: UserRole | null = await this.prisma.user.findUnique({
           where: { id: dto.verifiedBy },
           select: { role: true }
         });
@@ -220,7 +254,7 @@ export class RestrictionService extends BaseService {
         });
       }
     } else if (dto.contestId) {
-      const contest: any = await this.prisma.contest.findUnique({
+      const contest = await this.prisma.contest.findUnique({
         where: { id: dto.contestId }
       });
 
@@ -244,7 +278,7 @@ export class RestrictionService extends BaseService {
           throw this.validationError('Unlocking requires verification from a different admin/organizer/board user');
         }
 
-        const verifier: any = await this.prisma.user.findUnique({
+        const verifier: UserRole | null = await this.prisma.user.findUnique({
           where: { id: dto.verifiedBy },
           select: { role: true }
         });
@@ -271,12 +305,19 @@ export class RestrictionService extends BaseService {
    */
   async isLocked(eventId?: string, contestId?: string): Promise<boolean> {
     if (contestId) {
-      const contest: any = await this.prisma.contest.findUnique({
+      const contest: ContestWithEvent | null = await this.prisma.contest.findUnique({
         where: { id: contestId },
         include: {
-          event: true
-        } as any
-      } as any);
+          event: {
+            select: {
+              id: true,
+              contestantViewRestricted: true,
+              contestantViewReleaseDate: true,
+              isLocked: true
+            }
+          }
+        }
+      });
 
       if (!contest) {
         return false;
@@ -289,7 +330,7 @@ export class RestrictionService extends BaseService {
 
       return contest.isLocked;
     } else if (eventId) {
-      const event: any = await this.prisma.event.findUnique({
+      const event = await this.prisma.event.findUnique({
         where: { id: eventId }
       });
 

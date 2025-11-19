@@ -1,9 +1,17 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Prisma payload types
+type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
+  select: {
+    key: true;
+    value: true;
+  };
+}>;
 
 export interface EmailConfig {
   enabled: boolean;
@@ -19,12 +27,30 @@ export interface EmailOptions {
   body?: string;
   html?: string;
   template?: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, string | number | boolean>;
   attachments?: Array<{
     filename: string;
     path?: string;
     content?: Buffer | string;
   }>;
+}
+
+export interface EmailSendResult {
+  success: boolean;
+  to: string;
+  subject: string;
+  messageId?: string;
+  response?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface BulkEmailResult {
+  to: string;
+  success: boolean;
+  messageId?: string;
+  response?: string;
+  error?: string;
 }
 
 @injectable()
@@ -73,14 +99,18 @@ export class EmailService extends BaseService {
   }
 
   async getConfig(): Promise<EmailConfig> {
-    const settings: any = await this.prisma.systemSetting.findMany({
+    const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: {
         key: { in: ['EMAIL_ENABLED', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_FROM'] }
+      },
+      select: {
+        key: true,
+        value: true
       }
     });
 
-    const config: any = {};
-    settings.forEach((s: any) => { config[s.key.toLowerCase()] = s.value; });
+    const config: Record<string, string> = {};
+    settings.forEach((s) => { config[s.key.toLowerCase()] = s.value; });
 
     return {
       enabled: config.email_enabled === 'true',
@@ -94,7 +124,7 @@ export class EmailService extends BaseService {
   /**
    * Render email template with variables
    */
-  private async renderTemplate(templateName: string, variables: Record<string, any>): Promise<string> {
+  private async renderTemplate(templateName: string, variables: Record<string, string | number | boolean>): Promise<string> {
     try {
       const templatePath = path.join(__dirname, '../templates/email', `${templateName}.html`);
 
@@ -120,7 +150,7 @@ export class EmailService extends BaseService {
   /**
    * Send email with retry logic
    */
-  async sendEmail(to: string, subject: string, body: string, options?: Partial<EmailOptions>): Promise<any> {
+  async sendEmail(to: string, subject: string, body: string, options?: Partial<EmailOptions>): Promise<EmailSendResult> {
     const smtpEnabled = process.env.SMTP_ENABLED === 'true';
 
     if (!smtpEnabled) {
@@ -154,7 +184,7 @@ export class EmailService extends BaseService {
     };
 
     // Send email with retry logic
-    let lastError: any = null;
+    let lastError: Error | null = null;
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         const info = await this.transporter.sendMail(mailOptions);
@@ -218,8 +248,8 @@ export class EmailService extends BaseService {
   /**
    * Send bulk emails with concurrency control
    */
-  async sendBulkEmail(recipients: string[], subject: string, body: string, options?: Partial<EmailOptions>): Promise<Array<{ to: string; success: boolean; [key: string]: any }>> {
-    const results: Array<{ to: string; success: boolean; [key: string]: any }> = [];
+  async sendBulkEmail(recipients: string[], subject: string, body: string, options?: Partial<EmailOptions>): Promise<BulkEmailResult[]> {
+    const results: BulkEmailResult[] = [];
     const concurrency = 5; // Send 5 emails at a time
 
     for (let i = 0; i < recipients.length; i += concurrency) {
@@ -249,8 +279,8 @@ export class EmailService extends BaseService {
     to: string,
     subject: string,
     template: string,
-    variables: Record<string, any>
-  ): Promise<any> {
+    variables: Record<string, string | number | boolean>
+  ): Promise<EmailSendResult> {
     return this.sendEmail(to, subject, '', {
       template,
       variables
@@ -260,7 +290,7 @@ export class EmailService extends BaseService {
   /**
    * Send welcome email to new user
    */
-  async sendWelcomeEmail(email: string, name: string, verificationUrl?: string): Promise<any> {
+  async sendWelcomeEmail(email: string, name: string, verificationUrl?: string): Promise<EmailSendResult> {
     return this.sendTemplatedEmail(
       email,
       'Welcome to Event Manager',
@@ -277,7 +307,7 @@ export class EmailService extends BaseService {
   /**
    * Send password reset email
    */
-  async sendPasswordResetEmail(email: string, name: string, resetUrl: string): Promise<any> {
+  async sendPasswordResetEmail(email: string, name: string, resetUrl: string): Promise<EmailSendResult> {
     return this.sendTemplatedEmail(
       email,
       'Reset Your Password',
@@ -294,7 +324,7 @@ export class EmailService extends BaseService {
   /**
    * Send email verification
    */
-  async sendVerificationEmail(email: string, name: string, verificationUrl: string): Promise<any> {
+  async sendVerificationEmail(email: string, name: string, verificationUrl: string): Promise<EmailSendResult> {
     return this.sendTemplatedEmail(
       email,
       'Verify Your Email Address',

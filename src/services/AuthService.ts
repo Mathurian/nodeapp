@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissions';
 import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
@@ -19,14 +19,56 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const RESET_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
+// Prisma payload types
+type UserBasic = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    preferredName: true;
+    email: true;
+    password: true;
+    role: true;
+    sessionVersion: true;
+    isActive: true;
+    judgeId: true;
+    contestantId: true;
+    gender: true;
+    pronouns: true;
+    tenantId: true;
+  };
+}>;
+
 interface LoginCredentials {
   email: string;
   password: string;
 }
 
+interface UserProfile {
+  id: string;
+  name: string;
+  preferredName: string | null;
+  email: string;
+  role: string;
+  sessionVersion: number;
+  permissions: string[];
+  hasAdminAccess: boolean;
+  judgeId: string | null;
+  contestantId: string | null;
+  gender: string | null;
+  pronouns: string | null;
+  tenantId?: string;
+}
+
 interface LoginResult {
   token: string;
-  user: any;
+  user: UserProfile;
+}
+
+interface UserPermissions {
+  role: string;
+  permissions: string[];
+  hasAdminAccess: boolean;
+  permissionsMatrix: typeof PERMISSIONS;
 }
 
 interface TokenPayload {
@@ -119,7 +161,7 @@ export class AuthService {
 
     // Find user with related data
     // SECURITY FIX: Filter by tenantId to prevent cross-tenant authentication bypass
-    const user: any = await this.prisma.user.findFirst({
+    const user: UserBasic | null = await this.prisma.user.findFirst({
       where: {
         email,
         tenantId
@@ -159,7 +201,7 @@ export class AuthService {
       tenantId: user.tenantId
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn } as any);
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: tokenExpiresIn });
 
     // Get user permissions
     const permissions = getRolePermissions(user.role);
@@ -210,8 +252,8 @@ export class AuthService {
   /**
    * Get user profile by ID
    */
-  async getProfile(userId: string): Promise<any> {
-    const user: any = await this.prisma.user.findUnique({
+  async getProfile(userId: string): Promise<UserProfile> {
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -241,8 +283,8 @@ export class AuthService {
   /**
    * Get user permissions
    */
-  async getPermissions(userId: string): Promise<any> {
-    const user: any = await this.prisma.user.findUnique({
+  async getPermissions(userId: string): Promise<UserPermissions> {
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -276,7 +318,7 @@ export class AuthService {
    * Generate password reset token
    */
   async generatePasswordResetToken(email: string): Promise<string> {
-    const user: any = await this.prisma.user.findFirst({
+    const user: UserBasic | null = await this.prisma.user.findFirst({
       where: { email }
     });
 
@@ -319,7 +361,7 @@ export class AuthService {
     }
 
     // Get user info for password similarity check
-    const user: any = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -368,7 +410,7 @@ export class AuthService {
    * Change user password (authenticated)
    */
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    const user: any = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -439,7 +481,7 @@ export class AuthService {
    * Check if user has specific permission
    */
   async hasPermission(userId: string, permission: string): Promise<boolean> {
-    const user: any = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await this.prisma.user.findUnique({
       where: { id: userId }
     });
 

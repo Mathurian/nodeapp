@@ -3,7 +3,28 @@ import { createLogger as loggerFactory } from '../utils/logger';
 
 const logger = loggerFactory('CustomFieldService');
 
-export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'CHECKBOX' | 'TEXTAREA' | 'EMAIL' | 'PHONE' | 'URL';
+export type CustomFieldType = 'TEXT' | 'TEXT_AREA' | 'NUMBER' | 'DATE' | 'BOOLEAN' | 'SELECT' | 'MULTI_SELECT' | 'EMAIL' | 'URL' | 'PHONE';
+
+// Interface for custom field options (used for SELECT and MULTISELECT types)
+export interface CustomFieldOptions {
+  [key: string]: string | number | boolean | string[];
+}
+
+// Interface for custom field validation rules
+export interface CustomFieldValidation {
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  pattern?: string;
+  [key: string]: string | number | boolean | undefined;
+}
+
+// Interface for validation result
+export interface ValidationResult {
+  valid: boolean;
+  error?: string;
+}
 
 export interface CreateCustomFieldDTO {
   name: string;
@@ -12,8 +33,8 @@ export interface CreateCustomFieldDTO {
   entityType: string;
   required?: boolean;
   defaultValue?: string;
-  options?: any;
-  validation?: any;
+  options?: CustomFieldOptions;
+  validation?: CustomFieldValidation;
   order?: number;
   active?: boolean;
   tenantId: string;
@@ -24,8 +45,8 @@ export interface UpdateCustomFieldDTO {
   type?: CustomFieldType;
   required?: boolean;
   defaultValue?: string;
-  options?: any;
-  validation?: any;
+  options?: CustomFieldOptions;
+  validation?: CustomFieldValidation;
   order?: number;
   active?: boolean;
 }
@@ -49,11 +70,11 @@ export class CustomFieldService {
    */
   async createCustomField(data: CreateCustomFieldDTO): Promise<CustomField> {
     try {
-      const field: any = await this.prisma.customField.create({
+      const field = await this.prisma.customField.create({
         data: {
           name: data.name,
           key: data.key,
-          type: data.type as any, // Cast to Prisma enum type
+          type: data.type,
           entityType: data.entityType,
           tenantId: data.tenantId,
           required: data.required ?? false,
@@ -83,7 +104,7 @@ export class CustomFieldService {
         where.active = true;
       }
 
-      const fields: any = await this.prisma.customField.findMany({
+      const fields = await this.prisma.customField.findMany({
         where,
         orderBy: { order: 'asc' },
       });
@@ -100,7 +121,7 @@ export class CustomFieldService {
    */
   async getCustomFieldById(id: string, tenantId: string): Promise<CustomField | null> {
     try {
-      const field: any = await this.prisma.customField.findFirst({
+      const field = await this.prisma.customField.findFirst({
         where: { id, tenantId },
         // No values relation in schema
       });
@@ -117,7 +138,7 @@ export class CustomFieldService {
    */
   async getCustomFieldByKey(key: string, entityType: string, tenantId: string): Promise<CustomField | null> {
     try {
-      const field: any = await this.prisma.customField.findFirst({
+      const field = await this.prisma.customField.findFirst({
         where: {
           key,
           entityType,
@@ -138,7 +159,7 @@ export class CustomFieldService {
   async updateCustomField(id: string, tenantId: string, data: UpdateCustomFieldDTO): Promise<CustomField> {
     try {
       // Verify field belongs to tenant
-      const existing: any = await this.prisma.customField.findFirst({
+      const existing = await this.prisma.customField.findFirst({
         where: { id, tenantId }
       });
       if (!existing) {
@@ -148,7 +169,7 @@ export class CustomFieldService {
       const updateData: Prisma.CustomFieldUpdateInput = {};
 
       if (data.name !== undefined) updateData.name = data.name;
-      if (data.type !== undefined) updateData.type = data.type as any; // Cast to Prisma enum
+      if (data.type !== undefined) updateData.type = data.type;
       if (data.required !== undefined) updateData.required = data.required;
       if (data.defaultValue !== undefined) updateData.defaultValue = data.defaultValue;
       if (data.options !== undefined) updateData.options = JSON.stringify(data.options);
@@ -156,7 +177,7 @@ export class CustomFieldService {
       if (data.order !== undefined) updateData.order = data.order;
       if (data.active !== undefined) updateData.active = data.active;
 
-      const field: any = await this.prisma.customField.update({
+      const field = await this.prisma.customField.update({
         where: { id },
         data: updateData,
       });
@@ -175,7 +196,7 @@ export class CustomFieldService {
   async deleteCustomField(id: string, tenantId: string): Promise<void> {
     try {
       // Verify field belongs to tenant
-      const existing: any = await this.prisma.customField.findFirst({
+      const existing = await this.prisma.customField.findFirst({
         where: { id, tenantId }
       });
       if (!existing) {
@@ -199,7 +220,7 @@ export class CustomFieldService {
   async setCustomFieldValue(data: SetCustomFieldValueDTO): Promise<CustomFieldValue> {
     try {
       // Verify field belongs to tenant
-      const field: any = await this.prisma.customField.findFirst({
+      const field = await this.prisma.customField.findFirst({
         where: { id: data.fieldId, tenantId: data.tenantId }
       });
       if (!field) {
@@ -207,7 +228,7 @@ export class CustomFieldService {
       }
 
       // Upsert the value
-      const value: any = await this.prisma.customFieldValue.upsert({
+      const value = await this.prisma.customFieldValue.upsert({
         where: {
           tenantId_customFieldId_entityId: {
             tenantId: data.tenantId,
@@ -240,7 +261,7 @@ export class CustomFieldService {
   async getCustomFieldValues(entityId: string, entityType: string, tenantId: string): Promise<CustomFieldValue[]> {
     try {
       // Get all custom fields for this entity type
-      const fields: any = await this.prisma.customField.findMany({
+      const fields = await this.prisma.customField.findMany({
         where: {
           entityType,
           tenantId,
@@ -248,10 +269,10 @@ export class CustomFieldService {
         },
       });
 
-      const fieldIds = fields.map(f => f.id);
+      const fieldIds = fields.map((f: CustomField) => f.id);
 
       // Get values for these fields
-      const values: any = await this.prisma.customFieldValue.findMany({
+      const values = await this.prisma.customFieldValue.findMany({
         where: {
           entityId,
           tenantId,
@@ -271,7 +292,7 @@ export class CustomFieldService {
    */
   async getCustomFieldValue(fieldId: string, entityId: string, tenantId: string): Promise<CustomFieldValue | null> {
     try {
-      const value: any = await this.prisma.customFieldValue.findFirst({
+      const value = await this.prisma.customFieldValue.findFirst({
         where: {
           customFieldId: fieldId,
           entityId,
@@ -292,7 +313,7 @@ export class CustomFieldService {
   async deleteCustomFieldValue(fieldId: string, entityId: string, tenantId: string): Promise<void> {
     try {
       // Verify value belongs to tenant
-      const value: any = await this.prisma.customFieldValue.findFirst({
+      const value = await this.prisma.customFieldValue.findFirst({
         where: {
           customFieldId: fieldId,
           entityId,
@@ -345,7 +366,7 @@ export class CustomFieldService {
   /**
    * Validate a custom field value
    */
-  validateCustomFieldValue(field: CustomField, value: string): { valid: boolean; error?: string } {
+  validateCustomFieldValue(field: CustomField, value: string): ValidationResult {
     try {
       // Required validation
       if (field.required && (!value || value.trim() === '')) {
@@ -458,7 +479,7 @@ export class CustomFieldService {
   async reorderCustomFields(fieldIds: string[], entityType: string, tenantId: string): Promise<void> {
     try {
       // Verify all fields belong to tenant
-      const fields: any = await this.prisma.customField.findMany({
+      const fields = await this.prisma.customField.findMany({
         where: {
           id: { in: fieldIds },
           tenantId,

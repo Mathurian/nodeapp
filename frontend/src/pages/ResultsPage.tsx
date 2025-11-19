@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { resultsAPI, adminAPI } from '../services/api'
 import {
@@ -139,11 +140,12 @@ const ResultsPage: React.FC = () => {
 
     try {
       // Trigger export to Excel
-      alert('Export functionality will trigger Excel download')
+      toast.success('Export functionality will trigger Excel download')
       // TODO: Implement actual export
       // const response = await exportAPI.exportCategoryResults(selectedCategoryId)
     } catch (error: any) {
-      alert(`Export failed: ${error.message}`)
+      const errorMessage = error.response?.data?.message || error.message || 'Export failed'
+      toast.error(`Export failed: ${errorMessage}`)
     }
   }
 

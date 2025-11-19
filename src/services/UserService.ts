@@ -88,8 +88,20 @@ export interface AggregateUserStats {
 }
 
 export type UserWithRelations = User & {
-  judge: any | null;
-  contestant: any | null;
+  judge: Prisma.JudgeGetPayload<{
+    select: {
+      id: true;
+      name: true;
+      judgeNumber: true;
+    };
+  }> | null;
+  contestant: Prisma.ContestantGetPayload<{
+    select: {
+      id: true;
+      name: true;
+      contestantNumber: true;
+    };
+  }> | null;
   lastLogin?: Date | null;
 }
 

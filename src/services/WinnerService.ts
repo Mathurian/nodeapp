@@ -1,7 +1,171 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import * as crypto from 'crypto';
+
+// Proper type definitions for winner responses
+type CategoryWithDetails = Prisma.CategoryGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    contestId: true;
+    contest: {
+      select: {
+        id: true;
+        name: true;
+        eventId: true;
+        event: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+    criteria: {
+      select: {
+        id: true;
+        maxScore: true;
+      };
+    };
+  };
+}>;
+
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  select: {
+    id: true;
+    contestantId: true;
+    judgeId: true;
+    score: true;
+    contestant: {
+      select: {
+        id: true;
+        name: true;
+        contestantNumber: true;
+      };
+    };
+    judge: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    criterion: {
+      select: {
+        id: true;
+        maxScore: true;
+      };
+    };
+  };
+}>;
+
+type ContestWithDetails = Prisma.ContestGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    eventId: true;
+    event: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    categories: {
+      select: {
+        id: true;
+        name: true;
+        criteria: {
+          select: {
+            id: true;
+            maxScore: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type EventWithContests = Prisma.EventGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    contests: {
+      select: {
+        id: true;
+        name: true;
+        categories: {
+          select: {
+            id: true;
+            name: true;
+            criteria: {
+              select: {
+                id: true;
+                maxScore: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type OverallDeduction = Prisma.OverallDeductionGetPayload<{
+  select: {
+    contestantId: true;
+    deduction: true;
+  };
+}>;
+
+type CategoryCertification = Prisma.CategoryCertificationGetPayload<{
+  select: {
+    userId: true;
+    role: true;
+    certifiedAt: true;
+  };
+}>;
+
+type JudgeCertification = Prisma.JudgeCertificationGetPayload<{
+  select: {
+    judgeId: true;
+    certifiedAt: true;
+    signatureName: true;
+  };
+}>;
+
+interface ContestantTotals {
+  contestant: {
+    id: string;
+    name: string;
+    contestantNumber: number | null;
+  };
+  totalScore: number;
+  scores: ScoreWithRelations[];
+  judgesScored: Set<string>;
+}
+
+interface CategoryWinner {
+  contestant: {
+    id: string;
+    name: string;
+    contestantNumber: number | null;
+  };
+  totalScore: number;
+  totalPossibleScore: number | null;
+  scores: ScoreWithRelations[];
+  judgesScored: string[];
+}
+
+interface ContestWinner {
+  contestant: {
+    id: string;
+    name: string;
+    contestantNumber: number | null;
+  };
+  totalScore: number;
+  totalPossibleScore: number;
+  categoriesParticipated: number;
+}
 
 @injectable()
 export class WinnerService extends BaseService {
@@ -31,7 +195,7 @@ export class WinnerService extends BaseService {
    */
   async getWinnersByCategory(categoryId: string, _userRole: string) {
     // P2-2 OPTIMIZATION: Selective field loading
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       select: {
         id: true,
@@ -56,8 +220,8 @@ export class WinnerService extends BaseService {
             maxScore: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    });
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
@@ -65,7 +229,7 @@ export class WinnerService extends BaseService {
 
     // Get all scores for this category
     // P2-2 OPTIMIZATION: Selective field loading
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: {
         categoryId,
         score: { not: null },
@@ -94,27 +258,26 @@ export class WinnerService extends BaseService {
             maxScore: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    });
 
     // Get overall deductions for this category
-    const deductions: any = await this.prisma.overallDeduction.findMany({
+    const deductions = await this.prisma.overallDeduction.findMany({
       where: { categoryId },
+      select: {
+        contestantId: true,
+        deduction: true,
+      },
     });
 
     // Calculate total possible score (sum of all criteria max scores)
     const totalPossibleScore = category.criteria?.reduce(
-      (sum: number, criterion: any) => sum + (criterion.maxScore || 0),
+      (sum: number, criterion) => sum + (criterion.maxScore || 0),
       0
     ) || 0;
 
     // Group scores by contestant and calculate totals
-    const contestantTotals = new Map<string, {
-      contestant: any;
-      totalScore: number;
-      scores: any[];
-      judgesScored: Set<string>;
-    }>();
+    const contestantTotals = new Map<string, ContestantTotals>();
 
     for (const score of scores) {
       if (!score.contestantId || score.score === null) continue;
@@ -157,13 +320,23 @@ export class WinnerService extends BaseService {
       .sort((a, b) => b.totalScore - a.totalScore);
 
     // Get certification status
-    const categoryCertifications: any = await this.prisma.categoryCertification.findMany({
-      where: { categoryId }
+    const categoryCertifications = await this.prisma.categoryCertification.findMany({
+      where: { categoryId },
+      select: {
+        userId: true,
+        role: true,
+        certifiedAt: true,
+      },
       // include removed - no user relation in schema
     });
 
-    const judgeCertifications: any = await this.prisma.judgeCertification.findMany({
+    const judgeCertifications = await this.prisma.judgeCertification.findMany({
       where: { categoryId },
+      select: {
+        judgeId: true,
+        certifiedAt: true,
+        signatureName: true,
+      },
     });
 
     const allSigned = judgeCertifications.length > 0;
@@ -195,7 +368,7 @@ export class WinnerService extends BaseService {
     includeCategoryBreakdown = true
   ) {
     // P2-2 OPTIMIZATION: Selective field loading
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       select: {
         id: true,
@@ -219,15 +392,22 @@ export class WinnerService extends BaseService {
             },
           },
         },
-      } as any,
-    } as any);
+      },
+    });
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
     }
 
     const categories = contest.categories || [];
-    const categoryWinners: any[] = [];
+    const categoryWinners: Array<{
+      category: CategoryWithDetails;
+      contestants: CategoryWinner[];
+      totalPossibleScore: number | null;
+      allSigned: boolean;
+      boardSigned: boolean;
+      canShowWinners: boolean;
+    }> = [];
 
     // Get winners for each category
     for (const category of categories) {
@@ -248,12 +428,7 @@ export class WinnerService extends BaseService {
     }
 
     // Calculate overall contest winners (sum across all categories)
-    const contestantTotals = new Map<string, {
-      contestant: any;
-      totalScore: number;
-      totalPossibleScore: number;
-      categoriesParticipated: number;
-    }>();
+    const contestantTotals = new Map<string, ContestWinner>();
 
     for (const categoryData of categoryWinners) {
       if (!categoryData.canShowWinners && _userRole !== 'ADMIN' && _userRole !== 'BOARD') {
@@ -303,8 +478,13 @@ export class WinnerService extends BaseService {
     ipAddress?: string,
     userAgent?: string
   ) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+        contestId: true,
+      },
     });
 
     if (!category) {
@@ -364,8 +544,12 @@ export class WinnerService extends BaseService {
    * Get signature status for a category
    */
   async getSignatureStatus(categoryId: string, userId: string, tenantId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+      },
     });
 
     if (!category) {
@@ -401,8 +585,12 @@ export class WinnerService extends BaseService {
    * Get certification progress for a category
    */
   async getCertificationProgress(categoryId: string, tenantId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+      },
     });
 
     if (!category) {
@@ -463,8 +651,12 @@ export class WinnerService extends BaseService {
    * Get role-specific certification status
    */
   async getRoleCertificationStatus(categoryId: string, role: string, tenantId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
+      select: {
+        id: true,
+        name: true,
+      },
     });
 
     if (!category) {
@@ -542,7 +734,7 @@ export class WinnerService extends BaseService {
     comments?: string
   ) {
     // P2-2 OPTIMIZATION: Selective field loading
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       select: {
         id: true,
@@ -631,7 +823,13 @@ export class WinnerService extends BaseService {
 
     if (certificationWorkflow) {
       // Update workflow based on role
-      const updates: any = {};
+      const updates: {
+        tallyCertified?: boolean;
+        auditorCertified?: boolean;
+        boardApproved?: boolean;
+        currentStep?: number;
+        status?: string;
+      } = {};
 
       if (userRole === 'TALLY_MASTER') {
         updates.tallyCertified = true;
@@ -689,7 +887,7 @@ export class WinnerService extends BaseService {
 
     if (eventId) {
       // P2-2 OPTIMIZATION: Selective field loading
-      const event: any = await this.prisma.event.findUnique({
+      const event = await this.prisma.event.findUnique({
         where: { id: eventId },
         select: {
           id: true,
@@ -712,14 +910,25 @@ export class WinnerService extends BaseService {
               },
             },
           },
-        } as any,
-      } as any);
+        },
+      });
 
       if (!event) {
         throw this.notFoundError('Event', eventId);
       }
 
-      const contestWinners: any[] = [];
+      const contestWinners: Array<{
+        contest: ContestWithDetails;
+        contestants: ContestWinner[];
+        categories?: Array<{
+          category: CategoryWithDetails;
+          contestants: CategoryWinner[];
+          totalPossibleScore: number | null;
+          allSigned: boolean;
+          boardSigned: boolean;
+          canShowWinners: boolean;
+        }>;
+      }> = [];
 
       // Get winners for each contest
       for (const contest of event.contests || []) {

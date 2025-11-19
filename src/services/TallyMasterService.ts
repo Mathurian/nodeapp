@@ -1,7 +1,373 @@
 
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+
+// P2-4: Comprehensive type definitions for Tally Master service
+type CategoryWithScoresAndContest = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+    scores: {
+      include: {
+        judge: true;
+        contestant: true;
+      };
+    };
+  };
+}>;
+
+type CategoryWithCertifications = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      select: {
+        id: true;
+        eventId: true;
+        name: true;
+        description: true;
+        createdAt: true;
+        updatedAt: true;
+        contestantNumberingMode: true;
+        nextContestantNumber: true;
+        event: true;
+      };
+    };
+    scores: {
+      include: {
+        judge: true;
+        contestant: true;
+      };
+    };
+    categoryCertifications: true;
+  };
+}>;
+
+type CategoryWithScoreDetails = Prisma.CategoryGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    description: true;
+    scoreCap: true;
+    contest: {
+      select: {
+        id: true;
+        name: true;
+        event: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+    scores: {
+      select: {
+        id: true;
+        score: true;
+        comment: true;
+        createdAt: true;
+        contestantId: true;
+        judge: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
+        contestant: {
+          select: {
+            id: true;
+            name: true;
+            contestantNumber: true;
+          };
+        };
+        criterion: {
+          select: {
+            id: true;
+            name: true;
+            maxScore: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type CategoryWithBiasData = Prisma.CategoryGetPayload<{
+  include: {
+    scores: {
+      include: {
+        judge: {
+          select: {
+            id: true;
+            name: true;
+            preferredName: true;
+            email: true;
+            role: true;
+          };
+        };
+        contestant: {
+          select: {
+            id: true;
+            name: true;
+            preferredName: true;
+            email: true;
+            contestantNumber: true;
+          };
+        };
+        criterion: {
+          select: {
+            id: true;
+            name: true;
+            description: true;
+            maxScore: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestWithDetails = Prisma.ContestGetPayload<{
+  include: {
+    event: true;
+    categories: {
+      include: {
+        scores: {
+          include: {
+            judge: {
+              select: {
+                id: true;
+                name: true;
+                email: true;
+              };
+            };
+            contestant: {
+              select: {
+                id: true;
+                name: true;
+                contestantNumber: true;
+              };
+            };
+            criterion: {
+              select: {
+                id: true;
+                name: true;
+                maxScore: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type CategoryWithJudges = Prisma.CategoryGetPayload<{
+  include: {
+    scores: {
+      include: {
+        judge: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestWithCertificationData = Prisma.ContestGetPayload<{
+  include: {
+    event: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    categories: {
+      include: {
+        criteria: {
+          select: {
+            id: true;
+            name: true;
+            maxScore: true;
+          };
+        };
+        scores: {
+          include: {
+            judge: {
+              select: {
+                id: true;
+                name: true;
+              };
+            };
+            contestant: {
+              select: {
+                id: true;
+                contestantNumber: true;
+                users: {
+                  select: {
+                    id: true;
+                    name: true;
+                  };
+                  take: 1;
+                };
+              };
+            };
+          };
+        };
+        categoryJudges: {
+          include: {
+            judge: {
+              include: {
+                users: {
+                  select: {
+                    id: true;
+                    name: true;
+                  };
+                  take: 1;
+                };
+              };
+            };
+          };
+        };
+        categoryContestants: {
+          include: {
+            contestant: {
+              include: {
+                users: {
+                  select: {
+                    id: true;
+                    name: true;
+                  };
+                  take: 1;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
+interface TallyMasterStats {
+  totalCategories: number;
+  pendingTotals: number;
+  certifiedTotals: number;
+}
+
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+interface ContestantScoreGroup {
+  contestant: {
+    id: string;
+    name: string;
+    contestantNumber: string;
+  };
+  scores: Array<{
+    id: string;
+    score: number;
+    comment: string | null;
+    createdAt: Date;
+    contestantId: string;
+    judge: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    contestant: {
+      id: string;
+      name: string;
+      contestantNumber: string;
+    };
+    criterion: {
+      id: string;
+      name: string;
+      maxScore: number;
+    } | null;
+  }>;
+  totalScore: number;
+  averageScore: number;
+  scoreCount: number;
+}
+
+interface JudgeScoreGroup {
+  judge: {
+    id: string;
+    name: string;
+    preferredName: string | null;
+    email: string;
+    role: UserRole;
+  };
+  scores: Array<{
+    id: string;
+    score: number;
+  }>;
+  totalScore: number;
+  averageScore: number;
+  scoreCount: number;
+}
+
+interface BiasAnalysisResult {
+  judge: {
+    id: string;
+    name: string;
+    preferredName: string | null;
+    email: string;
+    role: UserRole;
+  };
+  averageScore: number;
+  scoreCount: number;
+  deviation: number;
+  deviationPercentage: number;
+  potentialBias: boolean;
+}
+
+interface JudgeBreakdown {
+  judge: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  categories: string[];
+  contestants: string[];
+  scores: Array<{
+    id: string;
+    score: number;
+    categoryId: string;
+    categoryName: string;
+  }>;
+  totalScore: number;
+}
+
+interface ContestantBreakdown {
+  contestant: {
+    id: string;
+    name: string;
+    contestantNumber: string;
+  };
+  categories: string[];
+  judges: string[];
+  scores: Array<{
+    id: string;
+    score: number;
+    categoryId: string;
+    categoryName: string;
+  }>;
+  totalScore: number;
+}
 
 /**
  * Service for Tally Master functionality
@@ -15,7 +381,7 @@ export class TallyMasterService extends BaseService {
   /**
    * Get tally master dashboard statistics
    */
-  async getStats() {
+  async getStats(): Promise<TallyMasterStats> {
     const stats = {
       totalCategories: await this.prisma.category.count(),
       pendingTotals: await this.prisma.category.count({
@@ -32,10 +398,13 @@ export class TallyMasterService extends BaseService {
   /**
    * Get certified categories with pagination
    */
-  async getCertifications(page: number = 1, limit: number = 20) {
+  async getCertifications(page: number = 1, limit: number = 20): Promise<{
+    categories: CategoryWithScoresAndContest[];
+    pagination: PaginationMeta;
+  }> {
     const offset = (page - 1) * limit;
 
-    const categories: any = await this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: { totalsCertified: true },
       include: {
         contest: {
@@ -49,13 +418,13 @@ export class TallyMasterService extends BaseService {
             contestant: true,
           },
         },
-      } as any,
+      },
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
-    } as any);
+    }) as CategoryWithScoresAndContest[];
 
-    const total: any = await this.prisma.category.count({
+    const total = await this.prisma.category.count({
       where: { totalsCertified: true },
     });
 
@@ -73,10 +442,13 @@ export class TallyMasterService extends BaseService {
   /**
    * Get certification queue (categories ready for tally master review)
    */
-  async getCertificationQueue(page: number = 1, limit: number = 20) {
+  async getCertificationQueue(page: number = 1, limit: number = 20): Promise<{
+    categories: CategoryWithCertifications[];
+    pagination: PaginationMeta;
+  }> {
     const offset = (page - 1) * limit;
 
-    const allCategories: any = await this.prisma.category.findMany({
+    const allCategories = await this.prisma.category.findMany({
       where: { totalsCertified: false },
       include: {
         contest: {
@@ -103,26 +475,26 @@ export class TallyMasterService extends BaseService {
             role: 'TALLY_MASTER',
           },
         },
-      } as any,
+      },
       orderBy: { createdAt: 'desc' },
-    } as any);
+    }) as CategoryWithCertifications[];
 
     // Filter categories where all judges have certified but tally master hasn't
     const pendingItems = await Promise.all(
-      allCategories.map(async (category: any) => {
-        const hasJudgeCategoryCert: any = await this.prisma.judgeCertification.findFirst({
+      allCategories.map(async (category) => {
+        const hasJudgeCategoryCert = await this.prisma.judgeCertification.findFirst({
           where: { categoryId: category.id },
         });
         const hasTallyCert = category.categoryCertifications.length > 0;
         const allJudgesCertified =
-          category.scores.length === 0 || category.scores.every((s: any) => s.isCertified === true);
+          category.scores.length === 0 || category.scores.every((s) => s.isCertified === true);
         return hasJudgeCategoryCert && !hasTallyCert && allJudgesCertified && category.scores.length > 0
           ? category
           : null;
       })
     );
 
-    const categories = pendingItems.filter(Boolean);
+    const categories = pendingItems.filter(Boolean) as CategoryWithCertifications[];
     const total = categories.length;
 
     const paginatedCategories = categories.slice(offset, offset + limit);
@@ -141,10 +513,21 @@ export class TallyMasterService extends BaseService {
   /**
    * Get pending certifications with status
    */
-  async getPendingCertifications(page: number = 1, limit: number = 20) {
+  async getPendingCertifications(page: number = 1, limit: number = 20): Promise<{
+    categories: Array<CategoryWithCertifications & {
+      certificationStatus: {
+        currentStep: number;
+        totalSteps: number;
+        statusLabel: string;
+        statusColor: string;
+        allJudgesCertified: boolean;
+      };
+    }>;
+    pagination: PaginationMeta;
+  }> {
     const offset = (page - 1) * limit;
 
-    const allCategories: any = await this.prisma.category.findMany({
+    const allCategories = await this.prisma.category.findMany({
       where: { totalsCertified: false },
       include: {
         contest: {
@@ -171,33 +554,33 @@ export class TallyMasterService extends BaseService {
             role: 'TALLY_MASTER',
           },
         },
-      } as any,
+      },
       orderBy: { createdAt: 'desc' },
-    } as any);
+    }) as CategoryWithCertifications[];
 
     const pendingItems = await Promise.all(
-      allCategories.map(async (category: any) => {
-        const hasJudgeCategoryCert: any = await this.prisma.judgeCertification.findFirst({
+      allCategories.map(async (category) => {
+        const hasJudgeCategoryCert = await this.prisma.judgeCertification.findFirst({
           where: { categoryId: category.id },
         });
         const hasTallyCert = category.categoryCertifications.length > 0;
         const allJudgesCertified =
-          category.scores.length === 0 || category.scores.every((s: any) => s.isCertified === true);
+          category.scores.length === 0 || category.scores.every((s) => s.isCertified === true);
         return hasJudgeCategoryCert && !hasTallyCert && allJudgesCertified && category.scores.length > 0
           ? category
           : null;
       })
     );
 
-    const filteredCategories = pendingItems.filter(Boolean) as any[];
+    const filteredCategories = pendingItems.filter((item): item is CategoryWithCertifications => item !== null);
     const total = filteredCategories.length;
 
     const categories = filteredCategories.slice(offset, offset + limit);
 
     // Add dynamic certification status
-    const categoriesWithStatus = categories.map((category: any) => {
+    const categoriesWithStatus = categories.map((category) => {
       const allJudgesCertified =
-        category.scores.length > 0 && category.scores.every((s: any) => s.isCertified === true);
+        category.scores.length > 0 && category.scores.every((s) => s.isCertified === true);
       const judgeStatus = allJudgesCertified ? 'COMPLETED' : 'PENDING';
 
       let currentStep = 1;
@@ -253,10 +636,18 @@ export class TallyMasterService extends BaseService {
   /**
    * Certify category totals
    */
-  async certifyTotals(categoryId: string, userId: string, userRole: UserRole) {
+  async certifyTotals(categoryId: string, userId: string, userRole: UserRole): Promise<Prisma.CategoryGetPayload<{
+    include: {
+      contest: {
+        include: {
+          event: true;
+        };
+      };
+    };
+  }>> {
     this.validateRequired({ categoryId }, ['categoryId']);
 
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -264,14 +655,14 @@ export class TallyMasterService extends BaseService {
             event: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    });
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
-    const updatedCategory: any = await this.prisma.category.update({
+    const updatedCategory = await this.prisma.category.update({
       where: { id: categoryId },
       data: {
         totalsCertified: true,
@@ -284,8 +675,24 @@ export class TallyMasterService extends BaseService {
   /**
    * Get score review for a category
    */
-  async getScoreReview(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+  async getScoreReview(categoryId: string): Promise<{
+    category: {
+      id: string;
+      name: string;
+      description: string | null;
+      scoreCap: number | null;
+      maxScore: number | null;
+    };
+    contest: {
+      id: string;
+      name: string;
+      eventName: string;
+    };
+    contestants: ContestantScoreGroup[];
+    totalScores: number;
+    uniqueContestants: number;
+  }> {
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       select: {
         id: true,
@@ -336,14 +743,14 @@ export class TallyMasterService extends BaseService {
           orderBy: [{ contestant: { name: 'asc' } }],
         },
       },
-    } as any);
+    }) as CategoryWithScoreDetails;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Group scores by contestant
-    const contestantScores = category.scores.reduce((acc: any, score: any) => {
+    const contestantScores = category.scores.reduce((acc: Record<string, ContestantScoreGroup>, score) => {
       const key = score.contestantId;
       if (!acc[key]) {
         acc[key] = {
@@ -358,15 +765,15 @@ export class TallyMasterService extends BaseService {
       acc[key].totalScore += score.score;
       acc[key].scoreCount += 1;
       return acc;
-    }, {});
+    }, {} as Record<string, ContestantScoreGroup>);
 
     // Calculate averages
-    Object.values(contestantScores).forEach((group: any) => {
+    Object.values(contestantScores).forEach((group) => {
       group.averageScore = group.scoreCount > 0 ? group.totalScore / group.scoreCount : 0;
     });
 
     const sortedContestants = Object.values(contestantScores).sort(
-      (a: any, b: any) => b.averageScore - a.averageScore
+      (a, b) => b.averageScore - a.averageScore
     );
 
     return {
@@ -391,8 +798,20 @@ export class TallyMasterService extends BaseService {
   /**
    * Get bias checking tools analysis for a category
    */
-  async getBiasCheckingTools(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+  async getBiasCheckingTools(categoryId: string): Promise<{
+    category: {
+      id: string;
+      name: string;
+      description: string | null;
+      maxScore: number | null;
+    };
+    overallAverage: number;
+    totalScores: number;
+    uniqueJudges: number;
+    biasAnalysis: BiasAnalysisResult[];
+    recommendations: string[];
+  }> {
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         scores: {
@@ -425,15 +844,15 @@ export class TallyMasterService extends BaseService {
             },
           },
         },
-      } as any,
-    } as any);
+      },
+    }) as CategoryWithBiasData;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Analyze scores by judge
-    const judgeScores = category.scores.reduce((acc: any, score: any) => {
+    const judgeScores = category.scores.reduce((acc: Record<string, JudgeScoreGroup>, score) => {
       const key = score.judgeId;
       if (!acc[key]) {
         acc[key] = {
@@ -444,26 +863,26 @@ export class TallyMasterService extends BaseService {
           scoreCount: 0,
         };
       }
-      acc[key].scores.push(score);
+      acc[key].scores.push({ id: score.id, score: score.score });
       acc[key].totalScore += score.score;
       acc[key].scoreCount += 1;
       return acc;
-    }, {});
+    }, {} as Record<string, JudgeScoreGroup>);
 
     // Calculate judge averages
-    Object.values(judgeScores).forEach((group: any) => {
+    Object.values(judgeScores).forEach((group) => {
       group.averageScore = group.scoreCount > 0 ? group.totalScore / group.scoreCount : 0;
     });
 
     // Calculate overall average
     const overallAverage =
       category.scores.length > 0
-        ? category.scores.reduce((sum: any, s: any) => sum + s.score, 0) / category.scores.length
+        ? category.scores.reduce((sum, s) => sum + s.score, 0) / category.scores.length
         : 0;
 
     // Identify potential bias
     const biasAnalysis = Object.values(judgeScores)
-      .map((judge: any) => {
+      .map((judge): BiasAnalysisResult => {
         const deviation = Math.abs(judge.averageScore - overallAverage);
         const deviationPercentage = overallAverage > 0 ? (deviation / overallAverage) * 100 : 0;
 
@@ -498,10 +917,21 @@ export class TallyMasterService extends BaseService {
   /**
    * Get tally master history
    */
-  async getTallyMasterHistory(page: number = 1, limit: number = 10) {
+  async getTallyMasterHistory(page: number = 1, limit: number = 10): Promise<{
+    categories: Array<Prisma.CategoryGetPayload<{
+      include: {
+        contest: {
+          include: {
+            event: true;
+          };
+        };
+      };
+    }>>;
+    pagination: PaginationMeta;
+  }> {
     const offset = (page - 1) * limit;
 
-    const categories: any = await this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: {
         tallyMasterCertified: true,
       },
@@ -511,13 +941,13 @@ export class TallyMasterService extends BaseService {
             event: true,
           },
         },
-      } as any,
+      },
       orderBy: { updatedAt: 'desc' },
       skip: offset,
       take: limit,
-    } as any);
+    });
 
-    const total: any = await this.prisma.category.count();
+    const total = await this.prisma.category.count();
 
     return {
       categories,
@@ -533,8 +963,22 @@ export class TallyMasterService extends BaseService {
   /**
    * Get contest score review
    */
-  async getContestScoreReview(contestId: string) {
-    const contest: any = await this.prisma.contest.findUnique({
+  async getContestScoreReview(contestId: string): Promise<{
+    contest: {
+      id: string;
+      name: string;
+      event: Prisma.EventGetPayload<{}>;
+    };
+    summary: {
+      totalCategories: number;
+      uniqueJudges: number;
+      uniqueContestants: number;
+      totalScores: number;
+    };
+    judgeBreakdown: JudgeBreakdown[];
+    contestantBreakdown: ContestantBreakdown[];
+  }> {
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         event: true,
@@ -566,18 +1010,34 @@ export class TallyMasterService extends BaseService {
               },
             },
           },
-        } as any,
-      } as any,
-    } as any);
+        },
+      },
+    }) as ContestWithDetails;
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
     }
 
     // Group by judge
-    const judgeBreakdown: any = {};
-    contest.categories.forEach((category: any) => {
-      category.scores.forEach((score: any) => {
+    const judgeBreakdown: Record<string, {
+      judge: {
+        id: string;
+        name: string;
+        email: string;
+      };
+      categories: Set<string>;
+      contestants: Set<string>;
+      scores: Array<{
+        id: string;
+        score: number;
+        categoryId: string;
+        categoryName: string;
+      }>;
+      totalScore: number;
+    }> = {};
+
+    contest.categories.forEach((category) => {
+      category.scores.forEach((score) => {
         const judgeId = score.judgeId;
         if (!judgeBreakdown[judgeId]) {
           judgeBreakdown[judgeId] = {
@@ -588,7 +1048,12 @@ export class TallyMasterService extends BaseService {
             totalScore: 0,
           };
         }
-        judgeBreakdown[judgeId].scores.push({ ...score, categoryId: category.id, categoryName: category.name });
+        judgeBreakdown[judgeId].scores.push({
+          id: score.id,
+          score: score.score,
+          categoryId: category.id,
+          categoryName: category.name
+        });
         judgeBreakdown[judgeId].categories.add(category.id);
         judgeBreakdown[judgeId].contestants.add(score.contestantId);
         if (score.score) {
@@ -598,15 +1063,34 @@ export class TallyMasterService extends BaseService {
     });
 
     // Convert Sets to arrays
-    Object.values(judgeBreakdown).forEach((judge: any) => {
-      judge.categories = Array.from(judge.categories);
-      judge.contestants = Array.from(judge.contestants);
-    });
+    const judgeBreakdownArray: JudgeBreakdown[] = Object.values(judgeBreakdown).map((judge) => ({
+      judge: judge.judge,
+      categories: Array.from(judge.categories),
+      contestants: Array.from(judge.contestants),
+      scores: judge.scores,
+      totalScore: judge.totalScore,
+    }));
 
     // Group by contestant
-    const contestantBreakdown: any = {};
-    contest.categories.forEach((category: any) => {
-      category.scores.forEach((score: any) => {
+    const contestantBreakdown: Record<string, {
+      contestant: {
+        id: string;
+        name: string;
+        contestantNumber: string;
+      };
+      categories: Set<string>;
+      judges: Set<string>;
+      scores: Array<{
+        id: string;
+        score: number;
+        categoryId: string;
+        categoryName: string;
+      }>;
+      totalScore: number;
+    }> = {};
+
+    contest.categories.forEach((category) => {
+      category.scores.forEach((score) => {
         const contestantId = score.contestantId;
         if (!contestantBreakdown[contestantId]) {
           contestantBreakdown[contestantId] = {
@@ -617,7 +1101,12 @@ export class TallyMasterService extends BaseService {
             totalScore: 0,
           };
         }
-        contestantBreakdown[contestantId].scores.push({ ...score, categoryId: category.id, categoryName: category.name });
+        contestantBreakdown[contestantId].scores.push({
+          id: score.id,
+          score: score.score,
+          categoryId: category.id,
+          categoryName: category.name
+        });
         contestantBreakdown[contestantId].categories.add(category.id);
         contestantBreakdown[contestantId].judges.add(score.judgeId);
         if (score.score) {
@@ -627,10 +1116,13 @@ export class TallyMasterService extends BaseService {
     });
 
     // Convert Sets to arrays
-    Object.values(contestantBreakdown).forEach((contestant: any) => {
-      contestant.categories = Array.from(contestant.categories);
-      contestant.judges = Array.from(contestant.judges);
-    });
+    const contestantBreakdownArray: ContestantBreakdown[] = Object.values(contestantBreakdown).map((contestant) => ({
+      contestant: contestant.contestant,
+      categories: Array.from(contestant.categories),
+      judges: Array.from(contestant.judges),
+      scores: contestant.scores,
+      totalScore: contestant.totalScore,
+    }));
 
     return {
       contest: {
@@ -642,18 +1134,22 @@ export class TallyMasterService extends BaseService {
         totalCategories: contest.categories.length,
         uniqueJudges: Object.keys(judgeBreakdown).length,
         uniqueContestants: Object.keys(contestantBreakdown).length,
-        totalScores: contest.categories.reduce((sum: any, cat: any) => sum + cat.scores.length, 0),
+        totalScores: contest.categories.reduce((sum, cat) => sum + cat.scores.length, 0),
       },
-      judgeBreakdown: Object.values(judgeBreakdown),
-      contestantBreakdown: Object.values(contestantBreakdown),
+      judgeBreakdown: judgeBreakdownArray,
+      contestantBreakdown: contestantBreakdownArray,
     };
   }
 
   /**
    * Get judges for a category
    */
-  async getCategoryJudges(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+  async getCategoryJudges(categoryId: string): Promise<Array<{
+    id: string;
+    name: string;
+    email: string;
+  }>> {
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         scores: {
@@ -668,15 +1164,19 @@ export class TallyMasterService extends BaseService {
           },
         },
       },
-    } as any);
+    }) as CategoryWithJudges;
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
     }
 
     // Get unique judges
-    const uniqueJudgesMap = new Map();
-    category.scores.forEach((score: any) => {
+    const uniqueJudgesMap = new Map<string, {
+      id: string;
+      name: string;
+      email: string;
+    }>();
+    category.scores.forEach((score) => {
       if (score.judge && !uniqueJudgesMap.has(score.judge.id)) {
         uniqueJudgesMap.set(score.judge.id, score.judge);
       }
@@ -688,8 +1188,30 @@ export class TallyMasterService extends BaseService {
   /**
    * Get contest certifications
    */
-  async getContestCertifications(contestId: string) {
-    const contest: any = await this.prisma.contest.findUnique({
+  async getContestCertifications(contestId: string): Promise<{
+    contestId: string;
+    contestName: string;
+    event: {
+      id: string;
+      name: string;
+    };
+    categories: Array<{
+      categoryId: string;
+      categoryName: string;
+      totalJudges: number;
+      totalContestants: number;
+      expectedScores: number;
+      actualScores: number;
+      scoringCompletion: number;
+      expectedCertifications: number;
+      completedCertifications: number;
+      certificationCompletion: number;
+    }>;
+    totalCategories: number;
+    averageScoringCompletion: number;
+    averageCertificationCompletion: number;
+  }> {
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         event: {
@@ -741,7 +1263,7 @@ export class TallyMasterService extends BaseService {
                       },
                       take: 1
                     }
-                  } as any
+                  }
                 }
               }
             },
@@ -760,10 +1282,10 @@ export class TallyMasterService extends BaseService {
                 }
               }
             }
-          } as any
+          }
         }
-      } as any
-    } as any);
+      }
+    }) as ContestWithCertificationData;
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
@@ -771,16 +1293,16 @@ export class TallyMasterService extends BaseService {
 
     // Calculate certification status for each category
     const categoriesWithStatus = await Promise.all(
-      contest.categories.map(async (category: any) => {
+      contest.categories.map(async (category) => {
         // Access judges and contestants through the correct relations (categoryJudges and categoryContestants)
         const totalJudges = Array.isArray(category.categoryJudges) ? category.categoryJudges.length : 0;
         const totalContestants = Array.isArray(category.categoryContestants) ? category.categoryContestants.length : 0;
         const criteriaCount = Array.isArray(category.criteria) ? category.criteria.length : 0;
         const expectedScores = totalJudges * totalContestants * criteriaCount;
         const actualScores = Array.isArray(category.scores) ? category.scores.length : 0;
-        
+
         // Get certifications for this category
-        const certifications: any = await this.prisma.judgeContestantCertification.findMany({
+        const certifications = await this.prisma.judgeContestantCertification.findMany({
           where: { categoryId: category.id }
         });
 
@@ -797,8 +1319,8 @@ export class TallyMasterService extends BaseService {
           scoringCompletion: expectedScores > 0 ? Math.round((actualScores / expectedScores) * 100) : 0,
           expectedCertifications,
           completedCertifications,
-          certificationCompletion: expectedCertifications > 0 
-            ? Math.round((completedCertifications / expectedCertifications) * 100) 
+          certificationCompletion: expectedCertifications > 0
+            ? Math.round((completedCertifications / expectedCertifications) * 100)
             : 0
         };
       })
@@ -828,10 +1350,53 @@ export class TallyMasterService extends BaseService {
     status?: string,
     categoryId?: string,
     contestId?: string
-  ) {
+  ): Promise<{
+    requests: Array<{
+      id: string;
+      categoryId: string;
+      contestantId: string;
+      judgeId: string;
+      reason: string;
+      status: string;
+      requestedAt: Date;
+      reviewedAt: Date | null;
+      reviewedById: string | null;
+      category: {
+        id: string;
+        name: string;
+        contest: {
+          id: string;
+          name: string;
+          event: {
+            id: string;
+            name: string;
+          };
+        };
+      } | null;
+      contestant: {
+        id: string;
+        contestantNumber: string;
+        user: {
+          id: string;
+          name: string;
+          email: string;
+        } | null;
+      } | null;
+      judge: {
+        id: string;
+        name: string;
+        user: {
+          id: string;
+          name: string;
+          email: string;
+        } | null;
+      } | null;
+    }>;
+    pagination: PaginationMeta;
+  }> {
     const offset = (page - 1) * limit;
 
-    const whereClause: any = {};
+    const whereClause: Prisma.JudgeScoreRemovalRequestWhereInput = {};
     if (status) {
       whereClause.status = status;
     }
@@ -840,14 +1405,14 @@ export class TallyMasterService extends BaseService {
     }
     if (contestId) {
       // If contestId is provided, get all categories for that contest first
-      const categories: any = await this.prisma.category.findMany({
+      const categories = await this.prisma.category.findMany({
         where: { contestId },
         select: { id: true }
       });
       whereClause.categoryId = { in: categories.map(c => c.id) };
     }
 
-    const requests: any = await this.prisma.judgeScoreRemovalRequest.findMany({
+    const requests = await this.prisma.judgeScoreRemovalRequest.findMany({
       where: whereClause,
       orderBy: { requestedAt: 'desc' },
       skip: offset,
@@ -856,7 +1421,7 @@ export class TallyMasterService extends BaseService {
 
     // Fetch related data separately since there are no explicit relations
     const requestsWithDetails = await Promise.all(
-      requests.map(async (req: any) => {
+      requests.map(async (req) => {
         const [category, contestant, judge] = await Promise.all([
           this.prisma.category.findUnique({
             where: { id: req.categoryId },
@@ -876,7 +1441,7 @@ export class TallyMasterService extends BaseService {
                 },
               },
             },
-          } as any) as any,
+          }),
           this.prisma.contestant.findUnique({
             where: { id: req.contestantId },
             select: {
@@ -891,7 +1456,7 @@ export class TallyMasterService extends BaseService {
                 take: 1,
               },
             },
-          } as any) as any,
+          }),
           this.prisma.judge.findUnique({
             where: { id: req.judgeId },
             select: {
@@ -906,7 +1471,7 @@ export class TallyMasterService extends BaseService {
                 take: 1,
               },
             },
-          } as any) as any,
+          }),
         ]);
 
         return {
@@ -938,7 +1503,7 @@ export class TallyMasterService extends BaseService {
       })
     );
 
-    const total: any = await this.prisma.judgeScoreRemovalRequest.count({
+    const total = await this.prisma.judgeScoreRemovalRequest.count({
       where: whereClause,
     });
 
