@@ -270,7 +270,7 @@ const DashboardPage: React.FC = () => {
         )}
 
         {/* Pending Actions */}
-        {stats?.pendingCertifications && stats.pendingCertifications > 0 && (
+        {(stats?.pendingCertifications || 0) > 0 && (
           <div className="mb-8">
             <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
               <div className="flex items-start">

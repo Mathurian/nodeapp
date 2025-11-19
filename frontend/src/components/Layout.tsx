@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useSocket } from '../contexts/SocketContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
+import { settingsAPI } from '../services/api'
 import {
   UserIcon,
   BellIcon,
@@ -34,6 +36,28 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const recentCommands = getRecentCommands().slice(0, 3)
   const favoriteCommands = getFavoriteCommands().slice(0, 3)
   const modifierKey = getModifierKeySymbol()
+
+  // Fetch theme settings for app name and logo
+  const { data: themeSettings } = useQuery<any>(
+    'theme-settings',
+    async () => {
+      try {
+        const response = await settingsAPI.getThemeSettings()
+        const unwrapped = response.data.data || response.data
+        return unwrapped
+      } catch (error) {
+        // Return defaults if settings not available
+        return { app_name: 'Event Manager', theme_logoPath: null }
+      }
+    },
+    {
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+      retry: false,
+    }
+  )
+
+  const appName = themeSettings?.app_name || themeSettings?.appName || 'Event Manager'
+  const logoPath = themeSettings?.theme_logoPath || themeSettings?.logoPath
 
   const getRoleColor = (role: string) => {
     const colors = {
@@ -84,9 +108,25 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         <div className="flex items-center justify-between px-4 lg:px-6 py-3">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <CommandLineIcon className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+            {logoPath ? (
+              <img
+                src={logoPath}
+                alt={appName}
+                className="h-8 w-8 object-contain"
+                onError={(e) => {
+                  // Fallback to icon if image fails to load
+                  e.currentTarget.style.display = 'none'
+                  const icon = e.currentTarget.nextElementSibling as HTMLElement
+                  if (icon) icon.style.display = 'block'
+                }}
+              />
+            ) : null}
+            <CommandLineIcon
+              className="h-7 w-7 text-indigo-600 dark:text-indigo-400"
+              style={{ display: logoPath ? 'none' : 'block' }}
+            />
             <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
-              Event Manager
+              {appName}
             </h1>
           </div>
 
@@ -183,10 +223,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                   />
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
                     <div className="p-3 border-b border-gray-100 dark:border-gray-700">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {user?.preferredName || user?.name}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         {user?.email}
                       </div>
                     </div>
