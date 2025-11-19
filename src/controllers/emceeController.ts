@@ -184,8 +184,8 @@ export class EmceeController {
   getEmceeHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'emcee');
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 10;
 
       const history = await this.emceeService.getEmceeHistory(page, limit);
       res.json(history);

@@ -14,9 +14,10 @@ import { PERMISSIONS, getRolePermissions, isAdmin } from '../middleware/permissi
 import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 import { EmailService } from './EmailService';
+import { env } from '../config/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_SECRET = env.get('JWT_SECRET');
+const JWT_EXPIRES_IN = env.get('JWT_EXPIRES_IN');
 const RESET_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
 // Prisma payload types
@@ -330,7 +331,7 @@ export class AuthService {
     this.resetTokenCache.set(resetToken, user.id);
 
     // Send password reset email (non-blocking)
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const resetUrl = `${env.get('FRONTEND_URL')}/reset-password?token=${resetToken}`;
     this.emailService.sendPasswordResetEmail(
       user.email,
       user.preferredName || user.name,

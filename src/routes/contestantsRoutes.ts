@@ -66,7 +66,7 @@ router.put('/:id',
   async (req, res, next) => {
     try {
       const assignmentService = container.resolve(AssignmentService);
-      const contestant = await assignmentService.updateContestant(req.params.id, req.body);
+      const contestant = await assignmentService.updateContestant(req.params['id'], req.body);
       return sendSuccess(res, contestant, 'Contestant updated successfully');
     } catch (error) {
       return next(error);
@@ -98,7 +98,7 @@ router.delete('/:id',
   async (req, res, next) => {
     try {
       const assignmentService = container.resolve(AssignmentService);
-      await assignmentService.deleteContestant(req.params.id);
+      await assignmentService.deleteContestant(req.params['id']);
       return sendSuccess(res, null, 'Contestant deleted successfully');
     } catch (error) {
       return next(error);

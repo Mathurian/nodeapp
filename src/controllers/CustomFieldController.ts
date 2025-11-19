@@ -245,7 +245,7 @@ export class CustomFieldController {
     try {
       const { customFieldId, entityId } = req.params;
 
-      await customFieldService.deleteCustomFieldValue(customFieldId, entityId, req.user!.tenantId);
+      await customFieldService.deleteCustomFieldValue(customFieldId!, entityId!, req.user!.tenantId);
 
       sendSuccess(res, null, 'Custom field value deleted successfully');
     } catch (error: any) {

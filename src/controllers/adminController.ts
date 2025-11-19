@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { AdminService } from '../services/AdminService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { parsePaginationQuery } from '../utils/pagination';
 
 export class AdminController {
@@ -53,7 +53,7 @@ export class AdminController {
   getTableStructure = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
-      const structure = await this.adminService.getTableStructure(tableName);
+      const structure = await this.adminService.getTableStructure(tableName!);
       return sendSuccess(res, structure);
     } catch (error) {
       return next(error);
@@ -65,7 +65,7 @@ export class AdminController {
       const { tableName } = req.params;
       const { page = '1', limit = '50', orderBy, orderDirection = 'asc' } = req.query;
       const data = await this.adminService.getTableData(
-        tableName,
+        tableName!,
         parseInt(page as string),
         parseInt(limit as string),
         orderBy as string | undefined,
@@ -108,7 +108,7 @@ export class AdminController {
 
   getActiveUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const hours = parseInt(req.query.hours as string) || 24;
+      const hours = parseInt(req.query['hours'] as string) || 24;
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
       const activeUsers = await this.prisma.user.findMany({
@@ -137,10 +137,10 @@ export class AdminController {
 
   getUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const role = req.query.role as string | undefined;
-      const search = req.query.search as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const role = req.query['role'] as UserRole | undefined;
+      const search = req.query['search'] as string | undefined;
 
       const skip = (page - 1) * limit;
 
@@ -191,14 +191,14 @@ export class AdminController {
 
   getEvents = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const archived = req.query.archived === 'true';
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const archived = req.query['archived'] === 'true';
 
       const skip = (page - 1) * limit;
 
       const where: Prisma.EventWhereInput = {};
-      if (req.query.archived !== undefined) {
+      if (req.query['archived'] !== undefined) {
         where.archived = archived;
       }
 
@@ -238,9 +238,9 @@ export class AdminController {
 
   getContests = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const eventId = req.query.eventId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const eventId = req.query['eventId'] as string | undefined;
 
       const skip = (page - 1) * limit;
 
@@ -284,9 +284,9 @@ export class AdminController {
 
   getCategories = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const contestId = req.query.contestId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const contestId = req.query['contestId'] as string | undefined;
 
       const skip = (page - 1) * limit;
 
@@ -336,10 +336,9 @@ export class AdminController {
 
   getScores = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const categoryId = req.query.categoryId as string | undefined;
-      const contestId = req.query.contestId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const categoryId = req.query['categoryId'] as string | undefined;
 
       const skip = (page - 1) * limit;
 
@@ -347,7 +346,6 @@ export class AdminController {
       if (categoryId) {
         where.categoryId = categoryId;
       }
-      // Note: contestId filter removed as Score doesn't have direct contestId field
 
       const [scores, total] = await Promise.all([
         this.prisma.score.findMany({
@@ -406,7 +404,7 @@ export class AdminController {
 
   getAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
+      const limit = parseInt(req.query['limit'] as string) || 100;
       const logs = await this.adminService.getAuditLogs(limit);
       return sendSuccess(res, logs);
     } catch (error) {
@@ -416,15 +414,16 @@ export class AdminController {
 
   exportAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const format = (req.query.format as string) || 'json';
-      const limit = parseInt(req.query.limit as string) || 1000;
+      const format = (req.query['format'] as string) || 'json';
+      const limit = parseInt(req.query['limit'] as string) || 1000;
 
-      const logs = await this.adminService.getAuditLogs(limit);
+      const logsResult = await this.adminService.getAuditLogs(limit);
+      const logs = Array.isArray(logsResult) ? logsResult : (logsResult as any).data || [];
 
       if (format === 'csv') {
         // Convert to CSV format
         const headers = ['ID', 'User', 'Action', 'Resource', 'ResourceID', 'IP Address', 'Date'];
-        const rows = logs.map(log => [
+        const rows = logs.map((log: any) => [
           log.id,
           log.user?.name || 'Unknown',
           log.action,
@@ -436,7 +435,7 @@ export class AdminController {
 
         const csvContent = [
           headers.join(','),
-          ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+          ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(','))
         ].join('\n');
 
         res.setHeader('Content-Type', 'text/csv');
@@ -524,7 +523,7 @@ export class AdminController {
   getContestantScores = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { contestantId } = req.params;
-      const categoryId = req.query.categoryId as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
 
       const where: Prisma.ScoreWhereInput = {
         contestantId

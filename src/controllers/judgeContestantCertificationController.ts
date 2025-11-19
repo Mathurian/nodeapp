@@ -31,9 +31,9 @@ export class JudgeContestantCertificationController {
     try {
       const { judgeId, categoryId, contestantId } = req.body;
       const certification = await this.judgeContestantCertificationService.certify({
-        judgeId,
-        categoryId,
-        contestantId
+        judgeId: judgeId as string,
+        categoryId: categoryId as string,
+        contestantId: contestantId as string
       });
       return sendSuccess(res, certification, 'Certification created', 201);
     } catch (error) {
@@ -44,7 +44,7 @@ export class JudgeContestantCertificationController {
   uncertify = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      await this.judgeContestantCertificationService.uncertify(id);
+      await this.judgeContestantCertificationService.uncertify(id!);
       return sendSuccess(res, null, 'Certification deleted');
     } catch (error) {
       return next(error);

@@ -8,6 +8,7 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 // Extend Express Request type to include tenant context
 declare global {
@@ -92,8 +93,8 @@ export class TenantIdentifier {
    * Identify tenant from query parameter (for development/testing)
    */
   static fromQuery(req: Request): string | null {
-    if (process.env.NODE_ENV === 'development') {
-      return req.query.tenantId as string || null;
+    if (env.isDevelopment()) {
+      return req.query['tenantId'] as string || null;
     }
     return null;
   }
@@ -332,99 +333,99 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
           // Check if model has tenantId field
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async findFirst({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async findUnique({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async findUniqueOrThrow({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async count({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async aggregate({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async groupBy({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async create({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.data = { ...(args.data as Record<string, unknown>), tenantId };
+            args['data'] = { ...(args['data'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async createMany({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields && Array.isArray(args.data)) {
-            args.data = args.data.map((item: unknown) => ({ ...(item as Record<string, unknown>), tenantId }));
+          if (modelFields?.fields && 'tenantId' in modelFields.fields && Array.isArray(args['data'])) {
+            args['data'] = args['data'].map((item: unknown) => ({ ...(item as Record<string, unknown>), tenantId }));
           }
           return query(args);
         },
         async update({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async updateMany({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async upsert({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
-            args.create = { ...(args.create as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
+            args['create'] = { ...(args['create'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async delete({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async deleteMany({ model, args, query }: PrismaExtensionParams) {
           const modelFields = (prisma as Record<string, unknown>)[model] as { fields?: Record<string, unknown> } | undefined;
           if (modelFields?.fields && 'tenantId' in modelFields.fields) {
-            args.where = { ...(args.where as Record<string, unknown>), tenantId };
+            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },

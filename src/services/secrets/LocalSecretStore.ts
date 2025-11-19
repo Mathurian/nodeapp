@@ -57,7 +57,7 @@ export class LocalSecretStore implements ISecretProvider {
   private deriveEncryptionKey(): Buffer {
     const masterKey =
       this.config.encryptionKey ||
-      process.env.SECRETS_ENCRYPTION_KEY ||
+      process.env['SECRETS_ENCRYPTION_KEY'] ||
       this.generateMasterKey();
 
     // Use PBKDF2 to derive a strong encryption key

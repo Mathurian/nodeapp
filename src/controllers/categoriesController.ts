@@ -69,7 +69,7 @@ export class CategoriesController {
   createCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Get contestId from params or body
-      const contestId = req.params.contestId || req.body.contestId;
+      const contestId = req.params['contestId'] || req.body['contestId'];
       if (!contestId) {
         return sendError(res, 'Contest ID is required', 400);
       }

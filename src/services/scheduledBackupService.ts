@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import { env } from '../config/env';
 
 
 class ScheduledBackupService {
@@ -49,7 +50,7 @@ class ScheduledBackupService {
   async loadBackupSettings() {
     try {
       // Skip in test environment
-      if (process.env.NODE_ENV === 'test') {
+      if (env.isTest()) {
         return;
       }
 
@@ -61,7 +62,7 @@ class ScheduledBackupService {
       }
     } catch (error) {
       // Only log errors in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
+      if (!env.isTest()) {
         console.error('Error loading backup settings:', error)
       }
     }
@@ -133,7 +134,7 @@ class ScheduledBackupService {
       })
 
       // Parse DATABASE_URL to extract connection details
-      const dbUrl = new URL(process.env.DATABASE_URL || '');
+      const dbUrl = new URL(env.get('DATABASE_URL') || '');
       const host = dbUrl.hostname;
       const port = dbUrl.port || '5432';
       const database = dbUrl.pathname.slice(1).split('?')[0];

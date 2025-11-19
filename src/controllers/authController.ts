@@ -9,6 +9,7 @@ import { container } from 'tsyringe';
 import { AuthService } from '../services/AuthService';
 import { sendSuccess, sendUnauthorized, sendBadRequest, sendNotFound } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
+import { env } from '../config/env';
 
 export class AuthController {
   private authService: AuthService;
@@ -58,7 +59,7 @@ export class AuthController {
       // Set token as httpOnly cookie instead of returning it
       res.cookie('access_token', result.token, {
         httpOnly: true, // Prevents XSS attacks by making cookie inaccessible to JavaScript
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        secure: env.isProduction(), // HTTPS only in production
         sameSite: 'strict', // CSRF protection
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
@@ -78,7 +79,7 @@ export class AuthController {
         userAgent: req.headers?.['user-agent'],
         ip: req.ip || req.connection?.remoteAddress,
         csrfHeader: req.headers?.['x-csrf-token'] ? 'present' : 'missing',
-        csrfCookie: req.cookies?._csrf ? 'present' : 'missing'
+        csrfCookie: req.cookies?.['_csrf'] ? 'present' : 'missing'
       });
 
       // Log to console for debugging
@@ -88,7 +89,7 @@ export class AuthController {
         host: req.headers?.host,
         ip: req.ip,
         hasCsrfToken: !!req.headers?.['x-csrf-token'],
-        hasCsrfCookie: !!req.cookies?._csrf,
+        hasCsrfCookie: !!req.cookies?.['_csrf'],
         email: req.body?.email
       });
 
@@ -333,7 +334,7 @@ export class AuthController {
       // Clear the httpOnly cookie
       res.clearCookie('access_token', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: env.isProduction(),
         sameSite: 'strict',
         path: '/',
       });

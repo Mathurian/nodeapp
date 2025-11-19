@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileManagementService } from '../services/FileManagementService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, FileCategory } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 
@@ -67,7 +67,7 @@ export class FileManagementController {
   getFileInfo = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
-      const info = await this.fileManagementService.getFileInfo(filename);
+      const info = await this.fileManagementService.getFileInfo(filename!);
       return sendSuccess(res, info);
     } catch (error) {
       return next(error);
@@ -78,7 +78,7 @@ export class FileManagementController {
     try {
       const { filename } = req.params;
       const { newPath } = req.body;
-      const result = await this.fileManagementService.moveFile(filename, newPath);
+      const result = await this.fileManagementService.moveFile(filename!, newPath);
       return sendSuccess(res, result, 'File moved');
     } catch (error) {
       return next(error);
@@ -89,7 +89,7 @@ export class FileManagementController {
     try {
       const { filename } = req.params;
       const { newPath } = req.body;
-      const result = await this.fileManagementService.copyFile(filename, newPath);
+      const result = await this.fileManagementService.copyFile(filename!, newPath);
       return sendSuccess(res, result, 'File copied');
     } catch (error) {
       return next(error);
@@ -98,23 +98,23 @@ export class FileManagementController {
 
   getFilesWithFilters = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
       const skip = (page - 1) * limit;
 
       // Advanced filtering options
-      const category = req.query.category as string | undefined;
-      const eventId = req.query.eventId as string | undefined;
-      const contestId = req.query.contestId as string | undefined;
-      const categoryId = req.query.categoryId as string | undefined;
-      const isPublic = req.query.isPublic as string | undefined;
-      const uploadedBy = req.query.uploadedBy as string | undefined;
-      const mimeType = req.query.mimeType as string | undefined;
-      const minSize = req.query.minSize ? parseInt(req.query.minSize as string) : undefined;
-      const maxSize = req.query.maxSize ? parseInt(req.query.maxSize as string) : undefined;
-      const search = req.query.search as string | undefined;
-      const startDate = req.query.startDate as string | undefined;
-      const endDate = req.query.endDate as string | undefined;
+      const category = req.query['category'] as FileCategory | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
+      const isPublic = req.query['isPublic'] as string | undefined;
+      const uploadedBy = req.query['uploadedBy'] as string | undefined;
+      const mimeType = req.query['mimeType'] as string | undefined;
+      const minSize = req.query['minSize'] ? parseInt(req.query['minSize'] as string) : undefined;
+      const maxSize = req.query['maxSize'] ? parseInt(req.query['maxSize'] as string) : undefined;
+      const search = req.query['search'] as string | undefined;
+      const startDate = req.query['startDate'] as string | undefined;
+      const endDate = req.query['endDate'] as string | undefined;
 
       const where: Prisma.FileWhereInput = {};
 
@@ -258,7 +258,7 @@ export class FileManagementController {
   getFileSearchSuggestions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { query } = req.query;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query['limit'] as string) || 10;
 
       if (!query || typeof query !== 'string') {
         return sendSuccess(res, [], 'query parameter is required');
@@ -293,7 +293,7 @@ export class FileManagementController {
 
   getFileAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const days = parseInt(req.query.days as string) || 30;
+      const days = parseInt(req.query['days'] as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       // Get files uploaded in the time range
@@ -339,7 +339,7 @@ export class FileManagementController {
         }, {}),
 
         uploadsByDay: files.reduce((acc: FileAnalyticsByDay, file) => {
-          const day = file.uploadedAt.toISOString().split('T')[0];
+          const day = file.uploadedAt.toISOString().split('T')[0]!;
           if (!acc[day]) {
             acc[day] = { count: 0, size: 0 };
           }
@@ -506,10 +506,10 @@ export class FileManagementController {
 
       const summary = {
         total: fileIds.length,
-        ok: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'OK').length,
-        failed: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'FAILED').length,
-        notFound: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'NOT_FOUND').length,
-        errors: processedResults.filter((r: IntegrityCheckResult) => r.integrity === 'ERROR').length
+        ok: processedResults.filter((r: any) => r.integrity === 'OK').length,
+        failed: processedResults.filter((r: any) => r.integrity === 'FAILED').length,
+        notFound: processedResults.filter((r: any) => r.integrity === 'NOT_FOUND').length,
+        errors: processedResults.filter((r: any) => r.integrity === 'ERROR').length
       };
 
       return sendSuccess(res, {

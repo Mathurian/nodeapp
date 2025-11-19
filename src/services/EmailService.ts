@@ -4,6 +4,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { env } from '../config/env';
 
 // Prisma payload types
 type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
@@ -69,7 +70,7 @@ export class EmailService extends BaseService {
    */
   private async initializeTransporter(): Promise<void> {
     try {
-      const smtpEnabled = process.env.SMTP_ENABLED === 'true';
+      const smtpEnabled = env.get('SMTP_ENABLED') === 'true';
 
       if (!smtpEnabled) {
         console.log('EmailService: SMTP is disabled in environment configuration');
@@ -77,12 +78,12 @@ export class EmailService extends BaseService {
       }
 
       const smtpConfig = {
-        host: process.env.SMTP_HOST || 'localhost',
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
-        secure: process.env.SMTP_SECURE === 'true',
+        host: env.get('SMTP_HOST') || 'localhost',
+        port: parseInt(env.get('SMTP_PORT') || '587', 10),
+        secure: env.get('SMTP_SECURE') === 'true',
         auth: {
-          user: process.env.SMTP_USER || '',
-          pass: process.env.SMTP_PASS || ''
+          user: env.get('SMTP_USER') || '',
+          pass: env.get('SMTP_PASS') || ''
         }
       };
 
@@ -113,11 +114,11 @@ export class EmailService extends BaseService {
     settings.forEach((s) => { config[s.key.toLowerCase()] = s.value; });
 
     return {
-      enabled: config.email_enabled === 'true',
-      host: config.email_host || '',
-      port: parseInt(config.email_port) || 587,
-      user: config.email_user || '',
-      from: config.email_from || ''
+      enabled: config['email_enabled'] === 'true',
+      host: config['email_host'] || '',
+      port: parseInt(config['email_port']) || 587,
+      user: config['email_user'] || '',
+      from: config['email_from'] || ''
     };
   }
 
@@ -151,7 +152,7 @@ export class EmailService extends BaseService {
    * Send email with retry logic
    */
   async sendEmail(to: string, subject: string, body: string, options?: Partial<EmailOptions>): Promise<EmailSendResult> {
-    const smtpEnabled = process.env.SMTP_ENABLED === 'true';
+    const smtpEnabled = env.get('SMTP_ENABLED') === 'true';
 
     if (!smtpEnabled) {
       console.log(`EmailService: Email would be sent to ${to} (SMTP disabled)`);
@@ -175,7 +176,7 @@ export class EmailService extends BaseService {
     }
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@example.com',
+      from: env.get('SMTP_FROM') || env.get('SMTP_USER') || 'noreply@example.com',
       to,
       subject,
       text: body,
@@ -298,8 +299,8 @@ export class EmailService extends BaseService {
       {
         name,
         verificationUrl: verificationUrl || '#',
-        appName: process.env.APP_NAME || 'Event Manager',
-        supportEmail: process.env.SMTP_FROM || 'support@example.com'
+        appName: env.get('APP_NAME') || 'Event Manager',
+        supportEmail: env.get('SMTP_FROM') || 'support@example.com'
       }
     );
   }
@@ -315,8 +316,8 @@ export class EmailService extends BaseService {
       {
         name,
         resetUrl,
-        appName: process.env.APP_NAME || 'Event Manager',
-        supportEmail: process.env.SMTP_FROM || 'support@example.com'
+        appName: env.get('APP_NAME') || 'Event Manager',
+        supportEmail: env.get('SMTP_FROM') || 'support@example.com'
       }
     );
   }
@@ -332,8 +333,8 @@ export class EmailService extends BaseService {
       {
         name,
         verificationUrl,
-        appName: process.env.APP_NAME || 'Event Manager',
-        supportEmail: process.env.SMTP_FROM || 'support@example.com'
+        appName: env.get('APP_NAME') || 'Event Manager',
+        supportEmail: env.get('SMTP_FROM') || 'support@example.com'
       }
     );
   }

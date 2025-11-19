@@ -13,14 +13,15 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { env } from '../config/env';
 
 const prismaConfig = {
   datasources: {
     db: {
-      url: process.env.DATABASE_URL,
+      url: env.get('DATABASE_URL'),
     },
   },
-  log: (process.env.NODE_ENV === 'production'
+  log: (env.isProduction()
     ? ['error', 'warn']
     : ['query', 'info', 'warn', 'error']) as any,
 };
@@ -30,21 +31,21 @@ const prismaConfig = {
 
 let prisma: PrismaClient;
 
-if (process.env.NODE_ENV === 'production') {
+if (env.isProduction()) {
   prisma = new PrismaClient(prismaConfig);
 } else {
   // In development/test, use global to prevent multiple instances during hot reloads
   if (!(global as any).__prisma) {
     (global as any).__prisma = new PrismaClient({
       ...prismaConfig,
-      log: process.env.NODE_ENV === 'test' ? ['error'] : prismaConfig.log,
+      log: env.isTest() ? ['error'] : prismaConfig.log,
     });
   }
   prisma = (global as any).__prisma;
 }
 
 // Graceful shutdown (skip in test environment)
-if (process.env.NODE_ENV !== 'test') {
+if (!env.isTest()) {
   process.on('SIGINT', async () => {
     await prisma.$disconnect();
     process.exit(0);

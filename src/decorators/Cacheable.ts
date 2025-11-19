@@ -21,13 +21,15 @@
  */
 
 import Redis from 'ioredis';
+import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 // Create dedicated Redis client for caching decorator
 const redisClient = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+  host: env.get('REDIS_HOST') || 'localhost',
+  port: parseInt(env.get('REDIS_PORT') || '6379'),
+  password: env.get('REDIS_PASSWORD'),
   retryStrategy: (times) => Math.min(times * 50, 2000)
 });
 

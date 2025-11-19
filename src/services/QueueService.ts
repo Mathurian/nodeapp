@@ -1,6 +1,7 @@
 import { Queue, Worker, Job, JobsOptions } from 'bullmq';
 import Redis from 'ioredis';
 import { Logger } from '../utils/logger';
+import { env } from '../config/env';
 
 /**
  * Queue Service
@@ -34,7 +35,7 @@ export class QueueService {
     this.logger = new Logger('QueueService');
 
     // Create Redis connection
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const redisUrl = env.get('REDIS_URL') || 'redis://localhost:6379';
     this.connection = new Redis(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,

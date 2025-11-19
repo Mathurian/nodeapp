@@ -104,8 +104,8 @@ export function createPaginatedResponse<T>(
  */
 export function parsePaginationQuery(query: Record<string, unknown>): PaginationOptions {
   return {
-    page: query.page ? parseInt(String(query.page), 10) : undefined,
-    limit: query.limit ? parseInt(String(query.limit), 10) : undefined
+    page: query['page'] ? parseInt(String(query['page']), 10) : undefined,
+    limit: query['limit'] ? parseInt(String(query['limit']), 10) : undefined
   };
 }
 

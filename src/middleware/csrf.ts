@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { csrfSecret } from '../utils/config';
+import { env } from '../config/env';
 
 // CSRF secret for token generation
 
@@ -103,7 +104,7 @@ const csrfProtection = async (req: Request, res: Response, next: NextFunction): 
   const tokenFromHeader = req.headers['x-csrf-token'] || req.headers['X-CSRF-Token']
   
   // Get token from cookie (set by backend)
-  const tokenFromCookie = req.cookies?._csrf
+  const tokenFromCookie = req.cookies?.['_csrf']
 
   // Check if both tokens exist
   if (!tokenFromHeader || !tokenFromCookie) {
@@ -132,7 +133,7 @@ const csrfProtection = async (req: Request, res: Response, next: NextFunction): 
     res.status(403).json({
       error: 'CSRF token validation failed',
       message: 'Invalid or missing CSRF token. Please refresh the page and try again.',
-      details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      details: env.isDevelopment() ? errorDetails : undefined
     }); return;
   }
 

@@ -4,8 +4,11 @@
  */
 
 import express, { Router, Request, Response } from 'express';
+import { env } from '../config/env';
 import prisma from '../utils/prisma';
+import { env } from '../config/env';
 import { cache } from '../utils/cache';
+import { env } from '../config/env';
 
 const router: Router = express.Router();
 
@@ -50,8 +53,8 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     service: 'event-manager',
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+    version: process.env['npm_package_version'] || '1.0.0',
+    environment: env.get('NODE_ENV') || 'development',
     checks: {}
   };
 
@@ -61,7 +64,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     await prisma.$queryRaw`SELECT 1 as health_check`
     const dbDuration = Date.now() - dbStart
 
-    health.checks.database = {
+    health.checks['database'] = {
       status: 'healthy',
       responseTime: dbDuration,
       message: 'Database connection successful'
@@ -69,7 +72,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
   } catch (error: unknown) {
     const errorObj = error as { message?: string };
     health.status = 'unhealthy';
-    health.checks.database = {
+    health.checks['database'] = {
       status: 'unhealthy',
       error: errorObj.message,
       message: 'Database connection failed'
@@ -89,7 +92,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     const cacheDuration = Date.now() - cacheStart
     const cacheWorking = retrieved === testValue
 
-    health.checks.cache = {
+    health.checks['cache'] = {
       status: cacheWorking ? 'healthy' : 'degraded',
       responseTime: cacheDuration,
       size: cache.getStats().size,
@@ -102,7 +105,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
   } catch (error: unknown) {
     const errorObj = error as { message?: string };
     health.status = 'degraded';
-    health.checks.cache = {
+    health.checks['cache'] = {
       status: 'unhealthy',
       error: errorObj.message,
       message: 'Cache check failed'
@@ -120,7 +123,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
 
   const heapUsagePercent = (memory.heapUsed / memory.heapTotal) * 100
 
-  health.checks.memory = {
+  health.checks['memory'] = {
     status: heapUsagePercent > 90 ? 'critical' : heapUsagePercent > 75 ? 'warning' : 'healthy',
     usageMB: memoryUsageMB,
     heapUsagePercent: Math.round(heapUsagePercent * 100) / 100,

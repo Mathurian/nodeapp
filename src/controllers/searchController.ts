@@ -73,7 +73,7 @@ export class SearchController {
         tenantId: req.user!.tenantId
       };
 
-      const results = await this.searchService.searchByType(userId, type, options);
+      const results = await this.searchService.searchByType(userId, type!, options);
 
       return sendSuccess(res, results);
     } catch (error) {
@@ -193,7 +193,7 @@ export class SearchController {
       const userId = req.user!.id;
       const { id } = req.params;
 
-      await this.searchService.deleteSavedSearch(id, userId, req.user!.tenantId);
+      await this.searchService.deleteSavedSearch(id!, userId, req.user!.tenantId);
 
       return res.status(204).send();
     } catch (error) {
@@ -209,7 +209,7 @@ export class SearchController {
       const userId = req.user!.id;
       const { id } = req.params;
 
-      const results = await this.searchService.executeSavedSearch(userId, req.user!.tenantId, id);
+      const results = await this.searchService.executeSavedSearch(userId, req.user!.tenantId, id!);
 
       return sendSuccess(res, results);
     } catch (error) {

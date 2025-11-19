@@ -40,8 +40,8 @@ router.get('/', authenticate, async (req: Request, res: Response, next: NextFunc
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
     const tenantId = req.user!.tenantId;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query['limit'] as string) || 50;
+    const offset = parseInt(req.query['offset'] as string) || 0;
 
     const notifications = await notificationService.getUserNotifications(userId, tenantId, limit, offset);
     res.json(notifications);
@@ -186,7 +186,7 @@ router.delete('/read-all', authenticate, async (req: Request, res: Response, nex
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
     const tenantId = req.user!.tenantId;
-    const daysOld = parseInt(req.query.daysOld as string) || 30;
+    const daysOld = parseInt(req.query['daysOld'] as string) || 30;
     const count = await notificationService.cleanupOldNotifications(userId, tenantId, daysOld);
     res.json({ count });
   } catch (error) {

@@ -30,7 +30,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     const where: Record<string, unknown> = { eventId };
     
     if (!includeArchivedEvents) {
-      where.event = {
+      where['event'] = {
         archived: false
       };
     }
@@ -49,7 +49,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     const where: Record<string, unknown> = { eventId };
     
     if (!includeArchivedContests) {
-      where.archived = false;
+      where['archived'] = false;
     }
     
     return this.findMany(

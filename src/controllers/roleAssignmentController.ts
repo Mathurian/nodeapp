@@ -47,7 +47,7 @@ export class RoleAssignmentController {
     try {
       const { id } = req.params;
       const { notes, isActive } = req.body;
-      const assignment = await this.roleAssignmentService.update(id, { notes, isActive });
+      const assignment = await this.roleAssignmentService.update(id!, { notes, isActive });
       return sendSuccess(res, assignment, 'Role assignment updated');
     } catch (error) {
       return next(error);
@@ -57,7 +57,7 @@ export class RoleAssignmentController {
   deleteRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      await this.roleAssignmentService.delete(id);
+      await this.roleAssignmentService.delete(id!);
       return sendSuccess(res, null, 'Role assignment deleted');
     } catch (error) {
       return next(error);

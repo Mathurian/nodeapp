@@ -55,7 +55,7 @@ export class NotificationsController {
   deleteNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      await this.notificationService.deleteNotification(id, req.user!.id, req.user!.tenantId);
+      await this.notificationService.deleteNotification(id!, req.user!.id, req.user!.tenantId);
       return res.status(204).send();
     } catch (error) {
       return next(error);
@@ -65,7 +65,7 @@ export class NotificationsController {
   markAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      await this.notificationService.markAsRead(id, req.user!.id, req.user!.tenantId);
+      await this.notificationService.markAsRead(id!, req.user!.id, req.user!.tenantId);
       return sendSuccess(res, null, 'Notification marked as read');
     } catch (error) {
       return next(error);

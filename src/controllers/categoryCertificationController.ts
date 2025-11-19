@@ -16,7 +16,7 @@ export class CategoryCertificationController {
   getCategoryCertificationProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { categoryId } = req.params;
-      const progress = await this.categoryCertificationService.getCertificationProgress(categoryId);
+      const progress = await this.categoryCertificationService.getCertificationProgress(categoryId!);
       return sendSuccess(res, progress);
     } catch (error) {
       return next(error);
@@ -27,7 +27,7 @@ export class CategoryCertificationController {
     try {
       const { categoryId } = req.params;
       const certification = await this.categoryCertificationService.certifyCategory(
-        categoryId,
+        categoryId!,
         req.user!.id,
         req.user!.role,
         req.user!.tenantId

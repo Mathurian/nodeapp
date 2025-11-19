@@ -135,6 +135,9 @@ export class BulkAssignmentController {
         async (assignmentId: string) => {
           // Get the assignment first
           const assignment = await this.assignmentService.getAssignmentById(assignmentId);
+          if (!assignment) {
+            throw new Error(`Assignment ${assignmentId} not found`);
+          }
           // Delete old assignment
           await this.assignmentService.deleteAssignment(assignmentId);
           // Create new assignment with new judge

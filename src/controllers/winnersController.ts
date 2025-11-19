@@ -87,7 +87,7 @@ export class WinnersController {
         categoryId,
         user.id,
         user.role,
-        ipAddress,
+        ipAddress || 'unknown',
         userAgent
       );
 
@@ -114,7 +114,7 @@ export class WinnersController {
         return;
       }
 
-      const result = await this.winnerService.getSignatureStatus(categoryId, user.id);
+      const result = await this.winnerService.getSignatureStatus(categoryId!, user.id, user.tenantId);
 
       sendSuccess(res, result);
     } catch (error) {
@@ -132,13 +132,14 @@ export class WinnersController {
   ): Promise<void> => {
     try {
       const { categoryId } = req.params;
+      const user = (req as any).user;
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });
         return;
       }
 
-      const result = await this.winnerService.getCertificationProgress(categoryId);
+      const result = await this.winnerService.getCertificationProgress(categoryId!, user.tenantId);
 
       sendSuccess(res, result);
     } catch (error) {
@@ -156,6 +157,7 @@ export class WinnersController {
   ): Promise<void> => {
     try {
       const { categoryId, role } = req.params;
+      const user = (req as any).user;
 
       if (!categoryId || !role) {
         res.status(400).json({ error: 'Category ID and role are required' });
@@ -163,8 +165,9 @@ export class WinnersController {
       }
 
       const result = await this.winnerService.getRoleCertificationStatus(
-        categoryId,
-        role
+        categoryId!,
+        role!,
+        user.tenantId
       );
 
       sendSuccess(res, result);
@@ -187,9 +190,10 @@ export class WinnersController {
       }
 
       const result = await this.winnerService.certifyScores(
-        categoryId,
+        categoryId!,
         user.id,
-        user.role
+        user.role,
+        user.tenantId
       );
 
       sendSuccess(res, result, result.message);

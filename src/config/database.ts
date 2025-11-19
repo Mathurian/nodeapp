@@ -4,6 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { env } from './env';
 
 /**
  * Global Prisma instance to prevent multiple connections
@@ -21,13 +22,13 @@ declare global {
  */
 const prismaClientSingleton = () => {
   const client = new PrismaClient({
-    log: process.env.NODE_ENV === 'development'
+    log: env.isDevelopment()
       ? ['query', 'info', 'warn', 'error']
       : ['error'],
 
     datasources: {
       db: {
-        url: process.env.DATABASE_URL
+        url: env.get('DATABASE_URL')
       }
     },
 
@@ -47,7 +48,7 @@ const prismaClientSingleton = () => {
  */
 export const prisma = globalThis.prisma ?? prismaClientSingleton();
 
-if (process.env.NODE_ENV !== 'production') {
+if (!env.isProduction()) {
   globalThis.prisma = prisma;
 }
 

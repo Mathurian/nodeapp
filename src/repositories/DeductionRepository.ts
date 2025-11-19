@@ -72,7 +72,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
     };
 
     if (categoryIds && categoryIds.length > 0) {
-      whereClause.categoryId = { in: categoryIds };
+      whereClause['categoryId'] = { in: categoryIds };
     }
 
     return this.getModel().findMany({
@@ -177,9 +177,9 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
       tenantId: filters.tenantId
     };
 
-    if (filters.status) whereClause.status = filters.status;
-    if (filters.categoryId) whereClause.categoryId = filters.categoryId;
-    if (filters.contestantId) whereClause.contestantId = filters.contestantId;
+    if (filters['status']) whereClause.status = filters.status;
+    if (filters['categoryId']) whereClause.categoryId = filters.categoryId;
+    if (filters['contestantId']) whereClause.contestantId = filters.contestantId;
 
     const skip = (page - 1) * limit;
 

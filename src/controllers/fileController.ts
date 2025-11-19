@@ -26,8 +26,8 @@ export class FileController {
   downloadFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
-      const filePath = await this.fileService.getFilePath(filename);
-      res.download(filePath, filename);
+      const filePath = await this.fileService.getFilePath(filename!);
+      res.download(filePath, filename!);
     } catch (error) {
       return next(error);
     }
@@ -36,7 +36,7 @@ export class FileController {
   deleteFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { filename } = req.params;
-      await this.fileService.deleteFile(filename);
+      await this.fileService.deleteFile(filename!);
       return sendSuccess(res, null, 'File deleted');
     } catch (error) {
       return next(error);
@@ -45,10 +45,10 @@ export class FileController {
 
   getAllFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const category = req.query.category as string | undefined;
-      const eventId = req.query.eventId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const category = req.query['category'] as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
 
       const skip = (page - 1) * limit;
       const where: any = {};

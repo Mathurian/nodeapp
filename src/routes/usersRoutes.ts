@@ -234,7 +234,7 @@ router.post('/:id/image',
   userImageUpload.single('image'),
   async (req, res, next) => {
     // Allow users to upload their own image
-    if (req.user && req.user.id === req.params.id) {
+    if (req.user && req.user.id === req.params['id']) {
       return next();
     }
     // For other users, require admin/organizer/board role

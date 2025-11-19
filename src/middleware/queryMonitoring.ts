@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { Logger } from '../utils/logger';
+import { env } from '../config/env';
 
 const queryLogger = new Logger('QueryMonitoring');
 
@@ -12,7 +13,7 @@ const queryLogger = new Logger('QueryMonitoring');
  */
 
 // Slow query threshold in milliseconds (configurable via env)
-const SLOW_QUERY_THRESHOLD = parseInt(process.env.SLOW_QUERY_THRESHOLD || '100', 10);
+const SLOW_QUERY_THRESHOLD = parseInt(env.get('SLOW_QUERY_THRESHOLD') || '100', 10);
 
 // Extend Prisma Client with query logging
 export const createMonitoredPrismaClient = () => {

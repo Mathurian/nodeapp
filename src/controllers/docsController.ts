@@ -73,7 +73,7 @@ function sanitizePath(userPath: string): string {
 
   const pathParts = sanitized.split('/').filter(p => p);
   if (pathParts.length > 0) {
-    const topLevel = pathParts[0];
+    const topLevel = pathParts[0]!;
     // Allow root-level markdown files (e.g., INDEX.md, README.md)
     const isRootFile = pathParts.length === 1 && topLevel.match(/\.(md|txt)$/i);
     if (!isRootFile && !validPaths.includes(topLevel)) {
@@ -90,7 +90,7 @@ function sanitizePath(userPath: string): string {
 function extractTitle(content: string): string {
   // Look for first # heading
   const match = content.match(/^#\s+(.+)$/m);
-  if (match) {
+  if (match && match[1]) {
     return match[1].trim();
   }
   return 'Untitled';
@@ -272,7 +272,7 @@ export async function listDocs(req: Request, res: Response): Promise<void> {
  */
 export async function getDoc(req: Request, res: Response): Promise<void> {
   try {
-    const userPath = req.params.path || req.params[0] || '';
+    const userPath = req.params['path'] || req.params[0] || '';
     const sanitized = sanitizePath(userPath);
 
     // Ensure .md extension if not provided
@@ -333,7 +333,7 @@ export async function getDoc(req: Request, res: Response): Promise<void> {
  */
 export async function searchDocs(req: Request, res: Response): Promise<void> {
   try {
-    const query = req.query.q as string;
+    const query = req.query['q'] as string;
 
     if (!query || query.trim().length < 2) {
       res.status(400).json({
@@ -410,7 +410,7 @@ export async function searchDocs(req: Request, res: Response): Promise<void> {
  */
 export async function getDocsByCategory(req: Request, res: Response): Promise<void> {
   try {
-    const category = req.params.category;
+    const category = req.params['category'];
 
     log.info('Retrieving documentation by category', {
       category,

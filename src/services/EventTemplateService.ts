@@ -2,8 +2,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma, EventTemplate, Event, Contest, Category } from '@prisma/client';
 
-// Prisma payload types
-type EventTemplateWithCreator = Prisma.EventTemplateGetPayload<{
+// Prisma payload types - Export all for external use
+export type EventTemplateWithCreator = Prisma.EventTemplateGetPayload<{
   include: {
     creator: {
       select: {
@@ -15,19 +15,19 @@ type EventTemplateWithCreator = Prisma.EventTemplateGetPayload<{
   };
 }>;
 
-type UserCreatorInfo = {
+export type UserCreatorInfo = {
   id: string;
   name: string | null;
   email: string;
 };
 
 // Template data structure interfaces
-interface CriterionTemplate {
+export interface CriterionTemplate {
   name: string;
   maxScore: number;
 }
 
-interface CategoryTemplate {
+export interface CategoryTemplate {
   id?: string;
   contestId?: string;
   name: string;
@@ -39,14 +39,14 @@ interface CategoryTemplate {
   criteria?: CriterionTemplate[];
 }
 
-interface ContestTemplate {
+export interface ContestTemplate {
   id?: string;
   name: string;
   description?: string;
 }
 
 // DTO interfaces
-interface CreateTemplateDto {
+export interface CreateTemplateDto {
   name: string;
   description?: string;
   contests: ContestTemplate[];
@@ -55,14 +55,14 @@ interface CreateTemplateDto {
   tenantId: string;
 }
 
-interface UpdateTemplateDto {
+export interface UpdateTemplateDto {
   name: string;
   description?: string;
   contests: ContestTemplate[];
   categories: CategoryTemplate[];
 }
 
-interface CreateEventFromTemplateDto {
+export interface CreateEventFromTemplateDto {
   templateId: string;
   eventName: string;
   eventDescription?: string;
@@ -72,7 +72,7 @@ interface CreateEventFromTemplateDto {
 }
 
 // Response interfaces
-interface TemplateResponse {
+export interface TemplateResponse {
   id: string;
   name: string;
   description: string | null;
@@ -81,12 +81,12 @@ interface TemplateResponse {
   createdAt: Date;
 }
 
-interface TemplateWithCreatorResponse extends TemplateResponse {
+export interface TemplateWithCreatorResponse extends TemplateResponse {
   creator: UserCreatorInfo;
   updatedAt: Date;
 }
 
-interface TemplateUpdateResponse {
+export interface TemplateUpdateResponse {
   id: string;
   name: string;
   description: string | null;
@@ -95,7 +95,7 @@ interface TemplateUpdateResponse {
   updatedAt: Date;
 }
 
-interface EventCreationResponse {
+export interface EventCreationResponse {
   id: string;
   name: string;
   description: string | null;

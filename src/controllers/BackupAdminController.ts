@@ -64,7 +64,7 @@ export class BackupAdminController {
    */
   async getStats(req: Request, res: Response): Promise<void> {
     try {
-      const days = parseInt(req.query.days as string, 10) || 30;
+      const days = parseInt(req.query['days'] as string, 10) || 30;
       const stats = await backupMonitoringService.getBackupStats(days);
 
       // Convert BigInt to string
@@ -93,7 +93,7 @@ export class BackupAdminController {
    */
   async getLatest(req: Request, res: Response): Promise<void> {
     try {
-      const type = req.query.type as string | undefined;
+      const type = req.query['type'] as string | undefined;
       const latest = await backupMonitoringService.getLatestBackup(type);
 
       if (!latest) {
@@ -234,7 +234,7 @@ export class BackupAdminController {
    */
   async getSizeTrend(req: Request, res: Response): Promise<void> {
     try {
-      const days = parseInt(req.query.days as string, 10) || 30;
+      const days = parseInt(req.query['days'] as string, 10) || 30;
       const trend = await backupMonitoringService.getBackupSizeTrend(days);
 
       res.json({
@@ -400,7 +400,7 @@ export class BackupAdminController {
    */
   async cleanupLogs(req: Request, res: Response): Promise<void> {
     try {
-      const days = parseInt(req.query.days as string, 10) || 90;
+      const days = parseInt(req.query['days'] as string, 10) || 90;
       const count = await backupMonitoringService.cleanupOldLogs(days);
 
       res.json({

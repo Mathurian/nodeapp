@@ -26,7 +26,7 @@ export class PerformanceController {
         responseTime,
         statusCode: res.statusCode,
         userId: user?.id || null,
-        eventId: (req.query?.eventId as string) || null,
+        eventId: (req.query?.['eventId'] as string) || null,
         // tenantId removed - column doesn't exist in performance_logs table
       });
     });

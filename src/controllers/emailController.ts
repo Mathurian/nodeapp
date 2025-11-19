@@ -44,10 +44,10 @@ export class EmailController {
 
   getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const type = req.query.type as string | undefined;
-      const eventId = req.query.eventId as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const type = req.query['type'] as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
 
       const skip = (page - 1) * limit;
       const where: any = {};
@@ -177,8 +177,8 @@ export class EmailController {
   getCampaigns = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Email campaigns would be tracked through email logs
-      const limit = parseInt(req.query.limit as string) || 50;
-      const status = req.query.status as string | undefined;
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const status = req.query['status'] as string | undefined;
 
       const where: any = {};
       if (status) where.status = status;
@@ -246,9 +246,9 @@ export class EmailController {
 
   getLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 100;
-      const status = req.query.status as string | undefined;
+      const page = parseInt(req.query['page'] as string) || 1;
+      const limit = parseInt(req.query['limit'] as string) || 100;
+      const status = req.query['status'] as string | undefined;
 
       const skip = (page - 1) * limit;
       const where: any = {};

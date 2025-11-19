@@ -6,6 +6,8 @@
  * - Disabled mode (skip all scanning)
  */
 
+import { env } from './env';
+
 export type ClamAVMode = 'docker' | 'native-tcp' | 'native-socket' | 'disabled';
 
 export interface VirusScanConfig {
@@ -29,17 +31,17 @@ export interface VirusScanConfig {
  */
 export const detectClamAVMode = (): ClamAVMode => {
   // Check if explicitly disabled
-  if (process.env.CLAMAV_ENABLED === 'false') {
+  if (env.get('CLAMAV_ENABLED') === false) {
     return 'disabled';
   }
 
   // Check for Unix socket path (common for native installations)
-  if (process.env.CLAMAV_SOCKET) {
+  if (env.get('CLAMAV_SOCKET')) {
     return 'native-socket';
   }
 
   // Check if in Docker environment
-  if (process.env.CLAMAV_HOST === 'clamav' || process.env.DOCKER_ENV === 'true') {
+  if (env.get('CLAMAV_HOST') === 'clamav' || process.env['DOCKER_ENV'] === 'true') {
     return 'docker';
   }
 
@@ -72,12 +74,12 @@ export const detectClamAVMode = (): ClamAVMode => {
  */
 export const getVirusScanConfig = (): VirusScanConfig => {
   const mode = detectClamAVMode();
-  const enabled = process.env.CLAMAV_ENABLED !== 'false';
+  const enabled = env.get('CLAMAV_ENABLED');
 
   // Determine socket path
   let socketPath: string | undefined;
   if (mode === 'native-socket') {
-    socketPath = process.env.CLAMAV_SOCKET;
+    socketPath = env.get('CLAMAV_SOCKET');
 
     if (!socketPath) {
       // Auto-detect common socket paths
@@ -106,17 +108,17 @@ export const getVirusScanConfig = (): VirusScanConfig => {
   return {
     enabled,
     mode,
-    host: process.env.CLAMAV_HOST || 'localhost',
-    port: parseInt(process.env.CLAMAV_PORT || '3310', 10),
+    host: env.get('CLAMAV_HOST'),
+    port: env.get('CLAMAV_PORT'),
     socketPath,
-    timeout: parseInt(process.env.CLAMAV_TIMEOUT || '60000', 10), // 60 seconds
-    maxFileSize: parseInt(process.env.CLAMAV_MAX_FILE_SIZE || '52428800', 10), // 50MB
-    quarantinePath: process.env.QUARANTINE_PATH || './quarantine',
-    scanOnUpload: process.env.SCAN_ON_UPLOAD !== 'false',
-    removeInfected: process.env.REMOVE_INFECTED === 'true',
-    notifyOnInfection: process.env.NOTIFY_ON_INFECTION !== 'false',
-    fallbackBehavior: (process.env.CLAMAV_FALLBACK_BEHAVIOR as 'allow' | 'reject') || 'allow',
-    connectionRetries: parseInt(process.env.CLAMAV_CONNECTION_RETRIES || '3', 10),
+    timeout: env.get('CLAMAV_TIMEOUT'),
+    maxFileSize: env.get('CLAMAV_MAX_FILE_SIZE'),
+    quarantinePath: process.env['QUARANTINE_PATH'] || './quarantine',
+    scanOnUpload: process.env['SCAN_ON_UPLOAD'] !== 'false',
+    removeInfected: process.env['REMOVE_INFECTED'] === 'true',
+    notifyOnInfection: process.env['NOTIFY_ON_INFECTION'] !== 'false',
+    fallbackBehavior: env.get('CLAMAV_FALLBACK_BEHAVIOR'),
+    connectionRetries: parseInt(process.env['CLAMAV_CONNECTION_RETRIES'] || '3', 10),
   };
 };
 

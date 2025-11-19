@@ -181,8 +181,8 @@ export class SearchService {
     const dateCounts = new Map<string, number>();
 
     results.forEach((result) => {
-      if (result.metadata?.startDate) {
-        const date = new Date(result.metadata.startDate).toISOString().split('T')[0];
+      if (result.metadata?.['startDate']) {
+        const date = new Date(result.metadata['startDate']).toISOString().split('T')[0];
         const count = dateCounts.get(date) || 0;
         dateCounts.set(date, count + 1);
       }
@@ -200,8 +200,8 @@ export class SearchService {
     const roleCounts = new Map<string, number>();
 
     results.forEach((result) => {
-      if (result.metadata?.role) {
-        const role = result.metadata.role;
+      if (result.metadata?.['role']) {
+        const role = result.metadata['role'];
         const count = roleCounts.get(role) || 0;
         roleCounts.set(role, count + 1);
       }
@@ -219,8 +219,8 @@ export class SearchService {
     const statusCounts = new Map<string, number>();
 
     results.forEach((result) => {
-      if (result.metadata?.status) {
-        const status = result.metadata.status;
+      if (result.metadata?.['status']) {
+        const status = result.metadata['status'];
         const count = statusCounts.get(status) || 0;
         statusCounts.set(status, count + 1);
       }

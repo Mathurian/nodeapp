@@ -25,17 +25,17 @@ export class ScoringController {
   getScores = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const categoryId = req.params.categoryId!;
-      const contestantId = req.params.contestantId;
+      const categoryId = req.params['categoryId']!;
+      const contestantId = req.params['contestantId'];
 
       log.debug('Fetching scores', { categoryId, contestantId });
 
-      const scores = await this.scoringService.getScoresByCategory(categoryId, contestantId);
+      const scores = await this.scoringService.getScoresByCategory(categoryId, contestantId!);
 
       log.info('Scores retrieved successfully', { categoryId, contestantId, count: scores.length });
       sendSuccess(res, scores);
     } catch (error) {
-      log.error('Get scores error', { error: (error as Error).message, categoryId: req.params.categoryId });
+      log.error('Get scores error', { error: (error as Error).message, categoryId: req.params['categoryId'] });
       return next(error);
     }
   };
@@ -46,8 +46,8 @@ export class ScoringController {
   submitScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const categoryId = req.params.categoryId!;
-      const contestantId = req.params.contestantId!;
+      const categoryId = req.params['categoryId']!;
+      const contestantId = req.params['contestantId']!;
       const { criteriaId, score, comments } = req.body;
 
       if (!req.user) {
@@ -88,7 +88,7 @@ export class ScoringController {
   updateScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const scoreId = req.params.scoreId!;
+      const scoreId = req.params['scoreId']!;
       const { score, comments } = req.body;
 
       const data: UpdateScoreDTO = {
@@ -103,7 +103,7 @@ export class ScoringController {
       log.info('Score updated successfully', { scoreId });
       sendSuccess(res, updatedScore);
     } catch (error) {
-      log.error('Update score error', { error: (error as Error).message, scoreId: req.params.scoreId });
+      log.error('Update score error', { error: (error as Error).message, scoreId: req.params['scoreId'] });
       return next(error);
     }
   };
@@ -114,7 +114,7 @@ export class ScoringController {
   deleteScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const scoreId = req.params.scoreId!;
+      const scoreId = req.params['scoreId']!;
 
       log.info('Score deletion requested', { scoreId });
 
@@ -123,7 +123,7 @@ export class ScoringController {
       log.info('Score deleted successfully', { scoreId });
       sendNoContent(res);
     } catch (error) {
-      log.error('Delete score error', { error: (error as Error).message, scoreId: req.params.scoreId });
+      log.error('Delete score error', { error: (error as Error).message, scoreId: req.params['scoreId'] });
       return next(error);
     }
   };
@@ -134,7 +134,7 @@ export class ScoringController {
   certifyScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const scoreId = req.params.scoreId!;
+      const scoreId = req.params['scoreId']!;
 
       if (!req.user) {
         sendError(res, 'User not authenticated', 401);
@@ -148,7 +148,7 @@ export class ScoringController {
       log.info('Score certified successfully', { scoreId });
       sendSuccess(res, certifiedScore);
     } catch (error) {
-      log.error('Certify score error', { error: (error as Error).message, scoreId: req.params.scoreId });
+      log.error('Certify score error', { error: (error as Error).message, scoreId: req.params['scoreId'] });
       return next(error);
     }
   };
@@ -159,7 +159,7 @@ export class ScoringController {
   certifyScores = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const categoryId = req.params.categoryId!;
+      const categoryId = req.params['categoryId']!;
 
       if (!req.user) {
         sendError(res, 'User not authenticated', 401);
@@ -173,7 +173,7 @@ export class ScoringController {
       log.info('Category scores certified successfully', { categoryId, certified: result.certified });
       sendSuccess(res, result);
     } catch (error) {
-      log.error('Certify scores error', { error: (error as Error).message, categoryId: req.params.categoryId });
+      log.error('Certify scores error', { error: (error as Error).message, categoryId: req.params['categoryId'] });
       return next(error);
     }
   };
@@ -184,7 +184,7 @@ export class ScoringController {
   unsignScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const scoreId = req.params.scoreId!;
+      const scoreId = req.params['scoreId']!;
 
       log.info('Score unsigned requested', { scoreId });
 
@@ -193,7 +193,7 @@ export class ScoringController {
       log.info('Score unsigned successfully', { scoreId });
       sendSuccess(res, unsignedScore);
     } catch (error) {
-      log.error('Unsign score error', { error: (error as Error).message, scoreId: req.params.scoreId });
+      log.error('Unsign score error', { error: (error as Error).message, scoreId: req.params['scoreId'] });
       return next(error);
     }
   };
@@ -204,7 +204,7 @@ export class ScoringController {
   getScoresByJudge = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const judgeId = req.params.judgeId!;
+      const judgeId = req.params['judgeId']!;
 
       log.debug('Fetching scores by judge', { judgeId });
 
@@ -213,7 +213,7 @@ export class ScoringController {
       log.info('Scores by judge retrieved successfully', { judgeId, count: scores.length });
       sendSuccess(res, scores);
     } catch (error) {
-      log.error('Get scores by judge error', { error: (error as Error).message, judgeId: req.params.judgeId });
+      log.error('Get scores by judge error', { error: (error as Error).message, judgeId: req.params['judgeId'] });
       return next(error);
     }
   };
@@ -224,7 +224,7 @@ export class ScoringController {
   getScoresByContestant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const contestantId = req.params.contestantId!;
+      const contestantId = req.params['contestantId']!;
 
       log.debug('Fetching scores by contestant', { contestantId });
 
@@ -235,7 +235,7 @@ export class ScoringController {
     } catch (error) {
       log.error('Get scores by contestant error', {
         error: (error as Error).message,
-        contestantId: req.params.contestantId
+        contestantId: req.params['contestantId']
       });
       return next(error);
     }
@@ -247,7 +247,7 @@ export class ScoringController {
   getScoresByContest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const contestId = req.params.contestId!;
+      const contestId = req.params['contestId']!;
 
       log.debug('Fetching scores by contest', { contestId });
 
@@ -256,7 +256,7 @@ export class ScoringController {
       log.info('Scores by contest retrieved successfully', { contestId, count: scores.length });
       sendSuccess(res, scores);
     } catch (error) {
-      log.error('Get scores by contest error', { error: (error as Error).message, contestId: req.params.contestId });
+      log.error('Get scores by contest error', { error: (error as Error).message, contestId: req.params['contestId'] });
       return next(error);
     }
   };
@@ -267,7 +267,7 @@ export class ScoringController {
   getContestStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
-      const contestId = req.params.contestId!;
+      const contestId = req.params['contestId']!;
 
       log.debug('Fetching contest statistics', { contestId });
 
@@ -276,15 +276,15 @@ export class ScoringController {
       log.info('Contest statistics retrieved successfully', { contestId });
       sendSuccess(res, stats);
     } catch (error) {
-      log.error('Get contest stats error', { error: (error as Error).message, contestId: req.params.contestId });
+      log.error('Get contest stats error', { error: (error as Error).message, contestId: req.params['contestId'] });
       return next(error);
     }
   };
 
   getCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const contestId = req.query.contestId as string | undefined;
-      const eventId = req.query.eventId as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
 
       const where: Prisma.CategoryWhereInput = {
         tenantId: req.user!.tenantId
@@ -337,7 +337,7 @@ export class ScoringController {
 
       // Check if category exists
       const category = await this.prisma.category.findUnique({
-        where: { id: categoryId }
+        where: { id: categoryId! }
       });
 
       if (!category) {
@@ -349,12 +349,12 @@ export class ScoringController {
         where: {
           tenantId_categoryId_role: {
             tenantId: req.user!.tenantId,
-            categoryId,
+            categoryId: categoryId!,
             role: 'TALLY_MASTER'
           }
         },
         create: {
-          categoryId,
+          categoryId: categoryId!,
           role: 'TALLY_MASTER',
           userId: req.user.id,
           signatureName: signatureName || null,
@@ -399,7 +399,7 @@ export class ScoringController {
         where: {
           tenantId_categoryId_role: {
             tenantId: req.user!.tenantId,
-            categoryId,
+            categoryId: categoryId!,
             role: 'TALLY_MASTER'
           }
         }
@@ -414,12 +414,12 @@ export class ScoringController {
         where: {
           tenantId_categoryId_role: {
             tenantId: req.user!.tenantId,
-            categoryId,
+            categoryId: categoryId!,
             role: 'AUDITOR'
           }
         },
         create: {
-          categoryId,
+          categoryId: categoryId!,
           role: 'AUDITOR',
           userId: req.user.id,
           signatureName: signatureName || null,
@@ -495,7 +495,7 @@ export class ScoringController {
       }
 
       const deduction = await this.prisma.deductionRequest.findUnique({
-        where: { id: deductionId }
+        where: { id: deductionId! }
       });
 
       if (!deduction) {
@@ -509,7 +509,7 @@ export class ScoringController {
       // Create approval record
       await this.prisma.deductionApproval.create({
         data: {
-          requestId: deductionId,
+          requestId: deductionId!,
           approvedById: req.user.id,
           role: req.user.role,
           isHeadJudge: isHeadJudge || false,
@@ -519,7 +519,7 @@ export class ScoringController {
 
       // Update deduction request status to APPROVED
       const updated = await this.prisma.deductionRequest.update({
-        where: { id: deductionId },
+        where: { id: deductionId! },
         data: { status: 'APPROVED' },
         // include removed - no relations in schema
       });
@@ -564,9 +564,9 @@ export class ScoringController {
 
   getDeductions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const status = req.query.status as string | undefined;
-      const categoryId = req.query.categoryId as string | undefined;
-      const contestantId = req.query.contestantId as string | undefined;
+      const status = req.query['status'] as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
+      const contestantId = req.query['contestantId'] as string | undefined;
 
       const where: any = {};
       if (status) where.status = status;

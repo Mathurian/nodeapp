@@ -12,6 +12,7 @@ import { sendSuccess } from '../utils/responseHelpers';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import { env } from '../config/env';
 
 // Get services from container
 const getScheduledBackupService = (): ScheduledBackupService => {
@@ -53,7 +54,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     });
 
     // Parse DATABASE_URL
-    const dbUrl = new URL(process.env.DATABASE_URL || '');
+    const dbUrl = new URL(env.get('DATABASE_URL') || '');
     const host = dbUrl.hostname;
     const port = dbUrl.port || '5432';
     const database = dbUrl.pathname.slice(1).split('?')[0];
@@ -179,7 +180,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const dbUrl = new URL(process.env.DATABASE_URL || '');
+    const dbUrl = new URL(env.get('DATABASE_URL') || '');
     const host = dbUrl.hostname;
     const port = dbUrl.port || '5432';
     const database = dbUrl.pathname.slice(1).split('?')[0];
@@ -210,7 +211,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
 export const deleteBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { filename } = req.params;
-    const filepath = path.join('backups', filename);
+    const filepath = path.join('backups', filename!);
 
     if (!fs.existsSync(filepath)) {
       res.status(404).json({ error: 'Backup file not found' });
@@ -357,7 +358,7 @@ export const debugBackupSettings = async (_req: Request, res: Response, next: Ne
     sendSuccess(res, {
       settings,
       schedules,
-      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'not configured'
+      databaseUrl: env.get('DATABASE_URL') ? 'configured' : 'not configured'
     });
   } catch (error: any) {
     return next(error);

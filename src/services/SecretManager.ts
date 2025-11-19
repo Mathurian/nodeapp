@@ -15,6 +15,7 @@ import {
 } from '../types/secrets.types';
 import { LocalSecretStore } from './secrets/LocalSecretStore';
 import { EnvSecretStore } from './secrets/EnvSecretStore';
+import { env } from '../config/env';
 
 @injectable()
 export class SecretManager {
@@ -47,14 +48,14 @@ export class SecretManager {
    * Load secrets configuration from environment
    */
   private loadConfiguration(): SecretsProviderConfig {
-    const provider = (process.env.SECRETS_PROVIDER || 'env') as 'local' | 'env' | 'aws' | 'vault';
+    const provider = (env.get('SECRETS_PROVIDER') || 'env') as 'local' | 'env' | 'aws' | 'vault';
 
     const config: SecretsProviderConfig = {
       provider,
       rotation: {
-        enabled: process.env.SECRETS_ROTATION_ENABLED === 'true',
-        intervalDays: parseInt(process.env.SECRETS_ROTATION_INTERVAL_DAYS || '90', 10),
-        notifyBeforeDays: parseInt(process.env.SECRETS_ROTATION_NOTIFY_DAYS || '7', 10),
+        enabled: env.get('SECRETS_ROTATION_ENABLED') === 'true',
+        intervalDays: parseInt(env.get('SECRETS_ROTATION_INTERVAL_DAYS') || '90', 10),
+        notifyBeforeDays: parseInt(env.get('SECRETS_ROTATION_NOTIFY_DAYS') || '7', 10),
       },
     };
 
@@ -62,29 +63,29 @@ export class SecretManager {
     switch (provider) {
       case 'local':
         config.local = {
-          encryptionKey: process.env.SECRETS_ENCRYPTION_KEY,
-          storePath: process.env.SECRETS_STORE_PATH || './secrets.encrypted',
-          backupPath: process.env.SECRETS_BACKUP_PATH || './backups/secrets',
-          autoBackup: process.env.SECRETS_AUTO_BACKUP !== 'false',
+          encryptionKey: env.get('SECRETS_ENCRYPTION_KEY'),
+          storePath: env.get('SECRETS_STORE_PATH') || './secrets.encrypted',
+          backupPath: env.get('SECRETS_BACKUP_PATH') || './backups/secrets',
+          autoBackup: env.get('SECRETS_AUTO_BACKUP') !== 'false',
         };
         break;
 
       case 'aws':
         config.aws = {
-          region: process.env.AWS_REGION || 'us-east-1',
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          prefix: process.env.AWS_SECRETS_PREFIX || 'event-manager',
+          region: env.get('AWS_REGION') || 'us-east-1',
+          accessKeyId: env.get('AWS_ACCESS_KEY_ID'),
+          secretAccessKey: env.get('AWS_SECRET_ACCESS_KEY'),
+          prefix: env.get('AWS_SECRETS_PREFIX') || 'event-manager',
         };
         break;
 
       case 'vault':
         config.vault = {
-          address: process.env.VAULT_ADDR || 'http://localhost:8200',
-          token: process.env.VAULT_TOKEN,
-          namespace: process.env.VAULT_NAMESPACE,
-          path: process.env.VAULT_PATH || 'secret',
-          version: (process.env.VAULT_KV_VERSION || 'v2') as 'v1' | 'v2',
+          address: env.get('VAULT_ADDR') || 'http://localhost:8200',
+          token: env.get('VAULT_TOKEN'),
+          namespace: env.get('VAULT_NAMESPACE'),
+          path: env.get('VAULT_PATH') || 'secret',
+          version: (env.get('VAULT_KV_VERSION') || 'v2') as 'v1' | 'v2',
         };
         break;
 

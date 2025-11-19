@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../utils/prisma';
+import { env } from '../config/env';
 
 const logActivity = (action: string, resourceType: string | null = null, resourceId: string | null = null) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -20,13 +21,13 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
             let finalResourceId = resourceId
             if (!finalResourceId && req.params) {
               // Try common parameter names
-              finalResourceId = req.params.id || 
-                               req.params.userId || 
-                               req.params.eventId || 
-                               req.params.contestId || 
-                               req.params.categoryId || 
-                               req.params.scoreId ||
-                               req.params.deductionId ||
+              finalResourceId = req.params['id'] || 
+                               req.params['userId'] || 
+                               req.params['eventId'] || 
+                               req.params['contestId'] || 
+                               req.params['categoryId'] || 
+                               req.params['scoreId'] ||
+                               req.params['deductionId'] ||
                                null
             }
             
@@ -109,7 +110,7 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
   console.error('[ERROR]', {
     ...errorDetails,
     // Exclude stack trace from console in production
-    stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
+    stack: env.isProduction() ? undefined : error.stack,
   })
 
   // Log critical errors to database asynchronously
@@ -220,10 +221,10 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
   res.status(statusCode).json({
     success: false,
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message,
+    message: env.isProduction() ? 'An unexpected error occurred' : error.message,
     timestamp: new Date().toISOString(),
     // Include stack trace only in development
-    ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+    ...(!env.isProduction() && { stack: error.stack }),
   })
 }
 

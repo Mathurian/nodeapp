@@ -6,11 +6,12 @@ import {
   getFileStats
 } from '../controllers/fileController';
 import { authenticateToken } from '../middleware/auth';
+import { env } from '../config/env';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
-    cb(null, process.env.UPLOAD_DIR || 'uploads/');
+    cb(null, env.get('UPLOAD_DIR') || 'uploads/');
   },
   filename: function (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

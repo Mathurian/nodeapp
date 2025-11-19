@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { AdvancedReportingService } from '../services/AdvancedReportingService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient, Prisma, Event, Contest, Category, Judge, Contestant, Score } from '@prisma/client';
+import { PrismaClient, Prisma, Event, Contest, Category, Score } from '@prisma/client';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -10,6 +10,7 @@ interface AuthenticatedRequest extends Request {
     tenantId: string;
     role: string;
   };
+  tenantId?: string;
 }
 
 interface EventWithContests extends Event {
@@ -71,7 +72,7 @@ export class AdvancedReportingController {
   generateSummaryReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId } = req.params;
-      const report = await this.advancedReportingService.generateSummaryReport(eventId);
+      const report = await this.advancedReportingService.generateSummaryReport(eventId!);
       return sendSuccess(res, report);
     } catch (error) {
       return next(error);
@@ -197,8 +198,8 @@ export class AdvancedReportingController {
     try {
       const authReq = req as AuthenticatedRequest;
       const { judgeId } = authReq.params;
-      const eventId = authReq.query.eventId as string | undefined;
-      const contestId = authReq.query.contestId as string | undefined;
+      const eventId = authReq.query['eventId'] as string | undefined;
+      const contestId = authReq.query['contestId'] as string | undefined;
 
       if (!judgeId) {
         return sendSuccess(res, {}, 'judgeId is required', 400);
@@ -303,7 +304,7 @@ export class AdvancedReportingController {
           };
         }
         acc[catId].count++;
-        acc[catId].total += score.score;
+        acc[catId].total += score.score || 0;
         acc[catId].avg = acc[catId].total / acc[catId].count;
         return acc;
       }, {});
@@ -339,7 +340,7 @@ export class AdvancedReportingController {
   generateSystemAnalyticsReport = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const authReq = req as AuthenticatedRequest;
-      const days = parseInt(authReq.query.days as string) || 30;
+      const days = parseInt(authReq.query['days'] as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       // Get comprehensive system statistics

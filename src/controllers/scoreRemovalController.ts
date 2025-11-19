@@ -31,7 +31,7 @@ export class ScoreRemovalController {
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
-      const requests = await this.scoreRemovalService.getAll(status as string | undefined, req.user!.tenantId);
+      const requests = await this.scoreRemovalService.getAll(status as string, req.user!.tenantId);
       return sendSuccess(res, requests);
     } catch (error) {
       return next(error);

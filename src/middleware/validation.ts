@@ -52,13 +52,13 @@ export function validateMultiple(schemas: {
     try {
       const reqWithValidation = req as Record<string, unknown>;
       if (schemas.body) {
-        reqWithValidation.body = await schemas.body.parseAsync(req.body);
+        reqWithValidation['body'] = await schemas.body['parseAsync'](req.body);
       }
       if (schemas.query) {
-        reqWithValidation.query = await schemas.query.parseAsync(req.query);
+        reqWithValidation['query'] = await schemas.query['parseAsync'](req.query);
       }
       if (schemas.params) {
-        reqWithValidation.params = await schemas.params.parseAsync(req.params);
+        reqWithValidation['params'] = await schemas.params['parseAsync'](req.params);
       }
       next();
     } catch (error) {

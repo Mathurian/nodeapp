@@ -26,6 +26,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { createClient } from 'redis';
 import { logger } from '../utils/logger';
+import { env } from './env';
 
 /**
  * Redis clients for Socket.IO adapter
@@ -38,8 +39,8 @@ let subClient: ReturnType<typeof createClient>;
  */
 export async function setupRedisAdapter(io: SocketIOServer): Promise<void> {
   try {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    const enableClustering = process.env.SOCKET_IO_CLUSTERING_ENABLED === 'true';
+    const redisUrl = env.get('REDIS_URL') || 'redis://localhost:6379';
+    const enableClustering = process.env['SOCKET_IO_CLUSTERING_ENABLED'] === 'true';
 
     if (!enableClustering) {
       logger.info('Socket.IO clustering disabled (SOCKET_IO_CLUSTERING_ENABLED !== true)');

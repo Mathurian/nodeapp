@@ -266,7 +266,7 @@ export class AssignmentService extends BaseService {
     // Convert CategoryJudge entries to assignment-like objects
     const categoryJudgeAssignments = categoryJudges
       .map((cj) => {
-        const contest = cj.category.contest;
+        const contest = cj['category'].contest;
         const event = contest.event;
 
         // Apply filters
@@ -284,12 +284,12 @@ export class AssignmentService extends BaseService {
           assignedBy: null,
           notes: null,
           priority: 0,
-          judge: cj.judge,
+          judge: cj['judge'],
           category: {
-            id: cj.category.id,
-            name: cj.category.name,
-            description: cj.category.description,
-            scoreCap: cj.category.scoreCap,
+            id: cj['category'].id,
+            name: cj['category'].name,
+            description: cj['category'].description,
+            scoreCap: cj['category'].scoreCap,
           },
           contest: {
             id: contest.id,
