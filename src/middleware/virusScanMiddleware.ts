@@ -4,14 +4,27 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { container } from 'tsyringe';
 import { getVirusScanService } from '../services/VirusScanService';
 import { ScanStatus } from '../config/virus-scan.config';
+import { EmailService } from '../services/EmailService';
 import * as fs from 'fs';
 
 export interface VirusScanMiddlewareOptions {
   deleteOnInfection?: boolean;
   blockOnError?: boolean;
   scanBuffers?: boolean;
+}
+
+/**
+ * Format file size in bytes to human-readable format
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
 /**
@@ -90,6 +103,39 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
           filename: file.originalname,
           virus: result.virus,
         })));
+
+        // Send email notification to security team (non-blocking)
+        try {
+          const emailService = container.resolve(EmailService);
+
+          // Send email for each infected file
+          infectedFiles.forEach(async ({ file, result }) => {
+            try {
+              // Extract user information from request if available
+              const user = (req as any).user;
+              const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown';
+              const userAgent = req.get('user-agent');
+
+              await emailService.sendVirusAlertEmail({
+                filename: file.originalname,
+                virusName: result.virus || 'Unknown Threat',
+                fileSize: formatFileSize(file.size),
+                timestamp: new Date().toISOString(),
+                username: user?.username || user?.name,
+                userEmail: user?.email,
+                ipAddress,
+                userAgent,
+              });
+
+              console.log(`Virus alert email sent for infected file: ${file.originalname}`);
+            } catch (emailError) {
+              // Don't break the flow if email fails
+              console.error('Failed to send virus alert email:', emailError);
+            }
+          });
+        } catch (error) {
+          console.error('Failed to initialize EmailService for virus alert:', error);
+        }
 
         // Delete infected files
         if (deleteOnInfection) {

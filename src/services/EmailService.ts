@@ -444,4 +444,53 @@ export class EmailService extends BaseService {
       variables
     );
   }
+
+  /**
+   * Send virus alert email to security team
+   *
+   * @param details - Virus scan details including filename, virus name, user info, etc.
+   * @returns Promise<EmailSendResult>
+   */
+  async sendVirusAlertEmail(details: {
+    filename: string;
+    virusName: string;
+    fileSize: string;
+    timestamp: string;
+    username?: string;
+    userEmail?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<EmailSendResult> {
+    const securityEmail = env.get('SECURITY_EMAIL');
+
+    if (!securityEmail) {
+      console.warn('SECURITY_EMAIL not configured - virus alert email not sent');
+      return {
+        success: false,
+        to: '',
+        subject: 'Security Alert: Virus Detected',
+        message: 'Security email not configured'
+      };
+    }
+
+    const variables: Record<string, any> = {
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+      filename: details.filename,
+      virusName: details.virusName || 'Unknown',
+      fileSize: details.fileSize,
+      timestamp: details.timestamp,
+      username: details.username || null,
+      userEmail: details.userEmail || null,
+      ipAddress: details.ipAddress || 'Unknown',
+      userAgent: details.userAgent || null,
+    };
+
+    return this.sendTemplatedEmail(
+      securityEmail,
+      `🚨 Security Alert: Virus Detected - ${details.virusName}`,
+      'virus-alert',
+      variables
+    );
+  }
 }

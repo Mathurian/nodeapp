@@ -101,6 +101,7 @@ interface EnvironmentConfig {
   SMTP_FROM_NAME: string;
   EMAIL_RATE_LIMIT: number;
   EMAIL_TEMPLATE_DIR: string;
+  SECURITY_EMAIL?: string;
 
   // Logging & Monitoring
   LOG_LEVEL: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
@@ -410,6 +411,7 @@ class EnvironmentConfiguration {
       SMTP_FROM_NAME: getString('SMTP_FROM_NAME', 'Event Manager'),
       EMAIL_RATE_LIMIT: parseInt(process.env['EMAIL_RATE_LIMIT'], 100),
       EMAIL_TEMPLATE_DIR: getString('EMAIL_TEMPLATE_DIR', 'src/templates/email'),
+      SECURITY_EMAIL: process.env['SECURITY_EMAIL'],
 
       // Logging & Monitoring
       LOG_LEVEL: (getString('LOG_LEVEL', 'info') as EnvironmentConfig['LOG_LEVEL']),
