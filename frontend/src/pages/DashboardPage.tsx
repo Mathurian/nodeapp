@@ -304,10 +304,10 @@ const DashboardPage: React.FC = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {activity.user.name}
+                            {activity.user?.name || 'Unknown User'}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {activity.action} {activity.resourceType.toLowerCase()}
+                            {activity.action} {activity.resourceType?.toLowerCase() || 'resource'}
                           </p>
                         </div>
                         <div className="ml-4 flex-shrink-0">
