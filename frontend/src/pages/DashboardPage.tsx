@@ -17,18 +17,24 @@ import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 
 interface DashboardStats {
-  events: number
-  contests: number
-  categories: number
-  users: number
-  contestants: number
-  judges: number
-  scores: number
-  activeUsers: number
+  totalUsers: number
+  totalEvents: number
+  totalContests: number
+  totalCategories: number
   totalScores: number
-  averageScore: number
-  completedCategories: number
+  activeUsers: number
   pendingCertifications: number
+  certificationBreakdown: {
+    judge: number
+    tallyMaster: number
+    auditor: number
+    board: number
+  }
+  systemHealth: 'HEALTHY' | 'WARNING' | 'CRITICAL'
+  lastBackup: string | null
+  databaseSize: string
+  uptime: string
+  uptimeSeconds: number
 }
 
 interface RecentActivity {
@@ -143,10 +149,14 @@ const DashboardPage: React.FC = () => {
   }
 
   const statCards = [
-    { label: 'Events', value: stats?.events || 0, icon: CalendarIcon, color: 'blue' },
-    { label: 'Contests', value: stats?.contests || 0, icon: TrophyIcon, color: 'green' },
-    { label: 'Categories', value: stats?.categories || 0, icon: ChartBarIcon, color: 'purple' },
-    { label: 'Active Users', value: stats?.activeUsers || 0, icon: UsersIcon, color: 'orange' },
+    { label: 'Total Events', value: stats?.totalEvents || 0, icon: CalendarIcon, color: 'blue' },
+    { label: 'Total Contests', value: stats?.totalContests || 0, icon: TrophyIcon, color: 'green' },
+    { label: 'Total Categories', value: stats?.totalCategories || 0, icon: ChartBarIcon, color: 'purple' },
+    { label: 'Total Users', value: stats?.totalUsers || 0, icon: UsersIcon, color: 'orange' },
+    { label: 'Total Scores', value: stats?.totalScores || 0, icon: ArrowTrendingUpIcon, color: 'blue' },
+    { label: 'Active Users (24h)', value: stats?.activeUsers || 0, icon: UsersIcon, color: 'green' },
+    { label: 'System Uptime', value: stats?.uptime || 'N/A', icon: ClockIcon, color: 'purple', isText: true },
+    { label: 'Database Size', value: stats?.databaseSize || 'N/A', icon: ChartBarIcon, color: 'orange', isText: true },
   ]
 
   const getActionColor = (color: string) => {
