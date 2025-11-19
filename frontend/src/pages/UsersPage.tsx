@@ -24,6 +24,7 @@ interface User {
   email: string
   role: string
   gender: string | null
+  pronouns?: string | null
   phone: string | null
   isActive: boolean
   lastLoginAt: string | null
@@ -40,6 +41,7 @@ interface UserFormData {
   password: string
   role: string
   gender: string
+  pronouns: string
   phone: string
   isActive: boolean
 }
@@ -74,6 +76,7 @@ const UsersPage: React.FC = () => {
     password: '',
     role: 'CONTESTANT',
     gender: '',
+    pronouns: '',
     phone: '',
     isActive: true,
   })
@@ -178,6 +181,7 @@ const UsersPage: React.FC = () => {
       password: '',
       role: 'CONTESTANT',
       gender: '',
+      pronouns: '',
       phone: '',
       isActive: true,
     })
@@ -194,6 +198,7 @@ const UsersPage: React.FC = () => {
       password: '', // Don't populate password for security
       role: user.role,
       gender: user.gender || '',
+      pronouns: (user as any).pronouns || '',
       phone: user.phone || '',
       isActive: user.isActive,
     })
@@ -562,29 +567,40 @@ const UsersPage: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Gender
                     </label>
-                    <select
+                    <input
+                      type="text"
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select...</option>
-                      <option value="MALE">Male</option>
-                      <option value="FEMALE">Female</option>
-                      <option value="OTHER">Other</option>
-                    </select>
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Male, Female, Non-binary, etc."
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Pronouns
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pronouns}
+                      onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., he/him, she/her, they/them"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center">
