@@ -4,14 +4,14 @@ import { AdvancedReportingService } from '../services/AdvancedReportingService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, Event, Contest, Category, Score } from '@prisma/client';
 
-interface AuthenticatedRequest extends Request {
+type AuthenticatedRequest = Request & {
   user?: {
     id: string;
     tenantId: string;
     role: string;
   };
   tenantId?: string;
-}
+};
 
 interface EventWithContests extends Event {
   contests: ContestWithCategories[];

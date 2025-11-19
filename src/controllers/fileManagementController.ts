@@ -46,15 +46,6 @@ interface BulkOperationResult {
   total: number;
 }
 
-interface IntegrityCheckResult {
-  id: string;
-  filename?: string;
-  integrity: 'OK' | 'FAILED' | 'NOT_FOUND' | 'ERROR';
-  reason?: string;
-  sizeMatch?: boolean;
-  checksumMatch?: boolean | null;
-}
-
 export class FileManagementController {
   private fileManagementService: FileManagementService;
   private prisma: PrismaClient;

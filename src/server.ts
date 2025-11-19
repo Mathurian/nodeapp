@@ -31,7 +31,7 @@ import { generalLimiter, authLimiter } from './middleware/rateLimiting';
 import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
-import { tenantMiddleware, optionalTenantMiddleware } from './middleware/tenantMiddleware';
+import { tenantMiddleware } from './middleware/tenantMiddleware';
 
 // Utilities
 import { createLogger } from './utils/logger';

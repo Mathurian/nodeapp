@@ -12,7 +12,7 @@ import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 
-interface AuthenticatedRequest extends Request {
+type AuthenticatedRequest = Request & {
   user?: {
     id: string;
     role: string;
@@ -20,7 +20,7 @@ interface AuthenticatedRequest extends Request {
   };
   tenantId?: string;
   file?: Express.Multer.File;
-}
+};
 
 interface UserWithRelations extends User {
   judge?: Judge | null;
@@ -130,29 +130,29 @@ export class UsersController {
       }
 
       // Create user with role-specific data
-      const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null> = {
+      const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
         name: data.name,
         email: data.email,
         password: data.password,
         role: data.role,
-        preferredName: data.preferredName || null,
-        gender: data.gender || null,
-        pronouns: data.pronouns || null,
-        phone: data.phone || null,
-        address: data.address || null,
-        bio: data.bio || null,
+        preferredName: data.preferredName ?? undefined,
+        gender: data.gender ?? undefined,
+        pronouns: data.pronouns ?? undefined,
+        phone: data.phone ?? undefined,
+        address: data.address ?? undefined,
+        bio: data.bio ?? undefined,
         isActive: true
       };
 
       // Add role-specific fields
       if (data.role === 'JUDGE') {
-        userData['judgeBio'] = data.bio || null;
-        userData['judgeCertifications'] = data.judgeLevel || null;
+        userData['judgeBio'] = data.bio ?? undefined;
+        userData['judgeCertifications'] = data.judgeLevel ?? undefined;
       } else if (data.role === 'CONTESTANT') {
-        userData['contestantBio'] = data.bio || null;
-        userData.contestantNumber = data.contestantNumber || null;
-        userData['contestantAge'] = data.age ? parseInt(String(data.age)) : null;
-        userData['contestantSchool'] = data.school || null;
+        userData['contestantBio'] = data.bio ?? undefined;
+        userData.contestantNumber = data.contestantNumber ?? undefined;
+        userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
+        userData['contestantSchool'] = data.school ?? undefined;
       }
 
       const user = await this.userService.createUser(userData as CreateUserDTO);
@@ -247,38 +247,38 @@ export class UsersController {
         newRole: data.role
       });
 
-      const userData: Partial<UpdateUserDTO> & Record<string, string | number | boolean | null> = {};
+      const userData: Partial<UpdateUserDTO> & Record<string, string | number | boolean | null | undefined> = {};
 
       if (data.name !== undefined) userData.name = data.name;
       if (data.email !== undefined) userData.email = data.email;
       if (data.role !== undefined) userData.role = data.role;
-      if (data.phone !== undefined) userData.phone = data.phone || null;
-      if (data.address !== undefined) userData.address = data.address || null;
-      if (data.city !== undefined) userData.city = data.city || null;
-      if (data.state !== undefined) userData.state = data.state || null;
-      if (data.country !== undefined) userData.country = data.country || null;
-      if (data.bio !== undefined) userData.bio = data.bio || null;
-      if (data.preferredName !== undefined) userData.preferredName = data.preferredName || null;
-      if (data.pronouns !== undefined) userData.pronouns = data.pronouns || null;
-      if (data.gender !== undefined) userData.gender = data.gender || null;
+      if (data.phone !== undefined) userData.phone = data.phone ?? undefined;
+      if (data.address !== undefined) userData.address = data.address ?? undefined;
+      if (data.city !== undefined) userData.city = data.city ?? undefined;
+      if (data.state !== undefined) userData.state = data.state ?? undefined;
+      if (data.country !== undefined) userData.country = data.country ?? undefined;
+      if (data.bio !== undefined) userData.bio = data.bio ?? undefined;
+      if (data.preferredName !== undefined) userData.preferredName = data.preferredName ?? undefined;
+      if (data.pronouns !== undefined) userData.pronouns = data.pronouns ?? undefined;
+      if (data.gender !== undefined) userData.gender = data.gender ?? undefined;
       if (data.isActive !== undefined) userData.isActive = data.isActive;
 
       // Add role-specific fields for User model
       if (data.role === 'JUDGE') {
-        if (data.bio !== undefined) userData['judgeBio'] = data.bio || null;
-        if (data.judgeLevel !== undefined) userData['judgeCertifications'] = data.judgeLevel || null;
+        if (data.bio !== undefined) userData['judgeBio'] = data.bio ?? undefined;
+        if (data.judgeLevel !== undefined) userData['judgeCertifications'] = data.judgeLevel ?? undefined;
       } else if (data.role === 'CONTESTANT') {
-        if (data.bio !== undefined) userData['contestantBio'] = data.bio || null;
-        if (data.contestantNumber !== undefined) userData.contestantNumber = data.contestantNumber || null;
-        if (data.age !== undefined) userData['contestantAge'] = data.age ? parseInt(String(data.age)) : null;
-        if (data.school !== undefined) userData['contestantSchool'] = data.school || null;
+        if (data.bio !== undefined) userData['contestantBio'] = data.bio ?? undefined;
+        if (data.contestantNumber !== undefined) userData.contestantNumber = data.contestantNumber ?? undefined;
+        if (data.age !== undefined) userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
+        if (data.school !== undefined) userData['contestantSchool'] = data.school ?? undefined;
       }
 
       // Update user
       log.debug('Updating user record', { userId: id });
       const user = await this.prisma.user.update({
         where: { id },
-        data: userData,
+        data: userData as Prisma.UserUpdateInput,
         include: {
           judge: true,
           contestant: true
@@ -582,7 +582,7 @@ export class UsersController {
         return sendNotFound(res, 'User not found');
       }
 
-      const updateData: Partial<User> & Record<string, string | number | boolean | null> = {};
+      const updateData: Partial<User> & Record<string, string | number | boolean | null | undefined> = {};
 
       // Update based on role
       if (currentUser.role === 'JUDGE') {
@@ -591,7 +591,7 @@ export class UsersController {
 
         // Also update linked Judge record if exists
         if (currentUser.judgeId) {
-          const judgeUpdateData: Partial<Judge> & Record<string, string | boolean | null> = {};
+          const judgeUpdateData: Partial<Judge> & Record<string, string | boolean | null | undefined> = {};
           if (roleFieldsData.bio !== undefined) judgeUpdateData.bio = roleFieldsData.bio;
           if (roleFieldsData.isHeadJudge !== undefined) judgeUpdateData.isHeadJudge = roleFieldsData.isHeadJudge;
           if (roleFieldsData.gender !== undefined) judgeUpdateData.gender = roleFieldsData.gender;
@@ -613,7 +613,7 @@ export class UsersController {
 
         // Also update linked Contestant record if exists
         if (currentUser.contestantId) {
-          const contestantUpdateData: Partial<Contestant> & Record<string, string | number | null> = {};
+          const contestantUpdateData: Partial<Contestant> & Record<string, string | number | null | undefined> = {};
           if (roleFieldsData.bio !== undefined) contestantUpdateData.bio = roleFieldsData.bio;
           if (roleFieldsData.contestantNumber !== undefined) contestantUpdateData.contestantNumber = roleFieldsData.contestantNumber;
           if (roleFieldsData.gender !== undefined) contestantUpdateData.gender = roleFieldsData.gender;
@@ -633,7 +633,7 @@ export class UsersController {
       if (Object.keys(updateData).length > 0) {
         const updatedUser = await this.prisma.user.update({
           where: { id },
-          data: updateData,
+          data: updateData as Prisma.UserUpdateInput,
           include: {
             judge: true,
             contestant: true
@@ -717,7 +717,7 @@ export class UsersController {
       }
 
       // Update user bio field with file path reference
-      const updateData: Partial<User> & Record<string, string | null> = {
+      const updateData: Partial<User> & Record<string, string | null | undefined> = {
         bio: `[Bio file uploaded: ${bioFilePath}]`
       };
 
@@ -729,7 +729,7 @@ export class UsersController {
 
       const updatedUser = await this.prisma.user.update({
         where: { id },
-        data: updateData,
+        data: updateData as Prisma.UserUpdateInput,
         include: {
           judge: true,
           contestant: true
@@ -766,15 +766,15 @@ export class UsersController {
 
       // Parse CSV file
       const csvContent = authReq.file.buffer.toString('utf-8');
-      const lines = csvContent.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
-      
+      const lines = csvContent.split('\n').filter((line: string) => line.trim() && !line.trim().startsWith('#'));
+
       if (lines.length < 2) {
         log.warn('Bulk upload failed: CSV file is empty or has no data rows');
         return sendError(res, 'CSV file must contain at least a header row and one data row', 400);
       }
 
       // Parse header row
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const headers = lines[0]!.split(',').map((h: string) => h.trim().toLowerCase());
       const requiredHeaders = ['name', 'email', 'password', 'role'];
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       
@@ -791,7 +791,7 @@ export class UsersController {
 
       // Process each row
       for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
+        const line = lines[i]!.trim();
         if (!line) continue;
 
         try {
@@ -805,8 +805,8 @@ export class UsersController {
           }
 
           // Build user data object
-          const userData: Record<string, string | number | boolean | null> = {};
-          headers.forEach((header, index) => {
+          const userData: Record<string, string | number | boolean | null | undefined> = {};
+          headers.forEach((header: string, index: number) => {
             const value = values[index]?.trim() || '';
             if (value) {
               // Map CSV headers to user data fields
@@ -887,7 +887,7 @@ export class UsersController {
 
           // Validate email format
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(userData['email'])) {
+          if (!emailRegex.test(userData['email'] as string)) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Invalid email format`);
             continue;
@@ -895,7 +895,7 @@ export class UsersController {
 
           // Validate role
           const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
-          if (!validRoles.includes(userData['role'])) {
+          if (!validRoles.includes(userData['role'] as string)) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Invalid role "${userData['role']}"`);
             continue;
@@ -913,33 +913,33 @@ export class UsersController {
           }
 
           // Build user data object with role-specific fields
-          const createUserData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null> = {
-            name: userData['name'],
-            email: userData['email'],
-            password: userData['password'],
-            role: userData['role'],
-            preferredName: userData['preferredName'] || null,
-            gender: userData['gender'] || null,
-            pronouns: userData['pronouns'] || null,
-            phone: userData['phone'] || null,
-            address: userData['address'] || null,
-            bio: userData['bio'] || null,
+          const createUserData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
+            name: userData['name'] as string,
+            email: userData['email'] as string,
+            password: userData['password'] as string,
+            role: userData['role'] as string,
+            preferredName: (userData['preferredName'] as string | undefined) ?? undefined,
+            gender: (userData['gender'] as string | undefined) ?? undefined,
+            pronouns: (userData['pronouns'] as string | undefined) ?? undefined,
+            phone: (userData['phone'] as string | undefined) ?? undefined,
+            address: (userData['address'] as string | undefined) ?? undefined,
+            bio: (userData['bio'] as string | undefined) ?? undefined,
             isActive: true
           };
 
           // Add role-specific fields to User model
           if (userData['role'] === 'JUDGE') {
-            createUserData['judgeBio'] = userData['bio'] || null;
-            createUserData['judgeCertifications'] = userData['judgeLevel'] || null;
+            createUserData['judgeBio'] = (userData['bio'] as string | undefined) ?? undefined;
+            createUserData['judgeCertifications'] = (userData['judgeLevel'] as string | undefined) ?? undefined;
           } else if (userData['role'] === 'CONTESTANT') {
-            createUserData['contestantBio'] = userData['bio'] || null;
-            createUserData['contestantNumber'] = userData.contestantNumber || null;
-            createUserData['contestantAge'] = userData['age'] ? parseInt(String(userData['age'])) : null;
-            createUserData['contestantSchool'] = userData['school'] || null;
+            createUserData['contestantBio'] = (userData['bio'] as string | undefined) ?? undefined;
+            createUserData['contestantNumber'] = (userData['contestantNumber'] as number | undefined) ?? undefined;
+            createUserData['contestantAge'] = userData['age'] ? parseInt(String(userData['age'])) : undefined;
+            createUserData['contestantSchool'] = (userData['school'] as string | undefined) ?? undefined;
           }
 
           // Create user
-          const user = await this.userService.createUser(createUserData);
+          const user = await this.userService.createUser(createUserData as CreateUserDTO);
 
           // Create associated Judge or Contestant record if applicable
           let judgeId: string | null = null;

@@ -3,7 +3,7 @@
  * Data access layer for User entity
  */
 
-import { User, Prisma } from '@prisma/client';
+import { User } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
 
@@ -68,7 +68,7 @@ export class UserRepository extends BaseRepository<User> {
    * Find users with assignments for an event
    */
   async findUsersWithAssignments(eventId: string): Promise<UserWithRelations[]> {
-    return this.getModel().findMany({
+    return (this.getModel() as any).findMany({
       where: {
         assignedAssignments: { some: { eventId } }
       },
@@ -134,7 +134,7 @@ export class UserRepository extends BaseRepository<User> {
     totalAssignments: number;
     eventsParticipated: number;
   }> {
-    const user = await this.getModel().findUnique({
+    const user = await (this.getModel() as any).findUnique({
       where: { id: userId },
       include: {
         assignedAssignments: {

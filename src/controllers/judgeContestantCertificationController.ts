@@ -29,11 +29,12 @@ export class JudgeContestantCertificationController {
 
   certify = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { judgeId, categoryId, contestantId } = req.body;
+      const { judgeId, categoryId, contestantId, tenantId } = req.body;
       const certification = await this.judgeContestantCertificationService.certify({
         judgeId: judgeId as string,
         categoryId: categoryId as string,
-        contestantId: contestantId as string
+        contestantId: contestantId as string,
+        tenantId: tenantId as string
       });
       return sendSuccess(res, certification, 'Certification created', 201);
     } catch (error) {

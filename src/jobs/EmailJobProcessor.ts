@@ -51,18 +51,16 @@ export interface EmailJobData {
  * ```
  */
 export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
-  private emailService: EmailService;
-
-  constructor(emailService: EmailService) {
+  constructor(_emailService: EmailService) {
     super('email-job-processor');
-    this.emailService = emailService;
     // Email service ready for use when email sending is implemented
+    // Store for future use: this._emailService = _emailService;
   }
 
   /**
    * Validate email job data
    */
-  protected validate(data: EmailJobData): void {
+  protected override validate(data: EmailJobData): void {
     super.validate(data);
 
     if (!data.to) {
@@ -138,7 +136,7 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
   /**
    * Handle permanent email failure
    */
-  protected async onFailed(job: Job<EmailJobData>, error: Error): Promise<void> {
+  protected override async onFailed(job: Job<EmailJobData>, error: Error): Promise<void> {
     await super.onFailed(job, error);
 
     // Log failed email to database

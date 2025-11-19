@@ -99,7 +99,7 @@ router.put('/:id/read', authenticate, async (req: Request, res: Response, next: 
     const { id } = req.params;
     const userId = req.user!.id;
     const tenantId = req.user!.tenantId;
-    const notification = await notificationService.markAsRead(id, userId, tenantId);
+    const notification = await notificationService.markAsRead(id!, userId, tenantId);
     res.json(notification);
   } catch (error) {
     return next(error);
@@ -155,7 +155,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response, next: Ne
     const { id } = req.params;
     const userId = req.user!.id;
     const tenantId = req.user!.tenantId;
-    await notificationService.deleteNotification(id, userId, tenantId);
+    await notificationService.deleteNotification(id!, userId, tenantId);
     res.json({ success: true });
   } catch (error) {
     return next(error);

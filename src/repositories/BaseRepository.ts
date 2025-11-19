@@ -87,7 +87,7 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
    */
   protected getModel(): unknown {
     const modelName = this.getModelName();
-    return (this.prisma as Record<string, unknown>)[modelName];
+    return (this.prisma as unknown as Record<string, unknown>)[modelName];
   }
 
   /**
@@ -273,7 +273,7 @@ export abstract class BaseRepository<T> implements IBaseRepository<T> {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.getModel().findMany({
+      (this.getModel() as any).findMany({
         where,
         skip,
         take: limit,

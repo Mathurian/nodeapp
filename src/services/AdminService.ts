@@ -4,7 +4,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
-import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+import { PaginationOptions, PaginatedResponse, createPaginatedResponse } from '../utils/pagination';
 import { env } from '../config/env';
 
 const execAsync = promisify(exec);
@@ -220,7 +220,7 @@ export class AdminService extends BaseService {
           // Fallback to psql command
           const dbName = env.get('DATABASE_URL')?.split('/').pop()?.split('?')[0] || 'event_manager';
           const { stdout } = await execAsync(
-            `psql -U ${env.get('DATABASE_USER') || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
+            `psql -U ${process.env['DATABASE_USER'] || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
           );
           databaseSize = stdout.trim() || 'N/A';
         }
@@ -346,7 +346,7 @@ export class AdminService extends BaseService {
         } : null
       }));
 
-      return this.createPaginatedResponse(formattedLogs, total, options);
+      return createPaginatedResponse(formattedLogs, total, options);
     } catch (error) {
       log.error('Error getting activity logs', { error: (error as Error).message });
       throw error;
@@ -356,7 +356,7 @@ export class AdminService extends BaseService {
   async getAuditLogs(limit: number = 100) {
     // For now, use ActivityLog as audit logs
     // In the future, you might want a separate AuditLog table
-    return this.getActivityLogs(limit);
+    return this.getActivityLogs({ limit });
   }
 
   async getDatabaseTables(): Promise<TableWithCount[]> {
@@ -543,7 +543,7 @@ export class AdminService extends BaseService {
       );
 
       // Get column names from first row or from table structure
-      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const columns = rows.length > 0 ? Object.keys(rows[0]!) : [];
 
       return {
         tableName,
@@ -565,7 +565,7 @@ export class AdminService extends BaseService {
     }
   }
 
-  async executeDatabaseQuery(query: string, limit: number = 100) {
+  async executeDatabaseQuery(_query: string, _limit: number = 100) {
     // SECURITY FIX: This method has been disabled due to SQL injection vulnerability
     // Direct SQL query execution is extremely dangerous and should never be exposed to users
     //

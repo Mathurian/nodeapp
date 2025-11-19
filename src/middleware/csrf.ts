@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { randomBytes, timingSafeEqual } from 'crypto';
-import { csrfSecret } from '../utils/config';
 import { env } from '../config/env';
 
 // CSRF secret for token generation

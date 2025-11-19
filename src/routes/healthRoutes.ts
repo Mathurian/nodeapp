@@ -6,9 +6,7 @@
 import express, { Router, Request, Response } from 'express';
 import { env } from '../config/env';
 import prisma from '../utils/prisma';
-import { env } from '../config/env';
 import { cache } from '../utils/cache';
-import { env } from '../config/env';
 
 const router: Router = express.Router();
 

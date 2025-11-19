@@ -20,7 +20,7 @@ export function validate(schema: ZodSchema, target: ValidationTarget = 'body') {
     try {
       const data = req[target];
       const validated = await schema.parseAsync(data);
-      (req as Record<string, unknown>)[target] = validated; // Replace with validated data
+      (req as unknown as Record<string, unknown>)[target] = validated; // Replace with validated data
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -50,7 +50,7 @@ export function validateMultiple(schemas: {
 }) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const reqWithValidation = req as Record<string, unknown>;
+      const reqWithValidation = req as unknown as Record<string, unknown>;
       if (schemas.body) {
         reqWithValidation['body'] = await schemas.body['parseAsync'](req.body);
       }

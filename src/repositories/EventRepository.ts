@@ -89,7 +89,7 @@ export class EventRepository extends BaseRepository<Event> {
    * Find event with full details
    */
   async findEventWithDetails(eventId: string): Promise<EventWithRelations | null> {
-    return this.getModel().findUnique({
+    return (this.getModel() as any).findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -204,7 +204,7 @@ export class EventRepository extends BaseRepository<Event> {
     totalJudges: number;
     totalScores: number;
   }> {
-    const event = await this.getModel().findUnique({
+    const event = await (this.getModel() as any).findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -232,7 +232,7 @@ export class EventRepository extends BaseRepository<Event> {
       };
     }
 
-    const totalCategories = event.contests.reduce((sum: number, contest) =>
+    const totalCategories = event.contests.reduce((sum: number, contest: any) =>
       sum + contest.categories.length, 0
     );
 
@@ -240,9 +240,9 @@ export class EventRepository extends BaseRepository<Event> {
     const judgeIds = new Set<string>();
     let totalScores = 0;
 
-    event.contests.forEach((contest) => {
-      contest.contestants.forEach((c) => contestantIds.add(c.userId));
-      contest.judges.forEach((j) => judgeIds.add(j.userId));
+    event.contests.forEach((contest: any) => {
+      contest.contestants.forEach((c: any) => contestantIds.add(c.userId));
+      contest.judges.forEach((j: any) => judgeIds.add(j.userId));
       totalScores += contest._count.scores;
     });
 
@@ -262,7 +262,7 @@ export class EventRepository extends BaseRepository<Event> {
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
-    return this.getModel().findMany({
+    return (this.getModel() as any).findMany({
       where: {
         archived: false,
         startDate: {

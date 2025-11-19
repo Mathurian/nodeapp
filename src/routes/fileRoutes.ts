@@ -10,21 +10,22 @@ import { env } from '../config/env';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: function (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
+  destination: function (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
     cb(null, env.get('UPLOAD_DIR') || 'uploads/');
   },
-  filename: function (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
+  filename: function (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  }
-})
+// Multer configuration available for future use
+// const upload = multer({
+//   storage: storage,
+//   limits: {
+//     fileSize: 10 * 1024 * 1024 // 10MB limit
+//   }
+// })
 
 const router: Router = express.Router();
 

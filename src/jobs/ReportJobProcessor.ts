@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import * as path from 'path';
+// @ts-ignore - pdfkit doesn't have type definitions
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 
@@ -65,7 +66,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Validate report job data
    */
-  protected validate(data: ReportJobData): void {
+  protected override validate(data: ReportJobData): void {
     super.validate(data);
 
     if (!data.reportType) {
@@ -222,7 +223,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
    * Fetch scoring report data
    */
   private async fetchScoringReportData(parameters: Record<string, any>) {
-    const { categoryId, _contestId } = parameters;
+    const { categoryId } = parameters;
 
     if (!categoryId) {
       throw new Error('Category ID is required for scoring report');
@@ -277,7 +278,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
     data: any,
     format: string,
     filePath: string,
-    job: Job
+    _job: Job
   ): Promise<void> {
     switch (format) {
       case 'csv':

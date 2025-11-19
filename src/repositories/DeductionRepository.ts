@@ -75,7 +75,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
       whereClause['categoryId'] = { in: categoryIds };
     }
 
-    return this.getModel().findMany({
+    return (this.getModel() as any).findMany({
       where: whereClause,
       include: {
         contestant: {
@@ -102,8 +102,8 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Find deduction by ID with all relations
    */
-  async findByIdWithRelations(id: string, tenantId: string): Promise<DeductionWithRelations | null> {
-    return this.getModel().findFirst({
+  override async findByIdWithRelations(id: string, tenantId: string): Promise<DeductionWithRelations | null> {
+    return (this.getModel() as any).findFirst({
       where: {
         id,
         tenantId
@@ -134,7 +134,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
    * Create deduction request with relations
    */
   async createDeduction(data: CreateDeductionData): Promise<DeductionWithRelations> {
-    return this.getModel().create({
+    return (this.getModel() as any).create({
       data: {
         contestantId: data.contestantId,
         categoryId: data.categoryId,
@@ -177,14 +177,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
       tenantId: filters.tenantId
     };
 
-    if (filters['status']) whereClause.status = filters.status;
-    if (filters['categoryId']) whereClause.categoryId = filters.categoryId;
-    if (filters['contestantId']) whereClause.contestantId = filters.contestantId;
+    if (filters['status']) whereClause['status'] = filters['status'];
+    if (filters['categoryId']) whereClause['categoryId'] = filters['categoryId'];
+    if (filters['contestantId']) whereClause['contestantId'] = filters['contestantId'];
 
     const skip = (page - 1) * limit;
 
     const [deductions, total] = await Promise.all([
-      this.getModel().findMany({
+      (this.getModel() as any).findMany({
         where: whereClause,
         skip,
         take: limit,
@@ -208,7 +208,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
         },
         orderBy: { createdAt: 'desc' }
       }),
-      this.getModel().count({ where: whereClause })
+      (this.getModel() as any).count({ where: whereClause })
     ]);
 
     return { deductions, total };
@@ -267,8 +267,8 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Update deduction status
    */
-  async updateStatus(id: string, status: string, tenantId: string, additionalData?: Record<string, unknown>): Promise<DeductionRequest> {
-    return this.getModel().update({
+  async updateStatus(id: string, status: string, _tenantId: string, additionalData?: Record<string, unknown>): Promise<DeductionRequest> {
+    return (this.getModel() as any).update({
       where: { id },
       data: {
         status,

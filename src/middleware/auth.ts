@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { User } from '@prisma/client';
 import { isAdmin, hasPermission } from './permissions';
 import { jwtSecret } from '../utils/config';
 import prisma from '../utils/prisma';
@@ -36,7 +37,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string; sessionVersion?: number };
 
     // Try to get user from cache first (50-70% reduction in DB queries)
-    let user = userCache.getById(decoded.userId);
+    let user = userCache.getById(decoded.userId) as (User & { judge?: any; contestant?: any }) | null;
     let fromCache = false;
 
     if (!user) {

@@ -50,7 +50,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
    * Find all templates with criteria
    */
   async findAllWithCriteria(tenantId: string): Promise<TemplateWithCriteria[]> {
-    return this.getModel().findMany({
+    return (this.getModel() as any).findMany({
       where: { tenantId },
       include: {
         criteria: true
@@ -63,7 +63,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
    * Find template by ID with criteria
    */
   async findByIdWithCriteria(id: string, tenantId: string): Promise<TemplateWithCriteria | null> {
-    return this.getModel().findFirst({
+    return (this.getModel() as any).findFirst({
       where: { id, tenantId },
       include: {
         criteria: true
@@ -75,7 +75,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
    * Create template with criteria
    */
   async createWithCriteria(data: CreateTemplateData): Promise<TemplateWithCriteria> {
-    return this.getModel().create({
+    return (this.getModel() as any).create({
       data: {
         name: data.name,
         description: data.description || null,
@@ -138,7 +138,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
     }
 
     // If no criteria update, just update template
-    return this.getModel().update({
+    return (this.getModel() as any).update({
       where: { id },
       data: {
         name: data.name,
@@ -160,7 +160,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       return null;
     }
 
-    return this.getModel().create({
+    return (this.getModel() as any).create({
       data: {
         name: `${original.name} (Copy)`,
         description: original.description,

@@ -9,13 +9,13 @@ import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { getRequiredParam } from '../utils/routeHelpers';
 
-interface AuthenticatedRequest extends Request {
+type AuthenticatedRequest = Request & {
   user?: {
     id: string;
     tenantId: string;
   };
   tenantId?: string;
-}
+};
 
 const logger = createLogger('CustomFieldsController');
 const customFieldService = new CustomFieldService(prisma);
