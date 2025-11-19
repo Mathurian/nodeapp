@@ -126,7 +126,7 @@ export class PerformanceService extends BaseService {
     };
 
     // Get performance statistics
-    const stats: any = await this.prisma.performanceLog.aggregate({
+    const stats = await this.prisma.performanceLog.aggregate({
       where: whereClause,
       _avg: {
         responseTime: true,
@@ -143,7 +143,7 @@ export class PerformanceService extends BaseService {
     });
 
     // Get response time distribution
-    const responseTimeDistribution: any = await this.prisma.performanceLog.groupBy({
+    const responseTimeDistribution = await this.prisma.performanceLog.groupBy({
       by: ['statusCode'],
       where: whereClause,
       _count: {
@@ -155,7 +155,7 @@ export class PerformanceService extends BaseService {
     });
 
     // Get top slow endpoints
-    const slowEndpoints: any = await this.prisma.performanceLog.groupBy({
+    const slowEndpoints = await this.prisma.performanceLog.groupBy({
       by: ['endpoint'],
       where: whereClause,
       _avg: {
@@ -173,7 +173,7 @@ export class PerformanceService extends BaseService {
     });
 
     // Get error rates
-    const errorStats: any = await this.prisma.performanceLog.groupBy({
+    const errorStats = await this.prisma.performanceLog.groupBy({
       by: ['statusCode'],
       where: {
         ...whereClause,
@@ -223,10 +223,10 @@ export class PerformanceService extends BaseService {
     };
 
     // Database connection status
-    const dbStatus: any = await this.prisma.$queryRaw`SELECT 1 as status`;
+    const dbStatus = await this.prisma.$queryRaw`SELECT 1 as status`;
 
     // Database connection count
-    const connectionCount: any = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+    const connectionCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
     `;
 
@@ -306,7 +306,7 @@ export class PerformanceService extends BaseService {
         }),
     };
 
-    const logs: any = await this.prisma.performanceLog.findMany({
+    const logs = await this.prisma.performanceLog.findMany({
       where: whereClause,
       orderBy: {
         createdAt: 'desc',
@@ -315,7 +315,7 @@ export class PerformanceService extends BaseService {
       take: Number(limit),
     });
 
-    const total: any = await this.prisma.performanceLog.count({
+    const total = await this.prisma.performanceLog.count({
       where: whereClause,
     });
 
@@ -342,7 +342,7 @@ export class PerformanceService extends BaseService {
         }
       : {};
 
-    const result: any = await this.prisma.performanceLog.deleteMany({
+    const result = await this.prisma.performanceLog.deleteMany({
       where: whereClause,
     });
 

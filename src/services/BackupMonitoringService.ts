@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, BackupLog } from '@prisma/client';
 import { EventEmitter } from 'events';
 
 const prisma = new PrismaClient();
@@ -12,7 +12,7 @@ export interface BackupLogData {
   size?: bigint | number; // bytes
   location: string;
   errorMessage?: string;
-  metadata?: Record<string, any>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 export interface BackupStats {
@@ -62,7 +62,7 @@ class BackupMonitoringService extends EventEmitter {
   /**
    * Log a backup execution
    */
-  async logBackup(data: BackupLogData, tenantId: string = 'default_tenant'): Promise<any> {
+  async logBackup(data: BackupLogData, tenantId: string = 'default_tenant'): Promise<BackupLog> {
     try {
       const backupLog = await prisma.backupLog.create({
         data: {
@@ -100,9 +100,9 @@ class BackupMonitoringService extends EventEmitter {
   /**
    * Update an existing backup log
    */
-  async updateBackupLog(id: string, data: Partial<BackupLogData>): Promise<any> {
+  async updateBackupLog(id: string, data: Partial<BackupLogData>): Promise<BackupLog> {
     try {
-      const updateData: any = {};
+      const updateData: Prisma.BackupLogUpdateInput = {};
 
       if (data.status) updateData.status = data.status;
       if (data.completedAt) updateData.completedAt = data.completedAt;
@@ -134,10 +134,10 @@ class BackupMonitoringService extends EventEmitter {
     status?: string;
     startDate?: Date;
     endDate?: Date;
-  } = {}): Promise<{ backups: any[]; total: number }> {
+  } = {}): Promise<{ backups: BackupLog[]; total: number }> {
     const { limit = 50, offset = 0, type, status, startDate, endDate } = options;
 
-    const where: any = {};
+    const where: Prisma.BackupLogWhereInput = {};
     if (type) where.type = type;
     if (status) where.status = status;
     if (startDate || endDate) {
@@ -162,7 +162,7 @@ class BackupMonitoringService extends EventEmitter {
   /**
    * Get latest backup
    */
-  async getLatestBackup(type?: string): Promise<any | null> {
+  async getLatestBackup(type?: string): Promise<BackupLog | null> {
     const where = type ? { type } : {};
 
     return prisma.backupLog.findFirst({
@@ -310,7 +310,7 @@ class BackupMonitoringService extends EventEmitter {
   /**
    * Handle backup failure - send alerts
    */
-  private async handleBackupFailure(backupLog: any): Promise<void> {
+  private async handleBackupFailure(backupLog: BackupLog): Promise<void> {
     try {
       // Log to console for immediate visibility
       console.error('Backup failed:', {
@@ -381,7 +381,7 @@ class BackupMonitoringService extends EventEmitter {
     });
 
     return backups.map((b) => ({
-      date: b.startedAt.toISOString().split('T')[0],
+      date: b.startedAt.toISOString().split('T')[0] || '',
       size: Number(b.size) / (1024 * 1024 * 1024), // Convert to GB
     }));
   }
@@ -412,6 +412,10 @@ class BackupMonitoringService extends EventEmitter {
     }
 
     const latest = recentBackups[0];
+    if (!latest) {
+      return { hasAnomaly: false };
+    }
+
     const previous = recentBackups.slice(1);
 
     const averageSize =

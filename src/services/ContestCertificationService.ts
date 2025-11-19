@@ -1,6 +1,16 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, ContestCertification } from '@prisma/client';
+
+// P2-4: Proper type definitions
+type ContestWithBasicInfo = Prisma.ContestGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    description: true;
+    eventId: true;
+  };
+}>;
 
 @injectable()
 export class ContestCertificationService extends BaseService {
@@ -9,7 +19,7 @@ export class ContestCertificationService extends BaseService {
   }
 
   async getCertificationProgress(contestId: string) {
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       select: {
         id: true,
@@ -17,18 +27,18 @@ export class ContestCertificationService extends BaseService {
         description: true,
         eventId: true
       }
-    });
+    }) as ContestWithBasicInfo | null;
 
     if (!contest) throw this.notFoundError('Contest', contestId);
 
-    const certs: any = await this.prisma.contestCertification.findMany({
+    const certs = await this.prisma.contestCertification.findMany({
       where: { contestId }
     });
 
-    const byRole = certs.reduce((acc: any, c) => {
+    const byRole = certs.reduce((acc: Record<string, ContestCertification>, c) => {
       acc[c.role] = c;
       return acc;
-    }, {});
+    }, {} as Record<string, ContestCertification>);
 
     return {
       contestId,
@@ -47,13 +57,13 @@ export class ContestCertificationService extends BaseService {
       throw this.forbiddenError('Role not authorized to certify contest');
     }
 
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId }
     });
 
     if (!contest) throw this.notFoundError('Contest', contestId);
 
-    const existing: any = await this.prisma.contestCertification.findFirst({
+    const existing = await this.prisma.contestCertification.findFirst({
       where: { contestId, role: userRole }
     });
 

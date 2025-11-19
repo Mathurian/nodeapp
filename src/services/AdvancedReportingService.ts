@@ -1,6 +1,71 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for score report responses
+type ScoreWithRelations = Prisma.ScoreGetPayload<{
+  select: {
+    id: true;
+    score: true;
+    contestantId: true;
+    judgeId: true;
+    categoryId: true;
+    judge: {
+      select: {
+        name: true;
+      };
+    };
+    contestant: {
+      select: {
+        name: true;
+      };
+    };
+    category: {
+      select: {
+        name: true;
+        contest: {
+          select: {
+            name: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type EventWithCounts = Prisma.EventGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    contests: {
+      select: {
+        id: true;
+        name: true;
+        categories: {
+          select: {
+            id: true;
+            name: true;
+            scores: {
+              select: {
+                id: true;
+              };
+            };
+            contestants: {
+              select: {
+                id: true;
+              };
+            };
+            judges: {
+              select: {
+                id: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
 
 @injectable()
 export class AdvancedReportingService extends BaseService {
@@ -9,13 +74,13 @@ export class AdvancedReportingService extends BaseService {
   }
 
   async generateScoreReport(eventId?: string, contestId?: string, categoryId?: string) {
-    const where: any = {};
+    const where: Prisma.ScoreWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
     else if (contestId) where.category = { contestId };
     else if (eventId) where.category = { contest: { eventId } };
 
     // P2-2 OPTIMIZATION: Selective field loading
-    const scores: any = await this.prisma.score.findMany({
+    const scores = await (this.prisma.score.findMany as any)({
       where,
       select: {
         id: true,
@@ -43,15 +108,15 @@ export class AdvancedReportingService extends BaseService {
             }
           }
         }
-      } as any
-    } as any);
+      }
+    }) as ScoreWithRelations[];
 
     return { scores, total: scores.length };
   }
 
   async generateSummaryReport(eventId: string) {
     // P2-2 OPTIMIZATION: Selective field loading
-    const event: any = await this.prisma.event.findUnique({
+    const event = await (this.prisma.event.findUnique as any)({
       where: { id: eventId },
       select: {
         id: true,
@@ -83,17 +148,17 @@ export class AdvancedReportingService extends BaseService {
             }
           }
         }
-      } as any
-    } as any);
+      }
+    }) as EventWithCounts | null;
 
     if (!event) throw this.notFoundError('Event', eventId);
 
     return {
       event: event.name,
       contests: event.contests.length,
-      categories: event.contests.reduce((sum, c) => sum + c.categories.length, 0),
-      totalScores: event.contests.reduce((sum, c) =>
-        sum + c.categories.reduce((s, cat) => s + cat.scores.length, 0), 0
+      categories: event.contests.reduce((sum: number, c) => sum + c.categories.length, 0),
+      totalScores: event.contests.reduce((sum: number, c) =>
+        sum + c.categories.reduce((s: number, cat) => s + cat.scores.length, 0), 0
       )
     };
   }

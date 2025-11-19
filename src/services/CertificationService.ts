@@ -9,12 +9,10 @@ export class CertificationService extends BaseService {
   }
 
   async getOverallStatus(eventId: string) {
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: {
-        // contests include removed - not in schema
-      } as any
-    } as any);
+      // contests include removed - not in schema
+    });
 
     if (!event) throw this.notFoundError('Event', eventId);
 
@@ -26,7 +24,7 @@ export class CertificationService extends BaseService {
 
   async certifyAll(eventId: string, _userId: string, _userRole: string) {
     // Simplified mass certification
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       // include removed - contests relation not in schema
     });

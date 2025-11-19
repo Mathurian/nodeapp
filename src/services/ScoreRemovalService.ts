@@ -1,6 +1,75 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+// P2-4: Proper type definitions for score removal responses
+type ScoreRemovalRequestWithRelations = Prisma.ScoreRemovalRequestGetPayload<{
+  include: {
+    judge: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    category: {
+      include: {
+        contest: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+    requestedByUser: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
+}>;
+
+type ScoreRemovalRequestWithJudgeCategory = Prisma.ScoreRemovalRequestGetPayload<{
+  include: {
+    judge: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    category: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
+}>;
+
+type ScoreRemovalRequestWithJudgeCategoryContest = Prisma.ScoreRemovalRequestGetPayload<{
+  include: {
+    judge: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+    category: {
+      include: {
+        contest: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 
 interface CreateScoreRemovalRequestDto {
   judgeId: string;
@@ -23,17 +92,17 @@ export class ScoreRemovalService extends BaseService {
     super();
   }
 
-  async createRequest(data: CreateScoreRemovalRequestDto) {
+  async createRequest(data: CreateScoreRemovalRequestDto): Promise<ScoreRemovalRequestWithJudgeCategory> {
     if (!data.judgeId || !data.categoryId || !data.reason || !data.tenantId) {
       throw this.badRequestError('Judge ID, category ID, reason, and tenant ID are required');
     }
 
-    const category: any = await this.prisma.category.findFirst({
+    const category = await this.prisma.category.findFirst({
       where: { id: data.categoryId, tenantId: data.tenantId }
     });
     if (!category) throw this.notFoundError('Category', data.categoryId);
 
-    const judge: any = await this.prisma.judge.findFirst({
+    const judge = await this.prisma.judge.findFirst({
       where: { id: data.judgeId, tenantId: data.tenantId }
     });
     if (!judge) throw this.notFoundError('Judge', data.judgeId);
@@ -55,11 +124,11 @@ export class ScoreRemovalService extends BaseService {
         judge: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } }
       } as any
-    });
+    }) as ScoreRemovalRequestWithJudgeCategory;
   }
 
-  async getAll(tenantId: string, status?: string) {
-    const where: any = { tenantId };
+  async getAll(tenantId: string, status?: string): Promise<ScoreRemovalRequestWithRelations[]> {
+    const where: Prisma.ScoreRemovalRequestWhereInput = { tenantId };
     if (status) where.status = status;
 
     return await this.prisma.scoreRemovalRequest.findMany({
@@ -74,11 +143,11 @@ export class ScoreRemovalService extends BaseService {
         requestedByUser: { select: { id: true, name: true } }
       },
       orderBy: { createdAt: 'desc' }
-    });
+    }) as ScoreRemovalRequestWithRelations[];
   }
 
-  async getById(id: string, tenantId: string) {
-    const request: any = await this.prisma.scoreRemovalRequest.findFirst({
+  async getById(id: string, tenantId: string): Promise<ScoreRemovalRequestWithRelations> {
+    const request = await this.prisma.scoreRemovalRequest.findFirst({
       where: { id, tenantId },
       include: {
         judge: { select: { id: true, name: true, email: true } },
@@ -89,7 +158,7 @@ export class ScoreRemovalService extends BaseService {
         },
         requestedByUser: { select: { id: true, name: true } }
       }
-    });
+    }) as ScoreRemovalRequestWithRelations | null;
 
     if (!request) throw this.notFoundError('Score removal request', id);
     return request;
@@ -100,7 +169,7 @@ export class ScoreRemovalService extends BaseService {
       throw this.badRequestError('Signature name is required');
     }
 
-    const request: any = await this.prisma.scoreRemovalRequest.findFirst({
+    const request = await this.prisma.scoreRemovalRequest.findFirst({
       where: { id, tenantId }
     });
 
@@ -111,7 +180,7 @@ export class ScoreRemovalService extends BaseService {
     }
 
     const signedAt = new Date();
-    const updateData: any = {};
+    const updateData: Prisma.ScoreRemovalRequestUpdateInput = {};
 
     if (data.userRole === 'AUDITOR' && !request.auditorSignature) {
       updateData.auditorSignature = data.signatureName;
@@ -138,7 +207,7 @@ export class ScoreRemovalService extends BaseService {
       updateData.updatedAt = signedAt;
     }
 
-    const updatedRequest: any = await this.prisma.scoreRemovalRequest.update({
+    const updatedRequest = await this.prisma.scoreRemovalRequest.update({
       where: { id },
       data: updateData,
       include: {
@@ -149,7 +218,7 @@ export class ScoreRemovalService extends BaseService {
           } as any
         }
       }
-    });
+    }) as ScoreRemovalRequestWithJudgeCategoryContest;
 
     return {
       request: updatedRequest,
@@ -157,8 +226,8 @@ export class ScoreRemovalService extends BaseService {
     };
   }
 
-  async executeRemoval(id: string, tenantId: string) {
-    const request: any = await this.prisma.scoreRemovalRequest.findFirst({
+  async executeRemoval(id: string, tenantId: string): Promise<{ deletedCount: number }> {
+    const request = await this.prisma.scoreRemovalRequest.findFirst({
       where: { id, tenantId },
       include: {
         judge: { select: { id: true } },
@@ -172,7 +241,7 @@ export class ScoreRemovalService extends BaseService {
       throw this.badRequestError('Request must be approved before execution');
     }
 
-    const deletedScores: any = await this.prisma.score.deleteMany({
+    const deletedScores = await this.prisma.score.deleteMany({
       where: {
         categoryId: request.categoryId,
         judgeId: request.judgeId,

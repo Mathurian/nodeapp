@@ -144,7 +144,7 @@ export class AdminController {
 
       const skip = (page - 1) * limit;
 
-      const where: any = {};
+      const where: Prisma.UserWhereInput = {};
       if (role) {
         where.role = role;
       }
@@ -197,7 +197,7 @@ export class AdminController {
 
       const skip = (page - 1) * limit;
 
-      const where: any = {};
+      const where: Prisma.EventWhereInput = {};
       if (req.query.archived !== undefined) {
         where.archived = archived;
       }
@@ -259,11 +259,11 @@ export class AdminController {
                 name: true
               }
             }
-          } as any,
+          },
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
-        } as any),
+        }),
         this.prisma.contest.count({ where })
       ]);
 
@@ -311,11 +311,11 @@ export class AdminController {
                 }
               }
             }
-          } as any,
+          },
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
-        } as any),
+        }),
         this.prisma.category.count({ where })
       ]);
 
@@ -371,11 +371,11 @@ export class AdminController {
                 name: true
               }
             }
-          } as any,
+          },
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
-        } as any),
+        }),
         this.prisma.score.count({ where })
       ]);
 
@@ -526,7 +526,7 @@ export class AdminController {
       const { contestantId } = req.params;
       const categoryId = req.query.categoryId as string | undefined;
 
-      const where: any = {
+      const where: Prisma.ScoreWhereInput = {
         contestantId
       };
 
@@ -568,11 +568,11 @@ export class AdminController {
               contestantNumber: true
             }
           }
-        } as any,
+        },
         orderBy: [
           { createdAt: 'desc' }
         ]
-      } as any);
+      });
 
       // Calculate statistics
       const stats = {

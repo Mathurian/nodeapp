@@ -1,18 +1,26 @@
-import { User } from '@prisma/client';
+import { User, Judge, Contestant } from '@prisma/client';
+import { Logger } from 'winston';
 
 declare global {
   namespace Express {
     interface Request {
       user?: User & {
-        judge?: any;
-        contestant?: any;
+        judge?: Judge | null;
+        contestant?: Contestant | null;
       };
-      validationData?: any;
-      fileInfo?: any;
+      validationData?: Record<string, unknown>;
+      fileInfo?: {
+        filename: string;
+        originalName: string;
+        size: number;
+        mimeType: string;
+        path: string;
+      };
       requestId?: string;
-      logger?: any;
+      logger?: Logger;
       csrfToken?: string;
       id?: string;
+      tenantId?: string;
     }
   }
 }
