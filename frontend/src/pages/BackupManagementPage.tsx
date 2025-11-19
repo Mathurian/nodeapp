@@ -40,7 +40,8 @@ const BackupManagementPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await backupAPI.getAll()
-      setBackups(response.data)
+      const unwrapped = response.data.data || response.data
+      setBackups(unwrapped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load backups')
     } finally {

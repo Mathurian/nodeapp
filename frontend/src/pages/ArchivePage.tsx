@@ -35,7 +35,8 @@ const ArchivePage: React.FC = () => {
     try {
       setLoading(true)
       const response = await archiveAPI.getAll()
-      setItems(response.data)
+      const unwrapped = response.data.data || response.data
+      setItems(unwrapped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load archived items')
     } finally {

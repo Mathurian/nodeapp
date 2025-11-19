@@ -39,7 +39,8 @@ const CacheManagementPage: React.FC = () => {
   const fetchStats = async () => {
     try {
       const response = await api.get('/cache/stats')
-      setStats(response.data)
+      const unwrapped = response.data.data || response.data
+      setStats(unwrapped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load cache stats')
     }
@@ -49,7 +50,8 @@ const CacheManagementPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get('/cache/keys')
-      setKeys(response.data)
+      const unwrappedKeys = response.data.data || response.data
+        setKeys(unwrappedKeys)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load cache keys')
     } finally {
