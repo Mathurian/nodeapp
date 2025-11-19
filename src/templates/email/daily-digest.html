@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Digest - {{ appName }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header-subtitle {
+            color: #e0e7ff;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .icon-circle {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 30px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 22px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+        .date-badge {
+            display: inline-block;
+            background-color: #eef2ff;
+            color: #4f46e5;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 20px;
+        }
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #bae6fd;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: #0284c7;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #0369a1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .section-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+        }
+        .activity-item {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #6366f1;
+        }
+        .activity-item:last-child {
+            margin-bottom: 0;
+        }
+        .activity-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 5px;
+        }
+        .activity-description {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        .activity-time {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 5px;
+        }
+        .highlight-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #f59e0b;
+        }
+        .highlight-icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .highlight-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #78350f;
+            margin-bottom: 8px;
+        }
+        .highlight-text {
+            font-size: 14px;
+            color: #92400e;
+            line-height: 1.6;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 28px;
+            background-color: #6366f1;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #4f46e5;
+        }
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 25px 0;
+        }
+        .quick-link {
+            background-color: #ffffff;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .quick-link:hover {
+            border-color: #6366f1;
+            background-color: #f5f3ff;
+        }
+        .quick-link-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .quick-link-text {
+            font-size: 13px;
+            color: #4b5563;
+            font-weight: 600;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        .footer-link {
+            color: #6366f1;
+            text-decoration: none;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 30px 0;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #9ca3af;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon-circle">📬</div>
+            <h1>Your Daily Digest</h1>
+            <div class="header-subtitle">{{ digestDate }}</div>
+        </div>
+
+        <div class="content">
+            <div class="greeting">Good morning, {{ name }}! ☀️</div>
+            <div class="date-badge">{{ digestDate }}</div>
+
+            <p class="text">
+                Here's your daily summary of activity and updates from {{ appName }}. Stay informed about what's happening with your events, contests, and team.
+            </p>
+
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <div class="stat-value">{{ newEvents }}</div>
+                    <div class="stat-label">New Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ activeContests }}</div>
+                    <div class="stat-label">Active Contests</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ newScores }}</div>
+                    <div class="stat-label">Scores Submitted</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ pendingActions }}</div>
+                    <div class="stat-label">Pending Actions</div>
+                </div>
+            </div>
+
+            <!-- Highlights Section -->
+            {{ #if hasHighlights }}
+            <div class="highlight-box">
+                <div class="highlight-icon">⭐</div>
+                <div class="highlight-title">Today's Highlight</div>
+                <div class="highlight-text">{{ highlightText }}</div>
+            </div>
+            {{ /if }}
+
+            <!-- Recent Activity Section -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">🔔</span>
+                    <span class="section-title">Recent Activity</span>
+                </div>
+
+                {{ #if hasActivities }}
+                {{ #each activities }}
+                <div class="activity-item">
+                    <div class="activity-title">{{ this.title }}</div>
+                    <div class="activity-description">{{ this.description }}</div>
+                    <div class="activity-time">{{ this.time }}</div>
+                </div>
+                {{ /each }}
+                {{ else }}
+                <div class="empty-state">No new activity in the last 24 hours</div>
+                {{ /if }}
+            </div>
+
+            <!-- Upcoming Events Section -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">📅</span>
+                    <span class="section-title">Upcoming Events</span>
+                </div>
+
+                {{ #if hasUpcomingEvents }}
+                {{ #each upcomingEvents }}
+                <div class="activity-item">
+                    <div class="activity-title">{{ this.name }}</div>
+                    <div class="activity-description">{{ this.description }}</div>
+                    <div class="activity-time">{{ this.date }}</div>
+                </div>
+                {{ /each }}
+                {{ else }}
+                <div class="empty-state">No upcoming events scheduled</div>
+                {{ /if }}
+            </div>
+
+            <!-- Action Required Section -->
+            {{ #if hasPendingActions }}
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">⚡</span>
+                    <span class="section-title">Action Required</span>
+                </div>
+
+                {{ #each pendingActionsList }}
+                <div class="activity-item" style="border-left-color: #f59e0b;">
+                    <div class="activity-title">{{ this.title }}</div>
+                    <div class="activity-description">{{ this.description }}</div>
+                    <div class="activity-time">Due: {{ this.dueDate }}</div>
+                </div>
+                {{ /each }}
+            </div>
+            {{ /if }}
+
+            <div class="divider"></div>
+
+            <!-- Quick Links -->
+            <div style="text-align: center; margin-bottom: 15px;">
+                <strong style="color: #6b7280; font-size: 14px;">Quick Access</strong>
+            </div>
+
+            <div class="quick-links">
+                <a href="{{ dashboardUrl }}" class="quick-link">
+                    <div class="quick-link-icon">📊</div>
+                    <div class="quick-link-text">Dashboard</div>
+                </a>
+                <a href="{{ eventsUrl }}" class="quick-link">
+                    <div class="quick-link-icon">📅</div>
+                    <div class="quick-link-text">My Events</div>
+                </a>
+                <a href="{{ contestsUrl }}" class="quick-link">
+                    <div class="quick-link-icon">🏆</div>
+                    <div class="quick-link-text">Contests</div>
+                </a>
+                <a href="{{ reportsUrl }}" class="quick-link">
+                    <div class="quick-link-icon">📈</div>
+                    <div class="quick-link-text">Reports</div>
+                </a>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ dashboardUrl }}" class="button">Go to Dashboard</a>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="text" style="font-size: 14px; color: #6b7280; text-align: center;">
+                Not interested in daily digests? You can adjust your <a href="{{ preferencesUrl }}" style="color: #6366f1; text-decoration: none;">notification preferences</a> anytime.
+            </p>
+
+            <p class="text" style="margin-top: 20px; text-align: center;">
+                Have a productive day!<br>
+                <strong>The {{ appName }} Team</strong>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                This is your personalized daily digest from {{ appName }}.
+            </p>
+            <p class="footer-text">
+                <a href="{{ dashboardUrl }}" class="footer-link">View Dashboard</a> |
+                <a href="{{ preferencesUrl }}" class="footer-link">Email Preferences</a> |
+                <a href="mailto:{{ supportEmail }}" class="footer-link">Contact Support</a>
+            </p>
+            <p class="footer-text" style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+                © 2024 {{ appName }}. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

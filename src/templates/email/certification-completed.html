@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certification Completed - {{ appName }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subheading {
+            font-size: 18px;
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 20px;
+        }
+        .certificate-card {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 3px solid #fbbf24;
+            position: relative;
+            text-align: center;
+        }
+        .certificate-badge {
+            width: 60px;
+            height: 60px;
+            background-color: #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .certificate-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #78350f;
+            margin-bottom: 15px;
+        }
+        .certificate-details {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #fef3c7;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        .detail-value {
+            font-size: 14px;
+            color: #111827;
+            font-weight: 600;
+            text-align: right;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #f59e0b;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #d97706;
+        }
+        .button-secondary {
+            background-color: #ffffff;
+            color: #f59e0b !important;
+            border: 2px solid #f59e0b;
+        }
+        .button-secondary:hover {
+            background-color: #fffbeb;
+        }
+        .congrats-box {
+            background-color: #ecfdf5;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            border-left: 4px solid #10b981;
+        }
+        .congrats-text {
+            font-size: 16px;
+            color: #065f46;
+            margin: 0;
+            font-weight: 500;
+        }
+        .achievement-list {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .achievement-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+        }
+        .achievement-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+        .achievement-text {
+            font-size: 14px;
+            color: #4b5563;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        .footer-link {
+            color: #f59e0b;
+            text-decoration: none;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon-circle">🏆</div>
+            <h1>Certification Completed!</h1>
+        </div>
+
+        <div class="content">
+            <div class="greeting">Congratulations, {{ name }}! 🎉</div>
+            <div class="subheading">You've successfully completed your certification</div>
+
+            <p class="text" style="text-align: center;">
+                We're thrilled to announce that you have successfully completed the certification process for <strong>{{ contestName }}</strong>. Your achievement represents dedication, skill, and excellence.
+            </p>
+
+            <div class="certificate-card">
+                <div class="certificate-badge">🎓</div>
+                <div class="certificate-title">{{ certificateName }}</div>
+
+                <div class="certificate-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Recipient</span>
+                        <span class="detail-value">{{ name }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Contest</span>
+                        <span class="detail-value">{{ contestName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Event</span>
+                        <span class="detail-value">{{ eventName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Final Score</span>
+                        <span class="detail-value">{{ finalScore }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Certification Date</span>
+                        <span class="detail-value">{{ certificationDate }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Certificate ID</span>
+                        <span class="detail-value">{{ certificateId }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{ downloadUrl }}" class="button">Download Certificate</a>
+                <a href="{{ viewUrl }}" class="button button-secondary">View Online</a>
+            </div>
+
+            <div class="congrats-box">
+                <p class="congrats-text">
+                    🌟 This certification is a testament to your hard work and commitment. Share it with pride and showcase your achievement!
+                </p>
+            </div>
+
+            <div class="achievement-list">
+                <div class="achievement-item">
+                    <span class="achievement-icon">✓</span>
+                    <span class="achievement-text">Your certificate is digitally signed and verifiable</span>
+                </div>
+                <div class="achievement-item">
+                    <span class="achievement-icon">✓</span>
+                    <span class="achievement-text">Download it in PDF format for your records</span>
+                </div>
+                <div class="achievement-item">
+                    <span class="achievement-icon">✓</span>
+                    <span class="achievement-text">Share your achievement on professional networks</span>
+                </div>
+                <div class="achievement-item">
+                    <span class="achievement-icon">✓</span>
+                    <span class="achievement-text">Access it anytime from your dashboard</span>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="text">
+                We encourage you to share this achievement with your network. Your certification is a mark of excellence that you've earned through your performance and dedication.
+            </p>
+
+            <p class="text" style="font-size: 14px; color: #6b7280;">
+                Questions about your certification? Contact our support team at <a href="mailto:{{ supportEmail }}" style="color: #f59e0b; text-decoration: none;">{{ supportEmail }}</a>.
+            </p>
+
+            <p class="text" style="margin-top: 30px; text-align: center;">
+                Once again, congratulations!<br>
+                <strong>The {{ appName }} Team</strong>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                You're receiving this email because you completed a certification on {{ appName }}.
+            </p>
+            <p class="footer-text">
+                <a href="{{ downloadUrl }}" class="footer-link">Download Certificate</a> |
+                <a href="{{ viewUrl }}" class="footer-link">View Dashboard</a> |
+                <a href="mailto:{{ supportEmail }}" class="footer-link">Contact Support</a>
+            </p>
+            <p class="footer-text" style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+                © 2024 {{ appName }}. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
