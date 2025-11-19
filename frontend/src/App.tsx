@@ -50,6 +50,7 @@ const EventTemplatesPage = lazy(() => import('./pages/EventTemplatesPage'))
 const BulkOperationsPage = lazy(() => import('./pages/BulkOperationsPage'))
 const CommentaryPage = lazy(() => import('./pages/CommentaryPage'))
 const CategoryTypesPage = lazy(() => import('./pages/CategoryTypesPage'))
+const HelpPage = lazy(() => import('./pages/HelpPage'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -179,6 +180,7 @@ function App() {
                                     <Route path="/bulk-operations" element={<BulkOperationsPage />} />
                                     <Route path="/commentary" element={<CommentaryPage />} />
                                     <Route path="/category-types" element={<CategoryTypesPage />} />
+                                    <Route path="/help" element={<HelpPage />} />
                                   </Routes>
                                 </Suspense>
                               </Layout>
