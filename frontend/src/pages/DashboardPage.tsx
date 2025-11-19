@@ -63,9 +63,10 @@ const DashboardPage: React.FC = () => {
     'recent-activity',
     async () => {
       const response = await adminAPI.getActivityLogs()
-      // Backend returns paginated response: { data: [...], pagination: {...} }
-      // We need the actual array from response.data.data
-      return response.data.data || []
+      // Backend wraps response: { success, message, data: { data: [...], pagination: {} }, timestamp }
+      // So we need to unwrap: response.data.data.data
+      const unwrapped = response.data.data || response.data
+      return unwrapped.data || unwrapped || []
     },
     {
       refetchInterval: 30000,
