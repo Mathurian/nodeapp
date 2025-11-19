@@ -36,7 +36,9 @@ export const sanitizeHtml = (
     ...options
   };
 
-  return DOMPurify.sanitize(dirty, defaultOptions);
+  // Type assertion needed due to @types/dompurify and dompurify version mismatch
+  // We set RETURN_TRUSTED_TYPE: false, so it always returns string
+  return DOMPurify.sanitize(dirty, defaultOptions as any) as unknown as string;
 };
 
 /**

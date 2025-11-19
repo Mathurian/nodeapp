@@ -97,9 +97,9 @@ export default defineConfig({
           // UI vendor chunk
           'ui-vendor': ['@headlessui/react', '@heroicons/react', 'framer-motion'],
           // Data fetching vendor
-          'data-vendor': ['@tanstack/react-query', 'axios'],
+          'data-vendor': ['react-query', 'axios'],
           // Form/validation vendor
-          'form-vendor': ['react-hook-form', 'zod']
+          'form-vendor': ['react-hook-form']
         },
         // Optimize chunk file names
         chunkFileNames: 'assets/js/[name]-[hash].js',

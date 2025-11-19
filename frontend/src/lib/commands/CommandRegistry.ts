@@ -439,6 +439,62 @@ class CommandRegistry {
       favoritesCount: this.favoriteCommands.size
     };
   }
+
+  // ===== Alias methods for backward compatibility =====
+
+  /**
+   * Alias for registerMany() - for backward compatibility
+   */
+  registerCommands(commands: Command[]): void {
+    this.registerMany(commands);
+  }
+
+  /**
+   * Alias for execute() - for backward compatibility
+   */
+  async executeCommand(commandId: string): Promise<void> {
+    return this.execute(commandId);
+  }
+
+  /**
+   * Alias for getAll() - for backward compatibility
+   */
+  getAllCommands(): Command[] {
+    return this.getAll();
+  }
+
+  /**
+   * Alias for getRecent() - for backward compatibility
+   */
+  getRecentCommands(limit?: number): Command[] {
+    return this.getRecent(limit);
+  }
+
+  /**
+   * Alias for getFavorites() - for backward compatibility
+   */
+  getFavoriteCommands(): Command[] {
+    return this.getFavorites();
+  }
+
+  /**
+   * Add command to favorites - for backward compatibility
+   */
+  addFavorite(commandId: string): void {
+    if (!this.commands.has(commandId)) {
+      return;
+    }
+    this.favoriteCommands.add(commandId);
+    this.saveToStorage();
+  }
+
+  /**
+   * Remove command from favorites - for backward compatibility
+   */
+  removeFavorite(commandId: string): void {
+    this.favoriteCommands.delete(commandId);
+    this.saveToStorage();
+  }
 }
 
 // Export singleton instance

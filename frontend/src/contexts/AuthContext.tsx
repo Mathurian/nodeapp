@@ -8,6 +8,9 @@ interface User {
   preferredName?: string
   email: string
   role: string
+  phone?: string
+  gender?: string
+  bio?: string
   judge?: any
   contestant?: any
 }
@@ -16,6 +19,7 @@ interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
   isLoading: boolean
   isAuthenticated: boolean
 }
@@ -103,10 +107,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     navigate('/login')
   }
 
+  const refreshUser = async () => {
+    try {
+      const response = await api.get('/auth/profile')
+      const profileData = response.data.data || response.data
+      setUser(profileData)
+    } catch (error) {
+      console.error('Failed to refresh user:', error)
+      // If refresh fails, user might be logged out
+      setUser(null)
+    }
+  }
+
   const value = {
     user,
     login,
     logout,
+    refreshUser,
     isLoading,
     isAuthenticated
   }

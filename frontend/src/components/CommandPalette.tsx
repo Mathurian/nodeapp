@@ -118,11 +118,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       // Default mode: show recent and favorites
       const recentCommands = registry.getRecentCommands()
       const favoriteCommands = registry.getFavoriteCommands()
-      const allCommands = registry.getAllCommands({
+      const allCommands = registry.search('', {
         role: user.role,
-        context: location.pathname,
-        limit: 10
-      })
+        context: location.pathname
+      }).slice(0, 10)
 
       // Combine unique commands (favorites + recent + popular)
       const commandMap = new Map<string, Command>()
@@ -176,7 +175,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   }, [isOpen, selectedIndex, displayedCommands])
 
   const handleSelect = (command: Command) => {
-    registry.executeCommand(command.id, user?.role)
+    registry.executeCommand(command.id)
     onClose()
     setQuery('')
   }
