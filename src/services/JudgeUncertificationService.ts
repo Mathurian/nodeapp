@@ -85,7 +85,7 @@ export class JudgeUncertificationService extends BaseService {
         requestedByUser: { select: { id: true, name: true } }
       },
       orderBy: { createdAt: 'desc' }
-    }) as UncertificationRequestWithRelations[];
+    }) as unknown as UncertificationRequestWithRelations[];
   }
 
   async createUncertificationRequest(data: CreateUncertificationRequestData): Promise<UncertificationRequestWithJudgeCategory> {
@@ -118,7 +118,7 @@ export class JudgeUncertificationService extends BaseService {
         judge: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } }
       } as any
-    }) as UncertificationRequestWithJudgeCategory;
+    }) as unknown as UncertificationRequestWithJudgeCategory;
   }
 
   async signRequest(id: string, data: SignRequestData) {

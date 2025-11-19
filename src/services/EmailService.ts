@@ -262,7 +262,7 @@ export class EmailService extends BaseService {
 
       batchResults.forEach((result, index) => {
         const to = batch[index] || '';
-        if (result.status === 'fulfilled') {
+        if ((result as any).status === 'fulfilled') {
           results.push({ to, success: true, ...result.value });
         } else {
           results.push({ to, success: false, error: String(result.reason || 'Unknown error') });

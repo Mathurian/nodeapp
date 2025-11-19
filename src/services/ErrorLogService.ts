@@ -56,7 +56,7 @@ export class ErrorLogService extends BaseService {
   /**
    * Log an error to database
    */
-  override async logError(entry: ErrorLogEntry): Promise<ErrorLogWithDetails> {
+  async logErrorToDatabase(entry: ErrorLogEntry): Promise<ErrorLogWithDetails> {
     try {
       const errorLog = await this.prisma.errorLog.create({
         data: {
@@ -91,7 +91,7 @@ export class ErrorLogService extends BaseService {
     metadata?: Record<string, any>,
     tenantId?: string
   ): Promise<ErrorLogWithDetails> {
-    return await this.logError({
+    return await this.logErrorToDatabase({
       message: error.message,
       stack: error.stack,
       level: LogLevel.ERROR,
@@ -113,7 +113,7 @@ export class ErrorLogService extends BaseService {
     tenantId?: string;
     metadata?: Record<string, any>;
   }): Promise<ErrorLogWithDetails> {
-    return await this.logError({
+    return await this.logErrorToDatabase({
       message: params.error.message,
       stack: params.error.stack,
       level: LogLevel.ERROR,
@@ -193,7 +193,7 @@ export class ErrorLogService extends BaseService {
 
       // Count by day
       const day = error.createdAt.toISOString().split('T')[0];
-      stats.byDay[day] = ((stats.byDay as any)[day] || 0) + 1;
+      stats.byDay[((day as string) as string)] = ((stats.byDay as any)[((day as string) as string)] || 0) + 1;
     });
 
     return stats;

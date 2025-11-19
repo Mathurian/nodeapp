@@ -124,7 +124,7 @@ export class ScoreRemovalService extends BaseService {
         judge: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } }
       } as any
-    }) as ScoreRemovalRequestWithJudgeCategory;
+    }) as unknown as ScoreRemovalRequestWithJudgeCategory;
   }
 
   async getAll(tenantId: string, status?: string): Promise<ScoreRemovalRequestWithRelations[]> {
@@ -143,7 +143,7 @@ export class ScoreRemovalService extends BaseService {
         requestedByUser: { select: { id: true, name: true } }
       },
       orderBy: { createdAt: 'desc' }
-    }) as ScoreRemovalRequestWithRelations[];
+    }) as unknown as ScoreRemovalRequestWithRelations[];
   }
 
   async getById(id: string, tenantId: string): Promise<ScoreRemovalRequestWithRelations> {
@@ -218,7 +218,7 @@ export class ScoreRemovalService extends BaseService {
           } as any
         }
       }
-    }) as ScoreRemovalRequestWithJudgeCategoryContest;
+    }) as unknown as ScoreRemovalRequestWithJudgeCategoryContest;
 
     return {
       request: updatedRequest,

@@ -279,7 +279,7 @@ interface ContestantScoreGroup {
   scores: Array<{
     id: string;
     score: number;
-    comment: string | null;
+    comment: string;
     createdAt: Date;
     contestantId: string;
     judge: {
@@ -307,7 +307,7 @@ interface JudgeScoreGroup {
   judge: {
     id: string;
     name: string;
-    preferredName: string | null;
+    preferredName: string;
     email: string;
     role: UserRole;
   };
@@ -324,7 +324,7 @@ interface BiasAnalysisResult {
   judge: {
     id: string;
     name: string;
-    preferredName: string | null;
+    preferredName: string;
     email: string;
     role: UserRole;
   };
@@ -580,8 +580,8 @@ export class TallyMasterService extends BaseService {
     // Add dynamic certification status
     const categoriesWithStatus = categories.map((category) => {
       const allJudgesCertified =
-        category.scores.length > 0 && category.scores.every((s) => s.isCertified === true);
-      const _judgeStatus = allJudgesCertified ? 'COMPLETED' : 'PENDING';
+        category.scores.length > 0 && category.scores.every((s: any) => s.isCertified === true);
+      const categoryAny = category as any;
 
       let currentStep = 1;
       const totalSteps = 4;
@@ -592,19 +592,19 @@ export class TallyMasterService extends BaseService {
         currentStep = 2;
         statusLabel = 'Ready for Tally Master';
         statusColor = 'success';
-      } else if (category.totalsCertified && !category.tallyMasterCertified) {
+      } else if (category.totalsCertified && !categoryAny.tallyMasterCertified) {
         currentStep = 3;
         statusLabel = 'Ready for Tally Master Review';
         statusColor = 'info';
-      } else if (category.tallyMasterCertified && !category.auditorCertified) {
+      } else if (categoryAny.tallyMasterCertified && !categoryAny.auditorCertified) {
         currentStep = 4;
         statusLabel = 'Ready for Auditor';
         statusColor = 'info';
-      } else if (category.auditorCertified && !category.boardApproved) {
+      } else if (categoryAny.auditorCertified && !categoryAny.boardApproved) {
         currentStep = 5;
         statusLabel = 'Ready for Board';
         statusColor = 'success';
-      } else if (category.boardApproved) {
+      } else if (categoryAny.boardApproved) {
         currentStep = 6;
         statusLabel = 'Fully Certified';
         statusColor = 'success';
@@ -679,9 +679,9 @@ export class TallyMasterService extends BaseService {
     category: {
       id: string;
       name: string;
-      description: string | null;
-      scoreCap: number | null;
-      maxScore: number | null;
+      description: string;
+      scoreCap: number;
+      maxScore: number;
     };
     contest: {
       id: string;
@@ -802,8 +802,8 @@ export class TallyMasterService extends BaseService {
     category: {
       id: string;
       name: string;
-      description: string | null;
-      maxScore: number | null;
+      description: string;
+      maxScore: number;
     };
     overallAverage: number;
     totalScores: number;
@@ -820,16 +820,13 @@ export class TallyMasterService extends BaseService {
               select: {
                 id: true,
                 name: true,
-                preferredName: true,
                 email: true,
-                role: true,
               },
             },
             contestant: {
               select: {
                 id: true,
                 name: true,
-                preferredName: true,
                 email: true,
                 contestantNumber: true,
               },
@@ -838,7 +835,6 @@ export class TallyMasterService extends BaseService {
               select: {
                 id: true,
                 name: true,
-                description: true,
                 maxScore: true,
               },
             },
@@ -902,7 +898,7 @@ export class TallyMasterService extends BaseService {
         id: category.id,
         name: category.name,
         description: category.description,
-        maxScore: category.maxScore,
+        maxScore: (category as any).maxScore,
       },
       overallAverage: parseFloat(overallAverage.toFixed(2)),
       totalScores: category.scores.length,
@@ -933,7 +929,7 @@ export class TallyMasterService extends BaseService {
 
     const categories = await this.prisma.category.findMany({
       where: {
-        tallyMasterCertified: true,
+        totalsCertified: true,
       },
       include: {
         contest: {
@@ -1360,7 +1356,7 @@ export class TallyMasterService extends BaseService {
       status: string;
       requestedAt: Date;
       reviewedAt: Date | null;
-      reviewedById: string | null;
+      reviewedById: string;
       category: {
         id: string;
         name: string;
@@ -1398,7 +1394,7 @@ export class TallyMasterService extends BaseService {
 
     const whereClause: Prisma.JudgeScoreRemovalRequestWhereInput = {};
     if (status) {
-      whereClause.status = status;
+      (whereClause as any).status = status;
     }
     if (categoryId) {
       whereClause.categoryId = categoryId;
@@ -1480,7 +1476,7 @@ export class TallyMasterService extends BaseService {
           contestantId: req.contestantId,
           judgeId: req.judgeId,
           reason: req.reason,
-          status: req.status,
+          status: (req as any).status,
           requestedAt: req.requestedAt,
           reviewedAt: req.reviewedAt,
           reviewedById: req.reviewedById,

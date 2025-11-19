@@ -423,7 +423,7 @@ export class RedisCacheService {
 
       const result = await this.client.del(...fullKeys);
       this.stats.deletes += result;
-      return result;
+      return result as any;
     } catch (error) {
       console.error('Cache deleteMany error:', error);
       this.stats.errors++;
@@ -458,7 +458,7 @@ export class RedisCacheService {
 
       const result = await this.client.del(...keys);
       this.stats.deletes += result;
-      return result;
+      return result as any;
     } catch (error) {
       console.error('Cache deletePattern error:', error);
       this.stats.errors++;

@@ -3,7 +3,7 @@
  * Enforces password complexity requirements based on environment configuration
  */
 
-import { env } from './environment';
+import { env } from '../config/env';
 
 interface PasswordRequirements {
   minLength: number

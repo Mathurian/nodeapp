@@ -395,7 +395,7 @@ export class AuditorService extends BaseService {
         },
       } as any,
       orderBy: [{ contestantId: 'asc' }, { criterionId: 'asc' }],
-    }) as ScoreWithRelations[];
+    }) as unknown as ScoreWithRelations[];
 
     // Group scores by contestant
     const groupedScores = scores.reduce((acc: Record<string, {
@@ -499,13 +499,13 @@ export class AuditorService extends BaseService {
     }
 
     const totalScores = category.scores.length;
-    const verifiedScores = category.scores.filter((s) => s.verified).length;
+    const verifiedScores = category.scores.filter((s: any) => s.verified).length;
     const pendingVerification = totalScores - verifiedScores;
 
     // Check certification status
-    const tallyMasterCert = category.certifications?.some((c: any) => c.type === 'TALLY_MASTER');
-    const auditorCert = category.certifications?.some((c: any) => c.type === 'AUDITOR');
-    const finalCert = category.certifications?.some((c: any) => c.type === 'FINAL');
+    const tallyMasterCert = (category as any).certifications?.some((c: any) => c.type === 'TALLY_MASTER');
+    const auditorCert = (category as any).certifications?.some((c: any) => c.type === 'AUDITOR');
+    const finalCert = (category as any).certifications?.some((c: any) => c.type === 'FINAL');
 
     return {
       categoryId: category.id,
@@ -548,9 +548,9 @@ export class AuditorService extends BaseService {
     }
 
     // Check certification status
-    const tallyMasterCert = category.certifications?.find((c: any) => c.type === 'TALLY_MASTER');
-    const auditorCert = category.certifications?.find((c: any) => c.type === 'AUDITOR');
-    const finalCert = category.certifications?.find((c: any) => c.type === 'FINAL');
+    const tallyMasterCert = (category as any).certifications?.find((c: any) => c.type === 'TALLY_MASTER');
+    const auditorCert = (category as any).certifications?.find((c: any) => c.type === 'AUDITOR');
+    const finalCert = (category as any).certifications?.find((c: any) => c.type === 'FINAL');
 
     const workflow = {
       categoryId: category.id,
@@ -720,10 +720,10 @@ export class AuditorService extends BaseService {
             scoreCount: r.scores.length,
           })),
       certification: {
-        tallyMasterCertified: category.certifications?.some((c: any) => c.type === 'TALLY_MASTER') || false,
-        auditorCertified: category.certifications?.some((c: any) => c.type === 'AUDITOR') || false,
-        finalCertified: category.certifications?.some((c: any) => c.type === 'FINAL') || false,
-        certifications: category.certifications || [],
+        tallyMasterCertified: (category as any).certifications?.some((c: any) => c.type === 'TALLY_MASTER') || false,
+        auditorCertified: (category as any).certifications?.some((c: any) => c.type === 'AUDITOR') || false,
+        finalCertified: (category as any).certifications?.some((c: any) => c.type === 'FINAL') || false,
+        certifications: (category as any).certifications || [],
       },
       generatedAt: new Date().toISOString(),
       generatedBy: userId,
@@ -757,7 +757,7 @@ export class AuditorService extends BaseService {
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
-    }) as ActivityLogWithUser[];
+    }) as unknown as ActivityLogWithUser[];
 
     const total = await this.prisma.activityLog.count({
       where: whereClause,

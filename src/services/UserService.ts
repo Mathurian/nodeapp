@@ -122,7 +122,7 @@ export class UserService extends BaseService {
   async getAllUsers(): Promise<User[]> {
     try {
       const users = await this.userRepository.findAll();
-      return users.map(user => this.sanitizeUser(user));
+      return users.map(user => this.sanitizeUser(user)) as any;
     } catch (error) {
       this.handleError(error, { method: 'getAllUsers' });
     }
@@ -134,7 +134,7 @@ export class UserService extends BaseService {
   async getActiveUsers(): Promise<User[]> {
     try {
       const users = await this.userRepository.findActiveUsers();
-      return users.map(user => this.sanitizeUser(user));
+      return users.map(user => this.sanitizeUser(user)) as any;
     } catch (error) {
       this.handleError(error, { method: 'getActiveUsers' });
     }
@@ -183,7 +183,7 @@ export class UserService extends BaseService {
   async getUsersByRole(role: string): Promise<User[]> {
     try {
       const users = await this.userRepository.findByRole(role);
-      return users.map(user => this.sanitizeUser(user));
+      return users.map(user => this.sanitizeUser(user)) as any;
     } catch (error) {
       this.handleError(error, { method: 'getUsersByRole', role });
     }
@@ -479,7 +479,7 @@ export class UserService extends BaseService {
   async searchUsers(query: string): Promise<User[]> {
     try {
       const users = await this.userRepository.searchUsers(query);
-      return users.map(user => this.sanitizeUser(user));
+      return users.map(user => this.sanitizeUser(user)) as any;
     } catch (error) {
       this.handleError(error, { method: 'searchUsers', query });
     }
@@ -507,9 +507,13 @@ export class UserService extends BaseService {
   /**
    * Remove sensitive data from user object
    */
-  protected override sanitizeUser(user: User): User {
-    const { password, ...sanitized } = user;
-    return sanitized as User;
+  protected override sanitizeUser<T extends Record<string, unknown>>(user: T): Omit<T, 'password' | 'resetToken' | 'resetTokenExpiry'> {
+    const { password, resetToken, resetTokenExpiry, ...sanitized } = user as T & {
+      password?: unknown;
+      resetToken?: unknown;
+      resetTokenExpiry?: unknown;
+    };
+    return sanitized as Omit<T, 'password' | 'resetToken' | 'resetTokenExpiry'>;
   }
 
   /**

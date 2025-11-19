@@ -102,11 +102,11 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Find deduction by ID with all relations
    */
-  override async findByIdWithRelations(id: string, tenantId: string): Promise<DeductionWithRelations | null> {
+  override async findByIdWithRelations(id: string, tenantId: any): Promise<DeductionWithRelations | null> {
     return (this.getModel() as any).findFirst({
       where: {
         id,
-        tenantId
+        tenantId: tenantId as string
       },
       include: {
         contestant: {

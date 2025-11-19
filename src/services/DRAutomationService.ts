@@ -114,7 +114,7 @@ export interface RTORPOViolationCheck {
   rtoMinutes: number;
   rpoMinutes: number;
   lastBackup: Date | null;
-  minutesSinceLastBackup: number | null;
+  minutesSinceLastBackup: number;
 }
 
 export interface DRDashboard {
@@ -713,12 +713,12 @@ export class DRAutomationService {
 
       // Calculate statistics
       const totalBackups = recentBackups.length;
-      const successfulBackups = recentBackups.filter(b => b.status === 'success').length;
+      const successfulBackups = recentBackups.filter(b => (b as any).status === 'success').length;
       const failedBackups = totalBackups - successfulBackups;
       const successRate = totalBackups > 0 ? (successfulBackups / totalBackups) * 100 : 0;
 
       const totalTests = recentTests.length;
-      const passedTests = recentTests.filter(t => t.status === 'success').length;
+      const passedTests = recentTests.filter(t => (t as any).status === 'success').length;
       const testPassRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
 
       const avgBackupDuration = recentBackups

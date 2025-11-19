@@ -4,6 +4,7 @@
  */
 
 import { injectable } from 'tsyringe';
+// @ts-ignore - pdfkit types not available
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 import { BaseService } from './BaseService';

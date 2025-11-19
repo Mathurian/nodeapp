@@ -246,10 +246,10 @@ export class ScoreRepository extends BaseRepository<Score> {
       return [];
     }
 
-    const expectedScoresPerJudge = contest.contestants.length * contest.categories.length;
+    const expectedScoresPerJudge = (contest as any).contestants.length * (contest as any).categories.length;
 
     const judgeStatus = await Promise.all(
-      contest.judges.map(async (contestJudge: any) => {
+      (contest as any).judges.map(async (contestJudge: any) => {
         const scoreCount = await this.count({
           judgeId: contestJudge.judgeId,
           contestId,

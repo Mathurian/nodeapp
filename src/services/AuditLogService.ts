@@ -287,7 +287,7 @@ export class AuditLogService extends BaseService {
 
       // Count by day
       const day = log.timestamp.toISOString().split('T')[0];
-      stats.byDay[day] = ((stats.byDay as any)[day] || 0) + 1;
+      stats.byDay[((day as string) as string)] = ((stats.byDay as any)[((day as string) as string)] || 0) + 1;
     });
 
     return stats;

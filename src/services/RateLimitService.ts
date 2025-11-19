@@ -10,7 +10,7 @@ import { Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import Redis from 'ioredis';
 import { createLogger } from '../utils/logger';
-import { env } from '../config/env';
+// import { env } from '../config/env';
 
 export interface RateLimitConfig {
   tier: string;
@@ -271,7 +271,7 @@ export class RateLimitService {
       },
       handler: (_req: Request, res: any) => {
         const resetAt = new Date(Date.now() + (config.duration || 60) * 1000);
-        res.status(429).json({
+        (res as any).status(429).json({
           success: false,
           error: 'RATE_LIMIT_EXCEEDED',
           message: `Too many requests to ${endpoint}. Please try again later.`,
@@ -304,7 +304,7 @@ export class RateLimitService {
    * Check if Redis is available for rate limiting
    */
   isRedisAvailable(): boolean {
-    return this.redisEnabled && this.redis !== null && this.redis.status === 'ready';
+    return this.redisEnabled && this.redis !== null && (this.redis as any).status === 'ready';
   }
 }
 

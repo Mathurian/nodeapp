@@ -3,6 +3,7 @@
  * Prevents XSS, SQL injection, and other injection attacks
  */
 
+// @ts-ignore - validator types not available
 import validator from 'validator'
 
 /**
