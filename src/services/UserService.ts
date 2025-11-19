@@ -11,6 +11,7 @@ import { UserRepository } from '../repositories/UserRepository';
 import { invalidateCache, userCache } from '../utils/cache';
 import { EmailService } from './EmailService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 
 export interface CreateUserDTO {
   name: string;
@@ -266,9 +267,20 @@ export class UserService extends BaseService {
         throw new ValidationError('Invalid email format');
       }
 
-      // Validate password strength
-      if (data.password.length < 8) {
-        throw new ValidationError('Password must be at least 8 characters long');
+      // P2-5: Validate password strength using comprehensive password policy
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid) {
+        throw new ValidationError(
+          `Password does not meet complexity requirements: ${passwordValidation.errors.join(', ')}`
+        );
+      }
+
+      // P2-5: Check if password is too similar to user information
+      if (isPasswordSimilarToUserInfo(data.password, {
+        name: data.name,
+        email: data.email
+      })) {
+        throw new ValidationError('Password is too similar to your personal information');
       }
 
       // Check if name already exists
@@ -378,9 +390,20 @@ export class UserService extends BaseService {
         throw new ValidationError('Current password is incorrect');
       }
 
-      // Validate new password
-      if (data.newPassword.length < 8) {
-        throw new ValidationError('New password must be at least 8 characters long');
+      // P2-5: Validate new password using comprehensive password policy
+      const passwordValidation = validatePassword(data.newPassword);
+      if (!passwordValidation.isValid) {
+        throw new ValidationError(
+          `Password does not meet complexity requirements: ${passwordValidation.errors.join(', ')}`
+        );
+      }
+
+      // P2-5: Check if password is too similar to user information
+      if (isPasswordSimilarToUserInfo(data.newPassword, {
+        name: user.name,
+        email: user.email
+      })) {
+        throw new ValidationError('Password is too similar to your personal information');
       }
 
       // Hash new password
@@ -505,6 +528,22 @@ export class UserService extends BaseService {
     try {
       const user = await this.userRepository.findById(userId);
       this.assertExists(user, 'User', userId);
+
+      // P2-5: Validate new password using comprehensive password policy
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.isValid) {
+        throw new ValidationError(
+          `Password does not meet complexity requirements: ${passwordValidation.errors.join(', ')}`
+        );
+      }
+
+      // P2-5: Check if password is too similar to user information
+      if (isPasswordSimilarToUserInfo(newPassword, {
+        name: user.name,
+        email: user.email
+      })) {
+        throw new ValidationError('Password is too similar to your personal information');
+      }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
