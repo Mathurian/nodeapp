@@ -79,17 +79,30 @@ class ErrorBoundary extends Component<Props, State> {
               </p>
             </div>
 
-            {import.meta.env.DEV && this.state.error && (
+            {this.state.error && (
               <div className="rounded-md bg-red-50 p-4">
                 <div className="flex">
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">
-                      Error Details (Development Only):
+                      Error Details:
                     </h3>
                     <div className="mt-2 text-sm text-red-700">
                       <p className="font-mono text-xs whitespace-pre-wrap">
                         {this.state.error.toString()}
                       </p>
+                      <p className="font-mono text-xs whitespace-pre-wrap mt-2">
+                        Message: {this.state.error.message}
+                      </p>
+                      {this.state.error.stack && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer font-semibold">
+                            Stack Trace
+                          </summary>
+                          <pre className="mt-2 text-xs whitespace-pre-wrap overflow-auto max-h-64">
+                            {this.state.error.stack}
+                          </pre>
+                        </details>
+                      )}
                       {this.state.errorInfo && (
                         <details className="mt-2">
                           <summary className="cursor-pointer font-semibold">
