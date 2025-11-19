@@ -11,21 +11,20 @@
     "rootDir": "./src",
     "removeComments": true,
     "sourceMap": true,
-    "declaration": false,      // DISABLED: Prevents TS4029/TS4023 errors
-    "declarationMap": false,   // DISABLED: Depends on declaration
-    "noEmitOnError": false,    // DISABLED: Allow build to complete with errors
+    "declaration": true,
+    "declarationMap": true,
 
-    /* Strict Type-Checking Options - Relaxed for production build */
-    "strict": false,                  // DISABLED: For immediate build compatibility
-    "strictNullChecks": false,        // DISABLED: For immediate build compatibility
-    "noImplicitAny": false,           // DISABLED: For immediate build compatibility
-    "noUnusedLocals": false,          // DISABLED: Prevent unused variable errors
-    "noUnusedParameters": false,      // DISABLED: Prevent unused parameter errors
-    "noImplicitReturns": true,        // ENABLED: All code paths must return
+    /* Strict Type-Checking Options */
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false, // DISABLED: For build compatibility
-    "noImplicitOverride": false,       // DISABLED: For build compatibility
-    "noPropertyAccessFromIndexSignature": false, // DISABLED: Allow dot notation
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true
 
     /* Module Resolution Options */
     "esModuleInterop": true,
