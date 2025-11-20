@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   QuestionMarkCircleIcon,
   BookOpenIcon,
@@ -12,6 +14,7 @@ import {
   RocketLaunchIcon,
   WrenchScrewdriverIcon,
   ExclamationTriangleIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 
 interface FAQItem {
@@ -38,6 +41,7 @@ const HelpPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'faq' | 'docs'>('faq')
   const [expandedFAQs, setExpandedFAQs] = useState<string[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [viewingDoc, setViewingDoc] = useState<{ title: string; content: string } | null>(null)
 
   const faqs: FAQItem[] = [
     {
@@ -251,10 +255,70 @@ const HelpPage: React.FC = () => {
     }
   }
 
-  const handleDocClick = (path: string) => {
-    // In a real implementation, this would open the document in a viewer
-    // For now, we'll just show an alert
-    alert(`Documentation viewer would open: ${path}\n\nThis feature requires a markdown renderer component to display the documentation files.`)
+  const handleDocClick = async (doc: DocLink) => {
+    // For now, show example documentation content
+    // In production, this would fetch from the server or load from public folder
+    const exampleContent = `# ${doc.title}
+
+## Overview
+
+${doc.description}
+
+## Getting Started
+
+This section provides detailed information about ${doc.title.toLowerCase()}.
+
+### Prerequisites
+
+- Access to the Event Manager system
+- Appropriate user role and permissions
+- Understanding of basic event management concepts
+
+### Key Features
+
+1. **Feature One**: Description of the first key feature
+2. **Feature Two**: Description of the second key feature
+3. **Feature Three**: Description of the third key feature
+
+## Usage
+
+To use this feature:
+
+\`\`\`javascript
+// Example code snippet
+const example = {
+  feature: "demo",
+  status: "active"
+};
+\`\`\`
+
+## Best Practices
+
+- Always follow system guidelines
+- Test changes in a development environment first
+- Keep documentation up to date
+- Communicate with team members
+
+## Common Issues
+
+**Issue**: Something isn't working as expected
+
+**Solution**: Check the following:
+- Verify permissions
+- Check system logs
+- Contact administrator if issue persists
+
+## Additional Resources
+
+- [Main Documentation](/)
+- [FAQ Section](#faq)
+- [Support Contact](mailto:support@example.com)
+
+---
+
+*Note: This is example documentation content. In production, actual markdown files would be loaded from the server or documentation repository.*
+`
+    setViewingDoc({ title: doc.title, content: exampleContent })
   }
 
   return (
@@ -433,7 +497,7 @@ const HelpPage: React.FC = () => {
                     {section.docs.map((doc, docIndex) => (
                       <button
                         key={docIndex}
-                        onClick={() => handleDocClick(doc.path)}
+                        onClick={() => handleDocClick(doc)}
                         className="w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
                       >
                         <DocumentTextIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 mr-3 flex-shrink-0" />
@@ -453,23 +517,6 @@ const HelpPage: React.FC = () => {
               )
             })}
 
-            {/* Documentation Note */}
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
-              <div className="flex items-start">
-                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mr-3 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    Documentation Viewer
-                  </h3>
-                  <p className="text-gray-700 dark:text-gray-300 mb-3">
-                    The full documentation viewer with markdown rendering is planned for a future update. Currently, documentation files are available in the project's <code className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 rounded text-sm">/docs</code> directory. You can also access the raw documentation files directly from the server or repository.
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Administrators can find the complete documentation set at <code className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 rounded text-xs">/docs</code> on the server.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -486,7 +533,7 @@ const HelpPage: React.FC = () => {
             <button
               onClick={() => {
                 setActiveTab('docs')
-                handleDocClick('/docs/02-GETTING-STARTED.md')
+                handleDocClick({ title: 'Getting Started', description: 'Learn how to use the system effectively', path: '/docs/02-GETTING-STARTED.md' })
               }}
               className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium"
             >
@@ -505,7 +552,7 @@ const HelpPage: React.FC = () => {
             <button
               onClick={() => {
                 setActiveTab('docs')
-                handleDocClick('/docs/04-API-REFERENCE.md')
+                handleDocClick({ title: 'API Reference', description: 'RESTful API integration documentation', path: '/docs/04-API-REFERENCE.md' })
               }}
               className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium"
             >
@@ -524,7 +571,6 @@ const HelpPage: React.FC = () => {
             <button
               onClick={() => {
                 setActiveTab('docs')
-                handleDocClick('/docs/10-TROUBLESHOOTING.md')
               }}
               className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium"
             >
@@ -532,6 +578,68 @@ const HelpPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Documentation Viewer Modal */}
+        {viewingDoc && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                  <DocumentTextIcon className="h-6 w-6 mr-2 text-blue-600 dark:text-blue-400" />
+                  {viewingDoc.title}
+                </h2>
+                <button
+                  onClick={() => setViewingDoc(null)}
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="prose prose-blue dark:prose-invert max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-6 mb-3" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-xl font-semibold text-gray-900 dark:text-white mt-4 mb-2" {...props} />,
+                      p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 mb-4 space-y-1" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal list-inside text-gray-700 dark:text-gray-300 mb-4 space-y-1" {...props} />,
+                      li: ({node, ...props}) => <li className="ml-4" {...props} />,
+                      code: ({node, className, children, ...props}: any) => {
+                        const isInline = !className?.includes('language-')
+                        return isInline
+                          ? <code className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-sm rounded text-blue-600 dark:text-blue-400" {...props}>{children}</code>
+                          : <code className="block p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm overflow-x-auto mb-4" {...props}>{children}</code>
+                      },
+                      pre: ({node, ...props}) => <pre className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg overflow-x-auto mb-4" {...props} />,
+                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-600 dark:text-gray-400 mb-4" {...props} />,
+                      a: ({node, ...props}) => <a className="text-blue-600 dark:text-blue-400 hover:underline" {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
+                      hr: ({node, ...props}) => <hr className="my-6 border-gray-300 dark:border-gray-600" {...props} />,
+                    }}
+                  >
+                    {viewingDoc.content}
+                  </ReactMarkdown>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                <button
+                  onClick={() => setViewingDoc(null)}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
