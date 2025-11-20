@@ -270,7 +270,14 @@ export class SettingsController {
   ): Promise<void> => {
     try {
       const emailSettings = await this.settingsService.getEmailSettings();
-      res.json(emailSettings);
+
+      // Wrap response in standard format with data wrapper
+      res.json({
+        success: true,
+        data: emailSettings,
+        message: 'Email settings retrieved successfully',
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       return next(error);
     }
