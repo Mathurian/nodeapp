@@ -190,6 +190,190 @@ router.put('/contestant-visibility', requireRole(['ADMIN', 'ORGANIZER']), logAct
 // Database connection info (read-only, masked)
 router.get('/database-connection-info', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getDatabaseConnectionInfo)
 
+// Field configuration routes (for user field visibility settings)
+router.get('/field-configurations', requireRole(['ADMIN', 'ORGANIZER']), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const configurations = await prisma.userFieldConfiguration.findMany({
+      orderBy: { order: 'asc' }
+    });
+
+    await prisma.$disconnect();
+
+    res.json({
+      success: true,
+      data: configurations,
+      message: 'Field configurations retrieved successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/field-configurations/:fieldName', requireRole(['ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const fieldName = req.params['fieldName'];
+    const configuration = await prisma.userFieldConfiguration.findUnique({
+      where: { fieldName }
+    });
+
+    await prisma.$disconnect();
+
+    if (!configuration) {
+      res.status(404).json({
+        success: false,
+        error: 'Field configuration not found',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: configuration,
+      message: 'Field configuration retrieved successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/field-configurations/:fieldName', requireRole(['ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const fieldName = req.params['fieldName'];
+    if (!fieldName) {
+      res.status(400).json({
+        success: false,
+        error: 'fieldName is required',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const { isVisible, isRequired, order } = req.body;
+
+    const configuration = await prisma.userFieldConfiguration.upsert({
+      where: { fieldName },
+      update: {
+        isVisible: isVisible !== undefined ? isVisible : undefined,
+        isRequired: isRequired !== undefined ? isRequired : undefined,
+        order: order !== undefined ? order : undefined,
+      },
+      create: {
+        fieldName,
+        isVisible: isVisible ?? true,
+        isRequired: isRequired ?? false,
+        order: order ?? 0,
+      }
+    });
+
+    await prisma.$disconnect();
+
+    res.json({
+      success: true,
+      data: configuration,
+      message: 'Field configuration updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/field-configurations/bulk', requireRole(['ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATIONS_BULK', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const { configurations } = req.body;
+
+    if (!Array.isArray(configurations)) {
+      res.status(400).json({
+        success: false,
+        error: 'configurations must be an array',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const results = await Promise.all(
+      configurations.map((config: any) =>
+        prisma.userFieldConfiguration.upsert({
+          where: { fieldName: config.fieldName },
+          update: {
+            isVisible: config.isVisible !== undefined ? config.isVisible : undefined,
+            isRequired: config.isRequired !== undefined ? config.isRequired : undefined,
+            order: config.order !== undefined ? config.order : undefined,
+          },
+          create: {
+            fieldName: config.fieldName,
+            isVisible: config.isVisible ?? true,
+            isRequired: config.isRequired ?? false,
+            order: config.order ?? 0,
+          }
+        })
+      )
+    );
+
+    await prisma.$disconnect();
+
+    res.json({
+      success: true,
+      data: results,
+      message: 'Field configurations updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/field-configurations/reset', requireRole(['ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    // Delete all existing configurations
+    await prisma.userFieldConfiguration.deleteMany({});
+
+    // Create default configurations for common user fields
+    const defaultFields = [
+      { fieldName: 'name', isVisible: true, isRequired: true, order: 1 },
+      { fieldName: 'preferredName', isVisible: true, isRequired: false, order: 2 },
+      { fieldName: 'email', isVisible: true, isRequired: true, order: 3 },
+      { fieldName: 'phone', isVisible: true, isRequired: false, order: 4 },
+      { fieldName: 'gender', isVisible: true, isRequired: false, order: 5 },
+      { fieldName: 'pronouns', isVisible: true, isRequired: false, order: 6 },
+      { fieldName: 'bio', isVisible: true, isRequired: false, order: 7 },
+    ];
+
+    const results = await prisma.userFieldConfiguration.createMany({
+      data: defaultFields
+    });
+
+    await prisma.$disconnect();
+
+    res.json({
+      success: true,
+      data: results,
+      message: 'Field configurations reset to defaults',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
 
 // CommonJS compatibility for server.ts
