@@ -384,6 +384,14 @@ export const reportsAPI = {
   delete: (id: string) => api.delete(`/reports/${id}`),
 }
 
+export const fieldConfigurationAPI = {
+  getAll: () => api.get('/settings/field-configurations'),
+  getByField: (fieldName: string) => api.get(`/settings/field-configurations/${fieldName}`),
+  update: (fieldName: string, data: any) => api.put(`/settings/field-configurations/${fieldName}`, data),
+  updateBulk: (configurations: any[]) => api.put('/settings/field-configurations/bulk', { configurations }),
+  resetToDefaults: () => api.post('/settings/field-configurations/reset'),
+}
+
 // Export the api instance for direct use
 export { api }
 export default api
