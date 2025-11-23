@@ -66,7 +66,7 @@ class ScheduledBackupService {
     } catch (error) {
       // Only log errors in non-test environments
       if (!env.isTest()) {
-        console.error('Error loading backup settings:', error)
+        logger.error('Error loading backup settings', { error })
       }
     }
   }
@@ -171,7 +171,7 @@ class ScheduledBackupService {
 
       exec(command, async (error: any, _stdout: string, _stderr: string) => {
         if (error) {
-          console.error('Scheduled backup error:', error)
+          logger.error('Scheduled backup error', { error })
           await this.prisma.backupLog.update({
             where: { id: backupLog.id },
             data: {
@@ -235,7 +235,7 @@ class ScheduledBackupService {
           where: { id: backup.id }
         })
 
-        console.log(`Cleaned up old backup: ${backup.location}`)
+        logger.info(`Cleaned up old backup`, { location: backup.location })
       }
 
     } catch (error) {
