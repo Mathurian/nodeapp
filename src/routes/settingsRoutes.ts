@@ -32,6 +32,7 @@ import {
 import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
+import prisma from '../config/database';
 
 const router: Router = express.Router();
 
@@ -197,14 +198,9 @@ router.get('/database-connection-info', requireRole(['SUPER_ADMIN', 'ADMIN', 'OR
 // Field configuration routes (for user field visibility settings)
 router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
     const configurations = await prisma.userFieldConfiguration.findMany({
       orderBy: { order: 'asc' }
     });
-
-    await prisma.$disconnect();
 
     res.json({
       success: true,
@@ -219,15 +215,10 @@ router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANI
 
 router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
     const fieldName = req.params['fieldName'];
     const configuration = await prisma.userFieldConfiguration.findUnique({
       where: { fieldName }
     });
-
-    await prisma.$disconnect();
 
     if (!configuration) {
       res.status(404).json({
@@ -251,9 +242,6 @@ router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
 
 router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
     const fieldName = req.params['fieldName'];
     if (!fieldName) {
       res.status(400).json({
@@ -281,8 +269,6 @@ router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
       }
     });
 
-    await prisma.$disconnect();
-
     res.json({
       success: true,
       data: configuration,
@@ -296,9 +282,6 @@ router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
 
 router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATIONS_BULK', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
     const { configurations } = req.body;
 
     if (!Array.isArray(configurations)) {
@@ -328,8 +311,6 @@ router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'O
         })
       )
     );
-
-    await prisma.$disconnect();
 
     res.json({
       success: true,
