@@ -7,6 +7,9 @@ import { Request, Response } from 'express';
 import { getVirusScanService } from '../services/VirusScanService';
 import * as path from 'path';
 import * as fs from 'fs';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('VirusScanAdminController');
 
 export class VirusScanAdminController {
   /**
@@ -25,7 +28,7 @@ export class VirusScanAdminController {
         },
       });
     } catch (error) {
-      console.error('Error checking virus scan health:', error);
+      logger.error('Error checking virus scan health', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to check virus scan health',
@@ -46,7 +49,7 @@ export class VirusScanAdminController {
         data: stats,
       });
     } catch (error) {
-      console.error('Error getting virus scan statistics:', error);
+      logger.error('Error getting virus scan statistics', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to get virus scan statistics',
@@ -75,7 +78,7 @@ export class VirusScanAdminController {
         data: filesWithMetadata,
       });
     } catch (error) {
-      console.error('Error listing quarantined files:', error);
+      logger.error('Error listing quarantined files', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to list quarantined files',
@@ -105,7 +108,7 @@ export class VirusScanAdminController {
         data: metadata,
       });
     } catch (error) {
-      console.error('Error getting quarantined file:', error);
+      logger.error('Error getting quarantined file', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to get quarantined file',
@@ -134,7 +137,7 @@ export class VirusScanAdminController {
         });
       }
     } catch (error) {
-      console.error('Error deleting quarantined file:', error);
+      logger.error('Error deleting quarantined file', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to delete quarantined file',
@@ -165,7 +168,7 @@ export class VirusScanAdminController {
         data: result,
       });
     } catch (error) {
-      console.error('Error scanning file:', error);
+      logger.error('Error scanning file', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to scan file',
@@ -225,7 +228,7 @@ export class VirusScanAdminController {
         },
       });
     } catch (error) {
-      console.error('Error performing bulk scan:', error);
+      logger.error('Error performing bulk scan', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to perform bulk scan',
@@ -246,7 +249,7 @@ export class VirusScanAdminController {
         message: 'Scan cache cleared successfully',
       });
     } catch (error) {
-      console.error('Error clearing scan cache:', error);
+      logger.error('Error clearing scan cache', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to clear scan cache',

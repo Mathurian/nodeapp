@@ -4,6 +4,9 @@ import { AdminService } from '../services/AdminService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { parsePaginationQuery } from '../utils/pagination';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('AdminController');
 
 export class AdminController {
   private adminService: AdminService;
@@ -21,7 +24,7 @@ export class AdminController {
       const isSuperAdmin = (req as any).isSuperAdmin;
       const userEmail = (req as any).user?.email;
 
-      console.log('[AdminController.getDashboard] DEBUG:', {
+      logger.debug('[AdminController.getDashboard]', {
         tenantId,
         isSuperAdmin,
         userEmail,

@@ -8,6 +8,9 @@ import { sendSuccess } from '../utils/responseHelpers';
 import { container } from 'tsyringe';
 import { EventService } from '../services/EventService';
 import { AuditLogService } from '../services/AuditLogService';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('EventsController');
 
 /**
  * Success response helper
@@ -167,7 +170,7 @@ export class EventsController {
           { name: event.name, startDate: event.startDate, endDate: event.endDate }
         );
       } catch (auditError) {
-        console.error('Failed to log event creation audit:', auditError);
+        logger.error('Failed to log event creation audit', { error: auditError });
       }
 
       successResponse(res, event, 'Event created successfully', 201);
@@ -205,7 +208,7 @@ export class EventsController {
           tenantId
         });
       } catch (auditError) {
-        console.error('Failed to log event update audit:', auditError);
+        logger.error('Failed to log event update audit', { error: auditError });
       }
 
       return sendSuccess(res, event, 'Event updated successfully');
@@ -241,7 +244,7 @@ export class EventsController {
           { name: event.name, startDate: event.startDate, endDate: event.endDate }
         );
       } catch (auditError) {
-        console.error('Failed to log event deletion audit:', auditError);
+        logger.error('Failed to log event deletion audit', { error: auditError });
       }
 
       return sendSuccess(res, null, 'Event deleted successfully', 204);
@@ -273,7 +276,7 @@ export class EventsController {
           { name: event.name, archived: true }
         );
       } catch (auditError) {
-        console.error('Failed to log event archive audit:', auditError);
+        logger.error('Failed to log event archive audit', { error: auditError });
       }
 
       return sendSuccess(res, event, 'Event archived successfully');
@@ -305,7 +308,7 @@ export class EventsController {
           { name: event.name, archived: false }
         );
       } catch (auditError) {
-        console.error('Failed to log event unarchive audit:', auditError);
+        logger.error('Failed to log event unarchive audit', { error: auditError });
       }
 
       return sendSuccess(res, event, 'Event unarchived successfully');

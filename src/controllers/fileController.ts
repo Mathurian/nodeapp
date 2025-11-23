@@ -4,6 +4,9 @@ import { FileService } from '../services/FileService';
 import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('FileController');
 
 export class FileController {
   private fileService: FileService;
@@ -41,7 +44,7 @@ export class FileController {
           metadata: { filePath }
         });
       } catch (auditError) {
-        console.error('Failed to log file download audit:', auditError);
+        logger.error('Failed to log file download audit', { error: auditError });
       }
 
       res.download(filePath, filename!);
@@ -67,7 +70,7 @@ export class FileController {
           metadata: {}
         });
       } catch (auditError) {
-        console.error('Failed to log file deletion audit:', auditError);
+        logger.error('Failed to log file deletion audit', { error: auditError });
       }
 
       return sendSuccess(res, null, 'File deleted');
@@ -167,7 +170,7 @@ export class FileController {
           });
         }
       } catch (auditError) {
-        console.error('Failed to log file upload audit:', auditError);
+        logger.error('Failed to log file upload audit', { error: auditError });
       }
 
       return sendSuccess(res, {
@@ -322,7 +325,7 @@ export class FileController {
           }
         });
       } catch (auditError) {
-        console.error('Failed to log file upload audit:', auditError);
+        logger.error('Failed to log file upload audit', { error: auditError });
       }
 
       return sendSuccess(res, uploadedFile, 'File uploaded successfully', 201);

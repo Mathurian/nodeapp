@@ -5,6 +5,9 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('AuthController');
 import { container } from 'tsyringe';
 import { AuthService } from '../services/AuthService';
 import { AuditLogService } from '../services/AuditLogService';
@@ -99,7 +102,7 @@ export class AuthController {
       });
 
       // Log to console for debugging
-      console.error('Login error details:', {
+      logger.error('Login error details', {
         error: errorMessage,
         origin: req.headers?.origin,
         host: req.headers?.host,

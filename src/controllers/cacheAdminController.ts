@@ -6,6 +6,9 @@
 import { Request, Response } from 'express';
 import { getCacheService } from '../services/RedisCacheService';
 import { CacheNamespace } from '../config/redis.config';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('CacheAdminController');
 
 export class CacheAdminController {
   /**
@@ -21,7 +24,7 @@ export class CacheAdminController {
         data: stats,
       });
     } catch (error) {
-      console.error('Error getting cache statistics:', error);
+      logger.error('Error getting cache statistics', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to get cache statistics',
@@ -45,7 +48,7 @@ export class CacheAdminController {
         },
       });
     } catch (error) {
-      console.error('Error checking cache health:', error);
+      logger.error('Error checking cache health', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to check cache health',
@@ -82,7 +85,7 @@ export class CacheAdminController {
         },
       });
     } catch (error) {
-      console.error('Error clearing cache namespace:', error);
+      logger.error('Error clearing cache namespace', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to clear cache namespace',
@@ -110,7 +113,7 @@ export class CacheAdminController {
         });
       }
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      logger.error('Error clearing cache', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to clear cache',
@@ -138,7 +141,7 @@ export class CacheAdminController {
         },
       });
     } catch (error) {
-      console.error('Error deleting cache key:', error);
+      logger.error('Error deleting cache key', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to delete cache key',
@@ -164,7 +167,7 @@ export class CacheAdminController {
         },
       });
     } catch (error) {
-      console.error('Error invalidating cache tag:', error);
+      logger.error('Error invalidating cache tag', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to invalidate cache tag',
@@ -185,7 +188,7 @@ export class CacheAdminController {
         message: 'Cache warming started',
       });
     } catch (error) {
-      console.error('Error warming cache:', error);
+      logger.error('Error warming cache', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to warm cache',
@@ -206,7 +209,7 @@ export class CacheAdminController {
         message: 'Cache statistics reset',
       });
     } catch (error) {
-      console.error('Error resetting cache statistics:', error);
+      logger.error('Error resetting cache statistics', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to reset statistics',
