@@ -97,7 +97,7 @@ export class CacheService {
       this.hits++;
       return JSON.parse(value) as T;
     } catch (error) {
-      console.error(`Cache get error for key "${key}":`, error);
+      logger.error(`Cache get error for key "${key}"`, { error });
       this.misses++;
       return null;
     }
@@ -115,7 +115,7 @@ export class CacheService {
       const serialized = JSON.stringify(value);
       await this.redis.setex(key, ttlSeconds, serialized);
     } catch (error) {
-      console.error(`Cache set error for key "${key}":`, error);
+      logger.error(`Cache set error for key "${key}"`, { error });
     }
   }
 
@@ -136,7 +136,7 @@ export class CacheService {
         await this.redis.del(key);
       }
     } catch (error) {
-      console.error('Cache delete error:', error);
+      logger.error('Cache delete error', { error });
     }
   }
 
@@ -154,7 +154,7 @@ export class CacheService {
         await this.redis.del(...keys);
       }
     } catch (error) {
-      console.error(`Cache invalidate pattern error for "${pattern}":`, error);
+      logger.error(`Cache invalidate pattern error for "${pattern}"`, { error });
     }
   }
 
@@ -170,7 +170,7 @@ export class CacheService {
       const result = await this.redis.exists(key);
       return result === 1;
     } catch (error) {
-      console.error(`Cache exists error for key "${key}":`, error);
+      logger.error(`Cache exists error for key "${key}"`, { error });
       return false;
     }
   }
@@ -186,7 +186,7 @@ export class CacheService {
     try {
       await this.redis.expire(key, ttlSeconds);
     } catch (error) {
-      console.error(`Cache expire error for key "${key}":`, error);
+      logger.error(`Cache expire error for key "${key}"`, { error });
     }
   }
 
@@ -201,7 +201,7 @@ export class CacheService {
     try {
       return await this.redis.ttl(key);
     } catch (error) {
-      console.error(`Cache TTL error for key "${key}":`, error);
+      logger.error(`Cache TTL error for key "${key}"`, { error });
       return -1;
     }
   }
@@ -217,7 +217,7 @@ export class CacheService {
     try {
       await this.redis.flushdb();
     } catch (error) {
-      console.error('Cache flush error:', error);
+      logger.error('Cache flush error', { error });
     }
   }
 
@@ -247,7 +247,7 @@ export class CacheService {
 
       return keysWithDetails;
     } catch (error) {
-      console.error('Get all keys error:', error);
+      logger.error('Get all keys error', { error });
       return [];
     }
   }
@@ -295,7 +295,7 @@ export class CacheService {
         hitRate,
       };
     } catch (error) {
-      console.error('Cache stats error:', error);
+      logger.error('Cache stats error', { error });
       return {
         connected: false,
         enabled: false,
@@ -315,7 +315,7 @@ export class CacheService {
     try {
       await this.redis.quit();
     } catch (error) {
-      console.error('Cache disconnect error:', error);
+      logger.error('Cache disconnect error', { error });
     }
   }
 
