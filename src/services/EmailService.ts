@@ -213,7 +213,7 @@ export class EmailService extends BaseService {
           options?.variables as Record<string, any>
         );
 
-        console.log(`EmailService: Email sent successfully to ${to} (attempt ${attempt}/${this.maxRetries})`);
+        logger.info(`Email sent successfully to ${to}`, { attempt, maxRetries: this.maxRetries });
 
         return {
           success: true,
@@ -224,7 +224,7 @@ export class EmailService extends BaseService {
         };
       } catch (error) {
         lastError = error as Error;
-        console.error(`EmailService: Email send failed (attempt ${attempt}/${this.maxRetries}):`, error);
+        logger.error(`Email send failed (attempt ${attempt}/${this.maxRetries})`, { error, to });
 
         if (attempt < this.maxRetries) {
           // Wait before retry with exponential backoff
@@ -260,7 +260,7 @@ export class EmailService extends BaseService {
         }
       );
     } catch (logError) {
-      console.error('Failed to log email sending error:', logError);
+      logger.error('Failed to log email sending error', { error: logError });
     }
 
     throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
@@ -294,7 +294,7 @@ export class EmailService extends BaseService {
         }
       });
     } catch (logError) {
-      console.error('EmailService: Failed to log email:', logError);
+      logger.error('Failed to log email', { error: logError });
       // Don't throw - logging failure shouldn't break email sending
     }
   }
@@ -467,7 +467,7 @@ export class EmailService extends BaseService {
     const securityEmail = env.get('SECURITY_EMAIL');
 
     if (!securityEmail) {
-      console.warn('SECURITY_EMAIL not configured - virus alert email not sent');
+      logger.warn('SECURITY_EMAIL not configured - virus alert email not sent');
       return {
         success: false,
         to: '',

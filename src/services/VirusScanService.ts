@@ -13,6 +13,9 @@ import {
   ScanResult,
   VirusScanConfig,
 } from '../config/virus-scan.config';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('VirusScanService');
 
 export class VirusScanService {
   private config: VirusScanConfig;
@@ -124,14 +127,14 @@ export class VirusScanService {
       const cacheKey = await this.generateFileHash(filePath);
       const cached = this.scanCache.get(cacheKey);
       if (cached && this.isCacheValid(cached)) {
-        console.log(`Using cached scan result for ${filePath}`);
+        logger.debug(`Using cached scan result for ${filePath}`);
         return cached;
       }
 
       // Check if ClamAV is available
       const available = await this.isAvailable();
       if (!available) {
-        console.warn('ClamAV is not available');
+        logger.warn('ClamAV is not available');
         if (this.config.fallbackBehavior === 'allow') {
           return {
             status: ScanStatus.SKIPPED,
@@ -167,7 +170,7 @@ export class VirusScanService {
 
       return scanResult;
     } catch (error) {
-      console.error('Virus scan error:', error);
+      logger.error('Virus scan error', { error });
       return {
         status: ScanStatus.ERROR,
         file: filePath,
@@ -239,7 +242,7 @@ export class VirusScanService {
 
       return scanResult;
     } catch (error) {
-      console.error('Virus scan buffer error:', error);
+      logger.error('Virus scan buffer error', { error });
       return {
         status: ScanStatus.ERROR,
         file: filename,

@@ -82,9 +82,9 @@ export class FileBackupService extends BaseService {
       });
 
       await this.s3Client.send(command);
-      console.log(`FileBackupService: Uploaded ${filePath} to S3 as ${key}`);
+      logger.info(`Uploaded ${filePath} to S3`, { key });
     } catch (error: any) {
-      console.error('FileBackupService: S3 upload failed:', error);
+      logger.error('S3 upload failed', { error, filePath, key });
       throw this.badRequestError(`S3 upload failed: ${error.message}`);
     }
   }
