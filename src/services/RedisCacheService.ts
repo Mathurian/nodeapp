@@ -97,32 +97,32 @@ export class RedisCacheService {
     });
 
     this.client.on('error', (error) => {
-      console.error('Redis cache client error:', error);
+      logger.error('Redis cache client error', { error });
       this.stats.errors++;
       this.isConnected = false;
 
       // Fall back to memory if configured
       if (this.config.fallbackToMemory && !this.useMemoryFallback) {
-        console.warn('Redis connection failed, falling back to in-memory cache');
+        logger.warn('Redis connection failed, falling back to in-memory cache');
         this.useMemoryFallback = true;
         this.startMemoryCacheCleanup();
       }
     });
 
     this.client.on('close', () => {
-      console.warn('Redis cache client connection closed');
+      logger.warn('Redis cache client connection closed');
       this.isConnected = false;
 
       // Fall back to memory if configured
       if (this.config.fallbackToMemory && !this.useMemoryFallback) {
-        console.warn('Redis connection closed, falling back to in-memory cache');
+        logger.warn('Redis connection closed, falling back to in-memory cache');
         this.useMemoryFallback = true;
         this.startMemoryCacheCleanup();
       }
     });
 
     this.client.on('reconnecting', () => {
-      console.log('Redis cache client reconnecting...');
+      logger.info('Redis cache client reconnecting...');
     });
 
     this.subscriber.on('message', (channel, message) => {
@@ -768,7 +768,7 @@ export class RedisCacheService {
 
         keyCount = await this.client.dbsize();
       } catch (error) {
-        console.error('Error fetching cache statistics:', error);
+        logger.error('Error fetching cache statistics', { error });
       }
     }
 
