@@ -18,12 +18,12 @@
 
 **Identified Duplicates:**
 1. **Route Files:**
-   - `src/routes/customFieldRoutes.ts`
-   - `src/routes/customFieldsRoutes.ts` (note the 's')
+   - ~~`src/routes/customFieldRoutes.ts`~~ (VERIFIED: Does NOT exist - already removed)
+   - `src/routes/customFieldsRoutes.ts` (only one exists - no action needed)
 
 2. **Controller Files:**
-   - `src/controllers/CustomFieldController.ts`
-   - `src/controllers/customFieldsController.ts` (note lowercase and 's')
+   - `src/controllers/CustomFieldController.ts` (creates new PrismaClient - needs removal)
+   - `src/controllers/customFieldsController.ts` (functional exports - keep this one)
 
 ---
 

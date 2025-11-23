@@ -9,7 +9,7 @@
 
 ## Problem Summary
 
-**Issue:** 15 files creating new `PrismaClient()` instances instead of using singleton
+**Issue:** 19 instances across 14 files creating new `PrismaClient()` instances instead of using singleton
 **Impact:**
 - Connection pool exhaustion under load
 - Application crashes with "too many clients" errors
@@ -20,7 +20,7 @@
 - Two singleton implementations exist:
   - `src/config/database.ts` (exports `prisma`)
   - `src/utils/prisma.ts` (exports `prismaClient`)
-- 15 files bypassing singletons and creating new instances
+- 19 instances across 14 files bypassing singletons and creating new instances
 
 ---
 
@@ -31,21 +31,20 @@
    - Lines: Multiple throughout file
    - Impact: Settings endpoints create 5 new connections per request
 
-### Single Instance Files (10 files)
-2. **`src/config/logger.ts`** (1 instance)
-3. **`src/middleware/queryMonitoring.ts`** (1 instance)
-4. **`src/controllers/adminController.ts`** (1 instance)
-5. **`src/controllers/archiveController.ts`** (1 instance)
-6. **`src/controllers/cacheController.ts`** (1 instance)
-7. **`src/controllers/categoriesController.ts`** (1 instance)
-8. **`src/controllers/contestsController.ts`** (1 instance)
-9. **`src/controllers/eventsController.ts`** (1 instance)
-10. **`src/controllers/scoringController.ts`** (1 instance)
-11. **`src/controllers/usersController.ts`** (1 instance)
-12. **`src/controllers/workflowController.ts`** (1 instance)
-13. **`src/services/*` (multiple service files)
-14. **Event handlers/listeners**
-15. **Route files**
+### Single Instance Files (13 files)
+2. **`src/routes/publicTenantRoutes.ts`** (1 instance)
+3. **`src/utils/logger.ts`** (1 instance) - Note: Listed as config/logger.ts in plan but actual is utils/logger.ts
+4. **`src/middleware/queryMonitoring.ts`** (1 instance)
+5. **`src/controllers/CustomFieldController.ts`** (1 instance)
+6. **`src/controllers/EmailTemplateController.ts`** (1 instance)
+7. **`src/services/eventHandlers/AuditLogHandler.ts`** (1 instance)
+8. **`src/services/eventHandlers/StatisticsHandler.ts`** (1 instance)
+9. **`src/services/eventHandlers/NotificationHandler.ts`** (1 instance)
+10. **`src/services/BulkOperationService.ts`** (1 instance)
+11. **`src/services/BackupMonitoringService.ts`** (1 instance)
+12. **`src/jobs/ReportJobProcessor.ts`** (1 instance)
+13. **`src/config/database.ts`** (1 instance) - This is the singleton itself
+14. **`src/utils/prisma.ts`** (2 instances) - This is the singleton itself
 
 ---
 
@@ -531,15 +530,18 @@ export default createPrismaClient();
 | Task | Time | Developer |
 |------|------|-----------|
 | Choose singleton standard | 1 hour | Backend Dev |
-| Fix settingsRoutes.ts | 2 hours | Backend Dev |
-| Fix 9 controllers | 6 hours | Backend Dev |
-| Fix services | 4 hours | Backend Dev |
-| Fix middleware/utils | 2 hours | Backend Dev |
+| Fix settingsRoutes.ts (5 instances) | 3 hours | Backend Dev |
+| Fix routes (publicTenantRoutes.ts) | 1 hour | Backend Dev |
+| Fix controllers (2 files) | 2 hours | Backend Dev |
+| Fix services (3 files) | 3 hours | Backend Dev |
+| Fix event handlers (3 files) | 2 hours | Backend Dev |
+| Fix middleware/utils (2 files) | 2 hours | Backend Dev |
+| Fix jobs (1 file) | 1 hour | Backend Dev |
 | Unit testing | 2 hours | Backend Dev + QA |
 | Integration testing | 2 hours | QA |
 | Manual testing | 1 hour | QA |
 | Code review | 2 hours | Senior Dev |
-| **Total** | **22 hours** | **~3 days** |
+| **Total** | **21 hours** | **~3 days** |
 
 ---
 

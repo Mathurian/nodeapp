@@ -21,11 +21,13 @@
 // package.json
 {
   "dependencies": {
-    "bcrypt": "^5.1.0",      // Native C++ binding (faster)
+    "bcrypt": "^6.0.0",      // Native C++ binding (faster) - Updated version
     "bcryptjs": "^2.4.3"     // Pure JavaScript (slower)
   }
 }
 ```
+
+**Note:** Currently using `bcryptjs` in `AuthService.ts` - migration to `bcrypt` needed.
 
 ---
 
