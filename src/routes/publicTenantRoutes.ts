@@ -7,6 +7,9 @@
 
 import express from 'express';
 import prisma from '../config/database';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('publicTenantRoutes');
 
 const router = express.Router();
 
@@ -121,7 +124,7 @@ router.get('/slug/:slug', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching tenant by slug:', error);
+    logger.error('Error fetching tenant by slug', { error });
     return res.status(500).json({
       success: false,
       message: 'Internal server error'

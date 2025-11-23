@@ -6,6 +6,9 @@
 import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
 import { env } from './env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('database');
 
 /**
  * Global Prisma instance to prevent multiple connections
@@ -59,10 +62,10 @@ if (!env.isProduction()) {
 export async function testDatabaseConnection(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    console.log('✓ Database connection successful');
+    logger.info('Database connection successful');
     return true;
   } catch (error) {
-    console.error('✗ Database connection failed:', error);
+    logger.error('Database connection failed', { error });
 
     // Log database connection failure
     try {
@@ -77,7 +80,7 @@ export async function testDatabaseConnection(): Promise<boolean> {
         }
       );
     } catch (logError) {
-      console.error('Failed to log database connection error:', logError);
+      logger.error('Failed to log database connection error', { error: logError });
     }
 
     return false;
@@ -100,7 +103,7 @@ export async function getDatabasePoolStats() {
 
     return poolStats[0];
   } catch (error) {
-    console.error('Error fetching pool stats:', error);
+    logger.error('Error fetching pool stats', { error });
     return null;
   }
 }
@@ -111,9 +114,9 @@ export async function getDatabasePoolStats() {
 export async function disconnectDatabase(): Promise<void> {
   try {
     await prisma.$disconnect();
-    console.log('✓ Database disconnected gracefully');
+    logger.info('Database disconnected gracefully');
   } catch (error) {
-    console.error('✗ Error disconnecting database:', error);
+    logger.error('Error disconnecting database', { error });
     throw error;
   }
 }

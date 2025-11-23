@@ -1,6 +1,9 @@
 import { Prisma, BackupLog } from '@prisma/client';
 import { EventEmitter } from 'events';
 import prisma from '../config/database';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('BackupMonitoringService');
 
 export interface BackupLogData {
   type: 'full' | 'incremental' | 'pitr_base';
@@ -91,7 +94,7 @@ class BackupMonitoringService extends EventEmitter {
 
       return backupLog;
     } catch (error) {
-      console.error('Failed to log backup:', error);
+      logger.error('Failed to log backup', { error });
       throw error;
     }
   }
@@ -118,7 +121,7 @@ class BackupMonitoringService extends EventEmitter {
       this.emit('backup:updated', backupLog);
       return backupLog;
     } catch (error) {
-      console.error('Failed to update backup log:', error);
+      logger.error('Failed to update backup log', { error });
       throw error;
     }
   }
@@ -329,11 +332,11 @@ class BackupMonitoringService extends EventEmitter {
       });
 
       if (recentFailures >= 3) {
-        console.error('CRITICAL: Multiple backup failures detected');
+        logger.error('CRITICAL: Multiple backup failures detected', { failures: recentFailures });
         this.emit('backup:critical', { failures: recentFailures });
       }
     } catch (error) {
-      console.error('Failed to handle backup failure:', error);
+      logger.error('Failed to handle backup failure', { error });
     }
   }
 

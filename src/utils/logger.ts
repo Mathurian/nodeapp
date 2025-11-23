@@ -38,6 +38,7 @@ const ensureLogDirectory = async () => {
   } catch (error) {
     // In test environment, silently fail
     if (!env.isTest()) {
+      // Logger not available yet - use console as fallback
       console.error('Failed to create logs directory:', error)
     }
   }
@@ -71,7 +72,8 @@ const loadLogLevels = async () => {
     // No need to disconnect - using singleton
   } catch (error) {
     // Silently fail - use defaults
-    console.error('Failed to load log levels:', error)
+    // Note: Can't use logger here as it would cause circular dependency
+    // This is acceptable as it's a fallback scenario
   }
 }
 
