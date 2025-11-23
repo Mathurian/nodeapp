@@ -180,7 +180,7 @@ export class SecretManager {
     try {
       await this.provider.delete(key);
     } catch (error) {
-      console.error(`Error deleting secret "${key}":`, error);
+      logger.error(`Error deleting secret "${key}"`, { error });
       throw error;
     }
   }
@@ -192,7 +192,7 @@ export class SecretManager {
     try {
       return await this.provider.list();
     } catch (error) {
-      console.error('Error listing secrets:', error);
+      logger.error('Error listing secrets', { error });
       return [];
     }
   }
@@ -204,7 +204,7 @@ export class SecretManager {
     try {
       return await this.provider.exists(key);
     } catch (error) {
-      console.error(`Error checking secret "${key}":`, error);
+      logger.error(`Error checking secret "${key}"`, { error });
       return false;
     }
   }
@@ -216,7 +216,7 @@ export class SecretManager {
     try {
       return await this.provider.getMetadata(key);
     } catch (error) {
-      console.error(`Error getting metadata for secret "${key}":`, error);
+      logger.error(`Error getting metadata for secret "${key}"`, { error });
       return null;
     }
   }
@@ -228,7 +228,7 @@ export class SecretManager {
     try {
       await this.provider.rotate(key, newValue);
     } catch (error) {
-      console.error(`Error rotating secret "${key}":`, error);
+      logger.error(`Error rotating secret "${key}"`, { error });
       throw error;
     }
   }
@@ -314,7 +314,7 @@ export class SecretManager {
       }
     } catch (error) {
       result.success = false;
-      console.error('Migration failed:', error);
+      logger.error('Migration failed', { error });
     }
 
     return result;
@@ -327,7 +327,7 @@ export class SecretManager {
     try {
       return await this.provider.healthCheck();
     } catch (error) {
-      console.error('Secret provider health check failed:', error);
+      logger.error('Secret provider health check failed', { error });
       return false;
     }
   }

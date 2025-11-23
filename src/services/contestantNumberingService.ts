@@ -1,4 +1,7 @@
 const prisma = require('../utils/prisma')
+const { createLogger } = require('../utils/logger')
+
+const logger = createLogger('ContestantNumberingService')
 
 /**
  * Service for managing contestant numbering across different modes
@@ -46,7 +49,7 @@ class ContestantNumberingService {
 
       return nextNumber
     } catch (error) {
-      console.error('Error getting next contestant number:', error)
+      logger.error('Error getting next contestant number', { error })
       throw error
     }
   }
@@ -77,7 +80,7 @@ class ContestantNumberingService {
       // Contest-level mode overrides event-level mode
       return contest.contestantNumberingMode || contest.event.contestantNumberingMode
     } catch (error) {
-      console.error('Error getting numbering mode:', error)
+      logger.error('Error getting numbering mode', { error })
       throw error
     }
   }
@@ -135,7 +138,7 @@ class ContestantNumberingService {
 
       return { valid: true }
     } catch (error) {
-      console.error('Error validating contestant number:', error)
+      logger.error('Error validating contestant number', { error })
       return { valid: false, error: 'Error validating contestant number' }
     }
   }
@@ -154,7 +157,7 @@ class ContestantNumberingService {
 
       return { success: true }
     } catch (error) {
-      console.error('Error resetting contestant numbering:', error)
+      logger.error('Error resetting contestant numbering', { error })
       throw error
     }
   }

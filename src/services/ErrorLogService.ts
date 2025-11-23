@@ -1,6 +1,9 @@
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient, LogLevel, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ErrorLogService');
 
 interface ErrorLogEntry {
   message: string;
@@ -76,8 +79,7 @@ export class ErrorLogService extends BaseService {
       return errorLog;
     } catch (error) {
       // Fallback to console if database logging fails
-      console.error('Failed to log error to database:', error);
-      console.error('Original error:', entry.message);
+      logger.error('Failed to log error to database', { error, originalMessage: entry.message });
       throw error;
     }
   }

@@ -315,7 +315,7 @@ class BackupMonitoringService extends EventEmitter {
   private async handleBackupFailure(backupLog: BackupLog): Promise<void> {
     try {
       // Log to console for immediate visibility
-      console.error('Backup failed:', {
+      logger.error('Backup failed', {
         type: backupLog.type,
         error: backupLog.errorMessage,
         timestamp: backupLog.startedAt,

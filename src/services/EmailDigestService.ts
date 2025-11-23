@@ -9,6 +9,9 @@ import { NotificationPreferenceRepository } from '../repositories/NotificationPr
 import { EmailService } from './EmailService';
 import prisma from '../config/database';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('EmailDigestService');
 
 export interface DigestNotification {
   id: string;
@@ -56,7 +59,7 @@ export class EmailDigestService {
         const sent = await this.sendDigestToUser(preference.userId, frequency, preference.tenantId);
         if (sent) sentCount++;
       } catch (error) {
-        console.error(`Error sending digest to user ${preference.userId}:`, error);
+        logger.error(`Error sending digest to user ${preference.userId}`, { error });
       }
     }
 

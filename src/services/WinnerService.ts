@@ -2,6 +2,9 @@ import { injectable, inject } from 'tsyringe';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import * as crypto from 'crypto';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('WinnerService');
 
 // Proper type definitions for winner responses
 type CategoryWithDetails = Prisma.CategoryGetPayload<{
@@ -379,7 +382,7 @@ export class WinnerService extends BaseService {
         });
       } catch (error) {
         // Skip categories that fail (e.g., no scores yet)
-        console.error(`Error getting winners for category ${category.id}:`, error);
+        logger.error(`Error getting winners for category ${category.id}`, { error });
       }
     }
 
@@ -896,7 +899,7 @@ export class WinnerService extends BaseService {
             categories: contestResult.categories,
           });
         } catch (error) {
-          console.error(`Error getting winners for contest ${contest.id}:`, error);
+          logger.error(`Error getting winners for contest ${contest.id}`, { error });
         }
       }
 

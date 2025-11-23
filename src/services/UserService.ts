@@ -13,6 +13,9 @@ import { EmailService } from './EmailService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('UserService');
 
 export interface CreateUserDTO {
   name: string;
@@ -329,7 +332,7 @@ export class UserService extends BaseService {
         user.preferredName || user.name,
         `${env.get('FRONTEND_URL')}/verify-email?userId=${user.id}`
       ).catch(error => {
-        console.error('Failed to send welcome email:', error);
+        logger.error('Failed to send welcome email', { error });
         // Don't throw - user creation should succeed even if email fails
       });
 

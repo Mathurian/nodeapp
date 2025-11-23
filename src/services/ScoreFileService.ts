@@ -7,6 +7,9 @@ import { PrismaClient, ScoreFile } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { promises as fs } from 'fs';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ScoreFileService');
 
 export interface UploadScoreFileDTO {
   categoryId: string;
@@ -209,7 +212,7 @@ export class ScoreFileService extends BaseService {
     try {
       await fs.unlink(scoreFile.filePath);
     } catch (error) {
-      console.error('Failed to delete physical file:', error);
+      logger.error('Failed to delete physical file', { error });
       // Continue with database deletion even if file deletion fails
     }
 

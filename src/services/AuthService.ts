@@ -410,7 +410,7 @@ export class AuthService {
             errorMessage: (error as Error).message,
           }
         ).catch(logError => {
-          console.error('Failed to log token verification error:', logError);
+          logger.error('Failed to log token verification error', { error: logError });
         });
       } catch (logError) {
         console.error('Failed to log token verification error:', logError);
@@ -441,7 +441,7 @@ export class AuthService {
       user.preferredName || user.name,
       resetUrl
     ).catch(error => {
-      console.error('Failed to send password reset email:', error);
+      logger.error('Failed to send password reset email', { error });
       // Don't throw - token generation should succeed even if email fails
     });
 

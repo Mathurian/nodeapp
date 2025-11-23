@@ -5,6 +5,9 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { BaseService } from './BaseService';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('PerformanceService');
 
 interface PerformanceLogData {
   endpoint: string;
@@ -87,7 +90,7 @@ export class PerformanceService extends BaseService {
     } catch (error) {
       // Silently fail performance logging to avoid impacting request handling
       if (env.isDevelopment()) {
-        console.error('Performance logging error:', error);
+        logger.error('Performance logging error', { error });
       }
     }
   }
@@ -369,7 +372,7 @@ export class PerformanceService extends BaseService {
       await this.prisma.$queryRaw`SELECT 1`;
       checks.database = true;
     } catch (error) {
-      console.error('Database health check failed:', error);
+      logger.error('Database health check failed', { error });
     }
 
     // Memory check
@@ -382,7 +385,7 @@ export class PerformanceService extends BaseService {
       await fs.access(path.join(__dirname, '../../'));
       checks.disk = true;
     } catch (error) {
-      console.error('Disk health check failed:', error);
+      logger.error('Disk health check failed', { error });
     }
 
     // Uptime check

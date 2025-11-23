@@ -2,6 +2,9 @@ import express, { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import bcrypt from 'bcrypt';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('UsersRoutes');
 import {
   getAllUsers, getUserById, createUser, updateUser, deleteUser, resetPassword, importUsersFromCSV, getCSVTemplate, updateLastLogin, bulkRemoveUsers, removeAllUsersByRole, getUsersByRole, updateUserRoleFields, getUserStats, uploadUserImage, uploadUserBioFile, bulkUploadUsers, bulkDeleteUsers, getBulkUploadTemplate
 } from '../controllers/usersController';
@@ -211,7 +214,7 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
     })
     return res.json({ message: 'Password changed successfully' })
   } catch (error) {
-    console.error('Change password error:', error)
+    logger.error('Change password error', { error })
     return res.status(500).json({ error: 'Internal server error' })
   }
 })

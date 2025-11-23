@@ -13,6 +13,9 @@ import {
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import prisma from '../utils/prisma';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ReportsRoutes');
 
 const router = express.Router();
 
@@ -112,7 +115,7 @@ router.get('/:id/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'B
         };
       }
     } catch (parseError) {
-      console.error('Failed to parse report data:', parseError);
+      logger.error('Failed to parse report data', { error: parseError });
       parsedData = {
         error: 'Failed to parse report data'
       };
@@ -131,7 +134,7 @@ router.get('/:id/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'B
       }
     });
   } catch (error) {
-    console.error('Download report error:', error);
+    logger.error('Download report error', { error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
