@@ -42,12 +42,12 @@ class ScheduledBackupService {
     // Stop all cron jobs
     this.jobs.forEach((job: any, key: string) => {
       job.stop();
-      console.log(`Stopped backup job: ${key}`);
+      logger.info(`Stopped backup job: ${key}`);
     });
 
     this.jobs.clear()
     this.isRunning = false
-    console.log('Scheduled backup service stopped')
+    logger.info('Scheduled backup service stopped')
   }
 
   async loadBackupSettings() {
@@ -98,18 +98,18 @@ class ScheduledBackupService {
         cronExpression = `0 ${setting.frequencyValue || 2} 1 * *` // Monthly on 1st at specified hour
         break
       default:
-        console.warn(`Unknown backup frequency: ${setting.frequency}`)
+        logger.warn(`Unknown backup frequency: ${setting.frequency}`)
         return
     }
 
     // Create cron job
     const job = cron.schedule(cronExpression, async () => {
-      console.log(`Running scheduled ${setting.backupType} backup...`)
+      logger.info(`Running scheduled ${setting.backupType} backup...`)
       await this.runScheduledBackup(setting)
     })
 
     this.jobs.set(jobKey, job)
-    console.log(`Scheduled ${setting.backupType} backup: ${cronExpression}`)
+    logger.info(`Scheduled ${setting.backupType} backup`, { cronExpression })
   }
 
   async runScheduledBackup(setting: any): Promise<void> {
@@ -197,14 +197,14 @@ class ScheduledBackupService {
           }
         })
 
-        console.log(`Scheduled ${setting.backupType} backup completed: ${filename}`)
+        logger.info(`Scheduled ${setting.backupType} backup completed`, { filename })
 
         // Clean up old backups based on retention policy
         await this.cleanupOldBackups(setting)
       })
 
     } catch (error) {
-      console.error('Error running scheduled backup:', error)
+      logger.error('Error running scheduled backup', { error })
     }
   }
 
@@ -239,7 +239,7 @@ class ScheduledBackupService {
       }
 
     } catch (error) {
-      console.error('Error cleaning up old backups:', error)
+      logger.error('Error cleaning up old backups', { error })
     }
   }
 
@@ -283,7 +283,7 @@ class ScheduledBackupService {
       await this.runScheduledBackup(setting)
       return { success: true, message: 'Manual backup completed' }
     } catch (error) {
-      console.error('Error running manual backup:', error)
+      logger.error('Error running manual backup', { error })
       const errorObj = error as { message?: string };
       return { success: false, error: errorObj.message || 'Unknown error' };
     }
