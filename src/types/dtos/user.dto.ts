@@ -26,7 +26,7 @@ export interface UpdateUserDto {
   language?: string
   notifications?: string
   smsEnabled?: boolean
-  navigationPreferences?: any
+  navigationPreferences?: Record<string, unknown>
 }
 
 export interface UpdatePasswordDto {

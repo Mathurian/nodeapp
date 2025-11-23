@@ -5,20 +5,20 @@
 /**
  * Base API Response
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
   timestamp: string;
   meta?: ResponseMeta;
-  errors?: any;
+  errors?: ValidationError[] | Record<string, unknown>;
   stack?: string; // Only in development
 }
 
 /**
  * Success Response
  */
-export interface SuccessResponse<T = any> extends ApiResponse<T> {
+export interface SuccessResponse<T = unknown> extends ApiResponse<T> {
   success: true;
   data: T;
 }
@@ -28,7 +28,7 @@ export interface SuccessResponse<T = any> extends ApiResponse<T> {
  */
 export interface ErrorResponse extends ApiResponse<never> {
   success: false;
-  errors?: ValidationError[] | any;
+  errors?: ValidationError[] | Record<string, unknown>;
 }
 
 /**
@@ -48,7 +48,7 @@ export interface PaginationMeta {
  */
 export interface ResponseMeta {
   pagination?: PaginationMeta;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -57,7 +57,7 @@ export interface ResponseMeta {
 export interface ValidationError {
   field: string;
   message: string;
-  value?: any;
+  value?: unknown;
   rule?: string;
 }
 

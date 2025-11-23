@@ -94,11 +94,13 @@ export class AWSSecretStore implements ISecretProvider {
       }
 
       return null;
-    } catch (error: any) {
-      if (error.name === 'ResourceNotFoundException') {
+    } catch (error: unknown) {
+      const errorObj = error as { name?: string };
+      if (errorObj.name === 'ResourceNotFoundException') {
         return null;
       }
-      console.error(`Error getting secret "${key}" from AWS:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Error getting secret "${key}" from AWS:`, errorMessage);
       throw error;
     }
   }
@@ -137,9 +139,10 @@ export class AWSSecretStore implements ISecretProvider {
         });
 
         await this.client.send(createCommand);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If secret exists, update it
-        if (error.name === 'ResourceExistsException') {
+        const errorObj = error as { name?: string };
+        if (errorObj.name === 'ResourceExistsException') {
           const updateCommand = new UpdateSecretCommand({
             SecretId: secretName,
             SecretString: secretValue,
@@ -169,9 +172,11 @@ export class AWSSecretStore implements ISecretProvider {
       });
 
       await this.client.send(command);
-    } catch (error: any) {
-      if (error.name !== 'ResourceNotFoundException') {
-        console.error(`Error deleting secret "${key}" from AWS:`, error);
+    } catch (error: unknown) {
+      const errorObj = error as { name?: string };
+      if (errorObj.name !== 'ResourceNotFoundException') {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Error deleting secret "${key}" from AWS:`, errorMessage);
         throw error;
       }
     }
@@ -221,8 +226,9 @@ export class AWSSecretStore implements ISecretProvider {
 
       await this.client.send(command);
       return true;
-    } catch (error: any) {
-      if (error.name === 'ResourceNotFoundException') {
+    } catch (error: unknown) {
+      const errorObj = error as { name?: string };
+      if (errorObj.name === 'ResourceNotFoundException') {
         return false;
       }
       throw error;
@@ -269,8 +275,9 @@ export class AWSSecretStore implements ISecretProvider {
         updatedAt: response.LastChangedDate || new Date(),
         version: response.VersionIdsToStages ? Object.keys(response.VersionIdsToStages).length : 1,
       };
-    } catch (error: any) {
-      if (error.name === 'ResourceNotFoundException') {
+    } catch (error: unknown) {
+      const errorObj = error as { name?: string };
+      if (errorObj.name === 'ResourceNotFoundException') {
         return null;
       }
       throw error;

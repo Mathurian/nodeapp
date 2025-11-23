@@ -39,5 +39,5 @@ export interface IBaseRepository<T, CreateDto, UpdateDto> {
   /**
    * Count total entities
    */
-  count(where?: any): Promise<number>
+  count(where?: Record<string, unknown>): Promise<number>
 }

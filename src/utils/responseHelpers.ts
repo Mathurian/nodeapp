@@ -62,7 +62,7 @@ export function sendError(
   res: Response,
   message: string,
   statusCode: number = 500,
-  errors?: ValidationError[] | unknown,
+  errors?: ValidationError[] | Record<string, unknown>,
   stack?: string
 ): Response<ErrorResponse> {
   const response: ErrorResponse = {

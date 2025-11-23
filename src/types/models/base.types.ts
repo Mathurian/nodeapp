@@ -32,7 +32,7 @@ export type PickRequired<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>
 /**
  * API Response wrapper
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -41,7 +41,7 @@ export interface ApiResponse<T = any> {
     page?: number
     limit?: number
     total?: number
-    [key: string]: any
+    [key: string]: unknown
   }
 }
 

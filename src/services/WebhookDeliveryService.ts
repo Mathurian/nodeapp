@@ -330,9 +330,22 @@ export class WebhookDeliveryService {
 
       // Retry delivery
       logger.info(`Retrying webhook delivery ${deliveryId}`);
-      return await this.deliver(webhook as any, event);
-    } catch (error: any) {
-      logger.error(`Error retrying webhook delivery ${deliveryId}:`, error);
+      // Cast webhook from Prisma to WebhookConfig
+      const webhookConfig: WebhookConfig = {
+        id: webhook.id,
+        name: webhook.name,
+        url: webhook.url,
+        events: Array.isArray(webhook.events) ? webhook.events as string[] : [],
+        enabled: webhook.enabled,
+        secret: webhook.secret || undefined,
+        headers: webhook.headers as Record<string, string> | undefined,
+        retryAttempts: webhook.retryAttempts,
+        timeout: webhook.timeout
+      };
+      return await this.deliver(webhookConfig, event);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Error retrying webhook delivery ${deliveryId}:`, { error: errorMessage });
       throw error;
     }
   }

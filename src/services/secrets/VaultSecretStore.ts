@@ -97,11 +97,13 @@ export class VaultSecretStore implements ISecretProvider {
         const data = response?.data;
         return data?.value || data?.[key] || null;
       }
-    } catch (error: any) {
-      if (error.response?.statusCode === 404) {
+    } catch (error: unknown) {
+      const errorObj = error as { response?: { statusCode?: number } };
+      if (errorObj.response?.statusCode === 404) {
         return null;
       }
-      console.error(`Error getting secret "${key}" from Vault:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Error getting secret "${key}" from Vault:`, errorMessage);
       throw error;
     }
   }
@@ -149,9 +151,11 @@ export class VaultSecretStore implements ISecretProvider {
         // KV v1 deletes permanently
         await this.vault.delete(this.getSecretPath(key));
       }
-    } catch (error: any) {
-      if (error.response?.statusCode !== 404) {
-        console.error(`Error deleting secret "${key}" from Vault:`, error);
+    } catch (error: unknown) {
+      const errorObj = error as { response?: { statusCode?: number } };
+      if (errorObj.response?.statusCode !== 404) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Error deleting secret "${key}" from Vault:`, errorMessage);
         throw error;
       }
     }
@@ -173,8 +177,9 @@ export class VaultSecretStore implements ISecretProvider {
       const response = await this.vault.list(listPath);
 
       return response?.data?.keys || [];
-    } catch (error: any) {
-      if (error.response?.statusCode === 404) {
+    } catch (error: unknown) {
+      const errorObj = error as { response?: { statusCode?: number } };
+      if (errorObj.response?.statusCode === 404) {
         return [];
       }
       console.error('Error listing secrets from Vault:', error);
@@ -189,8 +194,9 @@ export class VaultSecretStore implements ISecretProvider {
     try {
       await this.vault.read(this.getSecretPath(key));
       return true;
-    } catch (error: any) {
-      if (error.response?.statusCode === 404) {
+    } catch (error: unknown) {
+      const errorObj = error as { response?: { statusCode?: number } };
+      if (errorObj.response?.statusCode === 404) {
         return false;
       }
       throw error;
@@ -243,8 +249,9 @@ export class VaultSecretStore implements ISecretProvider {
       }
 
       return null;
-    } catch (error: any) {
-      if (error.response?.statusCode === 404) {
+    } catch (error: unknown) {
+      const errorObj = error as { response?: { statusCode?: number } };
+      if (errorObj.response?.statusCode === 404) {
         return null;
       }
       throw error;
@@ -310,9 +317,11 @@ export class VaultSecretStore implements ISecretProvider {
     if (this.kvVersion === 'v2') {
       try {
         await this.vault.delete(this.getMetadataPath(key));
-      } catch (error: any) {
-        if (error.response?.statusCode !== 404) {
-          console.error(`Error permanently deleting secret "${key}":`, error);
+      } catch (error: unknown) {
+        const errorObj = error as { response?: { statusCode?: number } };
+        if (errorObj.response?.statusCode !== 404) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`Error permanently deleting secret "${key}":`, errorMessage);
           throw error;
         }
       }
@@ -383,8 +392,9 @@ export class VaultSecretStore implements ISecretProvider {
         const response = await this.vault.read(path);
         const data = response?.data?.data;
         return data?.value || data?.[key] || null;
-      } catch (error: any) {
-        if (error.response?.statusCode === 404) {
+      } catch (error: unknown) {
+        const errorObj = error as { response?: { statusCode?: number } };
+        if (errorObj.response?.statusCode === 404) {
           return null;
         }
         throw error;
