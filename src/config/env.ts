@@ -33,7 +33,11 @@ interface EnvironmentConfig {
   REDIS_ENABLE: boolean;
   REDIS_FALLBACK_TO_MEMORY: boolean;
   REDIS_PASSWORD?: string;
+  REDIS_HOST?: string;
+  REDIS_PORT?: number;
   REDIS_DB: number;
+  REDIS_SOCKET?: string;
+  REDIS_KEY_PREFIX?: string;
   REDIS_MAX_CONNECTIONS: number;
 
   // Authentication & Security
@@ -88,6 +92,11 @@ interface EnvironmentConfig {
   CLAMAV_FALLBACK_BEHAVIOR: 'allow' | 'reject';
   CLAMAV_TIMEOUT: number;
   CLAMAV_MAX_FILE_SIZE: number;
+  CLAMAV_CONNECTION_RETRIES?: number;
+  QUARANTINE_PATH?: string;
+  SCAN_ON_UPLOAD?: boolean;
+  REMOVE_INFECTED?: boolean;
+  NOTIFY_ON_INFECTION?: boolean;
   FILE_ENCRYPTION_ENABLED: boolean;
   FILE_ENCRYPTION_KEY?: string;
 
@@ -112,10 +121,16 @@ interface EnvironmentConfig {
   LOG_MAX_SIZE: string;
   LOG_MAX_FILES: number;
   LOG_DATE_PATTERN: string;
+  LOG_DIRECTORY?: string;
+  DISABLE_FILE_LOGGING?: boolean;
   LOG_DATABASE_QUERIES: boolean;
   LOG_SLOW_QUERIES: boolean;
   SLOW_QUERY_THRESHOLD_MS: number;
+  SLOW_QUERY_THRESHOLD?: number;
   METRICS_ENABLED: boolean;
+  ENABLE_METRICS?: boolean;
+  METRICS_PREFIX?: string;
+  METRICS_COLLECT_INTERVAL?: number;
   PROMETHEUS_ENABLED: boolean;
   PROMETHEUS_PORT: number;
   APM_ENABLED?: boolean;
@@ -225,6 +240,7 @@ interface EnvironmentConfig {
   COMPRESSION_ENABLED: boolean;
   COMPRESSION_LEVEL: number;
   STATIC_CACHE_MAX_AGE: number;
+  PERF_SAMPLE_RATE?: number;
 
   // Development & Debugging
   DEV_MODE: boolean;
@@ -399,6 +415,11 @@ class EnvironmentConfiguration {
       CLAMAV_FALLBACK_BEHAVIOR: (getString('CLAMAV_FALLBACK_BEHAVIOR', 'allow') as 'allow' | 'reject'),
       CLAMAV_TIMEOUT: parseInt(process.env['CLAMAV_TIMEOUT'], 60000),
       CLAMAV_MAX_FILE_SIZE: parseInt(process.env['CLAMAV_MAX_FILE_SIZE'], 52428800),
+      CLAMAV_CONNECTION_RETRIES: process.env['CLAMAV_CONNECTION_RETRIES'] ? parseInt(process.env['CLAMAV_CONNECTION_RETRIES'], 10) : undefined,
+      QUARANTINE_PATH: process.env['QUARANTINE_PATH'],
+      SCAN_ON_UPLOAD: process.env['SCAN_ON_UPLOAD'] !== 'false',
+      REMOVE_INFECTED: process.env['REMOVE_INFECTED'] === 'true',
+      NOTIFY_ON_INFECTION: process.env['NOTIFY_ON_INFECTION'] !== 'false',
       FILE_ENCRYPTION_ENABLED: parseBoolean(process.env['FILE_ENCRYPTION_ENABLED'], false),
       FILE_ENCRYPTION_KEY: process.env['FILE_ENCRYPTION_KEY'],
 
@@ -423,9 +444,13 @@ class EnvironmentConfiguration {
       LOG_MAX_SIZE: getString('LOG_MAX_SIZE', '10m'),
       LOG_MAX_FILES: parseInt(process.env['LOG_MAX_FILES'], 14),
       LOG_DATE_PATTERN: getString('LOG_DATE_PATTERN', 'YYYY-MM-DD'),
+      LOG_DIRECTORY: getString('LOG_DIRECTORY', ''),
+      DISABLE_FILE_LOGGING: parseBoolean(process.env['DISABLE_FILE_LOGGING'], false),
       LOG_DATABASE_QUERIES: parseBoolean(process.env['LOG_DATABASE_QUERIES'], false),
       LOG_SLOW_QUERIES: parseBoolean(process.env['LOG_SLOW_QUERIES'], true),
       SLOW_QUERY_THRESHOLD_MS: parseInt(process.env['SLOW_QUERY_THRESHOLD_MS'], 1000),
+      SLOW_QUERY_THRESHOLD: parseInt(process.env['SLOW_QUERY_THRESHOLD'], parseInt(process.env['SLOW_QUERY_THRESHOLD_MS'] || '1000', 10)),
+      PERF_SAMPLE_RATE: parseFloat(process.env['PERF_SAMPLE_RATE'] || '0.2'),
       METRICS_ENABLED: parseBoolean(process.env['METRICS_ENABLED'], true),
       PROMETHEUS_ENABLED: parseBoolean(process.env['PROMETHEUS_ENABLED'], true),
       PROMETHEUS_PORT: parseInt(process.env['PROMETHEUS_PORT'], 9090),
