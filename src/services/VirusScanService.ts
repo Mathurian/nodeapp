@@ -265,10 +265,10 @@ export class VirusScanService {
       // Connect via Unix socket or TCP
       if (this.config.mode === 'native-socket' && this.config.socketPath) {
         socket = net.createConnection(this.config.socketPath);
-        console.log(`Scanning file via Unix socket: ${this.config.socketPath}`);
+        logger.debug(`Scanning file via Unix socket: ${this.config.socketPath}`);
       } else {
         socket = net.createConnection(this.config.port, this.config.host);
-        console.log(`Scanning file via TCP: ${this.config.host}:${this.config.port}`);
+        logger.debug(`Scanning file via TCP: ${this.config.host}:${this.config.port}`);
       }
 
       socket.setTimeout(this.config.timeout);
@@ -410,16 +410,16 @@ export class VirusScanService {
    */
   private async handleInfectedFile(filePath: string, scanResult: ScanResult): Promise<void> {
     try {
-      console.warn(`Infected file detected: ${filePath}`, scanResult);
+      logger.warn(`Infected file detected: ${filePath}`, { scanResult });
 
       // Move to quarantine
       const quarantineFile = await this.quarantineFile(filePath, scanResult);
-      console.log(`File moved to quarantine: ${quarantineFile}`);
+      logger.info(`File moved to quarantine`, { quarantineFile });
 
       // Remove original if configured
       if (this.config.removeInfected && fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`Original infected file removed: ${filePath}`);
+        logger.info(`Original infected file removed`, { filePath });
       }
 
       // Notify if configured
@@ -427,7 +427,7 @@ export class VirusScanService {
         await this.notifyInfection(scanResult);
       }
     } catch (error) {
-      console.error('Error handling infected file:', error);
+      logger.error('Error handling infected file', { error });
     }
   }
 
@@ -459,7 +459,7 @@ export class VirusScanService {
    */
   private async notifyInfection(scanResult: ScanResult): Promise<void> {
     // TODO: Implement notification (email, webhook, etc.)
-    console.warn('Infection notification:', scanResult);
+    logger.warn('Infection notification', { scanResult });
   }
 
   /**

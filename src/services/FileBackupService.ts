@@ -140,13 +140,13 @@ export class FileBackupService extends BaseService {
    */
   async listS3Backups(prefix: string = 'backup-'): Promise<string[]> {
     if (!this.s3Enabled || !this.s3Client) {
-      console.log('FileBackupService: S3 backup is not enabled');
+      logger.info('S3 backup is not enabled');
       return [];
     }
 
     const bucket = env.get('BACKUP_S3_BUCKET');
     if (!bucket) {
-      console.warn('FileBackupService: S3 bucket not configured');
+      logger.warn('S3 bucket not configured');
       return [];
     }
 

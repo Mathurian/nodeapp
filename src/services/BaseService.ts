@@ -14,6 +14,7 @@ import {
   createPaginatedResponse
 } from '../utils/pagination';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
 
 // Type definitions
 export interface ValidationErrorDetails {
@@ -333,14 +334,16 @@ export abstract class BaseService {
    * Log info
    */
   protected logInfo(message: string, data?: Record<string, unknown>): void {
-    console.log(`[${this.constructor.name}] ${message}`, data || '');
+    const logger = createLogger(this.constructor.name);
+    logger.info(message, data);
   }
 
   /**
    * Log warning
    */
   protected logWarn(message: string, data?: Record<string, unknown>): void {
-    console.warn(`[${this.constructor.name}] ${message}`, data || '');
+    const logger = createLogger(this.constructor.name);
+    logger.warn(message, data);
   }
 
   /**
@@ -348,7 +351,8 @@ export abstract class BaseService {
    */
   protected logDebug(message: string, data?: Record<string, unknown>): void {
     if (!env.isProduction()) {
-      console.log(`[${this.constructor.name}] DEBUG: ${message}`, data || '');
+      const logger = createLogger(this.constructor.name);
+      logger.debug(message, data);
     }
   }
 
@@ -356,7 +360,8 @@ export abstract class BaseService {
    * Log error
    */
   protected logError(message: string, error?: unknown): void {
-    console.error(`[${this.constructor.name}] ${message}`, error || '');
+    const logger = createLogger(this.constructor.name);
+    logger.error(message, { error });
   }
 
   /**

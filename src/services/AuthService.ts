@@ -16,6 +16,9 @@ import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/password
 import { EmailService } from './EmailService';
 import { ErrorLogService } from './ErrorLogService';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('AuthService');
 
 const JWT_SECRET = env.get('JWT_SECRET');
 const JWT_EXPIRES_IN = env.get('JWT_EXPIRES_IN');
@@ -228,7 +231,7 @@ export class AuthService {
           tenantId
         );
       } catch (logError) {
-        console.error('Failed to log authentication error:', logError);
+        logger.error('Failed to log authentication error', { error: logError });
       }
       throw new Error('Invalid credentials');
     }
@@ -252,7 +255,7 @@ export class AuthService {
           tenantId
         );
       } catch (logError) {
-        console.error('Failed to log authentication error:', logError);
+        logger.error('Failed to log authentication error', { error: logError });
       }
       throw new Error('Account is inactive');
     }
@@ -305,7 +308,7 @@ export class AuthService {
       });
     } catch (logError) {
       // Don't fail login if logging fails
-      console.error('Failed to log login activity:', logError);
+      logger.error('Failed to log login activity', { error: logError });
     }
 
     return {

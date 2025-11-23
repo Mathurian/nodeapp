@@ -113,7 +113,7 @@ export class EmailService extends BaseService {
           }
         );
       } catch (logError) {
-        console.error('Failed to log SMTP initialization error:', logError);
+        logger.error('Failed to log SMTP initialization error', { error: logError });
       }
     }
   }
@@ -166,7 +166,7 @@ export class EmailService extends BaseService {
     const smtpEnabled = env.get('SMTP_ENABLED');
 
     if (!smtpEnabled) {
-      console.log(`EmailService: Email would be sent to ${to} (SMTP disabled)`);
+      logger.info(`Email would be sent to ${to} (SMTP disabled)`);
       return { success: true, to, subject, message: 'Email skipped (SMTP disabled)' };
     }
 
