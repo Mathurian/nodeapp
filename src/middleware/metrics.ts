@@ -6,6 +6,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { MetricsService } from '../services/MetricsService';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('Metrics');
 
 let metricsService: MetricsService | null = null;
 
@@ -16,7 +19,7 @@ export const initMetrics = (): void => {
   try {
     metricsService = container.resolve(MetricsService);
   } catch (error) {
-    console.warn('Metrics service not available:', error);
+    logger.warn('Metrics service not available', { error });
   }
 };
 

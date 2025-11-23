@@ -7,6 +7,9 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { getCacheService } from '../services/RedisCacheService';
 import { CacheTTL } from '../config/redis.config';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('CacheMiddleware');
 
 export interface CacheMiddlewareOptions {
   ttl?: number;
@@ -88,7 +91,7 @@ export const cacheMiddleware = (options: CacheMiddlewareOptions = {}) => {
             ttl,
             tags: extractCacheTags(req),
           }).catch(error => {
-            console.error('Error caching response:', error);
+            logger.error('Error caching response', { error });
           });
         }
 
@@ -98,7 +101,7 @@ export const cacheMiddleware = (options: CacheMiddlewareOptions = {}) => {
 
       next();
     } catch (error) {
-      console.error('Cache middleware error:', error);
+      logger.error('Cache middleware error', { error });
       // On error, proceed without caching
       next();
     }
@@ -161,7 +164,7 @@ export const invalidateCache = (patterns: string | string[], namespace?: string)
         Promise.all(
           patternArray.map(pattern => cacheService.deletePattern(pattern, namespace))
         ).catch(error => {
-          console.error('Error invalidating cache:', error);
+          logger.error('Error invalidating cache', { error });
         });
       }
 
@@ -193,7 +196,7 @@ export const invalidateCacheTag = (tag: string | string[]) => {
         Promise.all(
           tags.map(t => cacheService.invalidateTag(t))
         ).catch(error => {
-          console.error('Error invalidating cache tags:', error);
+          logger.error('Error invalidating cache tags', { error });
         });
       }
 

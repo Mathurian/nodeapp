@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('PasswordValidation');
 const prisma = require('../utils/prisma')
 
 /**
@@ -122,7 +125,7 @@ const validatePassword = async (req: Request, res: Response, next: NextFunction)
 
     next()
   } catch (error) {
-    console.error('Password validation error:', error)
+    logger.error('Password validation error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }
@@ -154,7 +157,7 @@ const getPasswordPolicy = async (_req: Request, res: Response): Promise<void> =>
       isActive: policy.isActive
     })
   } catch (error) {
-    console.error('Get password policy error:', error)
+    logger.error('Get password policy error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }
@@ -192,7 +195,7 @@ const updatePasswordPolicy = async (req: Request, res: Response): Promise<void> 
       createdAt: policy.createdAt
     })
   } catch (error) {
-    console.error('Update password policy error:', error)
+    logger.error('Update password policy error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }

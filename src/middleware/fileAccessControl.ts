@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
+import { createLogger } from '../utils/logger';
 
+const logger = createLogger('FileAccessControl');
 const prisma = require('../utils/prisma')
 
 // File access control middleware
@@ -52,7 +54,7 @@ const checkFileAccess = (requiredPermission = 'READ') => {
       req.fileInfo = file
       next()
     } catch (error) {
-      console.error('File access control error:', error)
+      logger.error('File access control error', { error })
       res.status(500).json({ error: 'Internal server error' })
     }
   }
@@ -170,7 +172,7 @@ const checkUploadPermission = async (req: Request, res: Response, next: NextFunc
 
     next()
   } catch (error) {
-    console.error('Upload permission check error:', error)
+    logger.error('Upload permission check error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }
@@ -210,7 +212,7 @@ const checkSharingPermission = async (req: Request, res: Response, next: NextFun
 
     next()
   } catch (error) {
-    console.error('Sharing permission check error:', error)
+    logger.error('Sharing permission check error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }
@@ -244,7 +246,7 @@ const getUserFileAccess = async (req: Request, res: Response): Promise<void> => 
 
     res.json(accessSummary)
   } catch (error) {
-    console.error('Get user file access error:', error)
+    logger.error('Get user file access error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }

@@ -1,6 +1,9 @@
 const crypto = require('crypto')
 const fs = require('fs').promises
 const path = require('path')
+const { createLogger } = require('../utils/logger')
+
+const logger = createLogger('FileEncryption')
 
 // Encryption configuration
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm'
@@ -46,7 +49,7 @@ const encryptFile = async (filePath: string, password: string): Promise<Buffer> 
     
     return encryptedData
   } catch (error) {
-    console.error('File encryption error:', error)
+    logger.error('File encryption error', { error })
     throw new Error('Failed to encrypt file')
   }
 }
@@ -74,7 +77,7 @@ const decryptFile = async (encryptedData: Buffer, password: string): Promise<Buf
     
     return decrypted
   } catch (error) {
-    console.error('File decryption error:', error)
+    logger.error('File decryption error', { error })
     throw new Error('Failed to decrypt file')
   }
 }
@@ -102,7 +105,7 @@ const encryptAndStoreFile = async (originalPath: string, encryptedPath: string, 
       encryptedSize: encryptedData.length
     }
   } catch (error) {
-    console.error('Encrypt and store error:', error)
+    logger.error('Encrypt and store error', { error })
     throw new Error('Failed to encrypt and store file')
   }
 }
@@ -129,7 +132,7 @@ const decryptAndRetrieveFile = async (encryptedPath: string, outputPath: string,
       size: decryptedData.length
     }
   } catch (error) {
-    console.error('Decrypt and retrieve error:', error)
+    logger.error('Decrypt and retrieve error', { error })
     throw new Error('Failed to decrypt and retrieve file')
   }
 }
@@ -168,7 +171,7 @@ const encryptMetadata = (metadata: any, password: string): string => {
     
     return Buffer.concat([salt, iv, tag, encrypted]).toString('base64')
   } catch (error) {
-    console.error('Metadata encryption error:', error)
+    logger.error('Metadata encryption error', { error })
     throw new Error('Failed to encrypt metadata')
   }
 }
@@ -194,7 +197,7 @@ const decryptMetadata = (encryptedMetadata: string, password: string): any => {
     
     return JSON.parse(decrypted.toString('utf8'))
   } catch (error) {
-    console.error('Metadata decryption error:', error)
+    logger.error('Metadata decryption error', { error })
     throw new Error('Failed to decrypt metadata')
   }
 }
@@ -206,7 +209,7 @@ const verifyFileIntegrity = async (filePath: string, expectedChecksum: string): 
     const actualChecksum = crypto.createHash('sha256').update(fileContent).digest('hex')
     return actualChecksum === expectedChecksum
   } catch (error) {
-    console.error('File integrity verification error:', error)
+    logger.error('File integrity verification error', { error })
     return false
   }
 }
@@ -229,7 +232,7 @@ const secureDeleteFile = async (filePath: string): Promise<{ success: boolean }>
     
     return { success: true }
   } catch (error) {
-    console.error('Secure delete error:', error)
+    logger.error('Secure delete error', { error })
     throw new Error('Failed to securely delete file')
   }
 }

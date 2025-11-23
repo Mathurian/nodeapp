@@ -1,4 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('Navigation');
 
 
 // Define navigation structure based on roles
@@ -358,7 +361,7 @@ const checkNavigationPermission = (req: Request, res: Response, next: NextFuncti
 
     next()
   } catch (error) {
-    console.error('Navigation permission check error:', error)
+    logger.error('Navigation permission check error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }
@@ -381,7 +384,7 @@ const getNavigationData = async (req: Request, res: Response): Promise<void> => 
       role: userRole
     })
   } catch (error) {
-    console.error('Get navigation data error:', error)
+    logger.error('Get navigation data error', { error })
     res.status(500).json({ error: 'Internal server error' })
   }
 }

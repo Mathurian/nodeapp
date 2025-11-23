@@ -4,6 +4,9 @@ import prisma from '../utils/prisma';
 import { env } from '../config/env';
 import { ErrorLogService } from '../services/ErrorLogService';
 import { captureException, setUser } from '../config/sentry';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ErrorHandler');
 
 const logActivity = (action: string, resourceType: string | null = null, resourceId: string | null = null) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -81,7 +84,7 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
               }
             })
           } catch (error) {
-            console.error('Failed to log activity:', error)
+            logger.error('Failed to log activity', { error })
           }
         })
       }
@@ -175,7 +178,7 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
         }
       });
     } catch (logError) {
-      console.error('Failed to log error to database:', logError);
+      logger.error('Failed to log error to database', { error: logError });
     }
   });
 

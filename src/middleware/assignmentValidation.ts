@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
+import { createLogger } from '../utils/logger';
 
+const logger = createLogger('AssignmentValidation');
 const prisma = require('../utils/prisma')
 
 // Assignment Validation Middleware Functions
@@ -196,7 +198,7 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
     next();
   } catch (error: unknown) {
     const errorObj = error as { message?: string };
-    console.error('Assignment validation error:', errorObj);
+    logger.error('Assignment validation error', { error: errorObj });
     res.status(500).json({ error: 'Internal server error during validation' });
   }
 };
@@ -314,7 +316,7 @@ const validateAssignmentUpdate = async (req: Request, res: Response, next: NextF
     next();
   } catch (error: unknown) {
     const errorObj = error as { message?: string };
-    console.error('Assignment update validation error:', errorObj);
+    logger.error('Assignment update validation error', { error: errorObj });
     res.status(500).json({ error: 'Internal server error during validation' });
   }
 };
@@ -402,7 +404,7 @@ const validateAssignmentDeletion = async (req: Request, res: Response, next: Nex
     req.validationData = { assignment }
     next()
   } catch (error) {
-    console.error('Assignment deletion validation error:', error)
+    logger.error('Assignment deletion validation error', { error })
     res.status(500).json({ error: 'Internal server error during validation' })
   }
 }
@@ -477,7 +479,7 @@ const validateBulkAssignmentOperation = async (req: Request, res: Response, next
     next();
   } catch (error: unknown) {
     const errorObj = error as { message?: string };
-    console.error('Bulk assignment validation error:', errorObj);
+    logger.error('Bulk assignment validation error', { error: errorObj });
     res.status(500).json({ error: 'Internal server error during validation' });
   }
 };
@@ -543,7 +545,7 @@ const validateAssignmentQuery = async (req: Request, res: Response, next: NextFu
 
     next()
   } catch (error) {
-    console.error('Assignment query validation error:', error)
+    logger.error('Assignment query validation error', { error })
     res.status(500).json({ error: 'Internal server error during validation' })
   }
 }

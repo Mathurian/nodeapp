@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('CSRF');
 
 // CSRF secret for token generation
 
@@ -82,7 +85,7 @@ const getCsrfToken = (req: Request, res: Response): void => {
     res.json({ csrfToken })
   } catch (error: unknown) {
     const errorObj = error as { message?: string };
-    console.error('Error generating CSRF token:', errorObj);
+    logger.error('Error generating CSRF token', { error: errorObj });
     res.status(500).json({ error: 'Failed to generate CSRF token', details: errorObj.message });
   }
 };
@@ -139,7 +142,7 @@ const csrfProtection = async (req: Request, res: Response, next: NextFunction): 
   // Compare tokens using timing-safe comparison
   const tokenFromHeaderStr = Array.isArray(tokenFromHeader) ? tokenFromHeader[0] : tokenFromHeader;
   if (!secureCompare(tokenFromHeaderStr || '', tokenFromCookie || '')) {
-    console.warn('CSRF validation failed: Token mismatch', {
+    logger.warn('CSRF validation failed: Token mismatch', {
       method,
       path: req.path,
       ip: req.ip

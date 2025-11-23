@@ -9,6 +9,9 @@ import { getVirusScanService } from '../services/VirusScanService';
 import { ScanStatus } from '../config/virus-scan.config';
 import { EmailService } from '../services/EmailService';
 import * as fs from 'fs';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('VirusScanMiddleware');
 
 export interface VirusScanMiddlewareOptions {
   deleteOnInfection?: boolean;
@@ -99,10 +102,12 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
 
       // Handle infected files
       if (infectedFiles.length > 0) {
-        console.warn('Infected files detected:', infectedFiles.map(({ file, result }) => ({
-          filename: file.originalname,
-          virus: result.virus,
-        })));
+        logger.warn('Infected files detected', { 
+          infectedFiles: infectedFiles.map(({ file, result }) => ({
+            filename: file.originalname,
+            virus: result.virus,
+          }))
+        });
 
         // Send email notification to security team (non-blocking)
         try {
@@ -127,14 +132,14 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
                 userAgent,
               });
 
-              console.log(`Virus alert email sent for infected file: ${file.originalname}`);
+              logger.info(`Virus alert email sent for infected file`, { filename: file.originalname });
             } catch (emailError) {
               // Don't break the flow if email fails
-              console.error('Failed to send virus alert email:', emailError);
+              logger.error('Failed to send virus alert email', { error: emailError, filename: file.originalname });
             }
           });
         } catch (error) {
-          console.error('Failed to initialize EmailService for virus alert:', error);
+          logger.error('Failed to initialize EmailService for virus alert', { error });
         }
 
         // Delete infected files
@@ -143,9 +148,9 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
             if (file.path && fs.existsSync(file.path)) {
               try {
                 fs.unlinkSync(file.path);
-                console.log(`Deleted infected file: ${file.path}`);
+                logger.info(`Deleted infected file`, { filePath: file.path });
               } catch (error) {
-                console.error(`Failed to delete infected file: ${file.path}`, error);
+                logger.error(`Failed to delete infected file`, { error, filePath: file.path });
               }
             }
           });
@@ -167,10 +172,12 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
 
       // Handle scan errors
       if (errorFiles.length > 0 && blockOnError) {
-        console.error('Scan errors detected:', errorFiles.map(({ file, result }) => ({
-          filename: file.originalname,
-          error: result.error,
-        })));
+        logger.error('Scan errors detected', { 
+          errorFiles: errorFiles.map(({ file, result }) => ({
+            filename: file.originalname,
+            error: result.error,
+          }))
+        });
 
         res.status(500).json({
           success: false,
@@ -188,7 +195,7 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
 
       next();
     } catch (error) {
-      console.error('Virus scan middleware error:', error);
+      logger.error('Virus scan middleware error', { error });
 
       if (blockOnError) {
         res.status(500).json({
