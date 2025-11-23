@@ -21,8 +21,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Dependencies
-node_modules/
-frontend/node_modules/
+# node_modules/ - temporarily adding to version control
+# frontend/node_modules/ - temporarily adding to version control
 
 # Build outputs
 dist/
