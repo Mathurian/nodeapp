@@ -3,6 +3,9 @@ import BackupMonitoringService from '../services/BackupMonitoringService';
 import { exec } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('BackupAdminController');
 
 const backupMonitoringService = BackupMonitoringService.getInstance();
 
@@ -50,7 +53,7 @@ export class BackupAdminController {
         },
       });
     } catch (error) {
-      console.error('Failed to list backups:', error);
+      logger.error('Failed to list backups', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve backup history',
@@ -79,7 +82,7 @@ export class BackupAdminController {
         data: statsResponse,
       });
     } catch (error) {
-      console.error('Failed to get backup stats:', error);
+      logger.error('Failed to get backup stats', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve backup statistics',
@@ -117,7 +120,7 @@ export class BackupAdminController {
         data: latestResponse,
       });
     } catch (error) {
-      console.error('Failed to get latest backup:', error);
+      logger.error('Failed to get latest backup', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve latest backup',
@@ -138,7 +141,7 @@ export class BackupAdminController {
         data: health,
       });
     } catch (error) {
-      console.error('Failed to check backup health:', error);
+      logger.error('Failed to check backup health', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to check backup health',
@@ -168,9 +171,9 @@ export class BackupAdminController {
       // Execute verification script in background
       exec(scriptPath, (error, _stdout, _stderr) => {
         if (error) {
-          console.error('Backup verification failed:', error);
+          logger.error('Backup verification failed', { error });
         } else {
-          console.log('Backup verification completed:', _stdout);
+          logger.info('Backup verification completed', { stdout: _stdout });
         }
       });
 
@@ -179,7 +182,7 @@ export class BackupAdminController {
         message: 'Backup verification started',
       });
     } catch (error) {
-      console.error('Failed to trigger backup verification:', error);
+      logger.error('Failed to trigger backup verification', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to trigger backup verification',
@@ -209,9 +212,9 @@ export class BackupAdminController {
       // Execute backup script in background
       exec(scriptPath, (error, _stdout, _stderr) => {
         if (error) {
-          console.error('Full backup failed:', error);
+          logger.error('Full backup failed', { error });
         } else {
-          console.log('Full backup completed:', _stdout);
+          logger.info('Full backup completed', { stdout: _stdout });
         }
       });
 
@@ -220,7 +223,7 @@ export class BackupAdminController {
         message: 'Full backup started',
       });
     } catch (error) {
-      console.error('Failed to trigger full backup:', error);
+      logger.error('Failed to trigger full backup', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to trigger full backup',
@@ -242,7 +245,7 @@ export class BackupAdminController {
         data: trend,
       });
     } catch (error) {
-      console.error('Failed to get backup trend:', error);
+      logger.error('Failed to get backup trend', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve backup trend',
@@ -305,7 +308,7 @@ export class BackupAdminController {
         }
       }
     } catch (error) {
-      console.error('Failed to list backup files:', error);
+      logger.error('Failed to list backup files', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to list backup files',
@@ -360,7 +363,7 @@ export class BackupAdminController {
         },
       });
     } catch (error) {
-      console.error('Failed to log backup:', error);
+      logger.error('Failed to log backup', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to log backup',
@@ -376,7 +379,7 @@ export class BackupAdminController {
     try {
       const { level, subject, message } = req.body;
 
-      console.log(`[BACKUP ALERT - ${level}] ${subject}: ${message}`);
+      logger.warn(`BACKUP ALERT - ${level}`, { subject, message });
 
       // Could integrate with notification system here
       // For now, just log it
@@ -386,7 +389,7 @@ export class BackupAdminController {
         message: 'Alert received',
       });
     } catch (error) {
-      console.error('Failed to process alert:', error);
+      logger.error('Failed to process alert', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to process alert',
@@ -409,7 +412,7 @@ export class BackupAdminController {
         data: { count, retentionDays: days },
       });
     } catch (error) {
-      console.error('Failed to cleanup logs:', error);
+      logger.error('Failed to cleanup logs', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to cleanup logs',
