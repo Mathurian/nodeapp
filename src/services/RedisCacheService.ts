@@ -190,7 +190,7 @@ export class RedisCacheService {
       const result = await this.client.ping();
       return result === 'PONG';
     } catch (error) {
-      console.error('Redis health check failed:', error);
+      logger.error('Redis health check failed', { error });
       return false;
     }
   }
@@ -233,7 +233,7 @@ export class RedisCacheService {
       this.stats.hits++;
       return JSON.parse(value) as T;
     } catch (error) {
-      console.error(`Cache get error for key ${key}:`, error);
+      logger.error(`Cache get error for key ${key}`, { error });
       this.stats.errors++;
       return null;
     }
@@ -271,7 +271,7 @@ export class RedisCacheService {
       this.stats.sets++;
       return true;
     } catch (error) {
-      console.error(`Cache set error for key ${key}:`, error);
+      logger.error(`Cache set error for key ${key}`, { error });
       this.stats.errors++;
       return false;
     }
@@ -298,7 +298,7 @@ export class RedisCacheService {
       this.stats.deletes++;
       return result > 0;
     } catch (error) {
-      console.error(`Cache delete error for key ${key}:`, error);
+      logger.error(`Cache delete error for key ${key}`, { error });
       this.stats.errors++;
       return false;
     }
@@ -319,7 +319,7 @@ export class RedisCacheService {
       const result = await this.client.exists(fullKey);
       return result === 1;
     } catch (error) {
-      console.error(`Cache exists error for key ${key}:`, error);
+      logger.error(`Cache exists error for key ${key}`, { error });
       return false;
     }
   }
@@ -355,7 +355,7 @@ export class RedisCacheService {
         return JSON.parse(value) as T;
       });
     } catch (error) {
-      console.error('Cache getMany error:', error);
+      logger.error('Cache getMany error', { error });
       this.stats.errors++;
       return keys.map(() => null);
     }
@@ -399,7 +399,7 @@ export class RedisCacheService {
       this.stats.sets += items.length;
       return true;
     } catch (error) {
-      console.error('Cache setMany error:', error);
+      logger.error('Cache setMany error', { error });
       this.stats.errors++;
       return false;
     }
@@ -428,7 +428,7 @@ export class RedisCacheService {
       this.stats.deletes += result;
       return result as any;
     } catch (error) {
-      console.error('Cache deleteMany error:', error);
+      logger.error('Cache deleteMany error', { error });
       this.stats.errors++;
       return 0;
     }
@@ -463,7 +463,7 @@ export class RedisCacheService {
       this.stats.deletes += result;
       return result as any;
     } catch (error) {
-      console.error('Cache deletePattern error:', error);
+      logger.error('Cache deletePattern error', { error });
       this.stats.errors++;
       return 0;
     }
@@ -483,7 +483,7 @@ export class RedisCacheService {
       await this.client.flushdb();
       return true;
     } catch (error) {
-      console.error('Cache clear error:', error);
+      logger.error('Cache clear error', { error });
       this.stats.errors++;
       return false;
     }
@@ -508,7 +508,7 @@ export class RedisCacheService {
 
     // Store in cache (fire and forget to avoid blocking)
     this.set(key, value, options).catch(error => {
-      console.error('Cache set error in getOrSet:', error);
+      logger.error('Cache set error in getOrSet', { error });
     });
 
     return value;
@@ -535,7 +535,7 @@ export class RedisCacheService {
 
       return await this.client.incrby(fullKey, amount);
     } catch (error) {
-      console.error(`Cache increment error for key ${key}:`, error);
+      logger.error(`Cache increment error for key ${key}`, { error });
       this.stats.errors++;
       return 0;
     }
@@ -562,7 +562,7 @@ export class RedisCacheService {
 
       return await this.client.decrby(fullKey, amount);
     } catch (error) {
-      console.error(`Cache decrement error for key ${key}:`, error);
+      logger.error(`Cache decrement error for key ${key}`, { error });
       this.stats.errors++;
       return 0;
     }
@@ -588,7 +588,7 @@ export class RedisCacheService {
       const result = await this.client.expire(fullKey, ttl);
       return result === 1;
     } catch (error) {
-      console.error(`Cache expire error for key ${key}:`, error);
+      logger.error(`Cache expire error for key ${key}`, { error });
       return false;
     }
   }
@@ -610,7 +610,7 @@ export class RedisCacheService {
 
       return await this.client.ttl(fullKey);
     } catch (error) {
-      console.error(`Cache ttl error for key ${key}:`, error);
+      logger.error(`Cache ttl error for key ${key}`, { error });
       return -1;
     }
   }
@@ -634,7 +634,7 @@ export class RedisCacheService {
 
       await pipeline.exec();
     } catch (error) {
-      console.error('Cache tagKey error:', error);
+      logger.error('Cache tagKey error', { error });
     }
   }
 
@@ -672,7 +672,7 @@ export class RedisCacheService {
       this.stats.deletes += deletedCount;
       return deletedCount;
     } catch (error) {
-      console.error('Cache invalidateTag error:', error);
+      logger.error('Cache invalidateTag error', { error });
       this.stats.errors++;
       return 0;
     }
@@ -684,7 +684,7 @@ export class RedisCacheService {
   public async subscribe(channel: string, callback: (message: string) => void): Promise<void> {
     try {
       if (!this.subscriber) {
-        console.warn('Redis subscriber not available, cannot subscribe');
+        logger.warn('Redis subscriber not available, cannot subscribe');
         return;
       }
 
@@ -695,7 +695,7 @@ export class RedisCacheService {
         }
       });
     } catch (error) {
-      console.error('Cache subscribe error:', error);
+      logger.error('Cache subscribe error', { error });
     }
   }
 
@@ -705,13 +705,13 @@ export class RedisCacheService {
   public async publish(channel: string, message: string): Promise<void> {
     try {
       if (!this.client) {
-        console.warn('Redis client not available, cannot publish');
+        logger.warn('Redis client not available, cannot publish');
         return;
       }
 
       await this.client.publish(channel, message);
     } catch (error) {
-      console.error('Cache publish error:', error);
+      logger.error('Cache publish error', { error });
     }
   }
 
@@ -824,18 +824,18 @@ export class RedisCacheService {
       try {
         await this.client.quit();
         this.isConnected = false;
-        console.log('Redis cache client closed');
+        logger.info('Redis cache client closed');
       } catch (error) {
-        console.error('Error disconnecting Redis cache client:', error);
+        logger.error('Error disconnecting Redis cache client', { error });
       }
     }
 
     if (this.subscriber) {
       try {
         await this.subscriber.quit();
-        console.log('Redis cache subscriber closed');
+        logger.info('Redis cache subscriber closed');
       } catch (error) {
-        console.error('Error disconnecting Redis cache subscriber:', error);
+        logger.error('Error disconnecting Redis cache subscriber', { error });
       }
     }
   }

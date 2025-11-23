@@ -219,7 +219,7 @@ export class FileBackupService extends BaseService {
 
           // Note: In a real implementation, you would copy files to backupPath first,
           // then upload that directory to S3. For now, we'll just indicate S3 is ready.
-          console.log(`FileBackupService: S3 backup ready for ${s3Key}`);
+          logger.info('S3 backup ready', { s3Key });
 
           result.s3 = true;
           result.s3Key = s3Key;
