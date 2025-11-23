@@ -413,7 +413,7 @@ export class AuthService {
           logger.error('Failed to log token verification error', { error: logError });
         });
       } catch (logError) {
-        console.error('Failed to log token verification error:', logError);
+        logger.error('Failed to log token verification error', { error: logError });
       }
       throw new Error('Invalid or expired token');
     }
