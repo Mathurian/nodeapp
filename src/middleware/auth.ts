@@ -3,9 +3,12 @@ import jwt from 'jsonwebtoken';
 import { User } from '@prisma/client';
 import { isAdmin, hasPermission } from './permissions';
 import { jwtSecret } from '../utils/config';
-import prisma from '../utils/prisma';
+import prisma from '../config/database';
 import { userCache } from '../utils/cache';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('auth');
 
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -21,7 +24,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     );
 
     if (isSensitiveEndpoint) {
-      console.warn('authenticateToken: Missing token for sensitive endpoint', {
+      logger.warn('authenticateToken: Missing token for sensitive endpoint', {
         path: req.path,
         method: req.method,
         originalUrl: req.originalUrl,
@@ -80,7 +83,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       // Invalidate cache on session version mismatch
       userCache.invalidate(decoded.userId);
 
-      console.warn('Session version mismatch detected', {
+      logger.warn('Session version mismatch detected', {
         userId: user.id,
         email: user.email,
         tokenVersion: tokenSessionVersion,
@@ -113,7 +116,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       req.path.includes('/backup/settings')
     );
     if (isSensitiveEndpoint && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
-      console.log('authenticateToken: SUPER_ADMIN/ADMIN authenticated for sensitive endpoint', {
+      logger.info('authenticateToken: SUPER_ADMIN/ADMIN authenticated for sensitive endpoint', {
         path: req.path,
         userId: user.id,
         email: user.email,
@@ -134,7 +137,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     const errorObj = error as { name?: string; message?: string; stack?: string };
     
     if (isSensitiveEndpoint) {
-      console.error('authenticateToken: Authentication failed for sensitive endpoint', {
+      logger.error('authenticateToken: Authentication failed for sensitive endpoint', {
         error: errorObj.message,
         errorName: errorObj.name,
         hasCookie: !!req.cookies?.['access_token'],
@@ -145,7 +148,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         stack: errorObj.stack
       });
     } else if (errorObj.name !== 'TokenExpiredError') {
-      console.warn('Authentication failed:', {
+      logger.warn('Authentication failed:', {
         error: errorObj.message,
         errorName: errorObj.name,
         hasCookie: !!req.cookies?.['access_token'],
@@ -210,7 +213,7 @@ const checkOrganizerPermission = async (
 
     return !!assignmentExists;
   } catch (error) {
-    console.error('checkOrganizerPermission error:', error);
+    logger.error('checkOrganizerPermission error', { error });
     return false; // Fail closed on errors
   }
 };
@@ -219,7 +222,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
   return (req: Request, res: Response, next: NextFunction): void => {
     // CRITICAL: Check if req.user exists - this MUST be set by authenticateToken
     if (!req.user) {
-      console.error('requireRole: CRITICAL - No user object found (authenticateToken may have failed)', {
+      logger.error('requireRole: CRITICAL - No user object found (authenticateToken may have failed)', {
         path: req.path,
         method: req.method,
         hasCookie: !!req.cookies?.['access_token'],
@@ -246,7 +249,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
         req.path.includes('/backup/settings')
       );
       if (isSensitiveEndpoint) {
-        console.log('requireRole: ✅ SUPER_ADMIN/ADMIN access granted (unconditional)', {
+        logger.info('requireRole: ✅ SUPER_ADMIN/ADMIN access granted (unconditional)', {
           userRole,
           path: req.path,
           email: req.user.email,
@@ -277,7 +280,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
         if (hasPermission) {
           next();
         } else {
-          console.warn('requireRole: ORGANIZER permission denied', {
+          logger.warn('requireRole: ORGANIZER permission denied', {
             userId: req.user!.id,
             eventId,
             contestId,
@@ -290,7 +293,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
           });
         }
       }).catch(error => {
-        console.error('requireRole: ORGANIZER permission check error', error);
+        logger.error('requireRole: ORGANIZER permission check error', { error });
         res.status(500).json({ error: 'Permission check failed' });
       });
       return;
@@ -299,7 +302,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
     // Check if user role is in allowed roles (normalized comparison)
     const normalizedRoles = roles.map(r => String(r).trim().toUpperCase());
     if (!normalizedRoles.includes(userRole)) {
-      console.warn('requireRole: Role check failed (403)', {
+      logger.warn('requireRole: Role check failed (403)', {
         userRole: req.user.role,
         normalizedUserRole: userRole,
         requiredRoles: roles,
@@ -321,7 +324,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       req.path.includes('/backup/settings')
     );
     if (isSensitiveEndpoint) {
-      console.log('requireRole: Access granted', {
+      logger.info('requireRole: Access granted', {
         userRole,
         requiredRoles: normalizedRoles,
         path: req.path,
