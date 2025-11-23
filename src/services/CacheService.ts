@@ -11,6 +11,8 @@ export class CacheService {
   private redis: Redis;
   private isConnected: boolean = false;
   private isEnabled: boolean = false;
+  private hits: number = 0;
+  private misses: number = 0;
 
   constructor() {
     this.redis = new Redis({
@@ -79,17 +81,21 @@ export class CacheService {
    */
   async get<T>(key: string): Promise<T | null> {
     if (!this.isEnabled) {
+      this.misses++;
       return null;
     }
 
     try {
       const value = await this.redis.get(key);
       if (!value) {
+        this.misses++;
         return null;
       }
+      this.hits++;
       return JSON.parse(value) as T;
     } catch (error) {
       console.error(`Cache get error for key "${key}":`, error);
+      this.misses++;
       return null;
     }
   }
@@ -213,34 +219,77 @@ export class CacheService {
   }
 
   /**
+   * Get all cache keys with details
+   */
+  async getAllKeys(): Promise<Array<{ key: string; ttl: number; size: number }>> {
+    if (!this.isEnabled) {
+      return [];
+    }
+
+    try {
+      const keys = await this.redis.keys('*');
+      const keysWithDetails = await Promise.all(
+        keys.map(async (key) => {
+          const ttl = await this.redis.ttl(key);
+          const value = await this.redis.get(key);
+          const size = value ? Buffer.byteLength(value, 'utf8') : 0;
+
+          return {
+            key,
+            ttl,
+            size,
+          };
+        })
+      );
+
+      return keysWithDetails;
+    } catch (error) {
+      console.error('Get all keys error:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get cache statistics
    */
   async getStats(): Promise<{
     connected: boolean;
     enabled: boolean;
     keys: number;
-    memory: string;
+    memory: string | number;
+    hits: number;
+    misses: number;
+    hitRate: number;
   }> {
     if (!this.isEnabled) {
       return {
         connected: false,
         enabled: false,
         keys: 0,
-        memory: '0',
+        memory: 0,
+        hits: this.hits,
+        misses: this.misses,
+        hitRate: 0,
       };
     }
 
     try {
       const dbsize = await this.redis.dbsize();
       const info = await this.redis.info('memory');
-      const memoryMatch = info.match(/used_memory_human:([^\r\n]+)/);
-      const memory: string = (memoryMatch && memoryMatch[1]) || '0';
+      const memoryMatch = info.match(/used_memory:(\d+)/);
+      const memoryBytes: number = (memoryMatch ? parseInt(memoryMatch[1] || '0', 10) : 0) || 0;
+
+      const total = this.hits + this.misses;
+      const hitRate = total > 0 ? (this.hits / total) * 100 : 0;
 
       return {
         connected: this.isConnected,
         enabled: this.isEnabled,
         keys: dbsize,
-        memory,
+        memory: memoryBytes,
+        hits: this.hits,
+        misses: this.misses,
+        hitRate,
       };
     } catch (error) {
       console.error('Cache stats error:', error);
@@ -248,7 +297,10 @@ export class CacheService {
         connected: false,
         enabled: false,
         keys: 0,
-        memory: '0',
+        memory: 0,
+        hits: this.hits,
+        misses: this.misses,
+        hitRate: 0,
       };
     }
   }

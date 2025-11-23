@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { usersAPI } from '../services/api'
@@ -8,7 +8,10 @@ import {
   CheckIcon,
   XMarkIcon,
   KeyIcon,
+  PhotoIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
 
 interface ProfileFormData {
   name: string
@@ -29,9 +32,12 @@ interface PasswordFormData {
 const ProfilePage: React.FC = () => {
   const { user, refreshUser } = useAuth()
   const queryClient = useQueryClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isEditing, setIsEditing] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
     preferredName: user?.preferredName || '',
@@ -92,6 +98,66 @@ const ProfilePage: React.FC = () => {
       },
     }
   )
+
+  // Upload image mutation
+  const uploadImageMutation = useMutation(
+    async (file: File) => {
+      if (!user?.id) throw new Error('User not found')
+      const formData = new FormData()
+      formData.append('image', file)
+      const response = await usersAPI.uploadImage(user.id, formData)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('auth-user')
+        refreshUser?.()
+        setSelectedImage(null)
+        setImagePreview(null)
+        toast.success('Profile image uploaded successfully!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error uploading image: ${error.message}`)
+      },
+    }
+  )
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file')
+        return
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB')
+        return
+      }
+      setSelectedImage(file)
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleUploadImage = () => {
+    if (selectedImage) {
+      uploadImageMutation.mutate(selectedImage)
+    }
+  }
+
+  const handleCancelImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   const handleCancel = () => {
     setFormData({
@@ -161,6 +227,86 @@ const ProfilePage: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             Manage your personal information and account settings
           </p>
+        </div>
+
+        {/* Profile Image */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Profile Image</h2>
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            {/* Current Image Display */}
+            <div className="flex-shrink-0">
+              {user?.imagePath || imagePreview ? (
+                <img
+                  src={imagePreview || user?.imagePath}
+                  alt="Profile"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
+                />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                  <UserCircleIcon className="w-20 h-20 text-gray-400 dark:text-gray-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Upload Controls */}
+            <div className="flex-1">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Upload a profile image. Recommended size: 400x400px. Max file size: 5MB.
+              </p>
+
+              {selectedImage ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    Selected: {selectedImage.name}
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleUploadImage}
+                      disabled={uploadImageMutation.isLoading}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+                    >
+                      {uploadImageMutation.isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="h-5 w-5 mr-2" />
+                          Upload Image
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelImage}
+                      disabled={uploadImageMutation.isLoading}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center"
+                    >
+                      <XMarkIcon className="h-5 w-5 mr-2" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center"
+                  >
+                    <PhotoIcon className="h-5 w-5 mr-2" />
+                    Choose Image
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Profile Information */}

@@ -54,7 +54,7 @@ const AdminPage: React.FC = () => {
   )
 
   // Check if user is admin
-  const isAdmin = user?.role === 'ADMIN'
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
 
   if (!isAdmin) {
     return (

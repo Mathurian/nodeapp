@@ -109,6 +109,23 @@ export class CacheController {
       return next(error);
     }
   };
+
+  /**
+   * Get all cache keys
+   */
+  getCacheKeys = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const log = createRequestLogger(req, 'cache');
+    try {
+      const keys = await this.cacheService.getAllKeys();
+      res.json({
+        success: true,
+        data: keys,
+      });
+    } catch (error) {
+      log.error('Get cache keys error:', error);
+      return next(error);
+    }
+  };
 }
 
 // Create controller instance and export methods
@@ -118,3 +135,4 @@ export const flushCache = controller.flushCache;
 export const deleteCacheKey = controller.deleteCacheKey;
 export const deleteCachePattern = controller.deleteCachePattern;
 export const getCacheStatus = controller.getCacheStatus;
+export const getCacheKeys = controller.getCacheKeys;

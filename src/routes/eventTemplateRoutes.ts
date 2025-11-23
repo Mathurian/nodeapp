@@ -36,7 +36,7 @@ router.use(authenticateToken)
  */
 router.get('/', getTemplates)
 router.get('/:id', getTemplate)
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
 
 export default router;
 

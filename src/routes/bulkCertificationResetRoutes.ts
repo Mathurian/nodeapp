@@ -17,7 +17,7 @@ router.use(authenticateToken);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_RESET_CERTIFICATIONS', 'CERTIFICATION'), resetCertifications);
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_RESET_CERTIFICATIONS', 'CERTIFICATION'), resetCertifications);
 
 export default router;
 

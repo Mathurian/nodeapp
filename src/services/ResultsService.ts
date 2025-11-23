@@ -345,9 +345,9 @@ export class ResultsService extends BaseService {
           return { results: [], total: 0 };
         }
 
-        // Get visibility settings
-        const canViewOverallResults = await this.prisma.systemSetting.findUnique({
-          where: { key: 'contestant_can_view_overall_results' },
+        // Get visibility settings (global setting)
+        const canViewOverallResults = await this.prisma.systemSetting.findFirst({
+          where: { key: 'contestant_can_view_overall_results', tenantId: null },
         }) as SystemSetting | null;
         const canViewOverall = (canViewOverallResults?.value || 'true') === 'true';
 

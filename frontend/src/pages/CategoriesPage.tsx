@@ -80,20 +80,22 @@ const CategoriesPage: React.FC = () => {
   })
 
   // Check permissions
-  const canManageCategories = ['ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const canManageCategories = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
 
   // Fetch contests for dropdowns
   const { data: contests } = useQuery<Contest[]>('contests', async () => {
     const response = await contestsAPI.getAll()
-    return response.data
+    const unwrapped = response.data?.data || response.data
+    return Array.isArray(unwrapped) ? unwrapped : []
   })
 
   // Fetch categories
-  const { data: categories, isLoading } = useQuery<Category[]>(
+  const { data: categories = [], isLoading } = useQuery<Category[]>(
     'categories',
     async () => {
       const response = await categoriesAPI.getAll()
-      return response.data
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
       refetchInterval: 30000,
@@ -224,7 +226,7 @@ const CategoriesPage: React.FC = () => {
   }
 
   // Filter categories
-  const filteredCategories = categories?.filter((category) => {
+  const filteredCategories = Array.isArray(categories) ? categories.filter((category) => {
     const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       category.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       category.contest?.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -232,7 +234,7 @@ const CategoriesPage: React.FC = () => {
     const matchesContest = selectedContestFilter ? category.contestId === selectedContestFilter : true
 
     return matchesSearch && matchesContest
-  }) || []
+  }) : []
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -405,7 +407,7 @@ const CategoriesPage: React.FC = () => {
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {editingCategory ? 'Edit Category' : 'Create New Category'}

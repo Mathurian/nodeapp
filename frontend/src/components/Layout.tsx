@@ -37,12 +37,13 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const favoriteCommands = getFavoriteCommands().slice(0, 3)
   const modifierKey = getModifierKeySymbol()
 
-  // Fetch theme settings for app name and logo
+  // Fetch theme settings for app name and logo (tenant-aware)
   const { data: themeSettings } = useQuery<any>(
-    'theme-settings',
+    ['theme-settings', user?.tenantId],
     async () => {
       try {
-        const response = await settingsAPI.getThemeSettings()
+        // Include tenant context if user is authenticated
+        const response = await settingsAPI.getThemeSettings(user?.tenantId)
         const unwrapped = response.data.data || response.data
         return unwrapped
       } catch (error) {
@@ -61,6 +62,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const getRoleColor = (role: string) => {
     const colors = {
+      SUPER_ADMIN: 'text-purple-900 bg-purple-100 dark:text-purple-300 dark:bg-purple-900',
       ADMIN: 'text-purple-600 bg-purple-50',
       ORGANIZER: 'text-blue-600 bg-blue-50',
       JUDGE: 'text-green-600 bg-green-50',
@@ -75,6 +77,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const getRoleDisplayName = (role: string) => {
     const names = {
+      SUPER_ADMIN: 'Super Admin',
       ADMIN: 'Admin',
       ORGANIZER: 'Organizer',
       JUDGE: 'Judge',
@@ -106,8 +109,12 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       {/* Minimal Top Bar - Command Palette First */}
       <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex items-center justify-between px-4 lg:px-6 py-3">
-          {/* Logo */}
-          <div className="flex items-center space-x-3">
+          {/* Logo - links to dashboard */}
+          <Link
+            to={user?.tenant?.slug ? `/${user.tenant.slug}/dashboard` : '/dashboard'}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
+            title="Go to Dashboard"
+          >
             {logoPath ? (
               <img
                 src={logoPath}
@@ -128,7 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
               {appName}
             </h1>
-          </div>
+          </Link>
 
           {/* Center: Command Palette Trigger - Prominent */}
           <button
@@ -187,13 +194,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </Link>
 
-            {/* Connection Status */}
-            <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-xs text-gray-600 dark:text-gray-300">
-                {isConnected ? 'Live' : 'Offline'}
-              </span>
-            </div>
+            {/* Connection Status - Only show if user is logged in */}
+            {user && (
+              <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+                <span className="text-xs text-gray-600 dark:text-gray-300">
+                  {isConnected ? 'Live' : 'Connecting...'}
+                </span>
+              </div>
+            )}
 
             {/* Profile Menu */}
             <div className="relative">

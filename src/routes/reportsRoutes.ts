@@ -46,7 +46,7 @@ router.use(authenticateToken);
  *         description: Template created successfully
  */
 router.get('/templates', getTemplates);
-router.post('/templates', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_REPORT_TEMPLATE', 'REPORT'), createTemplate);
+router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_REPORT_TEMPLATE', 'REPORT'), createTemplate);
 
 /**
  * @swagger
@@ -66,7 +66,7 @@ router.post('/templates', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActiv
  *       200:
  *         description: Report generated successfully
  */
-router.post('/generate', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), logActivity('GENERATE_REPORT', 'REPORT'), generateReport);
+router.post('/generate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'JUDGE']), logActivity('GENERATE_REPORT', 'REPORT'), generateReport);
 
 /**
  * @swagger
@@ -82,11 +82,11 @@ router.post('/generate', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), 
  */
 router.get('/', getReportInstances); // Main reports endpoint
 router.get('/instances', getReportInstances);
-router.delete('/instances/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_REPORT_INSTANCE', 'REPORT'), deleteReportInstance);
-router.post('/send-email', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('EMAIL_REPORT', 'REPORT'), sendReportEmail);
+router.delete('/instances/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_REPORT_INSTANCE', 'REPORT'), deleteReportInstance);
+router.post('/send-email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('EMAIL_REPORT', 'REPORT'), sendReportEmail);
 
 // Download/View route
-router.get('/:id/download', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), async (req, res): Promise<any> => {
+router.get('/:id/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'JUDGE']), async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
     const reportInstance = await prisma.reportInstance.findUnique({
@@ -138,9 +138,9 @@ router.get('/:id/download', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']
 
 // Export routes - these should come AFTER specific routes like /generate
 // or they will match /generate as an :id parameter
-router.post('/:id/export/pdf', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), logActivity('EXPORT_REPORT_PDF', 'REPORT'), exportToPDF);
-router.post('/:id/export/excel', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), logActivity('EXPORT_REPORT_EXCEL', 'REPORT'), exportToExcel);
-router.post('/:id/export/csv', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE']), logActivity('EXPORT_REPORT_CSV', 'REPORT'), exportToCSV);
+router.post('/:id/export/pdf', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'JUDGE']), logActivity('EXPORT_REPORT_PDF', 'REPORT'), exportToPDF);
+router.post('/:id/export/excel', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'JUDGE']), logActivity('EXPORT_REPORT_EXCEL', 'REPORT'), exportToExcel);
+router.post('/:id/export/csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'JUDGE']), logActivity('EXPORT_REPORT_CSV', 'REPORT'), exportToCSV);
 
 export default router;
 

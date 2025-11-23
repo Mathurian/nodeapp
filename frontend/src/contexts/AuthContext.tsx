@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 
+interface TenantInfo {
+  id: string
+  name: string
+  slug: string
+}
+
 interface User {
   id: string
   name: string
@@ -12,13 +18,16 @@ interface User {
   gender?: string
   pronouns?: string
   bio?: string
+  imagePath?: string
   judge?: any
   contestant?: any
+  tenantId?: string
+  tenant?: TenantInfo | null
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, tenantSlug?: string) => Promise<User>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isLoading: boolean
@@ -51,6 +60,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // No need to check localStorage - httpOnly cookies are automatically sent
       // Just try to fetch profile, cookie will be sent automatically
       try {
+        // Step 1: Fetch CSRF token (ensures we have a fresh token for any POST/PUT/DELETE requests)
+        await api.get('/csrf-token')
+
+        // Step 2: Fetch user profile
         const response = await api.get('/auth/profile')
         // Backend wraps response in { success, message, data, timestamp }
         const profileData = response.data.data || response.data
@@ -65,20 +78,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initAuth()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, tenantSlug?: string) => {
     try {
       // Step 1: Get CSRF token
       const csrfResponse = await api.get('/csrf-token')
       const csrfToken = csrfResponse.data.csrfToken || csrfResponse.data.token
 
       // Step 2: Login with CSRF token (token will be set as httpOnly cookie by backend)
+      // Include tenant slug header if provided (for multi-tenant login)
+      const headers: Record<string, string> = {
+        'X-CSRF-Token': csrfToken
+      }
+      if (tenantSlug) {
+        headers['X-Tenant-Slug'] = tenantSlug
+      }
+
       const response = await api.post('/auth/login',
         { email, password },
-        {
-          headers: {
-            'X-CSRF-Token': csrfToken
-          }
-        }
+        { headers }
       )
 
       // Backend wraps response in { success, message, data, timestamp }
@@ -89,8 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Cookie is automatically sent with subsequent requests
       setUser(userData)
 
-      // Navigate to dashboard after successful login
-      navigate('/dashboard')
+      // Return user data so caller can handle navigation based on tenant
+      return userData
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed')
     }

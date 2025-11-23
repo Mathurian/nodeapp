@@ -45,7 +45,7 @@ export class CategoryCertificationService extends BaseService {
     });
 
     const boardCerts = await this.prisma.categoryCertification.findMany({
-      where: { categoryId, role: { in: ['BOARD', 'ORGANIZER', 'ADMIN'] } }
+      where: { categoryId, role: { in: ['SUPER_ADMIN', 'BOARD', 'ORGANIZER', 'ADMIN'] } }
     });
 
     const totalContestants = categoryContestants.length;

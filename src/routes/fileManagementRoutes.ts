@@ -26,17 +26,17 @@ router.use(authenticateToken)
  *       200:
  *         description: Files retrieved successfully
  */
-router.get('/files', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getFilesWithFilters)
+router.get('/files', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getFilesWithFilters)
 
 // File search and suggestions
 router.get('/files/search', getFileSearchSuggestions)
 
 // File analytics
-router.get('/files/analytics', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getFileAnalytics)
+router.get('/files/analytics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getFileAnalytics)
 
 // File integrity checks
-router.get('/files/:fileId/integrity', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), checkFileIntegrity)
-router.post('/files/integrity/bulk', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('BULK_INTEGRITY_CHECK', 'FILE'), bulkCheckFileIntegrity)
+router.get('/files/:fileId/integrity', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), checkFileIntegrity)
+router.post('/files/integrity/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_INTEGRITY_CHECK', 'FILE'), bulkCheckFileIntegrity)
 
 export default router;
 

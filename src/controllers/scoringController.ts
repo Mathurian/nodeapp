@@ -28,10 +28,12 @@ export class ScoringController {
     try {
       const categoryId = req.params['categoryId']!;
       const contestantId = req.params['contestantId'];
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
 
-      log.debug('Fetching scores', { categoryId, contestantId });
+      log.debug('Fetching scores', { categoryId, contestantId, tenantId });
 
-      const scores = await this.scoringService.getScoresByCategory(categoryId, contestantId!);
+      // Fix: Pass tenantId as second parameter, contestantId as third
+      const scores = await this.scoringService.getScoresByCategory(categoryId, tenantId, contestantId);
 
       log.info('Scores retrieved successfully', { categoryId, contestantId, count: scores.length });
       sendSuccess(res, scores);
@@ -121,17 +123,22 @@ export class ScoringController {
 
       log.info('Score update requested', { scoreId });
 
-      // Get old score for change tracking
-      const oldScore = await this.prisma.score.findUnique({ where: { id: scoreId } });
+      // Get old score for change tracking with tenant filtering
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const oldScore = await this.prisma.score.findFirst({
+        where: {
+          id: scoreId,
+          tenantId: tenantId
+        }
+      });
 
-      const updatedScore = await this.scoringService.updateScore(scoreId, data, req.user!.tenantId);
+      const updatedScore = await this.scoringService.updateScore(scoreId, data, tenantId);
 
       log.info('Score updated successfully', { scoreId });
 
       // Audit log: score update with change tracking
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = req.user!.tenantId;
         await auditLogService.logEntityChange({
           action: 'score.updated',
           entityType: 'Score',
@@ -159,13 +166,19 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const scoreId = req.params['scoreId']!;
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
 
       log.info('Score deletion requested', { scoreId });
 
-      // Get score data before deletion for audit log
-      const score = await this.prisma.score.findUnique({ where: { id: scoreId } });
+      // Get score data before deletion for audit log with tenant filtering
+      const score = await this.prisma.score.findFirst({
+        where: {
+          id: scoreId,
+          tenantId: tenantId
+        }
+      });
 
-      await this.scoringService.deleteScore(scoreId, req.user!.tenantId);
+      await this.scoringService.deleteScore(scoreId, tenantId);
 
       // Audit log: score deletion
       try {

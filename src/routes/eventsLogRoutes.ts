@@ -193,7 +193,7 @@ router.get('/:id', eventsLogController.getEventLog);
  *       403:
  *         description: Forbidden - requires ADMIN role
  */
-router.get('/webhooks', requireRole(['ADMIN']), eventsLogController.listWebhooks);
+router.get('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.listWebhooks);
 
 /**
  * @swagger
@@ -255,7 +255,7 @@ router.get('/webhooks', requireRole(['ADMIN']), eventsLogController.listWebhooks
  *       403:
  *         description: Forbidden - requires ADMIN role
  */
-router.post('/webhooks', requireRole(['ADMIN']), eventsLogController.createWebhook);
+router.post('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.createWebhook);
 
 /**
  * @swagger
@@ -304,7 +304,7 @@ router.post('/webhooks', requireRole(['ADMIN']), eventsLogController.createWebho
  *       404:
  *         description: Webhook not found
  */
-router.put('/webhooks/:id', requireRole(['ADMIN']), eventsLogController.updateWebhook);
+router.put('/webhooks/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.updateWebhook);
 
 /**
  * @swagger
@@ -332,6 +332,6 @@ router.put('/webhooks/:id', requireRole(['ADMIN']), eventsLogController.updateWe
  *       404:
  *         description: Webhook not found
  */
-router.delete('/webhooks/:id', requireRole(['ADMIN']), eventsLogController.deleteWebhook);
+router.delete('/webhooks/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.deleteWebhook);
 
 export default router;

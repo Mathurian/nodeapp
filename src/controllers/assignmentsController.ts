@@ -351,6 +351,104 @@ export class AssignmentsController {
       return next(error);
     }
   };
+
+  // Tally Master Assignment Methods
+  getTallyMasterAssignments = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const filters = {
+        eventId: req.query['eventId'] as string | undefined,
+        contestId: req.query['contestId'] as string | undefined,
+        categoryId: req.query['categoryId'] as string | undefined,
+      };
+      const assignments = await this.assignmentService.getTallyMasterAssignments(filters);
+      return sendSuccess(res, assignments, 'Tally master assignments retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  createTallyMasterAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { userId, eventId, contestId, categoryId, notes } = req.body;
+      const assignedBy = req.user?.id;
+
+      if (!assignedBy) {
+        return sendError(res, 'User not authenticated', 401);
+      }
+
+      const assignment = await this.assignmentService.createTallyMasterAssignment({
+        userId,
+        eventId,
+        contestId,
+        categoryId,
+        notes,
+        assignedBy,
+      });
+
+      return sendSuccess(res, assignment, 'Tally master assignment created successfully', 201);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  removeTallyMasterAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const assignmentId = getRequiredParam(req, 'id');
+      await this.assignmentService.removeTallyMasterAssignment(assignmentId);
+      return sendSuccess(res, null, 'Tally master assignment removed successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  // Auditor Assignment Methods
+  getAuditorAssignments = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const filters = {
+        eventId: req.query['eventId'] as string | undefined,
+        contestId: req.query['contestId'] as string | undefined,
+        categoryId: req.query['categoryId'] as string | undefined,
+      };
+      const assignments = await this.assignmentService.getAuditorAssignments(filters);
+      return sendSuccess(res, assignments, 'Auditor assignments retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  createAuditorAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { userId, eventId, contestId, categoryId, notes } = req.body;
+      const assignedBy = req.user?.id;
+
+      if (!assignedBy) {
+        return sendError(res, 'User not authenticated', 401);
+      }
+
+      const assignment = await this.assignmentService.createAuditorAssignment({
+        userId,
+        eventId,
+        contestId,
+        categoryId,
+        notes,
+        assignedBy,
+      });
+
+      return sendSuccess(res, assignment, 'Auditor assignment created successfully', 201);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  removeAuditorAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const assignmentId = getRequiredParam(req, 'id');
+      await this.assignmentService.removeAuditorAssignment(assignmentId);
+      return sendSuccess(res, null, 'Auditor assignment removed successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Create controller instance and export methods
@@ -375,3 +473,9 @@ export const assignContestantToCategory = controller.assignContestantToCategory;
 export const removeContestantFromCategory = controller.removeContestantFromCategory;
 export const getCategoryContestants = controller.getCategoryContestants;
 export const getAllContestantAssignments = controller.getAllContestantAssignments;
+export const getTallyMasterAssignments = controller.getTallyMasterAssignments;
+export const createTallyMasterAssignment = controller.createTallyMasterAssignment;
+export const removeTallyMasterAssignment = controller.removeTallyMasterAssignment;
+export const getAuditorAssignments = controller.getAuditorAssignments;
+export const createAuditorAssignment = controller.createAuditorAssignment;
+export const removeAuditorAssignment = controller.removeAuditorAssignment;

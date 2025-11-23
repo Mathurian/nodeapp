@@ -266,7 +266,7 @@ export class ScoringService extends BaseService {
         }
       });
 
-      if (!assignment && userWithJudge.role !== 'ADMIN') {
+      if (!assignment && userWithJudge.role !== 'SUPER_ADMIN' && userWithJudge.role !== 'ADMIN') {
         throw new ForbiddenError('Not assigned to this category');
       }
 

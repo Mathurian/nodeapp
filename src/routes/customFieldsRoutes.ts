@@ -15,6 +15,31 @@ router.use(authenticateToken);
 /**
  * @swagger
  * /api/custom-fields:
+ *   get:
+ *     summary: Get all custom fields (all entity types)
+ *     tags: [Custom Fields]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: activeOnly
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *     responses:
+ *       200:
+ *         description: All custom fields retrieved
+ *       401:
+ *         description: Unauthorized
+ */
+router.get(
+  '/',
+  customFieldsController.getAllCustomFields
+);
+
+/**
+ * @swagger
+ * /api/custom-fields:
  *   post:
  *     summary: Create custom field
  *     tags: [Custom Fields]

@@ -16,6 +16,18 @@ export class ContestsController {
   }
 
   /**
+   * Get all contests
+   */
+  getAllContests = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const contests = await this.contestService.getAllContests();
+      return sendSuccess(res, contests, 'Contests retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
    * Get contest by ID
    */
   getContestById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
@@ -199,6 +211,7 @@ export class ContestsController {
 
 // Export controller instance and individual methods
 const controller = new ContestsController();
+export const getAllContests = controller.getAllContests;
 export const getContestById = controller.getContestById;
 export const getContestsByEvent = controller.getContestsByEvent;
 export const createContest = controller.createContest;

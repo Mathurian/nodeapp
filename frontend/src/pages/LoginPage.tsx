@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+
+interface TenantBranding {
+  appName: string
+  appSubtitle: string | null
+  logoPath: string | null
+  primaryColor: string | null
+}
+
+interface TenantInfo {
+  id: string
+  name: string
+  slug: string
+  isActive: boolean
+  branding: TenantBranding
+}
 
 interface PublicSettings {
   appName: string
@@ -14,11 +29,14 @@ interface PublicSettings {
 }
 
 const LoginPage: React.FC = () => {
+  const { slug } = useParams<{ slug?: string }>()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isTenantLoading, setIsTenantLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
   const [settings, setSettings] = useState<PublicSettings>({
     appName: 'Event Manager',
     appSubtitle: 'Contest Management System',
@@ -30,21 +48,66 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  // Load public settings from database
+  // Load tenant info if slug is provided
+  useEffect(() => {
+    const loadTenantInfo = async () => {
+      const tenantSlug = slug || 'default'
+      setIsTenantLoading(true)
+
+      try {
+        const response = await fetch(`/api/tenants/slug/${tenantSlug}`)
+        if (response.ok) {
+          const data = await response.json()
+          const tenant = data.tenant || data
+          setTenantInfo(tenant)
+
+          // Apply tenant branding to settings
+          if (tenant?.branding) {
+            setSettings(prev => ({
+              ...prev,
+              appName: tenant.branding.appName || tenant.name || prev.appName,
+              appSubtitle: tenant.branding.appSubtitle || prev.appSubtitle,
+              logoPath: tenant.branding.logoPath || prev.logoPath
+            }))
+          }
+        } else if (response.status === 404 && slug) {
+          // Tenant not found - redirect to default login
+          console.warn(`Tenant "${slug}" not found, redirecting to default login`)
+          navigate('/login', { replace: true })
+          return
+        }
+      } catch (err) {
+        console.error('Failed to load tenant info:', err)
+      } finally {
+        setIsTenantLoading(false)
+      }
+    }
+
+    loadTenantInfo()
+  }, [slug, navigate])
+
+  // Load theme settings (tenant-aware via slug)
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await settingsAPI.getPublicSettings()
-        if (response.data) {
-          setSettings(response.data)
+        // Pass slug to get tenant-specific theme settings
+        const response = await settingsAPI.getThemeSettings(undefined, slug || undefined)
+        const data = response.data?.data || response.data
+        if (data) {
+          setSettings(prev => ({
+            ...prev,
+            appName: data.app_name || data.appName || prev.appName,
+            appSubtitle: data.app_subtitle || data.appSubtitle || prev.appSubtitle,
+            logoPath: data.theme_logoPath || data.logoPath || prev.logoPath,
+            faviconPath: data.theme_faviconPath || data.faviconPath || prev.faviconPath
+          }))
         }
       } catch (err) {
-        console.error('Failed to load public settings:', err)
-        // Continue with defaults if API call fails
+        console.error('Failed to load theme settings:', err)
       }
     }
     loadSettings()
-  }, [])
+  }, [slug])
 
   // Update document title and favicon
   useEffect(() => {
@@ -70,8 +133,22 @@ const LoginPage: React.FC = () => {
     setError('')
 
     try {
-      await login(email, password)
-      navigate('/dashboard')
+      // Pass tenant slug to login for proper tenant context
+      const user = await login(email, password, slug || undefined)
+
+      // Determine where to redirect after login
+      // If user has a tenant and we know their tenant's slug, redirect to tenant-prefixed URL
+      // Otherwise redirect to default dashboard
+      if (slug && slug !== 'default') {
+        // User logged in via tenant-specific URL - stay in that tenant context
+        navigate(`/${slug}/dashboard`)
+      } else if (user?.tenant?.slug && user.tenant.slug !== 'default') {
+        // User has a non-default tenant - redirect to their tenant URL
+        navigate(`/${user.tenant.slug}/dashboard`)
+      } else {
+        // Default tenant or no tenant info - use default URL
+        navigate('/dashboard')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

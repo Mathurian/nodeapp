@@ -35,6 +35,26 @@ export const listTemplates = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = getRequiredParam(req, 'id');
+    const template = await WorkflowService.updateTemplate(id, req.tenantId!, req.body);
+    sendSuccess(res, template, 'Workflow template updated');
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = getRequiredParam(req, 'id');
+    await WorkflowService.deleteTemplate(id, req.tenantId!);
+    sendSuccess(res, null, 'Workflow template deleted');
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const startWorkflow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { templateId, entityType, entityId } = req.body;

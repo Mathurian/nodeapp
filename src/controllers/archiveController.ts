@@ -155,13 +155,14 @@ export class ArchiveController {
     const log = createRequestLogger(req, 'archive');
     try {
       const { eventId } = req.params;
+      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
 
       if (!eventId) {
         res.status(400).json({ error: 'Event ID required' });
         return;
       }
 
-      const result = await this.archiveService.restoreEvent(eventId);
+      const result = await this.archiveService.restoreEvent(eventId, tenantId);
       res.json(result);
     } catch (error) {
       log.error('Restore event error:', error);

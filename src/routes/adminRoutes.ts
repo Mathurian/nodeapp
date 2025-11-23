@@ -57,7 +57,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Database tables retrieved
  */
-router.get("/database/tables", requireRole(["ADMIN"]), getDatabaseTables)
+router.get("/database/tables", requireRole(["SUPER_ADMIN", "ADMIN"]), getDatabaseTables)
 
 /**
  * @swagger
@@ -82,7 +82,7 @@ router.get("/database/tables", requireRole(["ADMIN"]), getDatabaseTables)
  */
 // SECURITY FIX: Route disabled due to SQL injection vulnerability (P0-1)
 // router.post("/database/query", requireRole(["ADMIN"]), logActivity("EXECUTE_DATABASE_QUERY", "DATABASE"), executeDatabaseQuery)
-router.use(requireRole(['ADMIN', 'ORGANIZER', 'BOARD']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']))
 
 /**
  * @swagger
@@ -152,8 +152,8 @@ router.get('/password-policy', getPasswordPolicy)
 router.put('/password-policy', updatePasswordPolicy)
 
 // Database browser routes (ADMIN only) - additional endpoints
-router.get('/database/tables/:tableName/structure', requireRole(['ADMIN']), getTableStructure)
-router.get('/database/tables/:tableName/data', requireRole(['ADMIN']), getTableData)
+router.get('/database/tables/:tableName/structure', requireRole(['SUPER_ADMIN', 'ADMIN']), getTableStructure)
+router.get('/database/tables/:tableName/data', requireRole(['SUPER_ADMIN', 'ADMIN']), getTableData)
 
 export default router;
 

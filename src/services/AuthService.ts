@@ -37,12 +37,19 @@ type UserBasic = Prisma.UserGetPayload<{
     gender: true;
     pronouns: true;
     tenantId: true;
+    imagePath: true;
   };
 }>;
 
 interface LoginCredentials {
   email: string;
   password: string;
+}
+
+interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 interface UserProfile {
@@ -58,7 +65,9 @@ interface UserProfile {
   contestantId: string | null;
   gender: string | null;
   pronouns: string | null;
+  imagePath: string | null;
   tenantId?: string;
+  tenant?: TenantInfo | null;
 }
 
 interface LoginResult {
@@ -161,14 +170,45 @@ export class AuthService {
       throw new Error('Tenant context is required');
     }
 
-    // Find user with related data
-    // SECURITY FIX: Filter by tenantId to prevent cross-tenant authentication bypass
-    const user: UserBasic | null = await this.prisma.user.findFirst({
+    // Find user with related data including tenant info
+    // If logging in from default tenant context (e.g., /login without slug),
+    // first try to find the user by email in any tenant
+    let user = await this.prisma.user.findFirst({
       where: {
         email,
         tenantId
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
       }
     });
+
+    // If not found in specified tenant and we're using default tenant,
+    // try to find user by email in any active tenant
+    if (!user && tenantId === 'default_tenant') {
+      user = await this.prisma.user.findFirst({
+        where: {
+          email,
+          isActive: true,
+          tenant: { isActive: true }
+        },
+        include: {
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+              slug: true
+            }
+          }
+        }
+      });
+    }
 
     // Validate credentials
     if (!user || !await bcrypt.compare(password, user.password)) {
@@ -226,8 +266,8 @@ export class AuthService {
     // Invalidate user cache
     userCache.invalidate(user.id);
 
-    // Determine token expiration (admin/organizer get longer sessions)
-    const tokenExpiresIn: string = (user.role === 'ADMIN' || user.role === 'ORGANIZER')
+    // Determine token expiration (super admin/admin/organizer get longer sessions)
+    const tokenExpiresIn: string = (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'ORGANIZER')
       ? '1h'
       : (JWT_EXPIRES_IN as string);
 
@@ -283,7 +323,13 @@ export class AuthService {
         contestantId: user.contestantId,
         gender: user.gender,
         pronouns: user.pronouns,
-        tenantId: user.tenantId
+        imagePath: user.imagePath,
+        tenantId: user.tenantId,
+        tenant: user.tenant ? {
+          id: user.tenant.id,
+          name: user.tenant.name,
+          slug: user.tenant.slug
+        } : null
       }
     };
   }
@@ -315,7 +361,8 @@ export class AuthService {
       judgeId: user.judgeId,
       contestantId: user.contestantId,
       gender: user.gender,
-      pronouns: user.pronouns
+      pronouns: user.pronouns,
+      imagePath: user.imagePath
     };
   }
 

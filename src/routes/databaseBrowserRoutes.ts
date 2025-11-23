@@ -12,7 +12,7 @@ import {
 
 // All database browser routes require authentication and ADMIN/ORGANIZER role
 router.use(authenticateToken)
-router.use(requireRole(['ADMIN', 'ORGANIZER']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']))
 
 /**
  * @swagger
@@ -57,6 +57,9 @@ router.get('/tables/:tableName/schema', getTableSchema)
 
 // Get table data
 router.get('/tables/:tableName/data', getTableData)
+
+// Alias for getting table data (frontend compatibility)
+router.get('/tables/:tableName', getTableData)
 
 // Get query history
 router.get('/history', getQueryHistory)

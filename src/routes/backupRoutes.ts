@@ -46,8 +46,8 @@ router.use(authenticateToken)
  *         description: Backup created successfully
  */
 router.get('/', listBackups) // Admin can list backups
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
-router.post('/create', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
+router.post('/create', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
 
 /**
  * @swagger
@@ -71,7 +71,7 @@ router.post('/create', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity
  *       200:
  *         description: Backup restored successfully
  */
-router.post('/restore', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), upload.single('backup'), logActivity('RESTORE_BACKUP', 'BACKUP'), restoreBackup)
+router.post('/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), upload.single('backup'), logActivity('RESTORE_BACKUP', 'BACKUP'), restoreBackup)
 
 /**
  * @swagger
@@ -85,15 +85,15 @@ router.post('/restore', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), upload.sin
  *       200:
  *         description: Backup settings retrieved successfully
  */
-router.get('/settings', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getBackupSettings)
-router.post('/settings', requireRole(['ADMIN', 'ORGANIZER']), logActivity('CREATE_BACKUP_SETTING', 'BACKUP'), createBackupSetting)
-router.put('/settings/:id', requireRole(['ADMIN', 'ORGANIZER']), logActivity('UPDATE_BACKUP_SETTING', 'BACKUP'), updateBackupSetting)
-router.delete('/settings/:id', requireRole(['ADMIN', 'ORGANIZER']), logActivity('DELETE_BACKUP_SETTING', 'BACKUP'), deleteBackupSetting)
+router.get('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getBackupSettings)
+router.post('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('CREATE_BACKUP_SETTING', 'BACKUP'), createBackupSetting)
+router.put('/settings/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_BACKUP_SETTING', 'BACKUP'), updateBackupSetting)
+router.delete('/settings/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('DELETE_BACKUP_SETTING', 'BACKUP'), deleteBackupSetting)
 
 // Debug/test endpoints for scheduled backups
-router.post('/settings/test/run', requireRole(['ADMIN']), logActivity('TEST_SCHEDULED_BACKUP', 'BACKUP'), runScheduledBackup)
-router.get('/schedules/active', requireRole(['ADMIN', 'ORGANIZER']), getActiveSchedules)
-router.get('/settings/debug', requireRole(['ADMIN']), debugBackupSettings)
+router.post('/settings/test/run', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('TEST_SCHEDULED_BACKUP', 'BACKUP'), runScheduledBackup)
+router.get('/schedules/active', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getActiveSchedules)
+router.get('/settings/debug', requireRole(['SUPER_ADMIN', 'ADMIN']), debugBackupSettings)
 
 export default router;
 

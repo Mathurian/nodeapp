@@ -764,9 +764,9 @@ export class UserService extends BaseService {
         throw new ValidationError('Invalid role for bulk deletion');
       }
 
-      // Prevent deletion of admin/organizer users
-      if (role.toUpperCase() === 'ADMIN' || role.toUpperCase() === 'ORGANIZER') {
-        throw new ValidationError('Cannot delete admin or organizer users');
+      // Prevent deletion of super admin/admin/organizer users
+      if (role.toUpperCase() === 'SUPER_ADMIN' || role.toUpperCase() === 'ADMIN' || role.toUpperCase() === 'ORGANIZER') {
+        throw new ValidationError('Cannot delete super admin, admin, or organizer users');
       }
 
       const result = await this.prisma.user.deleteMany({

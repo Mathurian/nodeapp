@@ -302,10 +302,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                             key={command.id}
                             onClick={() => handleSelect(command)}
                             onMouseEnter={() => setSelectedIndex(globalIndex)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${
+                            className={`relative group w-full flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors isolate ${
                               isSelected
                                 ? 'bg-indigo-600 dark:bg-indigo-500 text-white'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                           >
                             {/* Icon */}

@@ -690,5 +690,113 @@
       "message": "User with identifier 'bulk-template' not found",
       "code": "NOT_FOUND"
     }
+  },
+  {
+    "id": "err_1763705629794_jlcigxeiu",
+    "timestamp": "2025-11-21T06:13:49.794Z",
+    "severity": "low",
+    "message": "Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)",
+    "stack": "ValidationError: Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)\n    at UserService.resetUserPassword (/var/www/event-manager/dist/services/UserService.js:329:23)\n    at async resetPassword (/var/www/event-manager/dist/controllers/usersController.js:320:13)",
+    "context": {
+      "method": "resetUserPassword",
+      "userId": "cmi7vuguo000blkcl8yy6pk0w"
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1763846117351_7ko9rf58l",
+    "timestamp": "2025-11-22T21:15:17.351Z",
+    "severity": "low",
+    "message": "Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.",
+    "stack": "ValidationError: Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.\n    at UserService.bulkDeleteUsers (/var/www/event-manager/dist/services/UserService.js:370:23)\n    at async bulkDeleteUsers (/var/www/event-manager/dist/controllers/usersController.js:1013:28)",
+    "context": {
+      "method": "bulkDeleteUsers",
+      "userIds": [
+        "cmhxo4ggl00bz8ca0cwpb9thq",
+        "cmhxnsme8008l8ca03qdjja00",
+        "cmhtnymx3003n8c281lsj6bla",
+        "cmhtnymwv003k8c28xb7slost",
+        "cmhtnymwo003h8c28r0lqr279",
+        "cmhtnymwg003e8c28a9injkc9",
+        "cmhtnymw300368c28tn6ze1ya",
+        "cmhtnymvs00338c28on50wqs8",
+        "cmhtnymvj00308c28h764z3n3",
+        "cmhtnymvb002x8c28k0fimzss",
+        "cmhtnymuy002n8c28jifzm81n",
+        "cmhtnymut002k8c288wxnbdf9",
+        "cmhtnymuo002h8c28flnp8sj9",
+        "cmhtnymuj002e8c28ykhe98eq",
+        "cmhtnymub002b8c28jyh8jyyn",
+        "cmhtnymu300288c28g2oa89am",
+        "cmhtnymtw00258c285gik5ejx",
+        "cmhtnymtp00228c28qu58yw5x",
+        "cmhtnymtc001u8c28d2t1gs5r",
+        "cmhtnymt2001r8c28s7qk6lr5",
+        "cmhtnymsv001o8c28i8u87i43",
+        "cmhtnymsl001l8c28tgog4chr",
+        "cmhtnyms7001b8c28hslka3n7",
+        "cmhtnyms100188c28kd26i5h1",
+        "cmhtnymrw00158c28m3p6zghf",
+        "cmhtnymrn00128c28a6wo3kcj",
+        "cmhtnymre000z8c28xx01rlmi",
+        "cmhtnymrb000y8c28v9v4gu77",
+        "cmhtnymr5000x8c28bvpoo4f5"
+      ]
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.",
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "err_1763848950151_566438grq",
+    "timestamp": "2025-11-22T22:02:30.151Z",
+    "severity": "low",
+    "message": "Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.",
+    "stack": "ValidationError: Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.\n    at UserService.bulkDeleteUsers (/var/www/event-manager/dist/services/UserService.js:370:23)\n    at async bulkDeleteUsers (/var/www/event-manager/dist/controllers/usersController.js:1023:28)",
+    "context": {
+      "method": "bulkDeleteUsers",
+      "userIds": [
+        "cmhxo4ggl00bz8ca0cwpb9thq",
+        "cmhxnsme8008l8ca03qdjja00",
+        "cmhtnymx3003n8c281lsj6bla",
+        "cmhtnymwv003k8c28xb7slost",
+        "cmhtnymwo003h8c28r0lqr279",
+        "cmhtnymwg003e8c28a9injkc9",
+        "cmhtnymw300368c28tn6ze1ya",
+        "cmhtnymvs00338c28on50wqs8",
+        "cmhtnymvj00308c28h764z3n3",
+        "cmhtnymvb002x8c28k0fimzss",
+        "cmhtnymuy002n8c28jifzm81n",
+        "cmhtnymut002k8c288wxnbdf9",
+        "cmhtnymuo002h8c28flnp8sj9",
+        "cmhtnymuj002e8c28ykhe98eq",
+        "cmhtnymub002b8c28jyh8jyyn",
+        "cmhtnymu300288c28g2oa89am",
+        "cmhtnymtw00258c285gik5ejx",
+        "cmhtnymtp00228c28qu58yw5x",
+        "cmhtnymtc001u8c28d2t1gs5r",
+        "cmhtnymt2001r8c28s7qk6lr5",
+        "cmhtnymsv001o8c28i8u87i43",
+        "cmhtnymsl001l8c28tgog4chr",
+        "cmhtnyms7001b8c28hslka3n7",
+        "cmhtnyms100188c28kd26i5h1",
+        "cmhtnymrw00158c28m3p6zghf",
+        "cmhtnymrn00128c28a6wo3kcj",
+        "cmhtnymre000z8c28xx01rlmi",
+        "cmhtnymrb000y8c28v9v4gu77",
+        "cmhtnymr5000x8c28bvpoo4f5"
+      ]
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.",
+      "code": "VALIDATION_ERROR"
+    }
   }
 ]

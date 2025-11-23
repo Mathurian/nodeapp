@@ -50,7 +50,7 @@ const generateCsrfToken = (req: Request, res: Response, next: NextFunction): voi
   // to allow cookie to be sent on cross-site POST requests
   const sameSite = isSecureRequest(req) ? 'lax' : 'strict'
   res.cookie('_csrf', csrfToken, {
-    httpOnly: true,
+    httpOnly: false, // Must be readable by JavaScript to include in request headers
     secure: isSecureRequest(req),
     sameSite: sameSite,
     path: '/'
@@ -72,7 +72,7 @@ const getCsrfToken = (req: Request, res: Response): void => {
     
     // Set cookie
     res.cookie('_csrf', csrfToken, {
-      httpOnly: true,
+      httpOnly: false, // Must be readable by JavaScript to include in request headers
       secure: isSecureRequest(req),
       sameSite: sameSite,
       path: '/'

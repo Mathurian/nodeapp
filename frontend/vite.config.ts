@@ -97,10 +97,10 @@ export default defineConfig({
           // Form/validation vendor
           'form-vendor': ['react-hook-form']
         },
-        // Optimize chunk file names
-        chunkFileNames: 'assets/js/[name]-[hash].js',
-        entryFileNames: 'assets/js/[name]-[hash].js',
-        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+        // Optimize chunk file names with content hash for cache busting
+        chunkFileNames: 'assets/js/[name]-[hash:8].js',
+        entryFileNames: 'assets/js/[name]-[hash:8].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash:8].[ext]'
       }
     },
     // Increase chunk size warning limit for better splitting

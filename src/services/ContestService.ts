@@ -159,7 +159,7 @@ export class ContestService extends BaseService {
       }
 
       let contests: Contest[];
-      
+
       if (forEventView) {
         // When viewing contests for a specific event, show archived contests if requested
         // This allows viewing archived contests even if the event itself is archived
@@ -177,6 +177,29 @@ export class ContestService extends BaseService {
       return contests;
     } catch (error) {
       return this.handleError(error, { operation: 'getContestsByEventId', eventId });
+    }
+  }
+
+  /**
+   * Get all active contests
+   */
+  async getAllContests(): Promise<Contest[]> {
+    try {
+      const cacheKey = 'contests:all:active';
+      const cached = await this.cacheService.get<Contest[]>(cacheKey);
+
+      if (cached) {
+        return cached;
+      }
+
+      const contests = await this.contestRepo.findAllActive();
+
+      // Cache for 10 minutes
+      await this.cacheService.set(cacheKey, contests, 600);
+
+      return contests;
+    } catch (error) {
+      return this.handleError(error, { operation: 'getAllContests' });
     }
   }
 

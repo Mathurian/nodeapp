@@ -20,6 +20,7 @@ interface EnvironmentConfig {
   API_URL: string;
   APP_NAME: string;
   APP_VERSION: string;
+  ENABLE_API_DOCS: boolean;
 
   // Database
   DATABASE_URL: string;
@@ -330,6 +331,7 @@ class EnvironmentConfiguration {
       API_URL: getString('API_URL', 'http://localhost:3000'),
       APP_NAME: getString('APP_NAME', 'Event Manager'),
       APP_VERSION: getString('APP_VERSION', '2.0.0'),
+      ENABLE_API_DOCS: parseBoolean(process.env['ENABLE_API_DOCS'], true),
 
       // Database
       DATABASE_URL: getRequiredString('DATABASE_URL'),

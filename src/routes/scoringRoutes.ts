@@ -20,7 +20,7 @@ router.use(authenticateToken)
  *       200:
  *         description: List of categories available for scoring
  */
-router.get('/categories', requireRole(['ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getCategories)
+router.get('/categories', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getCategories)
 
 /**
  * @swagger
@@ -58,23 +58,23 @@ router.get('/categories', requireRole(['ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITO
  *       201:
  *         description: Score submitted successfully
  */
-router.post('/category/:categoryId/contestant/:contestantId', requireRole(['ADMIN', 'JUDGE']), logActivity('SUBMIT_SCORE', 'SCORE'), submitScore)
-router.post('/category/:categoryId/certify', requireRole(['ADMIN', 'JUDGE']), logActivity('CERTIFY_SCORES', 'SCORE'), certifyScores)
-router.post('/category/:categoryId/certify-totals', requireRole(['ADMIN', 'TALLY_MASTER']), certifyTotals)
-router.post('/category/:categoryId/final-certification', requireRole(['ADMIN', 'AUDITOR']), finalCertification)
-router.post('/category/:categoryId/uncertify', requireRole(['ADMIN', 'BOARD', 'ORGANIZER']), logActivity('UNCERTIFY_CATEGORY', 'SCORE'), uncertifyCategory)
+router.post('/category/:categoryId/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('SUBMIT_SCORE', 'SCORE'), submitScore)
+router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('CERTIFY_SCORES', 'SCORE'), certifyScores)
+router.post('/category/:categoryId/certify-totals', requireRole(['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER']), certifyTotals)
+router.post('/category/:categoryId/final-certification', requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR']), finalCertification)
+router.post('/category/:categoryId/uncertify', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), logActivity('UNCERTIFY_CATEGORY', 'SCORE'), uncertifyCategory)
 
 // Score-specific routes (must come after category routes)
-router.put('/:scoreId', requireRole(['ADMIN', 'JUDGE']), logActivity('UPDATE_SCORE', 'SCORE'), updateScore)
-router.delete('/:scoreId', requireRole(['ADMIN', 'JUDGE']), logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
-router.post('/:scoreId/certify', requireRole(['ADMIN', 'JUDGE']), logActivity('CERTIFY_SCORE', 'SCORE'), certifyScore)
-router.post('/:scoreId/unsign', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UNSIGN_SCORE', 'SCORE'), unsignScore)
+router.put('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('UPDATE_SCORE', 'SCORE'), updateScore)
+router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
+router.post('/:scoreId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('CERTIFY_SCORE', 'SCORE'), certifyScore)
+router.post('/:scoreId/unsign', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UNSIGN_SCORE', 'SCORE'), unsignScore)
 
 // Deduction endpoints
-router.post('/deductions', requireRole(['ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('REQUEST_DEDUCTION', 'DEDUCTION'), requestDeduction)
-router.get('/deductions', requireRole(['ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getDeductions)
-router.post('/deductions/:deductionId/approve', requireRole(['ADMIN', 'BOARD', 'AUDITOR', 'TALLY_MASTER']), logActivity('APPROVE_DEDUCTION', 'DEDUCTION'), approveDeduction)
-router.post('/deductions/:deductionId/reject', requireRole(['ADMIN', 'BOARD', 'AUDITOR']), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
+router.post('/deductions', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('REQUEST_DEDUCTION', 'DEDUCTION'), requestDeduction)
+router.get('/deductions', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getDeductions)
+router.post('/deductions/:deductionId/approve', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'AUDITOR', 'TALLY_MASTER']), logActivity('APPROVE_DEDUCTION', 'DEDUCTION'), approveDeduction)
+router.post('/deductions/:deductionId/reject', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'AUDITOR']), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
 
 export default router;
 

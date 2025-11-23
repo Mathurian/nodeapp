@@ -29,7 +29,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Winners retrieved successfully
  */
-router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinners)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinners)
 
 /**
  * @swagger
@@ -49,7 +49,7 @@ router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MAST
  *       200:
  *         description: Category winners retrieved successfully
  */
-router.get('/category/:categoryId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByCategory)
+router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByCategory)
 
 /**
  * @swagger
@@ -69,14 +69,14 @@ router.get('/category/:categoryId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 
  *       200:
  *         description: Contest winners retrieved successfully
  */
-router.get('/contest/:contestId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByContest)
-router.post('/category/:categoryId/sign', requireRole(['ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('SIGN_WINNERS', 'WINNER'), signWinners)
-router.get('/category/:categoryId/signatures', requireRole(['ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getSignatureStatus)
+router.get('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByContest)
+router.post('/category/:categoryId/sign', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('SIGN_WINNERS', 'WINNER'), signWinners)
+router.get('/category/:categoryId/signatures', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getSignatureStatus)
 
 // Certification endpoints
-router.get('/category/:categoryId/certification-progress', requireRole(['ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getCertificationProgress)
-router.get('/category/:categoryId/certification-status/:role', requireRole(['ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getRoleCertificationStatus)
-router.post('/category/:categoryId/certify', requireRole(['ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('CERTIFY_SCORES', 'CERTIFICATION'), certifyScores)
+router.get('/category/:categoryId/certification-progress', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getCertificationProgress)
+router.get('/category/:categoryId/certification-status/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getRoleCertificationStatus)
+router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('CERTIFY_SCORES', 'CERTIFICATION'), certifyScores)
 
 export default router;
 

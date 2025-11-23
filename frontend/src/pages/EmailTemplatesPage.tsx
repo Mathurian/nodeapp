@@ -128,7 +128,7 @@ const EmailTemplatesPage: React.FC = () => {
     })
   }
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -268,7 +268,7 @@ const EmailTemplatesPage: React.FC = () => {
         {/* Create/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 max-h-[90vh] overflow-y-auto p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
                 {editingTemplate ? 'Edit Template' : 'Create Template'}
               </h3>

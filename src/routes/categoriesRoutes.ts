@@ -74,22 +74,22 @@ router.get('/contest/:contestId', getCategoriesByContest);
  *       201:
  *         description: Category created successfully
  */
-router.post('/contest/:contestId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(createCategorySchema), logActivity('CREATE_CATEGORY', 'CATEGORY'), createCategory); // Contest-specific POST
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(createCategorySchema), logActivity('CREATE_CATEGORY', 'CATEGORY'), createCategory); // Generic POST
+router.post('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createCategorySchema), logActivity('CREATE_CATEGORY', 'CATEGORY'), createCategory); // Contest-specific POST
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createCategorySchema), logActivity('CREATE_CATEGORY', 'CATEGORY'), createCategory); // Generic POST
 router.get('/:id', getCategoryById);
-router.put('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(updateCategorySchema), logActivity('UPDATE_CATEGORY', 'CATEGORY'), updateCategory);
-router.put('/:id/time-limit', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CATEGORY_TIME_LIMIT', 'CATEGORY'), updateCategoryWithTimeLimit);
-router.delete('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CATEGORY', 'CATEGORY'), deleteCategory);
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateCategorySchema), logActivity('UPDATE_CATEGORY', 'CATEGORY'), updateCategory);
+router.put('/:id/time-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CATEGORY_TIME_LIMIT', 'CATEGORY'), updateCategoryWithTimeLimit);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CATEGORY', 'CATEGORY'), deleteCategory);
 
 // Criteria endpoints - read access for all
 router.get('/:categoryId/criteria', getCategoryCriteria);
 // Bulk operations for criteria
-router.post('/:categoryId/criteria/bulk-delete', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_DELETE_CRITERIA', 'CRITERION'), bulkDeleteCriteria);
-router.post('/:categoryId/criteria/bulk-update', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_UPDATE_CRITERIA', 'CRITERION'), bulkUpdateCriteria);
+router.post('/:categoryId/criteria/bulk-delete', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_DELETE_CRITERIA', 'CRITERION'), bulkDeleteCriteria);
+router.post('/:categoryId/criteria/bulk-update', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_UPDATE_CRITERIA', 'CRITERION'), bulkUpdateCriteria);
 // Create/Update/Delete restricted to ADMIN, ORGANIZER, BOARD only
-router.post('/:categoryId/criteria', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_CRITERION', 'CRITERION'), createCriterion);
-router.put('/criteria/:criterionId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CRITERION', 'CRITERION'), updateCriterion);
-router.delete('/criteria/:criterionId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CRITERION', 'CRITERION'), deleteCriterion);
+router.post('/:categoryId/criteria', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_CRITERION', 'CRITERION'), createCriterion);
+router.put('/criteria/:criterionId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CRITERION', 'CRITERION'), updateCriterion);
+router.delete('/criteria/:criterionId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CRITERION', 'CRITERION'), deleteCriterion);
 
 export default router;
 

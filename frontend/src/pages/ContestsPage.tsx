@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { contestsAPI, eventsAPI } from '../services/api'
@@ -13,6 +14,7 @@ import {
   CheckIcon,
   ArchiveBoxIcon,
   CalendarIcon,
+  ListBulletIcon,
 } from '@heroicons/react/24/outline'
 
 interface Event {
@@ -47,6 +49,7 @@ interface ContestFormData {
 const ContestsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
@@ -60,20 +63,22 @@ const ContestsPage: React.FC = () => {
   })
 
   // Check permissions
-  const canManageContests = ['ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
 
   // Fetch events for dropdowns
   const { data: events } = useQuery<Event[]>('events', async () => {
     const response = await eventsAPI.getAll()
-    return response.data
+    const unwrapped = response.data?.data || response.data
+    return Array.isArray(unwrapped) ? unwrapped : []
   })
 
   // Fetch contests
-  const { data: contests, isLoading } = useQuery<Contest[]>(
+  const { data: contests = [], isLoading } = useQuery<Contest[]>(
     'contests',
     async () => {
       const response = await contestsAPI.getAll()
-      return response.data
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
       refetchInterval: 30000,
@@ -178,7 +183,7 @@ const ContestsPage: React.FC = () => {
   }
 
   // Filter contests
-  const filteredContests = contests?.filter((contest) => {
+  const filteredContests = Array.isArray(contests) ? contests.filter((contest) => {
     const matchesSearch = contest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contest.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contest.event?.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -188,7 +193,7 @@ const ContestsPage: React.FC = () => {
     const matchesEvent = selectedEventFilter ? contest.eventId === selectedEventFilter : true
 
     return matchesSearch && matchesArchived && matchesEvent
-  }) || []
+  }) : []
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -321,24 +326,33 @@ const ContestsPage: React.FC = () => {
                 )}
 
                 {/* Actions */}
-                {canManageContests && !contest.archived && (
-                  <div className="flex gap-2 pt-4 border-t">
-                    <button
-                      onClick={() => handleEdit(contest)}
-                      className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
-                    >
-                      <PencilIcon className="h-4 w-4 mr-1" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(contest)}
-                      className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
-                    >
-                      <TrashIcon className="h-4 w-4 mr-1" />
-                      Delete
-                    </button>
-                  </div>
-                )}
+                <div className="flex gap-2 pt-4 border-t">
+                  <button
+                    onClick={() => navigate(`/contests/${contest.id}/categories`)}
+                    className="flex-1 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
+                  >
+                    <ListBulletIcon className="h-4 w-4 mr-1" />
+                    View Categories
+                  </button>
+                  {canManageContests && !contest.archived && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(contest)}
+                        className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
+                      >
+                        <PencilIcon className="h-4 w-4 mr-1" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(contest)}
+                        className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
+                      >
+                        <TrashIcon className="h-4 w-4 mr-1" />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -356,7 +370,7 @@ const ContestsPage: React.FC = () => {
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {editingContest ? 'Edit Contest' : 'Create New Contest'}

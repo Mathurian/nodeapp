@@ -37,7 +37,7 @@ const bulkAssignmentController = container.resolve(BulkAssignmentController);
 
 // All bulk routes require authentication and ADMIN role
 router.use(authenticateToken);
-router.use(requireRole(['ADMIN']));
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN']));
 
 /**
  * @swagger

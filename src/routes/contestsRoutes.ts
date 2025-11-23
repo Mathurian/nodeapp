@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getContestById, getContestsByEvent, createContest, updateContest, deleteContest, archiveContest, reactivateContest } from '../controllers/contestsController';
+import { getAllContests, getContestById, getContestsByEvent, createContest, updateContest, deleteContest, archiveContest, reactivateContest } from '../controllers/contestsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validate, createContestSchema, updateContestSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';
@@ -8,6 +8,20 @@ const router: Router = express.Router();
 
 // Apply authentication to all routes
 router.use(authenticateToken);
+
+/**
+ * @swagger
+ * /api/contests:
+ *   get:
+ *     summary: Get all active contests
+ *     tags: [Contests]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all active contests
+ */
+router.get('/', getAllContests);
 
 /**
  * @swagger
@@ -80,11 +94,11 @@ router.get('/:id', getContestById);
  *       201:
  *         description: Contest created successfully
  */
-router.post('/event/:eventId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(createContestSchema), logActivity('CREATE_CONTEST', 'CONTEST'), createContest);
-router.put('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(updateContestSchema), logActivity('UPDATE_CONTEST', 'CONTEST'), updateContest);
-router.delete('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CONTEST', 'CONTEST'), deleteContest);
-router.post('/:id/archive', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ARCHIVE_CONTEST', 'CONTEST'), archiveContest);
-router.post('/:id/reactivate', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REACTIVATE_CONTEST', 'CONTEST'), reactivateContest);
+router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createContestSchema), logActivity('CREATE_CONTEST', 'CONTEST'), createContest);
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateContestSchema), logActivity('UPDATE_CONTEST', 'CONTEST'), updateContest);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CONTEST', 'CONTEST'), deleteContest);
+router.post('/:id/archive', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ARCHIVE_CONTEST', 'CONTEST'), archiveContest);
+router.post('/:id/reactivate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REACTIVATE_CONTEST', 'CONTEST'), reactivateContest);
 
 export default router;
 

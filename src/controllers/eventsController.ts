@@ -37,12 +37,20 @@ export class EventsController {
     try {
       const { archived, search } = req.query;
 
-      const filters: { archived?: boolean; search?: string } = {};
+      const filters: { archived?: boolean; search?: string; tenantId?: string } = {};
       if (archived !== undefined) {
         filters.archived = archived === 'true';
       }
       if (search && typeof search === 'string') {
         filters.search = search;
+      }
+
+      // CRITICAL: Add tenant filtering for non-SUPER_ADMIN users
+      const isSuperAdmin = (req as any).isSuperAdmin;
+      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+
+      if (!isSuperAdmin && tenantId) {
+        filters.tenantId = tenantId;
       }
 
       const events = await this.eventService.getAllEvents(filters);

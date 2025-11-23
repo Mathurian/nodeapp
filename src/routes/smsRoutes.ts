@@ -34,8 +34,8 @@ router.use(authenticateToken)
  *       200:
  *         description: SMS configuration updated successfully
  */
-router.get('/settings', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getSMSConfig)
-router.put('/settings', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SMS_SETTINGS', 'SMS'), updateSMSConfig)
+router.get('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSMSConfig)
+router.put('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SMS_SETTINGS', 'SMS'), updateSMSConfig)
 
 /**
  * @swagger
@@ -55,7 +55,7 @@ router.put('/settings', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivit
  *       200:
  *         description: SMS sent successfully
  */
-router.post('/send', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('SEND_SMS', 'SMS'), sendSMS)
+router.post('/send', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('SEND_SMS', 'SMS'), sendSMS)
 
 export default router;
 

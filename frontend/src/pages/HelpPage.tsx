@@ -255,70 +255,1108 @@ const HelpPage: React.FC = () => {
     }
   }
 
-  const handleDocClick = async (doc: DocLink) => {
-    // For now, show example documentation content
-    // In production, this would fetch from the server or load from public folder
-    const exampleContent = `# ${doc.title}
+  const getDocumentationContent = (doc: DocLink): string => {
+    const contentMap: Record<string, string> = {
+      'System Architecture': `# System Architecture
 
 ## Overview
 
-${doc.description}
+The Event Manager is a full-stack TypeScript application designed for managing pageant, competition, and event scoring with multi-tenant support.
 
-## Getting Started
+## Technology Stack
 
-This section provides detailed information about ${doc.title.toLowerCase()}.
+### Backend
+- **Runtime**: Node.js with Express.js
+- **Language**: TypeScript for type safety
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: JWT-based with bcrypt password hashing
+- **Real-time**: Socket.IO for live updates
+- **Email**: Nodemailer with SMTP support
 
-### Prerequisites
+### Frontend
+- **Framework**: React 18 with TypeScript
+- **Routing**: React Router v6
+- **State Management**: React Query for server state, Context API for client state
+- **Styling**: Tailwind CSS with dark mode support
+- **UI Components**: Heroicons for icons
+- **Build Tool**: Vite for fast development
 
-- Access to the Event Manager system
-- Appropriate user role and permissions
-- Understanding of basic event management concepts
+## Architecture Patterns
 
-### Key Features
+### Three-Tier Architecture
 
-1. **Feature One**: Description of the first key feature
-2. **Feature Two**: Description of the second key feature
-3. **Feature Three**: Description of the third key feature
+1. **Presentation Layer** (Frontend)
+   - React components with hooks
+   - Command palette for quick actions
+   - Responsive design with mobile support
+   - Real-time updates via WebSocket
 
-## Usage
+2. **Application Layer** (Backend)
+   - RESTful API endpoints
+   - Service layer for business logic
+   - Repository pattern for data access
+   - Middleware for authentication, validation, CSRF protection
 
-To use this feature:
+3. **Data Layer**
+   - PostgreSQL relational database
+   - Prisma schema with migrations
+   - Multi-tenant data isolation
+   - Soft deletes and audit logging
 
-\`\`\`javascript
-// Example code snippet
-const example = {
-  feature: "demo",
-  status: "active"
-};
-\`\`\`
+## Key Components
+
+### Authentication & Authorization
+- JWT tokens with refresh token rotation
+- Role-based access control (RBAC)
+- Tenant-scoped permissions
+- Session management with configurable timeout
+
+### Multi-Tenancy
+- Tenant isolation at database level
+- URL-based tenant routing (/tenant-slug/page)
+- Shared infrastructure with isolated data
+- Tenant-specific settings and branding
+
+### Real-Time Features
+- WebSocket connections via Socket.IO
+- Live score updates
+- Real-time notifications
+- Connection state management
+
+### File Management
+- Multer for file uploads
+- Image optimization
+- Secure file storage
+- Profile and bio image support
+
+## Security Features
+
+- CSRF token validation
+- Rate limiting on authentication endpoints
+- Input sanitization and validation
+- SQL injection prevention via Prisma
+- XSS protection with content security headers
+- Secure password hashing (bcrypt with cost factor 12)
+- Two-factor authentication support`,
+
+      'Getting Started Guide': `# Getting Started Guide
+
+## Welcome to Event Manager
+
+This guide will help you get started with the Event Manager system, whether you're an administrator, organizer, judge, or contestant.
+
+## Initial Setup (Administrators)
+
+### 1. First Login
+1. Navigate to the application URL
+2. Log in with your admin credentials
+3. You'll be directed to the dashboard
+
+### 2. Configure System Settings
+1. Go to **Settings** via sidebar or Command Palette (Cmd/Ctrl+K)
+2. Configure:
+   - **General Settings**: Application name, subtitle, contact email
+   - **Email/SMTP**: Configure email server for notifications
+   - **Security**: Set password policies, session timeout, max login attempts
+   - **Theme & Branding**: Customize colors, upload logo and favicon
+
+### 3. Create Your First Event
+1. Open Command Palette (Cmd/Ctrl+K) or go to **Events** page
+2. Click **Create Event**
+3. Fill in required fields:
+   - Event name (e.g., "Annual Pageant 2024")
+   - Event date and time
+   - Location
+   - Description (optional)
+4. Click **Save**
+
+### 4. Add Contests to Event
+1. Navigate to the event details
+2. Click **Add Contest**
+3. Enter contest details:
+   - Contest name (e.g., "Evening Gown")
+   - Category type (scoring method)
+   - Description
+4. Save the contest
+
+### 5. Create Categories
+1. Open a contest
+2. Click **Add Category**
+3. Configure:
+   - Category name (e.g., "Junior Division")
+   - Score cap (maximum possible score)
+   - Time limit (if applicable)
+   - Min/max contestants
+4. Add scoring criteria for the category
+
+### 6. Set Up Users
+1. Go to **Users** page
+2. Click **Create User**
+3. Assign appropriate roles:
+   - **JUDGE**: For scoring
+   - **CONTESTANT**: For participants
+   - **TALLY_MASTER**: For score verification
+   - **AUDITOR**: For final certification
+   - **ORGANIZER**: For event management
+4. Import users in bulk via CSV if needed
+
+### 7. Make Assignments
+1. Navigate to **Assignments** page
+2. Assign judges to categories
+3. Assign contestants to categories
+4. Assign tally masters and auditors (event/contest/category level)
+
+## Daily Operations
+
+### For Judges
+1. Log in and navigate to **Scoring** page
+2. Select your assigned category
+3. Select contestant to score
+4. Enter scores for each criterion
+5. Apply deductions if necessary
+6. Submit scores
+
+### For Tally Masters
+1. Navigate to **Certifications** page
+2. Review submitted scores
+3. Verify calculations
+4. Certify totals for categories
+
+### For Auditors
+1. Access **Certifications** page
+2. Review tally master certifications
+3. Perform final verification
+4. Certify results
+
+### For Contestants
+1. View assigned categories in dashboard
+2. Check schedule and assignments
+3. View results (after certification, if enabled)
+
+## Keyboard Shortcuts
+
+- **Cmd/Ctrl + K**: Open Command Palette
+- **Cmd/Ctrl + B**: Toggle sidebar
+- **F1**: Open help
+- **/**: Focus search
+- **Esc**: Close modals/dialogs
+
+## Command Palette Quick Actions
+
+Press Cmd/Ctrl+K and type:
+- "new event" - Create new event
+- "scoring" - Go to scoring page
+- "users" - Manage users
+- "settings" - Open settings
+- "logout" - Sign out
 
 ## Best Practices
 
-- Always follow system guidelines
-- Test changes in a development environment first
-- Keep documentation up to date
-- Communicate with team members
+1. **Regular Backups**: Configure automatic backups in **Backups** page
+2. **User Training**: Ensure all users understand their roles
+3. **Test Environment**: Test major changes before live events
+4. **Monitor Logs**: Check **Logs** page regularly for issues
+5. **Update Profiles**: Keep user information current
 
-## Common Issues
+## Getting Help
 
-**Issue**: Something isn't working as expected
+- Press **F1** or click **Help** in sidebar
+- Browse FAQ section
+- Check documentation for detailed guides
+- Contact system administrator for technical issues`,
 
-**Solution**: Check the following:
-- Verify permissions
-- Check system logs
-- Contact administrator if issue persists
+      'Features Overview': `# Features Overview
 
-## Additional Resources
+## Core Features
 
-- [Main Documentation](/)
-- [FAQ Section](#faq)
-- [Support Contact](mailto:support@example.com)
+### Event Management
+- **Hierarchical Structure**: Events → Contests → Categories
+- **Event Templates**: Reusable event configurations
+- **Scheduling**: Date, time, and location management
+- **Custom Fields**: Add event-specific data fields
+- **Archive**: Soft-delete events for historical record
 
----
+### User Management
+- **Multiple User Roles**: ADMIN, ORGANIZER, JUDGE, CONTESTANT, TALLY_MASTER, AUDITOR, BOARD, EMCEE
+- **User Profiles**: Name, email, phone, bio, pronouns, gender
+- **Profile Images**: Upload profile pictures
+- **Bulk Import**: CSV import for bulk user creation
+- **Role-Based Access**: Granular permissions per role
 
-*Note: This is example documentation content. In production, actual markdown files would be loaded from the server or documentation repository.*
-`
-    setViewingDoc({ title: doc.title, content: exampleContent })
+### Scoring System
+- **Multi-Criterion Scoring**: Define multiple scoring criteria per category
+- **Real-Time Scoring**: Live score updates via WebSocket
+- **Deductions**: Apply time penalties, point deductions
+- **Score Verification**: Multi-level certification workflow
+- **Score History**: Complete audit trail of score changes
+- **Anonymous Judging**: Option to hide judge identities
+
+### Assignment Management
+- **Judge Assignments**: Assign judges to specific categories
+- **Contestant Assignments**: Register contestants for categories
+- **Multi-Level Assignments**: Event, contest, or category level
+- **Tally Master Assignment**: Assign score verifiers
+- **Auditor Assignment**: Assign final certifiers
+- **Conflict Detection**: Prevent double-booking
+
+### Certification Workflow
+1. **Judges Submit**: Judges enter scores
+2. **Tally Master**: Verifies and certifies totals
+3. **Auditor**: Final certification
+4. **Board Approval**: Optional final approval step
+- Decertification support for corrections
+- Audit logs for all certification actions
+
+### Results & Reporting
+- **Live Results**: Real-time score updates
+- **Winner Determination**: Automatic calculation
+- **Tie Handling**: Configurable tie-breaking rules
+- **Export Options**: PDF, Excel, CSV
+- **Custom Reports**: Configurable report templates
+- **Emcee Mode**: Live results display for announcers
+
+### Communication
+- **Email Notifications**: Score updates, certifications, results
+- **SMTP Configuration**: Custom email server support
+- **Email Templates**: Customizable email content
+- **SMS Support**: SMS notifications (with Twilio)
+- **In-App Notifications**: Real-time alerts
+
+### Administration
+
+#### Settings Management
+- **General Settings**: App name, contact info
+- **Email Settings**: SMTP configuration
+- **Security Settings**: Password policies, session timeout
+- **Theme & Branding**: Logo, colors, favicon
+- **Contestant Visibility**: Control what contestants see
+- **Field Visibility**: Customize visible fields per role
+
+#### Data Management
+- **Backup & Restore**: Manual and automatic backups
+- **Disaster Recovery**: System restore capabilities
+- **Archive Management**: View and restore archived data
+- **Data Wipe**: Secure data deletion
+- **Database Browser**: Direct database access (admin only)
+- **Bulk Operations**: Batch data updates
+
+#### System Monitoring
+- **Log Viewer**: View application logs
+- **Performance Monitoring**: System metrics
+- **Audit Logs**: Complete user action history
+- **Cache Management**: Redis cache control
+- **Error Tracking**: Detailed error reporting
+
+### Advanced Features
+
+#### Multi-Tenancy
+- **Tenant Isolation**: Complete data separation
+- **Tenant Management**: Create and manage organizations
+- **Custom Domains**: Tenant-specific URLs
+- **Per-Tenant Settings**: Independent configurations
+- **Tenant Branding**: Custom logos and colors
+
+#### Workflow Customization
+- **Custom Workflows**: Define approval processes
+- **Automation Rules**: Triggered actions
+- **Notification Rules**: Custom alert conditions
+- **Business Logic**: Configurable validation rules
+
+#### API Access
+- **RESTful API**: Full programmatic access
+- **API Documentation**: Swagger/OpenAPI docs at /api/docs
+- **API Keys**: Generate authentication tokens
+- **Webhooks**: Event-driven integrations
+
+#### Command Palette
+- **Quick Navigation**: Jump to any page instantly
+- **Quick Actions**: Perform common tasks
+- **Search**: Find users, events, categories
+- **Keyboard Driven**: Fully accessible via keyboard
+
+### Mobile Support
+- **Responsive Design**: Works on all screen sizes
+- **Mobile Optimized**: Touch-friendly interface
+- **Progressive Web App**: Install as app
+- **Offline Support**: Limited offline functionality
+
+### Security Features
+- **CSRF Protection**: Token-based validation
+- **Rate Limiting**: Prevent brute force attacks
+- **Input Validation**: Comprehensive data validation
+- **SQL Injection Prevention**: Parameterized queries
+- **XSS Protection**: Content sanitization
+- **Secure Headers**: Security best practices
+- **Password Hashing**: bcrypt with high cost factor
+- **Session Management**: Secure token rotation
+- **Two-Factor Auth**: Optional 2FA support`,
+
+      'API Reference': `# API Reference
+
+## Base URL
+
+\`\`\`
+Production: https://your-domain.com/api
+Development: http://localhost:3001/api
+\`\`\`
+
+## Authentication
+
+All API requests require a JWT token in the Authorization header:
+
+\`\`\`bash
+Authorization: Bearer <your-jwt-token>
+\`\`\`
+
+### Obtaining a Token
+
+**POST** \`/api/auth/login\`
+
+\`\`\`json
+{
+  "email": "user@example.com",
+  "password": "your-password"
+}
+\`\`\`
+
+Response:
+\`\`\`json
+{
+  "success": true,
+  "data": {
+    "user": { /* user object */ },
+    "token": "eyJhbGc...",
+    "refreshToken": "eyJhbGc..."
+  }
+}
+\`\`\`
+
+## Events API
+
+### List Events
+**GET** \`/api/events\`
+
+Query parameters:
+- \`page\` (number): Page number (default: 1)
+- \`limit\` (number): Items per page (default: 50)
+
+### Create Event
+**POST** \`/api/events\`
+
+\`\`\`json
+{
+  "name": "Annual Pageant 2024",
+  "eventDate": "2024-12-25T18:00:00Z",
+  "location": "Grand Theater",
+  "description": "Annual pageant event"
+}
+\`\`\`
+
+### Get Event Details
+**GET** \`/api/events/:eventId\`
+
+### Update Event
+**PUT** \`/api/events/:eventId\`
+
+### Delete Event
+**DELETE** \`/api/events/:eventId\`
+
+## Contests API
+
+### List Contests for Event
+**GET** \`/api/events/:eventId/contests\`
+
+### Create Contest
+**POST** \`/api/events/:eventId/contests\`
+
+\`\`\`json
+{
+  "name": "Evening Gown",
+  "contestTypeId": "uuid",
+  "description": "Evening gown competition"
+}
+\`\`\`
+
+### Update Contest
+**PUT** \`/api/contests/:contestId\`
+
+### Delete Contest
+**DELETE** \`/api/contests/:contestId\`
+
+## Categories API
+
+### List Categories for Contest
+**GET** \`/api/contests/:contestId/categories\`
+
+### Create Category
+**POST** \`/api/contests/:contestId/categories\`
+
+\`\`\`json
+{
+  "name": "Junior Division",
+  "scoreCap": 100,
+  "timeLimit": 300,
+  "contestantMin": 1,
+  "contestantMax": 50
+}
+\`\`\`
+
+### Update Category
+**PUT** \`/api/categories/:categoryId\`
+
+### Delete Category
+**DELETE** \`/api/categories/:categoryId\`
+
+### Get Category Criteria
+**GET** \`/api/categories/:categoryId/criteria\`
+
+### Create Criterion
+**POST** \`/api/categories/:categoryId/criteria\`
+
+\`\`\`json
+{
+  "name": "Presentation",
+  "maxScore": 25
+}
+\`\`\`
+
+## Scoring API
+
+### Get Scores for Category
+**GET** \`/api/scoring/category/:categoryId/scores\`
+
+Query parameters:
+- \`contestantId\` (string): Filter by contestant
+
+### Submit Score
+**POST** \`/api/scoring/score\`
+
+\`\`\`json
+{
+  "judgeId": "uuid",
+  "contestantId": "uuid",
+  "categoryId": "uuid",
+  "criterionId": "uuid",
+  "score": 23.5,
+  "deduction": 0,
+  "deductionReason": null
+}
+\`\`\`
+
+### Update Score
+**PUT** \`/api/scoring/score/:scoreId\`
+
+### Delete Score
+**DELETE** \`/api/scoring/score/:scoreId\`
+
+## Users API
+
+### List Users
+**GET** \`/api/users\`
+
+Query parameters:
+- \`role\` (string): Filter by role
+
+### Create User
+**POST** \`/api/users\`
+
+\`\`\`json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "SecurePass123!",
+  "role": "JUDGE",
+  "phone": "+1234567890"
+}
+\`\`\`
+
+### Get User by ID
+**GET** \`/api/users/:userId\`
+
+### Update User
+**PUT** \`/api/users/:userId\`
+
+### Delete User
+**DELETE** \`/api/users/:userId\`
+
+### Upload User Image
+**POST** \`/api/users/:userId/image\`
+
+Content-Type: multipart/form-data
+
+Form data:
+- \`image\`: Image file (max 5MB)
+
+## Assignments API
+
+### Get Judge Assignments
+**GET** \`/api/assignments?type=judge\`
+
+### Assign Judge
+**POST** \`/api/assignments/judge\`
+
+\`\`\`json
+{
+  "judgeId": "uuid",
+  "categoryId": "uuid"
+}
+\`\`\`
+
+### Remove Judge Assignment
+**PUT** \`/api/assignments/remove/:assignmentId\`
+
+### Get Contestant Assignments
+**GET** \`/api/assignments/contestants/assignments\`
+
+### Assign Contestant
+**POST** \`/api/assignments/contestants\`
+
+\`\`\`json
+{
+  "contestantId": "uuid",
+  "categoryId": "uuid"
+}
+\`\`\`
+
+### Remove Contestant Assignment
+**DELETE** \`/api/assignments/category/:categoryId/contestant/:contestantId\`
+
+## Response Format
+
+### Success Response
+\`\`\`json
+{
+  "success": true,
+  "data": { /* response data */ },
+  "message": "Operation successful"
+}
+\`\`\`
+
+### Error Response
+\`\`\`json
+{
+  "success": false,
+  "error": "Error message",
+  "code": "ERROR_CODE"
+}
+\`\`\`
+
+## Rate Limiting
+
+- Authentication endpoints: 5 requests per minute
+- Other endpoints: 100 requests per minute
+- Rate limits are per IP address
+
+## Pagination
+
+List endpoints support pagination:
+- \`page\`: Page number (default: 1)
+- \`limit\`: Items per page (default: 50, max: 100)
+
+Response includes:
+\`\`\`json
+{
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 150,
+    "totalPages": 3,
+    "hasMore": true
+  }
+}
+\`\`\``,
+
+      'Database Schema': `# Database Schema
+
+## Core Tables
+
+### Users
+Stores all system users including judges, contestants, organizers, etc.
+
+\`\`\`prisma
+model User {
+  id                String   @id @default(cuid())
+  email             String
+  name              String
+  password          String
+  role              UserRole
+  tenantId          String
+  isActive          Boolean  @default(true)
+  lastLoginAt       DateTime?
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+  bio               String?
+  preferredName     String?
+  pronouns          String?
+  gender            String?
+  image             String?
+  judgeId           String?
+  contestantId      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, email])
+}
+\`\`\`
+
+### Events
+Top-level events that contain contests.
+
+\`\`\`prisma
+model Event {
+  id          String    @id @default(cuid())
+  name        String
+  eventDate   DateTime
+  location    String?
+  description String?
+  tenantId    String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contests    Contest[]
+}
+\`\`\`
+
+### Contests
+Competitions within events (e.g., Evening Gown, Talent).
+
+\`\`\`prisma
+model Contest {
+  id              String   @id @default(cuid())
+  name            String
+  eventId         String
+  contestTypeId   String?
+  description     String?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  event           Event      @relation(fields: [eventId], references: [id])
+  categories      Category[]
+}
+\`\`\`
+
+### Categories
+Divisions within contests (e.g., Junior, Senior).
+
+\`\`\`prisma
+model Category {
+  id              String   @id @default(cuid())
+  name            String
+  contestId       String
+  scoreCap        Int?
+  timeLimit       Int?
+  contestantMin   Int?
+  contestantMax   Int?
+  isCertified     Boolean  @default(false)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  contest         Contest     @relation(fields: [contestId], references: [id])
+  criteria        Criterion[]
+  scores          Score[]
+  assignments     Assignment[]
+}
+\`\`\`
+
+### Criterion
+Scoring criteria for categories (e.g., Presentation, Technique).
+
+\`\`\`prisma
+model Criterion {
+  id          String   @id @default(cuid())
+  name        String
+  categoryId  String
+  maxScore    Int
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    Category @relation(fields: [categoryId], references: [id])
+  scores      Score[]
+}
+\`\`\`
+
+### Scores
+Individual scores submitted by judges.
+
+\`\`\`prisma
+model Score {
+  id               String   @id @default(cuid())
+  judgeId          String
+  contestantId     String
+  categoryId       String
+  criterionId      String
+  score            Float
+  deduction        Float    @default(0)
+  deductionReason  String?
+  isCertified      Boolean  @default(false)
+  certifiedBy      String?
+  certifiedAt      DateTime?
+  tenantId         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  judge            Judge       @relation(fields: [judgeId], references: [id])
+  contestant       Contestant  @relation(fields: [contestantId], references: [id])
+  category         Category    @relation(fields: [categoryId], references: [id])
+  criterion        Criterion   @relation(fields: [criterionId], references: [id])
+}
+\`\`\`
+
+### Judge
+Extended judge information.
+
+\`\`\`prisma
+model Judge {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  isHeadJudge Boolean  @default(false)
+  bio         String?
+  gender      String?
+  pronouns    String?
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
+  scores      Score[]
+}
+\`\`\`
+
+### Contestant
+Participant information.
+
+\`\`\`prisma
+model Contestant {
+  id                String   @id @default(cuid())
+  name              String
+  email             String?
+  contestantNumber  Int?
+  bio               String?
+  gender            String?
+  pronouns          String?
+  tenantId          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  scores            Score[]
+}
+\`\`\`
+
+### Assignment
+Judge-to-category assignments.
+
+\`\`\`prisma
+model Assignment {
+  id          String   @id @default(cuid())
+  judgeId     String
+  categoryId  String
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  judge       Judge    @relation(fields: [judgeId], references: [id])
+  category    Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([judgeId, categoryId])
+}
+\`\`\`
+
+## Tenant Isolation
+
+All tables include a \`tenantId\` field for multi-tenant data isolation:
+- Every query must filter by \`tenantId\`
+- Unique constraints include \`tenantId\`
+- Prevents cross-tenant data access
+
+## Indexes
+
+Key indexes for performance:
+- \`users_email_tenantId_idx\`: Fast user lookup
+- \`events_tenantId_eventDate_idx\`: Event queries
+- \`scores_categoryId_judgeId_idx\`: Score aggregation
+- \`assignments_judgeId_idx\`: Assignment lookups
+
+## Soft Deletes
+
+Many tables support soft deletes via \`isActive\` or \`deletedAt\` fields:
+- Allows data recovery
+- Maintains referential integrity
+- Archive functionality
+
+## Audit Fields
+
+Standard audit fields on most tables:
+- \`createdAt\`: Record creation timestamp
+- \`updatedAt\`: Last modification timestamp
+- \`createdBy\`: User who created (some tables)
+- \`updatedBy\`: User who last modified (some tables)`,
+
+      'Security Guide': `# Security Guide
+
+## Authentication
+
+### Password Requirements
+- Minimum 8 characters
+- Must include: uppercase, lowercase, number, special character
+- Password history: Cannot reuse last 5 passwords
+- Expiration: Configurable (default: 90 days)
+- Complexity validation on client and server
+
+### Password Storage
+- bcrypt hashing with cost factor 12
+- Salted per password
+- Never stored or logged in plain text
+- Secure comparison to prevent timing attacks
+
+### Session Management
+- JWT tokens with configurable expiration
+- Refresh token rotation
+- Configurable session timeout
+- Automatic logout on inactivity
+- Single sign-on support
+
+### Account Lockout
+- Configurable max login attempts (default: 5)
+- Configurable lockout duration (default: 30 minutes)
+- IP-based tracking
+- Email notification on lockout
+- Admin can unlock accounts
+
+## Authorization
+
+### Role-Based Access Control (RBAC)
+- **SUPER_ADMIN**: Full system access, cross-tenant
+- **ADMIN**: Tenant administration
+- **ORGANIZER**: Event and user management
+- **JUDGE**: Scoring only
+- **TALLY_MASTER**: Score verification
+- **AUDITOR**: Final certification
+- **BOARD**: Approval workflows
+- **CONTESTANT**: View assignments and results
+- **EMCEE**: Live results display
+
+### Permission Model
+- Granular permissions per endpoint
+- Role hierarchy with inheritance
+- Tenant-scoped permissions
+- Custom permission sets
+
+## Data Protection
+
+### Multi-Tenant Isolation
+- Complete data separation by tenant
+- Tenant ID required on all queries
+- No cross-tenant data access
+- Separate backups per tenant
+
+### Encryption
+- **In Transit**: TLS 1.2+ for all connections
+- **At Rest**: Database encryption
+- **Passwords**: bcrypt hashed
+- **Tokens**: Encrypted JWTs
+- **Sensitive Fields**: AES-256 encryption
+
+### Data Sanitization
+- Input validation on all endpoints
+- SQL injection prevention (parameterized queries)
+- XSS protection (content sanitization)
+- CSRF token validation
+- Output encoding
+
+## Network Security
+
+### HTTPS/TLS
+- Force HTTPS in production
+- TLS 1.2 minimum
+- Strong cipher suites only
+- HSTS headers enabled
+- Certificate pinning
+
+### CORS Configuration
+- Whitelist allowed origins
+- Credentials support
+- Preflight caching
+- Restricted methods and headers
+
+### Rate Limiting
+- Authentication: 5 req/min per IP
+- API endpoints: 100 req/min per user
+- File uploads: 10 req/hour per user
+- Configurable thresholds
+- Exponential backoff
+
+### Firewall Rules
+- Allow only necessary ports
+- Restrict admin endpoints to trusted IPs
+- DDoS protection
+- Geographic restrictions (optional)
+
+## Application Security
+
+### CSRF Protection
+- Token-based validation
+- SameSite cookie attribute
+- Origin header verification
+- Double-submit cookies
+
+### XSS Prevention
+- Content Security Policy (CSP) headers
+- Input sanitization
+- Output encoding
+- DOM-based XSS protection
+- React's built-in escaping
+
+### SQL Injection Prevention
+- Prisma ORM with parameterized queries
+- No raw SQL execution
+- Input type validation
+- Prepared statements
+
+### File Upload Security
+- Type validation (whitelist)
+- Size limits (5MB for images)
+- Malware scanning (if available)
+- Secure file storage
+- No execution permissions
+
+## Monitoring & Auditing
+
+### Audit Logging
+- All user actions logged
+- Authentication events
+- Data modifications
+- Permission changes
+- Failed access attempts
+- Log retention: 1 year
+
+### Security Monitoring
+- Failed login tracking
+- Unusual activity detection
+- Rate limit violations
+- Error rate monitoring
+- Real-time alerts
+
+### Log Management
+- Centralized logging
+- Log aggregation
+- Search and analysis
+- Compliance reporting
+- Secure log storage
+
+## Backup & Recovery
+
+### Backup Strategy
+- Daily automated backups
+- Encrypted backup storage
+- Off-site backup replication
+- Backup retention: 30 days
+- Test restores monthly
+
+### Disaster Recovery
+- Recovery time objective (RTO): 4 hours
+- Recovery point objective (RPO): 24 hours
+- Documented recovery procedures
+- Regular DR testing
+- Failover capabilities
+
+## Compliance
+
+### Data Privacy
+- GDPR compliance ready
+- Data minimization
+- Right to erasure support
+- Data portability
+- Privacy by design
+
+### Security Standards
+- OWASP Top 10 protection
+- CIS benchmarks
+- PCI DSS considerations (if handling payments)
+- SOC 2 Type II ready
+- Regular security assessments
+
+## Best Practices
+
+### For Administrators
+1. Use strong passwords and 2FA
+2. Regular security audits
+3. Keep system updated
+4. Monitor logs daily
+5. Restrict admin access
+6. Regular backup verification
+7. Document security procedures
+
+### For Users
+1. Choose strong, unique passwords
+2. Enable two-factor authentication
+3. Don't share credentials
+4. Log out when done
+5. Report suspicious activity
+6. Keep contact info current
+7. Review account activity
+
+### For Developers
+1. Follow secure coding practices
+2. Input validation everywhere
+3. Use parameterized queries
+4. Implement proper error handling
+5. Keep dependencies updated
+6. Code review for security
+7. Security testing in CI/CD
+
+## Incident Response
+
+### Response Plan
+1. **Detection**: Monitor for security incidents
+2. **Analysis**: Assess severity and impact
+3. **Containment**: Isolate affected systems
+4. **Eradication**: Remove threat
+5. **Recovery**: Restore normal operations
+6. **Lessons Learned**: Document and improve
+
+### Contact Points
+- Security team: security@example.com
+- Incident hotline: Available 24/7
+- Emergency contacts in documentation
+
+## Security Updates
+
+### Patch Management
+- Weekly security patch reviews
+- Critical patches within 24 hours
+- Regular dependency updates
+- Change management process
+- Rollback procedures
+
+### Vulnerability Disclosure
+- Responsible disclosure program
+- Security contact: security@example.com
+- Response SLA: 48 hours
+- Public disclosure timeline
+- Hall of fame for researchers`,
+    }
+
+    return contentMap[doc.title] || `# ${doc.title}
+
+## Documentation Not Available
+
+Detailed documentation for "${doc.title}" is coming soon.
+
+Please check the FAQ section for common questions, or contact your system administrator for more information.`
+  }
+
+  const handleDocClick = async (doc: DocLink) => {
+    const content = getDocumentationContent(doc)
+    setViewingDoc({ title: doc.title, content })
   }
 
   return (

@@ -73,36 +73,34 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const { user } = useAuth()
 
   useEffect(() => {
-    // Only connect if user is authenticated and has a token
-    const token = localStorage.getItem('token')
-    if (user && token) {
+    // Only connect if user is authenticated
+    if (user) {
       const newSocket = io(import.meta.env.VITE_WS_URL || window.location.origin, {
         transports: ['websocket', 'polling'],
-        auth: {
-          token,
-          userId: user.id,
-          role: user.role,
-        }
+        withCredentials: true, // Send httpOnly cookies automatically
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
       })
 
       newSocket.on('connect', () => {
         setIsConnected(true)
-        console.log('Connected to server')
-        
+        console.log('WebSocket connected to server')
+
         // Join user-specific room
         newSocket.emit('join_user_room', { userId: user.id })
-        
+
         // Join role-based room
         newSocket.emit('join_role_room', { role: user.role })
       })
 
-      newSocket.on('disconnect', () => {
+      newSocket.on('disconnect', (reason) => {
         setIsConnected(false)
-        console.log('Disconnected from server')
+        console.log('WebSocket disconnected from server:', reason)
       })
 
       newSocket.on('connect_error', (error) => {
-        console.error('Connection error:', error)
+        console.error('WebSocket connection error:', error.message)
         setIsConnected(false)
       })
 
@@ -127,8 +125,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         
         setNotifications(prev => [notification, ...prev])
         
-        // Show browser notification if permission granted
-        if (Notification.permission === 'granted') {
+        // Show browser notification if permission granted (check if Notification API exists for mobile compatibility)
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(notification.title, {
             body: notification.message,
             icon: '/favicon.ico',
@@ -138,7 +136,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
       newSocket.on('certification_update', (certData: CertificationUpdate) => {
         console.log('Certification update received:', certData)
-        
+
         const notification: NotificationData = {
           id: `cert_${certData.id}`,
           type: 'CERTIFICATION',
@@ -148,10 +146,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           read: false,
           userId: user.id,
         }
-        
+
         setNotifications(prev => [notification, ...prev])
-        
-        if (Notification.permission === 'granted') {
+
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(notification.title, {
             body: notification.message,
             icon: '/favicon.ico',
@@ -162,8 +160,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       newSocket.on('system_notification', (notification: NotificationData) => {
         console.log('System notification received:', notification)
         setNotifications(prev => [notification, ...prev])
-        
-        if (Notification.permission === 'granted') {
+
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(notification.title, {
             body: notification.message,
             icon: '/favicon.ico',
@@ -187,8 +185,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         setNotifications(prev => [notification, ...prev])
       })
 
-      // Request notification permission
-      if (Notification.permission === 'default') {
+      // Request notification permission (check if Notification API exists for mobile compatibility)
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission()
       }
 

@@ -1,5 +1,6 @@
 // Permission matrix for role-based access control
 const PERMISSIONS = {
+  SUPER_ADMIN: ["*"], // All permissions - SUPER_ADMIN has unrestricted access to EVERYTHING
   ADMIN: ["*"], // All permissions - ADMIN has access to EVERYTHING
   ORGANIZER: [
     "events:*", "contests:*", "categories:*", "users:*", "reports:*",
@@ -69,7 +70,7 @@ const getRolePermissions = (userRole: string): string[] => {
 
 // Check if user is admin (has all permissions)
 const isAdmin = (userRole: string): boolean => {
-  return userRole === "ADMIN" || PERMISSIONS[userRole as keyof typeof PERMISSIONS]?.includes("*") || false;
+  return userRole === "SUPER_ADMIN" || userRole === "ADMIN" || PERMISSIONS[userRole as keyof typeof PERMISSIONS]?.includes("*") || false;
 };
 
 export { 

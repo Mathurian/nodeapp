@@ -101,23 +101,31 @@ export const paginationSchema = z.object({
  * User creation schema
  */
 export const createUserSchema = z.object({
-  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  name: z.string().min(1, 'Name is required').max(100),
+  preferredName: z.string().max(100).optional(),
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  role: z.enum(['ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER'])
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD']),
+  gender: z.string().optional(),
+  pronouns: z.string().optional(),
+  phone: z.string().optional(),
+  bio: z.string().optional(),
+  isActive: z.boolean().optional()
 });
 
 /**
  * User update schema
  */
 export const updateUserSchema = z.object({
-  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/).optional(),
+  name: z.string().min(1).max(100).optional(),
+  preferredName: z.string().max(100).optional(),
   email: z.string().email().optional(),
-  firstName: z.string().min(1).max(50).optional(),
-  lastName: z.string().min(1).max(50).optional(),
-  role: z.enum(['ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER']).optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD']).optional(),
+  gender: z.string().optional(),
+  pronouns: z.string().optional(),
+  phone: z.string().optional(),
+  bio: z.string().optional(),
   isActive: z.boolean().optional()
 });
 

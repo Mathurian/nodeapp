@@ -22,7 +22,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Event report generated successfully
  */
-router.get('/event', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('GENERATE_EVENT_REPORT', 'REPORT'), generateEventReport)
+router.get('/event', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('GENERATE_EVENT_REPORT', 'REPORT'), generateEventReport)
 
 export default router;
 

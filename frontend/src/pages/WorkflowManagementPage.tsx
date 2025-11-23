@@ -49,8 +49,9 @@ const WorkflowManagementPage: React.FC = () => {
   const fetchWorkflows = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/workflow')
-      setWorkflows(response.data)
+      const response = await api.get('/workflows/templates')
+      const unwrapped = response.data.data || response.data
+      setWorkflows(Array.isArray(unwrapped) ? unwrapped : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load workflows')
     } finally {
@@ -60,7 +61,7 @@ const WorkflowManagementPage: React.FC = () => {
 
   const createWorkflow = async () => {
     try {
-      await api.post('/workflow', newWorkflow)
+      await api.post('/workflows/templates', newWorkflow)
       setShowCreateModal(false)
       setNewWorkflow({
         name: '',
@@ -76,7 +77,7 @@ const WorkflowManagementPage: React.FC = () => {
 
   const updateWorkflow = async (id: string, data: Partial<Workflow>) => {
     try {
-      await api.put(`/workflow/${id}`, data)
+      await api.put(`/workflows/templates/${id}`, data)
       setEditingWorkflow(null)
       await fetchWorkflows()
     } catch (err: any) {
@@ -87,7 +88,7 @@ const WorkflowManagementPage: React.FC = () => {
   const deleteWorkflow = async (id: string) => {
     if (!confirm('Are you sure you want to delete this workflow?')) return
     try {
-      await api.delete(`/workflow/${id}`)
+      await api.delete(`/workflows/templates/${id}`)
       await fetchWorkflows()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete workflow')
@@ -96,7 +97,7 @@ const WorkflowManagementPage: React.FC = () => {
 
   const toggleWorkflow = async (id: string, isActive: boolean) => {
     try {
-      await api.put(`/workflow/${id}`, { isActive: !isActive })
+      await api.put(`/workflows/templates/${id}`, { isActive: !isActive })
       await fetchWorkflows()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to toggle workflow')
@@ -105,7 +106,11 @@ const WorkflowManagementPage: React.FC = () => {
 
   const executeWorkflow = async (id: string) => {
     try {
-      await api.post(`/workflow/${id}/execute`)
+      await api.post(`/workflows/instances`, {
+        templateId: id,
+        entityType: 'MANUAL_EXECUTION',
+        entityId: `manual-${Date.now()}`
+      })
       alert('Workflow executed successfully')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to execute workflow')
@@ -134,7 +139,7 @@ const WorkflowManagementPage: React.FC = () => {
     })
   }
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -284,7 +289,7 @@ const WorkflowManagementPage: React.FC = () => {
         {/* Create Workflow Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 max-h-[90vh] overflow-y-auto p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
                 Create Workflow
               </h3>

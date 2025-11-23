@@ -10,9 +10,27 @@ export class DatabaseBrowserService extends BaseService {
 
   async getTables() {
     // Get list of tables from Prisma models
-    const tables = Object.keys(this.prisma).filter(key => 
+    const allModels = Object.keys(this.prisma).filter(key =>
       !key.startsWith('_') && !key.startsWith('$') && typeof (this.prisma as any)[key] === 'object'
     );
+
+    // Test each model to see if the table exists
+    const tables = [];
+    for (const modelName of allModels) {
+      try {
+        // Try to count - if it fails, table doesn't exist
+        await (this.prisma as any)[modelName].count();
+        tables.push(modelName);
+      } catch (error: any) {
+        // Skip tables that don't exist in database
+        if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+          continue;
+        }
+        // For other errors, include the table anyway
+        tables.push(modelName);
+      }
+    }
+
     return tables;
   }
 
@@ -22,22 +40,40 @@ export class DatabaseBrowserService extends BaseService {
       throw this.notFoundError('Table', tableName);
     }
 
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      model.findMany({ take: limit, skip }),
-      model.count()
-    ]);
+    try {
+      const skip = (page - 1) * limit;
+      const [data, total] = await Promise.all([
+        model.findMany({ take: limit, skip }),
+        model.count()
+      ]);
 
-    return {
-      table: tableName,
-      data,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
+      return {
+        table: tableName,
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error: any) {
+      // Handle case where Prisma model exists but table doesn't exist in database
+      if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+        return {
+          table: tableName,
+          data: [],
+          error: `Table "${tableName}" exists in Prisma schema but not in database. Run migrations to create it.`,
+          pagination: {
+            page: 1,
+            limit: 0,
+            total: 0,
+            pages: 0
+          }
+        };
       }
-    };
+      throw error;
+    }
   }
 
   async getTableSchema(tableName: string) {

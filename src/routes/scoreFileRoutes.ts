@@ -27,7 +27,7 @@ router.use(authenticateToken);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), logActivity('UPLOAD_SCORE_FILE', 'SCORE'), uploadScoreFile);
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), logActivity('UPLOAD_SCORE_FILE', 'SCORE'), uploadScoreFile);
 
 /**
  * @swagger
@@ -38,7 +38,7 @@ router.post('/', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MAS
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getAllScoreFiles);
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getAllScoreFiles);
 
 /**
  * @swagger
@@ -49,7 +49,7 @@ router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUD
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', requireRole(['ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFileById);
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFileById);
 
 /**
  * @swagger
@@ -60,7 +60,7 @@ router.get('/:id', requireRole(['ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BO
  *     security:
  *       - bearerAuth: []
  */
-router.get('/category/:categoryId', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFilesByCategory);
+router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFilesByCategory);
 
 /**
  * @swagger
@@ -71,7 +71,7 @@ router.get('/category/:categoryId', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 
  *     security:
  *       - bearerAuth: []
  */
-router.get('/judge/:judgeId', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFilesByJudge);
+router.get('/judge/:judgeId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFilesByJudge);
 
 /**
  * @swagger
@@ -82,7 +82,7 @@ router.get('/judge/:judgeId', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD
  *     security:
  *       - bearerAuth: []
  */
-router.get('/contestant/:contestantId', requireRole(['ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFilesByContestant);
+router.get('/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFilesByContestant);
 
 /**
  * @swagger
@@ -93,7 +93,7 @@ router.get('/contestant/:contestantId', requireRole(['ADMIN', 'JUDGE', 'CONTESTA
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SCORE_FILE', 'SCORE'), updateScoreFile);
+router.patch('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SCORE_FILE', 'SCORE'), updateScoreFile);
 
 /**
  * @swagger
@@ -104,7 +104,7 @@ router.patch('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER']), logActivity('DELETE_SCORE_FILE', 'SCORE'), deleteScoreFile);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER']), logActivity('DELETE_SCORE_FILE', 'SCORE'), deleteScoreFile);
 
 /**
  * @swagger
@@ -115,7 +115,7 @@ router.delete('/:id', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER']), logActivity(
  *     security:
  *       - bearerAuth: []
  */
-router.get('/download/:id', requireRole(['ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), downloadScoreFile);
+router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), downloadScoreFile);
 
 export default router;
 

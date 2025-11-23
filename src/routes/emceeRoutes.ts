@@ -59,7 +59,7 @@ router.get('/scripts/:scriptId/view', serveScriptFile)
 
 // Apply authentication to all other routes
 router.use(authenticateToken)
-router.use(requireRole(['ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']))
 
 /**
  * @swagger
@@ -96,14 +96,14 @@ router.get('/scripts/:scriptId/view-url', getFileViewUrl) // Get signed URL (req
 
 // Script management (upload/manage)
 router.post('/scripts', 
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), 
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
   emceeScriptUpload.single('script'),
   logActivity('UPLOAD_EMCEE_SCRIPT', 'EMCEE'), 
   uploadScript
 )
-router.put('/scripts/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EMCEE_SCRIPT', 'EMCEE'), updateScript)
-router.delete('/scripts/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EMCEE_SCRIPT', 'EMCEE'), deleteScript)
-router.patch('/scripts/:id/toggle', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('TOGGLE_EMCEE_SCRIPT', 'EMCEE'), toggleScript)
+router.put('/scripts/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EMCEE_SCRIPT', 'EMCEE'), updateScript)
+router.delete('/scripts/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EMCEE_SCRIPT', 'EMCEE'), deleteScript)
+router.patch('/scripts/:id/toggle', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('TOGGLE_EMCEE_SCRIPT', 'EMCEE'), toggleScript)
 
 // Contestant bios
 router.get('/contestant-bios', getContestantBios)

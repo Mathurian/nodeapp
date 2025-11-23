@@ -107,7 +107,7 @@ router.use(authenticateToken)
  *                   items:
  *                     $ref: '#/components/schemas/User'
  */
-router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getAllUsers)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getAllUsers)
 
 // Bulk template routes - must be before /:id route to avoid route conflict
 router.get('/bulk-template', getBulkUploadTemplate)
@@ -171,11 +171,11 @@ router.get('/:id', getUserById)
  *       400:
  *         description: Validation error
  */
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(createUserSchema), logActivity('CREATE_USER', 'USER'), createUser)
-router.put('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(updateUserSchema), logActivity('UPDATE_USER', 'USER'), updateUser)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createUserSchema), logActivity('CREATE_USER', 'USER'), createUser)
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateUserSchema), logActivity('UPDATE_USER', 'USER'), updateUser)
 router.put('/profile/:id', validate(updateUserSchema), logActivity('UPDATE_PROFILE', 'USER'), updateUser)
-router.delete('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_USER', 'USER'), deleteUser)
-router.post('/:id/reset-password', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), resetPassword)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_USER', 'USER'), deleteUser)
+router.post('/:id/reset-password', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), resetPassword)
 
 // Change password (self-service)
 router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), async (req, res) => {
@@ -186,7 +186,7 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current and new password are required' })
     }
-    if (req.user && req.user.id !== id && req.user.role !== 'ADMIN') {
+    if (req.user && req.user.id !== id && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -217,16 +217,16 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
 })
 
 // CSV Import routes
-router.post('/import-csv', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
-router.get('/csv-template', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getCSVTemplate)
+router.post('/import-csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
+router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getCSVTemplate)
 
 // User management routes
 router.put('/:id/last-login', updateLastLogin)
-router.post('/bulk-remove', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_REMOVE_USERS', 'USER'), bulkRemoveUsers)
-router.post('/remove-all/:role', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_ALL_USERS_BY_ROLE', 'USER'), removeAllUsersByRole)
-router.get('/role/:role', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
-router.put('/:id/role-fields', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_USER_ROLE_FIELDS', 'USER'), updateUserRoleFields)
-router.get('/stats', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
+router.post('/bulk-remove', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_REMOVE_USERS', 'USER'), bulkRemoveUsers)
+router.post('/remove-all/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_ALL_USERS_BY_ROLE', 'USER'), removeAllUsersByRole)
+router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
+router.put('/:id/role-fields', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_USER_ROLE_FIELDS', 'USER'), updateUserRoleFields)
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
 
 // User image upload route (with activity logging, auth, and file validation)
 // Allow users to upload their own image, or admins/organizers/board to upload for others
@@ -238,23 +238,76 @@ router.post('/:id/image',
       return next();
     }
     // For other users, require admin/organizer/board role
-    return requireRole(['ORGANIZER', 'BOARD', 'ADMIN'])(req, res, next);
+    return requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])(req, res, next);
   },
   logActivity('UPLOAD_USER_IMAGE', 'USER'),
   uploadUserImage
 )
 
 // User bio file upload route
-router.post('/:id/bio-file', 
-  requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), 
+// Allow users to upload their own bio file, or admins/organizers/board to upload for others
+router.post('/:id/bio-file',
   userBioUpload.single('bioFile'),
+  async (req, res, next) => {
+    // Allow users to upload their own bio file
+    if (req.user && req.user.id === req.params['id']) {
+      return next();
+    }
+    // For other users, require admin/organizer/board role
+    return requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])(req, res, next);
+  },
   logActivity('UPLOAD_USER_BIO_FILE', 'USER'),
   uploadUserBioFile
 )
 
 // Bulk operations routes
-router.post('/bulk-upload', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), csvUpload.single('file'), logActivity('BULK_UPLOAD_USERS', 'USERS'), bulkUploadUsers)
-router.post('/bulk-delete', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('BULK_DELETE_USERS', 'USERS'), bulkDeleteUsers)
+router.post('/bulk-upload', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), csvUpload.single('file'), logActivity('BULK_UPLOAD_USERS', 'USERS'), bulkUploadUsers)
+router.post('/bulk-delete', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_DELETE_USERS', 'USERS'), bulkDeleteUsers)
+
+// Tenant reassignment (SUPER_ADMIN only)
+router.put('/:id/tenant', requireRole(['SUPER_ADMIN']), logActivity('REASSIGN_USER_TENANT', 'USER'), async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { tenantId } = req.body
+
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'tenantId is required' })
+    }
+
+    // Verify tenant exists
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } })
+    if (!tenant) {
+      return res.status(404).json({ success: false, message: 'Tenant not found' })
+    }
+
+    // Get user to verify it exists
+    const user = await prisma.user.findUnique({ where: { id } })
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Update user's tenant
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { tenantId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        tenantId: true
+      }
+    })
+
+    return res.json({
+      success: true,
+      message: `User "${updatedUser.name}" reassigned to tenant "${tenant.name}"`,
+      data: updatedUser
+    })
+  } catch (error) {
+    return next(error)
+  }
+})
 
 export default router;
 

@@ -77,8 +77,8 @@ export class AuditLogService extends BaseService {
           userName: entry.userName || null,
           ipAddress: entry.ipAddress || null,
           userAgent: entry.userAgent || null,
-          changes: entry.changes ? JSON.parse(JSON.stringify(entry.changes)) : null,
-          metadata: entry.metadata ? JSON.parse(JSON.stringify(entry.metadata)) : null,
+          changes: entry.changes ? entry.changes as any : Prisma.DbNull,
+          metadata: entry.metadata ? entry.metadata as any : Prisma.DbNull,
           tenantId: entry.tenantId,
         },
       });

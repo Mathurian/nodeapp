@@ -1096,4 +1096,320 @@ export class AssignmentService extends BaseService {
 
     return result.count;
   }
+
+  /**
+   * Get tally master assignments with optional filters
+   */
+  async getTallyMasterAssignments(filters?: {
+    eventId?: string;
+    contestId?: string;
+    categoryId?: string;
+  }): Promise<any[]> {
+    const where: any = {};
+
+    if (filters?.eventId) {
+      where.eventId = filters.eventId;
+    }
+    if (filters?.contestId) {
+      where.contestId = filters.contestId;
+    }
+    if (filters?.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+
+    return await this.prisma.tallyMasterAssignment.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assignedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Create tally master assignment
+   */
+  async createTallyMasterAssignment(data: {
+    userId: string;
+    eventId: string;
+    contestId?: string;
+    categoryId?: string;
+    notes?: string;
+    assignedBy: string;
+  }): Promise<any> {
+    // Get event to determine tenantId
+    const event = await this.prisma.event.findUnique({
+      where: { id: data.eventId },
+    });
+
+    if (!event) {
+      throw this.createNotFoundError('Event not found');
+    }
+
+    // Check if assignment already exists for this user/category combination
+    if (data.categoryId) {
+      const existing = await this.prisma.tallyMasterAssignment.findUnique({
+        where: {
+          tenantId_userId_categoryId: {
+            tenantId: event.tenantId,
+            userId: data.userId,
+            categoryId: data.categoryId,
+          },
+        },
+      });
+
+      if (existing) {
+        throw this.conflictError('Tally master is already assigned to this category');
+      }
+    }
+
+    return await this.prisma.tallyMasterAssignment.create({
+      data: {
+        tenantId: event.tenantId,
+        userId: data.userId,
+        eventId: data.eventId,
+        contestId: data.contestId,
+        categoryId: data.categoryId,
+        notes: data.notes,
+        assignedBy: data.assignedBy,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Remove tally master assignment
+   */
+  async removeTallyMasterAssignment(assignmentId: string): Promise<void> {
+    const assignment = await this.prisma.tallyMasterAssignment.findUnique({
+      where: { id: assignmentId },
+    });
+
+    if (!assignment) {
+      throw this.createNotFoundError('Tally master assignment not found');
+    }
+
+    await this.prisma.tallyMasterAssignment.delete({
+      where: { id: assignmentId },
+    });
+  }
+
+  /**
+   * Get auditor assignments with optional filters
+   */
+  async getAuditorAssignments(filters?: {
+    eventId?: string;
+    contestId?: string;
+    categoryId?: string;
+  }): Promise<any[]> {
+    const where: any = {};
+
+    if (filters?.eventId) {
+      where.eventId = filters.eventId;
+    }
+    if (filters?.contestId) {
+      where.contestId = filters.contestId;
+    }
+    if (filters?.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+
+    return await this.prisma.auditorAssignment.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assignedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Create auditor assignment
+   */
+  async createAuditorAssignment(data: {
+    userId: string;
+    eventId: string;
+    contestId?: string;
+    categoryId?: string;
+    notes?: string;
+    assignedBy: string;
+  }): Promise<any> {
+    // Get event to determine tenantId
+    const event = await this.prisma.event.findUnique({
+      where: { id: data.eventId },
+    });
+
+    if (!event) {
+      throw this.createNotFoundError('Event not found');
+    }
+
+    // Check if assignment already exists for this user/category combination
+    if (data.categoryId) {
+      const existing = await this.prisma.auditorAssignment.findUnique({
+        where: {
+          tenantId_userId_categoryId: {
+            tenantId: event.tenantId,
+            userId: data.userId,
+            categoryId: data.categoryId,
+          },
+        },
+      });
+
+      if (existing) {
+        throw this.conflictError('Auditor is already assigned to this category');
+      }
+    }
+
+    return await this.prisma.auditorAssignment.create({
+      data: {
+        tenantId: event.tenantId,
+        userId: data.userId,
+        eventId: data.eventId,
+        contestId: data.contestId,
+        categoryId: data.categoryId,
+        notes: data.notes,
+        assignedBy: data.assignedBy,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Remove auditor assignment
+   */
+  async removeAuditorAssignment(assignmentId: string): Promise<void> {
+    const assignment = await this.prisma.auditorAssignment.findUnique({
+      where: { id: assignmentId },
+    });
+
+    if (!assignment) {
+      throw this.createNotFoundError('Auditor assignment not found');
+    }
+
+    await this.prisma.auditorAssignment.delete({
+      where: { id: assignmentId },
+    });
+  }
 }

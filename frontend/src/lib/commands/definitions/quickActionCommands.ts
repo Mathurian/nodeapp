@@ -66,7 +66,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Scoring',
       priority: 95,
-      roles: ['ADMIN', 'ORGANIZER', 'AUDITOR', 'TALLY_MASTER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'TALLY_MASTER']
     },
     {
       id: 'quick-certify-scores',
@@ -78,7 +78,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Scoring',
       priority: 90,
-      roles: ['ADMIN', 'TALLY_MASTER', 'AUDITOR']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'AUDITOR']
     },
     {
       id: 'quick-score-stats',
@@ -105,7 +105,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Events',
       priority: 80,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'quick-archive-event',
@@ -117,7 +117,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Events',
       priority: 75,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'quick-clone-event',
@@ -129,7 +129,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Events',
       priority: 70,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'quick-publish-results',
@@ -141,7 +141,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Events',
       priority: 65,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     }
   );
 
@@ -157,7 +157,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Users',
       priority: 60,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'quick-add-contestant',
@@ -169,7 +169,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Users',
       priority: 55,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'quick-bulk-import-users',
@@ -181,7 +181,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Users',
       priority: 50,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'quick-export-users',
@@ -193,7 +193,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Users',
       priority: 45,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     }
   );
 
@@ -263,7 +263,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'System',
       priority: 20,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'quick-view-recent-activity',
@@ -275,7 +275,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'System',
       priority: 15,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'quick-system-health',
@@ -287,7 +287,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'System',
       priority: 10,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'quick-backup-now',
@@ -299,7 +299,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'System',
       priority: 5,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     }
   );
 

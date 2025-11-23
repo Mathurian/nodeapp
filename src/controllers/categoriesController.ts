@@ -194,8 +194,13 @@ export class CategoriesController {
         return sendError(res, 'Category ID is required', 400);
       }
 
+      // Add tenant filtering
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
       const criteria = await this.prisma.criterion.findMany({
-        where: { categoryId },
+        where: {
+          categoryId,
+          tenantId: tenantId
+        },
         orderBy: { name: 'asc' }
       });
 
@@ -221,9 +226,13 @@ export class CategoriesController {
         return sendError(res, 'name and maxScore are required', 400);
       }
 
-      // Verify category exists
-      const category = await this.prisma.category.findUnique({
-        where: { id: categoryId }
+      // Verify category exists and belongs to tenant
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          tenantId: tenantId
+        }
       });
 
       if (!category) {
@@ -235,7 +244,7 @@ export class CategoriesController {
           categoryId,
           name,
           maxScore: parseInt(maxScore),
-          tenantId: req.user!.tenantId
+          tenantId: tenantId
         }
       });
 
@@ -257,8 +266,13 @@ export class CategoriesController {
 
       const { name, maxScore } = req.body;
 
-      const existing = await this.prisma.criterion.findUnique({
-        where: { id: criterionId }
+      // Add tenant filtering
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const existing = await this.prisma.criterion.findFirst({
+        where: {
+          id: criterionId,
+          tenantId: tenantId
+        }
       });
 
       if (!existing) {
@@ -290,8 +304,13 @@ export class CategoriesController {
         return sendError(res, 'Criterion ID is required', 400);
       }
 
-      const criterion = await this.prisma.criterion.findUnique({
-        where: { id: criterionId }
+      // Add tenant filtering
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const criterion = await this.prisma.criterion.findFirst({
+        where: {
+          id: criterionId,
+          tenantId: tenantId
+        }
       });
 
       if (!criterion) {
@@ -339,9 +358,12 @@ export class CategoriesController {
         return sendSuccess(res, { deleted: 0 }, 'No categories to delete');
       }
 
+      // CRITICAL FIX: Add tenant filtering to prevent deletion of other tenants' data
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
       const result = await this.prisma.category.deleteMany({
         where: {
-          id: { in: categoryIds }
+          id: { in: categoryIds },
+          tenantId: tenantId
         }
       });
 
@@ -406,9 +428,12 @@ export class CategoriesController {
         return sendSuccess(res, { deleted: 0 }, 'No criteria to delete');
       }
 
+      // CRITICAL FIX: Add tenant filtering to prevent deletion of other tenants' data
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
       const result = await this.prisma.criterion.deleteMany({
         where: {
-          id: { in: criteriaIds }
+          id: { in: criteriaIds },
+          tenantId: tenantId
         }
       });
 

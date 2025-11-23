@@ -47,7 +47,7 @@ router.get('/', async (_req, res, next) => {
 });
 
 router.post('/', 
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
   logActivity('CREATE_JUDGE', 'JUDGE'),
   async (req, res, next) => {
     try {
@@ -61,7 +61,7 @@ router.post('/',
 );
 
 router.put('/:id',
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
   logActivity('UPDATE_JUDGE', 'JUDGE'),
   async (req, res, next) => {
     try {
@@ -75,7 +75,7 @@ router.put('/:id',
 );
 
 router.post('/bulk-delete',
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
   logActivity('BULK_DELETE_JUDGES', 'JUDGE'),
   async (req, res, next) => {
     try {
@@ -93,7 +93,7 @@ router.post('/bulk-delete',
 );
 
 router.delete('/:id',
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
   logActivity('DELETE_JUDGE', 'JUDGE'),
   async (req, res, next) => {
     try {

@@ -166,9 +166,10 @@ app.get('/api/csrf-token', getCsrfToken);
 /**
  * API Documentation (Swagger UI)
  * Accessible at /api-docs
- * Always enabled - can be disabled by setting ENABLE_API_DOCS=false
+ * Enabled by default - can be disabled by setting ENABLE_API_DOCS=false
  */
-if (env.get('NODE_ENV') !== 'production') {
+const enableApiDocs = env.get('ENABLE_API_DOCS');
+if (enableApiDocs) {
   app.use('/api-docs', swaggerUi.serve);
   app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
   app.get('/api-docs.json', (_req: Request, res: Response) => {

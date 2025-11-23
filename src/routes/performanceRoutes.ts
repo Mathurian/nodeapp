@@ -22,7 +22,7 @@ router.use(authenticateToken)
  *       200:
  *         description: System metrics retrieved successfully
  */
-router.get('/metrics', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getSystemMetrics)
+router.get('/metrics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSystemMetrics)
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ router.get('/metrics', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getSystemMe
  *       200:
  *         description: Performance statistics retrieved successfully
  */
-router.get('/stats', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getPerformanceStats)
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getPerformanceStats)
 
 export default router;
 

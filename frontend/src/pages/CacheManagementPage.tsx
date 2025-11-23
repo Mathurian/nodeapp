@@ -51,7 +51,7 @@ const CacheManagementPage: React.FC = () => {
       setLoading(true)
       const response = await api.get('/cache/keys')
       const unwrappedKeys = response.data.data || response.data
-        setKeys(unwrappedKeys)
+      setKeys(Array.isArray(unwrappedKeys) ? unwrappedKeys : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load cache keys')
     } finally {
@@ -96,7 +96,7 @@ const CacheManagementPage: React.FC = () => {
 
   const filteredKeys = keys.filter(k => k.key.toLowerCase().includes(filter.toLowerCase()))
 
-  if (user?.role !== 'ADMIN') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -171,7 +171,7 @@ const CacheManagementPage: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Hit Rate</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
-                    {stats.hitRate.toFixed(1)}%
+                    {(stats.hitRate ?? 0).toFixed(1)}%
                   </p>
                 </div>
               </div>

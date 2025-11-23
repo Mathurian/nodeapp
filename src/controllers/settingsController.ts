@@ -3,9 +3,26 @@ import { container } from '../config/container';
 import { SettingsService } from '../services/SettingsService';
 import { successResponse } from '../utils/responseHelpers';
 
+// Type for tenant-aware request - uses intersection instead of extends
+type TenantRequest = Request & {
+  user?: {
+    id: string;
+    role: string;
+    tenantId?: string;
+  } & Record<string, unknown>;
+  tenantId?: string;
+};
+
 /**
  * Settings Controller
- * Handles system settings management
+ * Handles system settings management with tenant-aware context
+ *
+ * Architecture:
+ * - Global settings have tenantId = NULL (platform defaults)
+ * - Tenant-specific settings have tenantId = <tenant_id>
+ * - When fetching: First try tenant-specific, then fall back to global
+ * - SUPER_ADMIN can edit global/platform settings (tenantId = null)
+ * - ADMIN can edit their tenant's settings (creates override if doesn't exist)
  */
 export class SettingsController {
   private settingsService: SettingsService;
@@ -15,15 +32,54 @@ export class SettingsController {
   }
 
   /**
-   * Get all settings
+   * Helper: Get tenant ID from request context
+   * - If ?global=true (SUPER_ADMIN only), returns null for platform-wide settings
+   * - If ?tenantId=xxx (SUPER_ADMIN only), returns that tenant ID
+   * - Otherwise, returns the user's own tenant ID
+   */
+  private isSuperAdmin(req: TenantRequest): boolean {
+    return req.user?.role === 'SUPER_ADMIN';
+  }
+
+  private getTenantIdForWrite(req: TenantRequest, forGlobal?: boolean): string | null {
+    // If explicitly editing global settings (SUPER_ADMIN only)
+    if (forGlobal && this.isSuperAdmin(req)) {
+      return null;
+    }
+    // If SUPER_ADMIN specifies a tenant ID in query params, use that
+    const queryTenantId = req.query['tenantId'];
+    if (this.isSuperAdmin(req) && queryTenantId && typeof queryTenantId === 'string') {
+      return queryTenantId;
+    }
+    // Use user's tenantId or request tenantId
+    return req.user?.tenantId || req.tenantId || null;
+  }
+
+  private getTenantIdForRead(req: TenantRequest): string | null {
+    // If SUPER_ADMIN specifies ?global=true, return null for global settings
+    if (this.isSuperAdmin(req) && req.query['global'] === 'true') {
+      return null;
+    }
+    // If SUPER_ADMIN specifies a tenant ID in query params, use that
+    const queryTenantId = req.query['tenantId'];
+    if (this.isSuperAdmin(req) && queryTenantId && typeof queryTenantId === 'string') {
+      return queryTenantId;
+    }
+    // For read operations, use the tenant context from user or request
+    return req.user?.tenantId || req.tenantId || null;
+  }
+
+  /**
+   * Get all settings (tenant-aware with fallback to global)
    */
   getAllSettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const settings = await this.settingsService.getAllSettings();
+      const tenantId = this.getTenantIdForRead(req);
+      const settings = await this.settingsService.getAllSettings(tenantId);
       res.json(settings);
     } catch (error) {
       return next(error);
@@ -31,31 +87,49 @@ export class SettingsController {
   };
 
   /**
-   * Get settings (alias for getAllSettings)
+   * Get settings (alias for getAllSettings, tenant-aware)
    */
   getSettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const settings = await this.settingsService.getAllSettings();
-      res.json(settings);
+      const tenantId = this.getTenantIdForRead(req);
+      const settings = await this.settingsService.getAllSettings(tenantId);
+      successResponse(res, settings, 'Settings retrieved successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Get app name and subtitle
+   * Get global/platform settings only (SUPER_ADMIN only)
+   */
+  getGlobalSettings = async (
+    _req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const settings = await this.settingsService.getGlobalSettings();
+      successResponse(res, settings, 'Global settings retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Get app name and subtitle (tenant-aware with branding fallback)
    */
   getAppName = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     _next: NextFunction
   ): Promise<void> => {
     try {
-      const appNameSettings = await this.settingsService.getAppName();
+      const tenantId = this.getTenantIdForRead(req);
+      const appNameSettings = await this.settingsService.getAppName(tenantId);
       res.json({ data: appNameSettings });
     } catch (error) {
       // Return defaults on error
@@ -64,15 +138,17 @@ export class SettingsController {
   };
 
   /**
-   * Get public settings (no authentication required)
+   * Get public settings (tenant-aware with branding fallback)
+   * Uses tenant context from request headers/subdomain if available
    */
   getPublicSettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const publicSettings = await this.settingsService.getPublicSettings();
+      const tenantId = this.getTenantIdForRead(req);
+      const publicSettings = await this.settingsService.getPublicSettings(tenantId);
       res.json(publicSettings);
     } catch (error) {
       return next(error);
@@ -80,25 +156,30 @@ export class SettingsController {
   };
 
   /**
-   * Update settings
+   * Update settings (tenant-aware)
+   * - SUPER_ADMIN with ?global=true updates global settings
+   * - ADMIN updates their tenant's settings (creates override)
    */
   updateSettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const settings = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updateSettings(
         settings,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Settings updated successfully'
       );
     } catch (error) {
@@ -107,19 +188,20 @@ export class SettingsController {
   };
 
   /**
-   * Test settings
+   * Test settings (tenant-aware - tests tenant's SMTP if configured)
    */
   testSettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const { type } = req.params;
       const { testEmail } = req.body;
+      const tenantId = this.getTenantIdForRead(req);
 
       if (type === 'email') {
-        const success = await this.settingsService.testEmailSettings(testEmail);
+        const success = await this.settingsService.testEmailSettings(testEmail, tenantId);
         successResponse(
           res,
           { success },
@@ -134,15 +216,16 @@ export class SettingsController {
   };
 
   /**
-   * Get logging levels
+   * Get logging levels (tenant-aware)
    */
   getLoggingLevels = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const loggingLevels = await this.settingsService.getLoggingLevels();
+      const tenantId = this.getTenantIdForRead(req);
+      const loggingLevels = await this.settingsService.getLoggingLevels(tenantId);
       res.json(loggingLevels);
     } catch (error) {
       return next(error);
@@ -150,20 +233,23 @@ export class SettingsController {
   };
 
   /**
-   * Update logging level
+   * Update logging level (tenant-aware)
    */
   updateLoggingLevel = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const { level } = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const setting = await this.settingsService.updateLoggingLevel(
         level,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(res, setting, 'Logging level updated successfully');
@@ -173,43 +259,47 @@ export class SettingsController {
   };
 
   /**
-   * Get security settings
+   * Get security settings (tenant-aware - inherited initially from global)
    */
   getSecuritySettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
+      const tenantId = this.getTenantIdForRead(req);
       const securitySettings =
-        await this.settingsService.getSecuritySettings();
-      res.json(securitySettings);
+        await this.settingsService.getSecuritySettings(tenantId);
+      successResponse(res, securitySettings, 'Security settings retrieved successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Update security settings
+   * Update security settings (tenant-aware)
    */
   updateSecuritySettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const securitySettings = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount =
         await this.settingsService.updateSecuritySettings(
           securitySettings,
-          userId
+          userId,
+          tenantId
         );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Security settings updated successfully'
       );
     } catch (error) {
@@ -218,15 +308,16 @@ export class SettingsController {
   };
 
   /**
-   * Get backup settings
+   * Get backup settings (tenant-aware)
    */
   getBackupSettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const backupSettings = await this.settingsService.getBackupSettings();
+      const tenantId = this.getTenantIdForRead(req);
+      const backupSettings = await this.settingsService.getBackupSettings(tenantId);
       res.json(backupSettings);
     } catch (error) {
       return next(error);
@@ -234,25 +325,28 @@ export class SettingsController {
   };
 
   /**
-   * Update backup settings
+   * Update backup settings (tenant-aware)
    */
   updateBackupSettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const backupSettings = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updateBackupSettings(
         backupSettings,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Backup settings updated successfully'
       );
     } catch (error) {
@@ -261,15 +355,16 @@ export class SettingsController {
   };
 
   /**
-   * Get email settings
+   * Get email settings (tenant-aware - tenants can override with their own SMTP)
    */
   getEmailSettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const emailSettings = await this.settingsService.getEmailSettings();
+      const tenantId = this.getTenantIdForRead(req);
+      const emailSettings = await this.settingsService.getEmailSettings(tenantId);
 
       // Wrap response in standard format with data wrapper
       res.json({
@@ -284,25 +379,28 @@ export class SettingsController {
   };
 
   /**
-   * Update email settings
+   * Update email settings (tenant-aware)
    */
   updateEmailSettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const emailSettings = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updateEmailSettings(
         emailSettings,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Email settings updated successfully'
       );
     } catch (error) {
@@ -311,41 +409,45 @@ export class SettingsController {
   };
 
   /**
-   * Get password policy
+   * Get password policy (tenant-aware)
    */
   getPasswordPolicy = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const passwordPolicy = await this.settingsService.getPasswordPolicy();
-      res.json(passwordPolicy);
+      const tenantId = this.getTenantIdForRead(req);
+      const passwordPolicy = await this.settingsService.getPasswordPolicy(tenantId);
+      successResponse(res, passwordPolicy, 'Password policy retrieved successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Update password policy
+   * Update password policy (tenant-aware)
    */
   updatePasswordPolicy = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const passwordPolicy = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updatePasswordPolicy(
         passwordPolicy,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Password policy updated successfully'
       );
     } catch (error) {
@@ -354,15 +456,16 @@ export class SettingsController {
   };
 
   /**
-   * Get JWT configuration
+   * Get JWT configuration (tenant-aware)
    */
   getJWTConfig = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const jwtConfig = await this.settingsService.getJWTConfig();
+      const tenantId = this.getTenantIdForRead(req);
+      const jwtConfig = await this.settingsService.getJWTConfig(tenantId);
       res.json(jwtConfig);
     } catch (error) {
       return next(error);
@@ -370,25 +473,28 @@ export class SettingsController {
   };
 
   /**
-   * Update JWT configuration
+   * Update JWT configuration (tenant-aware)
    */
   updateJWTConfig = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const jwtConfig = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updateJWTConfig(
         jwtConfig,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'JWT configuration updated successfully'
       );
     } catch (error) {
@@ -397,41 +503,56 @@ export class SettingsController {
   };
 
   /**
-   * Get theme settings
+   * Get theme settings (tenant-aware with branding fallback)
    */
   getThemeSettings = async (
-    _req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const themeSettings = await this.settingsService.getThemeSettings();
-      res.json(themeSettings);
+      let tenantId = this.getTenantIdForRead(req);
+
+      // Allow unauthenticated users to specify tenantSlug for login page branding
+      // Check tenantSlug first as it's more specific than default_tenant fallback
+      const tenantSlug = req.query['tenantSlug'];
+      if (tenantSlug && typeof tenantSlug === 'string') {
+        const tenant = await this.settingsService.getTenantBySlug(tenantSlug);
+        if (tenant) {
+          tenantId = tenant.id;
+        }
+      }
+
+      const themeSettings = await this.settingsService.getThemeSettings(tenantId);
+      successResponse(res, themeSettings, 'Theme settings retrieved successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Update theme settings
+   * Update theme settings (tenant-aware)
    */
   updateThemeSettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const themeSettings = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updateThemeSettings(
         themeSettings,
-        userId
+        userId,
+        tenantId
       );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Theme settings updated successfully'
       );
     } catch (error) {
@@ -440,16 +561,18 @@ export class SettingsController {
   };
 
   /**
-   * Upload theme logo
+   * Upload theme logo (tenant-aware)
    */
   uploadThemeLogo = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const file = req.file;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       if (!file) {
         res.status(400).json({ error: 'No file uploaded' });
@@ -460,26 +583,29 @@ export class SettingsController {
       await this.settingsService.updateSetting(
         'theme_logoPath',
         logoPath,
-        userId
+        userId,
+        tenantId
       );
 
-      successResponse(res, { logoPath }, 'Logo uploaded successfully');
+      successResponse(res, { logoPath, scope: tenantId ? 'tenant' : 'global' }, 'Logo uploaded successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Upload theme favicon
+   * Upload theme favicon (tenant-aware)
    */
   uploadThemeFavicon = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const file = req.file;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       if (!file) {
         res.status(400).json({ error: 'No file uploaded' });
@@ -490,20 +616,21 @@ export class SettingsController {
       await this.settingsService.updateSetting(
         'theme_faviconPath',
         faviconPath,
-        userId
+        userId,
+        tenantId
       );
 
-      successResponse(res, { faviconPath }, 'Favicon uploaded successfully');
+      successResponse(res, { faviconPath, scope: tenantId ? 'tenant' : 'global' }, 'Favicon uploaded successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Get database connection info
+   * Get database connection info (global only - not tenant-specific)
    */
   getDatabaseConnectionInfo = async (
-    _req: Request,
+    _req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
@@ -516,54 +643,95 @@ export class SettingsController {
   };
 
   /**
-   * Get contestant visibility settings
+   * Get general settings (tenant-aware)
    */
-  getContestantVisibilitySettings = async (
-    _req: Request,
+  getGeneralSettings = async (
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const visibilitySettings =
-        await this.settingsService.getContestantVisibilitySettings();
-      
-      // Transform from { "contestant_visibility_canViewWinners": "true" } 
-      // to { canViewWinners: true, canViewOverallResults: true }
-      const transformed = {
-        canViewWinners: visibilitySettings['contestant_visibility_canViewWinners'] === 'true' || 
-                       visibilitySettings['canViewWinners'] === 'true',
-        canViewOverallResults: visibilitySettings['contestant_visibility_canViewOverallResults'] === 'true' ||
-                              visibilitySettings['canViewOverallResults'] === 'true'
-      };
-      
-      successResponse(res, transformed, 'Contestant visibility settings retrieved successfully');
+      const tenantId = this.getTenantIdForRead(req);
+      const generalSettings = await this.settingsService.getGeneralSettings(tenantId);
+      successResponse(res, generalSettings, 'General settings retrieved successfully');
     } catch (error) {
       return next(error);
     }
   };
 
   /**
-   * Update contestant visibility settings
+   * Get contestant visibility settings (tenant-aware)
+   */
+  getContestantVisibilitySettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const visibilitySettings =
+        await this.settingsService.getContestantVisibilitySettings(tenantId);
+
+      successResponse(res, visibilitySettings, 'Contestant visibility settings retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Update contestant visibility settings (tenant-aware)
    */
   updateContestantVisibilitySettings = async (
-    req: Request,
+    req: TenantRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const visibilitySettings = req.body;
       const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount =
         await this.settingsService.updateContestantVisibilitySettings(
           visibilitySettings,
-          userId
+          userId,
+          tenantId
         );
 
       successResponse(
         res,
-        { updatedCount },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
         'Contestant visibility settings updated successfully'
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Reset tenant setting to global default (delete tenant-specific override)
+   */
+  resetSettingToGlobal = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { key } = req.params;
+      const tenantId = req.user?.tenantId || req.tenantId;
+
+      if (!tenantId || !key) {
+        res.status(400).json({ error: 'Tenant context and key are required' });
+        return;
+      }
+
+      const deleted = await this.settingsService.deleteTenantSetting(key, tenantId);
+
+      successResponse(
+        res,
+        { deleted, key },
+        deleted ? 'Setting reset to global default' : 'No tenant override found'
       );
     } catch (error) {
       return next(error);
@@ -582,6 +750,7 @@ export const updateSettings = controller.updateSettings;
 export const testSettings = controller.testSettings;
 export const getLoggingLevels = controller.getLoggingLevels;
 export const updateLoggingLevel = controller.updateLoggingLevel;
+export const getGeneralSettings = controller.getGeneralSettings;
 export const getSecuritySettings = controller.getSecuritySettings;
 export const updateSecuritySettings = controller.updateSecuritySettings;
 export const getBackupSettings = controller.getBackupSettings;
@@ -601,3 +770,5 @@ export const getContestantVisibilitySettings =
   controller.getContestantVisibilitySettings;
 export const updateContestantVisibilitySettings =
   controller.updateContestantVisibilitySettings;
+export const getGlobalSettings = controller.getGlobalSettings;
+export const resetSettingToGlobal = controller.resetSettingToGlobal;

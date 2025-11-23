@@ -24,7 +24,7 @@ router.use(authenticateToken);
  *       200:
  *         description: Rate limit configurations
  */
-router.get('/', requireRole(['ADMIN']), getAllConfigs);
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN']), getAllConfigs);
 
 /**
  * @swagger
@@ -85,8 +85,8 @@ router.get('/my-status', getMyRateLimitStatus);
  *       200:
  *         description: Configuration updated
  */
-router.get('/:tier', requireRole(['ADMIN']), getConfig);
-router.put('/:tier', requireRole(['ADMIN']), updateConfig);
+router.get('/:tier', requireRole(['SUPER_ADMIN', 'ADMIN']), getConfig);
+router.put('/:tier', requireRole(['SUPER_ADMIN', 'ADMIN']), updateConfig);
 
 export default router;
 

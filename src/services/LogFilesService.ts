@@ -78,7 +78,7 @@ export class LogFilesService extends BaseService {
 
     return {
       filename,
-      contents: lastLines.join('\n'),
+      content: lastLines.join('\n'),
       totalLines: allLines.length,
       displayedLines: lastLines.length
     };

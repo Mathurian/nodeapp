@@ -58,7 +58,20 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
 
   // Middleware to authenticate socket connections
   io.use((socket: Socket, next) => {
-    const token = socket.handshake.auth['token'] || socket.handshake.headers.authorization?.replace('Bearer ', '')
+    // Try to get token from auth, authorization header, or cookies (httpOnly)
+    let token = socket.handshake.auth['token'] || socket.handshake.headers.authorization?.replace('Bearer ', '')
+
+    // If no token in auth/headers, try to extract from cookies
+    if (!token && socket.handshake.headers.cookie) {
+      const cookies = socket.handshake.headers.cookie.split(';')
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=')
+        if (name === 'access_token') {
+          token = value
+          break
+        }
+      }
+    }
 
     if (!token) {
       return next(new Error('Authentication error: No token provided'))

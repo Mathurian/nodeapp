@@ -112,8 +112,8 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       req.path.includes('/log-files/') ||
       req.path.includes('/backup/settings')
     );
-    if (isSensitiveEndpoint && user.role === 'ADMIN') {
-      console.log('authenticateToken: Admin authenticated for sensitive endpoint', {
+    if (isSensitiveEndpoint && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')) {
+      console.log('authenticateToken: SUPER_ADMIN/ADMIN authenticated for sensitive endpoint', {
         path: req.path,
         userId: user.id,
         email: user.email,
@@ -235,18 +235,18 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       return;
     }
 
-    // ADMIN has access to EVERYTHING - always allow, no exceptions
+    // SUPER_ADMIN and ADMIN have access to EVERYTHING - always allow, no exceptions
     // Check this FIRST before any other logic
     const userRole = String(req.user.role).trim().toUpperCase();
-    if (userRole === 'ADMIN') {
+    if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
       // Log for debugging sensitive endpoints
       const isSensitiveEndpoint = req.path && (
-        req.path.includes('/cache/') || 
-        req.path.includes('/log-files/') || 
+        req.path.includes('/cache/') ||
+        req.path.includes('/log-files/') ||
         req.path.includes('/backup/settings')
       );
       if (isSensitiveEndpoint) {
-        console.log('requireRole: ✅ ADMIN access granted (unconditional)', {
+        console.log('requireRole: ✅ SUPER_ADMIN/ADMIN access granted (unconditional)', {
           userRole,
           path: req.path,
           email: req.user.email,
@@ -254,7 +254,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
           timestamp: new Date().toISOString()
         });
       }
-      next(); // ADMIN always passes - never block, no matter what
+      next(); // SUPER_ADMIN and ADMIN always pass - never block, no matter what
       return;
     }
 
@@ -341,7 +341,7 @@ const requirePermission = (action: string): ((req: Request, res: Response, next:
       return;
     }
 
-    // ADMIN has all permissions
+    // SUPER_ADMIN and ADMIN have all permissions
     if (isAdmin(req.user.role)) {
       next();
       return;
@@ -363,8 +363,56 @@ const requirePermission = (action: string): ((req: Request, res: Response, next:
 // Export checkRoles as an alias for requireRole (for backward compatibility)
 const checkRoles = requireRole;
 
+/**
+ * Optional authentication middleware - sets req.user if valid token present,
+ * but proceeds without error if no token. Useful for public routes that can
+ * optionally use user context when available.
+ */
+const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  const token = req.cookies?.['access_token'];
+
+  if (!token) {
+    // No token - proceed without user context
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string; sessionVersion?: number };
+
+    // Try to get user from cache first
+    let user = userCache.getById(decoded.userId) as (User & { judge?: any; contestant?: any }) | null;
+
+    if (!user) {
+      user = await prisma.user.findFirst({
+        where: {
+          id: decoded.userId,
+          tenantId: decoded.tenantId
+        },
+        include: {
+          judge: true,
+          contestant: true
+        }
+      });
+
+      if (user) {
+        userCache.setById(decoded.userId, user, 3600);
+      }
+    }
+
+    if (user && user.isActive && user.sessionVersion === decoded.sessionVersion) {
+      req.user = user;
+    }
+    // If user invalid, proceed without user context (don't fail)
+    next();
+  } catch {
+    // Token invalid - proceed without user context
+    next();
+  }
+};
+
 export {
   authenticateToken,
+  optionalAuth,
   requireRole,
   requirePermission,
   checkRoles,

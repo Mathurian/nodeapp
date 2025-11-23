@@ -67,13 +67,14 @@ import dataWipeRoutes from '../routes/dataWipeRoutes'
 import testEventSetupRoutes from '../routes/testEventSetupRoutes'
 import bulkCertificationResetRoutes from '../routes/bulkCertificationResetRoutes'
 import bulkRoutes from '../routes/bulkRoutes'
-import customFieldRoutes from '../routes/customFieldRoutes'
+import customFieldsRoutes from '../routes/customFieldsRoutes'
 import emailTemplateRoutes from '../routes/emailTemplateRoutes'
 import docsRoutes from '../routes/docs'
 import mfaRoutes from '../routes/mfa'
 import notificationPreferencesRoutes from '../routes/notificationPreferencesRoutes'
 import searchRoutes from '../routes/searchRoutes'
 import tenantRoutes from '../routes/tenant'
+import publicTenantRoutes from '../routes/publicTenantRoutes'
 import drRoutes from '../routes/drRoutes'
 import workflowRoutes from '../routes/workflowRoutes'
 import eventsLogRoutes from '../routes/eventsLogRoutes'
@@ -85,7 +86,10 @@ export const registerRoutes = (app: Application): void => {
   // Documentation viewer
   app.use('/api/docs', docsRoutes)
 
-  // Multi-tenancy management
+  // Public tenant routes (no auth required) - must be before authenticated routes
+  app.use('/api/tenants', publicTenantRoutes)
+
+  // Multi-tenancy management (authenticated)
   app.use('/api/tenants', tenantRoutes)
 
   // Disaster Recovery and Workflow
@@ -158,7 +162,7 @@ export const registerRoutes = (app: Application): void => {
   // System and settings
   app.use('/api/settings', settingsRoutes)
   app.use('/api/restrictions', restrictionRoutes)
-  app.use('/api', customFieldRoutes)
+  app.use('/api/custom-fields', customFieldsRoutes)
   app.use('/api/backups', backupRoutes)
   app.use('/api/admin/backups', backupAdminRoutes)
   app.use('/api/archive', archiveRoutes)
@@ -166,7 +170,7 @@ export const registerRoutes = (app: Application): void => {
   app.use('/api/event-templates', eventTemplateRoutes)
   app.use('/api/test-event-setup', testEventSetupRoutes)
   app.use('/api/data-wipe', dataWipeRoutes)
-  app.use('/api/database', databaseBrowserRoutes)
+  app.use('/api/database-browser', databaseBrowserRoutes)
   app.use('/api/rate-limits', rateLimitRoutes)
 
   // Communication

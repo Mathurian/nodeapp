@@ -34,8 +34,8 @@ router.use(authenticateToken)
  *       201:
  *         description: Template created successfully
  */
-router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getAllTemplates)
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_TEMPLATE', 'TEMPLATE'), createTemplate)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getAllTemplates)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_TEMPLATE', 'TEMPLATE'), createTemplate)
 
 export default router;
 

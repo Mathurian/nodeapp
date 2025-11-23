@@ -125,7 +125,7 @@ router.get('/templates', workflowController.listTemplates);
  *       403:
  *         description: Forbidden - requires ADMIN role
  */
-router.post('/templates', requireRole(['ADMIN']), workflowController.createTemplate);
+router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN']), workflowController.createTemplate);
 
 /**
  * @swagger
@@ -177,6 +177,64 @@ router.post('/templates', requireRole(['ADMIN']), workflowController.createTempl
  *         description: Template not found
  */
 router.get('/templates/:id', workflowController.getTemplate);
+
+/**
+ * @swagger
+ * /api/workflows/templates/{id}:
+ *   put:
+ *     summary: Update workflow template (Admin only)
+ *     tags: [Workflows]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Template updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Template not found
+ */
+router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), workflowController.updateTemplate);
+
+/**
+ * @swagger
+ * /api/workflows/templates/{id}:
+ *   delete:
+ *     summary: Delete workflow template (Admin only)
+ *     tags: [Workflows]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Template deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Template not found
+ */
+router.delete('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), workflowController.deleteTemplate);
 
 /**
  * Workflow Instances

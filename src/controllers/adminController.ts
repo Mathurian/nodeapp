@@ -14,9 +14,24 @@ export class AdminController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getDashboard = async (_req: Request, res: Response, next: NextFunction) => {
+  getDashboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const stats = await this.adminService.getDashboardStats();
+      // Pass tenant context for tenant-scoped stats
+      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+      const isSuperAdmin = (req as any).isSuperAdmin;
+      const userEmail = (req as any).user?.email;
+
+      console.log('[AdminController.getDashboard] DEBUG:', {
+        tenantId,
+        isSuperAdmin,
+        userEmail,
+        willFilterByTenant: !isSuperAdmin,
+        tenantIdToPass: !isSuperAdmin ? tenantId : undefined
+      });
+
+      const stats = await this.adminService.getDashboardStats(
+        !isSuperAdmin ? tenantId : undefined
+      );
       return sendSuccess(res, stats);
     } catch (error) {
       return next(error);
@@ -87,9 +102,15 @@ export class AdminController {
     }
   };
 
-  getStats = async (_req: Request, res: Response, next: NextFunction) => {
+  getStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const stats = await this.adminService.getDashboardStats();
+      // Pass tenant context for tenant-scoped stats
+      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+      const isSuperAdmin = (req as any).isSuperAdmin;
+
+      const stats = await this.adminService.getDashboardStats(
+        !isSuperAdmin ? tenantId : undefined
+      );
       return sendSuccess(res, stats);
     } catch (error) {
       return next(error);
@@ -111,12 +132,20 @@ export class AdminController {
       const hours = parseInt(req.query['hours'] as string) || 24;
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
+      // Build where clause with tenant filtering (unless SUPER_ADMIN)
+      const where: Prisma.UserWhereInput = {
+        lastLoginAt: {
+          gte: since
+        }
+      };
+
+      // Only filter by tenant if not SUPER_ADMIN
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
+
       const activeUsers = await this.prisma.user.findMany({
-        where: {
-          lastLoginAt: {
-            gte: since
-          }
-        },
+        where,
         select: {
           id: true,
           name: true,
@@ -145,6 +174,12 @@ export class AdminController {
       const skip = (page - 1) * limit;
 
       const where: Prisma.UserWhereInput = {};
+
+      // Only filter by tenant if not SUPER_ADMIN
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
+
       if (role) {
         where.role = role;
       }
@@ -198,6 +233,12 @@ export class AdminController {
       const skip = (page - 1) * limit;
 
       const where: Prisma.EventWhereInput = {};
+
+      // Only filter by tenant if not SUPER_ADMIN
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
+
       if (req.query['archived'] !== undefined) {
         where.archived = archived;
       }
@@ -245,6 +286,12 @@ export class AdminController {
       const skip = (page - 1) * limit;
 
       const where: Prisma.ContestWhereInput = {};
+
+      // Only filter by tenant if not SUPER_ADMIN
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
+
       if (eventId) {
         where.eventId = eventId;
       }
@@ -291,6 +338,12 @@ export class AdminController {
       const skip = (page - 1) * limit;
 
       const where: Prisma.CategoryWhereInput = {};
+
+      // Only filter by tenant if not SUPER_ADMIN
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
+
       if (contestId) {
         where.contestId = contestId;
       }

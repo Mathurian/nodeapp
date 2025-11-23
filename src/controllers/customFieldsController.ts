@@ -79,6 +79,39 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
 };
 
 /**
+ * Get all custom fields (all entity types)
+ * GET /api/custom-fields
+ */
+export const getAllCustomFields = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const activeOnly = authReq.query['activeOnly'] !== 'false';
+    const tenantId = authReq.user?.tenantId || 'default';
+
+    // Get all custom fields by querying each entity type
+    const entityTypes = ['EVENT', 'CONTEST', 'CATEGORY', 'USER', 'CONTESTANT'];
+    const allFields = [];
+
+    for (const entityType of entityTypes) {
+      const fields = await customFieldService.getCustomFieldsByEntityType(entityType, tenantId, activeOnly);
+      allFields.push(...fields);
+    }
+
+    res.json({
+      success: true,
+      data: allFields
+    });
+  } catch (error) {
+    const err = error as Error;
+    logger.error('Error getting all custom fields:', error);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to get custom fields'
+    });
+  }
+};
+
+/**
  * Get custom fields by entity type
  * GET /api/custom-fields/:entityType
  */

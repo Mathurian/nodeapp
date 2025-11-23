@@ -21,7 +21,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Error statistics retrieved successfully
  */
-router.get('/statistics', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getErrorStatistics)
+router.get('/statistics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getErrorStatistics)
 
 export default router;
 

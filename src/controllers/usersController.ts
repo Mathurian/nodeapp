@@ -46,10 +46,36 @@ export class UsersController {
   getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'users');
     try {
+      const authReq = req as AuthenticatedRequest;
       log.debug('Fetching all users');
-      const users = await this.userService.getAllUsersWithRelations();
-      log.info('Users retrieved successfully', { count: users.length });
-      sendSuccess(res, { data: users });
+
+      // SUPER_ADMIN can see all users across all tenants, others filtered by tenant
+      const isSuperAdmin = authReq.user?.role === 'SUPER_ADMIN';
+      const tenantId = authReq.tenantId || authReq.user?.tenantId || 'default_tenant';
+
+      const whereClause: any = {};
+      if (!isSuperAdmin) {
+        whereClause.tenantId = tenantId;
+      }
+
+      const users = await this.prisma.user.findMany({
+        where: whereClause,
+        include: {
+          judge: true,
+          contestant: true,
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+              slug: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      log.info('Users retrieved successfully', { count: users.length, isSuperAdmin });
+      sendSuccess(res, users);
     } catch (error) {
       log.error('Get users error', { error: (error as Error).message });
       return next(error);
@@ -74,7 +100,7 @@ export class UsersController {
       }
 
       log.debug('User retrieved successfully', { userId: id, email: user.email });
-      sendSuccess(res, { data: user });
+      sendSuccess(res, user);
     } catch (error) {
       log.error('Get user error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
@@ -434,6 +460,7 @@ export class UsersController {
     const log = createRequestLogger(req, 'users');
     try {
       const role = req.params['role']!;
+      const authReq = req as AuthenticatedRequest;
 
       const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
       if (!validRoles.includes(role)) {
@@ -441,8 +468,13 @@ export class UsersController {
         return;
       }
 
+      // Add tenant filtering
+      const tenantId = authReq.tenantId || authReq.user?.tenantId || 'default_tenant';
       const users = await this.prisma.user.findMany({
-        where: { role: role as Prisma.EnumUserRoleFilter },
+        where: {
+          role: role as Prisma.EnumUserRoleFilter,
+          tenantId: tenantId
+        },
         include: {
           judge: true,
           contestant: true

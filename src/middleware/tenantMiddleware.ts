@@ -74,21 +74,39 @@ export class TenantIdentifier {
   }
 
   /**
-   * Identify tenant from X-Tenant-ID header
+   * Identify tenant from X-Tenant-ID or X-Tenant-Slug header
    */
   static fromHeader(req: Request): string | null {
-    return req.get('X-Tenant-ID') || req.get('x-tenant-id') || null;
+    return req.get('X-Tenant-ID') || req.get('x-tenant-id') ||
+           req.get('X-Tenant-Slug') || req.get('x-tenant-slug') || null;
   }
 
   /**
    * Identify tenant from JWT token (if user is authenticated)
+   * This decodes the JWT directly from the cookie, without requiring req.user to be set
    */
   static fromToken(req: Request): string | null {
-    // Check if user is authenticated and has tenantId
+    // First check if user is already authenticated (req.user exists)
     if (req.user && 'tenantId' in req.user) {
       return (req.user as { tenantId: string }).tenantId;
     }
-    return null;
+
+    // If req.user doesn't exist yet, try to decode JWT token directly
+    // This allows tenant identification before auth middleware runs
+    try {
+      const token = req.cookies?.['access_token'];
+      if (!token) return null;
+
+      // Import jwt here to avoid circular dependencies
+      const jwt = require('jsonwebtoken');
+      const { jwtSecret } = require('../utils/config');
+
+      const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string };
+      return decoded.tenantId || null;
+    } catch (error) {
+      // Token invalid or expired - not an error, just means no tenant from token
+      return null;
+    }
   }
 
   /**
@@ -126,6 +144,7 @@ export async function tenantMiddleware(
       tenantIdOrSlug = TenantIdentifier.fromToken(req);
       if (tenantIdOrSlug) {
         identificationMethod = 'token';
+        logger.debug(`Tenant identified from JWT token: ${tenantIdOrSlug}`, { path: req.path });
       }
     }
 
@@ -164,6 +183,12 @@ export async function tenantMiddleware(
     if (!tenantIdOrSlug) {
       tenantIdOrSlug = 'default_tenant';
       identificationMethod = 'default';
+      logger.warn(`No tenant identified, falling back to default_tenant`, {
+        path: req.path,
+        hasCookie: !!req.cookies?.['access_token'],
+        hasUser: !!req.user,
+        host: req.get('host')
+      });
     }
 
     // Fetch tenant from database
@@ -217,12 +242,20 @@ export async function tenantMiddleware(
     };
 
     // Check if user is super admin (can bypass tenant isolation)
-    if (req.user && 'isSuperAdmin' in req.user && (req.user as { isSuperAdmin: boolean }).isSuperAdmin) {
-      req.isSuperAdmin = true;
+    // Only SUPER_ADMIN role can bypass tenant filtering, not regular ADMIN
+    if (req.user && 'role' in req.user) {
+      const userRole = String((req.user as { role: string }).role).trim().toUpperCase();
+      req.isSuperAdmin = (userRole === 'SUPER_ADMIN');
+    } else {
+      req.isSuperAdmin = false;
     }
 
-    // Log tenant identification (debug level)
-    logger.debug(`Tenant identified: ${tenant.slug} (${tenant.id}) via ${identificationMethod}`);
+    // Log tenant identification (info level for debugging)
+    logger.info(`Tenant identified: ${tenant.slug} (${tenant.id}) via ${identificationMethod}`, {
+      path: req.path,
+      method: req.method,
+      user: req.user ? (req.user as any).email : 'not authenticated yet'
+    });
 
     next();
   } catch (error) {
@@ -297,7 +330,9 @@ export function superAdminOnly(
     return;
   }
 
-  if (!('isSuperAdmin' in req.user && (req.user as { isSuperAdmin: boolean }).isSuperAdmin)) {
+  // Check if user has SUPER_ADMIN role
+  const userRole = String(req.user.role).trim().toUpperCase();
+  if (userRole !== 'SUPER_ADMIN') {
     res.status(403).json({
       error: 'Access denied',
       message: 'This action requires super admin privileges',

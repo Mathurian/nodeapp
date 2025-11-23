@@ -31,8 +31,8 @@ router.use(authenticateToken)
  *       201:
  *         description: File backup created successfully
  */
-router.post('/create', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('CREATE_FILE_BACKUP', 'BACKUP'), createFileBackup)
-router.get('/', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), listFileBackups)
+router.post('/create', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_FILE_BACKUP', 'BACKUP'), createFileBackup)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), listFileBackups)
 
 export default router;
 

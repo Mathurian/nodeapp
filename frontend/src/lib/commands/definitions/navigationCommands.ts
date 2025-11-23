@@ -27,7 +27,8 @@ import {
   ArchiveBoxIcon,
   ChartPieIcon,
   TableCellsIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  BeakerIcon
 } from '@heroicons/react/24/outline';
 
 export const createNavigationCommands = (navigate: (path: string) => void): Command[] => {
@@ -90,7 +91,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Core',
       priority: 80,
-      roles: ['ADMIN', 'ORGANIZER', 'JUDGE', 'AUDITOR', 'TALLY_MASTER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'AUDITOR', 'TALLY_MASTER']
     },
     {
       id: 'nav-results',
@@ -115,7 +116,19 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Management',
       priority: 70,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
+    },
+    {
+      id: 'nav-assignments',
+      name: 'Assignments',
+      description: 'Manage judge, contestant, tally master, and auditor assignments',
+      icon: UsersIcon,
+      action: () => navigate('/assignments'),
+      keywords: ['assignments', 'assign', 'judge', 'contestant', 'tally', 'auditor'],
+      category: 'navigation',
+      group: 'Management',
+      priority: 68,
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'nav-profile',
@@ -141,7 +154,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Admin',
       priority: 60,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-settings',
@@ -153,7 +166,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Admin',
       priority: 55,
-      roles: ['ADMIN', 'ORGANIZER'],
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'],
       shortcut: 'Cmd+,'
     },
 
@@ -168,7 +181,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Content',
       priority: 50,
-      roles: ['ADMIN', 'ORGANIZER', 'EMCEE']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'EMCEE']
     },
     {
       id: 'nav-templates',
@@ -180,7 +193,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Content',
       priority: 45,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'nav-reports',
@@ -240,7 +253,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Tools',
       priority: 20,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
 
     // Advanced Features
@@ -254,7 +267,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Advanced',
       priority: 15,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'nav-custom-fields',
@@ -266,7 +279,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Advanced',
       priority: 10,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-workflows',
@@ -278,7 +291,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Advanced',
       priority: 5,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'nav-event-templates',
@@ -290,7 +303,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Advanced',
       priority: 0,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'nav-category-types',
@@ -302,7 +315,19 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Advanced',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
+    },
+    {
+      id: 'nav-field-visibility',
+      name: 'Field Visibility',
+      description: 'Manage user field visibility settings',
+      icon: TableCellsIcon,
+      action: () => navigate('/field-visibility'),
+      keywords: ['field', 'visibility', 'user', 'profile', 'settings'],
+      category: 'navigation',
+      group: 'Advanced',
+      priority: 0,
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
 
     // System Administration
@@ -316,7 +341,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'System',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-mfa',
@@ -328,7 +353,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'System',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-database',
@@ -340,7 +365,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'System',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-cache',
@@ -352,7 +377,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'System',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-logs',
@@ -364,7 +389,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'System',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-performance',
@@ -376,7 +401,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'System',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
 
     // Data Management
@@ -390,7 +415,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Data',
       priority: 0,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
     },
     {
       id: 'nav-backup',
@@ -402,7 +427,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Data',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-disaster-recovery',
@@ -414,7 +439,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Data',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-data-wipe',
@@ -426,7 +451,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Data',
       priority: 0,
-      roles: ['ADMIN']
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
       id: 'nav-bulk-operations',
@@ -438,7 +463,19 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Data',
       priority: 0,
-      roles: ['ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
+    },
+    {
+      id: 'nav-test-event-setup',
+      name: 'Test Event Setup',
+      description: 'Generate test events with sample data',
+      icon: BeakerIcon,
+      action: () => navigate('/test-event-setup'),
+      keywords: ['test', 'demo', 'sample', 'generate', 'setup', 'event'],
+      category: 'navigation',
+      group: 'Data',
+      priority: 0,
+      roles: ['SUPER_ADMIN', 'ADMIN']
     },
 
     // Scoring & Judging
@@ -452,7 +489,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Scoring',
       priority: 0,
-      roles: ['ADMIN', 'ORGANIZER', 'JUDGE', 'AUDITOR']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'AUDITOR']
     },
     {
       id: 'nav-certifications',
@@ -464,7 +501,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Scoring',
       priority: 0,
-      roles: ['ADMIN', 'ORGANIZER', 'AUDITOR', 'TALLY_MASTER', 'BOARD']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'TALLY_MASTER', 'BOARD']
     }
   ];
 };

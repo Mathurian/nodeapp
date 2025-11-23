@@ -87,6 +87,48 @@ export class WorkflowService {
   }
 
   /**
+   * Update workflow template
+   */
+  static async updateTemplate(id: string, tenantId: string, data: Partial<WorkflowTemplateInput>): Promise<any> {
+    try {
+      await prisma.workflowTemplate.updateMany({
+        where: { id, tenantId },
+        data: {
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          isActive: data.isActive,
+          isDefault: data.isDefault
+        }
+      });
+
+      logger.info(`Updated workflow template: ${id}`);
+
+      // Return updated template
+      return await this.getTemplate(id, tenantId);
+    } catch (error) {
+      logger.error('Error updating workflow template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete workflow template
+   */
+  static async deleteTemplate(id: string, tenantId: string): Promise<void> {
+    try {
+      await prisma.workflowTemplate.deleteMany({
+        where: { id, tenantId }
+      });
+
+      logger.info(`Deleted workflow template: ${id}`);
+    } catch (error) {
+      logger.error('Error deleting workflow template:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Start workflow instance
    */
   static async startWorkflow(

@@ -42,7 +42,7 @@ export interface User {
   contestant?: Contestant;
 }
 
-export type UserRole = 'ADMIN' | 'ORGANIZER' | 'AUDITOR' | 'TALLY_MASTER' | 'BOARD' | 'JUDGE' | 'CONTESTANT' | 'EMCEE';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'AUDITOR' | 'TALLY_MASTER' | 'BOARD' | 'JUDGE' | 'CONTESTANT' | 'EMCEE';
 
 export interface Judge {
   id: string;

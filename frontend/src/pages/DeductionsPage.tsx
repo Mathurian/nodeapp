@@ -53,7 +53,8 @@ const DeductionsPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await scoringAPI.getDeductions()
-      setDeductions(response.data)
+      const unwrapped = response.data.data || response.data
+      setDeductions(Array.isArray(unwrapped) ? unwrapped : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load deductions')
     } finally {
@@ -107,7 +108,7 @@ const DeductionsPage: React.FC = () => {
 
   const filteredDeductions = deductions.filter(d => filter === 'ALL' || d.status === filter)
 
-  const canApprove = user?.role === 'ORGANIZER' || user?.role === 'TALLY_MASTER' || user?.role === 'BOARD'
+  const canApprove = user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'TALLY_MASTER' || user?.role === 'BOARD'
 
   if (loading) {
     return (
@@ -277,7 +278,7 @@ const DeductionsPage: React.FC = () => {
         {/* Approve Modal */}
         {showApproveModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
                 Approve Deduction
               </h3>
@@ -326,7 +327,7 @@ const DeductionsPage: React.FC = () => {
         {/* Reject Modal */}
         {showRejectModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
                 Reject Deduction
               </h3>

@@ -23,10 +23,10 @@ import {
 router.get('/', authenticateToken, getFieldVisibilitySettings)
 
 // Update field visibility
-router.put('/:field', authenticateToken, requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_FIELD_VISIBILITY', 'SETTINGS'), updateFieldVisibility)
+router.put('/:field', authenticateToken, requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_FIELD_VISIBILITY', 'SETTINGS'), updateFieldVisibility)
 
 // Reset field visibility to defaults
-router.post('/reset', authenticateToken, requireRole(['ADMIN']), logActivity('RESET_FIELD_VISIBILITY', 'SETTINGS'), resetFieldVisibility)
+router.post('/reset', authenticateToken, requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('RESET_FIELD_VISIBILITY', 'SETTINGS'), resetFieldVisibility)
 
 export default router;
 

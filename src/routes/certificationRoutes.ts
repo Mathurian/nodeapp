@@ -49,16 +49,16 @@ router.use(authenticateToken)
 router.get('/', getAllCertifications)
 router.get('/stats', getCertificationStats)
 router.get('/:id', getCertificationById)
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_CERTIFICATION', 'CERTIFICATION'), createCertification)
-router.put('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CERTIFICATION', 'CERTIFICATION'), updateCertification)
-router.delete('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CERTIFICATION', 'CERTIFICATION'), deleteCertification)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_CERTIFICATION', 'CERTIFICATION'), createCertification)
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CERTIFICATION', 'CERTIFICATION'), updateCertification)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CERTIFICATION', 'CERTIFICATION'), deleteCertification)
 
 // Workflow endpoints
-router.post('/:id/certify-judge', requireRole(['ADMIN', 'JUDGE']), logActivity('CERTIFY_JUDGE', 'CERTIFICATION'), certifyJudge)
-router.post('/:id/certify-tally', requireRole(['ADMIN', 'TALLY_MASTER']), logActivity('CERTIFY_TALLY', 'CERTIFICATION'), certifyTally)
-router.post('/:id/certify-auditor', requireRole(['ADMIN', 'AUDITOR']), logActivity('CERTIFY_AUDITOR', 'CERTIFICATION'), certifyAuditor)
-router.post('/:id/approve-board', requireRole(['ADMIN', 'BOARD']), logActivity('APPROVE_BOARD', 'CERTIFICATION'), approveBoard)
-router.post('/:id/reject', requireRole(['ADMIN', 'BOARD', 'AUDITOR']), logActivity('REJECT_CERTIFICATION', 'CERTIFICATION'), rejectCertification)
+router.post('/:id/certify-judge', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('CERTIFY_JUDGE', 'CERTIFICATION'), certifyJudge)
+router.post('/:id/certify-tally', requireRole(['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER']), logActivity('CERTIFY_TALLY', 'CERTIFICATION'), certifyTally)
+router.post('/:id/certify-auditor', requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR']), logActivity('CERTIFY_AUDITOR', 'CERTIFICATION'), certifyAuditor)
+router.post('/:id/approve-board', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD']), logActivity('APPROVE_BOARD', 'CERTIFICATION'), approveBoard)
+router.post('/:id/reject', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'AUDITOR']), logActivity('REJECT_CERTIFICATION', 'CERTIFICATION'), rejectCertification)
 
 export default router;
 

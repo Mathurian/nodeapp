@@ -256,7 +256,9 @@ class CommandRegistry {
    * Get recent commands
    */
   getRecent(limit?: number): Command[] {
-    const commands = this.recentCommands
+    // Ensure recentCommands is always an array
+    const recentArray = Array.isArray(this.recentCommands) ? this.recentCommands : [];
+    const commands = recentArray
       .map(id => this.commands.get(id))
       .filter((cmd): cmd is Command => cmd !== undefined && !cmd.disabled);
 
@@ -393,12 +395,14 @@ class CommandRegistry {
     try {
       const recent = localStorage.getItem(this.STORAGE_KEY_RECENT);
       if (recent) {
-        this.recentCommands = JSON.parse(recent);
+        const parsed = JSON.parse(recent);
+        this.recentCommands = Array.isArray(parsed) ? parsed : [];
       }
 
       const favorites = localStorage.getItem(this.STORAGE_KEY_FAVORITES);
       if (favorites) {
-        this.favoriteCommands = new Set(JSON.parse(favorites));
+        const parsed = JSON.parse(favorites);
+        this.favoriteCommands = new Set(Array.isArray(parsed) ? parsed : []);
       }
     } catch (error) {
       console.error('Failed to load command preferences:', error);

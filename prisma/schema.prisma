@@ -23,6 +23,9 @@ model Tenant {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
+  systemSettings     SystemSetting[]
+  users              User[]
+
   @@index([slug])
   @@index([domain])
   @@index([isActive])
@@ -48,10 +51,12 @@ model Event {
   lockVerifiedBy            String?
   tenantId                  String
 
-  contests        Contest[]
-  archivedEvents  ArchivedEvent[]
-  emceeScripts    EmceeScript[]
-  assignments     Assignment[]
+  contests               Contest[]
+  archivedEvents         ArchivedEvent[]
+  emceeScripts           EmceeScript[]
+  assignments            Assignment[]
+  tallyMasterAssignments TallyMasterAssignment[]
+  auditorAssignments     AuditorAssignment[]
 
   @@index([tenantId])
   @@index([tenantId, archived])
@@ -75,12 +80,14 @@ model Contest {
   lockVerifiedBy            String?
   tenantId                  String
 
-  event              Event                 @relation(fields: [eventId], references: [id])
-  categories         Category[]
-  emceeScripts       EmceeScript[]
-  assignments        Assignment[]
-  contestContestants ContestContestant[]
-  contestJudges      ContestJudge[]
+  event                  Event                     @relation(fields: [eventId], references: [id])
+  categories             Category[]
+  emceeScripts           EmceeScript[]
+  assignments            Assignment[]
+  contestContestants     ContestContestant[]
+  contestJudges          ContestJudge[]
+  tallyMasterAssignments TallyMasterAssignment[]
+  auditorAssignments     AuditorAssignment[]
 
   @@index([tenantId])
   @@index([eventId])
@@ -116,6 +123,8 @@ model Category {
   judgeScoreRemovalRequests     JudgeScoreRemovalRequest[]
   judgeUncertificationRequests  JudgeUncertificationRequest[]
   scoreRemovalRequests          ScoreRemovalRequest[]
+  tallyMasterAssignments        TallyMasterAssignment[]
+  auditorAssignments            AuditorAssignment[]
 
   @@index([tenantId])
   @@index([contestId])
@@ -284,12 +293,17 @@ model User {
 
   judge                                  Judge?                            @relation(fields: [judgeId], references: [id])
   contestant                             Contestant?                       @relation(fields: [contestantId], references: [id])
+  tenant                                 Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignedAssignments                    Assignment[]
   requestedJudgeUncertificationRequests  JudgeUncertificationRequest[]
   requestedScoreRemovalRequests          ScoreRemovalRequest[]
   activityLogs                           ActivityLog[]
   createdEventTemplates                  EventTemplate[]
   passwordHistories                      PasswordHistory[]
+  tallyMasterAssignments                 TallyMasterAssignment[]
+  auditorAssignments                     AuditorAssignment[]
+  tallyMasterAssignmentsAssignedBy       TallyMasterAssignment[]           @relation("TallyMasterAssignedBy")
+  auditorAssignmentsAssignedBy           AuditorAssignment[]               @relation("AuditorAssignedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -367,13 +381,19 @@ model ActivityLog {
 
 model SystemSetting {
   id          String   @id @default(cuid())
-  key         String   @unique
+  key         String
   value       String
   description String?
   category    String?
+  tenantId    String?  // NULL = global/platform default
   updatedAt   DateTime @updatedAt
   updatedBy   String?
 
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([key, tenantId]) // Unique per tenant (or global if null)
+  @@index([tenantId])
+  @@index([category])
   @@map("system_settings")
 }
 
@@ -1685,7 +1705,58 @@ model ErrorLog {
   @@map("error_logs")
 }
 
+model TallyMasterAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String?
+  contestId  String?
+  eventId    String
+  status     String   @default("ACTIVE")
+  assignedAt DateTime @default(now())
+  assignedBy String
+  notes      String?
+  tenantId   String
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id])
+  contest    Contest?  @relation(fields: [contestId], references: [id])
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedByUser User  @relation("TallyMasterAssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([tenantId, userId, categoryId])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([eventId])
+  @@map("tally_master_assignments")
+}
+
+model AuditorAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String?
+  contestId  String?
+  eventId    String
+  status     String   @default("ACTIVE")
+  assignedAt DateTime @default(now())
+  assignedBy String
+  notes      String?
+  tenantId   String
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id])
+  contest    Contest?  @relation(fields: [contestId], references: [id])
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedByUser User  @relation("AuditorAssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([tenantId, userId, categoryId])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([eventId])
+  @@map("auditor_assignments")
+}
+
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   ORGANIZER
   BOARD

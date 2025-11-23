@@ -40,11 +40,11 @@ router.get('/', getAllArchives)
  *       200:
  *         description: Event archived successfully
  */
-router.post('/event/:eventId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ARCHIVE_EVENT', 'EVENT'), archiveEvent)
-router.post('/event/:eventId/restore', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_EVENT', 'EVENT'), restoreEvent)
-router.post('/events/:eventId/restore', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_EVENT', 'EVENT'), restoreEvent)
-router.delete('/event/:eventId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_ARCHIVE', 'EVENT'), deleteArchivedItem)
-router.delete('/events/:eventId', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_ARCHIVE', 'EVENT'), deleteArchivedItem)
+router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ARCHIVE_EVENT', 'EVENT'), archiveEvent)
+router.post('/event/:eventId/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_EVENT', 'EVENT'), restoreEvent)
+router.post('/events/:eventId/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_EVENT', 'EVENT'), restoreEvent)
+router.delete('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_ARCHIVE', 'EVENT'), deleteArchivedItem)
+router.delete('/events/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_ARCHIVE', 'EVENT'), deleteArchivedItem)
 
 export default router;
 

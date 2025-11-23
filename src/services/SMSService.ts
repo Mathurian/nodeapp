@@ -60,15 +60,15 @@ export class SMSService extends BaseService {
 
     for (const setting of settings) {
       await this.prisma.systemSetting.upsert({
-        where: { key: setting.key },
+        where: { key_tenantId: { key: setting.key, tenantId: null as unknown as string } },
         update: {
           value: setting.value,
-          updatedAt: new Date(),
           updatedBy: userId
         },
         create: {
           key: setting.key,
           value: setting.value,
+          tenantId: null,
           category: setting.category,
           description: setting.description,
           updatedBy: userId

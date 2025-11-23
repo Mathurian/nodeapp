@@ -86,6 +86,21 @@ export class ContestRepository extends BaseRepository<Contest> {
   }
 
   /**
+   * Find all active contests (excluding archived contests and contests from archived events)
+   */
+  async findAllActive(): Promise<Contest[]> {
+    return this.findMany(
+      {
+        archived: false,
+        event: {
+          archived: false
+        }
+      },
+      { orderBy: { createdAt: 'desc' } }
+    );
+  }
+
+  /**
    * Find contest with full details
    */
   async findContestWithDetails(contestId: string): Promise<ContestWithRelations | null> {

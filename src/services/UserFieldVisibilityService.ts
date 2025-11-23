@@ -77,17 +77,19 @@ export class UserFieldVisibilityService extends BaseService {
 
     const value = JSON.stringify({ visible, required: required || false });
 
+    const key = `user_field_visibility_${field}`;
     await prisma.systemSetting.upsert({
       where: {
-        key: `user_field_visibility_${field}`,
+        key_tenantId: { key, tenantId: null as unknown as string },
       },
       update: {
         value: value,
         updatedBy: userId,
       },
       create: {
-        key: `user_field_visibility_${field}`,
+        key,
         value: value,
+        tenantId: null,
         description: `Visibility setting for user field: ${field}`,
         category: 'user_fields',
         updatedBy: userId,

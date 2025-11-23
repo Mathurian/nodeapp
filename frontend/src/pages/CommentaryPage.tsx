@@ -93,7 +93,7 @@ const CommentaryPage: React.FC = () => {
     }
   }
 
-  if (user?.role !== 'EMCEE' && user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN') {
+  if (user?.role !== 'EMCEE' && user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -180,7 +180,7 @@ const CommentaryPage: React.FC = () => {
                       </div>
                       <p className="text-gray-700 dark:text-gray-300 dark:text-gray-300">{entry.message}</p>
                     </div>
-                    {(user?.role === 'ADMIN' || user?.role === 'ORGANIZER') && (
+                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER') && (
                       <button
                         onClick={() => deleteEntry(entry.id)}
                         className="ml-4 p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"

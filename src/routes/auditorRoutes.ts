@@ -23,7 +23,7 @@ const router: Router = express.Router();
 
 // Apply authentication to all routes
 router.use(authenticateToken)
-router.use(requireRole(['ADMIN', 'AUDITOR', 'ORGANIZER', 'BOARD']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR', 'ORGANIZER', 'BOARD']))
 
 /**
  * @swagger

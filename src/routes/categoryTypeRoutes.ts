@@ -38,7 +38,7 @@ router.use(authenticateToken)
  *         description: Category type created successfully
  */
 router.get('/', getAllCategoryTypes)
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_CATEGORY_TYPE', 'CATEGORY_TYPE'), createCategoryType)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_CATEGORY_TYPE', 'CATEGORY_TYPE'), createCategoryType)
 
 export default router;
 

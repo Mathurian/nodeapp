@@ -79,8 +79,8 @@ const ScoringPage: React.FC = () => {
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Check if user is a judge
-  const isJudge = user?.role === 'JUDGE' || user?.role === 'ADMIN'
+  // Check if user can access scoring page (judges, admins, and tally masters for viewing)
+  const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'].includes(user?.role || '')
 
   // Fetch categories assigned to the judge
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>(
@@ -102,7 +102,9 @@ const ScoringPage: React.FC = () => {
       if (!selectedCategory) return []
       // Get contestants from the category API
       const response = await scoringAPI.getCategories()
-      const category = response.data.find((cat: any) => cat.id === selectedCategory.id)
+      // Backend returns { data: [...] }, ensure it's an array before calling .find()
+      const categories = Array.isArray(response.data) ? response.data : []
+      const category = categories.find((cat: any) => cat.id === selectedCategory.id)
       return category?.contestants || []
     },
     {

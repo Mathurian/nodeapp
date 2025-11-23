@@ -33,13 +33,13 @@ router.use(authenticateToken)
  *       200:
  *         description: Contestant scores certified successfully
  */
-router.post('/category/:categoryId/contestant/:contestantId/certify', requireRole(['ADMIN', 'JUDGE']), certifyContestantScores)
+router.post('/category/:categoryId/contestant/:contestantId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), certifyContestantScores)
 
 // Get certification status for a category
-router.get('/category/:categoryId/status', requireRole(['ADMIN', 'JUDGE']), getCategoryCertificationStatus)
+router.get('/category/:categoryId/status', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), getCategoryCertificationStatus)
 
 // Certify entire category (after all contestants certified)
-router.post('/category/:categoryId/certify', requireRole(['ADMIN', 'JUDGE']), certifyCategory)
+router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), certifyCategory)
 
 export default router;
 

@@ -70,13 +70,13 @@ router.get('/judges', getJudgeBios)
 
 // Update bios - restricted to ADMIN, ORGANIZER, BOARD
 router.put('/contestants/:contestantId', 
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), 
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
   bioImageUpload.single('image'),
   logActivity('UPDATE_CONTESTANT_BIO', 'BIO'), 
   updateContestantBio
 )
 router.put('/judges/:judgeId', 
-  requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), 
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
   bioImageUpload.single('image'),
   logActivity('UPDATE_JUDGE_BIO', 'BIO'), 
   updateJudgeBio

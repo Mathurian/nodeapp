@@ -6,12 +6,13 @@ import {
   flushCache,
   deleteCacheKey,
   deleteCachePattern,
-  getCacheStatus
+  getCacheStatus,
+  getCacheKeys
 } from '../controllers/cacheController';
 
 // All cache routes require authentication and ADMIN/ORGANIZER role
 router.use(authenticateToken)
-router.use(requireRole(['ADMIN', 'ORGANIZER']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']))
 
 /**
  * @swagger
@@ -40,6 +41,20 @@ router.get('/stats', getCacheStats)
  *         description: Cache status retrieved successfully
  */
 router.get('/status', getCacheStatus)
+
+/**
+ * @swagger
+ * /api/cache/keys:
+ *   get:
+ *     summary: Get all cache keys
+ *     tags: [Cache]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Cache keys retrieved successfully
+ */
+router.get('/keys', getCacheKeys)
 
 // Flush all cache
 router.post('/flush', flushCache)

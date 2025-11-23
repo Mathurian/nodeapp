@@ -46,7 +46,7 @@ router.use(authenticateToken)
  *         description: Template created successfully
  */
 router.get('/templates', getPrintTemplates)
-router.post('/templates', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_PRINT_TEMPLATE', 'TEMPLATE'), createPrintTemplate)
+router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_PRINT_TEMPLATE', 'TEMPLATE'), createPrintTemplate)
 
 // Print functionality
 router.post('/event-report', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('PRINT_EVENT_REPORT', 'PRINT'), printEventReport)

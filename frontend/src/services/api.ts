@@ -19,12 +19,21 @@ const publicApi = axios.create({
   withCredentials: true, // Enable cookies for public API as well
 })
 
-// Request interceptor (no longer needed for auth - cookies are sent automatically)
-// Keeping for future custom logic if needed
+// Request interceptor to add CSRF token for state-changing requests
 api.interceptors.request.use(
   (config) => {
     // Cookies with httpOnly are automatically sent with requests
-    // No need to manually add Authorization header
+    // Add CSRF token from cookie for POST, PUT, DELETE, PATCH requests
+    if (config.method && ['post', 'put', 'delete', 'patch'].includes(config.method.toLowerCase())) {
+      const csrfToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('_csrf='))
+        ?.split('=')[1]
+
+      if (csrfToken && config.headers) {
+        config.headers['X-CSRF-Token'] = csrfToken
+      }
+    }
     return config
   },
   (error) => {
@@ -35,14 +44,47 @@ api.interceptors.request.use(
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config
+
+    // Handle 401 - redirect to login
     if (error.response?.status === 401) {
       // Cookie expired or invalid - redirect to login
       // But ONLY if we're not already on the login page (prevent redirect loop)
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login'
       }
+      return Promise.reject(error)
     }
+
+    // Handle 403 CSRF errors - fetch new token and retry
+    if (error.response?.status === 403 &&
+        error.response?.data?.error?.includes('CSRF') &&
+        !originalRequest._retry) {
+      originalRequest._retry = true
+
+      try {
+        // Fetch a fresh CSRF token
+        await api.get('/csrf-token')
+
+        // Get the new token from cookie
+        const csrfToken = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('_csrf='))
+          ?.split('=')[1]
+
+        // Update the original request with the new token
+        if (csrfToken && originalRequest.headers) {
+          originalRequest.headers['X-CSRF-Token'] = csrfToken
+        }
+
+        // Retry the original request
+        return api(originalRequest)
+      } catch (retryError) {
+        return Promise.reject(retryError)
+      }
+    }
+
     return Promise.reject(error)
   }
 )
@@ -56,18 +98,7 @@ export const eventsAPI = {
 }
 
 export const contestsAPI = {
-  getAll: async (): Promise<{ data: any[] }> => {
-    // Get all events first, then get contests for each event
-    const events = await api.get<any[]>('/events')
-    const allContests: any[] = []
-    const eventsData = Array.isArray(events.data) ? events.data : []
-    for (const event of eventsData) {
-      const contests = await api.get<any[]>(`/contests/event/${event.id}`)
-      const contestsData = Array.isArray(contests.data) ? contests.data : []
-      allContests.push(...contestsData)
-    }
-    return { data: allContests }
-  },
+  getAll: () => api.get('/contests'),
   getByEvent: (eventId: string) => api.get(`/contests/event/${eventId}`),
   getById: (id: string) => api.get(`/contests/${id}`),
   create: (eventIdOrData: string | any, data?: any) => {
@@ -142,7 +173,15 @@ export const usersAPI = {
   create: (data: any) => api.post('/users', data),
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
   updateProfile: (id: string, data: any) => api.put(`/users/profile/${id}`, data),
+  uploadImage: (id: string, formData: FormData) => api.post(`/users/${id}/image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadBioFile: (id: string, formData: FormData) => api.post(`/users/${id}/bio-file`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   delete: (id: string) => api.delete(`/users/${id}`),
+  bulkDelete: (data: { userIds: string[]; forceDeleteAdmin?: boolean }) => api.post('/users/bulk-delete', data),
+  reassignTenant: (id: string, tenantId: string) => api.put(`/users/${id}/tenant`, { tenantId }),
   resetPassword: (id: string, data: any) => api.post(`/users/${id}/reset-password`, data),
   importCSV: (data: { csvData: any[], userType: string }) => api.post('/users/import-csv', data),
   getCSVTemplate: (userType: string) => api.get(`/users/csv-template?userType=${userType}`),
@@ -258,13 +297,19 @@ export const backupAPI = {
 
 export const settingsAPI = {
   getAll: () => api.get('/settings'),
-  getSettings: () => api.get('/settings'),
+  getSettings: () => api.get('/settings/general'),
   getPublicSettings: () => publicApi.get('/settings/public'),
-  getThemeSettings: () => publicApi.get('/settings/theme'),
+  getThemeSettings: (tenantId?: string, tenantSlug?: string) => {
+    if (tenantId) return api.get(`/settings/theme?tenantId=${tenantId}`);
+    if (tenantSlug) return publicApi.get(`/settings/theme?tenantSlug=${tenantSlug}`);
+    return publicApi.get('/settings/theme');
+  },
   getAppName: () => publicApi.get('/settings/app-name'),
   update: (data: Record<string, any>) => api.put('/settings', data),
   updateSettings: (data: any) => api.put('/settings', data),
   test: (type: 'email' | 'database' | 'backup') => api.post(`/settings/test/${type}`),
+  // General settings
+  getGeneralSettings: () => api.get('/settings/general'),
   // Logging settings
   getLoggingLevels: () => api.get('/settings/logging-levels'),
   updateLoggingLevel: (settings: any) => api.put('/settings/logging-levels', settings),
@@ -302,6 +347,8 @@ export const settingsAPI = {
   // Password policy
   getPasswordPolicy: () => publicApi.get('/settings/password-policy'),
   updatePasswordPolicy: (policy: any) => api.put('/settings/password-policy', policy),
+  // Database connection info
+  getDatabaseConnectionInfo: () => api.get('/settings/database-connection-info'),
 }
 
 export const assignmentsAPI = {

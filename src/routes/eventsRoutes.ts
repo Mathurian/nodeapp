@@ -91,9 +91,9 @@ router.get('/:id', getEventById);
  *       201:
  *         description: Event created successfully
  */
-router.post('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(createEventSchema), logActivity('CREATE_EVENT', 'EVENT'), createEvent);
-router.put('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), validate(updateEventSchema), logActivity('UPDATE_EVENT', 'EVENT'), updateEvent);
-router.delete('/:id', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT', 'EVENT'), deleteEvent);
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createEventSchema), logActivity('CREATE_EVENT', 'EVENT'), createEvent);
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateEventSchema), logActivity('UPDATE_EVENT', 'EVENT'), updateEvent);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT', 'EVENT'), deleteEvent);
 
 export default router;
 

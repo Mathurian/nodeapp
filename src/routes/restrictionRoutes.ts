@@ -17,7 +17,7 @@ router.use(authenticateToken);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/contestant-view', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('SET_CONTESTANT_VIEW_RESTRICTION', 'SETTING'), setContestantViewRestriction);
+router.post('/contestant-view', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('SET_CONTESTANT_VIEW_RESTRICTION', 'SETTING'), setContestantViewRestriction);
 
 /**
  * @swagger
@@ -39,7 +39,7 @@ router.get('/contestant-view/check', canContestantView);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/lock', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('LOCK_EVENT_CONTEST', 'EVENT'), lockEventContest);
+router.post('/lock', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('LOCK_EVENT_CONTEST', 'EVENT'), lockEventContest);
 
 /**
  * @swagger

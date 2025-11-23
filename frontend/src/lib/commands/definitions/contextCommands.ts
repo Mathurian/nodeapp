@@ -58,7 +58,7 @@ export const createContextCommands = (options: {
         group: 'Event Actions',
         priority: 100,
         context: ['events'],
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'ctx-event-view-details',
@@ -83,7 +83,7 @@ export const createContextCommands = (options: {
         group: 'Event Actions',
         priority: 90,
         context: ['events'],
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'ctx-event-assign-judges',
@@ -96,7 +96,7 @@ export const createContextCommands = (options: {
         group: 'Event Actions',
         priority: 85,
         context: ['events'],
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'ctx-event-schedule',
@@ -109,7 +109,7 @@ export const createContextCommands = (options: {
         group: 'Event Actions',
         priority: 80,
         context: ['events'],
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       }
     );
   }
@@ -154,7 +154,7 @@ export const createContextCommands = (options: {
         group: 'Scoring Actions',
         priority: 90,
         context: ['scoring'],
-        roles: ['ADMIN', 'TALLY_MASTER', 'AUDITOR']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'AUDITOR']
       },
       {
         id: 'ctx-score-summary',
@@ -183,7 +183,7 @@ export const createContextCommands = (options: {
         group: 'Scoring Actions',
         priority: 80,
         context: ['scoring'],
-        roles: ['ADMIN', 'TALLY_MASTER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER']
       }
     );
   }
@@ -202,7 +202,7 @@ export const createContextCommands = (options: {
         group: 'User Actions',
         priority: 100,
         context: ['users'],
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'ctx-user-reset-password',
@@ -219,7 +219,7 @@ export const createContextCommands = (options: {
         group: 'User Actions',
         priority: 95,
         context: ['users'],
-        roles: ['ADMIN']
+        roles: ['SUPER_ADMIN', 'ADMIN']
       },
       {
         id: 'ctx-user-toggle-status',
@@ -232,7 +232,7 @@ export const createContextCommands = (options: {
         group: 'User Actions',
         priority: 90,
         context: ['users'],
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'ctx-user-view-history',
@@ -245,7 +245,7 @@ export const createContextCommands = (options: {
         group: 'User Actions',
         priority: 85,
         context: ['users'],
-        roles: ['ADMIN']
+        roles: ['SUPER_ADMIN', 'ADMIN']
       }
     );
   }
@@ -318,7 +318,7 @@ export const createContextCommands = (options: {
         group: 'Admin Tools',
         priority: 100,
         context: ['admin'],
-        roles: ['ADMIN']
+        roles: ['SUPER_ADMIN', 'ADMIN']
       },
       {
         id: 'ctx-admin-system-settings',
@@ -331,7 +331,7 @@ export const createContextCommands = (options: {
         group: 'Admin Tools',
         priority: 95,
         context: ['admin'],
-        roles: ['ADMIN']
+        roles: ['SUPER_ADMIN', 'ADMIN']
       },
       {
         id: 'ctx-admin-send-notification',
@@ -344,7 +344,7 @@ export const createContextCommands = (options: {
         group: 'Admin Tools',
         priority: 90,
         context: ['admin'],
-        roles: ['ADMIN']
+        roles: ['SUPER_ADMIN', 'ADMIN']
       }
     );
   }

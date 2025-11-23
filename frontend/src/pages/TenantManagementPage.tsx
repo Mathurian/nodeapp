@@ -17,6 +17,12 @@ interface Tenant {
   domain?: string
   isActive: boolean
   settings: Record<string, any>
+  maxUsers?: number | null
+  maxEvents?: number | null
+  maxStorage?: number | null
+  planType: string
+  subscriptionStatus: string
+  subscriptionEndsAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +39,14 @@ const TenantManagementPage: React.FC = () => {
     slug: '',
     domain: '',
     isActive: true,
+    adminName: '',
+    adminEmail: '',
+    adminPassword: '',
+    maxUsers: '' as string | number,
+    maxEvents: '' as string | number,
+    maxStorage: '' as string | number,
+    planType: 'free',
+    subscriptionStatus: 'active',
   })
 
   useEffect(() => {
@@ -42,8 +56,10 @@ const TenantManagementPage: React.FC = () => {
   const fetchTenants = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/tenant')
-      setTenants(response.data)
+      const response = await api.get('/tenants')
+      // Backend returns { tenants: [...], total, skip, take }
+      const tenantsData = response.data.tenants || []
+      setTenants(Array.isArray(tenantsData) ? tenantsData : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load tenants')
     } finally {
@@ -53,7 +69,7 @@ const TenantManagementPage: React.FC = () => {
 
   const createTenant = async () => {
     try {
-      await api.post('/tenant', formData)
+      await api.post('/tenants', formData)
       setShowModal(false)
       resetForm()
       await fetchTenants()
@@ -65,7 +81,7 @@ const TenantManagementPage: React.FC = () => {
   const updateTenant = async () => {
     if (!editingTenant) return
     try {
-      await api.put(`/tenant/${editingTenant.id}`, formData)
+      await api.put(`/tenants/${editingTenant.id}`, formData)
       setEditingTenant(null)
       resetForm()
       await fetchTenants()
@@ -76,7 +92,7 @@ const TenantManagementPage: React.FC = () => {
 
   const toggleTenant = async (id: string, isActive: boolean) => {
     try {
-      await api.put(`/tenant/${id}`, { isActive: !isActive })
+      await api.put(`/tenants/${id}`, { isActive: !isActive })
       await fetchTenants()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to toggle tenant')
@@ -89,6 +105,14 @@ const TenantManagementPage: React.FC = () => {
       slug: '',
       domain: '',
       isActive: true,
+      adminName: '',
+      adminEmail: '',
+      adminPassword: '',
+      maxUsers: '',
+      maxEvents: '',
+      maxStorage: '',
+      planType: 'free',
+      subscriptionStatus: 'active',
     })
   }
 
@@ -99,11 +123,19 @@ const TenantManagementPage: React.FC = () => {
       slug: tenant.slug,
       domain: tenant.domain || '',
       isActive: tenant.isActive,
+      adminName: '', // Not used when editing
+      adminEmail: '', // Not used when editing
+      adminPassword: '', // Not used when editing
+      maxUsers: tenant.maxUsers ?? '',
+      maxEvents: tenant.maxEvents ?? '',
+      maxStorage: tenant.maxStorage ?? '',
+      planType: tenant.planType || 'free',
+      subscriptionStatus: tenant.subscriptionStatus || 'active',
     })
     setShowModal(true)
   }
 
-  if (user?.role !== 'ADMIN') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -223,8 +255,8 @@ const TenantManagementPage: React.FC = () => {
         {/* Create/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 {editingTenant ? 'Edit Tenant' : 'Create Tenant'}
               </h3>
               <div className="space-y-4">
@@ -266,6 +298,59 @@ const TenantManagementPage: React.FC = () => {
                   />
                 </div>
 
+                {/* Admin user fields - only show when creating new tenant */}
+                {!editingTenant && (
+                  <>
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                        Admin User Details
+                      </h4>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Admin Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.adminName}
+                        onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
+                        placeholder="Admin User"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Admin Email
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.adminEmail}
+                        onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
+                        placeholder="admin@example.com"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Admin Password
+                      </label>
+                      <input
+                        type="password"
+                        value={formData.adminPassword}
+                        onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                        placeholder="Secure password"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div>
                   <label className="flex items-center gap-2">
                     <input
@@ -278,6 +363,91 @@ const TenantManagementPage: React.FC = () => {
                       Active
                     </span>
                   </label>
+                </div>
+
+                {/* Plan & Limits Section */}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                    Plan & Limits
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Plan Type
+                    </label>
+                    <select
+                      value={formData.planType}
+                      onChange={(e) => setFormData({ ...formData, planType: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="free">Free</option>
+                      <option value="basic">Basic</option>
+                      <option value="professional">Professional</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Subscription Status
+                    </label>
+                    <select
+                      value={formData.subscriptionStatus}
+                      onChange={(e) => setFormData({ ...formData, subscriptionStatus: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="active">Active</option>
+                      <option value="trial">Trial</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Max Users
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.maxUsers}
+                      onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value ? parseInt(e.target.value) : '' })}
+                      placeholder="Unlimited"
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Max Events
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.maxEvents}
+                      onChange={(e) => setFormData({ ...formData, maxEvents: e.target.value ? parseInt(e.target.value) : '' })}
+                      placeholder="Unlimited"
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Max Storage (MB)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.maxStorage}
+                      onChange={(e) => setFormData({ ...formData, maxStorage: e.target.value ? parseInt(e.target.value) : '' })}
+                      placeholder="Unlimited"
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 mt-6">

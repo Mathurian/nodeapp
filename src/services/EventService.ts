@@ -53,6 +53,7 @@ interface EventFilters {
   startDate?: Date;
   endDate?: Date;
   search?: string;
+  tenantId?: string;
 }
 
 @injectable()
@@ -212,6 +213,11 @@ export class EventService extends BaseService {
         events = await this.eventRepo.searchEvents(filters.search);
       } else {
         events = await this.eventRepo.findAll();
+      }
+
+      // CRITICAL: Filter by tenantId if provided (tenant isolation)
+      if (filters?.tenantId) {
+        events = events.filter(event => event.tenantId === filters.tenantId);
       }
 
       // Cache for 5 minutes

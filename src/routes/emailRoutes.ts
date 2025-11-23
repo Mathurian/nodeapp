@@ -35,7 +35,7 @@ router.use(authenticateToken)
  *         description: Template created successfully
  */
 router.get('/templates', getTemplates)
-router.post('/templates', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EMAIL_TEMPLATE', 'EMAIL'), createTemplate)
+router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EMAIL_TEMPLATE', 'EMAIL'), createTemplate)
 
 /**
  * @swagger
@@ -64,14 +64,14 @@ router.post('/templates', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActiv
  *         description: Campaign created successfully
  */
 router.get('/campaigns', getCampaigns)
-router.post('/campaigns', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EMAIL_CAMPAIGN', 'EMAIL'), createCampaign)
+router.post('/campaigns', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EMAIL_CAMPAIGN', 'EMAIL'), createCampaign)
 
 // Multiple recipient email endpoints
-router.post('/send-multiple', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('SEND_MULTIPLE_EMAILS', 'EMAIL'), sendMultipleEmails)
-router.post('/send-by-role', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('SEND_EMAIL_BY_ROLE', 'EMAIL'), sendEmailByRole)
+router.post('/send-multiple', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('SEND_MULTIPLE_EMAILS', 'EMAIL'), sendMultipleEmails)
+router.post('/send-by-role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('SEND_EMAIL_BY_ROLE', 'EMAIL'), sendEmailByRole)
 
 // Email logs endpoint
-router.get('/logs', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getLogs)
+router.get('/logs', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getLogs)
 
 export default router;
 

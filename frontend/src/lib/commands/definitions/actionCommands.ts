@@ -41,7 +41,7 @@ export const createActionCommands = (options: {
         group: 'Create',
         priority: 50,
         shortcut: 'Cmd+Shift+E',
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'action-create-contest',
@@ -54,7 +54,7 @@ export const createActionCommands = (options: {
         group: 'Create',
         priority: 45,
         shortcut: 'Cmd+Shift+C',
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'action-create-category',
@@ -66,7 +66,7 @@ export const createActionCommands = (options: {
         category: 'action',
         group: 'Create',
         priority: 40,
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'action-create-user',
@@ -79,7 +79,7 @@ export const createActionCommands = (options: {
         group: 'Create',
         priority: 35,
         shortcut: 'Cmd+Shift+U',
-        roles: ['ADMIN', 'ORGANIZER']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       },
       {
         id: 'action-create-report',
@@ -189,7 +189,7 @@ export const createActionCommands = (options: {
         category: 'action',
         group: 'Export',
         priority: 10,
-        roles: ['ADMIN', 'ORGANIZER', 'AUDITOR']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR']
       },
       {
         id: 'action-print-results',

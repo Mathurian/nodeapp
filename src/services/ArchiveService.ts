@@ -198,7 +198,19 @@ export class ArchiveService extends BaseService {
   /**
    * Restore an event
    */
-  async restoreEvent(eventId: string) {
+  async restoreEvent(eventId: string, tenantId?: string) {
+    // Verify event exists and belongs to tenant
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        ...(tenantId && { tenantId }),
+      },
+    });
+
+    if (!event) {
+      throw new Error('Event not found or access denied');
+    }
+
     await this.prisma.event.update({
       where: { id: eventId },
       data: { archived: false },

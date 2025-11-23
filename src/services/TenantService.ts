@@ -30,12 +30,13 @@ export interface UpdateTenantInput {
   name?: string;
   slug?: string;
   domain?: string;
-  planType?: 'free' | 'pro' | 'enterprise';
-  subscriptionStatus?: 'active' | 'trial' | 'suspended' | 'cancelled';
+  isActive?: boolean;
+  planType?: string; // free, basic, professional, enterprise
+  subscriptionStatus?: string; // active, trial, suspended, cancelled
   subscriptionEndsAt?: Date;
-  maxUsers?: number;
-  maxEvents?: number;
-  maxStorage?: bigint;
+  maxUsers?: number | null;
+  maxEvents?: number | null;
+  maxStorage?: bigint | number | null;
   settings?: any;
 }
 

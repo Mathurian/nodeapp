@@ -27,7 +27,7 @@ router.use(authenticateToken);
  *         description: Certification status retrieved successfully
  */
 // Alias route for backward compatibility and admin access
-router.get('/category/:categoryId/status', requireRole(['ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getCategoryCertificationStatus);
+router.get('/category/:categoryId/status', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getCategoryCertificationStatus);
 
 export default router;
 

@@ -12,6 +12,7 @@ import {
   getJWTConfig,
   getLoggingLevels,
   updateLoggingLevel,
+  getGeneralSettings,
   getSecuritySettings,
   updateSecuritySettings,
   getBackupSettings,
@@ -28,7 +29,7 @@ import {
   updateContestantVisibilitySettings,
   getDatabaseConnectionInfo
 } from '../controllers/settingsController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
 
@@ -107,7 +108,7 @@ router.get('/public', getPublicSettings)
  *       200:
  *         description: Theme settings retrieved
  */
-router.get('/theme', getThemeSettings) // Public - theme settings needed for login page styling
+router.get('/theme', optionalAuth, getThemeSettings) // Public with optional auth - uses tenant context when logged in
 
 // Protected routes (require authentication)
 router.use(authenticateToken)
@@ -138,45 +139,48 @@ router.use(authenticateToken)
  *       200:
  *         description: Settings updated successfully
  */
-router.get('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getAllSettings)
-router.get('/settings', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getSettings)
-router.put('/', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
-router.put('/settings', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
-router.post('/test/:type', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), testSettings)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getAllSettings)
+router.get('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSettings)
+router.put('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
+router.put('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
+router.post('/test/:type', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), testSettings)
 
 // Logging settings
-router.get('/logging-levels', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getLoggingLevels)
-router.put('/logging-levels', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_LOGGING_LEVEL', 'SETTINGS'), updateLoggingLevel)
+router.get('/logging-levels', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getLoggingLevels)
+router.put('/logging-levels', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_LOGGING_LEVEL', 'SETTINGS'), updateLoggingLevel)
+
+// General settings
+router.get('/general', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getGeneralSettings)
 
 // Security settings
-router.get('/security', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getSecuritySettings)
-router.put('/security', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SECURITY_SETTINGS', 'SETTINGS'), updateSecuritySettings)
+router.get('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSecuritySettings)
+router.put('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SECURITY_SETTINGS', 'SETTINGS'), updateSecuritySettings)
 
 // Backup settings
-router.get('/backup', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getBackupSettings)
-router.put('/backup', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_BACKUP_SETTINGS', 'SETTINGS'), updateBackupSettings)
+router.get('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getBackupSettings)
+router.put('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_BACKUP_SETTINGS', 'SETTINGS'), updateBackupSettings)
 
 // Email settings
-router.get('/email', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getEmailSettings)
-router.put('/email', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EMAIL_SETTINGS', 'SETTINGS'), updateEmailSettings)
+router.get('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getEmailSettings)
+router.put('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EMAIL_SETTINGS', 'SETTINGS'), updateEmailSettings)
 
 // Password policy (update requires auth)
-router.put('/password-policy', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_PASSWORD_POLICY', 'SETTINGS'), updatePasswordPolicy)
+router.put('/password-policy', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_PASSWORD_POLICY', 'SETTINGS'), updatePasswordPolicy)
 
 // JWT configuration routes
-router.get('/jwt-config', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), getJWTConfig)
-router.put('/jwt-config', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('UPDATE_JWT_CONFIG', 'SETTINGS'), updateJWTConfig)
+router.get('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getJWTConfig)
+router.put('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_JWT_CONFIG', 'SETTINGS'), updateJWTConfig)
 
 // Theme configuration routes - GET is public (for login page), PUT requires auth
-router.put('/theme', requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), logActivity('UPDATE_THEME_SETTINGS', 'SETTINGS'), updateThemeSettings)
+router.put('/theme', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_THEME_SETTINGS', 'SETTINGS'), updateThemeSettings)
 router.post('/theme/logo', 
-  requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), 
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
   themeUpload.single('logo'),
   logActivity('UPLOAD_THEME_LOGO', 'SETTINGS'), 
   uploadThemeLogo
 )
 router.post('/theme/favicon', 
-  requireRole(['ORGANIZER', 'BOARD', 'ADMIN']), 
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
   themeUpload.single('favicon'),
   logActivity('UPLOAD_THEME_FAVICON', 'SETTINGS'), 
   uploadThemeFavicon
@@ -185,13 +189,13 @@ router.post('/theme/favicon',
 // Contestant visibility settings
 // Allow contestants to read, but only ADMIN/ORGANIZER can update
 router.get('/contestant-visibility', getContestantVisibilitySettings)
-router.put('/contestant-visibility', requireRole(['ADMIN', 'ORGANIZER']), logActivity('UPDATE_CONTESTANT_VISIBILITY_SETTINGS', 'SETTINGS'), updateContestantVisibilitySettings)
+router.put('/contestant-visibility', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_CONTESTANT_VISIBILITY_SETTINGS', 'SETTINGS'), updateContestantVisibilitySettings)
 
 // Database connection info (read-only, masked)
-router.get('/database-connection-info', requireRole(['ADMIN', 'ORGANIZER', 'BOARD']), getDatabaseConnectionInfo)
+router.get('/database-connection-info', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getDatabaseConnectionInfo)
 
 // Field configuration routes (for user field visibility settings)
-router.get('/field-configurations', requireRole(['ADMIN', 'ORGANIZER']), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
@@ -213,7 +217,7 @@ router.get('/field-configurations', requireRole(['ADMIN', 'ORGANIZER']), async (
   }
 });
 
-router.get('/field-configurations/:fieldName', requireRole(['ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
@@ -245,7 +249,7 @@ router.get('/field-configurations/:fieldName', requireRole(['ADMIN', 'ORGANIZER'
   }
 });
 
-router.put('/field-configurations/:fieldName', requireRole(['ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
@@ -290,7 +294,7 @@ router.put('/field-configurations/:fieldName', requireRole(['ADMIN', 'ORGANIZER'
   }
 });
 
-router.put('/field-configurations/bulk', requireRole(['ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATIONS_BULK', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATIONS_BULK', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
@@ -338,7 +342,7 @@ router.put('/field-configurations/bulk', requireRole(['ADMIN', 'ORGANIZER']), lo
   }
 });
 
-router.post('/field-configurations/reset', requireRole(['ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();

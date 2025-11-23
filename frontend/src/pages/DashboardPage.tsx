@@ -244,7 +244,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Statistics */}
-        {(user?.role === 'ORGANIZER' || user?.role === 'ADMIN' || user?.role === 'BOARD') && (
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'ADMIN' || user?.role === 'BOARD') && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               System Overview
@@ -295,7 +295,7 @@ const DashboardPage: React.FC = () => {
         )}
 
         {/* Recent Activity */}
-        {(user?.role === 'ORGANIZER' || user?.role === 'ADMIN' || user?.role === 'BOARD') && (
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'ADMIN' || user?.role === 'BOARD') && (
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Recent Activity

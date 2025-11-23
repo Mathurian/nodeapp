@@ -45,7 +45,15 @@ const DatabaseBrowserPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get('/database-browser/tables')
-      setTables(response.data)
+      // Backend returns { success: true, data: string[], ... }
+      // Unwrap the response to get the actual array of table names
+      const unwrapped = response.data.data || response.data
+      const tableNames = Array.isArray(unwrapped) ? unwrapped : []
+      const transformedTables: Table[] = tableNames.map((name: string) => ({
+        name,
+        rowCount: 0 // Will be populated when table is selected
+      }))
+      setTables(transformedTables)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load tables')
     } finally {
@@ -59,11 +67,32 @@ const DatabaseBrowserPage: React.FC = () => {
       const response = await api.get(`/database-browser/tables/${selectedTable}`, {
         params: {
           page,
-          pageSize,
+          limit: pageSize,
           search: searchTerm || undefined,
         },
       })
-      setTableData(response.data)
+      // Backend returns { success: true, data: { table, data, pagination }, ... }
+      // Unwrap the response to get the actual data object
+      const unwrapped = response.data.data || response.data
+      const backendData = unwrapped || {}
+      const rows = Array.isArray(backendData.data) ? backendData.data : []
+      const columns = rows.length > 0 ? Object.keys(rows[0]) : []
+      const totalRows = backendData.pagination?.total || rows.length
+
+      setTableData({
+        columns,
+        rows,
+        totalRows
+      })
+
+      // Update the table's row count in the tables list
+      setTables(prevTables =>
+        prevTables.map(t =>
+          t.name === selectedTable
+            ? { ...t, rowCount: totalRows }
+            : t
+        )
+      )
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load table data')
     } finally {
@@ -73,7 +102,7 @@ const DatabaseBrowserPage: React.FC = () => {
 
   const totalPages = tableData ? Math.ceil(tableData.totalRows / pageSize) : 0
 
-  if (user?.role !== 'ADMIN') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -125,33 +154,39 @@ const DatabaseBrowserPage: React.FC = () => {
                 </h2>
               </div>
               <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[calc(100vh-300px)] overflow-y-auto">
-                {tables.map((table) => (
-                  <button
-                    key={table.name}
-                    onClick={() => {
-                      setSelectedTable(table.name)
-                      setPage(1)
-                      setSearchTerm('')
-                    }}
-                    className={`w-full text-left px-4 py-3 transition-colors ${
-                      selectedTable === table.name
-                        ? 'bg-blue-50 dark:bg-blue-900'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <TableCellsIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white dark:text-white truncate">
-                          {table.name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                          {table.rowCount.toLocaleString()} rows
-                        </p>
+                {Array.isArray(tables) && tables.length > 0 ? (
+                  tables.map((table) => (
+                    <button
+                      key={table.name}
+                      onClick={() => {
+                        setSelectedTable(table.name)
+                        setPage(1)
+                        setSearchTerm('')
+                      }}
+                      className={`w-full text-left px-4 py-3 transition-colors ${
+                        selectedTable === table.name
+                          ? 'bg-blue-50 dark:bg-blue-900'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <TableCellsIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white dark:text-white truncate">
+                            {table.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                            {table.rowCount.toLocaleString()} rows
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                    No tables found
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -194,7 +229,7 @@ const DatabaseBrowserPage: React.FC = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                           <tr>
-                            {tableData.columns.map((column) => (
+                            {Array.isArray(tableData.columns) && tableData.columns.map((column) => (
                               <th
                                 key={column}
                                 className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap"
@@ -205,7 +240,7 @@ const DatabaseBrowserPage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {tableData.rows.map((row, rowIndex) => (
+                          {Array.isArray(tableData.rows) && Array.isArray(tableData.columns) && tableData.rows.map((row, rowIndex) => (
                             <tr key={rowIndex} className="hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700">
                               {tableData.columns.map((column) => (
                                 <td

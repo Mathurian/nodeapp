@@ -248,7 +248,7 @@ All requests must include tenant context. This can be provided via:
             },
             role: {
               type: 'string',
-              enum: ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'],
+              enum: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'],
               example: 'JUDGE',
             },
             isActive: {

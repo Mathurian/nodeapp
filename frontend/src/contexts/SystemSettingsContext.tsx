@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import api from '../services/api'
+import { useLocation } from 'react-router-dom'
+import api, { settingsAPI } from '../services/api'
 
 interface SystemSettings {
+  // App settings
+  app_name?: string
+  app_subtitle?: string
+
   // Theme settings
   theme_primaryColor?: string
   theme_secondaryColor?: string
@@ -59,21 +64,53 @@ interface SystemSettingsProviderProps {
 }
 
 export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ children }) => {
+  const location = useLocation()
   const [settings, setSettings] = useState<SystemSettings>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Extract tenant slug from URL (same logic as TenantContext)
+  const getTenantSlug = (): string => {
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    const firstSegment = pathParts[0]
+
+    // Known routes that are not tenant slugs
+    const knownRoutes = new Set([
+      'login', 'dashboard', 'events', 'contests', 'categories',
+      'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
+      'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
+      'workflows', 'search', 'files', 'email-templates', 'custom-fields',
+      'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
+      'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
+      'bulk-operations', 'commentary', 'category-types', 'field-visibility',
+      'test-event-setup', 'help', 'bios', 'assignments'
+    ])
+
+    // If first segment is a known route, use default tenant
+    if (!firstSegment || knownRoutes.has(firstSegment)) {
+      return 'default'
+    }
+
+    return firstSegment
+  }
 
   const fetchSettings = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      // Fetch theme settings from public endpoint (no auth required)
-      const response = await api.get('/settings/theme')
+      const slug = getTenantSlug()
 
-      if (response.data && response.data.settings) {
-        setSettings(response.data.settings)
-        applyThemeSettings(response.data.settings)
+      // Fetch theme settings from public endpoint (no auth required)
+      // Pass tenant slug to get tenant-specific theme settings
+      const response = await settingsAPI.getThemeSettings(undefined, slug)
+
+      // Handle response format: { success: true, data: { theme_primaryColor: '...', app_name: '...' } }
+      const themeData = response.data?.data || response.data?.settings || response.data
+
+      if (themeData) {
+        setSettings(themeData)
+        applyThemeSettings(themeData)
       }
     } catch (err: any) {
       console.error('Failed to load system settings:', err)
@@ -85,6 +122,11 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
   const applyThemeSettings = (themeSettings: SystemSettings) => {
     const root = document.documentElement
+
+    // Set document title
+    if (themeSettings.app_name) {
+      document.title = themeSettings.app_name
+    }
 
     // Apply CSS custom properties
     if (themeSettings.theme_primaryColor) {
@@ -152,7 +194,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
   useEffect(() => {
     fetchSettings()
-  }, [])
+  }, [location.pathname]) // Re-fetch settings when URL changes (tenant slug may have changed)
 
   const value = {
     settings,

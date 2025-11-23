@@ -8,7 +8,7 @@ const router: Router = express.Router();
 router.use(authenticateToken)
 
 // Apply role-based access control - all authenticated users with appropriate roles can access results
-router.use(requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'CONTESTANT', 'EMCEE']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'CONTESTANT', 'EMCEE']))
 
 /**
  * @swagger

@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { createTestEvent } from '../controllers/testEventSetupController';
+import { createTestEvent, deleteTestEvent } from '../controllers/testEventSetupController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 
@@ -17,7 +17,18 @@ router.use(authenticateToken);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', requireRole(['ADMIN']), logActivity('CREATE_TEST_EVENT', 'EVENT'), createTestEvent);
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('CREATE_TEST_EVENT', 'EVENT'), createTestEvent);
+
+/**
+ * @swagger
+ * /api/test-event-setup/:eventId:
+ *   delete:
+ *     summary: Delete a test event and optionally its tenant (ADMIN ONLY)
+ *     tags: [Test Event Setup]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete('/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('DELETE_TEST_EVENT', 'EVENT'), deleteTestEvent);
 
 export default router;
 

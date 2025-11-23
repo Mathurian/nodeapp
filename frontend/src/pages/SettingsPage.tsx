@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
+import api from '../services/api'
 import {
   Cog6ToothIcon,
   CheckIcon,
@@ -19,6 +20,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   PhotoIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline'
 
 interface GeneralSettings {
@@ -76,6 +78,16 @@ interface PasswordPolicy {
   password_policy_requireSpecialChars: string
 }
 
+interface DatabaseConnectionInfo {
+  configured: string
+  source: string
+  host: string
+  port: string
+  database: string
+  user: string
+  password: string
+}
+
 const SettingsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -86,6 +98,37 @@ const SettingsPage: React.FC = () => {
   const [expandedSections, setExpandedSections] = useState<string[]>(['general'])
   const [isEditing, setIsEditing] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Tenant-aware settings state (SUPER_ADMIN only)
+  const [editingGlobal, setEditingGlobal] = useState(false)
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+
+  // Fetch tenants list for SUPER_ADMIN
+  const { data: tenants = [] } = useQuery<Array<{ id: string; name: string; slug: string }>>(
+    'tenants-list',
+    async () => {
+      const response = await api.get('/tenants')
+      const data = response.data
+      const tenantsArray = data.tenants || data.data || data
+      return Array.isArray(tenantsArray) ? tenantsArray : []
+    },
+    {
+      enabled: isSuperAdmin,
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    }
+  )
+
+  // Helper to get query param for tenant-aware API calls
+  const getSettingsParam = () => {
+    if (!isSuperAdmin) return ''
+    if (editingGlobal) return '?global=true'
+    if (selectedTenantId) return `?tenantId=${selectedTenantId}`
+    return ''
+  }
+
+  // Legacy alias for backward compatibility
+  const getGlobalParam = getSettingsParam
 
   // Form state for different setting categories
   const [generalFormData, setGeneralFormData] = useState<GeneralSettings>({
@@ -143,13 +186,35 @@ const SettingsPage: React.FC = () => {
     password_policy_requireSpecialChars: 'true',
   })
 
-  const isAdmin = user?.role === 'ADMIN'
+  const [databaseConnectionInfo, setDatabaseConnectionInfo] = useState<DatabaseConnectionInfo>({
+    configured: 'false',
+    source: 'environment',
+    host: '',
+    port: '5432',
+    database: '',
+    user: '',
+    password: '',
+  })
+
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
+
+  // Refetch settings when global/tenant mode or selected tenant changes
+  useEffect(() => {
+    if (isSuperAdmin) {
+      queryClient.invalidateQueries(['general-settings'])
+      queryClient.invalidateQueries(['email-settings'])
+      queryClient.invalidateQueries(['theme-settings-full'])
+      queryClient.invalidateQueries(['security-settings'])
+      queryClient.invalidateQueries(['contestant-visibility-settings'])
+      queryClient.invalidateQueries(['password-policy'])
+    }
+  }, [editingGlobal, selectedTenantId, isSuperAdmin, queryClient])
 
   // Fetch all settings
   const { data: generalSettings, isLoading: generalLoading } = useQuery<GeneralSettings>(
-    'general-settings',
+    ['general-settings', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getSettings()
+      const response = await api.get(`/settings/general${getGlobalParam()}`)
       const unwrapped = response.data.data || response.data
       return unwrapped
     },
@@ -162,9 +227,9 @@ const SettingsPage: React.FC = () => {
   )
 
   const { data: emailSettings, isLoading: emailLoading } = useQuery<any>(
-    'email-settings',
+    ['email-settings', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getEmailSettings()
+      const response = await api.get(`/settings/email${getGlobalParam()}`)
       const unwrapped = response.data.data || response.data
       return unwrapped
     },
@@ -188,9 +253,9 @@ const SettingsPage: React.FC = () => {
   )
 
   const { data: themeSettings, isLoading: themeLoading } = useQuery<any>(
-    'theme-settings-full',
+    ['theme-settings-full', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getThemeSettings()
+      const response = await api.get(`/settings/theme${getGlobalParam()}`)
       const unwrapped = response.data.data || response.data
       return unwrapped
     },
@@ -212,9 +277,9 @@ const SettingsPage: React.FC = () => {
   )
 
   const { data: securitySettings, isLoading: securityLoading } = useQuery<any>(
-    'security-settings',
+    ['security-settings', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getSecuritySettings()
+      const response = await api.get(`/settings/security${getGlobalParam()}`)
       const unwrapped = response.data.data || response.data
       return unwrapped
     },
@@ -235,9 +300,9 @@ const SettingsPage: React.FC = () => {
   )
 
   const { data: contestantVisibility, isLoading: contestantVisibilityLoading } = useQuery<any>(
-    'contestant-visibility-settings',
+    ['contestant-visibility-settings', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getContestantVisibilitySettings()
+      const response = await api.get(`/settings/contestant-visibility${getGlobalParam()}`)
       const unwrapped = response.data.data || response.data
       return unwrapped
     },
@@ -255,9 +320,9 @@ const SettingsPage: React.FC = () => {
   )
 
   const { data: passwordPolicy, isLoading: passwordPolicyLoading } = useQuery<any>(
-    'password-policy',
+    ['password-policy', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getPasswordPolicy()
+      const response = await api.get(`/settings/password-policy${getGlobalParam()}`)
       const unwrapped = response.data.data || response.data
       return unwrapped
     },
@@ -277,16 +342,41 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const { data: databaseInfo, isLoading: databaseInfoLoading } = useQuery<any>(
+    'database-connection-info',
+    async () => {
+      const response = await settingsAPI.getDatabaseConnectionInfo()
+      const unwrapped = response.data.data || response.data
+      return unwrapped
+    },
+    {
+      enabled: isAdmin,
+      onSuccess: (data) => {
+        if (data) {
+          setDatabaseConnectionInfo({
+            configured: data.configured || 'false',
+            source: data.source || 'environment',
+            host: data.host || '',
+            port: data.port || '5432',
+            database: data.database || '',
+            user: data.user || '',
+            password: data.password || '',
+          })
+        }
+      },
+    }
+  )
+
   // Update mutations
   const updateGeneralMutation = useMutation(
     async (data: GeneralSettings) => {
-      const response = await settingsAPI.updateSettings(data)
+      const response = await api.put(`/settings${getGlobalParam()}`, data)
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('general-settings')
-        setMessage({ type: 'success', text: 'General settings updated successfully!' })
+        queryClient.invalidateQueries(['general-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `General settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -298,13 +388,13 @@ const SettingsPage: React.FC = () => {
 
   const updateEmailMutation = useMutation(
     async (data: EmailSettings) => {
-      const response = await settingsAPI.updateEmailSettings(data)
+      const response = await api.put(`/settings/email${getGlobalParam()}`, data)
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('email-settings')
-        setMessage({ type: 'success', text: 'Email settings updated successfully!' })
+        queryClient.invalidateQueries(['email-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Email settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -316,14 +406,14 @@ const SettingsPage: React.FC = () => {
 
   const updateThemeMutation = useMutation(
     async (data: ThemeSettings) => {
-      const response = await settingsAPI.updateThemeSettings(data)
+      const response = await api.put(`/settings/theme${getGlobalParam()}`, data)
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('theme-settings-full')
+        queryClient.invalidateQueries(['theme-settings-full', editingGlobal, selectedTenantId])
         queryClient.invalidateQueries('theme-settings')
-        setMessage({ type: 'success', text: 'Theme settings updated successfully!' })
+        setMessage({ type: 'success', text: `Theme settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -335,13 +425,13 @@ const SettingsPage: React.FC = () => {
 
   const updateSecurityMutation = useMutation(
     async (data: SecuritySettings) => {
-      const response = await settingsAPI.updateSecuritySettings(data)
+      const response = await api.put(`/settings/security${getGlobalParam()}`, data)
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('security-settings')
-        setMessage({ type: 'success', text: 'Security settings updated successfully!' })
+        queryClient.invalidateQueries(['security-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Security settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -353,13 +443,13 @@ const SettingsPage: React.FC = () => {
 
   const updateContestantVisibilityMutation = useMutation(
     async (data: ContestantVisibilitySettings) => {
-      const response = await settingsAPI.updateContestantVisibilitySettings(data)
+      const response = await api.put(`/settings/contestant-visibility${getGlobalParam()}`, data)
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('contestant-visibility-settings')
-        setMessage({ type: 'success', text: 'Contestant visibility settings updated successfully!' })
+        queryClient.invalidateQueries(['contestant-visibility-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Contestant visibility settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -371,13 +461,13 @@ const SettingsPage: React.FC = () => {
 
   const updatePasswordPolicyMutation = useMutation(
     async (data: PasswordPolicy) => {
-      const response = await settingsAPI.updatePasswordPolicy(data)
+      const response = await api.put(`/settings/password-policy${getGlobalParam()}`, data)
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('password-policy')
-        setMessage({ type: 'success', text: 'Password policy updated successfully!' })
+        queryClient.invalidateQueries(['password-policy', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Password policy updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -484,7 +574,7 @@ const SettingsPage: React.FC = () => {
     )
   }
 
-  const isLoading = generalLoading || emailLoading || themeLoading || securityLoading || contestantVisibilityLoading || passwordPolicyLoading
+  const isLoading = generalLoading || emailLoading || themeLoading || securityLoading || contestantVisibilityLoading || passwordPolicyLoading || databaseInfoLoading
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -499,6 +589,80 @@ const SettingsPage: React.FC = () => {
             Configure application-wide settings and preferences
           </p>
         </div>
+
+        {/* SUPER_ADMIN Tenant/Global Settings Selector */}
+        {isSuperAdmin && (
+          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                {editingGlobal ? (
+                  <GlobeAltIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                ) : (
+                  <BuildingOfficeIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                )}
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-white">Settings Scope:</span>
+                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                    {editingGlobal
+                      ? 'Editing platform-wide defaults (inherited by all tenants)'
+                      : selectedTenantId
+                        ? `Editing settings for: ${tenants.find(t => t.id === selectedTenantId)?.name || 'Selected Tenant'}`
+                        : 'Editing your tenant settings'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto">
+                {/* Global Settings Toggle */}
+                <button
+                  onClick={() => {
+                    setEditingGlobal(!editingGlobal)
+                    if (!editingGlobal) setSelectedTenantId(null) // Clear tenant selection when switching to global
+                  }}
+                  className={`px-4 py-2 rounded-lg text-white font-medium transition-colors ${
+                    editingGlobal
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-gray-500 hover:bg-gray-600'
+                  }`}
+                >
+                  {editingGlobal ? 'Global (Active)' : 'Global'}
+                </button>
+
+                {/* Tenant Selector Dropdown */}
+                <select
+                  value={selectedTenantId || ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setSelectedTenantId(value || null)
+                    if (value) setEditingGlobal(false) // Disable global when selecting a tenant
+                  }}
+                  disabled={editingGlobal}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors border-2 ${
+                    !editingGlobal && selectedTenantId
+                      ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100'
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                  } ${editingGlobal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <option value="">My Tenant (Default)</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name} ({tenant.slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Info text */}
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              {editingGlobal
+                ? 'Changes to global settings will be inherited by all tenants that have not customized these settings.'
+                : selectedTenantId
+                  ? 'Changes will only affect the selected tenant. These settings override the global defaults.'
+                  : 'Changes will only affect your current tenant. Select a different tenant from the dropdown to edit their settings.'}
+            </p>
+          </div>
+        )}
 
         {/* Success/Error Message */}
         {message && (
@@ -1316,6 +1480,129 @@ const SettingsPage: React.FC = () => {
                         </>
                       )}
                     </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Database Settings */}
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleSection('database')}
+                className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center">
+                  <ServerIcon className="h-6 w-6 mr-3 text-cyan-600 dark:text-cyan-400" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Database Connection</h2>
+                </div>
+                {expandedSections.includes('database') ? (
+                  <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                )}
+              </button>
+
+              {expandedSections.includes('database') && (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                  <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <strong>Read-Only Information:</strong> Database connection settings are configured via environment variables for security. These settings cannot be modified through the UI.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Connection Status
+                        </label>
+                        <div className={`px-3 py-2 border rounded-md ${
+                          databaseConnectionInfo.configured === 'true'
+                            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-800 dark:text-green-200'
+                            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-800 dark:text-red-200'
+                        }`}>
+                          {databaseConnectionInfo.configured === 'true' ? 'Connected' : 'Not Configured'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Configuration Source
+                        </label>
+                        <input
+                          type="text"
+                          value={databaseConnectionInfo.source}
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Host
+                        </label>
+                        <input
+                          type="text"
+                          value={databaseConnectionInfo.host}
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Port
+                        </label>
+                        <input
+                          type="text"
+                          value={databaseConnectionInfo.port}
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Database Name
+                      </label>
+                      <input
+                        type="text"
+                        value={databaseConnectionInfo.database}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Database User
+                      </label>
+                      <input
+                        type="text"
+                        value={databaseConnectionInfo.user}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Password
+                      </label>
+                      <input
+                        type="text"
+                        value={databaseConnectionInfo.password}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        <strong>To modify database settings:</strong> Update the environment variables (DATABASE_URL or individual DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD) in your .env file and restart the application.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

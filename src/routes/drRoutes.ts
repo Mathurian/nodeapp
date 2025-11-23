@@ -23,7 +23,7 @@ router.use(authenticateToken);
  *       200:
  *         description: DR configuration retrieved
  */
-router.get('/config', requireRole(['ADMIN']), drController.getDRConfig);
+router.get('/config', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.getDRConfig);
 
 /**
  * @swagger
@@ -37,7 +37,7 @@ router.get('/config', requireRole(['ADMIN']), drController.getDRConfig);
  *       200:
  *         description: DR configuration updated
  */
-router.put('/config/:id', requireRole(['ADMIN']), drController.updateDRConfig);
+router.put('/config/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.updateDRConfig);
 
 /**
  * @swagger
@@ -59,8 +59,8 @@ router.put('/config/:id', requireRole(['ADMIN']), drController.updateDRConfig);
  *       201:
  *         description: Backup schedule created
  */
-router.get('/schedules', requireRole(['ADMIN']), drController.listBackupSchedules);
-router.post('/schedules', requireRole(['ADMIN']), drController.createBackupSchedule);
+router.get('/schedules', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.listBackupSchedules);
+router.post('/schedules', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.createBackupSchedule);
 
 /**
  * @swagger
@@ -82,8 +82,8 @@ router.post('/schedules', requireRole(['ADMIN']), drController.createBackupSched
  *       200:
  *         description: Backup schedule deleted
  */
-router.put('/schedules/:id', requireRole(['ADMIN']), drController.updateBackupSchedule);
-router.delete('/schedules/:id', requireRole(['ADMIN']), drController.deleteBackupSchedule);
+router.put('/schedules/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.updateBackupSchedule);
+router.delete('/schedules/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.deleteBackupSchedule);
 
 /**
  * @swagger
@@ -105,8 +105,8 @@ router.delete('/schedules/:id', requireRole(['ADMIN']), drController.deleteBacku
  *       201:
  *         description: Backup target created
  */
-router.get('/targets', requireRole(['ADMIN']), drController.listBackupTargets);
-router.post('/targets', requireRole(['ADMIN']), drController.createBackupTarget);
+router.get('/targets', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.listBackupTargets);
+router.post('/targets', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.createBackupTarget);
 
 /**
  * @swagger
@@ -128,8 +128,8 @@ router.post('/targets', requireRole(['ADMIN']), drController.createBackupTarget)
  *       200:
  *         description: Backup target deleted
  */
-router.put('/targets/:id', requireRole(['ADMIN']), drController.updateBackupTarget);
-router.delete('/targets/:id', requireRole(['ADMIN']), drController.deleteBackupTarget);
+router.put('/targets/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.updateBackupTarget);
+router.delete('/targets/:id', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.deleteBackupTarget);
 
 /**
  * @swagger
@@ -143,7 +143,7 @@ router.delete('/targets/:id', requireRole(['ADMIN']), drController.deleteBackupT
  *       200:
  *         description: Backup target verification result
  */
-router.post('/targets/:id/verify', requireRole(['ADMIN']), drController.verifyBackupTarget);
+router.post('/targets/:id/verify', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.verifyBackupTarget);
 
 /**
  * @swagger
@@ -157,7 +157,7 @@ router.post('/targets/:id/verify', requireRole(['ADMIN']), drController.verifyBa
  *       200:
  *         description: Backup execution result
  */
-router.post('/backup/execute', requireRole(['ADMIN']), drController.executeBackup);
+router.post('/backup/execute', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.executeBackup);
 
 /**
  * @swagger
@@ -171,7 +171,7 @@ router.post('/backup/execute', requireRole(['ADMIN']), drController.executeBacku
  *       200:
  *         description: DR test execution result
  */
-router.post('/test/execute', requireRole(['ADMIN']), drController.executeDRTest);
+router.post('/test/execute', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.executeDRTest);
 
 /**
  * @swagger
@@ -185,7 +185,7 @@ router.post('/test/execute', requireRole(['ADMIN']), drController.executeDRTest)
  *       200:
  *         description: DR metrics
  */
-router.get('/metrics', requireRole(['ADMIN']), drController.getDRMetrics);
+router.get('/metrics', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.getDRMetrics);
 
 /**
  * @swagger
@@ -199,7 +199,7 @@ router.get('/metrics', requireRole(['ADMIN']), drController.getDRMetrics);
  *       200:
  *         description: DR dashboard data
  */
-router.get('/dashboard', requireRole(['ADMIN']), drController.getDRDashboard);
+router.get('/dashboard', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.getDRDashboard);
 
 /**
  * @swagger
@@ -213,6 +213,6 @@ router.get('/dashboard', requireRole(['ADMIN']), drController.getDRDashboard);
  *       200:
  *         description: RTO/RPO status
  */
-router.get('/rto-rpo', requireRole(['ADMIN']), drController.checkRTORPO);
+router.get('/rto-rpo', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.checkRTORPO);
 
 export default router;

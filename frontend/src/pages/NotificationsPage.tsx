@@ -55,7 +55,8 @@ const NotificationsPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get('/notifications')
-      setNotifications(response.data)
+      const unwrapped = response.data.data || response.data
+      setNotifications(Array.isArray(unwrapped) ? unwrapped : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load notifications')
     } finally {

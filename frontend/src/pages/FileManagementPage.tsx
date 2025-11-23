@@ -41,7 +41,8 @@ const FileManagementPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await uploadAPI.getFiles()
-      setFiles(response.data)
+      const unwrapped = response.data.data || response.data
+      setFiles(Array.isArray(unwrapped) ? unwrapped : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load files')
     } finally {
@@ -103,7 +104,7 @@ const FileManagementPage: React.FC = () => {
     return matchesSearch && matchesType
   })
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'ORGANIZER') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">

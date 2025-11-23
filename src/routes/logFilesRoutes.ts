@@ -14,7 +14,21 @@ import {
 // requireRole checks req.user, so order is critical
 router.use(authenticateToken)
 // ADMIN has access to everything - requireRole handles this automatically
-router.use(requireRole(['ADMIN', 'ORGANIZER', 'BOARD']))
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']))
+
+/**
+ * @swagger
+ * /api/logs:
+ *   get:
+ *     summary: Get list of log files (alias for /files)
+ *     tags: [Log Files]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Log files retrieved successfully
+ */
+router.get('/', getLogFiles)
 
 /**
  * @swagger
