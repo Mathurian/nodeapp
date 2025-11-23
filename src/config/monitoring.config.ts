@@ -63,9 +63,9 @@ export const getMonitoringConfig = (): MonitoringConfig => {
       maxSize: env.get('LOG_MAX_SIZE'),
     },
     healthCheck: {
-      enabled: process.env['HEALTH_CHECK_ENABLED'] !== 'false',
-      path: process.env['HEALTH_CHECK_PATH'] || '/health',
-      services: (process.env['HEALTH_CHECK_SERVICES'] || 'database,redis,cache,virusScan').split(','),
+      enabled: env.get('HEALTH_CHECK_ENABLED') ?? true,
+      path: String(env.get('HEALTH_CHECK_PATH') || '/health'),
+      services: String(env.get('HEALTH_CHECK_SERVICES') || 'database,redis,cache,virusScan').split(','),
     },
   };
 };

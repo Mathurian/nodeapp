@@ -85,8 +85,8 @@ export const getRedisConfig = (): RedisConfig => {
   return {
     enabled,
     mode,
-    host: process.env['REDIS_HOST'] || host,
-    port: parseInt(process.env['REDIS_PORT'] || String(port), 10),
+    host: env.get('REDIS_HOST') || host,
+    port: env.get('REDIS_PORT') || port,
     path: socketPath,
     password: env.get('REDIS_PASSWORD'),
     db: env.get('REDIS_DB'),

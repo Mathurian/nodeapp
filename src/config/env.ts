@@ -27,6 +27,16 @@ interface EnvironmentConfig {
   DATABASE_READ_URL?: string;
   DATABASE_MIGRATE_ON_START: boolean;
   DATABASE_SEED_ON_INIT: boolean;
+  DATABASE_USER?: string;
+  DB_HOST?: string;
+  DATABASE_HOST?: string;
+  DB_PORT?: number;
+  DATABASE_PORT?: number;
+  DB_NAME?: string;
+  DATABASE_NAME?: string;
+  DB_USER?: string;
+  DB_PASSWORD?: string;
+  DATABASE_PASSWORD?: string;
 
   // Redis
   REDIS_URL: string;
@@ -136,6 +146,9 @@ interface EnvironmentConfig {
   APM_ENABLED?: boolean;
   APM_SERVICE_NAME?: string;
   APM_SERVER_URL?: string;
+  HEALTH_CHECK_ENABLED?: boolean;
+  HEALTH_CHECK_PATH?: string;
+  HEALTH_CHECK_SERVICES?: string;
 
   // Real-time (Socket.IO)
   SOCKET_ENABLED: boolean;
@@ -358,6 +371,16 @@ class EnvironmentConfiguration {
       DATABASE_READ_URL: process.env['DATABASE_READ_URL'],
       DATABASE_MIGRATE_ON_START: parseBoolean(process.env['DATABASE_MIGRATE_ON_START'], false),
       DATABASE_SEED_ON_INIT: parseBoolean(process.env['DATABASE_SEED_ON_INIT'], false),
+      DATABASE_USER: process.env['DATABASE_USER'],
+      DB_HOST: process.env['DB_HOST'],
+      DATABASE_HOST: process.env['DATABASE_HOST'],
+      DB_PORT: process.env['DB_PORT'] ? parseInt(process.env['DB_PORT'], 10) : undefined,
+      DATABASE_PORT: process.env['DATABASE_PORT'] ? parseInt(process.env['DATABASE_PORT'], 10) : undefined,
+      DB_NAME: process.env['DB_NAME'],
+      DATABASE_NAME: process.env['DATABASE_NAME'],
+      DB_USER: process.env['DB_USER'],
+      DB_PASSWORD: process.env['DB_PASSWORD'],
+      DATABASE_PASSWORD: process.env['DATABASE_PASSWORD'],
 
       // Redis
       REDIS_URL: getString('REDIS_URL', 'redis://localhost:6379'),
@@ -461,6 +484,9 @@ class EnvironmentConfiguration {
       APM_ENABLED: parseBoolean(process.env['APM_ENABLED'], false),
       APM_SERVICE_NAME: process.env['APM_SERVICE_NAME'],
       APM_SERVER_URL: process.env['APM_SERVER_URL'],
+      HEALTH_CHECK_ENABLED: parseBoolean(process.env['HEALTH_CHECK_ENABLED'], true),
+      HEALTH_CHECK_PATH: getString('HEALTH_CHECK_PATH', '/health'),
+      HEALTH_CHECK_SERVICES: getString('HEALTH_CHECK_SERVICES', 'database,redis,cache,virusScan'),
 
       // Real-time (Socket.IO)
       SOCKET_ENABLED: parseBoolean(process.env['SOCKET_ENABLED'], true),

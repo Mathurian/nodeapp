@@ -223,10 +223,8 @@ export class AdminService extends BaseService {
         } else {
           // Fallback to psql command
           const dbName = env.get('DATABASE_URL').split('/').pop()?.split('?')[0] || 'event_manager';
-          // Note: DATABASE_USER not in env.ts yet (extracted from DATABASE_URL)
-          // TODO: Add DATABASE_USER to env.ts configuration or extract from DATABASE_URL
           const { stdout } = await execAsync(
-            `psql -U ${process.env['DATABASE_USER'] || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
+            `psql -U ${env.get('DATABASE_USER') || 'event_manager'} -d ${dbName} -t -c "SELECT pg_size_pretty(pg_database_size('${dbName}'));"`
           );
           databaseSize = stdout.trim() || 'N/A';
         }
