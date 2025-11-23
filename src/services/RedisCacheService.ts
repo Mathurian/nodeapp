@@ -722,12 +722,12 @@ export class RedisCacheService {
     try {
       const data = JSON.parse(message);
       if (data.pattern) {
-        this.deletePattern(data.pattern).catch(console.error);
+        this.deletePattern(data.pattern).catch(err => logger.error('Error deleting pattern in cache invalidation', { error: err }));
       } else if (data.keys) {
-        this.deleteMany(data.keys).catch(console.error);
+        this.deleteMany(data.keys).catch(err => logger.error('Error deleting keys in cache invalidation', { error: err }));
       }
     } catch (error) {
-      console.error('Error handling cache invalidation:', error);
+      logger.error('Error handling cache invalidation', { error });
     }
   }
 
