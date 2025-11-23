@@ -145,6 +145,7 @@ interface EnvironmentConfig {
   SOCKET_MAX_CONNECTIONS: number;
   SOCKET_PING_TIMEOUT: number;
   SOCKET_PING_INTERVAL: number;
+  SOCKET_IO_CLUSTERING_ENABLED?: boolean;
 
   // Background Jobs (BullMQ)
   BULL_ENABLED: boolean;
@@ -250,6 +251,7 @@ interface EnvironmentConfig {
   SOURCE_MAPS: boolean;
   LOG_SQL_QUERIES: boolean;
   LOG_PRETTY_PRINT: boolean;
+  DOCKER_ENV?: boolean;
 
   // External Integrations
   SLACK_ENABLED?: boolean;
@@ -262,6 +264,8 @@ interface EnvironmentConfig {
   SENTRY_ENABLED?: boolean;
   SENTRY_ENVIRONMENT?: string;
   SENTRY_TRACES_SAMPLE_RATE?: number;
+  SENTRY_PROFILES_SAMPLE_RATE?: number;
+  SENTRY_DEBUG?: boolean;
 
   // Feature Flags
   FEATURE_MFA: boolean;

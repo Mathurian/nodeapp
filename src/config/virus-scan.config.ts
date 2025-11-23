@@ -41,9 +41,7 @@ export const detectClamAVMode = (): ClamAVMode => {
   }
 
   // Check if in Docker environment
-  // Note: DOCKER_ENV not in env.ts yet
-  // TODO: Add DOCKER_ENV to env.ts configuration
-  if (env.get('CLAMAV_HOST') === 'clamav' || process.env['DOCKER_ENV'] === 'true') {
+  if (env.get('CLAMAV_HOST') === 'clamav' || (env.get('DOCKER_ENV') as boolean | undefined)) {
     return 'docker';
   }
 
@@ -115,14 +113,12 @@ export const getVirusScanConfig = (): VirusScanConfig => {
     socketPath,
     timeout: env.get('CLAMAV_TIMEOUT'),
     maxFileSize: env.get('CLAMAV_MAX_FILE_SIZE'),
-    // Note: QUARANTINE_PATH, SCAN_ON_UPLOAD, REMOVE_INFECTED, NOTIFY_ON_INFECTION, CLAMAV_CONNECTION_RETRIES not in env.ts yet
-    // TODO: Add these to env.ts configuration
-    quarantinePath: process.env['QUARANTINE_PATH'] || './quarantine',
-    scanOnUpload: process.env['SCAN_ON_UPLOAD'] !== 'false',
-    removeInfected: process.env['REMOVE_INFECTED'] === 'true',
-    notifyOnInfection: process.env['NOTIFY_ON_INFECTION'] !== 'false',
+    quarantinePath: env.get('QUARANTINE_PATH') || './quarantine',
+    scanOnUpload: env.get('SCAN_ON_UPLOAD') ?? true,
+    removeInfected: env.get('REMOVE_INFECTED') ?? false,
+    notifyOnInfection: env.get('NOTIFY_ON_INFECTION') ?? true,
     fallbackBehavior: env.get('CLAMAV_FALLBACK_BEHAVIOR'),
-    connectionRetries: parseInt(process.env['CLAMAV_CONNECTION_RETRIES'] || '3', 10),
+    connectionRetries: env.get('CLAMAV_CONNECTION_RETRIES') ?? 3,
   };
 };
 

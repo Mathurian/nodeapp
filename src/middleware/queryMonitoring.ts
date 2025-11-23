@@ -10,10 +10,10 @@ const queryLogger = new Logger('QueryMonitoring');
  * Helps identify database bottlenecks
  */
 
+import { env } from '../config/env';
+
 // Slow query threshold in milliseconds (configurable via env)
-// Note: SLOW_QUERY_THRESHOLD not in env.ts yet, using direct access with fallback
-// TODO: Add SLOW_QUERY_THRESHOLD to env.ts configuration
-const SLOW_QUERY_THRESHOLD = parseInt(process.env['SLOW_QUERY_THRESHOLD'] || '100', 10);
+const SLOW_QUERY_THRESHOLD = env.get('SLOW_QUERY_THRESHOLD') ?? env.get('SLOW_QUERY_THRESHOLD_MS') ?? 100;
 
 // Extend Prisma Client with query logging
 // NOTE: This function should use the singleton instead of creating new instances

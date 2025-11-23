@@ -25,11 +25,9 @@ import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
 // Create dedicated Redis client for caching decorator
-// Note: REDIS_HOST, REDIS_PORT not in env.ts yet
-// TODO: Add Redis configuration to env.ts
 const redisClient = new Redis({
-  host: process.env['REDIS_HOST'] || 'localhost',
-  port: parseInt(process.env['REDIS_PORT'] || '6379', 10),
+  host: env.get('REDIS_HOST') || 'localhost',
+  port: env.get('REDIS_PORT') || 6379,
   password: env.get('REDIS_PASSWORD'),
   retryStrategy: (times) => Math.min(times * 50, 2000)
 });

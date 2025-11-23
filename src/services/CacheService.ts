@@ -19,13 +19,11 @@ export class CacheService {
   private misses: number = 0;
 
   constructor() {
-    // Note: REDIS_HOST, REDIS_PORT, REDIS_DB not in env.ts yet
-    // TODO: Add Redis configuration to env.ts
     this.redis = new Redis({
-      host: process.env['REDIS_HOST'] || 'localhost',
-      port: parseInt(process.env['REDIS_PORT'] || '6379', 10),
+      host: env.get('REDIS_HOST') || 'localhost',
+      port: env.get('REDIS_PORT') || 6379,
       password: env.get('REDIS_PASSWORD'),
-      db: parseInt(process.env['REDIS_DB'] || '0', 10),
+      db: env.get('REDIS_DB') || 0,
       retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
