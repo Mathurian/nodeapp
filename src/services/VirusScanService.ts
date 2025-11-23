@@ -544,7 +544,7 @@ export class VirusScanService {
 
       return true;
     } catch (error) {
-      console.error('Error deleting quarantined file:', error);
+      logger.error('Error deleting quarantined file', { error });
       return false;
     }
   }

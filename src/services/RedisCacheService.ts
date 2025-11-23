@@ -135,7 +135,7 @@ export class RedisCacheService {
    */
   private ensureRedisOrFallback(): boolean {
     if (!this.client && !this.useMemoryFallback) {
-      console.warn('Redis client not available, falling back to memory cache');
+      logger.warn('Redis client not available, falling back to memory cache');
       this.useMemoryFallback = true;
       this.startMemoryCacheCleanup();
     }
@@ -174,7 +174,7 @@ export class RedisCacheService {
     }
 
     if (removed > 0) {
-      console.log(`Cleaned up ${removed} expired entries from memory cache`);
+      logger.debug(`Cleaned up ${removed} expired entries from memory cache`);
     }
   }
 
