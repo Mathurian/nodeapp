@@ -5,6 +5,9 @@
 
 import Redis from 'ioredis';
 import { injectable } from 'tsyringe';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('CacheService');
 
 @injectable()
 export class CacheService {
@@ -38,7 +41,7 @@ export class CacheService {
    */
   private setupEventHandlers(): void {
     this.redis.on('connect', () => {
-      console.log('✅ Redis cache connected');
+      logger.info('Redis cache connected');
       this.isConnected = true;
       this.isEnabled = true;
     });
@@ -46,7 +49,7 @@ export class CacheService {
     let errorLogged = false;
     this.redis.on('error', (_error: Error) => {
       if (!errorLogged) {
-        console.log('⚠️  Redis cache unavailable - continuing without caching');
+        logger.warn('Redis cache unavailable - continuing without caching');
         errorLogged = true;
       }
       this.isConnected = false;
@@ -71,7 +74,7 @@ export class CacheService {
     try {
       await this.redis.connect();
     } catch (error) {
-      console.log('Redis connection failed - continuing without caching');
+      logger.warn('Redis connection failed - continuing without caching');
       this.isEnabled = false;
     }
   }

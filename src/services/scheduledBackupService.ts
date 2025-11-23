@@ -4,6 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ScheduledBackupService');
 
 
 class ScheduledBackupService {
@@ -19,12 +22,12 @@ class ScheduledBackupService {
 
   async start() {
     if (this.isRunning) {
-      console.log('Scheduled backup service is already running')
+      logger.info('Scheduled backup service is already running')
       return
     }
 
     this.isRunning = true
-    console.log('Starting scheduled backup service...')
+    logger.info('Starting scheduled backup service...')
 
     // Load backup settings from database
     await this.loadBackupSettings()
@@ -32,7 +35,7 @@ class ScheduledBackupService {
 
   async stop() {
     if (!this.isRunning) {
-      console.log('Scheduled backup service is not running')
+      logger.info('Scheduled backup service is not running')
       return
     }
 

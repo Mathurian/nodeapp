@@ -9,6 +9,9 @@
 
 import Redis, { RedisOptions } from 'ioredis';
 import { getRedisOptions, getRedisConfig, CacheTTL } from '../config/redis.config';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('RedisCacheService');
 
 export interface CacheOptions {
   ttl?: number;
@@ -60,14 +63,14 @@ export class RedisCacheService {
         this.subscriber = new Redis(redisOptions);
         this.setupEventListeners();
       } catch (error) {
-        console.error('Failed to initialize Redis client:', error);
+        logger.error('Failed to initialize Redis client', { error });
         if (this.config.fallbackToMemory) {
-          console.warn('Falling back to in-memory cache');
+          logger.warn('Falling back to in-memory cache');
           this.useMemoryFallback = true;
         }
       }
     } else {
-      console.log('Redis disabled, using in-memory cache only');
+      logger.info('Redis disabled, using in-memory cache only');
       this.useMemoryFallback = true;
     }
 
@@ -84,13 +87,13 @@ export class RedisCacheService {
     if (!this.client || !this.subscriber) return;
 
     this.client.on('connect', () => {
-      console.log(`Redis cache client connected (${this.config.mode} mode)`);
+      logger.info(`Redis cache client connected`, { mode: this.config.mode });
       this.isConnected = true;
       this.useMemoryFallback = false;
     });
 
     this.client.on('ready', () => {
-      console.log('Redis cache client ready');
+      logger.info('Redis cache client ready');
     });
 
     this.client.on('error', (error) => {
