@@ -9,6 +9,9 @@
 
 import * as Sentry from '@sentry/node';
 import { env } from './env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('sentry');
 
 /**
  * Initialize Sentry with configuration from environment variables
@@ -25,12 +28,12 @@ export function initializeSentry(): boolean {
     const sentryDsn = env.get('SENTRY_DSN');
 
     if (!sentryEnabled) {
-      console.log('[Sentry] Sentry monitoring is disabled (SENTRY_ENABLED=false)');
+      logger.info('Sentry monitoring is disabled (SENTRY_ENABLED=false)');
       return false;
     }
 
     if (!sentryDsn) {
-      console.warn('[Sentry] Sentry DSN not configured - error monitoring disabled');
+      logger.warn('Sentry DSN not configured - error monitoring disabled');
       return false;
     }
 
@@ -130,10 +133,10 @@ export function initializeSentry(): boolean {
       ],
     });
 
-    console.log(`[Sentry] Initialized successfully (environment: ${sentryEnvironment}, release: ${appName}@${appVersion})`);
+    logger.info(`Sentry initialized successfully`, { environment: sentryEnvironment, release: `${appName}@${appVersion}` });
     return true;
   } catch (error) {
-    console.error('[Sentry] Failed to initialize:', error);
+    logger.error('Sentry failed to initialize', { error });
     return false;
   }
 }
@@ -153,7 +156,7 @@ export function captureException(error: Error, context?: Record<string, any>): v
       Sentry.captureException(error);
     }
   } catch (err) {
-    console.error('[Sentry] Failed to capture exception:', err);
+    logger.error('Sentry failed to capture exception', { error: err });
   }
 }
 
@@ -169,7 +172,7 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
       Sentry.captureMessage(message, level);
     }
   } catch (err) {
-    console.error('[Sentry] Failed to capture message:', err);
+    logger.error('Sentry failed to capture message', { error: err });
   }
 }
 
@@ -184,7 +187,7 @@ export function setUser(user: { id: string; email?: string; username?: string })
       Sentry.setUser(user);
     }
   } catch (err) {
-    console.error('[Sentry] Failed to set user:', err);
+    logger.error('Sentry failed to set user', { error: err });
   }
 }
 
@@ -197,7 +200,7 @@ export function clearUser(): void {
       Sentry.setUser(null);
     }
   } catch (err) {
-    console.error('[Sentry] Failed to clear user:', err);
+    logger.error('Sentry failed to clear user', { error: err });
   }
 }
 
@@ -212,7 +215,7 @@ export function addBreadcrumb(breadcrumb: Sentry.Breadcrumb): void {
       Sentry.addBreadcrumb(breadcrumb);
     }
   } catch (err) {
-    console.error('[Sentry] Failed to add breadcrumb:', err);
+    logger.error('Sentry failed to add breadcrumb', { error: err });
   }
 }
 
@@ -226,10 +229,10 @@ export async function closeSentry(timeout: number = 2000): Promise<void> {
   try {
     if (env.get('SENTRY_ENABLED') && env.get('SENTRY_DSN')) {
       await Sentry.close(timeout);
-      console.log('[Sentry] Closed successfully');
+      logger.info('Sentry closed successfully');
     }
   } catch (err) {
-    console.error('[Sentry] Failed to close:', err);
+    logger.error('Sentry failed to close', { error: err });
   }
 }
 

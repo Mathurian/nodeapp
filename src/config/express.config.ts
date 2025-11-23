@@ -8,6 +8,9 @@ import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
 import { env } from './env'
+import { createLogger } from '../utils/logger'
+
+const logger = createLogger('express')
 
 /**
  * Parse allowed origins from environment
@@ -58,7 +61,7 @@ export const isAllowedOrigin = (origin: string | undefined, allowedOrigins: stri
 
   // Log CORS rejections for debugging
   if (!isAllowed) {
-    console.warn('CORS rejection:', {
+    logger.warn('CORS rejection', {
       origin: normalizedOrigin,
       allowedOrigins,
       timestamp: new Date().toISOString(),

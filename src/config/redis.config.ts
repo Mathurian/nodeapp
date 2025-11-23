@@ -10,6 +10,9 @@
 
 import { RedisOptions } from 'ioredis';
 import { env } from './env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('redis');
 
 export type RedisMode = 'docker' | 'native' | 'socket' | 'memory' | 'disabled';
 
@@ -102,11 +105,11 @@ export const getRedisConfig = (): RedisConfig => {
 
       // Exponential backoff with max delay of 30 seconds
       const delay = Math.min(times * 500, 30000);
-      console.warn(`Redis retry attempt ${times}, waiting ${delay}ms`);
+      logger.warn(`Redis retry attempt ${times}, waiting ${delay}ms`);
 
       // Stop retrying after 10 attempts if fallback is enabled
       if (env.get('REDIS_FALLBACK_TO_MEMORY') && times > 10) {
-        console.warn('Redis max retries reached, will use in-memory fallback');
+        logger.warn('Redis max retries reached, will use in-memory fallback');
         return undefined;
       }
 

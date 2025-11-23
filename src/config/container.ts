@@ -7,6 +7,9 @@ import 'reflect-metadata';
 import { container } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { prisma } from './database';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('container');
 
 // Repositories
 import { UserRepository } from '../repositories/UserRepository';
@@ -280,8 +283,8 @@ export function setupContainer(): void {
   container.register(BulkCertificationResetService, BulkCertificationResetService);
   container.register(SearchService, SearchService);
 
-  console.log('✓ Dependency injection container configured');
-  console.log('✓ Registered 63 services and 12 repositories');
+  logger.info('Dependency injection container configured');
+  logger.info('Registered 63 services and 12 repositories');
 }
 
 /**
