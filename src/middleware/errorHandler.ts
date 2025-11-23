@@ -112,10 +112,10 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     userAgent: req.get('User-Agent'),
   }
 
-  // Log error to console with structured format
-  console.error('[ERROR]', {
+  // Log error with structured format
+  logger.error('[ERROR]', {
     ...errorDetails,
-    // Exclude stack trace from console in production
+    // Exclude stack trace in production
     stack: env.isProduction() ? undefined : error.stack,
   })
 

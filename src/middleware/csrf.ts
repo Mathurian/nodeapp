@@ -121,16 +121,7 @@ const csrfProtection = async (req: Request, res: Response, next: NextFunction): 
       cookies: Object.keys(req.cookies || {}),
       headers: Object.keys(req.headers || {})
     }
-    console.warn('CSRF validation failed: Missing token', errorDetails)
-    
-    // Log to file if logger is available
-    try {
-      const loggerModule = await import('../utils/logger');
-      const log = loggerModule.createRequestLogger(req, 'auth');
-      log.warn('CSRF validation failed: Missing token', errorDetails);
-    } catch (logError) {
-      // Logger not available, continue
-    }
+    logger.warn('CSRF validation failed: Missing token', errorDetails)
     
     res.status(403).json({
       error: 'CSRF token validation failed',

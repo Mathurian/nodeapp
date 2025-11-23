@@ -6,6 +6,9 @@
 import fs from 'fs/promises';
 import { env } from '../config/env';
 import path from 'path';
+import { createLogger } from './logger';
+
+const logger = createLogger('ErrorTracking');
 
 /**
  * Error severity levels
@@ -73,7 +76,7 @@ class ErrorTracker {
     } catch (error) {
       // Silently fail in test environment
       if (!env.isTest()) {
-        console.error('Failed to create log directory:', error);
+        logger.error('Failed to create log directory', { error });
       }
     }
   }
@@ -112,7 +115,7 @@ class ErrorTracker {
     } catch (error) {
       // Silently fail in test environment
       if (!env.isTest()) {
-        console.error('Failed to save errors to disk:', error);
+        logger.error('Failed to save errors to disk', { error });
       }
     }
   }
@@ -146,7 +149,7 @@ class ErrorTracker {
     this.logToConsole(errorEntry);
 
     // Save to disk (async, don't wait)
-    this.saveErrorsToDisk().catch(console.error);
+    this.saveErrorsToDisk().catch(err => logger.error('Failed to save errors to disk', { error: err }));
 
     // In production, you could send to external monitoring service
     // e.g., Sentry, DataDog, New Relic
@@ -194,31 +197,37 @@ class ErrorTracker {
   }
 
   /**
-   * Log error to console with formatting
+   * Log error with formatting
    */
   private logToConsole(errorEntry: ErrorEntry) {
-    const severityColors: Record<ErrorSeverity, string> = {
-      [ErrorSeverity.LOW]: '\x1b[36m',      // Cyan
-      [ErrorSeverity.MEDIUM]: '\x1b[33m',   // Yellow
-      [ErrorSeverity.HIGH]: '\x1b[35m',     // Magenta
-      [ErrorSeverity.CRITICAL]: '\x1b[31m'  // Red
+    const logData: Record<string, unknown> = {
+      severity: errorEntry.severity,
+      timestamp: errorEntry.timestamp,
+      message: errorEntry.message,
+      context: errorEntry.context,
     };
 
-    const color = severityColors[errorEntry.severity];
-    const reset = '\x1b[0m';
-
-    console.error(
-      `${color}[${errorEntry.severity.toUpperCase()}]${reset} ` +
-      `[${errorEntry.timestamp}] ` +
-      `${errorEntry.message}`
-    );
-
-    if (errorEntry.context?.requestId) {
-      console.error(`  Request ID: ${errorEntry.context.requestId}`);
+    if (errorEntry.stack && env.isDevelopment()) {
+      logData['stack'] = errorEntry.stack;
     }
 
-    if (errorEntry.stack && env.isDevelopment()) {
-      console.error(errorEntry.stack);
+    // Use appropriate log level based on severity
+    const severityUpper = String(errorEntry.severity).toUpperCase();
+    switch (errorEntry.severity) {
+      case ErrorSeverity.CRITICAL:
+        logger.error(`[${severityUpper}] ${errorEntry.message}`, logData);
+        break;
+      case ErrorSeverity.HIGH:
+        logger.error(`[${severityUpper}] ${errorEntry.message}`, logData);
+        break;
+      case ErrorSeverity.MEDIUM:
+        logger.warn(`[${severityUpper}] ${errorEntry.message}`, logData);
+        break;
+      case ErrorSeverity.LOW:
+        logger.info(`[${severityUpper}] ${errorEntry.message}`, logData);
+        break;
+      default:
+        logger.info(`[${severityUpper}] ${errorEntry.message}`, logData);
     }
   }
 
@@ -232,7 +241,7 @@ class ErrorTracker {
     // - DataDog: dogapi.event.create(...)
     // - Email/Slack notification
 
-    console.error(`🚨 CRITICAL ERROR DETECTED: ${errorEntry.id}`);
+    logger.error(`🚨 CRITICAL ERROR DETECTED: ${errorEntry.id}`, { errorEntry });
   }
 
   /**
@@ -303,7 +312,7 @@ class ErrorTracker {
     const removed = originalLength - this.errors.length;
     if (removed > 0) {
       await this.saveErrorsToDisk();
-      console.log(`Cleared ${removed} old errors (older than ${daysToKeep} days)`);
+      logger.info(`Cleared ${removed} old errors (older than ${daysToKeep} days)`);
     }
 
     return removed;

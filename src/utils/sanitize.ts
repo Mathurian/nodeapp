@@ -85,7 +85,14 @@ export const sanitizeUrl = (url: string): string => {
 
   for (const protocol of dangerousProtocols) {
     if (lowerUrl.startsWith(protocol)) {
-      console.warn(`Blocked dangerous URL protocol: ${protocol}`)
+      // Use logger if available, otherwise silent (security logging should be minimal)
+      try {
+        const { createLogger } = require('./logger');
+        const logger = createLogger('Sanitize');
+        logger.warn(`Blocked dangerous URL protocol`, { protocol });
+      } catch {
+        // Logger not available - skip
+      }
       return ''
     }
   }
@@ -282,7 +289,13 @@ export const sanitizeSqlIdentifier = (name: string): string | null => {
   const sanitized = name.trim()
 
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(sanitized)) {
-    console.warn(`Invalid SQL identifier blocked: ${name}`)
+    try {
+      const { createLogger } = require('./logger');
+      const logger = createLogger('Sanitize');
+      logger.warn(`Invalid SQL identifier blocked`, { name });
+    } catch {
+      // Logger not available - skip
+    }
     return null
   }
 
@@ -293,7 +306,13 @@ export const sanitizeSqlIdentifier = (name: string): string | null => {
   ]
 
   if (sqlKeywords.includes(sanitized.toUpperCase())) {
-    console.warn(`SQL keyword blocked as identifier: ${name}`)
+    try {
+      const { createLogger } = require('./logger');
+      const logger = createLogger('Sanitize');
+      logger.warn(`SQL keyword blocked as identifier`, { name });
+    } catch {
+      // Logger not available - skip
+    }
     return null
   }
 

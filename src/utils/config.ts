@@ -31,7 +31,13 @@ export const validateProductionConfig = (): void => {
     // Warn if CORS is too permissive (no ALLOWED_ORIGINS set)
     const allowedOrigins = env.get('ALLOWED_ORIGINS');
     if (!allowedOrigins || allowedOrigins.trim() === '') {
-      console.warn('⚠️  WARNING: ALLOWED_ORIGINS not set in production. CORS will deny all origins.');
+      try {
+        const { createLogger } = require('./logger');
+        const logger = createLogger('Config');
+        logger.warn('⚠️  WARNING: ALLOWED_ORIGINS not set in production. CORS will deny all origins.');
+      } catch {
+        // Logger not available - skip
+      }
     }
   }
 
