@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { Logger } from '../utils/logger';
 
 const queryLogger = new Logger('QueryMonitoring');
@@ -15,23 +14,14 @@ const queryLogger = new Logger('QueryMonitoring');
 const SLOW_QUERY_THRESHOLD = parseInt(process.env['SLOW_QUERY_THRESHOLD'] || '100', 10);
 
 // Extend Prisma Client with query logging
+// NOTE: This function should use the singleton instead of creating new instances
+// However, if monitoring is needed, wrap the singleton with event handlers
 export const createMonitoredPrismaClient = () => {
-  const prisma = new PrismaClient({
-    log: [
-      {
-        emit: 'event',
-        level: 'query',
-      },
-      {
-        emit: 'event',
-        level: 'error',
-      },
-      {
-        emit: 'event',
-        level: 'warn',
-      },
-    ],
-  });
+  // Import singleton instead of creating new instance
+  const prisma = require('../config/database').default;
+  
+  // Note: The singleton already has logging configured in database.ts
+  // If custom event handlers are needed, they should be added to the singleton
 
   // Track query execution time
   prisma.$on('query' as never, async (e: { duration: string; query: string; params: string; target: string }) => {
@@ -151,9 +141,9 @@ export class QueryMetrics {
  * Connection Pool Monitoring
  */
 export class ConnectionPoolMonitor {
-  private static prisma: PrismaClient;
+  private static prisma: typeof import('../config/database').default;
 
-  static initialize(prisma: PrismaClient) {
+  static initialize(prisma: typeof import('../config/database').default) {
     this.prisma = prisma;
   }
 

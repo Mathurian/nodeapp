@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../config/database';
 import { AppEvent, AppEventType, EventHandler } from '../EventBusService';
 import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('AuditLogHandler');
-const prisma = new PrismaClient();
 
 /**
  * Audit Log Handler

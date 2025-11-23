@@ -325,9 +325,6 @@ router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'O
 
 router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
-
     // Delete all existing configurations
     await prisma.userFieldConfiguration.deleteMany({});
 
@@ -345,8 +342,6 @@ router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN'])
     const results = await prisma.userFieldConfiguration.createMany({
       data: defaultFields
     });
-
-    await prisma.$disconnect();
 
     res.json({
       success: true,

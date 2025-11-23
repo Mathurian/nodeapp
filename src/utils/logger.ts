@@ -46,8 +46,7 @@ const ensureLogDirectory = async () => {
 // Load log levels from database (with caching)
 const loadLogLevels = async () => {
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    const prisma = (await import('../config/database')).default;
     const settings = await prisma.systemSetting.findMany({
       where: { key: { startsWith: 'logging_' } }
     })
@@ -69,7 +68,7 @@ const loadLogLevels = async () => {
       }
     });
     
-    await prisma.$disconnect()
+    // No need to disconnect - using singleton
   } catch (error) {
     // Silently fail - use defaults
     console.error('Failed to load log levels:', error)

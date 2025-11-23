@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = loggerFactory('EmailTemplateController');
-const prisma = new PrismaClient();
 const emailTemplateService = new EmailTemplateService(prisma);
 
 export class EmailTemplateController {

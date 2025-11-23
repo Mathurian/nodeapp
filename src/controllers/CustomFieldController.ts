@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { CustomFieldService } from '../services/CustomFieldService';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = loggerFactory('CustomFieldController');
-const prisma = new PrismaClient();
 const customFieldService = new CustomFieldService(prisma);
 
 export class CustomFieldController {

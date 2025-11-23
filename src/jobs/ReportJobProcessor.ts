@@ -2,15 +2,13 @@ import { Job } from 'bullmq';
 import { BaseJobProcessor } from './BaseJobProcessor';
 import queueService from '../services/QueueService';
 import { Logger } from '../utils/logger';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import * as fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import * as path from 'path';
 // @ts-ignore - pdfkit doesn't have type definitions
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
-
-const prisma = new PrismaClient();
 
 /**
  * Report Job Data Interface

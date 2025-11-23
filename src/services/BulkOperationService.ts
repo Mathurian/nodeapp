@@ -1,5 +1,6 @@
 import { injectable } from 'tsyringe';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 
 const Logger = createLogger('BulkOperationService');
@@ -18,11 +19,7 @@ export interface BulkOperationOptions {
 
 @injectable()
 export class BulkOperationService {
-  private prisma: PrismaClient;
-
-  constructor() {
-    this.prisma = new PrismaClient();
-  }
+  // Use singleton prisma instead of creating new instance
 
   /**
    * Execute a bulk operation on multiple items
@@ -95,7 +92,7 @@ export class BulkOperationService {
     items: T[]
   ): Promise<void> {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx) => {
         await operation(items, tx);
       });
 
@@ -126,7 +123,7 @@ export class BulkOperationService {
 
     try {
       // Use createMany for better performance
-      const created = await (this.prisma as any)[model].createMany({
+      const created = await (prisma as any)[model].createMany({
         data,
         skipDuplicates: true
       });
@@ -158,7 +155,7 @@ export class BulkOperationService {
   ): Promise<BulkOperationResult> {
     return this.executeBulkOperation(
       async (update) => {
-        await (this.prisma as any)[model].update({
+        await (prisma as any)[model].update({
           where: { id: update.id },
           data: update.data
         });
@@ -185,7 +182,7 @@ export class BulkOperationService {
     };
 
     try {
-      const deleted = await (this.prisma as any)[model].deleteMany({
+      const deleted = await (prisma as any)[model].deleteMany({
         where: {
           id: {
             in: ids
@@ -226,7 +223,7 @@ export class BulkOperationService {
     };
 
     try {
-      const updated = await (this.prisma as any)[model].updateMany({
+      const updated = await (prisma as any)[model].updateMany({
         where: {
           id: {
             in: ids
