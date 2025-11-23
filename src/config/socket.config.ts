@@ -9,6 +9,9 @@ import { container } from 'tsyringe'
 import { NotificationService } from '../services/NotificationService'
 import * as jwt from 'jsonwebtoken'
 import { env } from './env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('socket');
 
 /**
  * Create and configure Socket.IO server
@@ -51,9 +54,9 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
   try {
     const notificationService = container.resolve(NotificationService)
     notificationService.setSocketIO(io)
-    console.log('✓ NotificationService configured with Socket.IO')
+    logger.info('NotificationService configured with Socket.IO')
   } catch (error) {
-    console.error('Failed to configure NotificationService with Socket.IO:', error)
+    logger.error('Failed to configure NotificationService with Socket.IO', { error })
   }
 
   // Middleware to authenticate socket connections
@@ -90,31 +93,31 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
   io.on('connection', (socket: Socket) => {
     const userId = (socket as any).userId
     const tenantId = (socket as any).tenantId
-    console.log(`Client connected: ${socket.id} (User: ${userId})`)
+    logger.info(`Client connected: ${socket.id}`, { userId })
 
     // Automatically join user-specific room
     if (userId) {
       socket.join(`user:${userId}`)
-      console.log(`Socket ${socket.id} auto-joined room: user:${userId}`)
+      logger.debug(`Socket ${socket.id} auto-joined room: user:${userId}`)
     }
 
     socket.on('disconnect', (reason: string) => {
-      console.log(`Client disconnected: ${socket.id}, reason: ${reason}`)
+      logger.info(`Client disconnected: ${socket.id}`, { reason })
     })
 
     socket.on('error', (error: Error) => {
-      console.error(`Socket error for ${socket.id}:`, error)
+      logger.error(`Socket error for ${socket.id}`, { error })
     })
 
     // Room management (legacy support)
     socket.on('join-room', (room: string) => {
       socket.join(room)
-      console.log(`Socket ${socket.id} joined room: ${room}`)
+      logger.debug(`Socket ${socket.id} joined room: ${room}`)
     })
 
     socket.on('leave-room', (room: string) => {
       socket.leave(room)
-      console.log(`Socket ${socket.id} left room: ${room}`)
+      logger.debug(`Socket ${socket.id} left room: ${room}`)
     })
 
     // Notification-specific events
@@ -123,7 +126,7 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
         const notificationService = container.resolve(NotificationService)
         await notificationService.markAsRead(notificationId, userId, tenantId)
       } catch (error) {
-        console.error('Error marking notification as read:', error)
+        logger.error('Error marking notification as read', { error, notificationId })
         socket.emit('notification:error', { message: 'Failed to mark notification as read' })
       }
     })
