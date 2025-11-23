@@ -5,7 +5,7 @@
  */
 
 import { injectable, inject, container } from 'tsyringe';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';

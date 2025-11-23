@@ -6,7 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 
 export interface TestEventConfig {
   eventName?: string;
