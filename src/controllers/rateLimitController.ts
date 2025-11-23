@@ -22,7 +22,7 @@ export class RateLimitController {
     try {
       const configs = await this.rateLimitService.getAllConfigs();
       return sendSuccess(res, configs, 'Rate limit configurations retrieved');
-    } catch (error: any) {
+    } catch (error: unknown) {
       return next(error);
     }
   };
@@ -39,7 +39,7 @@ export class RateLimitController {
 
       const config = await this.rateLimitService.getConfig(tier);
       return sendSuccess(res, config, `Rate limit configuration for tier: ${tier}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       return next(error);
     }
   };
@@ -67,7 +67,7 @@ export class RateLimitController {
 
       const updated = await this.rateLimitService.updateConfig(tier, updates);
       return sendSuccess(res, updated, `Rate limit configuration updated for tier: ${tier}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       return next(error);
     }
   };
@@ -86,7 +86,7 @@ export class RateLimitController {
         window: config.duration,
         blockDuration: config.blockDuration,
       }, 'Rate limit status retrieved');
-    } catch (error: any) {
+    } catch (error: unknown) {
       return next(error);
     }
   };

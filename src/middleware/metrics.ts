@@ -70,8 +70,9 @@ export const metricsEndpoint = async (_req: Request, res: Response): Promise<voi
     const metrics = await metricsService.getMetrics();
     res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
     res.send(metrics);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: errorMessage });
   }
 };
 

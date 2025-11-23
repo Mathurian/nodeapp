@@ -280,10 +280,11 @@ export class AssignmentsController {
           try {
             const assignment = await this.assignmentService.assignContestantToCategory(category.id, contestantId);
             results.push(assignment);
-          } catch (error: any) {
+          } catch (error: unknown) {
             // Skip if already assigned, otherwise collect error
-            if (!error.message?.includes('already assigned')) {
-              errors.push({ categoryId: category.id, error: error.message });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (!errorMessage.includes('already assigned')) {
+              errors.push({ categoryId: category.id, error: errorMessage });
             }
           }
         }
@@ -306,13 +307,15 @@ export class AssignmentsController {
       const assignment = await this.assignmentService.assignContestantToCategory(categoryId, contestantId);
       log.info('Contestant assigned to category successfully', { categoryId, contestantId });
       return sendSuccess(res, assignment, 'Contestant assigned to category successfully', 201);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       log.error('Assign contestant to category error', { 
-        error: error.message, 
+        error: errorMessage, 
         categoryId: req.body?.categoryId,
         contestId: req.body?.contestId,
         contestantId: req.body?.contestantId,
-        stack: error.stack 
+        stack: errorStack 
       });
       return next(error);
     }

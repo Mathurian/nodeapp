@@ -17,8 +17,9 @@ export class FileService extends BaseService {
         isDirectory: file.isDirectory(),
         path: path.join(directory || '', file.name)
       }));
-    } catch (error: any) {
-      throw this.badRequestError(`Failed to list files: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw this.badRequestError(`Failed to list files: ${errorMessage}`);
     }
   }
 

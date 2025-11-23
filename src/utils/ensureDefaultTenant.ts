@@ -59,10 +59,12 @@ export async function ensureDefaultTenant(): Promise<void> {
       });
       logger.info('✓ Default tenant activated');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     logger.error('Failed to ensure default tenant exists:', {
-      error: error.message,
-      stack: error.stack
+      error: errorMessage,
+      stack: errorStack
     });
     throw error;
   }

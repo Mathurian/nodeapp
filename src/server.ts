@@ -60,8 +60,9 @@ const backupLogger = createLogger('backup');
 try {
   validateProductionConfig();
   appLogger.info('Configuration validation passed');
-} catch (error: any) {
-  appLogger.error('Configuration validation failed', { error: error.message });
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  appLogger.error('Configuration validation failed', { error: errorMessage });
   process.exit(1);
 }
 
@@ -149,11 +150,12 @@ app.get('/health', async (_req: Request, res: Response) => {
       uptime: process.uptime(),
       database: dbHealthy ? 'connected' : 'disconnected',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     res.status(503).json({
       status: 'ERROR',
       timestamp: new Date().toISOString(),
-      error: error.message,
+      message: errorMessage,
     });
   }
 });
@@ -326,12 +328,14 @@ const startServer = async (): Promise<void> => {
       try {
         await scheduledBackupService.start();
         backupLogger.info('Scheduled backup service started');
-      } catch (error: any) {
-        backupLogger.error('Failed to start scheduled backup service', { error: error.message });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        backupLogger.error('Failed to start scheduled backup service', { error: errorMessage });
       }
     }
-  } catch (error: any) {
-    appLogger.error('Failed to start server', { error: error.message });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    appLogger.error('Failed to start server', { error: errorMessage });
     process.exit(1);
   }
 };
@@ -365,8 +369,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 
     appLogger.info('Graceful shutdown complete');
     process.exit(0);
-  } catch (error: any) {
-    appLogger.error('Error during graceful shutdown', { error: error.message });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    appLogger.error('Error during graceful shutdown', { error: errorMessage });
     process.exit(1);
   }
 };

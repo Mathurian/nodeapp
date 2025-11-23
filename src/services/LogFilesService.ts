@@ -27,8 +27,9 @@ export class LogFilesService extends BaseService {
   private async ensureLogDirectory(): Promise<void> {
     try {
       await fs.mkdir(this.LOG_DIRECTORY, { recursive: true });
-    } catch (error: any) {
-      throw new Error(`Failed to create logs directory: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create logs directory: ${errorMessage}`);
     }
   }
 
@@ -86,9 +87,10 @@ export class LogFilesService extends BaseService {
               });
             }
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Skip directories we can't read
-          this.logWarn(`Failed to read log subdirectory ${entry.name}: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logWarn(`Failed to read log subdirectory ${entry.name}: ${errorMessage}`);
         }
       } else if (entry.isFile() && entry.name.endsWith('.log')) {
         // Handle legacy log files in root directory (for backward compatibility)
@@ -266,9 +268,10 @@ export class LogFilesService extends BaseService {
               }
             }
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Skip directories we can't read
-          this.logWarn(`Failed to cleanup logs in ${entry.name}: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logWarn(`Failed to cleanup logs in ${entry.name}: ${errorMessage}`);
         }
       }
     }

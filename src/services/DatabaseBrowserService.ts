@@ -21,9 +21,10 @@ export class DatabaseBrowserService extends BaseService {
         // Try to count - if it fails, table doesn't exist
         await (this.prisma as any)[modelName].count();
         tables.push(modelName);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Skip tables that don't exist in database
-        if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+        const errorObj = error as { code?: string; message?: string };
+        if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
           continue;
         }
         // For other errors, include the table anyway
@@ -57,9 +58,10 @@ export class DatabaseBrowserService extends BaseService {
           pages: Math.ceil(total / limit)
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle case where Prisma model exists but table doesn't exist in database
-      if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+      const errorObj = error as { code?: string; message?: string };
+      if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
         return {
           table: tableName,
           data: [],

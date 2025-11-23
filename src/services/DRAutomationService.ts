@@ -39,7 +39,9 @@ export interface BackupLocation {
   endpoint?: string;
 }
 
-export type BackupTargetConfig = Prisma.JsonValue;
+// Note: BackupTargetConfig is now defined in BackupTransferService.ts
+// This type alias is kept for backward compatibility but should use the proper type from BackupTransferService
+import type { BackupTargetConfig } from './BackupTransferService';
 
 export interface DRConfigInput {
   tenantId?: string;
@@ -383,7 +385,7 @@ export class DRAutomationService {
         id: target.id,
         name: target.name,
         type: target.type as 'local' | 's3' | 'ftp' | 'sftp' | 'azure' | 'gcp',
-        config: target.config,
+        config: target.config as unknown as BackupTargetConfig,
         enabled: target.enabled,
         priority: target.priority
       };
@@ -872,7 +874,7 @@ export class DRAutomationService {
       id: target.id,
       name: target.name,
       type: target.type as 'local' | 's3' | 'ftp' | 'sftp' | 'azure' | 'gcp',
-      config: target.config,
+      config: target.config as unknown as BackupTargetConfig,
       enabled: target.enabled,
       priority: target.priority
     };

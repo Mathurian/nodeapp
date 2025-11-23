@@ -116,7 +116,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
         createdAt: backupLog.createdAt
       }, 'Backup created successfully');
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -138,7 +138,7 @@ export const listBackups = async (_req: Request, res: Response, next: NextFuncti
     }));
 
     sendSuccess(res, transformedBackups);
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -164,7 +164,7 @@ export const downloadBackup = async (req: Request, res: Response, next: NextFunc
     }
 
     res.download(backup.location, path.basename(backup.location));
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -200,7 +200,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
 
       sendSuccess(res, null, 'Backup restored successfully');
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -227,7 +227,7 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
     });
 
     sendSuccess(res, null, 'Backup deleted successfully');
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -259,9 +259,10 @@ export const getBackupSettings = async (_req: Request, res: Response, next: Next
       success: true,
       settings: schedules
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If backupSetting table doesn't exist, return empty array
-    if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+    const errorObj = error as { code?: string; message?: string };
+    if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
       sendSuccess(res, { 
         success: true,
         settings: []
@@ -279,7 +280,7 @@ export const createBackupSetting = async (_req: Request, res: Response, next: Ne
   try {
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting created');
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -295,7 +296,7 @@ export const updateBackupSetting = async (req: Request, res: Response, next: Nex
     const settingsService = getSettingsService();
     await settingsService.updateBackupSettings(settings, userId);
     sendSuccess(res, {}, 'Backup settings updated');
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -308,7 +309,7 @@ export const deleteBackupSetting = async (_req: Request, res: Response, next: Ne
     // id from params not currently used
     // Implementation depends on SettingsService API
     sendSuccess(res, {}, 'Backup setting deleted');
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -327,7 +328,7 @@ export const runScheduledBackup = async (req: Request, res: Response, next: Next
     } else {
       res.status(500).json({ error: result.error || 'Backup failed' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -340,7 +341,7 @@ export const getActiveSchedules = async (_req: Request, res: Response, next: Nex
     const backupService = getScheduledBackupService();
     const schedules = backupService.getActiveSchedules();
     sendSuccess(res, schedules);
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };
@@ -360,7 +361,7 @@ export const debugBackupSettings = async (_req: Request, res: Response, next: Ne
       schedules,
       databaseUrl: env.get('DATABASE_URL') ? 'configured' : 'not configured'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return next(error);
   }
 };

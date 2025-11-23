@@ -15,11 +15,64 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('BackupTransferService');
 
+// Config types for each backup target type
+export interface LocalBackupConfig {
+  path: string;
+}
+
+export interface S3BackupConfig {
+  accessKeyId: string;
+  secretAccessKey: string;
+  region: string;
+  bucket: string;
+  prefix?: string;
+}
+
+export interface FTPBackupConfig {
+  host: string;
+  port?: number;
+  user: string;
+  password: string;
+  remotePath?: string;
+}
+
+export interface SFTPBackupConfig {
+  host: string;
+  port?: number;
+  username: string;
+  password?: string;
+  privateKey?: string;
+  remotePath?: string;
+}
+
+export interface AzureBackupConfig {
+  connectionString?: string;
+  accountName?: string;
+  accountKey?: string;
+  containerName: string;
+  prefix?: string;
+}
+
+export interface GCPBackupConfig {
+  projectId: string;
+  keyFilename?: string;
+  bucketName: string;
+  prefix?: string;
+}
+
+export type BackupTargetConfig = 
+  | LocalBackupConfig 
+  | S3BackupConfig 
+  | FTPBackupConfig 
+  | SFTPBackupConfig 
+  | AzureBackupConfig 
+  | GCPBackupConfig;
+
 export interface BackupTarget {
   id: string;
   name: string;
   type: 'local' | 's3' | 'ftp' | 'sftp' | 'azure' | 'gcp';
-  config: any;
+  config: BackupTargetConfig;
   enabled: boolean;
   priority: number;
 }
@@ -93,16 +146,17 @@ export class BackupTransferService {
         duration,
         checksum
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Math.floor((Date.now() - startTime) / 1000);
-      logger.error(`Failed to upload to ${target.name}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to upload to ${target.name}:`, { error: errorMessage });
 
       return {
         success: false,
         targetId: target.id,
         targetName: target.name,
-        duration,
-        error: error.message
+        error: errorMessage,
+        duration
       };
     }
   }
@@ -115,7 +169,8 @@ export class BackupTransferService {
     target: BackupTarget,
     checksum: string
   ): Promise<TransferResult> {
-    const { path: destDir } = target.config;
+    const config = target.config as LocalBackupConfig;
+    const { path: destDir } = config;
 
     // Ensure destination directory exists
     await fs.mkdir(destDir, { recursive: true });
@@ -147,7 +202,8 @@ export class BackupTransferService {
     target: BackupTarget,
     checksum: string
   ): Promise<TransferResult> {
-    const { accessKeyId, secretAccessKey, region, bucket, prefix = '' } = target.config;
+    const config = target.config as S3BackupConfig;
+    const { accessKeyId, secretAccessKey, region, bucket, prefix = '' } = config;
 
     const s3Client = new S3Client({
       region,
@@ -204,7 +260,8 @@ export class BackupTransferService {
     target: BackupTarget,
     // checksum: string
   ): Promise<TransferResult> {
-    const { host, port = 21, user, password, remotePath = '/' } = target.config;
+    const config = target.config as FTPBackupConfig;
+    const { host, port = 21, user, password, remotePath = '/' } = config;
 
     const client = new FtpClient();
     client.ftp.verbose = false;
@@ -259,6 +316,7 @@ export class BackupTransferService {
     target: BackupTarget,
     // checksum: string
   ): Promise<TransferResult> {
+    const config = target.config as SFTPBackupConfig;
     const {
       host,
       port = 22,
@@ -266,13 +324,19 @@ export class BackupTransferService {
       password,
       privateKey,
       remotePath = '/'
-    } = target.config;
+    } = config;
 
     const client = new SftpClient();
 
     try {
       // Connect to SFTP server
-      const connectConfig: any = {
+      const connectConfig: {
+        host: string;
+        port: number;
+        username: string;
+        password?: string;
+        privateKey?: string;
+      } = {
         host,
         port,
         username
@@ -326,13 +390,14 @@ export class BackupTransferService {
     target: BackupTarget,
     checksum: string
   ): Promise<TransferResult> {
+    const config = target.config as AzureBackupConfig;
     const {
       connectionString,
       accountName,
       accountKey,
       containerName,
       prefix = ''
-    } = target.config;
+    } = config;
 
     let blobServiceClient: BlobServiceClient;
 
@@ -384,12 +449,13 @@ export class BackupTransferService {
     target: BackupTarget,
     checksum: string
   ): Promise<TransferResult> {
+    const config = target.config as GCPBackupConfig;
     const {
       projectId,
       keyFilename,
       bucketName,
       prefix = ''
-    } = target.config;
+    } = config;
 
     const storage = new Storage({
       projectId,
@@ -450,86 +516,99 @@ export class BackupTransferService {
   static async testConnection(target: BackupTarget): Promise<boolean> {
     try {
       switch (target.type) {
-        case 'local':
-          await fs.access(target.config.path);
+        case 'local': {
+          const localConfig = target.config as LocalBackupConfig;
+          await fs.access(localConfig.path);
           return true;
+        }
 
-        case 's3':
+        case 's3': {
+          const s3Config = target.config as S3BackupConfig;
           const s3Client = new S3Client({
-            region: target.config.region,
+            region: s3Config.region,
             credentials: {
-              accessKeyId: target.config.accessKeyId,
-              secretAccessKey: target.config.secretAccessKey
+              accessKeyId: s3Config.accessKeyId,
+              secretAccessKey: s3Config.secretAccessKey
             }
           });
           // Try to list bucket (minimal operation)
           const headCommand = new HeadObjectCommand({
-            Bucket: target.config.bucket,
+            Bucket: s3Config.bucket,
             Key: '.test'
           });
           try {
             await s3Client.send(headCommand);
-          } catch (error: any) {
+          } catch (error: unknown) {
             // 404 is OK - means we can access the bucket
-            if (error.name === 'NotFound') return true;
+            if (error instanceof Error && 'name' in error && error.name === 'NotFound') return true;
             throw error;
           }
           return true;
+        }
 
-        case 'ftp':
+        case 'ftp': {
+          const ftpConfig = target.config as FTPBackupConfig;
           const ftpClient = new FtpClient();
           try {
             await ftpClient.access({
-              host: target.config.host,
-              port: target.config.port || 21,
-              user: target.config.user,
-              password: target.config.password
+              host: ftpConfig.host,
+              port: ftpConfig.port || 21,
+              user: ftpConfig.user,
+              password: ftpConfig.password
             });
             return true;
           } finally {
             ftpClient.close();
           }
+        }
 
-        case 'sftp':
+        case 'sftp': {
+          const sftpConfig = target.config as SFTPBackupConfig;
           const sftpClient = new SftpClient();
           try {
             await sftpClient.connect({
-              host: target.config.host,
-              port: target.config.port || 22,
-              username: target.config.username,
-              password: target.config.password
+              host: sftpConfig.host,
+              port: sftpConfig.port || 22,
+              username: sftpConfig.username,
+              password: sftpConfig.password
             });
             return true;
           } finally {
             await sftpClient.end();
           }
+        }
 
-        case 'azure':
-          const blobServiceClient = target.config.connectionString
-            ? BlobServiceClient.fromConnectionString(target.config.connectionString)
+        case 'azure': {
+          const azureConfig = target.config as AzureBackupConfig;
+          const blobServiceClient = azureConfig.connectionString
+            ? BlobServiceClient.fromConnectionString(azureConfig.connectionString)
             : BlobServiceClient.fromConnectionString(
-                `DefaultEndpointsProtocol=https;AccountName=${target.config.accountName};AccountKey=${target.config.accountKey};EndpointSuffix=core.windows.net`
+                `DefaultEndpointsProtocol=https;AccountName=${azureConfig.accountName};AccountKey=${azureConfig.accountKey};EndpointSuffix=core.windows.net`
               );
           const containerClient = blobServiceClient.getContainerClient(
-            target.config.containerName
+            azureConfig.containerName
           );
           await containerClient.exists();
           return true;
+        }
 
-        case 'gcp':
+        case 'gcp': {
+          const gcpConfig = target.config as GCPBackupConfig;
           const storage = new Storage({
-            projectId: target.config.projectId,
-            keyFilename: target.config.keyFilename
+            projectId: gcpConfig.projectId,
+            keyFilename: gcpConfig.keyFilename
           });
-          const bucket = storage.bucket(target.config.bucketName);
+          const bucket = storage.bucket(gcpConfig.bucketName);
           const [exists] = await bucket.exists();
           return exists;
+        }
 
         default:
           throw new Error(`Unsupported target type: ${target.type}`);
       }
-    } catch (error: any) {
-      logger.error(`Connection test failed for ${target.name}:`, error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Connection test failed for ${target.name}:`, { error: errorMessage });
       return false;
     }
   }

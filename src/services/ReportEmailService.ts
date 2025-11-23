@@ -196,10 +196,11 @@ Please do not reply to this email.
       try {
         await this.sendReportEmail(emailData);
         results.sent++;
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.failed++;
-        results.errors.push(`Failed to send to ${emailData.recipients.join(', ')}: ${error.message}`);
-        this.logError('Batch email failed', { error, recipients: emailData.recipients });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        results.errors.push(`Failed to send to ${emailData.recipients.join(', ')}: ${errorMessage}`);
+        this.logError('Batch email failed', { error: errorMessage, recipients: emailData.recipients });
       }
     }
 

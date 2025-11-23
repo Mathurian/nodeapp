@@ -292,8 +292,9 @@ export class BackupAdminController {
             count: fileDetails.length,
           },
         });
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
+      } catch (error: unknown) {
+        const errorObj = error as { code?: string };
+        if (errorObj.code === 'ENOENT') {
           res.json({
             success: true,
             data: {

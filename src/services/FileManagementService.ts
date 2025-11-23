@@ -29,8 +29,9 @@ export class FileManagementService extends BaseService {
     try {
       await fs.rename(oldPath, targetPath);
       return { success: true, newPath };
-    } catch (error: any) {
-      throw this.badRequestError(`Move failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw this.badRequestError(`Move failed: ${errorMessage}`);
     }
   }
 
@@ -41,8 +42,9 @@ export class FileManagementService extends BaseService {
     try {
       await fs.copyFile(srcPath, destPath);
       return { success: true, newPath };
-    } catch (error: any) {
-      throw this.badRequestError(`Copy failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw this.badRequestError(`Copy failed: ${errorMessage}`);
     }
   }
 }

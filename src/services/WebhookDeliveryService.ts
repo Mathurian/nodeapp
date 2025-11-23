@@ -75,8 +75,9 @@ export class WebhookDeliveryService {
       });
 
       return result;
-    } catch (error: any) {
-      logger.error(`Error delivering webhook ${webhook.id}:`, error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Error delivering webhook ${webhook.id}:`, { error: errorMessage });
       throw error;
     }
   }
@@ -110,11 +111,12 @@ export class WebhookDeliveryService {
           responseStatus: result.responseStatus,
           responseBody: result.responseBody
         };
-      } catch (error: any) {
-        lastError = error.message;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        lastError = errorMessage;
 
         logger.warn(
-          `Webhook delivery attempt ${attemptCount}/${maxAttempts} failed for ${webhook.name}: ${error.message}`
+          `Webhook delivery attempt ${attemptCount}/${maxAttempts} failed for ${webhook.name}: ${errorMessage}`
         );
 
         // If not the last attempt, wait before retrying (exponential backoff)
@@ -178,19 +180,25 @@ export class WebhookDeliveryService {
         responseStatus: response.status,
         responseBody: JSON.stringify(response.data)
       };
-    } catch (error: any) {
-      if (error.response) {
-        // Server responded with error status
-        throw new Error(
-          `HTTP ${error.response.status}: ${error.response.statusText}`
-        );
-      } else if (error.request) {
+    } catch (error: unknown) {
+      // Check if it's an axios error
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; statusText?: string } };
+        if (axiosError.response && axiosError.response.status) {
+          // Server responded with error status
+          throw new Error(
+            `HTTP ${axiosError.response.status}: ${axiosError.response.statusText || 'Unknown error'}`
+          );
+        }
+      } else if (error && typeof error === 'object' && 'request' in error) {
         // Request made but no response
-        throw new Error(`No response from webhook URL: ${error.message}`);
-      } else {
-        // Error setting up request
-        throw new Error(`Request setup error: ${error.message}`);
+        const axiosError = error as { message?: string };
+        const errorMessage = axiosError.message || 'Unknown error';
+        throw new Error(`No response from webhook URL: ${errorMessage}`);
       }
+      // Error setting up request or unknown error type
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Request setup error: ${errorMessage}`);
     }
   }
 

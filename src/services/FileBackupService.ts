@@ -83,9 +83,10 @@ export class FileBackupService extends BaseService {
 
       await this.s3Client.send(command);
       logger.info(`Uploaded ${filePath} to S3`, { key });
-    } catch (error: any) {
-      logger.error('S3 upload failed', { error, filePath, key });
-      throw this.badRequestError(`S3 upload failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('S3 upload failed', { error: errorMessage, filePath, key });
+      throw this.badRequestError(`S3 upload failed: ${errorMessage}`);
     }
   }
 
@@ -109,9 +110,10 @@ export class FileBackupService extends BaseService {
       }
 
       logger.info(`Uploaded directory ${directory} to S3`, { prefix });
-    } catch (error: any) {
-      logger.error('S3 directory upload failed', { error, directory, prefix });
-      throw this.badRequestError(`S3 directory upload failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('S3 directory upload failed', { error: errorMessage, directory, prefix });
+      throw this.badRequestError(`S3 directory upload failed: ${errorMessage}`);
     }
   }
 
@@ -160,8 +162,9 @@ export class FileBackupService extends BaseService {
       const backups = (response.Contents || []).map((item) => item.Key || '').filter(Boolean);
 
       return backups;
-    } catch (error: any) {
-      logger.error('Failed to list S3 backups', { error });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to list S3 backups', { error: errorMessage });
       return [];
     }
   }
@@ -188,9 +191,10 @@ export class FileBackupService extends BaseService {
 
       await this.s3Client.send(command);
       logger.info(`Deleted S3 backup`, { key });
-    } catch (error: any) {
-      logger.error('Failed to delete S3 backup', { error, key });
-      throw this.badRequestError(`Failed to delete S3 backup: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to delete S3 backup', { error: errorMessage, key });
+      throw this.badRequestError(`Failed to delete S3 backup: ${errorMessage}`);
     }
   }
 
@@ -231,8 +235,9 @@ export class FileBackupService extends BaseService {
       }
 
       return result;
-    } catch (error: any) {
-      throw this.badRequestError(`Backup failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw this.badRequestError(`Backup failed: ${errorMessage}`);
     }
   }
 
@@ -241,7 +246,8 @@ export class FileBackupService extends BaseService {
       await fs.mkdir(this.BACKUP_DIR, { recursive: true });
       const files = await fs.readdir(this.BACKUP_DIR);
       return files.filter(f => f.startsWith('backup-'));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      logger.error('Failed to list local backups', { error: error instanceof Error ? error.message : String(error) });
       return [];
     }
   }
@@ -250,8 +256,9 @@ export class FileBackupService extends BaseService {
     const backupPath = path.join(this.BACKUP_DIR, backupName);
     try {
       await fs.rm(backupPath, { recursive: true, force: true });
-    } catch (error: any) {
-      throw this.badRequestError(`Delete backup failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw this.badRequestError(`Delete backup failed: ${errorMessage}`);
     }
   }
 }

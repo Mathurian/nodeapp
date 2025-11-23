@@ -92,10 +92,11 @@ export class RateLimitService {
           this.redisUnavailableLogged = true;
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log once to avoid log spam
       if (!this.redisUnavailableLogged) {
-        this.log.warn('Redis initialization failed, using in-memory rate limiting:', error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.log.warn('Redis initialization failed, using in-memory rate limiting:', errorMessage);
         this.redisUnavailableLogged = true;
       }
       this.redisEnabled = false;

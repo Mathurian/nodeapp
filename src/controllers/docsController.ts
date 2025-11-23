@@ -311,8 +311,9 @@ export async function getDoc(req: Request, res: Response): Promise<void> {
         modified: stats.mtime,
       },
     });
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+  } catch (error: unknown) {
+    const errorObj = error as { code?: string };
+    if (errorObj.code === 'ENOENT') {
       res.status(404).json({
         success: false,
         message: 'Documentation file not found',

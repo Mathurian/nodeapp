@@ -35,11 +35,12 @@ export class TenantController {
           email: adminUser.email,
         },
       });
-    } catch (error: any) {
-      logger.error('Error creating tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error creating tenant:', { error: errorMessage });
       res.status(400).json({
         error: 'Failed to create tenant',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -67,11 +68,12 @@ export class TenantController {
         skip: params.skip,
         take: params.take,
       });
-    } catch (error: any) {
-      logger.error('Error listing tenants:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error listing tenants:', { error: errorMessage });
       res.status(500).json({
         error: 'Failed to list tenants',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -93,11 +95,12 @@ export class TenantController {
       const tenant = await TenantService.getTenantById(id);
 
       res.json({ tenant });
-    } catch (error: any) {
-      logger.error('Error fetching tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error fetching tenant:', { error: errorMessage });
       res.status(404).json({
         error: 'Tenant not found',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -132,11 +135,12 @@ export class TenantController {
         message: 'Tenant updated successfully',
         tenant,
       });
-    } catch (error: any) {
-      logger.error('Error updating tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error updating tenant:', { error: errorMessage });
       res.status(400).json({
         error: 'Failed to update tenant',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -155,11 +159,12 @@ export class TenantController {
         message: 'Tenant activated successfully',
         tenant,
       });
-    } catch (error: any) {
-      logger.error('Error activating tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error activating tenant:', { error: errorMessage });
       res.status(400).json({
         error: 'Failed to activate tenant',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -178,11 +183,12 @@ export class TenantController {
         message: 'Tenant deactivated successfully',
         tenant,
       });
-    } catch (error: any) {
-      logger.error('Error deactivating tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error deactivating tenant:', { error: errorMessage });
       res.status(400).json({
         error: 'Failed to deactivate tenant',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -202,11 +208,12 @@ export class TenantController {
       res.json({
         message: hard ? 'Tenant deleted permanently' : 'Tenant deactivated',
       });
-    } catch (error: any) {
-      logger.error('Error deleting tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error deleting tenant:', { error: errorMessage });
       res.status(400).json({
         error: 'Failed to delete tenant',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -240,11 +247,12 @@ export class TenantController {
         },
         limits,
       });
-    } catch (error: any) {
-      logger.error('Error fetching tenant analytics:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error fetching tenant analytics:', { error: errorMessage });
       res.status(500).json({
         error: 'Failed to fetch analytics',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -276,11 +284,12 @@ export class TenantController {
         },
         tempPassword, // In production, this should be sent via email only
       });
-    } catch (error: any) {
-      logger.error('Error inviting user:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error inviting user:', { error: errorMessage });
       res.status(400).json({
         error: 'Failed to invite user',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
@@ -299,11 +308,12 @@ export class TenantController {
       const tenant = await TenantService.getTenantById(req.tenantId);
 
       res.json({ tenant });
-    } catch (error: any) {
-      logger.error('Error fetching current tenant:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Error fetching current tenant:', { error: errorMessage });
       res.status(500).json({
         error: 'Failed to fetch tenant',
-        message: error.message,
+        message: errorMessage,
       });
     }
   }
