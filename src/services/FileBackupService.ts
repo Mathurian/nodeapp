@@ -4,6 +4,9 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../config/env';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('FileBackupService');
 
 @injectable()
 export class FileBackupService extends BaseService {
@@ -25,7 +28,7 @@ export class FileBackupService extends BaseService {
       this.s3Enabled = env.get('BACKUP_S3_ENABLED') || false;
 
       if (!this.s3Enabled) {
-        console.log('FileBackupService: S3 backup is disabled');
+        logger.info('S3 backup is disabled');
         return;
       }
 
@@ -34,7 +37,7 @@ export class FileBackupService extends BaseService {
       const secretAccessKey = env.get('BACKUP_S3_SECRET_ACCESS_KEY');
 
       if (!region || !accessKeyId || !secretAccessKey) {
-        console.warn('FileBackupService: S3 backup enabled but credentials not configured');
+        logger.warn('S3 backup enabled but credentials not configured');
         this.s3Enabled = false;
         return;
       }
@@ -47,9 +50,9 @@ export class FileBackupService extends BaseService {
         },
       });
 
-      console.log('FileBackupService: S3 client initialized successfully');
+      logger.info('S3 client initialized successfully');
     } catch (error) {
-      console.error('FileBackupService: Failed to initialize S3 client:', error);
+      logger.error('Failed to initialize S3 client', { error });
       this.s3Client = null;
       this.s3Enabled = false;
     }
@@ -105,9 +108,9 @@ export class FileBackupService extends BaseService {
         await this.backupFileToS3(filePath, s3Key);
       }
 
-      console.log(`FileBackupService: Uploaded directory ${directory} to S3 under prefix ${prefix}`);
+      logger.info(`Uploaded directory ${directory} to S3`, { prefix });
     } catch (error: any) {
-      console.error('FileBackupService: S3 directory upload failed:', error);
+      logger.error('S3 directory upload failed', { error, directory, prefix });
       throw this.badRequestError(`S3 directory upload failed: ${error.message}`);
     }
   }
@@ -158,7 +161,7 @@ export class FileBackupService extends BaseService {
 
       return backups;
     } catch (error: any) {
-      console.error('FileBackupService: Failed to list S3 backups:', error);
+      logger.error('Failed to list S3 backups', { error });
       return [];
     }
   }
@@ -184,9 +187,9 @@ export class FileBackupService extends BaseService {
       });
 
       await this.s3Client.send(command);
-      console.log(`FileBackupService: Deleted S3 backup: ${key}`);
+      logger.info(`Deleted S3 backup`, { key });
     } catch (error: any) {
-      console.error('FileBackupService: Failed to delete S3 backup:', error);
+      logger.error('Failed to delete S3 backup', { error, key });
       throw this.badRequestError(`Failed to delete S3 backup: ${error.message}`);
     }
   }
@@ -222,7 +225,7 @@ export class FileBackupService extends BaseService {
           result.s3Key = s3Key;
         } catch (s3Error: any) {
           // Fall back to local backup if S3 fails
-          console.error('FileBackupService: S3 backup failed, using local backup only:', s3Error);
+          logger.error('S3 backup failed, using local backup only', { error: s3Error });
           result.s3Error = s3Error.message;
         }
       }

@@ -15,7 +15,10 @@ import {
 } from '../types/secrets.types';
 import { LocalSecretStore } from './secrets/LocalSecretStore';
 import { EnvSecretStore } from './secrets/EnvSecretStore';
+import { createLogger } from '../utils/logger';
 // import { env } from '../config/env';
+
+const logger = createLogger('SecretManager');
 
 @injectable()
 export class SecretManager {
@@ -115,7 +118,7 @@ export class SecretManager {
           const { AWSSecretStore } = require('./secrets/AWSSecretStore');
           return new AWSSecretStore(this.config.aws);
         } catch (error) {
-          console.warn('AWS Secrets Manager not available, falling back to env');
+          logger.warn('AWS Secrets Manager not available, falling back to env');
           return new EnvSecretStore();
         }
 
@@ -125,12 +128,12 @@ export class SecretManager {
           const { VaultSecretStore } = require('./secrets/VaultSecretStore');
           return new VaultSecretStore(this.config.vault);
         } catch (error) {
-          console.warn('HashiCorp Vault not available, falling back to env');
+          logger.warn('HashiCorp Vault not available, falling back to env');
           return new EnvSecretStore();
         }
 
       default:
-        console.warn(`Unknown secrets provider: ${this.config.provider}, using env`);
+        logger.warn(`Unknown secrets provider: ${this.config.provider}, using env`);
         return new EnvSecretStore();
     }
   }
@@ -142,7 +145,7 @@ export class SecretManager {
     try {
       return await this.provider.get(key);
     } catch (error) {
-      console.error(`Error getting secret "${key}":`, error);
+      logger.error(`Error getting secret "${key}"`, { error });
       return null;
     }
   }
@@ -165,7 +168,7 @@ export class SecretManager {
     try {
       await this.provider.set(key, value, expiresAt);
     } catch (error) {
-      console.error(`Error setting secret "${key}":`, error);
+      logger.error(`Error setting secret "${key}"`, { error });
       throw error;
     }
   }

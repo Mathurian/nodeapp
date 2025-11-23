@@ -5,6 +5,9 @@ import nodemailer, { Transporter } from 'nodemailer';
 import { env } from '../config/env';
 import { templateRenderer } from '../utils/templateRenderer';
 import { ErrorLogService } from './ErrorLogService';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('EmailService');
 
 // Prisma payload types
 type SystemSettingBasic = Prisma.SystemSettingGetPayload<{
@@ -73,7 +76,7 @@ export class EmailService extends BaseService {
       const smtpEnabled = env.get('SMTP_ENABLED');
 
       if (!smtpEnabled) {
-        console.log('EmailService: SMTP is disabled in environment configuration');
+        logger.info('SMTP is disabled in environment configuration');
         return;
       }
 
@@ -92,9 +95,9 @@ export class EmailService extends BaseService {
 
       // Verify connection
       await this.transporter.verify();
-      console.log('EmailService: SMTP transporter initialized successfully');
+      logger.info('SMTP transporter initialized successfully');
     } catch (error) {
-      console.error('EmailService: Failed to initialize SMTP transporter:', error);
+      logger.error('Failed to initialize SMTP transporter', { error });
       this.transporter = null;
 
       // Log SMTP initialization failure to ErrorLogService
@@ -151,7 +154,7 @@ export class EmailService extends BaseService {
 
       return rendered;
     } catch (error) {
-      console.error('EmailService: Template rendering error:', error);
+      logger.error('Template rendering error', { error });
       throw this.badRequestError(`Failed to render email template: ${templateName}`);
     }
   }
