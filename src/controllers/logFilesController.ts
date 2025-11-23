@@ -10,9 +10,10 @@ export class LogFilesController {
     this.logFilesService = container.resolve(LogFilesService);
   }
 
-  getLogFiles = async (_req: Request, res: Response, next: NextFunction) => {
+  getLogFiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.logFilesService.getLogFiles();
+      const category = req.query.category as string | undefined;
+      const result = await this.logFilesService.getLogFiles(category);
       return sendSuccess(res, result);
     } catch (error) {
       return next(error);

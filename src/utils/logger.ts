@@ -26,15 +26,40 @@ let logLevelCache = {
   backup: 'INFO'
 }
 
-// Ensure logs directory exists
-const ensureLogDirectory = async () => {
+// Map log categories to folder names
+const categoryFolderMap: Record<string, string> = {
+  'api': 'api',
+  'database': 'database',
+  'auth': 'auth',
+  'backup': 'backup',
+  'error': 'error',
+  'default': 'general'
+};
+
+// Get folder name for a category
+const getCategoryFolder = (category: string): string => {
+  return categoryFolderMap[category.toLowerCase()] || 'general';
+};
+
+// Ensure logs directory and category subdirectories exist
+const ensureLogDirectory = async (category: string = 'default') => {
   // Skip in test environment if file logging is disabled
   if (DISABLE_FILE_LOGGING) {
     return;
   }
   
   try {
-    await fs.mkdir(LOG_DIRECTORY, { recursive: true })
+    // Ensure base log directory exists
+    await fs.mkdir(LOG_DIRECTORY, { recursive: true });
+    
+    // Ensure category subdirectory exists
+    const categoryFolder = getCategoryFolder(category);
+    const categoryLogDir = path.join(LOG_DIRECTORY, categoryFolder);
+    await fs.mkdir(categoryLogDir, { recursive: true });
+    
+    // Ensure general folder exists (for general log file)
+    const generalLogDir = path.join(LOG_DIRECTORY, 'general');
+    await fs.mkdir(generalLogDir, { recursive: true });
   } catch (error) {
     // In test environment, silently fail
     if (!env.isTest()) {
@@ -122,14 +147,18 @@ const writeToFile = async (level: string, category: string, message: string, met
   }
 
   try {
-    await ensureLogDirectory()
+    await ensureLogDirectory(category)
     
     const timestamp = formatDate(new Date(), 'yyyy-MM-dd HH:mm:ss')
     const logDate = formatDate(new Date(), 'yyyy-MM-dd')
     
-    // Create category-specific log file
+    // Get category folder
+    const categoryFolder = getCategoryFolder(category);
+    const categoryLogDir = path.join(LOG_DIRECTORY, categoryFolder);
+    
+    // Create category-specific log file in subfolder
     const logFileName = `app-${category}-${logDate}.log`
-    const logFilePath = path.join(LOG_DIRECTORY, logFileName)
+    const logFilePath = path.join(categoryLogDir, logFileName)
     
     // Format log entry
     let logEntry = `[${timestamp}] [${level}] [${category.toUpperCase()}] ${message}`
@@ -141,12 +170,13 @@ const writeToFile = async (level: string, category: string, message: string, met
     
     logEntry += '\n'
     
-    // Append to file
+    // Append to category-specific file
     await fs.appendFile(logFilePath, logEntry, 'utf8')
     
-    // Also write to general log file
+    // Also write to general log file (for backward compatibility and overview)
+    const generalLogDir = path.join(LOG_DIRECTORY, 'general');
     const generalLogFile = `app-${logDate}.log`
-    const generalLogPath = path.join(LOG_DIRECTORY, generalLogFile)
+    const generalLogPath = path.join(generalLogDir, generalLogFile)
     await fs.appendFile(generalLogPath, logEntry, 'utf8')
     
   } catch (error: unknown) {

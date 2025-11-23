@@ -5,10 +5,11 @@ import * as path from 'path';
 
 export interface LogFileInfo {
   name: string;
+  folder: string;
   size: number;
   sizeFormatted: string;
   modifiedAt: string; // Changed to string for JSON serialization
-  path: string;
+  path: string; // Relative path from logs directory (e.g., 'api/app-api-2025-11-22.log')
 }
 
 @injectable()
@@ -32,38 +33,126 @@ export class LogFilesService extends BaseService {
   }
 
   private validateFilename(filename: string): void {
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    // Allow forward slashes for subfolder paths (e.g., 'api/app-api-2025-11-22.log')
+    // But prevent directory traversal
+    if (filename.includes('..') || filename.startsWith('/') || filename.includes('\\')) {
       throw this.badRequestError('Invalid filename');
     }
   }
+  
+  private sanitizePath(filePath: string): string {
+    // Remove any directory traversal attempts
+    const normalized = path.normalize(filePath);
+    if (normalized.includes('..')) {
+      throw this.badRequestError('Invalid file path');
+    }
+    return normalized;
+  }
 
-  async getLogFiles(): Promise<{ files: LogFileInfo[]; directory: string }> {
+  async getLogFiles(category?: string): Promise<{ files: LogFileInfo[]; folders: string[]; directory: string }> {
     await this.ensureLogDirectory();
-    const files = await fs.readdir(this.LOG_DIRECTORY);
-
-    const fileStats = await Promise.all(
-      files
-        .filter(file => file.endsWith('.log'))
-        .map(async (file) => {
-          const filePath = path.join(this.LOG_DIRECTORY, file);
-          const stats = await fs.stat(filePath);
-          return {
-            name: file,
-            size: stats.size,
-            sizeFormatted: this.formatFileSize(stats.size),
-            modifiedAt: stats.mtime.toISOString(), // Convert to ISO string for frontend
-            path: filePath
-          };
-        })
-    );
-
-    fileStats.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
-    return { files: fileStats, directory: this.LOG_DIRECTORY };
+    
+    const files: LogFileInfo[] = [];
+    const folders: string[] = [];
+    
+    // Read main directory
+    const entries = await fs.readdir(this.LOG_DIRECTORY, { withFileTypes: true });
+    
+    // Process directories and files
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        // Skip if filtering by category and this isn't the category folder
+        if (category && entry.name !== category) {
+          continue;
+        }
+        
+        folders.push(entry.name);
+        const subDirPath = path.join(this.LOG_DIRECTORY, entry.name);
+        
+        try {
+          const subEntries = await fs.readdir(subDirPath, { withFileTypes: true });
+          
+          for (const subEntry of subEntries) {
+            if (subEntry.isFile() && subEntry.name.endsWith('.log')) {
+              const filePath = path.join(subDirPath, subEntry.name);
+              const stats = await fs.stat(filePath);
+              files.push({
+                name: subEntry.name,
+                folder: entry.name,
+                size: stats.size,
+                sizeFormatted: this.formatFileSize(stats.size),
+                modifiedAt: stats.mtime.toISOString(),
+                path: path.join(entry.name, subEntry.name) // Relative path
+              });
+            }
+          }
+        } catch (error: any) {
+          // Skip directories we can't read
+          this.logWarn(`Failed to read log subdirectory ${entry.name}: ${error.message}`);
+        }
+      } else if (entry.isFile() && entry.name.endsWith('.log')) {
+        // Handle legacy log files in root directory (for backward compatibility)
+        const filePath = path.join(this.LOG_DIRECTORY, entry.name);
+        const stats = await fs.stat(filePath);
+        files.push({
+          name: entry.name,
+          folder: 'general', // Legacy files go to general folder
+          size: stats.size,
+          sizeFormatted: this.formatFileSize(stats.size),
+          modifiedAt: stats.mtime.toISOString(),
+          path: entry.name // Relative path
+        });
+      }
+    }
+    
+    // Sort by modified date (newest first)
+    files.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+    
+    // Sort folders alphabetically
+    folders.sort();
+    
+    return { files, folders, directory: this.LOG_DIRECTORY };
   }
 
   async getLogFileContents(filename: string, lines: number = 500): Promise<any> {
     this.validateFilename(filename);
-    const filePath = path.join(this.LOG_DIRECTORY, filename);
+    
+    // Handle both relative paths (e.g., 'api/app-api-2025-11-22.log') and simple filenames
+    let filePath: string;
+    if (filename.includes('/')) {
+      // Relative path from logs directory
+      filePath = path.join(this.LOG_DIRECTORY, this.sanitizePath(filename));
+    } else {
+      // Simple filename - search in all subdirectories
+      filePath = path.join(this.LOG_DIRECTORY, filename);
+      
+      // Try to find the file in subdirectories
+      try {
+        await fs.access(filePath);
+      } catch {
+        // File not in root, search subdirectories
+        const entries = await fs.readdir(this.LOG_DIRECTORY, { withFileTypes: true });
+        let found = false;
+        
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const subFilePath = path.join(this.LOG_DIRECTORY, entry.name, filename);
+            try {
+              await fs.access(subFilePath);
+              filePath = subFilePath;
+              found = true;
+              break;
+            } catch {
+              // Continue searching
+            }
+          }
+        }
+        
+        if (!found) {
+          throw this.notFoundError('Log file', filename);
+        }
+      }
+    }
 
     try {
       await fs.access(filePath);
@@ -77,7 +166,8 @@ export class LogFilesService extends BaseService {
     const lastLines = allLines.slice(-maxLines);
 
     return {
-      filename,
+      filename: path.basename(filePath),
+      folder: path.dirname(filePath).replace(this.LOG_DIRECTORY + path.sep, '') || 'general',
       content: lastLines.join('\n'),
       totalLines: allLines.length,
       displayedLines: lastLines.length
@@ -86,7 +176,43 @@ export class LogFilesService extends BaseService {
 
   async getLogFilePath(filename: string): Promise<string> {
     this.validateFilename(filename);
-    const filePath = path.join(this.LOG_DIRECTORY, filename);
+    
+    // Handle both relative paths (e.g., 'api/app-api-2025-11-22.log') and simple filenames
+    let filePath: string;
+    if (filename.includes('/')) {
+      // Relative path from logs directory
+      filePath = path.join(this.LOG_DIRECTORY, this.sanitizePath(filename));
+    } else {
+      // Simple filename - search in all subdirectories
+      filePath = path.join(this.LOG_DIRECTORY, filename);
+      
+      // Try to find the file in subdirectories
+      try {
+        await fs.access(filePath);
+      } catch {
+        // File not in root, search subdirectories
+        const entries = await fs.readdir(this.LOG_DIRECTORY, { withFileTypes: true });
+        let found = false;
+        
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const subFilePath = path.join(this.LOG_DIRECTORY, entry.name, filename);
+            try {
+              await fs.access(subFilePath);
+              filePath = subFilePath;
+              found = true;
+              break;
+            } catch {
+              // Continue searching
+            }
+          }
+        }
+        
+        if (!found) {
+          throw this.notFoundError('Log file', filename);
+        }
+      }
+    }
 
     try {
       await fs.access(filePath);
@@ -106,20 +232,44 @@ export class LogFilesService extends BaseService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - parseInt(String(daysToKeep)));
 
-    const files = await fs.readdir(this.LOG_DIRECTORY);
     let deletedCount = 0;
     let deletedSize = 0;
 
-    for (const file of files) {
-      if (!file.endsWith('.log')) continue;
+    // Process root directory files (legacy)
+    const rootEntries = await fs.readdir(this.LOG_DIRECTORY, { withFileTypes: true });
+    
+    for (const entry of rootEntries) {
+      if (entry.isFile() && entry.name.endsWith('.log')) {
+        const filePath = path.join(this.LOG_DIRECTORY, entry.name);
+        const stats = await fs.stat(filePath);
 
-      const filePath = path.join(this.LOG_DIRECTORY, file);
-      const stats = await fs.stat(filePath);
+        if (stats.mtime < cutoffDate) {
+          await fs.unlink(filePath);
+          deletedCount++;
+          deletedSize += stats.size;
+        }
+      } else if (entry.isDirectory()) {
+        // Process subdirectory
+        const subDirPath = path.join(this.LOG_DIRECTORY, entry.name);
+        try {
+          const subEntries = await fs.readdir(subDirPath, { withFileTypes: true });
+          
+          for (const subEntry of subEntries) {
+            if (subEntry.isFile() && subEntry.name.endsWith('.log')) {
+              const filePath = path.join(subDirPath, subEntry.name);
+              const stats = await fs.stat(filePath);
 
-      if (stats.mtime < cutoffDate) {
-        await fs.unlink(filePath);
-        deletedCount++;
-        deletedSize += stats.size;
+              if (stats.mtime < cutoffDate) {
+                await fs.unlink(filePath);
+                deletedCount++;
+                deletedSize += stats.size;
+              }
+            }
+          }
+        } catch (error: any) {
+          // Skip directories we can't read
+          this.logWarn(`Failed to cleanup logs in ${entry.name}: ${error.message}`);
+        }
       }
     }
 
@@ -132,7 +282,43 @@ export class LogFilesService extends BaseService {
 
   async deleteLogFile(filename: string): Promise<void> {
     this.validateFilename(filename);
-    const filePath = path.join(this.LOG_DIRECTORY, filename);
+    
+    // Handle both relative paths (e.g., 'api/app-api-2025-11-22.log') and simple filenames
+    let filePath: string;
+    if (filename.includes('/')) {
+      // Relative path from logs directory
+      filePath = path.join(this.LOG_DIRECTORY, this.sanitizePath(filename));
+    } else {
+      // Simple filename - search in all subdirectories
+      filePath = path.join(this.LOG_DIRECTORY, filename);
+      
+      // Try to find the file in subdirectories
+      try {
+        await fs.access(filePath);
+      } catch {
+        // File not in root, search subdirectories
+        const entries = await fs.readdir(this.LOG_DIRECTORY, { withFileTypes: true });
+        let found = false;
+        
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const subFilePath = path.join(this.LOG_DIRECTORY, entry.name, filename);
+            try {
+              await fs.access(subFilePath);
+              filePath = subFilePath;
+              found = true;
+              break;
+            } catch {
+              // Continue searching
+            }
+          }
+        }
+        
+        if (!found) {
+          throw this.notFoundError('Log file', filename);
+        }
+      }
+    }
 
     try {
       await fs.access(filePath);
