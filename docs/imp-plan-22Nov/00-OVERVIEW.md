@@ -63,6 +63,7 @@ This plan is divided into the following files:
 ### Phase 2: High Priority (Week 1)
 - **04-HIGH-PASSWORD-LIBS.md** - Standardize password hashing
 - **05-HIGH-CONSOLE-LOGGING.md** - Replace console with logger
+- **05b-HIGH-LOG-FOLDER-STRUCTURE.md** - Organize logs into subfolders by type
 - **06-HIGH-TYPE-SAFETY.md** - Improve TypeScript types
 - **07-HIGH-ENV-VARIABLES.md** - Standardize env access
 
@@ -173,6 +174,7 @@ docs/imp-plan-22Nov/
 ├── 03-CRITICAL-CASCADE-DELETES.md
 ├── 04-HIGH-PASSWORD-LIBS.md
 ├── 05-HIGH-CONSOLE-LOGGING.md
+├── 05b-HIGH-LOG-FOLDER-STRUCTURE.md
 ├── 06-HIGH-TYPE-SAFETY.md
 ├── 07-HIGH-ENV-VARIABLES.md
 ├── 08-MEDIUM-DATABASE.md
