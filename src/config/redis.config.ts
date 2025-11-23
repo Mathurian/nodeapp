@@ -44,11 +44,15 @@ export const detectRedisMode = (): RedisMode => {
   }
 
   // Check for Unix socket path
+  // Note: REDIS_SOCKET not in env.ts yet
+  // TODO: Add REDIS_SOCKET to env.ts configuration
   if (process.env['REDIS_SOCKET']) {
     return 'socket';
   }
 
   // Check if in Docker environment (custom env variable)
+  // Note: REDIS_HOST, DOCKER_ENV not in env.ts yet
+  // TODO: Add DOCKER_ENV to env.ts configuration
   if (process.env['REDIS_HOST'] === 'redis' || process.env['DOCKER_ENV'] === 'true') {
     return 'docker';
   }
@@ -66,6 +70,8 @@ export const getRedisConfig = (): RedisConfig => {
   const enabled = env.get('REDIS_ENABLE');
 
   // Unix socket configuration (custom optional variable)
+  // Note: REDIS_SOCKET not in env.ts yet
+  // TODO: Add REDIS_SOCKET to env.ts configuration
   const socketPath = process.env['REDIS_SOCKET'] || undefined;
 
   // Parse Redis URL if provided

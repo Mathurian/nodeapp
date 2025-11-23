@@ -58,6 +58,8 @@ class ErrorTracker {
 
   constructor() {
     // Use temp directory in test environment to avoid permission issues
+    // Note: LOG_DIRECTORY not in env.ts yet
+    // TODO: Add LOG_DIRECTORY to env.ts configuration
     const logDir = env.isTest()
       ? path.join(process.env['LOG_DIRECTORY'] || require('os').tmpdir(), 'event-manager-test-logs')
       : path.join(process.cwd(), 'logs');
@@ -102,6 +104,8 @@ class ErrorTracker {
    */
   private async saveErrorsToDisk() {
     // Skip file writing in test environment to avoid permission issues
+    // Note: DISABLE_FILE_LOGGING not in env.ts yet
+    // TODO: Add DISABLE_FILE_LOGGING to env.ts configuration
     if (env.isTest() || process.env['DISABLE_FILE_LOGGING'] === 'true') {
       return;
     }

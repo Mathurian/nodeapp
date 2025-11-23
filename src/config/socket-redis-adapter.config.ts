@@ -40,6 +40,8 @@ let subClient: ReturnType<typeof createClient>;
 export async function setupRedisAdapter(io: SocketIOServer): Promise<void> {
   try {
     const redisUrl = env.get('REDIS_URL');
+    // Note: SOCKET_IO_CLUSTERING_ENABLED not in env.ts yet
+    // TODO: Add SOCKET_IO_CLUSTERING_ENABLED to env.ts configuration
     const enableClustering = process.env['SOCKET_IO_CLUSTERING_ENABLED'] === 'true';
 
     if (!enableClustering) {

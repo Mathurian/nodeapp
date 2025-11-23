@@ -47,10 +47,14 @@ export const getMonitoringConfig = (): MonitoringConfig => {
       dsn: env.get('SENTRY_DSN'),
       environment: env.get('SENTRY_ENVIRONMENT') || env.get('NODE_ENV'),
       tracesSampleRate: env.get('SENTRY_TRACES_SAMPLE_RATE') ?? 0.1,
+      // Note: SENTRY_PROFILES_SAMPLE_RATE, SENTRY_DEBUG not in env.ts yet
+      // TODO: Add these to env.ts configuration
       profilesSampleRate: parseFloat(process.env['SENTRY_PROFILES_SAMPLE_RATE'] || '0.1'),
       debug: process.env['SENTRY_DEBUG'] === 'true' || isDevelopment,
     },
     metrics: {
+      // Note: ENABLE_METRICS, METRICS_PREFIX, METRICS_COLLECT_INTERVAL not in env.ts yet
+      // TODO: Add these to env.ts configuration
       enabled: process.env['ENABLE_METRICS'] !== 'false' && env.get('METRICS_ENABLED'),
       prefix: process.env['METRICS_PREFIX'] || 'event_manager_',
       collectInterval: parseInt(process.env['METRICS_COLLECT_INTERVAL'] || '60000', 10),

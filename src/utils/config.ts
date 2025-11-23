@@ -54,6 +54,8 @@ const getMaxFileSize = (): number => {
 
 // Get performance logging sample rate
 const getPerfSampleRate = (): number => {
+  // Note: PERF_SAMPLE_RATE not in env.ts yet, using direct access with fallback
+  // TODO: Add PERF_SAMPLE_RATE to env.ts configuration
   return parseFloat(process.env['PERF_SAMPLE_RATE'] || '0.2');
 };
 

@@ -5,6 +5,8 @@ import os from 'os';
 
 // Use environment variable for log directory, or default to project logs directory
 // In test environment, use temp directory to avoid permission issues
+// Note: LOG_DIRECTORY and DISABLE_FILE_LOGGING not in env.ts yet
+// TODO: Add LOG_DIRECTORY and DISABLE_FILE_LOGGING to env.ts configuration
 const LOG_DIRECTORY = process.env['LOG_DIRECTORY'] ||
   (env.isTest()
     ? path.join(os.tmpdir(), 'event-manager-test-logs')

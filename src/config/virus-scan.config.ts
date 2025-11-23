@@ -41,6 +41,8 @@ export const detectClamAVMode = (): ClamAVMode => {
   }
 
   // Check if in Docker environment
+  // Note: DOCKER_ENV not in env.ts yet
+  // TODO: Add DOCKER_ENV to env.ts configuration
   if (env.get('CLAMAV_HOST') === 'clamav' || process.env['DOCKER_ENV'] === 'true') {
     return 'docker';
   }
@@ -113,6 +115,8 @@ export const getVirusScanConfig = (): VirusScanConfig => {
     socketPath,
     timeout: env.get('CLAMAV_TIMEOUT'),
     maxFileSize: env.get('CLAMAV_MAX_FILE_SIZE'),
+    // Note: QUARANTINE_PATH, SCAN_ON_UPLOAD, REMOVE_INFECTED, NOTIFY_ON_INFECTION, CLAMAV_CONNECTION_RETRIES not in env.ts yet
+    // TODO: Add these to env.ts configuration
     quarantinePath: process.env['QUARANTINE_PATH'] || './quarantine',
     scanOnUpload: process.env['SCAN_ON_UPLOAD'] !== 'false',
     removeInfected: process.env['REMOVE_INFECTED'] === 'true',

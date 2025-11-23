@@ -755,6 +755,8 @@ export class SettingsService extends BaseService {
           info['password'] = url.password ? '***masked***' : 'Not set';
         } catch {
           // If URL parsing fails, try individual env vars
+          // Note: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD not in env.ts yet (extracted from DATABASE_URL)
+          // TODO: Add these to env.ts configuration or extract from DATABASE_URL
           info['host'] = process.env['DB_HOST'] || process.env['DATABASE_HOST'] || 'N/A';
           info['port'] = process.env['DB_PORT'] || process.env['DATABASE_PORT'] || '5432';
           info['database'] = process.env['DB_NAME'] || process.env['DATABASE_NAME'] || 'N/A';
@@ -763,6 +765,8 @@ export class SettingsService extends BaseService {
         }
       } else {
         // Try individual environment variables
+        // Note: DB_HOST, DB_PORT, DB_NAME, DB_USER not in env.ts yet
+        // TODO: Add these to env.ts configuration or extract from DATABASE_URL
         info['host'] = process.env['DB_HOST'] || process.env['DATABASE_HOST'] || 'Not configured';
         info['port'] = process.env['DB_PORT'] || process.env['DATABASE_PORT'] || '5432';
         info['database'] = process.env['DB_NAME'] || process.env['DATABASE_NAME'] || 'Not configured';

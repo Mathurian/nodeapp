@@ -6,6 +6,7 @@
 import Redis from 'ioredis';
 import { injectable } from 'tsyringe';
 import { createLogger } from '../utils/logger';
+import { env } from '../config/env';
 
 const logger = createLogger('CacheService');
 
@@ -18,10 +19,12 @@ export class CacheService {
   private misses: number = 0;
 
   constructor() {
+    // Note: REDIS_HOST, REDIS_PORT, REDIS_DB not in env.ts yet
+    // TODO: Add Redis configuration to env.ts
     this.redis = new Redis({
       host: process.env['REDIS_HOST'] || 'localhost',
       port: parseInt(process.env['REDIS_PORT'] || '6379', 10),
-      password: process.env['REDIS_PASSWORD'] || undefined,
+      password: env.get('REDIS_PASSWORD'),
       db: parseInt(process.env['REDIS_DB'] || '0', 10),
       retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);

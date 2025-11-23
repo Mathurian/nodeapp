@@ -51,7 +51,8 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     service: 'event-manager',
-    version: process.env['npm_package_version'] || '1.0.0',
+    // Note: npm_package_version is set by npm, not a standard env var
+    version: process.env['npm_package_version'] || env.get('APP_VERSION') || '1.0.0',
     environment: env.get('NODE_ENV'),
     checks: {}
   };

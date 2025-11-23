@@ -69,6 +69,8 @@ export class PerformanceService extends BaseService {
   async logPerformance(data: PerformanceLogData): Promise<void> {
     try {
       // Sample rate: only log a percentage of requests (default 20%)
+      // Note: PERF_SAMPLE_RATE not in env.ts yet
+      // TODO: Add PERF_SAMPLE_RATE to env.ts configuration
       const sampleRate = parseFloat(process.env['PERF_SAMPLE_RATE'] || '0.2');
       if (Math.random() > sampleRate) {
         return; // Skip logging this request

@@ -2,6 +2,9 @@
  * Secrets Configuration
  *
  * Configuration for the flexible secrets management system
+ * 
+ * Note: Most secrets-related env vars are not in env.ts yet as they're provider-specific
+ * TODO: Consider adding common secrets config to env.ts or keep as-is for flexibility
  */
 
 import { SecretsProviderConfig } from '../types/secrets.types';
@@ -10,6 +13,8 @@ import { SecretsProviderConfig } from '../types/secrets.types';
  * Get secrets configuration from environment
  */
 export function getSecretsConfig(): SecretsProviderConfig {
+  // Note: SECRETS_PROVIDER and related vars not in env.ts yet (provider-specific config)
+  // TODO: Consider adding to env.ts or keep as-is for provider flexibility
   const provider = (process.env['SECRETS_PROVIDER'] || 'env') as 'local' | 'env' | 'aws' | 'vault';
 
   const config: SecretsProviderConfig = {
