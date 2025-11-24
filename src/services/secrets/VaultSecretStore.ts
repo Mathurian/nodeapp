@@ -225,6 +225,9 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async exists(key: string): Promise<boolean> {
     try {
+      if (!this.vault) {
+        return false;
+      }
       await this.vault.read(this.getSecretPath(key));
       return true;
     } catch (error: unknown) {
@@ -241,6 +244,9 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async getMetadata(key: string): Promise<SecretMetadata | null> {
     try {
+      if (!this.vault) {
+        return null;
+      }
       if (this.kvVersion === 'v2') {
         // KV v2 has dedicated metadata endpoint
         const response = await this.vault.read(this.getMetadataPath(key));
