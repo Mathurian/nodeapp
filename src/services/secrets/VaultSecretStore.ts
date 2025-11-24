@@ -246,21 +246,22 @@ export class VaultSecretStore implements ISecretProvider {
         const response = await this.vault.read(this.getMetadataPath(key));
         const vaultMetadata = response?.data;
 
-        if (vaultMetadata) {
+        if (vaultMetadata && typeof vaultMetadata === 'object') {
           // Also get the secret data to check for custom metadata
           const secret = await this.vault.read(this.getSecretPath(key));
           const secretData = secret?.data as { data?: { metadata?: Record<string, unknown> } } | undefined;
           const customMetadata = secretData?.data?.metadata;
+          const vaultMeta = vaultMetadata as Record<string, unknown>;
 
           return {
             key,
-            createdAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.createdAt === 'string'
-              ? new Date(customMetadata.createdAt)
-              : new Date(vaultMetadata.created_time),
-            updatedAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.updatedAt === 'string'
-              ? new Date(customMetadata.updatedAt)
-              : new Date(vaultMetadata.updated_time),
-            version: vaultMetadata.current_version || 1,
+            createdAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata['createdAt'] === 'string'
+              ? new Date(customMetadata['createdAt'])
+              : new Date(vaultMeta['created_time'] as string || Date.now()),
+            updatedAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata['updatedAt'] === 'string'
+              ? new Date(customMetadata['updatedAt'])
+              : new Date(vaultMeta['updated_time'] as string || Date.now()),
+            version: (vaultMeta['current_version'] as number) || 1,
             expiresAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata['expiresAt'] === 'string'
               ? new Date(customMetadata['expiresAt'])
               : undefined,
