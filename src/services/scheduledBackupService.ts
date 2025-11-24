@@ -75,8 +75,9 @@ class ScheduledBackupService {
     const jobKey = `${setting.backupType}_${setting.frequency}`
     
     // Stop existing job if it exists
-    if (this.jobs.has(jobKey)) {
-      this.jobs.get(jobKey).stop()
+    const existingJob = this.jobs.get(jobKey);
+    if (existingJob) {
+      existingJob.stop();
     }
 
     // Create cron expression based on frequency
@@ -247,9 +248,10 @@ class ScheduledBackupService {
     const jobKey = `${setting.backupType}_${setting.frequency}`
     
     // Stop existing job
-    if (this.jobs.has(jobKey)) {
-      this.jobs.get(jobKey).stop()
-      this.jobs.delete(jobKey)
+    const existingJob = this.jobs.get(jobKey);
+    if (existingJob) {
+      existingJob.stop();
+      this.jobs.delete(jobKey);
     }
 
     // Schedule new job if enabled
