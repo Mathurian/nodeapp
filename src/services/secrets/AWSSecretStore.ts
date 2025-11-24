@@ -17,8 +17,16 @@
 
 import { ISecretProvider, SecretMetadata, AWSSecretStoreConfig } from '../../types/secrets.types';
 
+// Minimal type for AWS SecretsManager client
+interface SecretsManagerClient {
+  send(command: unknown): Promise<{
+    SecretString?: string;
+    SecretList?: Array<{ Name?: string }>;
+  }>;
+}
+
 export class AWSSecretStore implements ISecretProvider {
-  private client: any; // AWS SecretsManager client
+  private client: SecretsManagerClient | null = null;
   private config: AWSSecretStoreConfig;
   private prefix: string;
 
@@ -36,7 +44,13 @@ export class AWSSecretStore implements ISecretProvider {
       // Lazy load AWS SDK
       const { SecretsManagerClient } = require('@aws-sdk/client-secrets-manager');
 
-      const clientConfig: any = {
+      const clientConfig: {
+        region: string;
+        credentials?: {
+          accessKeyId: string;
+          secretAccessKey: string;
+        };
+      } = {
         region: this.config.region,
       };
 
@@ -81,6 +95,9 @@ export class AWSSecretStore implements ISecretProvider {
         SecretId: this.getSecretName(key),
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       const response = await this.client.send(command);
 
       if (response.SecretString) {
@@ -198,10 +215,13 @@ export class AWSSecretStore implements ISecretProvider {
         ],
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       const response = await this.client.send(command);
 
       if (response.SecretList) {
-        return response.SecretList.map((secret: any) =>
+        return (response.SecretList as Array<{ Name?: string }>).map((secret) =>
           this.stripPrefix(secret.Name)
         ).filter((name: string) => name); // Filter out empty names
       }
@@ -246,6 +266,9 @@ export class AWSSecretStore implements ISecretProvider {
         SecretId: this.getSecretName(key),
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       const response = await this.client.send(command);
 
       // Try to get metadata from secret value
@@ -339,7 +362,7 @@ export class AWSSecretStore implements ISecretProvider {
   /**
    * Get AWS Secrets Manager client for advanced operations
    */
-  getClient(): any {
+  getClient(): SecretsManagerClient | null {
     return this.client;
   }
 

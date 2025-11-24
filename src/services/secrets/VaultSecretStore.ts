@@ -22,8 +22,16 @@ import {
   VaultSecretStoreConfig,
 } from '../../types/secrets.types';
 
+// Minimal type for node-vault client (no official types available)
+interface VaultClient {
+  read(path: string): Promise<{ data?: { data?: Record<string, unknown>; versions?: Record<string, unknown> } }>;
+  write(path: string, data: unknown): Promise<void>;
+  delete(path: string): Promise<void>;
+  list(path: string): Promise<{ data?: { keys?: string[] } }>;
+}
+
 export class VaultSecretStore implements ISecretProvider {
-  private vault: any; // node-vault client
+  private vault: VaultClient | null = null;
   private config: VaultSecretStoreConfig;
   private kvVersion: 'v1' | 'v2';
   private mountPath: string;
@@ -44,7 +52,12 @@ export class VaultSecretStore implements ISecretProvider {
       // Lazy load node-vault
       const nodeVault = require('node-vault');
 
-      const vaultOptions: any = {
+      const vaultOptions: {
+        apiVersion: string;
+        endpoint: string;
+        token?: string;
+        namespace?: string;
+      } = {
         apiVersion: 'v1',
         endpoint: this.config.address,
       };
@@ -86,6 +99,9 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async get(key: string): Promise<string | null> {
     try {
+      if (!this.vault) {
+        throw new Error('Vault client not initialized');
+      }
       const response = await this.vault.read(this.getSecretPath(key));
 
       if (this.kvVersion === 'v2') {
@@ -113,7 +129,16 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async set(key: string, value: string, expiresAt?: Date): Promise<void> {
     try {
-      const secretData: any = {
+      const secretData: {
+        value: string;
+        metadata: {
+          key: string;
+          createdAt: string;
+          updatedAt: string;
+          version: number;
+          expiresAt?: string;
+        };
+      } = {
         value,
         metadata: {
           key,
@@ -126,11 +151,17 @@ export class VaultSecretStore implements ISecretProvider {
 
       if (this.kvVersion === 'v2') {
         // KV v2 requires data wrapped in { data: {...} }
+        if (!this.vault) {
+          throw new Error('Vault client not initialized');
+        }
         await this.vault.write(this.getSecretPath(key), {
           data: secretData,
         });
       } else {
         // KV v1 writes data directly
+        if (!this.vault) {
+          throw new Error('Vault client not initialized');
+        }
         await this.vault.write(this.getSecretPath(key), secretData);
       }
     } catch (error) {
@@ -306,7 +337,7 @@ export class VaultSecretStore implements ISecretProvider {
   /**
    * Get Vault client for advanced operations
    */
-  getClient(): any {
+  getClient(): VaultClient | null {
     return this.vault;
   }
 
@@ -368,7 +399,7 @@ export class VaultSecretStore implements ISecretProvider {
     if (this.kvVersion === 'v2') {
       try {
         const response = await this.vault.read(this.getMetadataPath(key));
-        const versions = response?.data?.versions;
+        const versions = (response?.data as { versions?: Record<string, unknown> })?.versions;
 
         if (versions) {
           return Object.keys(versions)
