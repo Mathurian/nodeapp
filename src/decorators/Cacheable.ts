@@ -60,7 +60,7 @@ export interface CacheableOptions {
   /**
    * Custom key generator function
    */
-  keyGenerator?: (...args: any[]) => string;
+  keyGenerator?: (...args: unknown[]) => string;
 
   /**
    * Whether to log cache hits/misses
@@ -75,8 +75,8 @@ export interface CacheableOptions {
 function generateCacheKey(
   namespace: string,
   keyPrefix: string,
-  args: any[],
-  keyGenerator?: (...args: any[]) => string
+  args: unknown[],
+  keyGenerator?: (...args: unknown[]) => string
 ): string {
   if (keyGenerator) {
     const customKey = keyGenerator(...args);
@@ -96,13 +96,13 @@ function generateCacheKey(
  */
 export function Cacheable(options: CacheableOptions = {}) {
   return function (
-    _target: any,
+    _target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (...args: unknown[]) {
       const {
         ttl = 300,
         namespace = 'app',
@@ -249,7 +249,7 @@ export class CacheWarmer {
    */
   static async warm(
     key: string,
-    data: any,
+    data: unknown,
     ttl: number = 3600
   ): Promise<void> {
     try {
@@ -264,7 +264,7 @@ export class CacheWarmer {
    * Batch warm multiple keys
    */
   static async batchWarm(
-    entries: Array<{ key: string; data: any; ttl?: number }>
+    entries: Array<{ key: string; data: unknown; ttl?: number }>
   ): Promise<void> {
     try {
       const pipeline = redisClient.pipeline();

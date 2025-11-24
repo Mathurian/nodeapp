@@ -49,8 +49,9 @@ export class TrackerService extends BaseService {
         ? Math.round((totalJudgeScores / expectedScores) * 100) 
         : 0;
 
-      const judgeCompletion = await Promise.all(Array.from(uniqueJudges).map(async (judgeId) => {
-        const judgeScores = category.scores.filter((s) => s.judgeId === judgeId).length;
+      const judgeIds = Array.from(uniqueJudges) as string[];
+      const judgeCompletion = await Promise.all(judgeIds.map(async (judgeId: string) => {
+        const judgeScores = category.scores.filter((s: { judgeId: string }) => s.judgeId === judgeId).length;
         const judgeCompletionPct = totalContestants > 0 
           ? Math.round((judgeScores / totalContestants) * 100) 
           : 0;
