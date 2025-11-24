@@ -14,7 +14,7 @@ interface ErrorLogEntry {
   path?: string;
   method?: string;
   statusCode?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   tenantId?: string;
 }
 
@@ -113,7 +113,7 @@ export class ErrorLogService extends BaseService {
     statusCode: number;
     userId?: string;
     tenantId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<ErrorLogWithDetails> {
     return await this.logErrorToDatabase({
       message: params.error.message,
@@ -195,7 +195,8 @@ export class ErrorLogService extends BaseService {
 
       // Count by day
       const day = error.createdAt.toISOString().split('T')[0];
-      stats.byDay[((day as string) as string)] = ((stats.byDay as any)[((day as string) as string)] || 0) + 1;
+      const dayKey = day as string;
+      stats.byDay[dayKey] = (stats.byDay[dayKey] || 0) + 1;
     });
 
     return stats;

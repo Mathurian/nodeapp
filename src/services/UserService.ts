@@ -125,7 +125,7 @@ export class UserService extends BaseService {
   async getAllUsers(): Promise<User[]> {
     try {
       const users = await this.userRepository.findAll();
-      return users.map(user => this.sanitizeUser(user)) as any;
+      return users.map(user => this.sanitizeUser(user)) as User[];
     } catch (error) {
       this.handleError(error, { method: 'getAllUsers' });
     }
@@ -137,7 +137,7 @@ export class UserService extends BaseService {
   async getActiveUsers(): Promise<User[]> {
     try {
       const users = await this.userRepository.findActiveUsers();
-      return users.map(user => this.sanitizeUser(user)) as any;
+      return users.map(user => this.sanitizeUser(user)) as User[];
     } catch (error) {
       this.handleError(error, { method: 'getActiveUsers' });
     }
@@ -150,7 +150,7 @@ export class UserService extends BaseService {
     try {
       const user = await this.userRepository.findById(userId);
       this.assertExists(user, 'User', userId);
-      return this.sanitizeUser(user) as any;
+      return this.sanitizeUser(user) as User;
     } catch (error) {
       this.handleError(error, { method: 'getUserById', userId });
     }
@@ -162,7 +162,7 @@ export class UserService extends BaseService {
   async getUserByName(name: string): Promise<User | null> {
     try {
       const user = await this.userRepository.findByName(name);
-      return user ? this.sanitizeUser(user) as any : null;
+      return user ? (this.sanitizeUser(user) as User) : null;
     } catch (error) {
       this.handleError(error, { method: 'getUserByName', name });
     }
@@ -174,7 +174,7 @@ export class UserService extends BaseService {
   async getUserByEmail(email: string): Promise<User | null> {
     try {
       const user = await this.userRepository.findByEmail(email);
-      return user ? this.sanitizeUser(user) as any : null;
+      return user ? (this.sanitizeUser(user) as User) : null;
     } catch (error) {
       this.handleError(error, { method: 'getUserByEmail', email });
     }
@@ -186,7 +186,7 @@ export class UserService extends BaseService {
   async getUsersByRole(role: string): Promise<User[]> {
     try {
       const users = await this.userRepository.findByRole(role);
-      return users.map(user => this.sanitizeUser(user)) as any;
+      return users.map(user => this.sanitizeUser(user)) as User[];
     } catch (error) {
       this.handleError(error, { method: 'getUsersByRole', role });
     }
@@ -203,7 +203,7 @@ export class UserService extends BaseService {
       const result = await this.userRepository.findAllPaginated({ page, limit });
 
       return {
-        data: result.data.map(user => this.sanitizeUser(user)) as any,
+        data: result.data.map(user => this.sanitizeUser(user)) as User[],
         pagination: {
           page: result.page,
           limit: result.limit,
@@ -229,7 +229,7 @@ export class UserService extends BaseService {
       const result = await this.userRepository.findActiveUsersPaginated({ page, limit });
 
       return {
-        data: result.data.map(user => this.sanitizeUser(user)) as any,
+        data: result.data.map(user => this.sanitizeUser(user)) as User[],
         pagination: {
           page: result.page,
           limit: result.limit,
@@ -255,7 +255,7 @@ export class UserService extends BaseService {
       const result = await this.userRepository.findByRolePaginated(role, { page, limit });
 
       return {
-        data: result.data.map(user => this.sanitizeUser(user)) as any,
+        data: result.data.map(user => this.sanitizeUser(user)) as User[],
         pagination: {
           page: result.page,
           limit: result.limit,
@@ -339,7 +339,7 @@ export class UserService extends BaseService {
       // Invalidate cache
       await invalidateCache('users:*');
 
-      return this.sanitizeUser(user) as any;
+      return this.sanitizeUser(user) as User;
     } catch (error) {
       this.handleError(error, { method: 'createUser', name: data.name });
     }
@@ -375,7 +375,7 @@ export class UserService extends BaseService {
       }
 
       // Update user
-      const updatedUser = await this.userRepository.update(userId, data as any);
+      const updatedUser = await this.userRepository.update(userId, data as Partial<User>);
 
       this.logInfo('User updated', { userId, name: updatedUser.name });
 
@@ -482,7 +482,7 @@ export class UserService extends BaseService {
   async searchUsers(query: string): Promise<User[]> {
     try {
       const users = await this.userRepository.searchUsers(query);
-      return users.map(user => this.sanitizeUser(user)) as any;
+      return users.map(user => this.sanitizeUser(user)) as User[];
     } catch (error) {
       this.handleError(error, { method: 'searchUsers', query });
     }
@@ -840,7 +840,7 @@ export class UserService extends BaseService {
         judge: user.judge ? { ...user.judge, judgeNumber: undefined } : user.judge,
         contestant: user.contestant,
         lastLogin: user.lastLoginAt || null
-      })) as any;
+      })) as UserWithRelations[];
 
       return mappedUsers;
     } catch (error) {
@@ -867,7 +867,7 @@ export class UserService extends BaseService {
         ...this.sanitizeUser(user!),
         judge: user!.judge ? { ...user!.judge, judgeNumber: undefined } : user!.judge,
         contestant: user!.contestant
-      } as any;
+      } as UserWithRelations;
     } catch (error) {
       this.handleError(error, { method: 'getUserByIdWithRelations', userId });
     }

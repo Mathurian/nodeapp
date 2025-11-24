@@ -144,13 +144,13 @@ export class EmailService extends BaseService {
   /**
    * Render email template with variables using Handlebars
    */
-  private async renderTemplate(templateName: string, variables: Record<string, string | number | boolean | any>): Promise<string> {
+  private async renderTemplate(templateName: string, variables: Record<string, unknown>): Promise<string> {
     try {
       // Add .html extension if not present
       const templateFile = templateName.endsWith('.html') ? templateName : `${templateName}.html`;
 
       // Use Handlebars template renderer
-      const rendered = await templateRenderer.render(templateFile, variables as Record<string, any>);
+      const rendered = await templateRenderer.render(templateFile, variables);
 
       return rendered;
     } catch (error) {
@@ -210,7 +210,7 @@ export class EmailService extends BaseService {
           null,
           env.get('SMTP_FROM'),
           options?.template,
-          options?.variables as Record<string, any>
+          options?.variables as Record<string, string | number | boolean>
         );
 
         logger.info(`Email sent successfully to ${to}`, { attempt, maxRetries: this.maxRetries });
@@ -277,7 +277,7 @@ export class EmailService extends BaseService {
     errorMessage: string | null = null,
     from?: string,
     template?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     try {
       await this.prisma.emailLog.create({
@@ -289,7 +289,7 @@ export class EmailService extends BaseService {
           errorMessage,
           from: from || env.get('SMTP_FROM'),
           template: template || null,
-          metadata: metadata ? (metadata as any) : null,
+          metadata: metadata ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
           sentAt: new Date()
         }
       });
@@ -421,22 +421,22 @@ export class EmailService extends BaseService {
       registrationUrl?: string;
     }
   ): Promise<EmailSendResult> {
-    const variables: Record<string, any> = {
-      email,
-      name,
-      eventName,
-      role,
-      acceptUrl,
-      declineUrl,
-      appName: env.get('APP_NAME'),
-      supportEmail: env.get('SMTP_FROM'),
-      eventDate: options?.eventDate || null,
-      eventLocation: options?.eventLocation || null,
-      eventDescription: options?.eventDescription || null,
-      loginUrl: options?.loginUrl || null,
-      username: options?.username || null,
-      temporaryPassword: options?.temporaryPassword || null,
-      registrationUrl: options?.registrationUrl || null,
+    const variables: Record<string, string | number | boolean> = {
+      email: email || '',
+      name: name || '',
+      eventName: eventName || '',
+      role: role || '',
+      acceptUrl: acceptUrl || '',
+      declineUrl: declineUrl || '',
+      appName: env.get('APP_NAME') || '',
+      supportEmail: env.get('SMTP_FROM') || '',
+      eventDate: options?.eventDate || '',
+      eventLocation: options?.eventLocation || '',
+      eventDescription: options?.eventDescription || '',
+      loginUrl: options?.loginUrl || '',
+      username: options?.username || '',
+      temporaryPassword: options?.temporaryPassword || '',
+      registrationUrl: options?.registrationUrl || '',
       hasCredentials: !!(options?.username || options?.temporaryPassword || options?.loginUrl),
     };
 
@@ -476,17 +476,17 @@ export class EmailService extends BaseService {
       };
     }
 
-    const variables: Record<string, any> = {
+    const variables: Record<string, string | number | boolean> = {
       appName: env.get('APP_NAME'),
       supportEmail: env.get('SMTP_FROM'),
       filename: details.filename,
       virusName: details.virusName || 'Unknown',
       fileSize: details.fileSize,
       timestamp: details.timestamp,
-      username: details.username || null,
-      userEmail: details.userEmail || null,
+      username: details.username || '',
+      userEmail: details.userEmail || '',
       ipAddress: details.ipAddress || 'Unknown',
-      userAgent: details.userAgent || null,
+      userAgent: details.userAgent || '',
     };
 
     return this.sendTemplatedEmail(

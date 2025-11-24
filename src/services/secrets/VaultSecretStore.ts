@@ -108,12 +108,22 @@ export class VaultSecretStore implements ISecretProvider {
 
       if (this.kvVersion === 'v2') {
         // KV v2 stores data in response.data.data
-        const data = response?.data?.data;
-        return data?.value || data?.[key] || null;
+        const data = response?.data?.data as Record<string, unknown> | undefined;
+        if (!data) {
+          return null;
+        }
+        const value = data['value'];
+        const keyValue = data[key];
+        return (typeof value === 'string' ? value : null) || (typeof keyValue === 'string' ? keyValue : null) || null;
       } else {
         // KV v1 stores data in response.data
-        const data = response?.data;
-        return data?.value || data?.[key] || null;
+        const data = response?.data as Record<string, unknown> | undefined;
+        if (!data) {
+          return null;
+        }
+        const value = data['value'];
+        const keyValue = data[key];
+        return (typeof value === 'string' ? value : null) || (typeof keyValue === 'string' ? keyValue : null) || null;
       }
     } catch (error: unknown) {
       const errorObj = error as { response?: { statusCode?: number } };
@@ -151,19 +161,16 @@ export class VaultSecretStore implements ISecretProvider {
         },
       };
 
+      if (!this.vault) {
+        throw new Error('Vault client not initialized');
+      }
       if (this.kvVersion === 'v2') {
         // KV v2 requires data wrapped in { data: {...} }
-        if (!this.vault) {
-          throw new Error('Vault client not initialized');
-        }
         await this.vault.write(this.getSecretPath(key), {
           data: secretData,
         });
       } else {
         // KV v1 writes data directly
-        if (!this.vault) {
-          throw new Error('Vault client not initialized');
-        }
         await this.vault.write(this.getSecretPath(key), secretData);
       }
     } catch (error) {
@@ -202,6 +209,9 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async list(): Promise<string[]> {
     try {
+      if (!this.vault) {
+        return [];
+      }
       let listPath: string;
 
       if (this.kvVersion === 'v2') {
@@ -212,7 +222,7 @@ export class VaultSecretStore implements ISecretProvider {
 
       const response = await this.vault.list(listPath);
 
-      return response?.data?.keys || [];
+      return (response?.data?.keys as string[] | undefined) || [];
     } catch (error: unknown) {
       const errorObj = error as { response?: { statusCode?: number } };
       if (errorObj.response?.statusCode === 404) {

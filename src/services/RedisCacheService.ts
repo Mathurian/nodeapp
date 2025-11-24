@@ -33,7 +33,7 @@ export interface CacheStatistics {
 }
 
 interface CacheEntry {
-  value: any;
+  value: unknown;
   expiry: number; // timestamp
   tags?: string[];
 }
@@ -198,7 +198,7 @@ export class RedisCacheService {
   /**
    * Get value from cache (Redis or in-memory)
    */
-  public async get<T = any>(key: string, options?: CacheOptions): Promise<T | null> {
+  public async get<T = unknown>(key: string, options?: CacheOptions): Promise<T | null> {
     const fullKey = this.buildKey(key, options?.namespace);
 
     // Use in-memory cache
@@ -242,7 +242,7 @@ export class RedisCacheService {
   /**
    * Set value in cache (Redis or in-memory)
    */
-  public async set(key: string, value: any, options?: CacheOptions): Promise<boolean> {
+  public async set(key: string, value: unknown, options?: CacheOptions): Promise<boolean> {
     const fullKey = this.buildKey(key, options?.namespace);
     const ttl = options?.ttl || CacheTTL.MEDIUM;
 
@@ -327,7 +327,7 @@ export class RedisCacheService {
   /**
    * Get multiple values from cache
    */
-  public async getMany<T = any>(keys: string[], namespace?: string): Promise<(T | null)[]> {
+  public async getMany<T = unknown>(keys: string[], namespace?: string): Promise<(T | null)[]> {
     try {
       const fullKeys = keys.map(key => this.buildKey(key, namespace));
 
@@ -364,7 +364,7 @@ export class RedisCacheService {
   /**
    * Set multiple values in cache
    */
-  public async setMany(items: { key: string; value: any; options?: CacheOptions }[]): Promise<boolean> {
+  public async setMany(items: { key: string; value: unknown; options?: CacheOptions }[]): Promise<boolean> {
     try {
       if (!this.ensureRedisOrFallback() || !this.client) {
         // Use memory cache
@@ -426,7 +426,7 @@ export class RedisCacheService {
 
       const result = await this.client.del(...fullKeys);
       this.stats.deletes += result;
-      return result as any;
+      return result;
     } catch (error) {
       logger.error('Cache deleteMany error', { error });
       this.stats.errors++;
@@ -461,7 +461,7 @@ export class RedisCacheService {
 
       const result = await this.client.del(...keys);
       this.stats.deletes += result;
-      return result as any;
+      return result;
     } catch (error) {
       logger.error('Cache deletePattern error', { error });
       this.stats.errors++;
@@ -492,7 +492,7 @@ export class RedisCacheService {
   /**
    * Get or set pattern (cache-aside)
    */
-  public async getOrSet<T = any>(
+  public async getOrSet<T = unknown>(
     key: string,
     factory: () => Promise<T>,
     options?: CacheOptions

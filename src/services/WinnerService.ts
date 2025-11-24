@@ -106,7 +106,7 @@ interface CategoryWinner {
     contestantNumber: number;
   };
   totalScore: number;
-  totalPossibleScore: number;
+  totalPossibleScore: number | null;
   scores: ScoreWithRelations[];
   judgesScored: string[];
 }
@@ -374,7 +374,7 @@ export class WinnerService extends BaseService {
         const categoryResult = await this.getWinnersByCategory(category.id, _userRole);
         categoryWinners.push({
           category: categoryResult.category,
-          contestants: categoryResult.contestants as any,
+          contestants: categoryResult.contestants,
           totalPossibleScore: categoryResult.totalPossibleScore ?? 0,
           allSigned: categoryResult.allSigned,
           boardSigned: categoryResult.boardSigned,
@@ -808,14 +808,14 @@ export class WinnerService extends BaseService {
         (updates.boardApproved ?? certificationWorkflow.boardApproved);
 
       if (allCertified) {
-        (updates as any).status = 'CERTIFIED';
-      } else if ((certificationWorkflow as any).status === 'PENDING') {
-        (updates as any).status = 'IN_PROGRESS';
+        updates.status = 'CERTIFIED';
+      } else if (certificationWorkflow.status === 'PENDING') {
+        updates.status = 'IN_PROGRESS';
       }
 
       await this.prisma.certification.update({
         where: { id: certificationWorkflow.id },
-        data: updates as any,
+        data: updates as Prisma.CertificationUpdateInput,
       });
     }
 

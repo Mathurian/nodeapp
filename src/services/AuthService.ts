@@ -283,7 +283,7 @@ export class AuthService {
       tenantId: user.tenantId
     };
 
-    const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as any);
+    const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as jwt.SignOptions);
 
     // Get user permissions
     const permissions = getRolePermissions(user.role);

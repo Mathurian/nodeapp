@@ -158,7 +158,7 @@ export class AssignmentService extends BaseService {
     // Get Assignment records
     const assignments = await this.prisma.assignment.findMany({
       where: {
-        ...(filters.status && { status: filters.status as any }),
+        ...(filters.status && { status: filters.status as AssignmentStatus }),
         ...(filters.judgeId && { judgeId: filters.judgeId }),
         ...(filters.categoryId && { categoryId: filters.categoryId }),
         ...(filters.contestId && { contestId: filters.contestId }),
@@ -205,7 +205,7 @@ export class AssignmentService extends BaseService {
             endDate: true,
           },
         },
-      } as any,
+      },
       orderBy: [{ priority: 'desc' }, { assignedAt: 'desc' }],
     });
 
@@ -253,7 +253,7 @@ export class AssignmentService extends BaseService {
             },
           },
         },
-      } as any,
+      },
     });
 
     // Convert CategoryJudge entries to assignment-like objects
@@ -273,19 +273,21 @@ export class AssignmentService extends BaseService {
           event?: {
             id: string;
             name: string;
-            startDate: Date | null;
-            endDate: Date | null;
+            startDate: Date;
+            endDate: Date;
           } | null;
         } | null;
       } | null;
       judge?: {
         id: string;
-        name: string | null;
+        name: string;
         email: string;
+        bio: string | null;
+        isHeadJudge: boolean;
       } | null;
     };
-    const categoryJudgeAssignments = categoryJudges
-      .map((cj: CategoryJudgeWithRelations) => {
+    const categoryJudgeAssignments = (categoryJudges as unknown as CategoryJudgeWithRelations[])
+      .map((cj): Partial<AssignmentWithRelations> & { _source: string } | null => {
         const contest = cj.category?.contest;
         if (!contest) return null;
         const event = contest?.event;
@@ -295,23 +297,31 @@ export class AssignmentService extends BaseService {
         if (filters.contestId && contest.id !== filters.contestId) return null;
         if (filters.eventId && event.id !== filters.eventId) return null;
 
+        if (!cj.category || !cj.judge || !event.startDate || !event.endDate) return null;
+
         return {
           id: `categoryJudge_${cj.categoryId}_${cj.judgeId}`, // Synthetic ID
           judgeId: cj.judgeId,
           categoryId: cj.categoryId,
           contestId: contest.id,
           eventId: event.id,
-          status: 'ACTIVE' as any, // Default status for CategoryJudge entries
+          status: 'ACTIVE' as AssignmentStatus, // Default status for CategoryJudge entries
           assignedAt: new Date(), // Use current date as fallback
-          assignedBy: null,
-          notes: null,
+          assignedBy: undefined,
+          notes: undefined,
           priority: 0,
-          judge: cj.judge,
+          judge: {
+            id: cj.judge.id,
+            name: cj.judge.name,
+            email: cj.judge.email,
+            bio: cj.judge.bio,
+            isHeadJudge: cj.judge.isHeadJudge,
+          },
           category: {
-            id: cj.category?.id,
-            name: cj.category?.name,
-            description: cj.category?.description,
-            scoreCap: cj.category?.scoreCap,
+            id: cj.category.id,
+            name: cj.category.name,
+            description: cj.category.description,
+            scoreCap: cj.category.scoreCap,
           },
           contest: {
             id: contest.id,
@@ -324,11 +334,11 @@ export class AssignmentService extends BaseService {
             startDate: event.startDate,
             endDate: event.endDate,
           },
-          assignedByUser: null,
+          assignedByUser: undefined,
           _source: 'categoryJudge', // Mark as coming from CategoryJudge
         };
       })
-      .filter(Boolean); // Remove null entries
+      .filter((item): item is Partial<AssignmentWithRelations> & { _source: string } => item !== null); // Remove null entries
 
     // Combine and deduplicate (prefer Assignment records over CategoryJudge if both exist)
     const assignmentMap = new Map();
@@ -360,7 +370,7 @@ export class AssignmentService extends BaseService {
   async createAssignment(
     data: CreateAssignmentInput,
     userId: string
-  ): Promise<any> {
+  ): Promise<AssignmentWithRelations> {
     this.validateRequired(data as unknown as Record<string, unknown>, ['judgeId']);
 
     if (!data.categoryId && !data.contestId) {
@@ -381,7 +391,7 @@ export class AssignmentService extends BaseService {
           contest: {
             include: {
               event: true,
-            } as any,
+            },
           },
         },
       });
@@ -432,32 +442,69 @@ export class AssignmentService extends BaseService {
       tenantId = judge.tenantId;
     }
 
+    const assignmentData = {
+      tenantId,
+      judgeId: data.judgeId,
+      priority: data.priority ?? 0,
+      status: 'PENDING' as AssignmentStatus,
+      assignedBy: userId,
+      assignedAt: new Date(),
+      ...(data.categoryId && { categoryId: data.categoryId }),
+      ...(finalContestId && { contestId: finalContestId }),
+      ...(finalEventId && { eventId: finalEventId }),
+      ...(data.notes && { notes: data.notes }),
+    };
+
     const assignment = await this.prisma.assignment.create({
-      data: {
-        tenantId,
-        judgeId: data.judgeId,
-        categoryId: data.categoryId ?? undefined,
-        contestId: finalContestId ?? undefined,
-        eventId: finalEventId ?? undefined,
-        notes: data.notes ?? undefined,
-        priority: data.priority ?? 0,
-        status: 'PENDING',
-        assignedBy: userId,
-        assignedAt: new Date(),
-      } as any,
+      data: assignmentData as Prisma.AssignmentUncheckedCreateInput,
       include: {
-        judge: true,
-        category: true,
-        contest: true,
-        event: true,
-        assignedByUser: true,
-      } as any,
+        judge: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            bio: true,
+            isHeadJudge: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            scoreCap: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        assignedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
     });
 
     // P2-3: Invalidate assignment caches
     await this.invalidateAssignmentCaches(data.judgeId, data.categoryId);
 
-    return assignment;
+    return assignment as AssignmentWithRelations;
   }
 
   /**
@@ -469,17 +516,37 @@ export class AssignmentService extends BaseService {
       include: {
         judge: true,
         category: true,
-        contest: true,
-        event: true,
-        assignedByUser: true,
-      } as any,
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        assignedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
     });
 
     if (!assignment) {
       throw this.createNotFoundError('Assignment not found');
     }
 
-    return assignment as any;
+    return assignment as AssignmentWithRelations;
   }
 
   /**
@@ -501,18 +568,53 @@ export class AssignmentService extends BaseService {
       where: { id },
       data,
       include: {
-        judge: true,
-        category: true,
-        contest: true,
-        event: true,
-        assignedByUser: true,
-      } as any,
+        judge: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            bio: true,
+            isHeadJudge: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            scoreCap: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        assignedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
     });
 
     // P2-3: Invalidate assignment caches
     await this.invalidateAssignmentCaches(assignment.judgeId, assignment.categoryId ?? undefined);
 
-    return updated as any;
+    return updated as AssignmentWithRelations;
   }
 
   /**
@@ -559,7 +661,7 @@ export class AssignmentService extends BaseService {
     // P2-3: Cache result (TTL: 15 min)
     await this.cacheService.set(cacheKey, assignments, 900);
 
-    return assignments as any;
+    return assignments as unknown as AssignmentWithRelations[];
   }
 
   /**
@@ -585,7 +687,7 @@ export class AssignmentService extends BaseService {
     // P2-3: Cache result (TTL: 15 min)
     await this.cacheService.set(cacheKey, assignments, 900);
 
-    return assignments as any;
+    return assignments as unknown as AssignmentWithRelations[];
   }
 
   /**
@@ -602,7 +704,7 @@ export class AssignmentService extends BaseService {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
       },
     });
@@ -701,7 +803,7 @@ export class AssignmentService extends BaseService {
             role: true,
           },
         },
-      } as any,
+      },
       orderBy: {
         name: 'asc',
       },
@@ -747,7 +849,7 @@ export class AssignmentService extends BaseService {
   }>> {
     // Note: Can't filter by nested contest.event.archived in Prisma where clause
     // Fetching all and filtering in memory
-    const categories = await (this.prisma.category.findMany as any)({
+    const categories = await this.prisma.category.findMany({
       include: {
         contest: {
           select: {
@@ -761,14 +863,14 @@ export class AssignmentService extends BaseService {
             },
           },
         },
-      } as any,
+      },
       orderBy: {
         name: 'asc',
       },
     });
 
     // Filter out categories from archived events
-    return categories.filter((cat: any) => !cat.contest?.event?.archived);
+    return categories.filter((cat) => !(cat.contest as { event?: { archived?: boolean } })?.event?.archived);
   }
 
   /**
@@ -874,13 +976,13 @@ export class AssignmentService extends BaseService {
             bio: true,
           },
         },
-      } as any,
+      },
       orderBy: {
         contestantId: 'asc',
       },
     });
 
-    return contestants as any;
+    return contestants;
   }
 
   /**
@@ -967,14 +1069,14 @@ export class AssignmentService extends BaseService {
                     name: true,
                   },
                 },
-              } as any,
+              },
             },
           },
         },
       },
     });
 
-    return result as any;
+    return result;
   }
 
   /**

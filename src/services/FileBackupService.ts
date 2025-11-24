@@ -8,6 +8,16 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('FileBackupService');
 
+export interface BackupResult {
+  success: boolean;
+  backupPath: string;
+  timestamp: string;
+  local: boolean;
+  s3: boolean;
+  s3Key?: string;
+  s3Error?: string;
+}
+
 @injectable()
 export class FileBackupService extends BaseService {
   private readonly BACKUP_DIR = path.join(__dirname, '../../backups');
@@ -198,7 +208,7 @@ export class FileBackupService extends BaseService {
     }
   }
 
-  async createBackup() {
+  async createBackup(): Promise<BackupResult> {
     try {
       // Create local backup directory
       await fs.mkdir(this.BACKUP_DIR, { recursive: true });
@@ -208,7 +218,7 @@ export class FileBackupService extends BaseService {
       // TODO: Implement actual file copying
       await fs.mkdir(backupPath, { recursive: true });
 
-      const result: any = {
+      const result: BackupResult = {
         success: true,
         backupPath,
         timestamp,
@@ -227,10 +237,11 @@ export class FileBackupService extends BaseService {
 
           result.s3 = true;
           result.s3Key = s3Key;
-        } catch (s3Error: any) {
+        } catch (s3Error: unknown) {
           // Fall back to local backup if S3 fails
-          logger.error('S3 backup failed, using local backup only', { error: s3Error });
-          result.s3Error = s3Error.message;
+          const errorMessage = s3Error instanceof Error ? s3Error.message : String(s3Error);
+          logger.error('S3 backup failed, using local backup only', { error: errorMessage });
+          result.s3Error = errorMessage;
         }
       }
 

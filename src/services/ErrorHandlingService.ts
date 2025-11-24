@@ -6,7 +6,7 @@ const logger = createLogger('ErrorHandlingService');
 
 @injectable()
 export class ErrorHandlingService extends BaseService {
-  override logError(error: any, context?: any) {
+  override logError(error: unknown, context?: Record<string, unknown>) {
     // TODO: Implement error logging to database or external service
     logger.error('Error logged', { error, context });
 

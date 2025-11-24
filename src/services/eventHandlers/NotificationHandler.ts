@@ -91,6 +91,9 @@ async function handleScoreSubmitted(event: AppEvent) {
 
   if (contestant?.users && contestant.users.length > 0) {
     const user = contestant.users[0]; // Get first associated user
+    if (!user) {
+      return;
+    }
     await prisma.notification.create({
       data: {
         tenantId: 'default_tenant',

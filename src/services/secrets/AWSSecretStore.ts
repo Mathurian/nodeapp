@@ -281,7 +281,11 @@ export class AWSSecretStore implements ISecretProvider {
       if (!this.client) {
         throw new Error('AWS Secrets Manager client not initialized');
       }
-      const response = await this.client.send(command);
+      const response = await this.client.send(command) as {
+        CreatedDate?: Date;
+        LastChangedDate?: Date;
+        VersionIdsToStages?: Record<string, string[]>;
+      };
 
       // Try to get metadata from secret value
       const value = await this.get(key);
@@ -348,6 +352,9 @@ export class AWSSecretStore implements ISecretProvider {
       SecretString: secretValue,
     });
 
+    if (!this.client) {
+      throw new Error('AWS Secrets Manager client not initialized');
+    }
     await this.client.send(command);
   }
 
