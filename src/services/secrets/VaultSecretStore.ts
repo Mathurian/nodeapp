@@ -249,21 +249,22 @@ export class VaultSecretStore implements ISecretProvider {
         if (vaultMetadata) {
           // Also get the secret data to check for custom metadata
           const secret = await this.vault.read(this.getSecretPath(key));
-          const customMetadata = secret?.data?.data?.metadata;
+          const secretData = secret?.data as { data?: { metadata?: Record<string, unknown> } } | undefined;
+          const customMetadata = secretData?.data?.metadata;
 
           return {
             key,
-            createdAt: customMetadata?.createdAt
+            createdAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.createdAt === 'string'
               ? new Date(customMetadata.createdAt)
               : new Date(vaultMetadata.created_time),
-            updatedAt: customMetadata?.updatedAt
+            updatedAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.updatedAt === 'string'
               ? new Date(customMetadata.updatedAt)
               : new Date(vaultMetadata.updated_time),
             version: vaultMetadata.current_version || 1,
-            expiresAt: customMetadata?.expiresAt
+            expiresAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.expiresAt === 'string'
               ? new Date(customMetadata.expiresAt)
               : undefined,
-            rotationDate: customMetadata?.rotationDate
+            rotationDate: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.rotationDate === 'string'
               ? new Date(customMetadata.rotationDate)
               : undefined,
           };
