@@ -295,24 +295,37 @@ export class VaultSecretStore implements ISecretProvider {
    * Rotate a secret
    */
   async rotate(key: string, newValue: string): Promise<void> {
-    const metadata = await this.getMetadata(key);
-    if (!metadata) {
-      throw new Error(`Secret "${key}" not found`);
+        const metadata = await this.getMetadata(key);
+        if (!metadata) {
+          throw new Error(`Secret "${key}" not found`);
+        }
+
+        // Set the new value (Vault will automatically version it)
+        const secretData: {
+          value: string;
+          metadata: {
+            key: string;
+            createdAt: string;
+            updatedAt: string;
+            rotationDate: string;
+            version: number;
+            expiresAt?: string;
+          };
+        } = {
+          value: newValue,
+          metadata: {
+            key,
+            createdAt: metadata.createdAt.toISOString(),
+            updatedAt: new Date().toISOString(),
+            rotationDate: new Date().toISOString(),
+            version: metadata.version + 1,
+            expiresAt: metadata.expiresAt?.toISOString(),
+          },
+        };
+
+    if (!this.vault) {
+      throw new Error('Vault client not initialized');
     }
-
-    // Set the new value (Vault will automatically version it)
-    const secretData: any = {
-      value: newValue,
-      metadata: {
-        key,
-        createdAt: metadata.createdAt.toISOString(),
-        updatedAt: new Date().toISOString(),
-        rotationDate: new Date().toISOString(),
-        version: metadata.version + 1,
-        expiresAt: metadata.expiresAt?.toISOString(),
-      },
-    };
-
     if (this.kvVersion === 'v2') {
       await this.vault.write(this.getSecretPath(key), {
         data: secretData,
@@ -413,6 +426,9 @@ export class VaultSecretStore implements ISecretProvider {
   async listVersions(key: string): Promise<number[]> {
     if (this.kvVersion === 'v2') {
       try {
+        if (!this.vault) {
+          throw new Error('Vault client not initialized');
+        }
         const response = await this.vault.read(this.getMetadataPath(key));
         const versions = (response?.data as { versions?: Record<string, unknown> })?.versions;
 
