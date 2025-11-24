@@ -177,6 +177,9 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async delete(key: string): Promise<void> {
     try {
+      if (!this.vault) {
+        throw new Error('Vault client not initialized');
+      }
       if (this.kvVersion === 'v2') {
         // KV v2 has soft delete that preserves versions
         await this.vault.delete(this.getSecretPath(key));
