@@ -1297,8 +1297,8 @@ export class AssignmentService extends BaseService {
     eventId?: string;
     contestId?: string;
     categoryId?: string;
-  }): Promise<Array<{ id: string; eventId: string; contestId: string; categoryId: string; userId: string; createdAt: Date; updatedAt: Date; tenantId: string }>> {
-    const where: Prisma.TallyMasterAssignmentWhereInput = {};
+  }): Promise<unknown[]> {
+    const where: Prisma.AuditorAssignmentWhereInput = {};
 
     if (filters?.eventId) {
       where.eventId = filters.eventId;
