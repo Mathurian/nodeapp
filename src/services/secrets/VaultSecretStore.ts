@@ -261,11 +261,11 @@ export class VaultSecretStore implements ISecretProvider {
               ? new Date(customMetadata.updatedAt)
               : new Date(vaultMetadata.updated_time),
             version: vaultMetadata.current_version || 1,
-            expiresAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.expiresAt === 'string'
-              ? new Date(customMetadata.expiresAt)
+            expiresAt: customMetadata && typeof customMetadata === 'object' && typeof customMetadata['expiresAt'] === 'string'
+              ? new Date(customMetadata['expiresAt'])
               : undefined,
-            rotationDate: customMetadata && typeof customMetadata === 'object' && typeof customMetadata.rotationDate === 'string'
-              ? new Date(customMetadata.rotationDate)
+            rotationDate: customMetadata && typeof customMetadata === 'object' && typeof customMetadata['rotationDate'] === 'string'
+              ? new Date(customMetadata['rotationDate'])
               : undefined,
           };
         }
