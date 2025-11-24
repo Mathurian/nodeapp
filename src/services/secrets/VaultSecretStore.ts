@@ -347,6 +347,9 @@ export class VaultSecretStore implements ISecretProvider {
   async permanentlyDelete(key: string): Promise<void> {
     if (this.kvVersion === 'v2') {
       try {
+        if (!this.vault) {
+          throw new Error('Vault client not initialized');
+        }
         await this.vault.delete(this.getMetadataPath(key));
       } catch (error: unknown) {
         const errorObj = error as { response?: { statusCode?: number } };
@@ -369,6 +372,9 @@ export class VaultSecretStore implements ISecretProvider {
     if (this.kvVersion === 'v2') {
       try {
         const path = `${this.mountPath}/undelete/${key}`;
+        if (!this.vault) {
+          throw new Error('Vault client not initialized');
+        }
         await this.vault.write(path, {
           versions: versions || [await this.getLatestVersion(key)],
         });

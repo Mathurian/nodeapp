@@ -155,6 +155,9 @@ export class AWSSecretStore implements ISecretProvider {
           Description: `Event Manager secret: ${key}`,
         });
 
+        if (!this.client) {
+          throw new Error('AWS Secrets Manager client not initialized');
+        }
         await this.client.send(createCommand);
       } catch (error: unknown) {
         // If secret exists, update it
@@ -191,6 +194,9 @@ export class AWSSecretStore implements ISecretProvider {
         ForceDeleteWithoutRecovery: false, // Allow 30-day recovery window
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       await this.client.send(command);
     } catch (error: unknown) {
       const errorObj = error as { name?: string };
@@ -225,7 +231,7 @@ export class AWSSecretStore implements ISecretProvider {
 
       if (response.SecretList) {
         return (response.SecretList as Array<{ Name?: string }>).map((secret) =>
-          this.stripPrefix(secret.Name)
+          this.stripPrefix(secret.Name || '')
         ).filter((name: string) => name); // Filter out empty names
       }
 
@@ -247,6 +253,9 @@ export class AWSSecretStore implements ISecretProvider {
         SecretId: this.getSecretName(key),
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       await this.client.send(command);
       return true;
     } catch (error: unknown) {
@@ -354,6 +363,9 @@ export class AWSSecretStore implements ISecretProvider {
         MaxResults: 1,
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       await this.client.send(command);
       return true;
     } catch (error) {
@@ -390,6 +402,9 @@ export class AWSSecretStore implements ISecretProvider {
         },
       });
 
+      if (!this.client) {
+        throw new Error('AWS Secrets Manager client not initialized');
+      }
       await this.client.send(command);
     } catch (error) {
       console.error(`Error enabling rotation for secret "${key}":`, error);
