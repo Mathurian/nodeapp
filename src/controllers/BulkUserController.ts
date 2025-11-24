@@ -255,8 +255,8 @@ export class BulkUserController {
           name: u.name,
           role: u.role,
           phone: u.phone || '',
-          active: u.isActive,
-          createdAt: u.createdAt
+          active: String(u.isActive),
+          createdAt: u.createdAt.toISOString()
         })),
         ['id', 'email', 'name', 'role', 'phone', 'active', 'createdAt'],
         ['ID', 'Email', 'Name', 'Role', 'Phone', 'Active', 'Created At']

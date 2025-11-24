@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, FileCategory } from '@prisma/client';
+import { PrismaClient, FileCategory, File } from '@prisma/client';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -68,7 +68,7 @@ export class UploadService extends BaseService {
 
     // Save to database - use relative path
     const relativePath = path.relative(process.cwd(), file.path);
-    const dbFile: any = await this.prisma.file.create({
+    const dbFile = await this.prisma.file.create({
       data: {
         filename: file.filename,
         originalName: file.originalname,
@@ -141,7 +141,7 @@ export class UploadService extends BaseService {
   async deleteFile(fileId: string): Promise<void> {
     // Try to find in database first
     try {
-      const file: any = await this.prisma.file.findUnique({
+      const file = await this.prisma.file.findUnique({
         where: { id: fileId },
       });
 
@@ -177,9 +177,9 @@ export class UploadService extends BaseService {
   /**
    * Get file by ID
    */
-  async getFileById(fileId: string): Promise<any> {
+  async getFileById(fileId: string): Promise<File | null> {
     try {
-      const file: any = await this.prisma.file.findUnique({
+      const file = await this.prisma.file.findUnique({
         where: { id: fileId },
       });
 
@@ -190,21 +190,8 @@ export class UploadService extends BaseService {
       // Not in database
     }
 
-    // Try filesystem
-    const filePath = path.join(this.uploadDir, fileId);
-
-    try {
-      const stats = await fs.stat(filePath);
-      return {
-        id: fileId,
-        filename: fileId,
-        filepath: filePath,
-        size: stats.size,
-        createdAt: stats.birthtime,
-        updatedAt: stats.mtime,
-      };
-    } catch {
-      throw this.createNotFoundError('File not found');
-    }
+    // Try filesystem - return null as this method should only return files from database
+    // Filesystem-only files should be handled separately
+    return null;
   }
 }

@@ -12,8 +12,9 @@ export interface CSVParseError {
   value?: unknown;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface CSVImportResult<T = any> {
+export type CSVRow = Record<string, string | number | boolean | null | undefined>;
+
+export interface CSVImportResult<T = CSVRow> {
   total: number;
   successful: number;
   failed: number;
@@ -32,8 +33,7 @@ export class CSVService {
    * @param fileBuffer CSV file buffer
    * @param columns Optional column definitions
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parseCSV(fileBuffer: Buffer, columns?: string[]): any[] {
+  parseCSV(fileBuffer: Buffer, columns?: string[]): CSVRow[] {
     try {
       const records = parse(fileBuffer, {
         columns: columns || true,
@@ -44,7 +44,7 @@ export class CSVService {
       });
 
       Logger.info('CSV parsed successfully', { recordCount: records.length });
-      return records;
+      return records as CSVRow[];
     } catch (error) {
       Logger.error('CSV parse failed', { error });
       throw new Error(`Failed to parse CSV: ${error instanceof Error ? error.message : String(error)}`);
@@ -55,8 +55,7 @@ export class CSVService {
    * Validate and import users from CSV
    * @param csvData Parsed CSV data
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async validateUsersImport(csvData: any[]): Promise<CSVImportResult> {
+  async validateUsersImport(csvData: CSVRow[]): Promise<CSVImportResult> {
     const result: CSVImportResult = {
       total: csvData.length,
       successful: 0,
@@ -86,23 +85,25 @@ export class CSVService {
       }
 
       // Validate email format
-      if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+      const email = String(row['email'] || '');
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         result.errors.push({
           row: rowNumber,
           field: 'email',
           error: 'Invalid email format',
-          value: row.email
+          value: email
         });
         hasError = true;
       }
 
       // Validate role
-      if (row.role && !validRoles.includes(row.role.toUpperCase())) {
+      const role = String(row['role'] || '');
+      if (role && !validRoles.includes(role.toUpperCase())) {
         result.errors.push({
           row: rowNumber,
           field: 'role',
           error: `Invalid role. Must be one of: ${validRoles.join(', ')}`,
-          value: row.role
+          value: role
         });
         hasError = true;
       }
@@ -111,12 +112,17 @@ export class CSVService {
         result.failed++;
       } else {
         result.successful++;
+        const rowEmail = String(row['email'] || '');
+        const rowName = String(row['name'] || '');
+        const rowRole = String(row['role'] || '');
+        const rowPhone = row['phone'] ? String(row['phone']) : null;
+        const rowActive = row['active'];
         result.data.push({
-          email: row.email.toLowerCase().trim(),
-          name: row.name.trim(),
-          role: row.role.toUpperCase(),
-          phone: row.phone?.trim() || null,
-          active: row.active === 'false' || row.active === '0' ? false : true
+          email: rowEmail.toLowerCase().trim(),
+          name: rowName.trim(),
+          role: rowRole.toUpperCase(),
+          phone: rowPhone?.trim() || null,
+          active: rowActive === 'false' || rowActive === '0' || rowActive === false ? false : true
         });
       }
     });
@@ -134,8 +140,7 @@ export class CSVService {
    * Validate and import contestants from CSV
    * @param csvData Parsed CSV data
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async validateContestantsImport(csvData: any[]): Promise<CSVImportResult> {
+  async validateContestantsImport(csvData: CSVRow[]): Promise<CSVImportResult> {
     const result: CSVImportResult = {
       total: csvData.length,
       successful: 0,
@@ -164,12 +169,13 @@ export class CSVService {
       }
 
       // Validate number (if provided)
-      if (row.number && isNaN(parseInt(row.number))) {
+      const rowNumberValue = row['number'];
+      if (rowNumberValue && isNaN(parseInt(String(rowNumberValue)))) {
         result.errors.push({
           row: rowNumber,
           field: 'number',
           error: 'Number must be a valid integer',
-          value: row.number
+          value: String(rowNumberValue)
         });
         hasError = true;
       }
@@ -177,12 +183,15 @@ export class CSVService {
       if (hasError) {
         result.failed++;
       } else {
+        const rowName = String(row['name'] || '');
+        const rowContestId = String(row['contestId'] || '');
+        const rowBio = row['bio'] ? String(row['bio']) : null;
         result.successful++;
         result.data.push({
-          name: row.name.trim(),
-          number: row.number ? parseInt(row.number) : null,
-          contestId: row.contestId.trim(),
-          bio: row.bio?.trim() || null
+          name: rowName.trim(),
+          number: rowNumberValue ? parseInt(String(rowNumberValue)) : null,
+          contestId: rowContestId.trim(),
+          bio: rowBio?.trim() || null
         });
       }
     });
@@ -200,8 +209,7 @@ export class CSVService {
    * Validate and import judges from CSV
    * @param csvData Parsed CSV data
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async validateJudgesImport(csvData: any[]): Promise<CSVImportResult> {
+  async validateJudgesImport(csvData: CSVRow[]): Promise<CSVImportResult> {
     const result: CSVImportResult = {
       total: csvData.length,
       successful: 0,
@@ -230,12 +238,13 @@ export class CSVService {
       }
 
       // Validate email format
-      if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+      const judgeEmail = String(row['email'] || '');
+      if (judgeEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(judgeEmail)) {
         result.errors.push({
           row: rowNumber,
           field: 'email',
           error: 'Invalid email format',
-          value: row.email
+          value: judgeEmail
         });
         hasError = true;
       }
@@ -244,12 +253,17 @@ export class CSVService {
         result.failed++;
       } else {
         result.successful++;
+        const judgeName = String(row['name'] || '');
+        const judgeEmailValue = String(row['email'] || '');
+        const judgePhone = row['phone'] ? String(row['phone']) : null;
+        const judgeBio = row['bio'] ? String(row['bio']) : null;
+        const judgeCertified = row['certified'];
         result.data.push({
-          name: row.name.trim(),
-          email: row.email.toLowerCase().trim(),
-          phone: row.phone?.trim() || null,
-          bio: row.bio?.trim() || null,
-          certified: row.certified === 'true' || row.certified === '1'
+          name: judgeName.trim(),
+          email: judgeEmailValue.toLowerCase().trim(),
+          phone: judgePhone?.trim() || null,
+          bio: judgeBio?.trim() || null,
+          certified: judgeCertified === 'true' || judgeCertified === '1' || judgeCertified === true
         });
       }
     });
@@ -269,9 +283,8 @@ export class CSVService {
    * @param columns Column definitions (field names)
    * @param headers Optional header labels (defaults to field names)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exportToCSV(
-    data: any[],
+    data: CSVRow[],
     columns: string[],
     headers?: string[]
   ): string {

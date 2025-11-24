@@ -11,7 +11,7 @@ const logger = createLogger('ScheduledBackupService');
 
 class ScheduledBackupService {
   private prisma: PrismaClient;
-  private jobs: Map<string, any>;
+  private jobs: Map<string, ReturnType<typeof cron.schedule>>;
   private isRunning: boolean;
 
   constructor(prismaClient: PrismaClient) {
@@ -40,7 +40,7 @@ class ScheduledBackupService {
     }
 
     // Stop all cron jobs
-    this.jobs.forEach((job: any, key: string) => {
+    this.jobs.forEach((job: ReturnType<typeof cron.schedule>, key: string) => {
       job.stop();
       logger.info(`Stopped backup job: ${key}`);
     });
@@ -292,7 +292,7 @@ class ScheduledBackupService {
   // Method to get all active backup schedules
   getActiveSchedules(): Array<{backupType: string, frequency: string, isActive: boolean}> {
     const schedules: Array<{backupType: string, frequency: string, isActive: boolean}> = [];
-    this.jobs.forEach((_job: any, key: string) => {
+    this.jobs.forEach((_job: ReturnType<typeof cron.schedule>, key: string) => {
       const [backupType, frequency] = key.split('_');
       schedules.push({ backupType: backupType ?? '', frequency: frequency ?? '', isActive: true });
     });
