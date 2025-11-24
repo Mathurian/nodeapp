@@ -125,7 +125,7 @@ async function handleScoresFinalized(event: AppEvent) {
     .filter((c) => c.users && c.users.length > 0)
     .map((contestant) => ({
       tenantId: 'default_tenant',
-      userId: contestant.users[0].id,
+      userId: contestant.users[0]?.id || '',
       type: 'SUCCESS' as const,
       title: 'Results Available',
       message: `Final results are now available for ${categoryName}`,

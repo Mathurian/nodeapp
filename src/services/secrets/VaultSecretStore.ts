@@ -28,6 +28,8 @@ interface VaultClient {
   write(path: string, data: unknown): Promise<void>;
   delete(path: string): Promise<void>;
   list(path: string): Promise<{ data?: { keys?: string[] } }>;
+  health?: () => Promise<unknown>;
+  [key: string]: unknown; // Allow other methods
 }
 
 export class VaultSecretStore implements ISecretProvider {
@@ -325,9 +327,16 @@ export class VaultSecretStore implements ISecretProvider {
    */
   async healthCheck(): Promise<boolean> {
     try {
+      if (!this.vault) {
+        return false;
+      }
       // Check Vault health endpoint
-      const health = await this.vault.health();
-      return health?.initialized && !health?.sealed;
+      const health = this.vault.health ? await this.vault.health() : null;
+      if (health && typeof health === 'object' && 'initialized' in health && 'sealed' in health) {
+        return (health as { initialized?: boolean; sealed?: boolean }).initialized === true && 
+               (health as { initialized?: boolean; sealed?: boolean }).sealed !== true;
+      }
+      return false;
     } catch (error) {
       console.error('Vault health check failed:', error);
       return false;
