@@ -232,7 +232,13 @@ export class EventRepository extends BaseRepository<Event> {
       };
     }
 
-    const totalCategories = event.contests.reduce((sum: number, contest: any) =>
+    type ContestWithCounts = {
+      categories: Array<unknown>;
+      contestants: Array<{ userId: string }>;
+      judges: Array<{ userId: string }>;
+      _count: { scores: number };
+    };
+    const totalCategories = event.contests.reduce((sum: number, contest: ContestWithCounts) =>
       sum + contest.categories.length, 0
     );
 
@@ -240,9 +246,9 @@ export class EventRepository extends BaseRepository<Event> {
     const judgeIds = new Set<string>();
     let totalScores = 0;
 
-    event.contests.forEach((contest: any) => {
-      contest.contestants.forEach((c: any) => contestantIds.add(c.userId));
-      contest.judges.forEach((j: any) => judgeIds.add(j.userId));
+    event.contests.forEach((contest: ContestWithCounts) => {
+      contest.contestants.forEach((c) => contestantIds.add(c.userId));
+      contest.judges.forEach((j) => judgeIds.add(j.userId));
       totalScores += contest._count.scores;
     });
 

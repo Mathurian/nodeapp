@@ -419,10 +419,19 @@ export class VaultSecretStore implements ISecretProvider {
   async getVersion(key: string, version: number): Promise<string | null> {
     if (this.kvVersion === 'v2') {
       try {
+        if (!this.vault) {
+          throw new Error('Vault client not initialized');
+        }
         const path = this.getSecretPath(key) + `?version=${version}`;
         const response = await this.vault.read(path);
-        const data = response?.data?.data;
-        return data?.value || data?.[key] || null;
+        const responseData = response?.data as { data?: Record<string, unknown> } | undefined;
+        const data = responseData?.data;
+        if (data && typeof data === 'object') {
+          const value = data['value'] as string | undefined;
+          const keyValue = data[key] as string | undefined;
+          return value || keyValue || null;
+        }
+        return null;
       } catch (error: unknown) {
         const errorObj = error as { response?: { statusCode?: number } };
         if (errorObj.response?.statusCode === 404) {

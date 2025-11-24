@@ -165,6 +165,9 @@ export class AWSSecretStore implements ISecretProvider {
             SecretString: secretValue,
           });
 
+          if (!this.client) {
+            throw new Error('AWS Secrets Manager client not initialized');
+          }
           await this.client.send(updateCommand);
         } else {
           throw error;
