@@ -1152,7 +1152,7 @@ export class AssignmentService extends BaseService {
       where.categoryId = filters.categoryId;
     }
 
-    return await this.prisma.tallyMasterAssignment.findMany({
+    const assignments = await this.prisma.tallyMasterAssignment.findMany({
       where,
       include: {
         user: {

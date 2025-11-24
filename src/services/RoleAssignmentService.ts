@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, RoleAssignment, User } from '@prisma/client';
 
 interface RoleAssignmentFilters {
   role?: string;
@@ -33,7 +33,7 @@ export class RoleAssignmentService extends BaseService {
   }
 
   async getAll(filters: RoleAssignmentFilters) {
-    const whereClause: any = {};
+    const whereClause: Prisma.RoleAssignmentWhereInput = {};
 
     if (filters.role) whereClause.role = filters.role;
     if (filters.contestId) whereClause.contestId = filters.contestId;
@@ -59,10 +59,10 @@ export class RoleAssignmentService extends BaseService {
       throw this.badRequestError('Invalid role');
     }
 
-    const user: any = await this.prisma.user.findUnique({ where: { id: data.userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
     if (!user) throw this.notFoundError('User', data.userId);
 
-    const existingAssignment: any = await this.prisma.roleAssignment.findFirst({
+    const existingAssignment = await this.prisma.roleAssignment.findFirst({
       where: {
         userId: data.userId,
         role: data.role,
@@ -91,7 +91,7 @@ export class RoleAssignmentService extends BaseService {
   }
 
   async update(id: string, data: UpdateRoleAssignmentDto) {
-    const assignment: any = await this.prisma.roleAssignment.findUnique({ where: { id } });
+    const assignment = await this.prisma.roleAssignment.findUnique({ where: { id } });
     if (!assignment) throw this.notFoundError('Assignment', id);
 
     return await this.prisma.roleAssignment.update({
@@ -103,7 +103,7 @@ export class RoleAssignmentService extends BaseService {
   }
 
   async delete(id: string) {
-    const assignment: any = await this.prisma.roleAssignment.findUnique({ where: { id } });
+    const assignment = await this.prisma.roleAssignment.findUnique({ where: { id } });
     if (!assignment) throw this.notFoundError('Assignment', id);
     await this.prisma.roleAssignment.delete({ where: { id } });
   }
