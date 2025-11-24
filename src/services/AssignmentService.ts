@@ -269,9 +269,12 @@ export class AssignmentService extends BaseService {
         contest?: {
           id: string;
           name: string;
+          description: string | null;
           event?: {
             id: string;
             name: string;
+            startDate: Date | null;
+            endDate: Date | null;
           } | null;
         } | null;
       } | null;
