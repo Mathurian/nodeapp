@@ -1,6 +1,16 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Contest } from '@prisma/client';
+
+type ContestWithCategories = Contest & {
+  categories: Array<{
+    id: string;
+    name: string;
+    categoryContestants: { contestantId: string }[];
+    scores: { id: string; judgeId: string }[];
+    categoryJudges: { judgeId: string }[];
+  }>;
+};
 
 @injectable()
 export class TrackerService extends BaseService {
@@ -9,28 +19,23 @@ export class TrackerService extends BaseService {
   }
 
   async getScoringProgressByContest(contestId: string) {
-    const contest: any = await this.prisma.contest.findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
-      select: {
-        id: true,
-        name: true,
-        eventId: true,
+      include: {
         categories: {
-          select: {
-            id: true,
-            name: true,
-            contestants: { select: { contestantId: true } },
+          include: {
+            categoryContestants: { select: { contestantId: true } },
             scores: { select: { id: true, judgeId: true } },
-            judges: { select: { judgeId: true } }
+            categoryJudges: { select: { judgeId: true } }
           }
         }
-      } as any
-    } as any);
+      }
+    }) as ContestWithCategories | null;
 
     if (!contest) throw this.notFoundError('Contest', contestId);
 
     // Get event name separately
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: contest.eventId },
       select: { id: true, name: true }
     });
@@ -45,12 +50,12 @@ export class TrackerService extends BaseService {
         : 0;
 
       const judgeCompletion = await Promise.all(Array.from(uniqueJudges).map(async (judgeId) => {
-        const judgeScores = category.scores.filter((s: any) => s.judgeId === judgeId).length;
+        const judgeScores = category.scores.filter((s) => s.judgeId === judgeId).length;
         const judgeCompletionPct = totalContestants > 0 
           ? Math.round((judgeScores / totalContestants) * 100) 
           : 0;
         
-        const judge: any = await this.prisma.judge.findUnique({
+        const judge = await this.prisma.judge.findUnique({
           where: { id: judgeId as string },
           select: { name: true }
         });
@@ -88,26 +93,26 @@ export class TrackerService extends BaseService {
   }
 
   async getScoringProgressByCategory(categoryId: string) {
-    const category: any = await this.prisma.category.findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
-        contestants: { select: { contestantId: true, contestant: { select: { name: true } } } },
+        categoryContestants: { select: { contestantId: true } },
         scores: { select: { id: true, judgeId: true, contestantId: true } },
-        judges: { select: { judgeId: true, judge: { select: { name: true } } } },
+        categoryJudges: { select: { judgeId: true } },
         contest: { select: { id: true, name: true, eventId: true } }
-      } as any
-    } as any);
+      }
+    });
 
     if (!category) throw this.notFoundError('Category', categoryId);
 
     // Get event name separately
-    const event: any = await this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id: category.contest.eventId },
       select: { id: true, name: true }
     });
 
-    const totalContestants = category.contestants.length;
-    const totalJudges = category.judges.length;
+    const totalContestants = category.categoryContestants.length;
+    const totalJudges = category.categoryJudges.length;
     const expectedScores = totalContestants * totalJudges;
     const totalScores = category.scores.length;
     const completionPercentage = expectedScores > 0
