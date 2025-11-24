@@ -2,7 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ErrorHandlingService } from '../services/ErrorHandlingService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ActivityLog, Prisma } from '@prisma/client';
+
+type ActivityLogWithUser = ActivityLog & {
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+};
 
 export class ErrorHandlingController {
   private errorHandlingService: ErrorHandlingService;
@@ -82,7 +90,7 @@ export class ErrorHandlingController {
 
       if (id) {
         // Get specific error details
-        const errorLog: any = await this.prisma.activityLog.findUnique({
+        const errorLog = await this.prisma.activityLog.findUnique({
           where: { id },
           include: {
             user: {
@@ -103,7 +111,7 @@ export class ErrorHandlingController {
       }
 
       // Get all error logs with pagination
-      const [errorLogs, total]: any = await Promise.all([
+      const [errorLogs, total] = await Promise.all([
         this.prisma.activityLog.findMany({
           where: { action: 'ERROR' },
           include: {
@@ -199,7 +207,7 @@ export class ErrorHandlingController {
       }, {} as Record<string, { total: number; byType: Record<string, number> }>);
 
       // Calculate moving average
-      const dailyTotals = Object.values(trendsByDay).map((d: any) => d.total);
+      const dailyTotals = Object.values(trendsByDay).map((d: { total: number }) => d.total);
       const movingAverage = dailyTotals.length > 0
         ? dailyTotals.reduce((a: number, b: number) => a + b, 0) / dailyTotals.length
         : 0;
@@ -210,7 +218,7 @@ export class ErrorHandlingController {
           totalErrors: errorLogs.length,
           daysAnalyzed: days,
           movingAverage: parseFloat(movingAverage.toFixed(2)),
-          peakDay: Object.entries(trendsByDay).reduce((max: any, [day, data]: any) => {
+          peakDay: Object.entries(trendsByDay).reduce((max: { day: string; total: number } | null, [day, data]: [string, { total: number }]) => {
             return data.total > (max?.total || 0) ? { day, ...data } : max;
           }, null)
         }
@@ -253,7 +261,7 @@ export class ErrorHandlingController {
       const days = parseInt(req.query['days'] as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      const errorLogs: any = await this.prisma.activityLog.findMany({
+      const errorLogs = await this.prisma.activityLog.findMany({
         where: {
           action: 'ERROR',
           createdAt: { gte: since }
@@ -273,7 +281,7 @@ export class ErrorHandlingController {
 
       if (format === 'csv') {
         const headers = ['ID', 'User', 'Type', 'Details', 'IP Address', 'Date'];
-        const rows = errorLogs.map((log: any) => [
+        const rows = errorLogs.map((log: ActivityLogWithUser) => [
           log.id,
           log.user?.name || 'System',
           log.resourceType || 'UNKNOWN',
@@ -284,7 +292,7 @@ export class ErrorHandlingController {
 
         const csvContent = [
           headers.join(','),
-          ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(','))
+          ...rows.map((row: (string | Date | null)[]) => row.map((cell: string | Date | null) => `"${cell}"`).join(','))
         ].join('\n');
 
         res.setHeader('Content-Type', 'text/csv');

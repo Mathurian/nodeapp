@@ -720,8 +720,8 @@ export class AssignmentService extends BaseService {
       id: contestant.id,
       name: contestant.name,
       email: contestant.users && contestant.users.length > 0
-        ? contestant.users.find((u: { role: string; email: string }) => u.role === 'CONTESTANT')?.email || contestant.users[0].email || contestant.email
-        : contestant.email,
+        ? contestant.users.find((u: { role: string; email: string }) => u.role === 'CONTESTANT')?.email || contestant.users[0]?.email || contestant.email || null
+        : contestant.email || null,
       contestantNumber: contestant.contestantNumber,
       bio: contestant.bio,
     }));
