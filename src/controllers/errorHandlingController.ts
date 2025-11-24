@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ErrorHandlingService } from '../services/ErrorHandlingService';
 import { sendSuccess } from '../utils/responseHelpers';
-import { PrismaClient, ActivityLog, Prisma } from '@prisma/client';
+import { PrismaClient, ActivityLog } from '@prisma/client';
 
 type ActivityLogWithUser = ActivityLog & {
   user?: {

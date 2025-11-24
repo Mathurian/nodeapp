@@ -6,7 +6,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User } from '@prisma/client';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
@@ -37,7 +37,7 @@ export class MFAService extends BaseService {
    * Generate MFA secret and QR code for enrollment
    */
   async generateMFASecret(userId: string): Promise<MFASetupResponse> {
-    const user: any = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, name: true }
     });
@@ -116,7 +116,7 @@ export class MFAService extends BaseService {
    * Disable MFA for a user
    */
   async disableMFA(userId: string, _password: string): Promise<{ success: boolean; message: string }> {
-    const user: any = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { password: true, mfaEnabled: true }
     });
@@ -156,7 +156,7 @@ export class MFAService extends BaseService {
    * Verify MFA token during login
    */
   async verifyMFAToken(userId: string, token: string): Promise<MFAVerifyResponse> {
-    const user: any = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         mfaEnabled: true,
@@ -223,7 +223,7 @@ export class MFAService extends BaseService {
    * Generate new backup codes
    */
   async regenerateBackupCodes(userId: string): Promise<string[]> {
-    const user: any = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { mfaEnabled: true }
     });
@@ -254,7 +254,7 @@ export class MFAService extends BaseService {
     enrolledAt?: Date;
     backupCodesRemaining?: number;
   }> {
-    const user: any = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         mfaEnabled: true,
@@ -268,7 +268,12 @@ export class MFAService extends BaseService {
       throw new Error('User not found');
     }
 
-    const result: any = {
+    const result: {
+      enabled: boolean;
+      method?: string;
+      enrolledAt?: Date | null;
+      backupCodesRemaining?: number;
+    } = {
       enabled: user.mfaEnabled
     };
 
