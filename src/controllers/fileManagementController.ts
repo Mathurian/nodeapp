@@ -497,10 +497,10 @@ export class FileManagementController {
 
       const summary = {
         total: fileIds.length,
-        ok: processedResults.filter((r: any) => r.integrity === 'OK').length,
-        failed: processedResults.filter((r: any) => r.integrity === 'FAILED').length,
-        notFound: processedResults.filter((r: any) => r.integrity === 'NOT_FOUND').length,
-        errors: processedResults.filter((r: any) => r.integrity === 'ERROR').length
+        ok: processedResults.filter((r: { integrity: string }) => r.integrity === 'OK').length,
+        failed: processedResults.filter((r: { integrity: string }) => r.integrity === 'FAILED').length,
+        notFound: processedResults.filter((r: { integrity: string }) => r.integrity === 'NOT_FOUND').length,
+        errors: processedResults.filter((r: { integrity: string }) => r.integrity === 'ERROR').length
       };
 
       return sendSuccess(res, {
