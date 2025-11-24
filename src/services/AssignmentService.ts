@@ -1139,7 +1139,7 @@ export class AssignmentService extends BaseService {
     eventId?: string;
     contestId?: string;
     categoryId?: string;
-  }): Promise<Array<{ id: string; eventId: string; contestId: string; categoryId: string; userId: string; createdAt: Date; updatedAt: Date; tenantId: string }>> {
+  }): Promise<unknown[]> {
     const where: Prisma.TallyMasterAssignmentWhereInput = {};
 
     if (filters?.eventId) {
@@ -1152,7 +1152,7 @@ export class AssignmentService extends BaseService {
       where.categoryId = filters.categoryId;
     }
 
-    const assignments = await this.prisma.tallyMasterAssignment.findMany({
+    return await this.prisma.tallyMasterAssignment.findMany({
       where,
       include: {
         user: {

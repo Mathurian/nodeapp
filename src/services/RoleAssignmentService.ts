@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, Prisma, RoleAssignment, User } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 interface RoleAssignmentFilters {
   role?: string;

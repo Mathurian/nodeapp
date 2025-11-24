@@ -271,7 +271,7 @@ export class MFAService extends BaseService {
     const result: {
       enabled: boolean;
       method?: string;
-      enrolledAt?: Date | null;
+      enrolledAt?: Date;
       backupCodesRemaining?: number;
     } = {
       enabled: user.mfaEnabled
@@ -279,7 +279,7 @@ export class MFAService extends BaseService {
 
     if (user.mfaEnabled) {
       result.method = user.mfaMethod || 'totp';
-      result.enrolledAt = user.mfaEnrolledAt || undefined;
+      result.enrolledAt = user.mfaEnrolledAt ?? undefined;
 
       if (user.mfaBackupCodes) {
         const backupCodes = JSON.parse(user.mfaBackupCodes) as string[];
