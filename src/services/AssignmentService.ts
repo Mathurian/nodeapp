@@ -257,8 +257,32 @@ export class AssignmentService extends BaseService {
     });
 
     // Convert CategoryJudge entries to assignment-like objects
+    // Type based on the actual Prisma query result
+    type CategoryJudgeWithRelations = {
+      judgeId: string;
+      categoryId: string;
+      category?: {
+        id: string;
+        name: string;
+        description: string | null;
+        scoreCap: number | null;
+        contest?: {
+          id: string;
+          name: string;
+          event?: {
+            id: string;
+            name: string;
+          } | null;
+        } | null;
+      } | null;
+      judge?: {
+        id: string;
+        name: string | null;
+        email: string;
+      } | null;
+    };
     const categoryJudgeAssignments = categoryJudges
-      .map((cj: any) => {
+      .map((cj: CategoryJudgeWithRelations) => {
         const contest = cj.category?.contest;
         if (!contest) return null;
         const event = contest?.event;
@@ -681,11 +705,19 @@ export class AssignmentService extends BaseService {
     });
 
     // Map contestants to include user email if available, otherwise use contestant email
-    return contestants.map((contestant: any) => ({
+    type ContestantWithUsers = {
+      id: string;
+      name: string;
+      email: string | null;
+      contestantNumber: number | null;
+      bio: string | null;
+      users?: Array<{ role: string; email: string }>;
+    };
+    return contestants.map((contestant: ContestantWithUsers) => ({
       id: contestant.id,
       name: contestant.name,
       email: contestant.users && contestant.users.length > 0
-        ? contestant.users.find((u: any) => u.role === 'CONTESTANT')?.email || contestant.users[0].email || contestant.email
+        ? contestant.users.find((u: { role: string; email: string }) => u.role === 'CONTESTANT')?.email || contestant.users[0].email || contestant.email
         : contestant.email,
       contestantNumber: contestant.contestantNumber,
       bio: contestant.bio,
@@ -1024,7 +1056,7 @@ export class AssignmentService extends BaseService {
    * Update a contestant
    */
   async updateContestant(id: string, data: UpdateContestantInput): Promise<Prisma.ContestantGetPayload<{}>> {
-    const updateData: any = {
+    const updateData: Prisma.ContestantUpdateInput = {
       ...(data.name && { name: data.name }),
       ...(data.email !== undefined && { email: data.email ?? undefined }),
       ...(data.contestantNumber !== undefined && { contestantNumber: data.contestantNumber ? parseInt(data.contestantNumber, 10) : undefined }),
@@ -1104,8 +1136,8 @@ export class AssignmentService extends BaseService {
     eventId?: string;
     contestId?: string;
     categoryId?: string;
-  }): Promise<any[]> {
-    const where: any = {};
+  }): Promise<Array<{ id: string; eventId: string; contestId: string; categoryId: string; userId: string; createdAt: Date; updatedAt: Date; tenantId: string }>> {
+    const where: Prisma.TallyMasterAssignmentWhereInput = {};
 
     if (filters?.eventId) {
       where.eventId = filters.eventId;
@@ -1262,8 +1294,8 @@ export class AssignmentService extends BaseService {
     eventId?: string;
     contestId?: string;
     categoryId?: string;
-  }): Promise<any[]> {
-    const where: any = {};
+  }): Promise<Array<{ id: string; eventId: string; contestId: string; categoryId: string; userId: string; createdAt: Date; updatedAt: Date; tenantId: string }>> {
+    const where: Prisma.TallyMasterAssignmentWhereInput = {};
 
     if (filters?.eventId) {
       where.eventId = filters.eventId;
