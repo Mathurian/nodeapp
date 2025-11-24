@@ -112,7 +112,7 @@ export abstract class BaseJobProcessor<T = any> {
    * Handle job completion
    * Override in subclasses for custom completion handling
    */
-  protected async onCompleted(job: Job<T>, result: any): Promise<void> {
+  protected async onCompleted(job: Job<T>, result: unknown): Promise<void> {
     this.logger.info(`Job completed successfully: ${this.jobName}`, {
       jobId: job.id,
       result,

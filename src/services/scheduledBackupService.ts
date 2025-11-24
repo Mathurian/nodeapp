@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, BackupSetting } from '@prisma/client';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
@@ -57,7 +57,7 @@ class ScheduledBackupService {
         return;
       }
 
-      const settings: any = await this.prisma.backupSetting.findMany()
+      const settings = await this.prisma.backupSetting.findMany()
       for (const setting of settings) {
         if (setting.enabled) {
           await this.scheduleBackup(setting)
@@ -71,7 +71,7 @@ class ScheduledBackupService {
     }
   }
 
-  async scheduleBackup(setting: any): Promise<void> {
+  async scheduleBackup(setting: BackupSetting): Promise<void> {
     const jobKey = `${setting.backupType}_${setting.frequency}`
     
     // Stop existing job if it exists
@@ -113,7 +113,7 @@ class ScheduledBackupService {
     logger.info(`Scheduled ${setting.backupType} backup`, { cronExpression })
   }
 
-  async runScheduledBackup(setting: any): Promise<void> {
+  async runScheduledBackup(setting: BackupSetting): Promise<void> {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const filename = `scheduled-backup-${setting.backupType.toLowerCase()}-${timestamp}.sql`
@@ -125,7 +125,7 @@ class ScheduledBackupService {
       }
 
       // Create backup log entry
-      const backupLog: any = await this.prisma.backupLog.create({
+      const backupLog = await this.prisma.backupLog.create({
         data: {
           tenantId: 'default_tenant',
           type: setting.backupType,
@@ -170,14 +170,15 @@ class ScheduledBackupService {
           return
       }
 
-      exec(command, async (error: any, _stdout: string, _stderr: string) => {
+      exec(command, async (error: unknown, _stdout: string, _stderr: string) => {
         if (error) {
-          logger.error('Scheduled backup error', { error })
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error('Scheduled backup error', { error: errorMessage })
           await this.prisma.backupLog.update({
             where: { id: backupLog.id },
             data: {
               status: 'failed',
-              errorMessage: error.message,
+              errorMessage: errorMessage,
               completedAt: new Date(),
               duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000)
             }
@@ -209,13 +210,13 @@ class ScheduledBackupService {
     }
   }
 
-  async cleanupOldBackups(setting: any): Promise<void> {
+  async cleanupOldBackups(setting: BackupSetting): Promise<void> {
     try {
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - setting.retentionDays)
 
       // Find old backup files
-      const oldBackups: any = await this.prisma.backupLog.findMany({
+      const oldBackups = await this.prisma.backupLog.findMany({
         where: {
           type: setting.backupType,
           createdAt: {
@@ -244,7 +245,7 @@ class ScheduledBackupService {
     }
   }
 
-  async updateBackupSchedule(setting: any): Promise<void> {
+  async updateBackupSchedule(setting: BackupSetting): Promise<void> {
     const jobKey = `${setting.backupType}_${setting.frequency}`
     
     // Stop existing job
@@ -274,7 +275,7 @@ class ScheduledBackupService {
   // Method to manually trigger a backup (for testing/debugging)
   async runManualBackup(settingId: string): Promise<{success: boolean, message?: string, error?: string}> {
     try {
-      const setting: any = await this.prisma.backupSetting.findUnique({
+      const setting = await this.prisma.backupSetting.findUnique({
         where: { id: settingId }
       })
 

@@ -3,6 +3,19 @@ import { BaseJobProcessor } from './BaseJobProcessor';
 import queueService from '../services/QueueService';
 import { Logger } from '../utils/logger';
 import prisma from '../config/database';
+import { Event, Score, Prisma, Contest, Category } from '@prisma/client';
+
+type EventWithContests = Event & {
+  contests: (Contest & {
+    categories: Category[];
+  })[];
+};
+
+type ScoreWithRelations = Score & {
+  judge: { id: string; name: string | null; email: string } | null;
+  contestant: { id: string; name: string; number: number | null } | null;
+  criterion: { id: string; name: string; weight: number } | null;
+};
 import * as fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import * as path from 'path';
@@ -23,7 +36,7 @@ export interface ReportJobData {
     startDate?: string;
     endDate?: string;
     userId?: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
   };
   requestedBy: string;
   notifyEmail?: string;
@@ -199,7 +212,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       throw new Error('Event ID is required for event report');
     }
 
-    const event: any = await prisma.event.findUnique({
+    const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
         contests: {
@@ -207,8 +220,8 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
             categories: true,
           },
         },
-      } as any,
-    } as any);
+      },
+    }) as EventWithContests | null;
 
     if (!event) {
       throw new Error(`Event not found: ${eventId}`);
@@ -227,15 +240,31 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       throw new Error('Category ID is required for scoring report');
     }
 
-    const scores: any = await prisma.score.findMany({
+    const scores = await prisma.score.findMany({
       where: { categoryId },
       include: {
-        judge: true,
-        contestant: true,
-        criterion: true,
-      } as any,
+        judge: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        contestant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        criterion: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
-    } as any);
+    }) as ScoreWithRelations[];
 
     return scores;
   }
@@ -243,21 +272,27 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Fetch audit report data
    */
-  private async fetchAuditReportData(parameters: Record<string, any>) {
+  private async fetchAuditReportData(parameters: Record<string, string | number | boolean | undefined>) {
     const { startDate, endDate, userId } = parameters;
 
-    const where: any = {};
+    const where: Prisma.ActivityLogWhereInput = {};
 
     if (startDate) {
-      where.createdAt = { gte: new Date(startDate) };
+      const startDateObj = typeof startDate === 'string' ? new Date(startDate) : new Date(String(startDate));
+      where.createdAt = { gte: startDateObj };
     }
 
     if (endDate) {
-      where.createdAt = { ...where.createdAt, lte: new Date(endDate) };
+      const endDateObj = typeof endDate === 'string' ? new Date(endDate) : new Date(String(endDate));
+      if (where.createdAt && typeof where.createdAt === 'object' && 'gte' in where.createdAt) {
+        where.createdAt = { ...where.createdAt, lte: endDateObj };
+      } else {
+        where.createdAt = { lte: endDateObj };
+      }
     }
 
     if (userId) {
-      where.userId = userId;
+      where.userId = typeof userId === 'string' ? userId : String(userId);
     }
 
     const logs = await prisma.activityLog.findMany({
@@ -273,7 +308,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
    * Generate report file
    */
   private async generateReportFile(
-    data: any,
+    data: unknown,
     format: string,
     filePath: string,
     _job: Job
@@ -299,34 +334,42 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Generate CSV file
    */
-  private async generateCSV(data: any, filePath: string): Promise<void> {
+  private async generateCSV(data: unknown, filePath: string): Promise<void> {
     // Simple CSV generation (you might want to use a library like csv-writer)
     let csv = '';
 
     if (Array.isArray(data)) {
       if (data.length > 0) {
         // Header row
-        const headers = Object.keys(data[0]);
-        csv += headers.join(',') + '\n';
+        const firstRow = data[0];
+        if (firstRow && typeof firstRow === 'object' && firstRow !== null) {
+          const headers = Object.keys(firstRow);
+          csv += headers.join(',') + '\n';
 
-        // Data rows
-        data.forEach((row) => {
-          const values = headers.map((header) => {
-            const value = row[header];
-            // Escape commas and quotes
-            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-              return `"${value.replace(/"/g, '""')}"`;
+          // Data rows
+          data.forEach((row) => {
+            if (row && typeof row === 'object' && row !== null) {
+              const values = headers.map((header) => {
+                const value = (row as Record<string, unknown>)[header];
+                // Escape commas and quotes
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                  return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value !== null && value !== undefined ? String(value) : '';
+              });
+              csv += values.join(',') + '\n';
             }
-            return value;
           });
-          csv += values.join(',') + '\n';
-        });
+        }
       }
-    } else {
+    } else if (data && typeof data === 'object' && data !== null) {
       // Single object - convert to two-row CSV
       const headers = Object.keys(data);
       csv += headers.join(',') + '\n';
-      csv += headers.map((h) => data[h]).join(',') + '\n';
+      csv += headers.map((h) => {
+        const value = (data as Record<string, unknown>)[h];
+        return value !== null && value !== undefined ? String(value) : '';
+      }).join(',') + '\n';
     }
 
     await fs.writeFile(filePath, csv, 'utf-8');
@@ -335,7 +378,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Generate HTML file
    */
-  private async generateHTML(data: any, filePath: string): Promise<void> {
+  private async generateHTML(data: unknown, filePath: string): Promise<void> {
     const html = `
 <!DOCTYPE html>
 <html>
@@ -362,7 +405,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Generate PDF file
    */
-  private async generatePDF(data: any, filePath: string): Promise<void> {
+  private async generatePDF(data: unknown, filePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         const doc = new PDFDocument({ margin: 50 });
@@ -443,7 +486,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Generate Excel file
    */
-  private async generateExcel(data: any, filePath: string): Promise<void> {
+  private async generateExcel(data: unknown, filePath: string): Promise<void> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Event Manager System';
     workbook.created = new Date();
