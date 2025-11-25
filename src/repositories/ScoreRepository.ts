@@ -24,33 +24,37 @@ export class ScoreRepository extends BaseRepository<Score> {
    * Find scores by event
    */
   async findByEvent(eventId: string, tenantId: string): Promise<ScoreWithRelations[]> {
-    return (this.getModel() as any).findMany({
+    return this.prisma.score.findMany({
       where: {
         tenantId,
-        contest: {
-          eventId,
-          tenantId
+        category: {
+          contest: {
+            eventId,
+            tenantId
+          }
         }
       },
       include: {
         judge: {
           select: {
             id: true,
-            username: true,
-            firstName: true,
-            lastName: true
+            name: true,
+            email: true
           }
         },
         contestant: {
           select: {
             id: true,
-            username: true,
-            firstName: true,
-            lastName: true
+            name: true,
+            email: true,
+            contestantNumber: true
           }
         },
-        category: true,
-        contest: true
+        category: {
+          include: {
+            contest: true
+          }
+        }
       }
     }) as Promise<ScoreWithRelations[]>;
   }
@@ -59,13 +63,22 @@ export class ScoreRepository extends BaseRepository<Score> {
    * Find scores by contest
    */
   async findByContest(contestId: string, tenantId: string): Promise<ScoreWithRelations[]> {
-    return (this.getModel() as any).findMany({
-      where: { contestId, tenantId },
+    return this.prisma.score.findMany({
+      where: {
+        tenantId,
+        category: {
+          contestId,
+          tenantId
+        }
+      },
       include: {
         judge: true,
         contestant: true,
-        category: true,
-        contest: true
+        category: {
+          include: {
+            contest: true
+          }
+        }
       }
     }) as Promise<ScoreWithRelations[]>;
   }
@@ -74,13 +87,16 @@ export class ScoreRepository extends BaseRepository<Score> {
    * Find scores by category
    */
   async findByCategory(categoryId: string, tenantId: string): Promise<ScoreWithRelations[]> {
-    return (this.getModel() as any).findMany({
+    return this.prisma.score.findMany({
       where: { categoryId, tenantId },
       include: {
         judge: true,
         contestant: true,
-        category: true,
-        contest: true
+        category: {
+          include: {
+            contest: true
+          }
+        }
       }
     }) as Promise<ScoreWithRelations[]>;
   }
@@ -89,13 +105,16 @@ export class ScoreRepository extends BaseRepository<Score> {
    * Find scores by judge
    */
   async findByJudge(judgeId: string, tenantId: string): Promise<ScoreWithRelations[]> {
-    return (this.getModel() as any).findMany({
+    return this.prisma.score.findMany({
       where: { judgeId, tenantId },
       include: {
         judge: true,
         contestant: true,
-        category: true,
-        contest: true
+        category: {
+          include: {
+            contest: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     }) as Promise<ScoreWithRelations[]>;
@@ -105,13 +124,16 @@ export class ScoreRepository extends BaseRepository<Score> {
    * Find scores by contestant
    */
   async findByContestant(contestantId: string, tenantId: string): Promise<ScoreWithRelations[]> {
-    return (this.getModel() as any).findMany({
+    return this.prisma.score.findMany({
       where: { contestantId, tenantId },
       include: {
         judge: true,
         contestant: true,
-        category: true,
-        contest: true
+        category: {
+          include: {
+            contest: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     }) as Promise<ScoreWithRelations[]>;
@@ -142,18 +164,18 @@ export class ScoreRepository extends BaseRepository<Score> {
     categoryId: string,
     tenantId: string
   ): Promise<number> {
-    const result = await (this.getModel() as any).aggregate({
+    const result = await this.prisma.score.aggregate({
       where: {
         contestantId,
         categoryId,
         tenantId
       },
       _avg: {
-        value: true
+        score: true
       }
     });
 
-    return result._avg.value || 0;
+    return result._avg?.score || 0;
   }
 
   /**
@@ -164,18 +186,21 @@ export class ScoreRepository extends BaseRepository<Score> {
     contestId: string,
     tenantId: string
   ): Promise<number> {
-    const result = await (this.getModel() as any).aggregate({
+    const result = await this.prisma.score.aggregate({
       where: {
         contestantId,
-        contestId,
-        tenantId
+        tenantId,
+        category: {
+          contestId,
+          tenantId
+        }
       },
       _sum: {
-        value: true
+        score: true
       }
     });
 
-    return result._sum.value || 0;
+    return result._sum?.score || 0;
   }
 
   /**
@@ -186,11 +211,14 @@ export class ScoreRepository extends BaseRepository<Score> {
     contestId: string,
     tenantId: string
   ): Promise<Array<{ categoryId: string; categoryName: string; averageScore: number; judgeCount: number }>> {
-    const scores = await (this.getModel() as any).findMany({
+    const scores = await this.prisma.score.findMany({
       where: {
         contestantId,
-        contestId,
-        tenantId
+        tenantId,
+        category: {
+          contestId,
+          tenantId
+        }
       },
       include: {
         category: true
@@ -199,14 +227,15 @@ export class ScoreRepository extends BaseRepository<Score> {
 
     const categoryScores = new Map<string, { name: string; scores: number[] }>();
 
-    scores.forEach((score: any) => {
+    scores.forEach((score) => {
       if (!categoryScores.has(score.categoryId)) {
         categoryScores.set(score.categoryId, {
           name: score.category.name,
           scores: []
         });
       }
-      categoryScores.get(score.categoryId)!.scores.push(score.value);
+      const scoreValue = 'score' in score && typeof score.score === 'number' ? score.score : 0;
+      categoryScores.get(score.categoryId)!.scores.push(scoreValue);
     });
 
     return Array.from(categoryScores.entries()).map(([categoryId, data]) => ({
@@ -228,28 +257,29 @@ export class ScoreRepository extends BaseRepository<Score> {
     const contest = await this.prisma.contest.findFirst({
       where: { id: contestId, tenantId },
       include: {
-        judges: {
+        contestJudges: {
           include: {
             judge: true
           }
         },
-        contestants: {
+        contestContestants: {
           include: {
             contestant: true
           }
         },
         categories: true
-      } as any
-    } as any);
+      }
+    });
 
     if (!contest) {
       return [];
     }
 
-    const expectedScoresPerJudge = (contest as any).contestants.length * (contest as any).categories.length;
+    const contestData = contest as { contestContestants?: unknown[]; categories?: unknown[]; contestJudges?: Array<{ judgeId: string; judge: { name: string } }> };
+    const expectedScoresPerJudge = (contestData.contestContestants?.length || 0) * (contestData.categories?.length || 0);
 
     const judgeStatus = await Promise.all(
-      (contest as any).judges.map(async (contestJudge: any) => {
+      (contestData.contestJudges || []).map(async (contestJudge) => {
         const scoreCount = await this.count({
           judgeId: contestJudge.judgeId,
           contestId,
@@ -277,7 +307,7 @@ export class ScoreRepository extends BaseRepository<Score> {
     categoryId: string;
     contestId: string;
     tenantId: string;
-    value: number;
+    score: number;
   }>): Promise<number> {
     return this.createMany(scores);
   }
@@ -298,19 +328,25 @@ export class ScoreRepository extends BaseRepository<Score> {
     highestScore: number;
     lowestScore: number;
   }> {
-    const result = await (this.getModel() as any).aggregate({
-      where: { contestId, tenantId },
+    const result = await this.prisma.score.aggregate({
+      where: {
+        tenantId,
+        category: {
+          contestId,
+          tenantId
+        }
+      },
       _count: true,
-      _avg: { value: true },
-      _max: { value: true },
-      _min: { value: true }
+      _avg: { score: true },
+      _max: { score: true },
+      _min: { score: true }
     });
 
     return {
       totalScores: result._count,
-      averageScore: result._avg.value || 0,
-      highestScore: result._max.value || 0,
-      lowestScore: result._min.value || 0
+      averageScore: result._avg?.score ?? 0,
+      highestScore: result._max?.score ?? 0,
+      lowestScore: result._min?.score ?? 0
     };
   }
 }

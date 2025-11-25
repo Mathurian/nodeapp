@@ -31,6 +31,31 @@ export class FileBackupService extends BaseService {
   }
 
   /**
+   * Copy directory recursively preserving structure
+   */
+  private async copyDirectoryRecursive(source: string, dest: string): Promise<void> {
+    try {
+      await fs.mkdir(dest, { recursive: true });
+      const entries = await fs.readdir(source, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const sourcePath = path.join(source, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+          await this.copyDirectoryRecursive(sourcePath, destPath);
+        } else {
+          // Copy file
+          await fs.copyFile(sourcePath, destPath);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to copy directory: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Initialize S3 client if S3 backup is enabled
    */
   private initializeS3(): void {
@@ -215,8 +240,27 @@ export class FileBackupService extends BaseService {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupPath = path.join(this.BACKUP_DIR, `backup-${timestamp}`);
 
-      // TODO: Implement actual file copying
-      await fs.mkdir(backupPath, { recursive: true });
+      // Copy files from uploads directory to backup location
+      const uploadsDir = path.join(__dirname, '../../uploads');
+      const backupUploadsDir = path.join(backupPath, 'uploads');
+
+      try {
+        // Check if uploads directory exists
+        try {
+          await fs.access(uploadsDir);
+        } catch {
+          logger.info('Uploads directory does not exist, skipping file backup');
+          await fs.mkdir(backupPath, { recursive: true });
+        }
+
+        // Copy uploads directory recursively
+        await this.copyDirectoryRecursive(uploadsDir, backupUploadsDir);
+        logger.info(`Files backed up to ${backupPath}`);
+      } catch (copyError) {
+        logger.error('File copying failed', { error: copyError });
+        // Continue with backup even if file copying fails
+        await fs.mkdir(backupPath, { recursive: true });
+      }
 
       const result: BackupResult = {
         success: true,

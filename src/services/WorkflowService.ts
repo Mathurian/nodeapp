@@ -4,6 +4,7 @@
  */
 
 import prisma from '../config/database';
+import { Prisma, WorkflowInstance } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import EventBusService, { AppEventType } from './EventBusService';
 
@@ -26,8 +27,8 @@ export interface WorkflowStepInput {
   requiredRole?: string;
   autoAdvance?: boolean;
   requireApproval?: boolean;
-  conditions?: any;
-  actions?: any;
+  conditions?: Record<string, unknown>;
+  actions?: Record<string, unknown>;
   notifyRoles?: string[];
 }
 
@@ -35,7 +36,7 @@ export class WorkflowService {
   /**
    * Create workflow template
    */
-  static async createTemplate(input: WorkflowTemplateInput): Promise<any> {
+  static async createTemplate(input: WorkflowTemplateInput): Promise<Prisma.WorkflowTemplateGetPayload<{}>> {
     try {
       const { steps, ...templateData } = input;
 
@@ -57,7 +58,7 @@ export class WorkflowService {
   /**
    * Get workflow template by ID
    */
-  static async getTemplate(id: string, tenantId: string): Promise<any> {
+  static async getTemplate(id: string, tenantId: string): Promise<Prisma.WorkflowTemplateGetPayload<{}> | null> {
     try {
       return await prisma.workflowTemplate.findFirst({
         where: { id, tenantId }
@@ -71,7 +72,7 @@ export class WorkflowService {
   /**
    * List workflow templates
    */
-  static async listTemplates(tenantId: string, _type?: string): Promise<any[]> {
+  static async listTemplates(tenantId: string, _type?: string): Promise<Prisma.WorkflowTemplateGetPayload<{}>[]> {
     try {
       return await prisma.workflowTemplate.findMany({
         where: {
@@ -89,9 +90,9 @@ export class WorkflowService {
   /**
    * Update workflow template
    */
-  static async updateTemplate(id: string, tenantId: string, data: Partial<WorkflowTemplateInput>): Promise<any> {
+  static async updateTemplate(id: string, tenantId: string, data: Partial<WorkflowTemplateInput>): Promise<Prisma.BatchPayload> {
     try {
-      await prisma.workflowTemplate.updateMany({
+      const result = await prisma.workflowTemplate.updateMany({
         where: { id, tenantId },
         data: {
           name: data.name,
@@ -104,8 +105,7 @@ export class WorkflowService {
 
       logger.info(`Updated workflow template: ${id}`);
 
-      // Return updated template
-      return await this.getTemplate(id, tenantId);
+      return result;
     } catch (error) {
       logger.error('Error updating workflow template:', error);
       throw error;
@@ -136,7 +136,7 @@ export class WorkflowService {
     tenantId: string,
     entityType: string,
     entityId: string
-  ): Promise<any> {
+  ): Promise<WorkflowInstance> {
     try {
       const instance = await prisma.workflowInstance.create({
         data: {
@@ -172,7 +172,7 @@ export class WorkflowService {
     _userId: string,
     approvalStatus: 'approved' | 'rejected',
     _comments?: string
-  ): Promise<any> {
+  ): Promise<Prisma.WorkflowInstanceGetPayload<{}>> {
     try {
       const instance = await prisma.workflowInstance.findFirst({
         where: { id: instanceId, tenantId }
@@ -231,7 +231,7 @@ export class WorkflowService {
     tenantId: string,
     entityType: string,
     entityId: string
-  ): Promise<any[]> {
+  ): Promise<Prisma.WorkflowInstanceGetPayload<{}>[]> {
     try {
       return await prisma.workflowInstance.findMany({
         where: { tenantId, entityType, entityId },

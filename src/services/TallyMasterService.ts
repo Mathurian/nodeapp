@@ -1,7 +1,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+import { PrismaClient, UserRole, Prisma, RequestStatus } from '@prisma/client';
 
 // P2-4: Comprehensive type definitions for Tally Master service
 type CategoryWithScoresAndContest = Prisma.CategoryGetPayload<{
@@ -274,23 +274,23 @@ interface ContestantScoreGroup {
   contestant: {
     id: string;
     name: string;
-    contestantNumber: string;
+    contestantNumber: number | null;
   };
   scores: Array<{
     id: string;
-    score: number;
-    comment: string;
+    score: number | null;
+    comment: string | null;
     createdAt: Date;
     contestantId: string;
     judge: {
       id: string;
       name: string;
-      email: string;
+      email: string | null;
     };
     contestant: {
       id: string;
       name: string;
-      contestantNumber: string;
+      contestantNumber: number | null;
     };
     criterion: {
       id: string;
@@ -356,7 +356,7 @@ interface ContestantBreakdown {
   contestant: {
     id: string;
     name: string;
-    contestantNumber: string;
+    contestantNumber: number | null;
   };
   categories: string[];
   judges: string[];
@@ -558,11 +558,26 @@ export class TallyMasterService extends BaseService {
       orderBy: { createdAt: 'desc' },
     }) as CategoryWithCertifications[];
 
-    const pendingItems = await Promise.all(
-      allCategories.map(async (category) => {
-        const hasJudgeCategoryCert = await this.prisma.judgeCertification.findFirst({
-          where: { categoryId: category.id },
-        });
+    // OPTIMIZATION: Fetch all judge certifications in a single query instead of N+1
+    const categoryIds = allCategories.map(cat => cat.id);
+    const judgeCertifications = await this.prisma.judgeCertification.findMany({
+      where: {
+        categoryId: { in: categoryIds },
+      },
+      select: {
+        categoryId: true,
+      },
+    });
+
+    // Create a Set for O(1) lookup
+    const categoriesWithJudgeCerts = new Set(
+      judgeCertifications.map(cert => cert.categoryId)
+    );
+
+    // Filter categories in memory (no additional queries)
+    const pendingItems = allCategories
+      .map((category) => {
+        const hasJudgeCategoryCert = categoriesWithJudgeCerts.has(category.id);
         const hasTallyCert = category.categoryCertifications.length > 0;
         const allJudgesCertified =
           category.scores.length === 0 || category.scores.every((s) => s.isCertified === true);
@@ -570,18 +585,16 @@ export class TallyMasterService extends BaseService {
           ? category
           : null;
       })
-    );
+      .filter((item): item is CategoryWithCertifications => item !== null);
 
-    const filteredCategories = pendingItems.filter((item): item is CategoryWithCertifications => item !== null);
-    const total = filteredCategories.length;
+    const total = pendingItems.length;
 
-    const categories = filteredCategories.slice(offset, offset + limit);
+    const categories = pendingItems.slice(offset, offset + limit);
 
     // Add dynamic certification status
     const categoriesWithStatus = categories.map((category) => {
       const allJudgesCertified =
-        category.scores.length > 0 && category.scores.every((s: any) => s.isCertified === true);
-      const categoryAny = category as any;
+        category.scores.length > 0 && category.scores.every((s) => (s as { isCertified?: boolean }).isCertified === true);
 
       let currentStep = 1;
       const totalSteps = 4;
@@ -592,19 +605,19 @@ export class TallyMasterService extends BaseService {
         currentStep = 2;
         statusLabel = 'Ready for Tally Master';
         statusColor = 'success';
-      } else if (category.totalsCertified && !categoryAny.tallyMasterCertified) {
+      } else if (category.totalsCertified && !category.categoryCertifications?.some((c) => c.role === 'TALLY_MASTER')) {
         currentStep = 3;
         statusLabel = 'Ready for Tally Master Review';
         statusColor = 'info';
-      } else if (categoryAny.tallyMasterCertified && !categoryAny.auditorCertified) {
+      } else if (category.categoryCertifications?.some((c) => c.role === 'TALLY_MASTER') && !category.categoryCertifications?.some((c) => c.role === 'AUDITOR')) {
         currentStep = 4;
         statusLabel = 'Ready for Auditor';
         statusColor = 'info';
-      } else if (categoryAny.auditorCertified && !categoryAny.boardApproved) {
+      } else if (category.categoryCertifications?.some((c) => c.role === 'AUDITOR') && !category.categoryCertifications?.some((c) => c.role === 'BOARD_MEMBER')) {
         currentStep = 5;
         statusLabel = 'Ready for Board';
         statusColor = 'success';
-      } else if (categoryAny.boardApproved) {
+      } else if (category.categoryCertifications?.some((c) => c.role === 'BOARD_MEMBER')) {
         currentStep = 6;
         statusLabel = 'Fully Certified';
         statusColor = 'success';
@@ -764,7 +777,7 @@ export class TallyMasterService extends BaseService {
           contestant: {
             id: score.contestant.id,
             name: score.contestant.name,
-            contestantNumber: String(score.contestant.contestantNumber ?? '')
+            contestantNumber: score.contestant.contestantNumber ?? null
           },
           scores: [],
           totalScore: 0,
@@ -772,7 +785,7 @@ export class TallyMasterService extends BaseService {
           scoreCount: 0,
         };
       }
-      acc[key]!.scores.push(score as any);
+      acc[key]!.scores.push(score);
       acc[key]!.totalScore += score.score ?? 0;
       acc[key]!.scoreCount += 1;
       return acc;
@@ -814,7 +827,7 @@ export class TallyMasterService extends BaseService {
       id: string;
       name: string;
       description: string;
-      maxScore: number;
+      maxScore: number | undefined;
     };
     overallAverage: number;
     totalScores: number;
@@ -868,7 +881,7 @@ export class TallyMasterService extends BaseService {
             name: score.judge.name,
             preferredName: '',
             email: score.judge.email ?? '',
-            role: 'JUDGE' as any
+            role: 'JUDGE' as UserRole
           },
           scores: [],
           totalScore: 0,
@@ -915,7 +928,7 @@ export class TallyMasterService extends BaseService {
         id: category.id,
         name: category.name,
         description: category.description ?? '',
-        maxScore: (category as any).maxScore,
+        maxScore: 'maxScore' in category && typeof category.maxScore === 'number' ? category.maxScore : undefined,
       },
       overallAverage: parseFloat(overallAverage.toFixed(2)),
       totalScores: category.scores.length,
@@ -1093,7 +1106,7 @@ export class TallyMasterService extends BaseService {
       contestant: {
         id: string;
         name: string;
-        contestantNumber: string;
+        contestantNumber: number | null;
       };
       categories: Set<string>;
       judges: Set<string>;
@@ -1114,7 +1127,7 @@ export class TallyMasterService extends BaseService {
             contestant: {
               id: score.contestant.id,
               name: score.contestant.name,
-              contestantNumber: String(score.contestant.contestantNumber ?? '')
+              contestantNumber: score.contestant.contestantNumber ?? null
             },
             categories: new Set(),
             judges: new Set(),
@@ -1400,7 +1413,7 @@ export class TallyMasterService extends BaseService {
       } | null;
       contestant: {
         id: string;
-        contestantNumber: string;
+        contestantNumber: number | null;
         user: {
           id: string;
           name: string;
@@ -1423,7 +1436,7 @@ export class TallyMasterService extends BaseService {
 
     const whereClause: Prisma.JudgeScoreRemovalRequestWhereInput = {};
     if (status) {
-      (whereClause as any).status = status;
+      whereClause.status = status as RequestStatus;
     }
     if (categoryId) {
       whereClause.categoryId = categoryId;
@@ -1505,7 +1518,7 @@ export class TallyMasterService extends BaseService {
           contestantId: req.contestantId,
           judgeId: req.judgeId,
           reason: req.reason,
-          status: (req as any).status,
+          status: 'status' in req && typeof req.status === 'string' ? req.status : 'PENDING',
           requestedAt: req.requestedAt,
           reviewedAt: req.reviewedAt,
           reviewedById: req.reviewedById ?? '',
@@ -1533,7 +1546,7 @@ export class TallyMasterService extends BaseService {
     });
 
     return {
-      requests: requestsWithDetails as any,
+      requests: requestsWithDetails,
       pagination: {
         page,
         limit,

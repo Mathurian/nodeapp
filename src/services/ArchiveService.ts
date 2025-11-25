@@ -35,7 +35,7 @@ export class ArchiveService extends BaseService {
     const { skip, take } = this.getPaginationParams(options);
 
     const [archives, total] = await Promise.all([
-      (this.prisma.archivedEvent.findMany as any)({
+      this.prisma.archivedEvent.findMany({
         include: {
           event: true,
         },

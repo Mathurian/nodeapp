@@ -453,8 +453,8 @@ export class ReportGenerationService extends BaseService {
               name: true
             }
           }
-        } as any
-      } as any);
+        }
+      });
 
       const typedScores = allScores as unknown as ScoreWithRelations[];
 
@@ -587,8 +587,8 @@ export class ReportGenerationService extends BaseService {
               }
             }
           }
-        } as any
-      } as any);
+        }
+      });
 
       this.assertExists(event, 'Event', eventId);
 
@@ -674,8 +674,8 @@ export class ReportGenerationService extends BaseService {
               }
             }
           }
-        } as any
-      } as any);
+        }
+      });
 
       this.assertExists(contest, 'Contest', contestId);
 
@@ -709,7 +709,6 @@ export class ReportGenerationService extends BaseService {
         select: {
           id: true,
           name: true,
-          judgeNumber: true,
           scores: {
             select: {
               id: true,
@@ -737,8 +736,8 @@ export class ReportGenerationService extends BaseService {
               }
             }
           }
-        } as any
-      } as any);
+        }
+      });
 
       this.assertExists(judge, 'Judge', judgeId);
 

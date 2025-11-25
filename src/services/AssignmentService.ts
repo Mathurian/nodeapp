@@ -793,7 +793,7 @@ export class AssignmentService extends BaseService {
     contestantNumber: string | null;
     bio: string | null;
   }>> {
-    const contestants = await (this.prisma.contestant.findMany as any)({
+    const contestants = await this.prisma.contestant.findMany({
       include: {
         users: {
           select: {
@@ -824,7 +824,7 @@ export class AssignmentService extends BaseService {
       email: contestant.users && contestant.users.length > 0
         ? contestant.users.find((u: { role: string; email: string }) => u.role === 'CONTESTANT')?.email || contestant.users[0]?.email || contestant.email || null
         : contestant.email || null,
-      contestantNumber: contestant.contestantNumber,
+      contestantNumber: contestant.contestantNumber !== null ? String(contestant.contestantNumber) : null,
       bio: contestant.bio,
     }));
   }
@@ -935,7 +935,7 @@ export class AssignmentService extends BaseService {
                     name: true,
                   },
                 },
-              } as any,
+              },
             },
           },
         },
@@ -945,7 +945,7 @@ export class AssignmentService extends BaseService {
       },
     });
 
-    return result as any;
+    return result;
   }
 
   /**
@@ -1021,7 +1021,7 @@ export class AssignmentService extends BaseService {
         contest: {
           include: {
             event: true
-          } as any
+          }
         }
       }
     });
@@ -1307,7 +1307,14 @@ export class AssignmentService extends BaseService {
     categoryId?: string;
     notes?: string;
     assignedBy: string;
-  }): Promise<any> {
+  }): Promise<Prisma.TallyMasterAssignmentGetPayload<{
+    include: {
+      user: { select: { id: true; name: true; email: true; role: true } };
+      category: { select: { id: true; name: true } };
+      contest: { select: { id: true; name: true } };
+      event: { select: { id: true; name: true } };
+    };
+  }>> {
     // Get event to determine tenantId
     const event = await this.prisma.event.findUnique({
       where: { id: data.eventId },
@@ -1465,7 +1472,14 @@ export class AssignmentService extends BaseService {
     categoryId?: string;
     notes?: string;
     assignedBy: string;
-  }): Promise<any> {
+  }): Promise<Prisma.AuditorAssignmentGetPayload<{
+    include: {
+      user: { select: { id: true; name: true; email: true; role: true } };
+      category: { select: { id: true; name: true } };
+      contest: { select: { id: true; name: true } };
+      event: { select: { id: true; name: true } };
+    };
+  }>> {
     // Get event to determine tenantId
     const event = await this.prisma.event.findUnique({
       where: { id: data.eventId },

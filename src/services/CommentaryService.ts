@@ -25,7 +25,6 @@ type ScoreCommentWithDetails = Prisma.ScoreCommentGetPayload<{
     criterion: {
       select: {
         name: true;
-        description: true;
       };
     };
   };
@@ -113,8 +112,8 @@ export class CommentaryService extends BaseService {
             email: true
           }
         }
-      } as any
-    }) as any;
+      }
+    });
   }
 
   async getCommentsForScore(scoreId: string, userRole: string): Promise<ScoreCommentWithDetails[]> {
@@ -135,13 +134,12 @@ export class CommentaryService extends BaseService {
         },
         criterion: {
           select: {
-            name: true,
-            description: true
+            name: true
           }
         }
-      } as any,
+      },
       orderBy: { createdAt: 'asc' }
-    }) as any;
+    });
   }
 
   async getCommentsByContestant(contestantId: string, userRole: string): Promise<ScoreCommentWithFullDetails[]> {
@@ -173,7 +171,7 @@ export class CommentaryService extends BaseService {
                 contest: {
                   include: {
                     event: true
-                  } as any
+                  }
                 }
               }
             }
@@ -181,7 +179,7 @@ export class CommentaryService extends BaseService {
         }
       },
       orderBy: [
-        { scoreId: 'desc' as any },
+        { scoreId: 'desc' },
         { createdAt: 'asc' }
       ]
     }) as ScoreCommentWithFullDetails[];
@@ -213,8 +211,8 @@ export class CommentaryService extends BaseService {
             email: true
           }
         }
-      } as any
-    }) as any;
+      }
+    });
   }
 
   async delete(id: string, userId: string, userRole: string): Promise<void> {

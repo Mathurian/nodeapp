@@ -6,9 +6,12 @@
  */
 
 import prisma from '../config/database';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole, Tenant } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { logger } from '../utils/logger';
+import { container } from 'tsyringe';
+import { EmailService } from './EmailService';
+import { env } from '../config/env';
 
 export interface CreateTenantInput {
   name: string;
@@ -18,7 +21,7 @@ export interface CreateTenantInput {
   maxUsers?: number;
   maxEvents?: number;
   maxStorage?: bigint;
-  settings?: any;
+  settings?: Prisma.InputJsonValue;
 
   // Admin user details
   adminName: string;
@@ -37,7 +40,7 @@ export interface UpdateTenantInput {
   maxUsers?: number | null;
   maxEvents?: number | null;
   maxStorage?: bigint | number | null;
-  settings?: any;
+  settings?: Prisma.InputJsonValue;
 }
 
 export interface TenantUsageStats {
@@ -55,7 +58,7 @@ export class TenantService {
   /**
    * Create a new tenant with default admin user
    */
-  static async createTenant(input: CreateTenantInput): Promise<any> {
+  static async createTenant(input: CreateTenantInput): Promise<{ tenant: Tenant; adminUser: { id: string; name: string; email: string; role: UserRole } }> {
     try {
       // Validate slug is unique
       const existingSlug = await prisma.tenant.findUnique({
@@ -134,7 +137,7 @@ export class TenantService {
   /**
    * Get tenant by ID
    */
-  static async getTenantById(tenantId: string): Promise<any> {
+  static async getTenantById(tenantId: string): Promise<Tenant | null> {
     try {
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
@@ -154,7 +157,7 @@ export class TenantService {
   /**
    * Get tenant by slug
    */
-  static async getTenantBySlug(slug: string): Promise<any> {
+  static async getTenantBySlug(slug: string): Promise<Tenant | null> {
     try {
       const tenant = await prisma.tenant.findUnique({
         where: { slug },
@@ -180,7 +183,7 @@ export class TenantService {
     isActive?: boolean;
     planType?: string;
     search?: string;
-  }): Promise<{ tenants: any[]; total: number }> {
+  }): Promise<{ tenants: Tenant[]; total: number }> {
     try {
       const where: Prisma.TenantWhereInput = {};
 
@@ -220,7 +223,7 @@ export class TenantService {
   /**
    * Update tenant
    */
-  static async updateTenant(tenantId: string, input: UpdateTenantInput): Promise<any> {
+  static async updateTenant(tenantId: string, input: UpdateTenantInput): Promise<Tenant> {
     try {
       // Validate slug uniqueness if changing
       if (input.slug) {
@@ -267,7 +270,7 @@ export class TenantService {
   /**
    * Activate tenant
    */
-  static async activateTenant(tenantId: string): Promise<any> {
+  static async activateTenant(tenantId: string): Promise<Tenant> {
     try {
       const tenant = await prisma.tenant.update({
         where: { id: tenantId },
@@ -286,7 +289,7 @@ export class TenantService {
   /**
    * Deactivate tenant
    */
-  static async deactivateTenant(tenantId: string): Promise<any> {
+  static async deactivateTenant(tenantId: string): Promise<Tenant> {
     try {
       const tenant = await prisma.tenant.update({
         where: { id: tenantId },
@@ -388,7 +391,7 @@ export class TenantService {
     email: string,
     name: string,
     role: string
-  ): Promise<any> {
+  ): Promise<{ user: { id: string; name: string; email: string; role: UserRole }; tempPassword: string }> {
     try {
       // Check if user already exists in this tenant
       const existingUser = await prisma.user.findFirst({
@@ -422,14 +425,46 @@ export class TenantService {
           email,
           name,
           password: hashedPassword,
-          role: role as any,
+          role: role as UserRole,
           isActive: false, // Requires email confirmation
         },
       });
 
       logger.info(`User invited to tenant ${tenantId}: ${email}`);
 
-      // TODO: Send invitation email with temporary password
+      // Send invitation email with temporary password
+      try {
+        const emailService = container.resolve(EmailService);
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { name: true },
+        });
+
+        const emailSubject = `Invitation to join ${tenant?.name || 'Event Manager'}`;
+        const emailBody = `
+          <h2>You've been invited!</h2>
+          <p>Hello ${name},</p>
+          <p>You've been invited to join <strong>${tenant?.name || 'Event Manager'}</strong> as a <strong>${role}</strong>.</p>
+          <p>Your temporary password is: <strong>${tempPassword}</strong></p>
+          <p><strong>Important:</strong> Please change your password after logging in.</p>
+          <p>This password will expire in 7 days for security reasons.</p>
+          <p>You can log in at: <a href="${env.get('APP_URL') || 'http://localhost:3000'}/login">Login Page</a></p>
+          <p>Best regards,<br>The Event Manager Team</p>
+        `;
+
+        await emailService.sendEmail(
+          email,
+          emailSubject,
+          emailBody,
+          { html: emailBody }
+        );
+
+        logger.info(`Invitation email sent to ${email}`);
+      } catch (emailError) {
+        // Log email error but don't fail the user creation
+        logger.error('Failed to send invitation email', { error: emailError, email });
+        // User is still created, they just won't receive the email
+      }
 
       return { user, tempPassword };
     } catch (error) {

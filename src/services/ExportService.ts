@@ -82,9 +82,9 @@ export class ExportService extends BaseService {
 
     summarySheet.addRows([
       { field: 'Event Name', value: event.name },
-      { field: 'Event Date', value: (event as any).eventDate ? new Date((event as any).eventDate).toLocaleDateString() : 'N/A' },
-      { field: 'Location', value: event.location || 'N/A' },
-      { field: 'Status', value: (event as any).status || 'N/A' },
+      { field: 'Event Date', value: 'eventDate' in event && event.eventDate ? new Date(event.eventDate as Date).toLocaleDateString() : 'N/A' },
+      { field: 'Location', value: 'location' in event && event.location ? String(event.location) : 'N/A' },
+      { field: 'Status', value: 'status' in event && event.status ? String(event.status) : 'N/A' },
       { field: 'Total Contests', value: event.contests?.length || 0 },
     ]);
 
@@ -109,7 +109,7 @@ export class ExportService extends BaseService {
         contestsSheet.addRow({
           name: contest.name,
           categories: contest.categories?.length || 0,
-          status: (contest as any).status || 'N/A',
+          status: 'status' in contest && contest.status ? String(contest.status) : 'N/A',
         });
       }
 
@@ -135,7 +135,7 @@ export class ExportService extends BaseService {
           for (const category of contest.categories) {
             categoriesSheet.addRow({
               name: category.name,
-              maxContestants: (category as any).maxContestants || 'N/A',
+              maxContestants: 'maxContestants' in category && category.maxContestants ? String(category.maxContestants) : 'N/A',
               criteriaCount: category.criteria?.length || 0,
             });
           }
@@ -337,8 +337,11 @@ export class ExportService extends BaseService {
     xml += '<judge-performance-report>\n';
     xml += '  <judge>\n';
     xml += `    <id>${escapeXml(judge.id)}</id>\n`;
-    xml += `    <name>${escapeXml((judge as any).user?.name || 'Unknown')}</name>\n`;
-    xml += `    <email>${escapeXml((judge as any).user?.email || 'N/A')}</email>\n`;
+    const judgeUser = judge && typeof judge === 'object' && 'user' in judge && judge.user ? judge.user : null;
+    const judgeName = judgeUser && typeof judgeUser === 'object' && 'name' in judgeUser ? String(judgeUser.name) : 'Unknown';
+    const judgeEmail = judgeUser && typeof judgeUser === 'object' && 'email' in judgeUser ? String(judgeUser.email) : 'N/A';
+    xml += `    <name>${escapeXml(judgeName)}</name>\n`;
+    xml += `    <email>${escapeXml(judgeEmail)}</email>\n`;
     xml += '  </judge>\n';
     xml += '  <statistics>\n';
     xml += `    <total-scores>${totalScores}</total-scores>\n`;
@@ -466,9 +469,10 @@ export class ExportService extends BaseService {
           doc.fontSize(10);
           recentEvents.forEach((event) => {
             doc.text(`• ${event.name}`, { continued: true });
-            doc.text(` - ${(event as any).status || 'N/A'}`, { continued: true });
-            doc.text(
-              ` (${(event as any).eventDate ? new Date((event as any).eventDate).toLocaleDateString() : 'No date'})`,
+            const eventStatus = 'status' in event && event.status ? String(event.status) : 'N/A';
+            const eventDate = 'eventDate' in event && event.eventDate ? new Date(event.eventDate as Date).toLocaleDateString() : 'No date';
+            doc.text(` - ${eventStatus}`, { continued: true });
+            doc.text(` (${eventDate})`,
               { align: 'left' }
             );
           });

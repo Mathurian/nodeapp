@@ -11,8 +11,8 @@ interface AuditLogEntry {
   userName?: string;
   ipAddress?: string;
   userAgent?: string;
-  changes?: Record<string, any>;
-  metadata?: Record<string, any>;
+  changes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   tenantId: string;
 }
 
@@ -77,8 +77,8 @@ export class AuditLogService extends BaseService {
           userName: entry.userName || null,
           ipAddress: entry.ipAddress || null,
           userAgent: entry.userAgent || null,
-          changes: entry.changes ? entry.changes as any : Prisma.DbNull,
-          metadata: entry.metadata ? entry.metadata as any : Prisma.DbNull,
+          changes: entry.changes ? (entry.changes as Prisma.InputJsonValue) : Prisma.DbNull,
+          metadata: entry.metadata ? (entry.metadata as Prisma.InputJsonValue) : Prisma.DbNull,
           tenantId: entry.tenantId,
         },
       });
@@ -100,11 +100,11 @@ export class AuditLogService extends BaseService {
     entityType: string,
     entityId: string | undefined,
     req: Request,
-    changes?: Record<string, any>,
-    metadata?: Record<string, any>
+    changes?: Record<string, unknown>,
+    metadata?: Record<string, unknown>
   ): Promise<AuditLogWithDetails> {
-    const user = (req as any).user;
-    const tenantId = (req as any).tenantId || 'default_tenant';
+    const user = (req as Request & { user?: { id: string; name?: string }; tenantId?: string }).user;
+    const tenantId = (req as Request & { tenantId?: string }).tenantId || 'default_tenant';
 
     return await this.log({
       action,
@@ -127,8 +127,8 @@ export class AuditLogService extends BaseService {
     action: string;
     entityType: string;
     entityId: string;
-    oldData: any;
-    newData: any;
+    oldData: unknown;
+    newData: unknown;
     req: Request;
     tenantId: string;
   }): Promise<AuditLogWithDetails> {
@@ -152,7 +152,7 @@ export class AuditLogService extends BaseService {
     userName?: string;
     req: Request;
     tenantId: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<AuditLogWithDetails> {
     return await this.log({
       action: `auth.${params.action}`,
@@ -176,7 +176,7 @@ export class AuditLogService extends BaseService {
     fileId?: string;
     req: Request;
     tenantId: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<AuditLogWithDetails> {
     return await this.logFromRequest(
       `file.${params.action}`,
@@ -211,7 +211,7 @@ export class AuditLogService extends BaseService {
     }
 
     if (params.action) {
-      where.action = { contains: params.action } as any;
+      where.action = { contains: params.action };
     }
 
     if (params.entityType) {
@@ -287,7 +287,8 @@ export class AuditLogService extends BaseService {
 
       // Count by day
       const day = log.timestamp.toISOString().split('T')[0];
-      stats.byDay[((day as string) as string)] = ((stats.byDay as any)[((day as string) as string)] || 0) + 1;
+      const dayKey = day as string;
+      stats.byDay[dayKey] = (stats.byDay[dayKey] || 0) + 1;
     });
 
     return stats;
@@ -309,13 +310,15 @@ export class AuditLogService extends BaseService {
   /**
    * Calculate changes between old and new data
    */
-  private calculateChanges(oldData: any, newData: any): Record<string, any> {
-    const changes: Record<string, any> = {};
+  private calculateChanges(oldData: unknown, newData: unknown): Record<string, unknown> {
+    const changes: Record<string, unknown> = {};
 
     // Get all keys from both objects
+    const oldObj = oldData && typeof oldData === 'object' ? oldData as Record<string, unknown> : {};
+    const newObj = newData && typeof newData === 'object' ? newData as Record<string, unknown> : {};
     const allKeys = new Set([
-      ...Object.keys(oldData || {}),
-      ...Object.keys(newData || {}),
+      ...Object.keys(oldObj),
+      ...Object.keys(newObj),
     ]);
 
     allKeys.forEach((key) => {
@@ -324,8 +327,8 @@ export class AuditLogService extends BaseService {
         return;
       }
 
-      const oldValue = oldData?.[key];
-      const newValue = newData?.[key];
+      const oldValue = oldObj[key];
+      const newValue = newObj[key];
 
       // Check if values are different
       if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {

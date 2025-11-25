@@ -12,7 +12,7 @@ export interface CreateSavedSearchDTO {
   tenantId: string;
   name: string;
   query: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   entityTypes?: string[];
   isPublic?: boolean;
 }
@@ -21,7 +21,7 @@ export interface CreateSearchHistoryDTO {
   userId: string;
   tenantId: string;
   query: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   entityTypes?: string[];
   resultCount?: number;
 }
@@ -30,7 +30,7 @@ export interface SearchOptions {
   tenantId: string;
   query?: string;
   entityTypes?: string[];
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   limit?: number;
   offset?: number;
 }
@@ -40,8 +40,58 @@ export interface SearchResult {
   type: string;
   title: string;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   rank?: number;
+}
+
+// Types for raw SQL query results
+interface RawUserSearchResult {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  rank: string | number;
+}
+
+interface RawEventSearchResult {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: Date;
+  endDate: Date;
+  rank: string | number;
+}
+
+interface RawContestSearchResult {
+  id: string;
+  name: string;
+  description: string | null;
+  event_name: string | null;
+  rank: string | number;
+}
+
+interface RawCategorySearchResult {
+  id: string;
+  name: string;
+  description: string | null;
+  contest_name: string | null;
+  rank: string | number;
+}
+
+interface RawContestantSearchResult {
+  id: string;
+  name: string;
+  email: string | null;
+  contestantNumber: number | null;
+  rank: string | number;
+}
+
+interface RawJudgeSearchResult {
+  id: string;
+  name: string;
+  email: string | null;
+  isHeadJudge: boolean;
+  rank: string | number;
 }
 
 @injectable()
@@ -211,7 +261,7 @@ export class SearchRepository {
   async searchUsers(options: SearchOptions): Promise<SearchResult[]> {
     const { query, tenantId, limit = 20, offset = 0 } = options;
 
-    const users = await this.prismaClient.$queryRaw<any[]>`
+    const users = await this.prismaClient.$queryRaw<RawUserSearchResult[]>`
       SELECT
         id,
         name,
@@ -234,7 +284,7 @@ export class SearchRepository {
       title: user.name,
       description: user.email,
       metadata: { role: user.role },
-      rank: parseFloat(user.rank),
+      rank: typeof user.rank === 'string' ? parseFloat(user.rank) : Number(user.rank),
     }));
   }
 
@@ -244,7 +294,7 @@ export class SearchRepository {
   async searchEvents(options: SearchOptions): Promise<SearchResult[]> {
     const { query, tenantId, limit = 20, offset = 0 } = options;
 
-    const events = await this.prismaClient.$queryRaw<any[]>`
+    const events = await this.prismaClient.$queryRaw<RawEventSearchResult[]>`
       SELECT
         id,
         name,
@@ -267,12 +317,12 @@ export class SearchRepository {
       id: event.id,
       type: 'event',
       title: event.name,
-      description: event.description,
+      description: event.description ?? undefined,
       metadata: {
         startDate: event.startDate,
         endDate: event.endDate,
       },
-      rank: parseFloat(event.rank),
+      rank: typeof event.rank === 'string' ? parseFloat(event.rank) : Number(event.rank),
     }));
   }
 
@@ -282,7 +332,7 @@ export class SearchRepository {
   async searchContests(options: SearchOptions): Promise<SearchResult[]> {
     const { query, tenantId, limit = 20, offset = 0 } = options;
 
-    const contests = await this.prismaClient.$queryRaw<any[]>`
+    const contests = await this.prismaClient.$queryRaw<RawContestSearchResult[]>`
       SELECT
         c.id,
         c.name,
@@ -305,9 +355,9 @@ export class SearchRepository {
       id: contest.id,
       type: 'contest',
       title: contest.name,
-      description: contest.description,
-      metadata: { eventName: contest.event_name },
-      rank: parseFloat(contest.rank),
+      description: contest.description ?? undefined,
+      metadata: { eventName: contest.event_name ?? undefined },
+      rank: typeof contest.rank === 'string' ? parseFloat(contest.rank) : Number(contest.rank),
     }));
   }
 
@@ -317,7 +367,7 @@ export class SearchRepository {
   async searchCategories(options: SearchOptions): Promise<SearchResult[]> {
     const { query, tenantId, limit = 20, offset = 0 } = options;
 
-    const categories = await this.prismaClient.$queryRaw<any[]>`
+    const categories = await this.prismaClient.$queryRaw<RawCategorySearchResult[]>`
       SELECT
         cat.id,
         cat.name,
@@ -339,9 +389,9 @@ export class SearchRepository {
       id: category.id,
       type: 'category',
       title: category.name,
-      description: category.description,
-      metadata: { contestName: category.contest_name },
-      rank: parseFloat(category.rank),
+      description: category.description ?? undefined,
+      metadata: { contestName: category.contest_name ?? undefined },
+      rank: typeof category.rank === 'string' ? parseFloat(category.rank) : Number(category.rank),
     }));
   }
 
@@ -351,7 +401,7 @@ export class SearchRepository {
   async searchContestants(options: SearchOptions): Promise<SearchResult[]> {
     const { query, tenantId, limit = 20, offset = 0 } = options;
 
-    const contestants = await this.prismaClient.$queryRaw<any[]>`
+    const contestants = await this.prismaClient.$queryRaw<RawContestantSearchResult[]>`
       SELECT
         id,
         name,
@@ -372,9 +422,9 @@ export class SearchRepository {
       id: contestant.id,
       type: 'contestant',
       title: contestant.name,
-      description: contestant.email,
-      metadata: { contestantNumber: contestant.contestantNumber },
-      rank: parseFloat(contestant.rank),
+      description: contestant.email ?? undefined,
+      metadata: { contestantNumber: contestant.contestantNumber ?? undefined },
+      rank: typeof contestant.rank === 'string' ? parseFloat(contestant.rank) : Number(contestant.rank),
     }));
   }
 
@@ -384,7 +434,7 @@ export class SearchRepository {
   async searchJudges(options: SearchOptions): Promise<SearchResult[]> {
     const { query, tenantId, limit = 20, offset = 0 } = options;
 
-    const judges = await this.prismaClient.$queryRaw<any[]>`
+    const judges = await this.prismaClient.$queryRaw<RawJudgeSearchResult[]>`
       SELECT
         id,
         name,
@@ -405,9 +455,9 @@ export class SearchRepository {
       id: judge.id,
       type: 'judge',
       title: judge.name,
-      description: judge.email,
+      description: judge.email ?? undefined,
       metadata: { isHeadJudge: judge.isHeadJudge },
-      rank: parseFloat(judge.rank),
+      rank: typeof judge.rank === 'string' ? parseFloat(judge.rank) : Number(judge.rank),
     }));
   }
 

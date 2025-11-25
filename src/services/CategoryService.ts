@@ -15,7 +15,7 @@ type CategoryWithDetails = Prisma.CategoryGetPayload<{
   include: {
     contest: true;
     criteria: true;
-    contestants: true;
+    categoryContestants: true;
   };
 }>;
 
@@ -70,7 +70,7 @@ export class CategoryService extends BaseService {
         throw new ValidationError('Score cap must be non-negative');
       }
 
-      const category = await this.categoryRepo.create(data as any);
+      const category = await this.categoryRepo.create(data as unknown as Record<string, unknown>);
       await this.invalidateCategoryCache(undefined, data.contestId);
 
       this.logInfo('Category created', { categoryId: category.id, contestId: data.contestId });

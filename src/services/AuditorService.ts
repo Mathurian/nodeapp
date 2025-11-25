@@ -44,16 +44,13 @@ type ScoreWithRelations = Prisma.ScoreGetPayload<{
       select: {
         id: true;
         name: true;
-        preferredName: true;
         email: true;
-        role: true;
       };
     };
     contestant: {
       select: {
         id: true;
         name: true;
-        preferredName: true;
         email: true;
         contestantNumber: true;
       };
@@ -62,7 +59,6 @@ type ScoreWithRelations = Prisma.ScoreGetPayload<{
       select: {
         id: true;
         name: true;
-        description: true;
         maxScore: true;
       };
     };
@@ -70,8 +66,6 @@ type ScoreWithRelations = Prisma.ScoreGetPayload<{
       select: {
         id: true;
         name: true;
-        description: true;
-        maxScore: true;
       };
     };
   };
@@ -206,7 +200,7 @@ export class AuditorService extends BaseService {
   async getPendingAudits(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const categories = await (this.prisma.category.findMany as any)({
+    const categories = await this.prisma.category.findMany({
       include: {
         contest: {
           select: {
@@ -222,7 +216,7 @@ export class AuditorService extends BaseService {
           },
         },
         categoryCertifications: true,
-      } as any,
+      },
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
@@ -252,7 +246,7 @@ export class AuditorService extends BaseService {
   async getCompletedAudits(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const categories = await (this.prisma.category.findMany as any)({
+    const categories = await this.prisma.category.findMany({
       include: {
         contest: {
           select: {
@@ -268,7 +262,7 @@ export class AuditorService extends BaseService {
           },
         },
         categoryCertifications: true,
-      } as any,
+      },
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
@@ -300,7 +294,7 @@ export class AuditorService extends BaseService {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
       },
     }) as CategoryWithContestEvent | null;
@@ -363,16 +357,13 @@ export class AuditorService extends BaseService {
           select: {
             id: true,
             name: true,
-            preferredName: true,
             email: true,
-            role: true,
           },
         },
         contestant: {
           select: {
             id: true,
             name: true,
-            preferredName: true,
             email: true,
             contestantNumber: true,
           },
@@ -381,7 +372,6 @@ export class AuditorService extends BaseService {
           select: {
             id: true,
             name: true,
-            description: true,
             maxScore: true,
           },
         },
@@ -389,13 +379,11 @@ export class AuditorService extends BaseService {
           select: {
             id: true,
             name: true,
-            description: true,
-            maxScore: true,
           },
         },
-      } as any,
+      },
       orderBy: [{ contestantId: 'asc' }, { criterionId: 'asc' }],
-    }) as unknown as ScoreWithRelations[];
+    }) as ScoreWithRelations[];
 
     // Group scores by contestant
     const groupedScores = scores.reduce((acc: Record<string, {
@@ -450,7 +438,7 @@ export class AuditorService extends BaseService {
         contestant: true,
         criterion: true,
         category: true,
-      } as any,
+      },
     }) as ScoreWithJudgeContestantCriterion | null;
 
     if (!score) {
@@ -481,14 +469,14 @@ export class AuditorService extends BaseService {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
         scores: {
           include: {
             judge: true,
             contestant: true,
             criterion: true,
-          } as any,
+          },
         },
         categoryCertifications: true,
       },
@@ -499,13 +487,13 @@ export class AuditorService extends BaseService {
     }
 
     const totalScores = category.scores.length;
-    const verifiedScores = category.scores.filter((s: any) => s.verified).length;
+    const verifiedScores = category.scores.filter((s) => 'verified' in s && s.verified).length;
     const pendingVerification = totalScores - verifiedScores;
 
     // Check certification status
-    const tallyMasterCert = (category as any).certifications?.some((c: any) => c.type === 'TALLY_MASTER');
-    const auditorCert = (category as any).certifications?.some((c: any) => c.type === 'AUDITOR');
-    const finalCert = (category as any).certifications?.some((c: any) => c.type === 'FINAL');
+    const tallyMasterCert = category.categoryCertifications?.some((c) => c.role === 'TALLY_MASTER');
+    const auditorCert = category.categoryCertifications?.some((c) => c.role === 'AUDITOR');
+    const finalCert = category.categoryCertifications?.some((c) => c.role === 'FINAL');
 
     return {
       categoryId: category.id,
@@ -530,14 +518,14 @@ export class AuditorService extends BaseService {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
         scores: {
           include: {
             judge: true,
             contestant: true,
             criterion: true,
-          } as any,
+          },
         },
         categoryCertifications: true,
       },
@@ -548,9 +536,9 @@ export class AuditorService extends BaseService {
     }
 
     // Check certification status
-    const tallyMasterCert = (category as any).certifications?.find((c: any) => c.type === 'TALLY_MASTER');
-    const auditorCert = (category as any).certifications?.find((c: any) => c.type === 'AUDITOR');
-    const finalCert = (category as any).certifications?.find((c: any) => c.type === 'FINAL');
+    const tallyMasterCert = category.categoryCertifications?.find((c) => c.role === 'TALLY_MASTER');
+    const auditorCert = category.categoryCertifications?.find((c) => c.role === 'AUDITOR');
+    const finalCert = category.categoryCertifications?.find((c) => c.role === 'FINAL');
 
     const workflow = {
       categoryId: category.id,
@@ -567,19 +555,19 @@ export class AuditorService extends BaseService {
         {
           name: 'Tally Master Review',
           status: tallyMasterCert ? 'COMPLETED' : 'PENDING',
-          completedAt: tallyMasterCert?.createdAt || null,
+          completedAt: tallyMasterCert?.certifiedAt || null,
           details: tallyMasterCert ? 'Totals certified' : 'Pending tally review',
         },
         {
           name: 'Auditor Verification',
           status: auditorCert ? 'COMPLETED' : 'PENDING',
-          completedAt: auditorCert?.createdAt || null,
+          completedAt: auditorCert?.certifiedAt || null,
           details: auditorCert ? 'Final certification completed' : 'Pending auditor review',
         },
         {
           name: 'Board Approval',
           status: finalCert ? 'COMPLETED' : 'PENDING',
-          completedAt: finalCert?.createdAt || null,
+          completedAt: finalCert?.certifiedAt || null,
           details: finalCert ? 'Board approved' : 'Pending board approval',
         },
       ],
@@ -606,7 +594,7 @@ export class AuditorService extends BaseService {
         contest: {
           include: {
             event: true,
-          } as any,
+          },
         },
         scores: {
           include: {
@@ -614,7 +602,6 @@ export class AuditorService extends BaseService {
               select: {
                 id: true,
                 name: true,
-                preferredName: true,
                 email: true,
               },
             },
@@ -622,7 +609,6 @@ export class AuditorService extends BaseService {
               select: {
                 id: true,
                 name: true,
-                preferredName: true,
                 email: true,
                 contestantNumber: true,
               },
@@ -631,11 +617,10 @@ export class AuditorService extends BaseService {
               select: {
                 id: true,
                 name: true,
-                description: true,
                 maxScore: true,
               },
             },
-          } as any,
+          },
         },
         categoryCertifications: true,
       },
@@ -720,10 +705,10 @@ export class AuditorService extends BaseService {
             scoreCount: r.scores.length,
           })),
       certification: {
-        tallyMasterCertified: (category as any).certifications?.some((c: any) => c.type === 'TALLY_MASTER') || false,
-        auditorCertified: (category as any).certifications?.some((c: any) => c.type === 'AUDITOR') || false,
-        finalCertified: (category as any).certifications?.some((c: any) => c.type === 'FINAL') || false,
-        certifications: (category as any).certifications || [],
+        tallyMasterCertified: category.categoryCertifications?.some((c) => c.role === 'TALLY_MASTER') || false,
+        auditorCertified: category.categoryCertifications?.some((c) => c.role === 'AUDITOR') || false,
+        finalCertified: category.categoryCertifications?.some((c) => c.role === 'FINAL') || false,
+        certifications: category.categoryCertifications || [],
       },
       generatedAt: new Date().toISOString(),
       generatedBy: userId,
@@ -753,7 +738,7 @@ export class AuditorService extends BaseService {
             role: true,
           },
         },
-      } as any,
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,

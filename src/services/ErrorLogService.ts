@@ -90,7 +90,7 @@ export class ErrorLogService extends BaseService {
   async logException(
     error: Error,
     context?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     tenantId?: string
   ): Promise<ErrorLogWithDetails> {
     return await this.logErrorToDatabase({

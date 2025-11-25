@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
 import { env } from './env';
 import { createLogger } from '../utils/logger';
+import { setupQueryMonitoring } from '../middleware/queryMonitoring';
 
 const logger = createLogger('database');
 
@@ -40,8 +41,8 @@ const prismaClientSingleton = () => {
     // See: https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
   });
 
-  // Query performance monitoring is now handled by Prisma's built-in logging
-  // Slow query warnings are shown in the log output when log level includes 'query'
+  // Setup query performance monitoring
+  setupQueryMonitoring(client);
 
   return client;
 };

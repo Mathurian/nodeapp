@@ -232,14 +232,41 @@ class ErrorTracker {
   }
 
   /**
-   * Notify about critical errors (placeholder for external integration)
+   * Notify about critical errors via external monitoring service
    */
   private async notifyCriticalError(errorEntry: ErrorEntry) {
-    // TODO: Integrate with external monitoring service
-    // Examples:
-    // - Sentry: Sentry.captureException(error)
-    // - DataDog: dogapi.event.create(...)
-    // - Email/Slack notification
+    try {
+      // Import Sentry dynamically to avoid circular dependencies
+      const { captureException, captureMessage } = await import('../config/sentry');
+
+      // Create error object if we have stack trace
+      if (errorEntry.stack) {
+        const error = new Error(errorEntry.message);
+        error.stack = errorEntry.stack;
+        captureException(error, {
+          severity: errorEntry.severity,
+          context: errorEntry.context,
+          errorId: errorEntry.id,
+        });
+      } else {
+        // Capture as message if no stack trace
+        captureMessage(
+          `[${errorEntry.severity.toUpperCase()}] ${errorEntry.message}`,
+          errorEntry.severity === ErrorSeverity.CRITICAL ? 'error' : 'warning'
+        );
+      }
+
+      logger.info('Critical error notified to Sentry', {
+        errorId: errorEntry.id,
+        severity: errorEntry.severity,
+      });
+    } catch (sentryError) {
+      // If Sentry fails, log to console
+      logger.error('Failed to notify Sentry about critical error', {
+        error: sentryError,
+        errorEntry,
+      });
+    }
 
     logger.error(`🚨 CRITICAL ERROR DETECTED: ${errorEntry.id}`, { errorEntry });
   }

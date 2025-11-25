@@ -15,8 +15,7 @@ export type ExportFormat = 'pdf' | 'excel' | 'csv';
 export interface ExportOptions {
   format: ExportFormat;
   filename?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface CSVRow {
@@ -81,8 +80,8 @@ export class ReportExportService extends BaseService {
           doc.fontSize(16).text('Event Information', { underline: true });
           doc.fontSize(12);
           doc.text(`Name: ${reportData.event.name}`);
-          if ((reportData.event as any).description) {
-            doc.text(`Description: ${(reportData.event as any).description}`);
+          if ('description' in reportData.event && reportData.event.description) {
+            doc.text(`Description: ${String(reportData.event.description)}`);
           }
           doc.moveDown();
         }
@@ -92,8 +91,8 @@ export class ReportExportService extends BaseService {
           doc.fontSize(16).text('Contest Information', { underline: true });
           doc.fontSize(12);
           doc.text(`Name: ${reportData.contest.name}`);
-          if ((reportData.contest as any).description) {
-            doc.text(`Description: ${(reportData.contest as any).description}`);
+          if ('description' in reportData.contest && reportData.contest.description) {
+            doc.text(`Description: ${String(reportData.contest.description)}`);
           }
           doc.moveDown();
         }
@@ -161,8 +160,8 @@ export class ReportExportService extends BaseService {
       if (reportData.event) {
         worksheet.addRow(['Event Information']);
         worksheet.addRow(['Name:', reportData.event.name]);
-        if ((reportData.event as any).description) {
-          worksheet.addRow(['Description:', (reportData.event as any).description]);
+        if ('description' in reportData.event && reportData.event.description) {
+          worksheet.addRow(['Description:', String(reportData.event.description)]);
         }
         worksheet.addRow([]);
       }
@@ -196,9 +195,9 @@ export class ReportExportService extends BaseService {
 
       // Auto-fit columns
       if (worksheet.columns) {
-        worksheet.columns.forEach((column: any) => {
-          if (column && column.values) {
-            const lengths = column.values.map((v: any) => v ? v.toString().length : 10);
+        worksheet.columns.forEach((column) => {
+          if (column && 'values' in column && Array.isArray(column.values)) {
+            const lengths = column.values.map((v) => v ? v.toString().length : 10);
             const maxLength = Math.max(...lengths);
             column.width = maxLength < 10 ? 10 : maxLength + 2;
           }
@@ -234,8 +233,8 @@ export class ReportExportService extends BaseService {
       if (reportData.event) {
         rows.push({ field: 'Event Information', value: '' });
         rows.push({ field: 'Name', value: reportData.event.name });
-        if ((reportData.event as any).description) {
-          rows.push({ field: 'Description', value: (reportData.event as any).description });
+        if ('description' in reportData.event && reportData.event.description) {
+          rows.push({ field: 'Description', value: String(reportData.event.description) });
         }
         rows.push({ field: '', value: '' });
       }

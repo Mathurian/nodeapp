@@ -242,7 +242,7 @@ export class EmailService extends BaseService {
       String(lastError),
       env.get('SMTP_FROM'),
       options?.template,
-      options?.variables as Record<string, any>
+      options?.variables as Record<string, unknown>
     );
 
     // Log email sending failure to ErrorLogService

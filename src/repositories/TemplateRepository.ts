@@ -9,7 +9,7 @@ import { CategoryTemplate } from '@prisma/client';
 import { prisma } from '../config/database';
 
 export interface TemplateWithCriteria extends CategoryTemplate {
-  criteria: Array<{
+  templateCriteria: Array<{
     id: string;
     name: string;
     maxScore: number;
@@ -50,48 +50,75 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
    * Find all templates with criteria
    */
   async findAllWithCriteria(tenantId: string): Promise<TemplateWithCriteria[]> {
-    return (this.getModel() as any).findMany({
+    const templates = await this.prisma.categoryTemplate.findMany({
       where: { tenantId },
-      include: {
-        criteria: true
-      },
       orderBy: { createdAt: 'desc' }
     });
+    
+    const templateIds = templates.map(t => t.id);
+    const criteria = await this.prisma.templateCriterion.findMany({
+      where: { templateId: { in: templateIds }, tenantId }
+    });
+    
+    return templates.map(template => ({
+      ...template,
+      templateCriteria: criteria.filter(c => c.templateId === template.id)
+    }));
   }
 
   /**
    * Find template by ID with criteria
    */
   async findByIdWithCriteria(id: string, tenantId: string): Promise<TemplateWithCriteria | null> {
-    return (this.getModel() as any).findFirst({
-      where: { id, tenantId },
-      include: {
-        criteria: true
-      }
+    const template = await this.prisma.categoryTemplate.findFirst({
+      where: { id, tenantId }
     });
+    
+    if (!template) {
+      return null;
+    }
+    
+    const templateCriteria = await this.prisma.templateCriterion.findMany({
+      where: { templateId: id, tenantId }
+    });
+    
+    return {
+      ...template,
+      templateCriteria
+    };
   }
 
   /**
    * Create template with criteria
    */
   async createWithCriteria(data: CreateTemplateData): Promise<TemplateWithCriteria> {
-    return (this.getModel() as any).create({
+    const template = await this.prisma.categoryTemplate.create({
       data: {
         name: data.name,
         description: data.description || null,
-        tenantId: data.tenantId,
-        criteria: data.criteria ? {
-          create: data.criteria.map(c => ({
-            name: c.name,
-            maxScore: c.maxScore,
-            tenantId: data.tenantId
-          }))
-        } : undefined
-      },
-      include: {
-        criteria: true
+        tenantId: data.tenantId
       }
     });
+    
+    if (data.criteria && data.criteria.length > 0) {
+      await this.prisma.templateCriterion.createMany({
+        data: data.criteria.map(c => ({
+          name: c.name,
+          maxScore: c.maxScore,
+          templateId: template.id,
+          tenantId: data.tenantId
+        }))
+      });
+    }
+    
+    const templateCriteria = await this.prisma.templateCriterion.findMany({
+      where: { templateId: template.id, tenantId: data.tenantId }
+    });
+    
+    return {
+      ...template,
+      templateCriteria
+    };
   }
 
   /**
@@ -102,7 +129,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
     if (data.criteria) {
       return this.prisma.$transaction(async (tx) => {
         // Update template basic data
-        await (tx as any).categoryTemplate.update({
+        await tx.categoryTemplate.update({
           where: { id },
           data: {
             name: data.name,
@@ -111,13 +138,13 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
         });
 
         // Delete old criteria
-        await (tx as any).templateCriterion.deleteMany({
+        await tx.templateCriterion.deleteMany({
           where: { templateId: id, tenantId }
         });
 
         // Create new criteria
         if (data.criteria && data.criteria.length > 0) {
-          await (tx as any).templateCriterion.createMany({
+          await tx.templateCriterion.createMany({
             data: data.criteria.map(c => ({
               templateId: id,
               tenantId,
@@ -128,26 +155,37 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
         }
 
         // Return updated template with criteria
-        return (tx as any).categoryTemplate.findFirst({
-          where: { id, tenantId },
-          include: {
-            criteria: true
-          }
+        const updated = await tx.categoryTemplate.findFirst({
+          where: { id, tenantId }
         });
+        if (!updated) {
+          throw new Error('Template not found after update');
+        }
+        const updatedCriteria = await tx.templateCriterion.findMany({
+          where: { templateId: id, tenantId }
+        });
+        return {
+          ...updated,
+          templateCriteria: updatedCriteria
+        };
       });
     }
 
     // If no criteria update, just update template
-    return (this.getModel() as any).update({
+    const updated = await this.prisma.categoryTemplate.update({
       where: { id },
       data: {
         name: data.name,
         description: data.description || null
-      },
-      include: {
-        criteria: true
       }
     });
+    const updatedCriteria = await this.prisma.templateCriterion.findMany({
+      where: { templateId: id, tenantId }
+    });
+    return {
+      ...updated,
+      templateCriteria: updatedCriteria
+    };
   }
 
   /**
@@ -160,22 +198,32 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       return null;
     }
 
-    return (this.getModel() as any).create({
+    const duplicated = await this.prisma.categoryTemplate.create({
       data: {
         name: `${original.name} (Copy)`,
         description: original.description,
-        tenantId,
-        criteria: {
-          create: original.criteria.map(c => ({
-            name: c.name,
-            maxScore: c.maxScore,
-            tenantId
-          }))
-        }
-      },
-      include: {
-        criteria: true
+        tenantId
       }
     });
+    
+    if (original.templateCriteria.length > 0) {
+      await this.prisma.templateCriterion.createMany({
+        data: original.templateCriteria.map((c: { name: string; maxScore: number }) => ({
+          name: c.name,
+          maxScore: c.maxScore,
+          templateId: duplicated.id,
+          tenantId
+        }))
+      });
+    }
+    
+    const duplicatedCriteria = await this.prisma.templateCriterion.findMany({
+      where: { templateId: duplicated.id, tenantId }
+    });
+    
+    return {
+      ...duplicated,
+      templateCriteria: duplicatedCriteria
+    };
   }
 }

@@ -15,7 +15,7 @@ import { SavedSearch, SearchHistory, SearchAnalytic } from '@prisma/client';
 export interface FacetedSearchOptions {
   tenantId: string;
   query?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   entityTypes?: string[];
   limit?: number;
   offset?: number;
@@ -135,23 +135,27 @@ export class SearchService {
   /**
    * Calculate facets from search results
    */
-  private calculateFacets(results: SearchResult[], facetOptions: any): any {
-    const facets: any = {};
+  private calculateFacets(results: SearchResult[], facetOptions: FacetedSearchOptions['facets']): Record<string, Array<{ [key: string]: string | number; count: number }>> {
+    const facets: Record<string, Array<{ [key: string]: string | number; count: number }>> = {};
 
-    if (facetOptions.types) {
-      facets.types = this.calculateTypeFacets(results);
+    if (!facetOptions) {
+      return facets;
     }
 
-    if (facetOptions.dates) {
-      facets.dates = this.calculateDateFacets(results);
+    if (facetOptions['types']) {
+      facets['types'] = this.calculateTypeFacets(results);
     }
 
-    if (facetOptions.roles) {
-      facets.roles = this.calculateRoleFacets(results);
+    if (facetOptions['dates']) {
+      facets['dates'] = this.calculateDateFacets(results);
     }
 
-    if (facetOptions.status) {
-      facets.status = this.calculateStatusFacets(results);
+    if (facetOptions['roles']) {
+      facets['roles'] = this.calculateRoleFacets(results);
+    }
+
+    if (facetOptions['status']) {
+      facets['status'] = this.calculateStatusFacets(results);
     }
 
     return facets;
@@ -200,7 +204,7 @@ export class SearchService {
 
     results.forEach((result) => {
       if (result.metadata?.['role']) {
-        const role = result.metadata['role'];
+        const role = String(result.metadata['role']);
         const count = roleCounts.get(role) || 0;
         roleCounts.set(role, count + 1);
       }
@@ -219,7 +223,7 @@ export class SearchService {
 
     results.forEach((result) => {
       if (result.metadata?.['status']) {
-        const status = result.metadata['status'];
+        const status = String(result.metadata['status']);
         const count = statusCounts.get(status) || 0;
         statusCounts.set(status, count + 1);
       }

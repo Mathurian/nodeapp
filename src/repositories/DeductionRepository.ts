@@ -5,7 +5,7 @@
 
 import { injectable } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
-import { DeductionRequest, DeductionApproval } from '@prisma/client';
+import { DeductionRequest, DeductionApproval, DeductionStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 
 export interface DeductionWithRelations extends DeductionRequest {
@@ -75,8 +75,9 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
       whereClause['categoryId'] = { in: categoryIds };
     }
 
-    return (this.getModel() as any).findMany({
+    return this.prisma.deductionRequest.findMany({
       where: whereClause,
+      // @ts-expect-error - Relations not defined in Prisma schema but expected by interface
       include: {
         contestant: {
           select: { id: true, name: true, email: true }
@@ -102,12 +103,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
   /**
    * Find deduction by ID with all relations
    */
-  override async findByIdWithRelations(id: string, tenantId: any): Promise<DeductionWithRelations | null> {
-    return (this.getModel() as any).findFirst({
+  override async findByIdWithRelations(id: string, tenantId: unknown): Promise<DeductionWithRelations | null> {
+    const tenantIdStr = tenantId as string;
+    return (this.prisma.deductionRequest.findFirst({
       where: {
         id,
-        tenantId: tenantId as string
+        tenantId: tenantIdStr
       },
+      // @ts-expect-error - Relations not defined in Prisma schema but expected by interface
       include: {
         contestant: {
           select: { id: true, name: true, email: true }
@@ -127,14 +130,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           orderBy: { createdAt: 'asc' }
         }
       }
-    });
+    }) as unknown) as Promise<DeductionWithRelations | null>;
   }
 
   /**
    * Create deduction request with relations
    */
   async createDeduction(data: CreateDeductionData): Promise<DeductionWithRelations> {
-    return (this.getModel() as any).create({
+    return (this.prisma.deductionRequest.create({
       data: {
         contestantId: data.contestantId,
         categoryId: data.categoryId,
@@ -144,6 +147,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
         status: 'PENDING',
         tenantId: data.tenantId
       },
+      // @ts-expect-error - Relations not defined in Prisma schema but expected by interface
       include: {
         contestant: {
           select: { id: true, name: true, email: true }
@@ -162,7 +166,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           }
         }
       }
-    });
+    }) as unknown) as Promise<DeductionWithRelations>;
   }
 
   /**
@@ -184,10 +188,11 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
     const skip = (page - 1) * limit;
 
     const [deductions, total] = await Promise.all([
-      (this.getModel() as any).findMany({
+      (this.prisma.deductionRequest.findMany({
         where: whereClause,
         skip,
         take: limit,
+        // @ts-expect-error - Relations not defined in Prisma schema but expected by interface
         include: {
           contestant: {
             select: { id: true, name: true, email: true }
@@ -200,15 +205,15 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           },
           approvals: {
             include: {
-              approvedBy: {
+              approver: {
                 select: { id: true, name: true, email: true, role: true }
               }
             }
           }
         },
         orderBy: { createdAt: 'desc' }
-      }),
-      (this.getModel() as any).count({ where: whereClause })
+      }) as unknown) as Promise<DeductionWithRelations[]>,
+      this.prisma.deductionRequest.count({ where: whereClause })
     ]);
 
     return { deductions, total };
@@ -225,7 +230,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
       },
       // include removed - no approver relation in schema
       orderBy: { approvedAt: 'asc' }
-    }) as any;
+    });
   }
 
   /**
@@ -246,8 +251,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
         tenantId,
         isHeadJudge: isHeadJudge || false
       }
-      // include removed - no approver relation in schema
-    }) as any;
+    });
   }
 
   /**
@@ -268,28 +272,72 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
    * Update deduction status
    */
   async updateStatus(id: string, status: string, _tenantId: string, additionalData?: Record<string, unknown>): Promise<DeductionRequest> {
-    return (this.getModel() as any).update({
+    return this.prisma.deductionRequest.update({
       where: { id },
       data: {
-        status,
+        status: status as DeductionStatus,
         ...additionalData
       }
     });
   }
 
   /**
-   * Note: Apply deduction to scores - currently not implemented as Score model
-   * doesn't have deduction fields. This would need schema migration first.
+   * Apply deduction to scores by creating/updating OverallDeduction record
+   * This deduction will be applied during score calculation
    */
   async applyDeductionToScores(
-    _contestantId: string,
-    _categoryId: string,
-    _amount: number,
-    _reason: string
+    contestantId: string,
+    categoryId: string,
+    amount: number,
+    reason: string
   ): Promise<number> {
-    // TODO: Add deduction fields to Score model in schema first
-    // For now, just mark the deduction as approved - actual score adjustment
-    // will need to be handled separately
-    return 0;
+    try {
+      // Get tenantId from category
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { tenantId: true },
+      });
+
+      if (!category) {
+        throw new Error(`Category ${categoryId} not found`);
+      }
+
+      // Create or update OverallDeduction record
+      // This will be used during score calculation to adjust final scores
+      await prisma.overallDeduction.upsert({
+        where: {
+          tenantId_categoryId_contestantId: {
+            tenantId: category.tenantId,
+            categoryId,
+            contestantId,
+          },
+        },
+        create: {
+          tenantId: category.tenantId,
+          categoryId,
+          contestantId,
+          deduction: amount,
+          reason,
+        },
+        update: {
+          deduction: amount,
+          reason,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Return the number of affected scores (all scores for this contestant in this category)
+      const affectedScoresCount = await prisma.score.count({
+        where: {
+          categoryId,
+          contestantId,
+        },
+      });
+
+      return affectedScoresCount;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to apply deduction: ${errorMessage}`);
+    }
   }
 }

@@ -26,12 +26,16 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // ALWAYS log error details to console (including production)
+    // Log error details (console.error is acceptable in error boundaries)
+    // eslint-disable-next-line no-console
     console.error('ErrorBoundary caught an error:', error, errorInfo)
 
     // Log full error details for debugging
+    // eslint-disable-next-line no-console
     console.error('Error message:', error.message)
+    // eslint-disable-next-line no-console
     console.error('Error stack:', error.stack)
+    // eslint-disable-next-line no-console
     console.error('Component stack:', errorInfo.componentStack)
 
     // In production, send to error tracking service (Sentry)

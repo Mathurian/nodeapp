@@ -383,7 +383,7 @@ export class UserService extends BaseService {
       await invalidateCache('users:*');
       await invalidateCache(`user:${userId}`);
 
-      return this.sanitizeUser(updatedUser) as any;
+      return this.sanitizeUser(updatedUser) as User;
     } catch (error) {
       this.handleError(error, { method: 'updateUser', userId });
     }
@@ -535,7 +535,7 @@ export class UserService extends BaseService {
       userCache.invalidate(userId);
       this.logInfo('User image updated', { userId, imagePath });
 
-      return this.sanitizeUser(updatedUser) as any;
+      return this.sanitizeUser(updatedUser) as User;
     } catch (error) {
       this.handleError(error, { method: 'updateUserImage', userId });
     }

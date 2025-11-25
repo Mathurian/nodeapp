@@ -104,14 +104,14 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Find contest with full details
    */
   async findContestWithDetails(contestId: string): Promise<ContestWithRelations | null> {
-    return (this.getModel() as any).findUnique({
+    return this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         event: true,
         categories: {
           include: {
             criteria: true,
-            judges: {
+            categoryJudges: {
               include: {
                 judge: {
                   include: {
@@ -127,7 +127,7 @@ export class ContestRepository extends BaseRepository<Contest> {
                 },
               },
             },
-            contestants: {
+            categoryContestants: {
               include: {
                 contestant: {
                   include: {
@@ -145,27 +145,35 @@ export class ContestRepository extends BaseRepository<Contest> {
             },
           },
         },
-        contestants: {
+        contestContestants: {
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                preferredName: true,
-                contestantNumber: true,
+            contestant: {
+              include: {
+                users: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    preferredName: true,
+                    contestantNumber: true,
+                  },
+                },
               },
             },
           },
         },
-        judges: {
+        contestJudges: {
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                preferredName: true,
+            judge: {
+              include: {
+                users: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    preferredName: true,
+                  },
+                },
               },
             },
           },
@@ -177,21 +185,25 @@ export class ContestRepository extends BaseRepository<Contest> {
   /**
    * Find contests with scores
    */
-  async findContestWithScores(contestId: string): Promise<any> {
-    return (this.getModel() as any).findUnique({
+  async findContestWithScores(contestId: string): Promise<ContestWithRelations | null> {
+    return this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         categories: {
           include: {
             criteria: true,
-            contestants: {
+            categoryContestants: {
               include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    preferredName: true,
-                    contestantNumber: true,
+                contestant: {
+                  include: {
+                    users: {
+                      select: {
+                        id: true,
+                        name: true,
+                        preferredName: true,
+                        contestantNumber: true,
+                      },
+                    },
                   },
                 },
               },
@@ -237,23 +249,23 @@ export class ContestRepository extends BaseRepository<Contest> {
     totalJudges: number;
     totalScores: number;
   }> {
-    const contest = await (this.getModel() as any).findUnique({
+    const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
       include: {
         categories: {
           include: {
             _count: {
               select: {
-                contestants: true,
-                judges: true,
+                categoryContestants: true,
+                categoryJudges: true,
               },
             },
           },
         },
         _count: {
           select: {
-            contestants: true,
-            judges: true,
+            contestContestants: true,
+            contestJudges: true,
           },
         },
       },
@@ -268,10 +280,19 @@ export class ContestRepository extends BaseRepository<Contest> {
       };
     }
 
+    type ContestWithCounts = {
+      categories: Array<unknown>;
+      _count: {
+        contestContestants: number;
+        contestJudges: number;
+      };
+    };
+    const contestWithCounts = contest as unknown as ContestWithCounts;
+    
     return {
-      totalCategories: contest.categories.length,
-      totalContestants: (contest as any)._count.contestants,
-      totalJudges: (contest as any)._count.judges,
+      totalCategories: contestWithCounts.categories.length,
+      totalContestants: contestWithCounts._count?.contestContestants ?? 0,
+      totalJudges: contestWithCounts._count?.contestJudges ?? 0,
       totalScores: 0, // Would need to count from scores table
     };
   }

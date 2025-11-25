@@ -1,4 +1,4 @@
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { exec } from 'child_process';
@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
 import { PaginationOptions, PaginatedResponse, createPaginatedResponse } from '../utils/pagination';
 import { env } from '../config/env';
+import { CacheService } from './CacheService';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
@@ -304,8 +305,40 @@ export class AdminService extends BaseService {
   }
 
   async clearCache() {
-    // TODO: Implement cache clearing
-    return { success: true, message: 'Cache cleared' };
+    try {
+      const cacheService = container.resolve(CacheService);
+      
+      // Get stats before clearing
+      const statsBefore = await cacheService.getStats();
+      const keysBefore = statsBefore.keys || 0;
+
+      // Clear Redis cache
+      try {
+        await cacheService.flushAll();
+        log.info('Redis cache cleared', { keysCleared: keysBefore });
+      } catch (cacheError) {
+        log.warn('Failed to clear Redis cache', { error: cacheError });
+        throw cacheError;
+      }
+
+      // Clear in-memory caches (if any)
+      // Note: In-memory caches would be cleared here if they exist
+      // For now, we only have Redis cache
+
+      return {
+        success: true,
+        message: 'Cache cleared successfully',
+        keysCleared: keysBefore,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      log.error('Cache clearing failed', { error });
+      return {
+        success: false,
+        message: `Cache clearing failed: ${error instanceof Error ? error.message : String(error)}`,
+        keysCleared: 0,
+      };
+    }
   }
 
   async getActivityLogs(options?: PaginationOptions): Promise<PaginatedResponse<FormattedActivityLog>> {

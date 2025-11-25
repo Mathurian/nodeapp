@@ -3,9 +3,18 @@
  * Data access layer for Category entity
  */
 
-import { Category } from '@prisma/client';
+import { Category, Prisma } from '@prisma/client';
 import { injectable } from 'tsyringe';
 import { BaseRepository, PaginationOptions, PaginatedResult } from './BaseRepository';
+
+type CategoryWithDetails = Prisma.CategoryGetPayload<{
+  include: {
+    contest: { include: { event: true } };
+    criteria: true;
+    categoryJudges: { include: { judge: { include: { users: true } } } };
+    categoryContestants: { include: { contestant: { include: { users: true } } } };
+  };
+}>;
 
 @injectable()
 export class CategoryRepository extends BaseRepository<Category> {
@@ -34,8 +43,8 @@ export class CategoryRepository extends BaseRepository<Category> {
   /**
    * Find category with full details
    */
-  async findCategoryWithDetails(categoryId: string): Promise<any> {
-    return (this.getModel() as any).findUnique({
+  async findCategoryWithDetails(categoryId: string): Promise<CategoryWithDetails | null> {
+    return this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         contest: {
@@ -44,27 +53,35 @@ export class CategoryRepository extends BaseRepository<Category> {
           },
         },
         criteria: true,
-        judges: {
+        categoryJudges: {
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                preferredName: true,
+            judge: {
+              include: {
+                users: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    preferredName: true,
+                  },
+                },
               },
             },
           },
         },
-        contestants: {
+        categoryContestants: {
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                preferredName: true,
-                contestantNumber: true,
+            contestant: {
+              include: {
+                users: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    preferredName: true,
+                    contestantNumber: true,
+                  },
+                },
               },
             },
           },
@@ -93,13 +110,13 @@ export class CategoryRepository extends BaseRepository<Category> {
     totalJudges: number;
     totalCriteria: number;
   }> {
-    const category = await (this.getModel() as any).findUnique({
+    const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
         _count: {
           select: {
-            contestants: true,
-            judges: true,
+            categoryContestants: true,
+            categoryJudges: true,
             criteria: true,
           },
         },
@@ -115,9 +132,9 @@ export class CategoryRepository extends BaseRepository<Category> {
     }
 
     return {
-      totalContestants: (category as any)._count.contestants,
-      totalJudges: (category as any)._count.judges,
-      totalCriteria: (category as any)._count.criteria,
+      totalContestants: category._count?.categoryContestants ?? 0,
+      totalJudges: category._count?.categoryJudges ?? 0,
+      totalCriteria: category._count?.criteria ?? 0,
     };
   }
 
