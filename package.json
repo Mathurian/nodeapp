@@ -93,7 +93,7 @@
     "redis": "^4.6.12",
     "reflect-metadata": "^0.2.2",
     "remark-gfm": "^4.0.1",
-    "sharp": "^0.33.0",
+    "sharp": "^0.34.5",
     "socket.io": "^4.7.5",
     "speakeasy": "^2.0.0",
     "ssh2-sftp-client": "^12.0.1",
