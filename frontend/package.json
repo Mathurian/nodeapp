@@ -5,7 +5,7 @@
   "description": "Event Manager Contest System - React Frontend",
   "private": true,
   "dependencies": {
-    "@headlessui/react": "^1.7.17",
+    "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.0.18",
     "@types/dompurify": "^3.0.5",
     "autoprefixer": "^10.4.16",
