@@ -45,6 +45,18 @@ Thumbs.db
 # Testing
 .nyc_output/
 
+# Playwright
+frontend/playwright-report/
+frontend/test-results/
+frontend/tests/screenshots/current/
+frontend/tests/screenshots/diff/
+# Keep baseline screenshots in version control
+!frontend/tests/screenshots/baseline/
+
+# Pa11y
+frontend/pa11y-screenshots/
+frontend/pa11y-results.json
+
 # Temporary files
 *.tmp
 tmp/

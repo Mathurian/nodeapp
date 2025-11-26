@@ -6,6 +6,8 @@ import { env } from '../config/env';
 import { templateRenderer } from '../utils/templateRenderer';
 import { ErrorLogService } from './ErrorLogService';
 import { createLogger } from '../utils/logger';
+// S4-1: Circuit breaker for email service resilience
+import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
 
 const logger = createLogger('EmailService');
 
@@ -62,9 +64,30 @@ export class EmailService extends BaseService {
   private transporter: Transporter | null = null;
   private maxRetries = 3;
   private retryDelay = 2000; // 2 seconds
+  // S4-1: Circuit breaker for SMTP resilience
+  private circuitBreaker: CircuitBreaker;
 
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
+
+    // S4-1: Initialize circuit breaker for email service
+    this.circuitBreaker = CircuitBreakerRegistry.get('email-service', {
+      failureThreshold: 5,      // Open after 5 failures
+      successThreshold: 2,      // Close after 2 successes in half-open
+      timeout: 60000,           // 60s before retry (half-open)
+      windowSize: 60000,        // 60s sliding window
+      volumeThreshold: 10,      // Minimum 10 requests before evaluation
+    });
+
+    // S4-1: Monitor circuit breaker state changes
+    this.circuitBreaker.on('stateChange', (newState) => {
+      logger.warn('Email service circuit breaker state changed', { newState });
+    });
+
+    this.circuitBreaker.on('open', () => {
+      logger.error('Email service circuit breaker OPENED - failing fast');
+    });
+
     this.initializeTransporter();
   }
 
@@ -196,10 +219,14 @@ export class EmailService extends BaseService {
     };
 
     // Send email with retry logic
+    // S4-1: Circuit breaker wraps retry logic to fail fast when SMTP is down
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const info = await this.transporter.sendMail(mailOptions);
+        // S4-1: Execute send through circuit breaker
+        const info = await this.circuitBreaker.execute(async () => {
+          return await this.transporter!.sendMail(mailOptions);
+        });
 
         // Log successful email with enhanced tracking
         await this.logEmail(
@@ -224,6 +251,26 @@ export class EmailService extends BaseService {
         };
       } catch (error) {
         lastError = error as Error;
+
+        // S4-1: If circuit breaker is open, fail fast without retrying
+        if (lastError.message.includes('Circuit breaker')) {
+          logger.error('Email circuit breaker is OPEN - failing fast', { to, subject });
+
+          // Log circuit breaker failure
+          await this.logEmail(
+            to,
+            subject,
+            'FAILED',
+            null,
+            'Circuit breaker OPEN - SMTP service unavailable',
+            env.get('SMTP_FROM'),
+            options?.template,
+            options?.variables as Record<string, unknown>
+          );
+
+          throw this.badRequestError('Email service temporarily unavailable - please try again later');
+        }
+
         logger.error(`Email send failed (attempt ${attempt}/${this.maxRetries})`, { error, to });
 
         if (attempt < this.maxRetries) {

@@ -46,6 +46,7 @@ const FieldVisibilityPage = lazy(() => import('../pages/FieldVisibilityPage'))
 const TestEventSetupPage = lazy(() => import('../pages/TestEventSetupPage'))
 const BiosPage = lazy(() => import('../pages/BiosPage'))
 const AssignmentsPage = lazy(() => import('../pages/AssignmentsPage'))
+const RateLimitConfigPage = lazy(() => import('../pages/RateLimitConfigPage'))
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -71,7 +72,7 @@ const KNOWN_ROUTES = new Set([
   'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
   'bulk-operations', 'commentary', 'category-types', 'field-visibility',
-  'test-event-setup', 'help', 'bios', 'assignments'
+  'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs'
 ])
 
 // Helper to check if a path segment is a known route
@@ -176,6 +177,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/help" element={<HelpPage />} />
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<AssignmentsPage />} />
+            <Route path="/rate-limit-configs" element={<RateLimitConfigPage />} />
 
             {/* Tenant-prefixed routes - these match the same pages under /:slug prefix */}
             <Route path="/:slug/dashboard" element={<DashboardPage />} />
@@ -220,6 +222,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/help" element={<HelpPage />} />
             <Route path="/:slug/bios" element={<BiosPage />} />
             <Route path="/:slug/assignments" element={<AssignmentsPage />} />
+            <Route path="/:slug/rate-limit-configs" element={<RateLimitConfigPage />} />
             <Route path="/:slug" element={<Navigate to={`${basePath}/dashboard`} replace />} />
 
             {/* Catch-all redirect */}

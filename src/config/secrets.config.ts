@@ -2,19 +2,37 @@
  * Secrets Configuration
  *
  * Configuration for the flexible secrets management system
- * 
- * Note: Most secrets-related env vars are not in env.ts yet as they're provider-specific
- * TODO: Consider adding common secrets config to env.ts or keep as-is for flexibility
+ *
+ * ARCHITECTURAL DECISION: Provider-Specific Environment Variables
+ *
+ * Secrets provider configuration is intentionally read directly from process.env
+ * rather than being defined in env.ts. This provides flexibility to use different
+ * secret providers without requiring all provider-specific variables to be defined.
+ *
+ * Rationale:
+ * - When using 'env' provider: VAULT_ADDR, AWS credentials, and encryption keys are not needed
+ * - When using 'aws' provider: VAULT_ADDR and local storage paths are not needed
+ * - When using 'vault' provider: AWS credentials and local storage are not needed
+ * - When using 'local' provider: Cloud provider credentials are not needed
+ *
+ * This design allows:
+ * 1. Seamless provider switching without modifying env.ts
+ * 2. Avoiding validation errors for unused provider variables
+ * 3. Better separation of concerns (provider config vs app config)
+ * 4. Simplified deployment in different environments
+ *
+ * This is a conscious architectural decision for provider flexibility.
  */
 
 import { SecretsProviderConfig } from '../types/secrets.types';
 
 /**
  * Get secrets configuration from environment
+ *
+ * Note: Provider-specific variables are intentionally not in env.ts
+ * See file header documentation for architectural rationale.
  */
 export function getSecretsConfig(): SecretsProviderConfig {
-  // Note: SECRETS_PROVIDER and related vars not in env.ts yet (provider-specific config)
-  // TODO: Consider adding to env.ts or keep as-is for provider flexibility
   const provider = (process.env['SECRETS_PROVIDER'] || 'env') as 'local' | 'env' | 'aws' | 'vault';
 
   const config: SecretsProviderConfig = {

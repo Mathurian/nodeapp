@@ -7,6 +7,8 @@ import Redis from 'ioredis';
 import { injectable } from 'tsyringe';
 import { createLogger } from '../utils/logger';
 import { env } from '../config/env';
+// S4-1: Circuit breaker for Redis resilience
+import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
 
 const logger = createLogger('CacheService');
 
@@ -17,6 +19,8 @@ export class CacheService {
   private isEnabled: boolean = false;
   private hits: number = 0;
   private misses: number = 0;
+  // S4-1: Circuit breaker for Redis resilience
+  private circuitBreaker: CircuitBreaker;
 
   constructor() {
     this.redis = new Redis({
@@ -31,6 +35,28 @@ export class CacheService {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
       lazyConnect: true,
+    });
+
+    // S4-1: Initialize circuit breaker for Redis
+    this.circuitBreaker = CircuitBreakerRegistry.get('redis-cache', {
+      failureThreshold: 3,      // Open after 3 failures
+      successThreshold: 2,      // Close after 2 successes
+      timeout: 30000,           // 30s before retry (fast recovery)
+      windowSize: 60000,        // 60s sliding window
+      volumeThreshold: 10,      // Minimum 10 requests
+    });
+
+    // S4-1: Monitor circuit breaker state changes
+    this.circuitBreaker.on('stateChange', (newState) => {
+      logger.warn('Redis circuit breaker state changed', { newState });
+    });
+
+    this.circuitBreaker.on('open', () => {
+      logger.error('Redis circuit breaker OPENED - failing fast');
+    });
+
+    this.circuitBreaker.on('close', () => {
+      logger.info('Redis circuit breaker CLOSED - Redis service recovered');
     });
 
     this.setupEventHandlers();
@@ -90,7 +116,11 @@ export class CacheService {
     }
 
     try {
-      const value = await this.redis.get(key);
+      // S4-1: Execute Redis get through circuit breaker
+      const value = await this.circuitBreaker.execute(async () => {
+        return await this.redis.get(key);
+      });
+
       if (!value) {
         this.misses++;
         return null;
@@ -98,6 +128,14 @@ export class CacheService {
       this.hits++;
       return JSON.parse(value) as T;
     } catch (error) {
+      // S4-1: If circuit breaker is open, fail fast (return null for graceful degradation)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.warn('Redis circuit breaker is OPEN - cache unavailable', { key });
+        this.misses++;
+        return null;
+      }
+
       logger.error(`Cache get error for key "${key}"`, { error });
       this.misses++;
       return null;
@@ -114,8 +152,19 @@ export class CacheService {
 
     try {
       const serialized = JSON.stringify(value);
-      await this.redis.setex(key, ttlSeconds, serialized);
+
+      // S4-1: Execute Redis set through circuit breaker
+      await this.circuitBreaker.execute(async () => {
+        return await this.redis.setex(key, ttlSeconds, serialized);
+      });
     } catch (error) {
+      // S4-1: If circuit breaker is open, fail gracefully (no-op)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.warn('Redis circuit breaker is OPEN - cache set skipped', { key });
+        return;
+      }
+
       logger.error(`Cache set error for key "${key}"`, { error });
     }
   }
@@ -129,14 +178,25 @@ export class CacheService {
     }
 
     try {
-      if (Array.isArray(key)) {
-        if (key.length > 0) {
-          await this.redis.del(...key);
+      // S4-1: Execute Redis del through circuit breaker
+      await this.circuitBreaker.execute(async () => {
+        if (Array.isArray(key)) {
+          if (key.length > 0) {
+            return await this.redis.del(...key);
+          }
+        } else {
+          return await this.redis.del(key);
         }
-      } else {
-        await this.redis.del(key);
-      }
+        return 0;
+      });
     } catch (error) {
+      // S4-1: If circuit breaker is open, fail gracefully (no-op)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.warn('Redis circuit breaker is OPEN - cache delete skipped', { key });
+        return;
+      }
+
       logger.error('Cache delete error', { error });
     }
   }
@@ -150,11 +210,22 @@ export class CacheService {
     }
 
     try {
-      const keys = await this.redis.keys(pattern);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
-      }
+      // S4-1: Execute Redis pattern invalidation through circuit breaker
+      await this.circuitBreaker.execute(async () => {
+        const keys = await this.redis.keys(pattern);
+        if (keys.length > 0) {
+          return await this.redis.del(...keys);
+        }
+        return 0;
+      });
     } catch (error) {
+      // S4-1: If circuit breaker is open, fail gracefully (no-op)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.warn('Redis circuit breaker is OPEN - pattern invalidation skipped', { pattern });
+        return;
+      }
+
       logger.error(`Cache invalidate pattern error for "${pattern}"`, { error });
     }
   }

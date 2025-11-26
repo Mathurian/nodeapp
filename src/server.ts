@@ -37,6 +37,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
 import { tenantMiddleware } from './middleware/tenantMiddleware';
+// S4-2: Correlation ID middleware for request tracing
+import { correlationIdMiddleware, contextMiddleware } from './middleware/correlationId';
 
 // Utilities
 import { createLogger } from './utils/logger';
@@ -102,6 +104,9 @@ configureMiddleware(app, allowedOrigins);
 // Additional middleware
 app.use(morgan('combined'));
 app.use(cookieParser());
+
+// S4-2: Request correlation IDs for tracing (must be early in middleware chain)
+app.use(correlationIdMiddleware);
 app.use(requestLogging);
 
 /**
@@ -188,6 +193,13 @@ if (enableApiDocs) {
  * This identifies the tenant and injects context into req.tenantId
  */
 app.use('/api', tenantMiddleware);
+
+/**
+ * S4-2: Apply context middleware for AsyncLocalStorage
+ * This must come after tenant middleware but before routes
+ * so that req.tenantId and req.user are available in context
+ */
+app.use('/api', contextMiddleware);
 
 /**
  * Apply CSRF protection to mutating API routes

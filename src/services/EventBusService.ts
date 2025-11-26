@@ -1,5 +1,7 @@
 import { createLogger as loggerFactory } from '../utils/logger';
 import QueueService from './QueueService';
+// S4-2: Import correlation ID for request tracing
+import { getRequestContext, runWithContext } from '../middleware/correlationId';
 
 const logger = loggerFactory('EventBusService');
 
@@ -130,14 +132,19 @@ export class EventBusService {
     metadata: Partial<AppEvent['metadata']> = {}
   ): Promise<void> {
     try {
+      // S4-2: Get current request context for correlation tracking
+      const context = getRequestContext();
+
       const event: AppEvent<T> = {
         type,
         payload,
         metadata: {
           timestamp: new Date(),
           source: metadata.source || 'unknown',
-          userId: metadata.userId,
-          correlationId: metadata.correlationId || this.generateCorrelationId(),
+          userId: metadata.userId || context?.userId,
+          tenantId: metadata.tenantId || context?.tenantId,
+          // S4-2: Use correlation ID from context if available
+          correlationId: metadata.correlationId || context?.correlationId || this.generateCorrelationId(),
         },
       };
 
@@ -199,27 +206,34 @@ export class EventBusService {
       return;
     }
 
-    logger.debug('Processing event', {
-      type: event.type,
-      handlerCount: handlers.size,
+    // S4-2: Re-establish request context from event metadata for proper tracing
+    await runWithContext({
       correlationId: event.metadata.correlationId,
-    });
+      userId: event.metadata.userId,
+      tenantId: event.metadata.tenantId,
+    }, async () => {
+      logger.debug('Processing event', {
+        type: event.type,
+        handlerCount: handlers.size,
+        correlationId: event.metadata.correlationId,
+      });
 
-    // Execute all handlers in parallel
-    const results = await Promise.allSettled(
-      Array.from(handlers).map((handler) => handler(event))
-    );
+      // Execute all handlers in parallel
+      const results = await Promise.allSettled(
+        Array.from(handlers).map((handler) => handler(event))
+      );
 
-    // Log any handler failures
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        logger.error('Event handler failed', {
-          type: event.type,
-          handlerIndex: index,
-          error: result.reason,
-          correlationId: event.metadata.correlationId,
-        });
-      }
+      // Log any handler failures
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          logger.error('Event handler failed', {
+            type: event.type,
+            handlerIndex: index,
+            error: result.reason,
+            correlationId: event.metadata.correlationId,
+          });
+        }
+      });
     });
   }
 

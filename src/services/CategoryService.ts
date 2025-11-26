@@ -9,6 +9,7 @@ import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { CacheService } from './CacheService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+import { MetricsService } from './MetricsService';
 
 // Proper type definitions for category responses
 type CategoryWithDetails = Prisma.CategoryGetPayload<{
@@ -42,7 +43,8 @@ interface UpdateCategoryDto extends Partial<CreateCategoryDto> {}
 export class CategoryService extends BaseService {
   constructor(
     @inject('CategoryRepository') private categoryRepo: CategoryRepository,
-    @inject('CacheService') private cacheService: CacheService
+    @inject('CacheService') private cacheService: CacheService,
+    @inject(MetricsService) private metricsService: MetricsService
   ) {
     super();
   }
@@ -215,15 +217,52 @@ export class CategoryService extends BaseService {
     }
   }
 
-  async deleteCategory(id: string): Promise<void> {
+  /**
+   * Delete category (soft delete)
+   * S4-3: Soft delete pattern - mark as deleted instead of removing
+   */
+  async deleteCategory(id: string, deletedBy?: string): Promise<void> {
     try {
-      const existing = await this.getCategoryById(id);
-      await this.categoryRepo.delete(id);
-      await this.invalidateCategoryCache(id, existing.contestId);
+      const category = await this.getCategoryById(id);
 
-      this.logInfo('Category deleted', { categoryId: id });
+      // S4-3: Soft delete - update deletedAt and deletedBy fields
+      await this.categoryRepo.update(id, {
+        deletedAt: new Date(),
+        deletedBy: deletedBy || null,
+      });
+
+      // S4-4: Record soft delete metrics
+      this.metricsService.recordSoftDelete('Category', category.tenantId);
+
+      await this.invalidateCategoryCache(id, category.contestId);
+
+      this.logInfo('Category soft deleted', { categoryId: id, deletedBy });
     } catch (error) {
       return this.handleError(error, { operation: 'deleteCategory', id });
+    }
+  }
+
+  /**
+   * Restore a soft-deleted category
+   * S4-3: Allow undeleting categories
+   */
+  async restoreCategory(id: string): Promise<Category> {
+    try {
+      // S4-3: Restore by clearing deletedAt and deletedBy
+      const restoredCategory = await this.categoryRepo.update(id, {
+        deletedAt: null,
+        deletedBy: null,
+      });
+
+      // S4-4: Record soft delete restore metrics
+      this.metricsService.recordSoftDeleteRestore('Category', restoredCategory.tenantId);
+
+      await this.invalidateCategoryCache(id, restoredCategory.contestId);
+
+      this.logInfo('Category restored', { categoryId: id });
+      return restoredCategory;
+    } catch (error) {
+      return this.handleError(error, { operation: 'restoreCategory', id });
     }
   }
 

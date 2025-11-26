@@ -83,33 +83,8 @@ type ScoreWithRelations = Prisma.ScoreGetPayload<{
   };
 }>;
 
-type CategoryScore = Prisma.ScoreGetPayload<{
-  select: {
-    id: true;
-    score: true;
-    categoryId: true;
-    contestantId: true;
-    criterionId: true;
-    category: {
-      select: {
-        id: true;
-        name: true;
-        scoreCap: true;
-        totalsCertified: true;
-      };
-    };
-    criterion: {
-      select: {
-        id: true;
-        name: true;
-        maxScore: true;
-        categoryId: true;
-        createdAt: true;
-        updatedAt: true;
-      };
-    };
-  };
-}>;
+// P2-1 NOTE: CategoryScore type removed as part of N+1 optimization
+// The aggregation-based approach no longer needs this type
 
 type CategoryWithContest = Prisma.CategoryGetPayload<{
   include: {
@@ -391,54 +366,68 @@ export class ResultsService extends BaseService {
       where: whereClause,
     });
 
-    // Calculate totals for each result
-    const resultsWithTotals: ResultWithTotals[] = await Promise.all(
-      results.map(async (result): Promise<ResultWithTotals> => {
-        const categoryScores = await this.prisma.score.findMany({
+    // P2-1 OPTIMIZATION: Fix N+1 query issue
+    // Previous implementation ran 1 + N queries (N = number of results)
+    // New implementation uses aggregation: 2 queries total regardless of result count
+
+    // Step 1: Extract unique (categoryId, contestantId) pairs
+    const categoryContestantPairs: Array<{ categoryId: string; contestantId: string }> = [];
+    const seen = new Set<string>();
+
+    results.forEach(result => {
+      const key = `${result.categoryId}_${result.contestantId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        categoryContestantPairs.push({
+          categoryId: result.categoryId,
+          contestantId: result.contestantId,
+        });
+      }
+    });
+
+    // Step 2: Use aggregation to get totals in SINGLE query
+    const aggregatedTotals = categoryContestantPairs.length > 0
+      ? await this.prisma.score.groupBy({
+          by: ['categoryId', 'contestantId'],
           where: {
-            categoryId: result.categoryId,
-            contestantId: result.contestantId,
+            OR: categoryContestantPairs.map(pair => ({
+              categoryId: pair.categoryId,
+              contestantId: pair.contestantId,
+            })),
           },
-          select: {
-            id: true,
+          _sum: {
             score: true,
-            categoryId: true,
-            contestantId: true,
-            criterionId: true,
-            category: {
-              select: {
-                id: true,
-                name: true,
-                scoreCap: true,
-                totalsCertified: true,
-              },
-            },
-            criterion: {
-              select: {
-                id: true,
-                name: true,
-                maxScore: true,
-                categoryId: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            },
           },
-        }) as CategoryScore[];
+          _count: true,
+        })
+      : [];
 
-        const earned = categoryScores.reduce((sum, s) => sum + (s.score || 0), 0);
-        const possible = result.category?.scoreCap || 0;
-
-        return {
-          ...result,
-          certificationStatus: result.isCertified ? 'CERTIFIED' : 'PENDING',
-          certifiedBy: result.certifiedBy,
-          certifiedAt: result.certifiedAt,
-          totalEarned: earned,
-          totalPossible: possible,
-        };
-      })
+    // Step 3: Create lookup map from aggregation results
+    const totalsMap = new Map<string, { totalEarned: number; count: number }>(
+      aggregatedTotals.map(agg => [
+        `${agg.categoryId}_${agg.contestantId}`,
+        {
+          totalEarned: agg._sum.score || 0,
+          count: agg._count,
+        },
+      ])
     );
+
+    // Step 4: Enrich results from map (no queries in loop!)
+    const resultsWithTotals: ResultWithTotals[] = results.map((result): ResultWithTotals => {
+      const key = `${result.categoryId}_${result.contestantId}`;
+      const totals = totalsMap.get(key) || { totalEarned: 0, count: 0 };
+      const possible = result.category?.scoreCap || 0;
+
+      return {
+        ...result,
+        certificationStatus: result.isCertified ? 'CERTIFIED' : 'PENDING',
+        certifiedBy: result.certifiedBy,
+        certifiedAt: result.certifiedAt,
+        totalEarned: totals.totalEarned,
+        totalPossible: possible,
+      };
+    });
 
     return { results: resultsWithTotals, total };
   }

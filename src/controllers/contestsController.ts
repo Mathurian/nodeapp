@@ -113,7 +113,8 @@ export class ContestsController {
   };
 
   /**
-   * Delete contest
+   * Delete contest (soft delete)
+   * S4-3: Pass userId for deletedBy tracking
    */
   deleteContest = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
@@ -121,8 +122,30 @@ export class ContestsController {
       if (!id) {
         return sendError(res, 'Contest ID is required', 400);
       }
-      await this.contestService.deleteContest(id);
+
+      // S4-3: Pass userId for deletedBy tracking
+      const userId = req.user?.id;
+      await this.contestService.deleteContest(id, userId);
+
       return sendNoContent(res);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Restore a soft-deleted contest
+   * S4-3: Allow undeleting contests
+   */
+  restoreContest = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Contest ID is required', 400);
+      }
+
+      const restoredContest = await this.contestService.restoreContest(id);
+      return sendSuccess(res, restoredContest, 'Contest restored successfully');
     } catch (error) {
       return next(error);
     }
@@ -217,6 +240,7 @@ export const getContestsByEvent = controller.getContestsByEvent;
 export const createContest = controller.createContest;
 export const updateContest = controller.updateContest;
 export const deleteContest = controller.deleteContest;
+export const restoreContest = controller.restoreContest; // S4-3: Restore soft-deleted contests
 export const archiveContest = controller.archiveContest;
 export const reactivateContest = controller.reactivateContest;
 export const getArchivedContests = controller.getArchivedContests;

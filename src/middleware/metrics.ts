@@ -7,6 +7,8 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { MetricsService } from '../services/MetricsService';
 import { createLogger } from '../utils/logger';
+// S4-4: Import correlation ID helper
+import { getRequestContext } from './correlationId';
 
 const logger = createLogger('Metrics');
 
@@ -32,6 +34,11 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
   }
 
   const startTime = Date.now();
+
+  // S4-4: Record correlation ID tracking
+  const context = getRequestContext();
+  const hasCorrelationId = !!(context?.correlationId);
+  metricsService.recordCorrelationId(hasCorrelationId);
 
   // Record response finish
   res.on('finish', () => {

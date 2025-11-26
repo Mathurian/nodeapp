@@ -2,6 +2,8 @@ import fs from 'fs/promises';
 import { env } from '../config/env';
 import path from 'path';
 import os from 'os';
+// S4-2: Import request context for correlation IDs
+import { getRequestContext } from '../middleware/correlationId';
 
 // Use environment variable for log directory, or default to project logs directory
 // In test environment, use temp directory to avoid permission issues
@@ -203,6 +205,19 @@ class Logger {
       return
     }
 
+    // S4-2: Get request context for correlation IDs
+    const context = getRequestContext();
+    const enrichedMeta = {
+      ...(meta && typeof meta === 'object' ? meta : {}),
+      ...(context ? {
+        requestId: context.requestId,
+        correlationId: context.correlationId,
+        userId: context.userId,
+        tenantId: context.tenantId,
+        userEmail: context.userEmail,
+      } : {})
+    };
+
     // Always output to console for immediate visibility
     const consoleMethod = level === 'ERROR' ? console.error :
                          level === 'WARN' ? console.warn :
@@ -210,15 +225,14 @@ class Logger {
                          console.log
 
     const formattedMessage = `[${this.category.toUpperCase()}] ${message}`
-    const metaObj = meta && typeof meta === 'object' ? meta : {};
-    if (Object.keys(metaObj).length > 0) {
-      consoleMethod(formattedMessage, meta)
+    if (Object.keys(enrichedMeta).length > 0) {
+      consoleMethod(formattedMessage, enrichedMeta)
     } else {
       consoleMethod(formattedMessage)
     }
 
     // Write to file asynchronously (don't await to avoid blocking)
-    writeToFile(level, this.category, message, meta).catch((err: unknown) => {
+    writeToFile(level, this.category, message, enrichedMeta).catch((err: unknown) => {
       const errorObj = err as { message?: string };
       console.error('Log file write error:', errorObj);
     });

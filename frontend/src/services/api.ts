@@ -1,7 +1,18 @@
 import axios from 'axios'
 
+/**
+ * API Version Configuration
+ *
+ * The API supports versioning via URL path (e.g., /api/v1/).
+ * Legacy /api/ routes are supported for backward compatibility and map to v1.
+ *
+ * Using explicit versioning is recommended for new code.
+ */
+const API_VERSION = 'v1'
+const BASE_URL = import.meta.env.VITE_API_URL || `/api/${API_VERSION}`
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: BASE_URL,
   timeout: 10000,
   withCredentials: true, // CRITICAL: Send httpOnly cookies with requests
   headers: {
@@ -11,7 +22,7 @@ const api = axios.create({
 
 // Public API instance (no auth required)
 const publicApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

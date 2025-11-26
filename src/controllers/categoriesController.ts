@@ -120,7 +120,8 @@ export class CategoriesController {
   };
 
   /**
-   * Delete category
+   * Delete category (soft delete)
+   * S4-3: Pass userId for deletedBy tracking
    */
   deleteCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
@@ -128,8 +129,30 @@ export class CategoriesController {
       if (!id) {
         return sendError(res, 'Category ID is required', 400);
       }
-      await this.categoryService.deleteCategory(id);
+
+      // S4-3: Pass userId for deletedBy tracking
+      const userId = req.user?.id;
+      await this.categoryService.deleteCategory(id, userId);
+
       return sendNoContent(res);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Restore a soft-deleted category
+   * S4-3: Allow undeleting categories
+   */
+  restoreCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id} = req.params;
+      if (!id) {
+        return sendError(res, 'Category ID is required', 400);
+      }
+
+      const restoredCategory = await this.categoryService.restoreCategory(id);
+      return sendSuccess(res, restoredCategory, 'Category restored successfully');
     } catch (error) {
       return next(error);
     }
@@ -493,6 +516,7 @@ export const getCategoriesByContest = controller.getCategoriesByContest;
 export const createCategory = controller.createCategory;
 export const updateCategory = controller.updateCategory;
 export const deleteCategory = controller.deleteCategory;
+export const restoreCategory = controller.restoreCategory; // S4-3: Restore soft-deleted categories
 export const getCategoryStats = controller.getCategoryStats;
 export const certifyTotals = controller.certifyTotals;
 export const searchCategories = controller.searchCategories;

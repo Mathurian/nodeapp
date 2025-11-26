@@ -49,8 +49,9 @@ export class SecretManager {
 
   /**
    * Load secrets configuration from environment
-   * Note: Secrets config vars not in env.ts yet (provider-specific)
-   * TODO: Consider adding to env.ts or keep as-is for provider flexibility
+   *
+   * Note: Provider-specific variables are intentionally not in env.ts.
+   * See src/config/secrets.config.ts header documentation for architectural rationale.
    */
   private loadConfiguration(): SecretsProviderConfig {
     const provider = (process.env['SECRETS_PROVIDER'] || 'env') as 'local' | 'env' | 'aws' | 'vault';

@@ -132,6 +132,19 @@ export class PerformanceController {
       });
     }
   };
+
+  /**
+   * S4-4: Get comprehensive monitoring dashboard
+   * Aggregates circuit breakers, metrics, health, and performance data
+   */
+  getMonitoringDashboard = async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dashboard = await this.performanceService.getMonitoringDashboard();
+      return sendSuccess(res, dashboard);
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and methods
@@ -142,3 +155,4 @@ export const getSystemMetrics = controller.getSystemMetrics;
 export const getPerformanceLogs = controller.getPerformanceLogs;
 export const clearPerformanceLogs = controller.clearPerformanceLogs;
 export const getHealthCheck = controller.getHealthCheck;
+export const getMonitoringDashboard = controller.getMonitoringDashboard;

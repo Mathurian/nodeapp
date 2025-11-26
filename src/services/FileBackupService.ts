@@ -5,6 +5,8 @@ import * as path from 'path';
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
+// S4-1: Circuit breaker for cloud storage resilience
+import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
 
 const logger = createLogger('FileBackupService');
 
@@ -24,9 +26,34 @@ export class FileBackupService extends BaseService {
   // private readonly _UPLOAD_DIR = path.join(__dirname, '../../uploads');
   private s3Client: S3Client | null = null;
   private s3Enabled: boolean = false;
+  // S4-1: Circuit breaker for S3/cloud storage resilience
+  private circuitBreaker: CircuitBreaker;
 
   constructor() {
     super();
+
+    // S4-1: Initialize circuit breaker for cloud storage
+    this.circuitBreaker = CircuitBreakerRegistry.get('cloud-storage', {
+      failureThreshold: 3,      // Open after 3 failures (stricter for storage)
+      successThreshold: 3,      // Close after 3 successes (more conservative)
+      timeout: 120000,          // 2min before retry (longer recovery for cloud)
+      windowSize: 60000,        // 60s sliding window
+      volumeThreshold: 5,       // Minimum 5 requests
+    });
+
+    // S4-1: Monitor circuit breaker state changes
+    this.circuitBreaker.on('stateChange', (newState) => {
+      logger.warn('Cloud storage circuit breaker state changed', { newState });
+    });
+
+    this.circuitBreaker.on('open', () => {
+      logger.error('Cloud storage circuit breaker OPENED - failing fast');
+    });
+
+    this.circuitBreaker.on('close', () => {
+      logger.info('Cloud storage circuit breaker CLOSED - S3 service recovered');
+    });
+
     this.initializeS3();
   }
 
@@ -116,10 +143,21 @@ export class FileBackupService extends BaseService {
         Body: fileContent,
       });
 
-      await this.s3Client.send(command);
+      // S4-1: Execute S3 upload through circuit breaker
+      await this.circuitBreaker.execute(async () => {
+        return await this.s3Client!.send(command);
+      });
+
       logger.info(`Uploaded ${filePath} to S3`, { key });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // S4-1: If circuit breaker is open, fail fast with clear message
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.error('Cloud storage circuit breaker is OPEN - failing fast', { filePath, key });
+        throw this.badRequestError('Cloud storage temporarily unavailable - please try again later');
+      }
+
       logger.error('S3 upload failed', { error: errorMessage, filePath, key });
       throw this.badRequestError(`S3 upload failed: ${errorMessage}`);
     }
@@ -193,12 +231,23 @@ export class FileBackupService extends BaseService {
         Prefix: prefix,
       });
 
-      const response = await this.s3Client.send(command);
+      // S4-1: Execute S3 list through circuit breaker
+      const response = await this.circuitBreaker.execute(async () => {
+        return await this.s3Client!.send(command);
+      });
+
       const backups = (response.Contents || []).map((item) => item.Key || '').filter(Boolean);
 
       return backups;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // S4-1: If circuit breaker is open, fail fast
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.error('Cloud storage circuit breaker is OPEN - cannot list backups');
+        return [];
+      }
+
       logger.error('Failed to list S3 backups', { error: errorMessage });
       return [];
     }
@@ -224,10 +273,21 @@ export class FileBackupService extends BaseService {
         Key: key,
       });
 
-      await this.s3Client.send(command);
+      // S4-1: Execute S3 delete through circuit breaker
+      await this.circuitBreaker.execute(async () => {
+        return await this.s3Client!.send(command);
+      });
+
       logger.info(`Deleted S3 backup`, { key });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // S4-1: If circuit breaker is open, fail fast with clear message
+      if (errorMessage.includes('Circuit breaker')) {
+        logger.error('Cloud storage circuit breaker is OPEN - failing fast', { key });
+        throw this.badRequestError('Cloud storage temporarily unavailable - please try again later');
+      }
+
       logger.error('Failed to delete S3 backup', { error: errorMessage, key });
       throw this.badRequestError(`Failed to delete S3 backup: ${errorMessage}`);
     }

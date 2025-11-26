@@ -23,8 +23,9 @@ model Tenant {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  systemSettings SystemSetting[]
-  users          User[]
+  systemSettings   SystemSetting[]
+  users            User[]
+  rateLimitConfigs RateLimitConfig[]
 
   @@index([slug])
   @@index([domain])
@@ -51,6 +52,10 @@ model Event {
   lockVerifiedBy            String?
   tenantId                  String
 
+  // S4-3: Soft delete fields
+  deletedAt                 DateTime?
+  deletedBy                 String?                 // User ID who deleted
+
   contests               Contest[]
   archivedEvents         ArchivedEvent[]
   emceeScripts           EmceeScript[]
@@ -61,6 +66,7 @@ model Event {
 
   @@index([tenantId])
   @@index([tenantId, archived])
+  @@index([tenantId, deletedAt])  // S4-3: Query optimization for soft deletes
   @@map("events")
 }
 
@@ -81,6 +87,10 @@ model Contest {
   lockVerifiedBy            String?
   tenantId                  String
 
+  // S4-3: Soft delete fields
+  deletedAt                 DateTime?
+  deletedBy                 String?                 // User ID who deleted
+
   event                  Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   categories             Category[]
   emceeScripts           EmceeScript[]
@@ -98,6 +108,7 @@ model Contest {
   @@index([tenantId, eventId])
   @@index([eventId, archived], map: "idx_contests_event_archived")
   @@index([eventId], map: "idx_contests_event_id")
+  @@index([tenantId, deletedAt])  // S4-3: Query optimization for soft deletes
   @@map("contests")
 }
 
@@ -114,6 +125,10 @@ model Category {
   updatedAt       DateTime @updatedAt
   totalsCertified Boolean  @default(false)
   tenantId        String
+
+  // S4-3: Soft delete fields
+  deletedAt       DateTime?
+  deletedBy       String?                 // User ID who deleted
 
   contest                      Contest                       @relation(fields: [contestId], references: [id], onDelete: Cascade)
   scores                       Score[]
@@ -143,6 +158,7 @@ model Category {
   @@index([contestId, createdAt])
   @@index([tenantId, contestId])
   @@index([contestId], map: "idx_categories_contest_id")
+  @@index([tenantId, deletedAt])  // S4-3: Query optimization for soft deletes
   @@map("categories")
 }
 
@@ -340,6 +356,7 @@ model User {
   reportInstances                       ReportInstance[]              @relation("ReportInstances")
   scoreFiles                            ScoreFile[]
   deductionRequests                     DeductionRequest[]
+  rateLimitConfigs                      RateLimitConfig[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -443,6 +460,49 @@ model SystemSetting {
   @@map("system_settings")
 }
 
+model RateLimitConfig {
+  id                 String   @id @default(cuid())
+  name               String // Descriptive name (e.g., "Premium Tier", "Auth Endpoint Override")
+  tier               String? // Tier name (free, standard, premium, enterprise, custom)
+  tenantId           String? // NULL = global default, set = tenant-specific
+  userId             String? // NULL = tenant-wide, set = user-specific
+  endpoint           String? // NULL = general limit, set = endpoint-specific (e.g., "/api/auth/login")
+
+  // Rate limit configuration
+  requestsPerHour    Int      @default(1000)
+  requestsPerMinute  Int      @default(50)
+  burstLimit         Int      @default(100)
+
+  // Metadata
+  enabled            Boolean  @default(true)
+  priority           Int      @default(0) // Higher priority overrides lower (for conflict resolution)
+  description        String?
+
+  // Audit fields
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdBy          String?
+  updatedBy          String?
+
+  // Relations
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes for efficient lookups
+  @@index([tenantId])
+  @@index([userId])
+  @@index([tier])
+  @@index([endpoint])
+  @@index([tenantId, userId])
+  @@index([tenantId, endpoint])
+  @@index([enabled])
+
+  // Unique constraint: one config per tenant/user/endpoint combination
+  @@unique([tenantId, userId, endpoint])
+
+  @@map("rate_limit_configs")
+}
+
 model EmceeScript {
   id         String   @id @default(cuid())
   eventId    String?
@@ -453,7 +513,7 @@ model EmceeScript {
   order      Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  file_path  String?
+  filePath   String?  @map("file_path") // P2-2: Standardized to camelCase
   tenantId   String
 
   event    Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -1963,4 +2023,27 @@ enum EmailStatus {
   QUEUED
   BOUNCED
   DELIVERED
+}
+
+// Feature Flags - Backlog Enhancement
+model FeatureFlag {
+  id               String    @id @default(cuid())
+  name             String    @unique
+  description      String?
+  enabled          Boolean   @default(false)
+  strategy         String    @default("OFF") // ON, OFF, PERCENTAGE, USER_LIST, TENANT_LIST, GRADUAL
+  percentage       Int?      // For PERCENTAGE strategy (0-100)
+  userIds          String[]  // For USER_LIST strategy
+  tenantIds        String[]  // For TENANT_LIST strategy
+  startDate        DateTime? // For GRADUAL strategy
+  endDate          DateTime? // For GRADUAL strategy
+  targetPercentage Int?      // For GRADUAL strategy
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        String?
+  updatedBy        String?
+
+  @@index([name])
+  @@index([enabled])
+  @@map("feature_flags")
 }

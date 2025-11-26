@@ -17,6 +17,15 @@ export class MetricsService {
   private databaseQueryDuration: Histogram<string>;
   private cacheHitRate: Counter<string>;
   private cacheMissRate: Counter<string>;
+  // S4-4: Circuit breaker metrics
+  private circuitBreakerStateChanges: Counter<string>;
+  private circuitBreakerTrips: Counter<string>;
+  private circuitBreakerCalls: Counter<string>;
+  // S4-4: Soft delete operation metrics
+  private softDeleteOperations: Counter<string>;
+  private softDeleteRestores: Counter<string>;
+  // S4-4: Correlation ID tracking
+  private requestsWithCorrelationId: Counter<string>;
   private log = createLogger('metrics');
 
   constructor() {
@@ -83,7 +92,55 @@ export class MetricsService {
       registers: [this.register],
     });
 
-    this.log.info('Metrics service initialized');
+    // S4-4: Circuit Breaker State Changes
+    this.circuitBreakerStateChanges = new Counter({
+      name: 'circuit_breaker_state_changes_total',
+      help: 'Total number of circuit breaker state changes',
+      labelNames: ['breaker_name', 'from_state', 'to_state'],
+      registers: [this.register],
+    });
+
+    // S4-4: Circuit Breaker Trips
+    this.circuitBreakerTrips = new Counter({
+      name: 'circuit_breaker_trips_total',
+      help: 'Total number of circuit breaker trips',
+      labelNames: ['breaker_name'],
+      registers: [this.register],
+    });
+
+    // S4-4: Circuit Breaker Calls
+    this.circuitBreakerCalls = new Counter({
+      name: 'circuit_breaker_calls_total',
+      help: 'Total number of circuit breaker calls',
+      labelNames: ['breaker_name', 'result'],
+      registers: [this.register],
+    });
+
+    // S4-4: Soft Delete Operations
+    this.softDeleteOperations = new Counter({
+      name: 'soft_delete_operations_total',
+      help: 'Total number of soft delete operations',
+      labelNames: ['model', 'tenant_id'],
+      registers: [this.register],
+    });
+
+    // S4-4: Soft Delete Restores
+    this.softDeleteRestores = new Counter({
+      name: 'soft_delete_restores_total',
+      help: 'Total number of soft delete restore operations',
+      labelNames: ['model', 'tenant_id'],
+      registers: [this.register],
+    });
+
+    // S4-4: Requests with Correlation ID
+    this.requestsWithCorrelationId = new Counter({
+      name: 'requests_with_correlation_id_total',
+      help: 'Total number of requests with correlation ID',
+      labelNames: ['has_correlation_id'],
+      registers: [this.register],
+    });
+
+    this.log.info('Metrics service initialized with Sprint 4 enhancements');
   }
 
   /**
@@ -175,6 +232,63 @@ export class MetricsService {
    */
   resetMetrics(): void {
     this.register.resetMetrics();
+  }
+
+  /**
+   * S4-4: Record circuit breaker state change
+   */
+  recordCircuitBreakerStateChange(breakerName: string, fromState: string, toState: string): void {
+    this.circuitBreakerStateChanges.inc({
+      breaker_name: breakerName,
+      from_state: fromState,
+      to_state: toState,
+    });
+  }
+
+  /**
+   * S4-4: Record circuit breaker trip
+   */
+  recordCircuitBreakerTrip(breakerName: string): void {
+    this.circuitBreakerTrips.inc({ breaker_name: breakerName });
+  }
+
+  /**
+   * S4-4: Record circuit breaker call
+   */
+  recordCircuitBreakerCall(breakerName: string, result: 'success' | 'failure' | 'rejected'): void {
+    this.circuitBreakerCalls.inc({
+      breaker_name: breakerName,
+      result,
+    });
+  }
+
+  /**
+   * S4-4: Record soft delete operation
+   */
+  recordSoftDelete(model: string, tenantId?: string): void {
+    this.softDeleteOperations.inc({
+      model,
+      tenant_id: tenantId || 'unknown',
+    });
+  }
+
+  /**
+   * S4-4: Record soft delete restore operation
+   */
+  recordSoftDeleteRestore(model: string, tenantId?: string): void {
+    this.softDeleteRestores.inc({
+      model,
+      tenant_id: tenantId || 'unknown',
+    });
+  }
+
+  /**
+   * S4-4: Record request with correlation ID
+   */
+  recordCorrelationId(hasCorrelationId: boolean): void {
+    this.requestsWithCorrelationId.inc({
+      has_correlation_id: hasCorrelationId ? 'true' : 'false',
+    });
   }
 
   /**

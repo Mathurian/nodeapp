@@ -8,6 +8,7 @@ import { container } from 'tsyringe';
 import { getVirusScanService } from '../services/VirusScanService';
 import { ScanStatus } from '../config/virus-scan.config';
 import { EmailService } from '../services/EmailService';
+import { AuditLogService } from '../services/AuditLogService';
 import * as fs from 'fs';
 import { createLogger } from '../utils/logger';
 
@@ -157,7 +158,43 @@ export const virusScanMiddleware = (options: VirusScanMiddlewareOptions = {}) =>
         }
 
         // Log to audit trail
-        // TODO: Integrate with audit logging service
+        try {
+          const auditLogService = container.resolve(AuditLogService);
+          const user = (req as any).user;
+          const tenantId = (req as any).tenantId;
+
+          // Log each infected file detection to audit trail
+          for (const { file, result } of infectedFiles) {
+            await auditLogService.log({
+              userId: user?.id,
+              userName: user?.name || user?.username,
+              action: 'VIRUS_DETECTED',
+              entityType: 'File',
+              entityId: file.originalname,
+              changes: {
+                virus: result.virus,
+                filename: file.originalname,
+                fileSize: file.size,
+                deleted: deleteOnInfection,
+              },
+              ipAddress: req.ip || req.socket.remoteAddress,
+              userAgent: req.get('user-agent'),
+              metadata: {
+                scanResult: {
+                  status: result.status,
+                  scannedAt: result.scannedAt,
+                  duration: result.duration,
+                },
+              },
+              tenantId: tenantId || 'system',
+            });
+          }
+
+          logger.info('Virus detections logged to audit trail', { count: infectedFiles.length });
+        } catch (auditError) {
+          // Don't break the flow if audit logging fails
+          logger.error('Failed to log virus detection to audit trail', { error: auditError });
+        }
 
         res.status(400).json({
           success: false,

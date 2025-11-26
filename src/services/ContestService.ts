@@ -9,6 +9,7 @@ import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
+import { MetricsService } from './MetricsService';
 
 // Proper type definitions for contest responses
 type ContestWithDetails = Prisma.ContestGetPayload<{
@@ -45,7 +46,8 @@ export class ContestService extends BaseService {
   constructor(
     @inject('ContestRepository') private contestRepo: ContestRepository,
     @inject('CacheService') private cacheService: CacheService,
-    @inject(RestrictionService) private restrictionService: RestrictionService
+    @inject(RestrictionService) private restrictionService: RestrictionService,
+    @inject(MetricsService) private metricsService: MetricsService
   ) {
     super();
   }
@@ -267,9 +269,10 @@ export class ContestService extends BaseService {
   }
 
   /**
-   * Delete contest
+   * Delete contest (soft delete)
+   * S4-3: Soft delete pattern - mark as deleted instead of removing
    */
-  async deleteContest(id: string): Promise<void> {
+  async deleteContest(id: string, deletedBy?: string): Promise<void> {
     try {
       // Check if contest is locked
       const isLocked = await this.restrictionService.isLocked(undefined, id);
@@ -277,15 +280,48 @@ export class ContestService extends BaseService {
         throw this.forbiddenError('Contest is locked and cannot be deleted. Please unlock it first.');
       }
 
-      const existing = await this.getContestById(id);
-      await this.contestRepo.delete(id);
+      const contest = await this.getContestById(id);
+
+      // S4-3: Soft delete - update deletedAt and deletedBy fields
+      await this.contestRepo.update(id, {
+        deletedAt: new Date(),
+        deletedBy: deletedBy || null,
+      });
+
+      // S4-4: Record soft delete metrics
+      this.metricsService.recordSoftDelete('Contest', contest.tenantId);
 
       // Invalidate caches
-      await this.invalidateContestCache(id, existing.eventId);
+      await this.invalidateContestCache(id, contest.eventId);
 
-      this.logInfo('Contest deleted', { contestId: id });
+      this.logInfo('Contest soft deleted', { contestId: id, deletedBy });
     } catch (error) {
       return this.handleError(error, { operation: 'deleteContest', id });
+    }
+  }
+
+  /**
+   * Restore a soft-deleted contest
+   * S4-3: Allow undeleting contests
+   */
+  async restoreContest(id: string): Promise<Contest> {
+    try {
+      // S4-3: Restore by clearing deletedAt and deletedBy
+      const restoredContest = await this.contestRepo.update(id, {
+        deletedAt: null,
+        deletedBy: null,
+      });
+
+      // S4-4: Record soft delete restore metrics
+      this.metricsService.recordSoftDeleteRestore('Contest', restoredContest.tenantId);
+
+      // Invalidate caches
+      await this.invalidateContestCache(id, restoredContest.eventId);
+
+      this.logInfo('Contest restored', { contestId: id });
+      return restoredContest;
+    } catch (error) {
+      return this.handleError(error, { operation: 'restoreContest', id });
     }
   }
 

@@ -39,6 +39,12 @@ export enum ErrorCode {
 
   // Rate limiting (429)
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+
+  // Bad request (400)
+  BAD_REQUEST = 'BAD_REQUEST',
+
+  // Service unavailable (503)
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
 export interface AppError extends Error {
@@ -159,6 +165,31 @@ export class RateLimitError extends BaseAppError {
     details?: unknown
   ) {
     super(message, ErrorCode.RATE_LIMIT_EXCEEDED, 429, details)
+  }
+}
+
+/**
+ * Bad request error (400)
+ */
+export class BadRequestError extends BaseAppError {
+  constructor(
+    message: string = 'Bad request',
+    code: ErrorCode = ErrorCode.BAD_REQUEST,
+    details?: unknown
+  ) {
+    super(message, code, 400, details)
+  }
+}
+
+/**
+ * Service unavailable error (503)
+ */
+export class ServiceUnavailableError extends BaseAppError {
+  constructor(
+    message: string = 'Service temporarily unavailable',
+    details?: unknown
+  ) {
+    super(message, ErrorCode.SERVICE_UNAVAILABLE, 503, details)
   }
 }
 

@@ -305,14 +305,14 @@ export class EmceeController {
       }
       const script = await this.emceeService.getScriptFileInfo(scriptId);
 
-      if (!script.file_path) {
+      if (!script.filePath) {
         res.status(404).json({ error: 'Script file not found' });
         return;
       }
 
       const path = require('path');
       const fs = require('fs');
-      const filePath = path.join(__dirname, '../../', script.file_path);
+      const filePath = path.join(__dirname, '../../', script.filePath);
 
       // Stream file
       const fileStream = fs.createReadStream(filePath);

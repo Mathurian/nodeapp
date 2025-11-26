@@ -218,7 +218,8 @@ export class EventsController {
   };
 
   /**
-   * Delete event
+   * Delete event (soft delete)
+   * S4-3: Soft delete with deletedBy tracking
    */
   deleteEvent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
@@ -230,7 +231,9 @@ export class EventsController {
       // Get event data before deletion for audit log
       const event = await this.eventService.getEventById(id);
 
-      await this.eventService.deleteEvent(id);
+      // S4-3: Pass userId for deletedBy tracking
+      const userId = req.user?.id;
+      await this.eventService.deleteEvent(id, userId);
 
       // Audit log: event deletion
       try {
@@ -241,13 +244,47 @@ export class EventsController {
           id,
           req,
           undefined,
-          { name: event.name, startDate: event.startDate, endDate: event.endDate }
+          { name: event.name, startDate: event.startDate, endDate: event.endDate, deletedBy: userId }
         );
       } catch (auditError) {
         logger.error('Failed to log event deletion audit', { error: auditError });
       }
 
       return sendSuccess(res, null, 'Event deleted successfully', 204);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Restore soft-deleted event
+   * S4-3: Restore functionality
+   */
+  restoreEvent = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendSuccess(res, null, 'Event ID is required', 400);
+      }
+
+      const restoredEvent = await this.eventService.restoreEvent(id);
+
+      // Audit log: event restoration
+      try {
+        const auditLogService = container.resolve(AuditLogService);
+        await auditLogService.logFromRequest(
+          'event.restored',
+          'Event',
+          id,
+          req,
+          undefined,
+          { name: restoredEvent.name }
+        );
+      } catch (auditError) {
+        logger.error('Failed to log event restoration audit', { error: auditError });
+      }
+
+      return sendSuccess(res, restoredEvent, 'Event restored successfully');
     } catch (error) {
       return next(error);
     }
@@ -365,6 +402,7 @@ export const getPastEvents = controller.getPastEvents;
 export const createEvent = controller.createEvent;
 export const updateEvent = controller.updateEvent;
 export const deleteEvent = controller.deleteEvent;
+export const restoreEvent = controller.restoreEvent;  // S4-3: Restore soft-deleted events
 export const archiveEvent = controller.archiveEvent;
 export const unarchiveEvent = controller.unarchiveEvent;
 export const getEventStats = controller.getEventStats;

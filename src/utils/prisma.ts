@@ -10,10 +10,13 @@
  * - Pool timeout: 10 seconds
  * - Query logging in development
  * - Error logging in all environments
+ * - Query monitoring enabled (slow query detection)
  */
 
 import { PrismaClient } from '@prisma/client';
 import { env } from '../config/env';
+import { getPrismaLogConfig, enableQueryMonitoring } from '../config/queryMonitoring';
+import { createQueryTimeoutMiddleware } from '../config/queryTimeouts';
 
 const prismaConfig = {
   datasources: {
@@ -21,9 +24,7 @@ const prismaConfig = {
       url: env.get('DATABASE_URL'),
     },
   },
-  log: (env.isProduction()
-    ? ['error', 'warn']
-    : ['query', 'info', 'warn', 'error']) as any,
+  log: getPrismaLogConfig() as any,
 };
 
 // Add connection pool configuration via DATABASE_URL parameters
@@ -42,6 +43,14 @@ if (env.isProduction()) {
     });
   }
   prisma = (global as any).__prisma;
+}
+
+// Enable query monitoring for slow query detection
+enableQueryMonitoring(prisma);
+
+// P2-3: Enable query timeout middleware (skip in tests)
+if (!env.isTest()) {
+  prisma.$use(createQueryTimeoutMiddleware());
 }
 
 // Graceful shutdown (skip in test environment)

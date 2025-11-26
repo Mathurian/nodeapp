@@ -8,6 +8,8 @@ import { container } from 'tsyringe';
 import { env } from './env';
 import { createLogger } from '../utils/logger';
 import { setupQueryMonitoring } from '../middleware/queryMonitoring';
+// S4-3: Import soft delete middleware
+import { registerSoftDeleteMiddleware } from '../middleware/prisma/softDelete';
 
 const logger = createLogger('database');
 
@@ -40,6 +42,9 @@ const prismaClientSingleton = () => {
     // Optimized connection pool settings
     // See: https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
   });
+
+  // S4-3: Register soft delete middleware
+  registerSoftDeleteMiddleware(client);
 
   // Setup query performance monitoring
   setupQueryMonitoring(client);

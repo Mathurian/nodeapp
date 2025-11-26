@@ -1,6 +1,9 @@
 /**
  * Routes Configuration
  * Central place to register all application routes
+ *
+ * Supports both legacy `/api/*` and versioned `/api/v1/*` routes
+ * for backward compatibility during API versioning migration.
  */
 
 import { Application } from 'express'
@@ -61,6 +64,7 @@ import judgesRoutes from '../routes/judgesRoutes'
 import contestantsRoutes from '../routes/contestantsRoutes'
 import bioRoutes from '../routes/bioRoutes'
 import rateLimitRoutes from '../routes/rateLimitRoutes'
+import rateLimitConfigRoutes from '../routes/rateLimitConfigRoutes'
 import scoreFileRoutes from '../routes/scoreFileRoutes'
 import restrictionRoutes from '../routes/restrictionRoutes'
 import dataWipeRoutes from '../routes/dataWipeRoutes'
@@ -78,123 +82,161 @@ import publicTenantRoutes from '../routes/publicTenantRoutes'
 import drRoutes from '../routes/drRoutes'
 import workflowRoutes from '../routes/workflowRoutes'
 import eventsLogRoutes from '../routes/eventsLogRoutes'
+import featureFlagsRoutes from '../routes/featureFlagsRoutes'
+
+/**
+ * Helper to register routes for both legacy and versioned paths
+ */
+const registerRoute = (app: Application, path: string, router: any): void => {
+  // Register versioned route (v1)
+  app.use(`/api/v1${path}`, router);
+
+  // Register legacy route (for backward compatibility)
+  app.use(`/api${path}`, router);
+};
 
 /**
  * Register all application routes
  */
 export const registerRoutes = (app: Application): void => {
-  // Documentation viewer
-  app.use('/api/docs', docsRoutes)
+  // Documentation viewer (no versioning needed)
+  app.use('/api/docs', docsRoutes);
+  app.use('/api/v1/docs', docsRoutes);
 
   // Public tenant routes (no auth required) - must be before authenticated routes
-  app.use('/api/tenants', publicTenantRoutes)
+  registerRoute(app, '/tenants', publicTenantRoutes);
 
-  // Multi-tenancy management (authenticated)
-  app.use('/api/tenants', tenantRoutes)
+  // Multi-tenancy management (authenticated) - Note: this overlaps with public, but with auth
+  registerRoute(app, '/tenants', tenantRoutes);
 
   // Disaster Recovery and Workflow
-  app.use('/api/dr', drRoutes)
-  app.use('/api/workflows', workflowRoutes)
-  app.use('/api/events/logs', eventsLogRoutes)
+  registerRoute(app, '/dr', drRoutes);
+  registerRoute(app, '/workflows', workflowRoutes);
+  registerRoute(app, '/events/logs', eventsLogRoutes);
 
   // Health and monitoring
-  app.use('/api/health', healthRoutes)
-  app.use('/api/performance', performanceRoutes)
-  app.use('/api/cache', cacheRoutes)
-  app.use('/api/logs', logFilesRoutes)
-  app.use('/api/error-handling', errorHandlingRoutes)
+  registerRoute(app, '/health', healthRoutes);
+  registerRoute(app, '/performance', performanceRoutes);
+  registerRoute(app, '/cache', cacheRoutes);
+  registerRoute(app, '/logs', logFilesRoutes);
+  registerRoute(app, '/error-handling', errorHandlingRoutes);
 
   // Authentication and users
-  app.use('/api/auth', authRoutes)
-  app.use('/api/mfa', mfaRoutes)
-  app.use('/api/users', usersRoutes)
-  app.use('/api/role-assignments', roleAssignmentRoutes)
-  app.use('/api/navigation', navigationRoutes)
-  app.use('/api/user-field-visibility', userFieldVisibilityRoutes)
+  registerRoute(app, '/auth', authRoutes);
+  registerRoute(app, '/mfa', mfaRoutes);
+  registerRoute(app, '/users', usersRoutes);
+  registerRoute(app, '/role-assignments', roleAssignmentRoutes);
+  registerRoute(app, '/navigation', navigationRoutes);
+  registerRoute(app, '/user-field-visibility', userFieldVisibilityRoutes);
 
   // Core entities
-  app.use('/api/events', eventsRoutes)
-  app.use('/api/contests', contestsRoutes)
-  app.use('/api/categories', categoriesRoutes)
-  app.use('/api/category-types', categoryTypeRoutes)
+  registerRoute(app, '/events', eventsRoutes);
+  registerRoute(app, '/contests', contestsRoutes);
+  registerRoute(app, '/categories', categoriesRoutes);
+  registerRoute(app, '/category-types', categoryTypeRoutes);
 
   // Scoring and results
-  app.use('/api/scoring', scoringRoutes)
-  app.use('/api/score-files', scoreFileRoutes)
-  app.use('/api/results', resultsRoutes)
-  app.use('/api/winners', winnersRoutes)
-  app.use('/api/deductions', deductionRoutes)
-  app.use('/api/commentary', commentaryRoutes)
+  registerRoute(app, '/scoring', scoringRoutes);
+  registerRoute(app, '/score-files', scoreFileRoutes);
+  registerRoute(app, '/results', resultsRoutes);
+  registerRoute(app, '/winners', winnersRoutes);
+  registerRoute(app, '/deductions', deductionRoutes);
+  registerRoute(app, '/commentary', commentaryRoutes);
 
   // Certification and verification
-  app.use('/api/certifications', certificationRoutes)
-  app.use('/api/category-certifications', categoryCertificationRoutes)
-  app.use('/api/contest-certifications', contestCertificationRoutes)
-  app.use('/api/judge-contestant-certifications', judgeContestantCertificationRoutes)
-  app.use('/api/judge-certifications', judgeCertificationsRoutes)
-  app.use('/api/judge-uncertifications', judgeUncertificationRoutes)
-  app.use('/api/judge-uncertification', judgeUncertificationRoutes) // Alias for frontend compatibility
-  app.use('/api/bulk-certification-reset', bulkCertificationResetRoutes)
+  registerRoute(app, '/certifications', certificationRoutes);
+  registerRoute(app, '/category-certifications', categoryCertificationRoutes);
+  registerRoute(app, '/contest-certifications', contestCertificationRoutes);
+  registerRoute(app, '/judge-contestant-certifications', judgeContestantCertificationRoutes);
+  registerRoute(app, '/judge-certifications', judgeCertificationsRoutes);
+  registerRoute(app, '/judge-uncertifications', judgeUncertificationRoutes);
+  registerRoute(app, '/judge-uncertification', judgeUncertificationRoutes); // Alias
+  registerRoute(app, '/bulk-certification-reset', bulkCertificationResetRoutes);
 
   // Bulk operations
-  app.use('/api/bulk', bulkRoutes)
+  registerRoute(app, '/bulk', bulkRoutes);
 
   // Role-specific features
-  app.use('/api/admin', adminRoutes)
-  app.use('/api/judge', judgeRoutes)
-  app.use('/api/auditor', auditorRoutes)
-  app.use('/api/board', boardRoutes)
-  app.use('/api/tally-master', tallyMasterRoutes)
-  app.use('/api/emcee', emceeRoutes)
+  registerRoute(app, '/admin', adminRoutes);
+  registerRoute(app, '/judge', judgeRoutes);
+  registerRoute(app, '/auditor', auditorRoutes);
+  registerRoute(app, '/board', boardRoutes);
+  registerRoute(app, '/tally-master', tallyMasterRoutes);
+  registerRoute(app, '/emcee', emceeRoutes);
 
   // Reports and exports
-  app.use('/api/reports', reportsRoutes)
-  app.use('/api/advanced-reporting', advancedReportingRoutes)
-  app.use('/api/print', printRoutes)
-  app.use('/api/export', exportRoutes)
+  registerRoute(app, '/reports', reportsRoutes);
+  registerRoute(app, '/advanced-reporting', advancedReportingRoutes);
+  registerRoute(app, '/print', printRoutes);
+  registerRoute(app, '/export', exportRoutes);
 
   // File management
-  app.use('/api/upload', uploadRoutes)
-  app.use('/api/files', fileRoutes)
-  app.use('/api/file-management', fileManagementRoutes)
-  app.use('/api/file-backups', fileBackupRoutes)
+  registerRoute(app, '/upload', uploadRoutes);
+  registerRoute(app, '/files', fileRoutes);
+  registerRoute(app, '/file-management', fileManagementRoutes);
+  registerRoute(app, '/file-backups', fileBackupRoutes);
 
   // System and settings
-  app.use('/api/settings', settingsRoutes)
-  app.use('/api/restrictions', restrictionRoutes)
-  app.use('/api/custom-fields', customFieldsRoutes)
-  app.use('/api/backups', backupRoutes)
-  app.use('/api/admin/backups', backupAdminRoutes)
-  app.use('/api/archive', archiveRoutes)
-  app.use('/api/templates', templatesRoutes)
-  app.use('/api/event-templates', eventTemplateRoutes)
-  app.use('/api/test-event-setup', testEventSetupRoutes)
-  app.use('/api/data-wipe', dataWipeRoutes)
-  app.use('/api/database-browser', databaseBrowserRoutes)
-  app.use('/api/rate-limits', rateLimitRoutes)
+  registerRoute(app, '/settings', settingsRoutes);
+  registerRoute(app, '/restrictions', restrictionRoutes);
+  registerRoute(app, '/custom-fields', customFieldsRoutes);
+  registerRoute(app, '/backups', backupRoutes);
+  registerRoute(app, '/feature-flags', featureFlagsRoutes); // Backlog enhancement
+
+  // Admin routes with /admin prefix
+  app.use('/api/admin/backups', backupAdminRoutes);
+  app.use('/api/v1/admin/backups', backupAdminRoutes);
+  app.use('/api/admin/rate-limit-configs', rateLimitConfigRoutes);
+  app.use('/api/v1/admin/rate-limit-configs', rateLimitConfigRoutes);
+
+  registerRoute(app, '/archive', archiveRoutes);
+  registerRoute(app, '/templates', templatesRoutes);
+  registerRoute(app, '/event-templates', eventTemplateRoutes);
+  registerRoute(app, '/test-event-setup', testEventSetupRoutes);
+  registerRoute(app, '/data-wipe', dataWipeRoutes);
+  registerRoute(app, '/database-browser', databaseBrowserRoutes);
+  registerRoute(app, '/rate-limits', rateLimitRoutes);
 
   // Communication
-  app.use('/api/email', emailRoutes)
-  app.use('/api', emailTemplateRoutes)
-  app.use('/api/sms', smsRoutes)
-  app.use('/api/notifications', notificationsRoutes)
-  app.use('/api/notification-preferences', notificationPreferencesRoutes)
-  app.use('/api/search', searchRoutes)
+  registerRoute(app, '/email', emailRoutes);
+  app.use('/api', emailTemplateRoutes);
+  app.use('/api/v1', emailTemplateRoutes);
+  registerRoute(app, '/sms', smsRoutes);
+  registerRoute(app, '/notifications', notificationsRoutes);
+  registerRoute(app, '/notification-preferences', notificationPreferencesRoutes);
+  registerRoute(app, '/search', searchRoutes);
 
   // Assignments and tracking
-  app.use('/api/assignments', assignmentsRoutes)
-  app.use('/api/judges', judgesRoutes)
-  app.use('/api/contestants', contestantsRoutes)
-  app.use('/api/tracker', trackerRoutes)
-  app.use('/api/bios', bioRoutes)
+  registerRoute(app, '/assignments', assignmentsRoutes);
+  registerRoute(app, '/judges', judgesRoutes);
+  registerRoute(app, '/contestants', contestantsRoutes);
+  registerRoute(app, '/tracker', trackerRoutes);
+  registerRoute(app, '/bios', bioRoutes);
 
   // Root endpoint
   app.get('/', (_req, res) => {
     res.json({
       message: 'Event Manager API',
       version: '1.0.0',
+      apiVersion: 'v1',
       status: 'running',
       timestamp: new Date().toISOString(),
+      documentation: '/api/docs',
+    })
+  })
+
+  // API root endpoint
+  app.get('/api', (_req, res) => {
+    res.json({
+      message: 'Event Manager API',
+      currentVersion: 'v1',
+      latestVersion: 'v1',
+      supportedVersions: ['v1'],
+      documentation: '/api/docs',
+      endpoints: {
+        v1: '/api/v1',
+        legacy: '/api (maps to v1)',
+      },
     })
   })
 

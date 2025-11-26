@@ -6,6 +6,10 @@ import * as path from 'path';
 import { BaseService } from './BaseService';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
+// S4-4: Import circuit breaker registry and metrics service for dashboard
+import { CircuitBreakerRegistry } from '../utils/circuitBreaker';
+import { MetricsService } from './MetricsService';
+import { cache } from '../utils/cache';
 
 const logger = createLogger('PerformanceService');
 
@@ -58,7 +62,8 @@ interface HealthCheckResult {
 @injectable()
 export class PerformanceService extends BaseService {
   constructor(
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject(MetricsService) private metricsService: MetricsService
   ) {
     super();
   }
@@ -404,5 +409,94 @@ export class PerformanceService extends BaseService {
         percent: memoryUsagePercent.toFixed(2),
       },
     };
+  }
+
+  /**
+   * S4-4: Get comprehensive monitoring dashboard
+   * Aggregates circuit breaker stats, metrics, health, and performance data
+   */
+  async getMonitoringDashboard() {
+    try {
+      // 1. Get circuit breaker statistics
+      const circuitBreakerStats = CircuitBreakerRegistry.getAllStats();
+
+      // 2. Get Prometheus metrics as JSON
+      const prometheusMetrics = await this.metricsService.getMetricsAsJson();
+
+      // 3. Get health check data
+      const healthCheck = await this.getHealthCheck();
+
+      // 4. Get system metrics
+      const systemMetrics = await this.getSystemMetrics();
+
+      // 5. Get cache statistics
+      const cacheStats = cache.getStats();
+
+      // 6. Get recent performance statistics
+      const performanceStats = await this.getPerformanceStats({ timeRange: '1h' });
+
+      // 7. Get database connection info
+      const dbConnectionCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
+      `;
+
+      const dbIdleConnectionCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT count(*) as count FROM pg_stat_activity WHERE state = 'idle'
+      `;
+
+      // Aggregate everything into a comprehensive dashboard
+      return {
+        timestamp: new Date().toISOString(),
+        status: healthCheck.status,
+        uptime: process.uptime(),
+
+        // Circuit breakers
+        circuitBreakers: {
+          count: Object.keys(circuitBreakerStats).length,
+          breakers: circuitBreakerStats,
+        },
+
+        // Health checks
+        health: healthCheck,
+
+        // System metrics
+        system: {
+          cpu: systemMetrics.process.cpuUsage,
+          memory: systemMetrics.process.memoryUsage,
+          loadAverage: systemMetrics.system.loadAverage,
+          platform: systemMetrics.system.platform,
+          cpuCount: systemMetrics.system.cpuCount,
+        },
+
+        // Database metrics
+        database: {
+          status: systemMetrics.database.status,
+          activeConnections: Number(dbConnectionCount[0]?.count || 0),
+          idleConnections: Number(dbIdleConnectionCount[0]?.count || 0),
+          totalConnections: Number(dbConnectionCount[0]?.count || 0) + Number(dbIdleConnectionCount[0]?.count || 0),
+        },
+
+        // Cache metrics
+        cache: {
+          size: cacheStats.size,
+          keysCount: cacheStats.keys.length,
+          sampleKeys: cacheStats.keys.slice(0, 10), // First 10 keys as sample
+        },
+
+        // Performance metrics (recent 1 hour)
+        performance: {
+          totalRequests: performanceStats.totalRequests,
+          averageResponseTime: performanceStats.averageResponseTime,
+          errorRate: performanceStats.errorRate,
+          slowEndpoints: performanceStats.slowEndpoints.slice(0, 5), // Top 5
+        },
+
+        // Prometheus metrics (as JSON)
+        metrics: prometheusMetrics,
+      };
+    } catch (error) {
+      logger.error('Failed to generate monitoring dashboard', { error });
+      return this.handleError(error, { operation: 'getMonitoringDashboard' });
+    }
   }
 }

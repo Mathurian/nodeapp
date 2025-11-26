@@ -5,6 +5,18 @@ import { env } from '../config/env';
 import { ErrorLogService } from '../services/ErrorLogService';
 import { captureException, setUser } from '../config/sentry';
 import { createLogger } from '../utils/logger';
+// P3-3: Import standardized error classes
+import {
+  isAppError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  NotFoundError,
+  ConflictError,
+  RateLimitError,
+} from '../types/errors';
+// S4-2: Import correlation ID helper
+import { getRequestContext } from './correlationId';
 
 const logger = createLogger('ErrorHandler');
 
@@ -97,6 +109,11 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
 }
 
 const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction): void => {
+  // S4-2: Get correlation context for error responses
+  const context = getRequestContext();
+  const requestId = context?.requestId || req.id || (req.headers['x-request-id'] as string) || 'unknown';
+  const correlationId = context?.correlationId || (req.headers['x-correlation-id'] as string) || requestId;
+
   // Enhanced error tracking and monitoring
   const error = err as { message?: string; name?: string; stack?: string; statusCode?: number; code?: string };
   const errorDetails = {
@@ -104,7 +121,8 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     name: error.name || 'Error',
     stack: error.stack,
     timestamp: new Date().toISOString(),
-    requestId: req.id || (req.headers['x-request-id'] as string) || null,
+    requestId,
+    correlationId,
     userId: req.user?.id || null,
     method: req.method,
     path: req.path,
@@ -182,42 +200,92 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     }
   });
 
-  // Handle specific error types
-  if (error.name === 'ValidationError') {
+  // P3-3: Handle standardized error types with instanceof checks
+  if (isAppError(err)) {
+    // Use standardized error response format
+    const response: any = {
+      success: false,
+      error: err.code,
+      message: err.message,
+      requestId,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    };
+    if (err.details) {
+      response.details = err.details;
+    }
+    res.status(err.statusCode).json(response);
+    return;
+  }
+
+  // Legacy error handling (for backward compatibility during transition)
+  if (error.name === 'ValidationError' || err instanceof ValidationError) {
     res.status(400).json({
       success: false,
       error: 'Validation error',
       details: error.message,
+      requestId,
+      correlationId,
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  if (error.name === 'UnauthorizedError' || error.statusCode === 401) {
+  if (error.name === 'UnauthorizedError' || err instanceof AuthenticationError || error.statusCode === 401) {
     res.status(401).json({
       success: false,
       error: 'Unauthorized',
       message: error.message || 'Authentication required',
+      requestId,
+      correlationId,
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  if (error.name === 'ForbiddenError' || error.statusCode === 403) {
+  if (error.name === 'ForbiddenError' || err instanceof AuthorizationError || error.statusCode === 403) {
     res.status(403).json({
       success: false,
       error: 'Forbidden',
       message: error.message || 'You do not have permission to access this resource',
+      requestId,
+      correlationId,
       timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  if (error.name === 'NotFoundError' || error.statusCode === 404) {
+  if (error.name === 'NotFoundError' || err instanceof NotFoundError || error.statusCode === 404) {
     res.status(404).json({
       success: false,
       error: 'Not found',
       message: error.message || 'Resource not found',
+      requestId,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  if (err instanceof ConflictError || error.statusCode === 409) {
+    res.status(409).json({
+      success: false,
+      error: 'Conflict',
+      message: error.message || 'Resource conflict',
+      requestId,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  if (err instanceof RateLimitError || error.statusCode === 429) {
+    res.status(429).json({
+      success: false,
+      error: 'Rate limit exceeded',
+      message: error.message || 'Too many requests',
+      requestId,
+      correlationId,
       timestamp: new Date().toISOString(),
     });
     return;
@@ -230,6 +298,8 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
         success: false,
         error: 'Conflict',
         message: 'A record with this value already exists',
+        requestId,
+        correlationId,
         timestamp: new Date().toISOString(),
       });
       return;
@@ -239,6 +309,8 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
         success: false,
         error: 'Not found',
         message: 'Record not found',
+        requestId,
+        correlationId,
         timestamp: new Date().toISOString(),
       });
       return;
@@ -251,6 +323,8 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     success: false,
     error: 'Internal server error',
     message: env.isProduction() ? 'An unexpected error occurred' : error.message,
+    requestId,
+    correlationId,
     timestamp: new Date().toISOString(),
     // Include stack trace only in development
     ...(!env.isProduction() && { stack: error.stack }),

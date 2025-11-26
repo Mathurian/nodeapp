@@ -1,6 +1,7 @@
 /**
  * Webhook Delivery Service
  * Handles HTTP delivery of webhook events with retry logic
+ * S4-1: Circuit breaker protection for webhook endpoints
  */
 
 import axios from 'axios';
@@ -8,6 +9,10 @@ import * as crypto from 'crypto';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { AppEvent, AppEventType } from './EventBusService';
+// S4-1: Circuit breaker for webhook delivery resilience
+import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
+// S4-2: Correlation ID for request tracing
+import { getRequestContext } from '../middleware/correlationId';
 
 const logger = createLogger('WebhookDeliveryService');
 
@@ -36,6 +41,37 @@ export interface WebhookDeliveryResult {
  * Webhook Delivery Service
  */
 export class WebhookDeliveryService {
+  // S4-1: Circuit breaker for webhook endpoints (per-webhook URL)
+  private static circuitBreakers = new Map<string, CircuitBreaker>();
+
+  /**
+   * Get or create circuit breaker for a webhook URL
+   */
+  private static getCircuitBreaker(webhookId: string, webhookName: string): CircuitBreaker {
+    if (!this.circuitBreakers.has(webhookId)) {
+      const breaker = CircuitBreakerRegistry.get(`webhook-${webhookId}`, {
+        failureThreshold: 10,      // More tolerant for external endpoints
+        successThreshold: 2,       // Close after 2 successes
+        timeout: 300000,           // 5min before retry (long recovery for external)
+        windowSize: 120000,        // 2min sliding window
+        volumeThreshold: 5,        // Minimum 5 requests
+      });
+
+      // Monitor state changes
+      breaker.on('open', () => {
+        logger.error(`Webhook circuit breaker OPENED for ${webhookName} (${webhookId})`);
+      });
+
+      breaker.on('close', () => {
+        logger.info(`Webhook circuit breaker CLOSED for ${webhookName} (${webhookId}) - endpoint recovered`);
+      });
+
+      this.circuitBreakers.set(webhookId, breaker);
+    }
+
+    return this.circuitBreakers.get(webhookId)!;
+  }
+
   /**
    * Deliver webhook to configured URL
    */
@@ -94,11 +130,17 @@ export class WebhookDeliveryService {
     let attemptCount = 0;
     let lastError: string | undefined;
 
+    // S4-1: Get circuit breaker for this webhook
+    const circuitBreaker = this.getCircuitBreaker(webhook.id, webhook.name);
+
     for (attemptCount = 1; attemptCount <= maxAttempts; attemptCount++) {
       try {
         logger.debug(`Webhook delivery attempt ${attemptCount}/${maxAttempts} for ${webhook.name}`);
 
-        const result = await this.sendWebhook(webhook, event);
+        // S4-1: Execute webhook delivery through circuit breaker
+        const result = await circuitBreaker.execute(async () => {
+          return await this.sendWebhook(webhook, event);
+        });
 
         logger.info(
           `Webhook delivered successfully to ${webhook.name} (attempt ${attemptCount}, status ${result.responseStatus})`
@@ -114,6 +156,18 @@ export class WebhookDeliveryService {
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         lastError = errorMessage;
+
+        // S4-1: If circuit breaker is open, fail fast without retrying
+        if (errorMessage.includes('Circuit breaker')) {
+          logger.error(`Webhook circuit breaker is OPEN for ${webhook.name} - failing fast`);
+
+          return {
+            success: false,
+            deliveryId,
+            attemptCount,
+            error: `Webhook endpoint temporarily unavailable (circuit breaker OPEN)`
+          };
+        }
 
         logger.warn(
           `Webhook delivery attempt ${attemptCount}/${maxAttempts} failed for ${webhook.name}: ${errorMessage}`
@@ -146,6 +200,9 @@ export class WebhookDeliveryService {
     webhook: WebhookConfig,
     event: AppEvent
   ): Promise<{ responseStatus: number; responseBody: string }> {
+    // S4-2: Get correlation context for tracing
+    const context = getRequestContext();
+
     // Prepare payload
     const timestamp = new Date().toISOString();
     const payload = {
@@ -165,6 +222,9 @@ export class WebhookDeliveryService {
       'X-Webhook-Timestamp': timestamp,
       'X-Webhook-Event': event.type,
       'User-Agent': 'EventManager-Webhook/1.0',
+      // S4-2: Add correlation IDs for end-to-end tracing
+      ...(context?.requestId && { 'X-Request-ID': context.requestId }),
+      ...(context?.correlationId && { 'X-Correlation-ID': context.correlationId }),
       ...(webhook.headers || {})
     };
 

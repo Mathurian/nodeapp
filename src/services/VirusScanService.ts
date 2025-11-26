@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
 import * as crypto from 'crypto';
+import { container } from 'tsyringe';
 import {
   getVirusScanConfig,
   ScanStatus,
@@ -456,10 +457,76 @@ export class VirusScanService {
 
   /**
    * Notify about infection
+   * Sends email alerts to security team and creates in-app notifications for admins
    */
   private async notifyInfection(scanResult: ScanResult): Promise<void> {
-    // TODO: Implement notification (email, webhook, etc.)
-    logger.warn('Infection notification', { scanResult });
+    try {
+      // Dynamically import services to avoid circular dependencies
+      const { EmailService } = await import('./EmailService');
+      const { NotificationService } = await import('./NotificationService');
+
+      // Send email to security team if configured
+      const securityEmail = process.env['SECURITY_EMAIL'];
+      if (securityEmail) {
+        try {
+          const emailService = container.resolve(EmailService);
+          await emailService.send({
+            to: securityEmail,
+            subject: `[SECURITY ALERT] Virus Detected: ${scanResult.virus || 'Unknown'}`,
+            template: 'virus-alert',
+            data: {
+              filename: scanResult.file,
+              virus: scanResult.virus || 'Unknown Threat',
+              size: scanResult.size,
+              timestamp: scanResult.scannedAt.toISOString(),
+              scanDuration: `${scanResult.duration}ms`,
+            },
+          });
+
+          logger.info('Virus alert email sent to security team', {
+            filename: scanResult.file,
+            virus: scanResult.virus,
+          });
+        } catch (emailError) {
+          logger.error('Failed to send virus alert email', { error: emailError });
+          // Continue with other notifications
+        }
+      }
+
+      // Create in-app notification for admins
+      try {
+        const notificationService = container.resolve(NotificationService);
+        await notificationService.notifyAdmins({
+          type: 'SYSTEM',
+          title: 'Virus Detected',
+          message: `Infected file blocked: ${scanResult.file}${scanResult.virus ? ` (${scanResult.virus})` : ''}`,
+          metadata: JSON.stringify({
+            filename: scanResult.file,
+            virus: scanResult.virus,
+            size: scanResult.size,
+            scannedAt: scanResult.scannedAt,
+          }),
+        });
+
+        logger.info('Virus detection notification created for admins', {
+          filename: scanResult.file,
+        });
+      } catch (notifError) {
+        logger.error('Failed to create admin notification', { error: notifError });
+        // Continue - notification failure shouldn't stop the flow
+      }
+
+      logger.info('Virus infection notifications completed', {
+        filename: scanResult.file,
+        virus: scanResult.virus,
+      });
+    } catch (error) {
+      logger.error('Failed to send virus infection notifications', {
+        error,
+        filename: scanResult.file,
+      });
+      // Don't throw - notification failure shouldn't stop the scanning flow
+    }
   }
 
   /**

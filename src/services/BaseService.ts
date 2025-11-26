@@ -1,6 +1,7 @@
 /**
  * Base Service Class
  * Provides common functionality for all services
+ * P3-3: Error Handling Standardization - Uses BaseAppError hierarchy
  */
 
 import { trackError, ErrorSeverity } from '../utils/errorTracking';
@@ -16,6 +17,28 @@ import {
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 
+// P3-3: Import standardized error classes
+import {
+  ValidationError,
+  NotFoundError,
+  AuthenticationError as UnauthorizedError,
+  AuthorizationError as ForbiddenError,
+  ConflictError,
+  InternalError,
+  BadRequestError,
+  ErrorCode,
+  isAppError,
+} from '../types/errors';
+
+// Re-export error classes for backward compatibility
+export {
+  ValidationError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  ConflictError,
+}
+
 // Type definitions
 export interface ValidationErrorDetails {
   field: string;
@@ -29,102 +52,28 @@ export interface SanitizedUser {
 }
 
 /**
- * Service Error
- */
-export class ServiceError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number = 500,
-    public code?: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'ServiceError';
-    Object.setPrototypeOf(this, ServiceError.prototype);
-  }
-}
-
-/**
- * Validation Error
- */
-export class ValidationError extends ServiceError {
-  constructor(message: string, public validationErrors?: ValidationErrorDetails[]) {
-    super(message, 422, 'VALIDATION_ERROR', validationErrors);
-    this.name = 'ValidationError';
-    Object.setPrototypeOf(this, ValidationError.prototype);
-  }
-}
-
-/**
- * Not Found Error
- */
-export class NotFoundError extends ServiceError {
-  constructor(resource: string, identifier?: string) {
-    const message = identifier
-      ? `${resource} with identifier '${identifier}' not found`
-      : `${resource} not found`;
-    super(message, 404, 'NOT_FOUND');
-    this.name = 'NotFoundError';
-    Object.setPrototypeOf(this, NotFoundError.prototype);
-  }
-}
-
-/**
- * Unauthorized Error
- */
-export class UnauthorizedError extends ServiceError {
-  constructor(message: string = 'Unauthorized') {
-    super(message, 401, 'UNAUTHORIZED');
-    this.name = 'UnauthorizedError';
-    Object.setPrototypeOf(this, UnauthorizedError.prototype);
-  }
-}
-
-/**
- * Forbidden Error
- */
-export class ForbiddenError extends ServiceError {
-  constructor(message: string = 'Forbidden') {
-    super(message, 403, 'FORBIDDEN');
-    this.name = 'ForbiddenError';
-    Object.setPrototypeOf(this, ForbiddenError.prototype);
-  }
-}
-
-/**
- * Conflict Error
- */
-export class ConflictError extends ServiceError {
-  constructor(message: string) {
-    super(message, 409, 'CONFLICT');
-    this.name = 'ConflictError';
-    Object.setPrototypeOf(this, ConflictError.prototype);
-  }
-}
-
-/**
  * Base Service
  */
 export abstract class BaseService {
   /**
    * Handle service errors
+   * P3-3: Updated to use BaseAppError
    */
   protected handleError(error: unknown, context?: Record<string, unknown>): never {
     // Log the error
     const severity = this.getErrorSeverity(error);
     trackError(error, severity, context);
 
-    // Re-throw service errors as-is
-    if (error instanceof ServiceError) {
+    // Re-throw app errors as-is
+    if (isAppError(error)) {
       throw error;
     }
 
     // Wrap other errors
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    throw new ServiceError(
+    throw new InternalError(
       errorMessage,
-      500,
-      'INTERNAL_ERROR',
+      ErrorCode.INTERNAL_ERROR,
       error
     );
   }
@@ -174,39 +123,50 @@ export abstract class BaseService {
 
   /**
    * Assert entity exists
+   * P3-3: Updated for BaseAppError NotFoundError signature
    */
   protected assertExists<T>(entity: T | null | undefined, resourceName: string, identifier?: string): asserts entity is T {
     if (!entity) {
-      throw new NotFoundError(resourceName, identifier);
+      const message = identifier
+        ? `${resourceName} with identifier '${identifier}' not found`
+        : `${resourceName} not found`;
+      throw new NotFoundError(message, ErrorCode.RESOURCE_NOT_FOUND);
     }
   }
 
   /**
    * Create Not Found Error
+   * P3-3: Updated for BaseAppError NotFoundError signature
    */
   protected notFoundError(resource: string, identifier?: string): NotFoundError {
-    return new NotFoundError(resource, identifier);
+    const message = identifier
+      ? `${resource} with identifier '${identifier}' not found`
+      : `${resource} not found`;
+    return new NotFoundError(message, ErrorCode.RESOURCE_NOT_FOUND);
   }
 
   /**
    * Create Not Found Error (alias)
+   * P3-3: Updated for BaseAppError NotFoundError signature
    */
   protected createNotFoundError(message: string): NotFoundError {
-    return new NotFoundError(message);
+    return new NotFoundError(message, ErrorCode.RESOURCE_NOT_FOUND);
   }
 
   /**
    * Create Bad Request Error
+   * P3-3: Updated to use BadRequestError
    */
-  protected createBadRequestError(message: string): ServiceError {
-    return new ServiceError(message, 400, 'BAD_REQUEST');
+  protected createBadRequestError(message: string): BadRequestError {
+    return new BadRequestError(message, ErrorCode.BAD_REQUEST);
   }
 
   /**
    * Create Bad Request Error (alias)
+   * P3-3: Updated to use BadRequestError
    */
-  protected badRequestError(message: string): ServiceError {
-    return new ServiceError(message, 400, 'BAD_REQUEST');
+  protected badRequestError(message: string): BadRequestError {
+    return new BadRequestError(message, ErrorCode.BAD_REQUEST);
   }
 
   /**
@@ -239,10 +199,23 @@ export abstract class BaseService {
 
   /**
    * Assert condition
+   * P3-3: Updated to use BadRequestError
    */
   protected assert(condition: boolean, message: string, statusCode: number = 400): void {
     if (!condition) {
-      throw new ServiceError(message, statusCode);
+      if (statusCode === 400) {
+        throw new BadRequestError(message, ErrorCode.BAD_REQUEST);
+      } else if (statusCode === 404) {
+        throw new NotFoundError(message, ErrorCode.RESOURCE_NOT_FOUND);
+      } else if (statusCode === 401) {
+        throw new UnauthorizedError(message, ErrorCode.AUTHENTICATION_ERROR);
+      } else if (statusCode === 403) {
+        throw new ForbiddenError(message, ErrorCode.AUTHORIZATION_ERROR);
+      } else if (statusCode === 409) {
+        throw new ConflictError(message, ErrorCode.CONFLICT);
+      } else {
+        throw new InternalError(message, ErrorCode.INTERNAL_ERROR);
+      }
     }
   }
 

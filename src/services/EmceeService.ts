@@ -853,7 +853,7 @@ export class EmceeService extends BaseService {
         tenantId: data.tenantId!,
         title: data.title,
         content: data.content || `Script file: ${data.filePath}`,
-        file_path: data.filePath || null,
+        filePath: data.filePath || null,
         eventId: data.eventId || null,
         contestId: data.contestId || null,
         categoryId: data.categoryId || null,
@@ -910,7 +910,7 @@ export class EmceeService extends BaseService {
       where: { id: scriptId },
     });
 
-    if (!script || !script.file_path) {
+    if (!script || !script.filePath) {
       throw this.notFoundError('Script file', scriptId);
     }
 

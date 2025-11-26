@@ -10,6 +10,8 @@ import { EventRepository } from '../repositories/EventRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
+// S4-4: Import MetricsService for soft delete tracking
+import { MetricsService } from './MetricsService';
 
 // Proper type definitions for event responses
 type EventWithDetails = Prisma.EventGetPayload<{
@@ -61,7 +63,8 @@ export class EventService extends BaseService {
   constructor(
     @inject('EventRepository') private eventRepo: EventRepository,
     @inject('CacheService') private cacheService: CacheService,
-    @inject(RestrictionService) private restrictionService: RestrictionService
+    @inject(RestrictionService) private restrictionService: RestrictionService,
+    @inject(MetricsService) private metricsService: MetricsService
   ) {
     super();
   }
@@ -425,9 +428,10 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Delete event
+   * Delete event (soft delete)
+   * S4-3: Soft delete with deletedBy tracking
    */
-  async deleteEvent(id: string): Promise<void> {
+  async deleteEvent(id: string, deletedBy?: string): Promise<void> {
     try {
       // Check if event is locked
       const isLocked = await this.restrictionService.isLocked(id);
@@ -435,18 +439,50 @@ export class EventService extends BaseService {
         throw this.forbiddenError('Event is locked and cannot be deleted. Please unlock it first.');
       }
 
-      // Verify event exists
-      await this.getEventById(id);
+      // Verify event exists and get tenant for metrics
+      const event = await this.getEventById(id);
 
-      // Delete event
-      await this.eventRepo.delete(id);
+      // S4-3: Soft delete with deletedBy tracking
+      await this.eventRepo.update(id, {
+        deletedAt: new Date(),
+        deletedBy: deletedBy || null,
+      });
+
+      // S4-4: Record soft delete metrics
+      this.metricsService.recordSoftDelete('Event', event.tenantId);
 
       // Invalidate caches
       await this.invalidateEventCache(id);
 
-      this.logInfo('Event deleted', { eventId: id });
+      this.logInfo('Event soft deleted', { eventId: id, deletedBy });
     } catch (error) {
       return this.handleError(error, { operation: 'deleteEvent', id });
+    }
+  }
+
+  /**
+   * Restore soft-deleted event
+   * S4-3: Restore functionality
+   */
+  async restoreEvent(id: string): Promise<Event> {
+    try {
+      // Update to restore (set deletedAt to null)
+      const restoredEvent = await this.eventRepo.update(id, {
+        deletedAt: null,
+        deletedBy: null,
+      });
+
+      // S4-4: Record soft delete restore metrics
+      this.metricsService.recordSoftDeleteRestore('Event', restoredEvent.tenantId);
+
+      // Invalidate caches
+      await this.invalidateEventCache(id);
+
+      this.logInfo('Event restored', { eventId: id });
+
+      return restoredEvent;
+    } catch (error) {
+      return this.handleError(error, { operation: 'restoreEvent', id });
     }
   }
 
