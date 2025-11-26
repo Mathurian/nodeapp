@@ -46,7 +46,7 @@
   "author": "Event Manager Team",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.932.0",
+    "@aws-sdk/client-s3": "^3.940.0",
     "@azure/storage-blob": "^12.29.1",
     "@google-cloud/storage": "^7.17.3",
     "@prisma/client": "^5.19.1",
