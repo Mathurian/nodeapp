@@ -258,14 +258,13 @@ export class AuthController {
         log.error('Failed to log password reset request audit', { error: auditError });
       }
 
-      // In production, send this via email
-      // For now, return it (ONLY for development)
+      // Token sent via email only - never expose in response
       log.info('Password reset token generated', { email });
 
       return sendSuccess(
         res,
-        { resetToken }, // Remove this in production
-        'Password reset instructions sent to email'
+        {}, // Empty object - token only sent via email for security
+        'If the email exists, password reset instructions have been sent'
       );
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

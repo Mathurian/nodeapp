@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { login, getProfile, getPermissions, forgotPassword, resetPasswordWithToken, logout } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
-import { authLimiter } from '../middleware/rateLimiting';
+import { authLimiter, perEmailAuthLimiter, passwordResetLimiter } from '../middleware/rateLimiting';
 
 const router: Router = express.Router();
 
@@ -56,7 +56,7 @@ router.use(authLimiter);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', login);
+router.post('/login', perEmailAuthLimiter, login);
 
 /**
  * @swagger
@@ -95,7 +95,7 @@ router.get('/logout', logout); // Allow GET requests for logout
  *       200:
  *         description: Password reset email sent
  */
-router.post('/forgot-password', forgotPassword);
+router.post('/forgot-password', passwordResetLimiter, forgotPassword);
 
 /**
  * @swagger

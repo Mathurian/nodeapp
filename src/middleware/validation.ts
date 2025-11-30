@@ -185,18 +185,19 @@ export const updateEventSchema = z.object({
  * Score creation schema
  */
 export const createScoreSchema = z.object({
-  judgeId: z.string().cuid(),
-  contestantId: z.string().cuid(),
-  categoryId: z.string().cuid(),
-  contestId: z.string().cuid(),
-  value: z.number().min(0).max(100)
+  score: z.number().int().min(0).max(100, 'Score must be between 0 and 100'),
+  criteriaId: z.string().cuid().optional(),
+  deduction: z.number().int().min(0).optional(),
+  deductionReason: z.string().max(500).optional(),
+  comments: z.string().max(1000).optional()
 });
 
 /**
  * Score update schema
  */
 export const updateScoreSchema = z.object({
-  value: z.number().min(0).max(100)
+  score: z.number().int().min(0).max(100).optional(),
+  comments: z.string().max(1000).optional()
 });
 
 /**

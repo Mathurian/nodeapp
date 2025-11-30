@@ -270,69 +270,71 @@ export class ScoringService extends BaseService {
         throw new ForbiddenError('Not assigned to this category');
       }
 
-      // Check if there's an existing score for this judge/contestant/category
-      const existingScore = await this.prisma.score.findFirst({
-        where: {
-          tenantId,
-          categoryId,
-          contestantId,
-          judgeId,
-          criterionId: criteriaId || null
-        }
-      });
-
-      if (existingScore) {
-        throw new ConflictError('Score already exists for this combination');
-      }
-
-      // Create the score
+      // Create the score - rely on database unique constraint to prevent duplicates
+      // This eliminates the race condition from check-then-create pattern
       // P2-2 OPTIMIZATION: Selective field loading
-      const newScore = await this.prisma.score.create({
-        data: {
-          categoryId,
-          contestantId,
-          criterionId: criteriaId || null,
-          judgeId,
-          score: score,
-          tenantId,
-          certifiedAt: null,
-          certifiedBy: null
-        },
-        select: {
-          id: true,
-          categoryId: true,
-          contestantId: true,
-          judgeId: true,
-          criterionId: true,
-          score: true,
-          comment: true,
-          certifiedAt: true,
-          certifiedBy: true,
-          createdAt: true,
-          updatedAt: true,
-          tenantId: true,
-          contestant: {
-            select: {
-              id: true,
-              name: true,
-              contestantNumber: true
-            }
+      let newScore: ScoreWithRelations;
+      try {
+        newScore = await this.prisma.score.create({
+          data: {
+            categoryId,
+            contestantId,
+            criterionId: criteriaId || null,
+            judgeId,
+            score: score,
+            tenantId,
+            certifiedAt: null,
+            certifiedBy: null
           },
-          judge: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-              scoreCap: true
+          select: {
+            id: true,
+            categoryId: true,
+            contestantId: true,
+            judgeId: true,
+            criterionId: true,
+            score: true,
+            comment: true,
+            certifiedAt: true,
+            certifiedBy: true,
+            createdAt: true,
+            updatedAt: true,
+            tenantId: true,
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                contestantNumber: true
+              }
+            },
+            judge: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            category: {
+              select: {
+                id: true,
+                name: true,
+                scoreCap: true
+              }
             }
           }
+        }) as ScoreWithRelations;
+      } catch (error: any) {
+        // P2002 is Prisma's unique constraint violation error
+        if (error.code === 'P2002') {
+          this.logWarn('Duplicate score attempt caught by database constraint', {
+            categoryId,
+            contestantId,
+            judgeId,
+            criteriaId
+          });
+          throw new ConflictError('Score already exists for this judge and contestant');
         }
-      }) as ScoreWithRelations;
+        // Re-throw other errors
+        throw error;
+      }
 
       this.logInfo('Score submitted successfully', {
         scoreId: newScore.id,

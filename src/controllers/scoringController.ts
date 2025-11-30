@@ -132,6 +132,54 @@ export class ScoringController {
         }
       });
 
+      // SECURITY: Check if score exists
+      if (!oldScore) {
+        log.warn('Score not found for update', { scoreId });
+        sendError(res, 'Score not found', 404);
+        return;
+      }
+
+      // SECURITY: Check if score is locked
+      if (oldScore.isLocked) {
+        log.warn('Attempt to update locked score', {
+          scoreId,
+          userId: req.user?.id,
+          lockedAt: oldScore.lockedAt,
+          lockedBy: oldScore.lockedBy
+        });
+        sendError(res, 'Cannot modify locked score', 403);
+        return;
+      }
+
+      // SECURITY: Check if score is certified
+      if (oldScore.isCertified) {
+        log.warn('Attempt to update certified score', {
+          scoreId,
+          userId: req.user?.id,
+          certifiedAt: oldScore.certifiedAt,
+          certifiedBy: oldScore.certifiedBy
+        });
+        sendError(res, 'Cannot modify certified score', 403);
+        return;
+      }
+
+      // SECURITY: Verify judge owns score (unless admin)
+      const userRole = req.user?.role;
+      if (
+        userRole !== 'SUPER_ADMIN' &&
+        userRole !== 'ADMIN' &&
+        oldScore.judgeId !== req.user?.judgeId
+      ) {
+        log.warn('Attempt to update another judge\'s score', {
+          scoreId,
+          userId: req.user?.id,
+          userJudgeId: req.user?.judgeId,
+          scoreJudgeId: oldScore.judgeId
+        });
+        sendError(res, 'Can only update your own scores', 403);
+        return;
+      }
+
       const updatedScore = await this.scoringService.updateScore(scoreId, data, tenantId);
 
       log.info('Score updated successfully', { scoreId });
@@ -177,6 +225,53 @@ export class ScoringController {
           tenantId: tenantId
         }
       });
+
+      // SECURITY: Check if score exists
+      if (!score) {
+        log.warn('Score not found for deletion', { scoreId });
+        sendError(res, 'Score not found', 404);
+        return;
+      }
+
+      // SECURITY: Check if score is locked or certified
+      if (score.isLocked) {
+        log.warn('Attempt to delete locked score', {
+          scoreId,
+          userId: req.user?.id,
+          lockedAt: score.lockedAt,
+          lockedBy: score.lockedBy
+        });
+        sendError(res, 'Cannot delete locked score', 403);
+        return;
+      }
+
+      if (score.isCertified) {
+        log.warn('Attempt to delete certified score', {
+          scoreId,
+          userId: req.user?.id,
+          certifiedAt: score.certifiedAt,
+          certifiedBy: score.certifiedBy
+        });
+        sendError(res, 'Cannot delete certified score', 403);
+        return;
+      }
+
+      // SECURITY: Verify judge owns score (unless admin)
+      const userRole = req.user?.role;
+      if (
+        userRole !== 'SUPER_ADMIN' &&
+        userRole !== 'ADMIN' &&
+        score.judgeId !== req.user?.judgeId
+      ) {
+        log.warn('Attempt to delete another judge\'s score', {
+          scoreId,
+          userId: req.user?.id,
+          userJudgeId: req.user?.judgeId,
+          scoreJudgeId: score.judgeId
+        });
+        sendError(res, 'Can only delete your own scores', 403);
+        return;
+      }
 
       await this.scoringService.deleteScore(scoreId, tenantId);
 

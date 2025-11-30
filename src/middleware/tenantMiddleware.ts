@@ -30,6 +30,41 @@ declare global {
 }
 
 /**
+ * Static list of models that have tenantId field and require tenant filtering.
+ * This replaces runtime field detection which doesn't work with Prisma Client.
+ * Based on database schema analysis - 71 of 83 tables have tenantId.
+ */
+const TENANT_SCOPED_MODELS = [
+  'user', 'event', 'contest', 'category', 'score', 'assignment',
+  'judge', 'contestant', 'notification', 'auditLog', 'backup',
+  'tenant', 'roleAssignment', 'tallyMasterAssignment', 'auditorAssignment',
+  'categoryCertification', 'contestCertification', 'judgeCertification',
+  'judgeContestantCertification', 'reviewContestantCertification',
+  'reviewJudgeScoreCertification', 'categoryContestant', 'categoryJudge',
+  'contestContestant', 'contestJudge', 'emceeScript', 'archivedEvent',
+  'categoryTemplate', 'templateCriterion', 'judgeScoreRemovalRequest',
+  'judgeUncertificationRequest', 'judgeComment', 'overallDeduction',
+  'deductionRequest', 'deductionApproval', 'scoreFile', 'scoreRemovalRequest',
+  'scoreComment', 'file', 'systemSetting', 'rateLimitConfig', 'themeSetting',
+  'notificationDigest', 'notificationPreference', 'notificationTemplate',
+  'emailTemplate', 'eventTemplate', 'reportTemplate', 'reportInstance',
+  'customField', 'customFieldValue', 'savedSearch', 'searchHistory',
+  'backupLog', 'backupSchedule', 'backupTarget', 'drConfig', 'drMetric',
+  'drTestLog', 'emailLog', 'webhookConfig', 'webhookDelivery',
+  'workflowTemplate', 'workflowInstance', 'workflowStep',
+  'workflowStepExecution', 'workflowTransition', 'winnerSignature',
+  'criterion', 'report'
+];
+
+/**
+ * Helper function to check if a model requires tenant filtering
+ */
+function isTenantScopedModel(model: string): boolean {
+  const modelLower = model.toLowerCase();
+  return TENANT_SCOPED_MODELS.includes(modelLower);
+}
+
+/**
  * Tenant identification strategies
  */
 export class TenantIdentifier {
@@ -367,115 +402,87 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
       // Add tenant filter to all models that have tenantId
       $allModels: {
         async findMany({ model, args, query }: PrismaExtensionParams) {
-          // Check if model has tenantId field
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          // Use static list to check if model has tenantId field
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async findFirst({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async findUnique({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async findUniqueOrThrow({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async count({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async aggregate({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async groupBy({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async create({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['data'] = { ...(args['data'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async createMany({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields && Array.isArray(args['data'])) {
+          if (isTenantScopedModel(model) && Array.isArray(args['data'])) {
             args['data'] = args['data'].map((item: unknown) => ({ ...(item as Record<string, unknown>), tenantId }));
           }
           return query(args);
         },
         async update({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async updateMany({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async upsert({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
             args['create'] = { ...(args['create'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async delete({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);
         },
         async deleteMany({ model, args, query }: PrismaExtensionParams) {
-          const prismaAsAny = prisma as unknown as Record<string, unknown>;
-          const modelFields = prismaAsAny[model] as { fields?: Record<string, unknown> } | undefined;
-          if (modelFields?.fields && 'tenantId' in modelFields.fields) {
+          if (isTenantScopedModel(model)) {
             args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
           }
           return query(args);

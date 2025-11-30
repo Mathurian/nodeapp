@@ -218,8 +218,8 @@ const checkOrganizerPermission = async (
   }
 };
 
-const requireRole = (roles: string[]): ((req: Request, res: Response, next: NextFunction) => void) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+const requireRole = (roles: string[]): ((req: Request, res: Response, next: NextFunction) => void | Promise<void>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // CRITICAL: Check if req.user exists - this MUST be set by authenticateToken
     if (!req.user) {
       logger.error('requireRole: CRITICAL - No user object found (authenticateToken may have failed)', {
@@ -269,14 +269,16 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       const contestId = req.params['contestId'] || req.query['contestId'] || req.body?.contestId;
       const categoryId = req.params['categoryId'] || req.query['categoryId'] || req.body?.categoryId;
 
-      // Check permission asynchronously
-      checkOrganizerPermission(
-        req.user!.id,
-        req.tenantId || '',
-        eventId as string,
-        contestId as string,
-        categoryId as string
-      ).then(hasPermission => {
+      // Check permission with await to prevent race condition
+      try {
+        const hasPermission = await checkOrganizerPermission(
+          req.user!.id,
+          req.tenantId || '',
+          eventId as string,
+          contestId as string,
+          categoryId as string
+        );
+
         if (hasPermission) {
           next();
         } else {
@@ -292,10 +294,10 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
             message: 'You do not have permission to access this resource'
           });
         }
-      }).catch(error => {
+      } catch (error) {
         logger.error('requireRole: ORGANIZER permission check error', { error });
         res.status(500).json({ error: 'Permission check failed' });
-      });
+      }
       return;
     }
 

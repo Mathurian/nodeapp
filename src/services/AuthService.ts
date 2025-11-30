@@ -76,6 +76,9 @@ interface UserProfile {
 interface LoginResult {
   token: string;
   user: UserProfile;
+  requiresMFA?: boolean;
+  tempToken?: string;
+  message?: string;
 }
 
 interface UserPermissions {
@@ -173,7 +176,7 @@ export class AuthService {
       throw new Error('Tenant context is required');
     }
 
-    // Find user with related data including tenant info
+    // Find user with related data including tenant info and MFA fields
     // If logging in from default tenant context (e.g., /login without slug),
     // first try to find the user by email in any tenant
     let user = await this.prisma.user.findFirst({
@@ -182,6 +185,33 @@ export class AuthService {
         tenantId
       },
       include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      },
+      // Explicitly select MFA fields
+      select: {
+        id: true,
+        name: true,
+        preferredName: true,
+        email: true,
+        password: true,
+        role: true,
+        sessionVersion: true,
+        isActive: true,
+        judgeId: true,
+        contestantId: true,
+        gender: true,
+        pronouns: true,
+        tenantId: true,
+        imagePath: true,
+        mfaEnabled: true,
+        mfaSecret: true,
+        mfaMethod: true,
         tenant: {
           select: {
             id: true,
@@ -201,7 +231,24 @@ export class AuthService {
           isActive: true,
           tenant: { isActive: true }
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          preferredName: true,
+          email: true,
+          password: true,
+          role: true,
+          sessionVersion: true,
+          isActive: true,
+          judgeId: true,
+          contestantId: true,
+          gender: true,
+          pronouns: true,
+          tenantId: true,
+          imagePath: true,
+          mfaEnabled: true,
+          mfaSecret: true,
+          mfaMethod: true,
           tenant: {
             select: {
               id: true,
@@ -260,7 +307,74 @@ export class AuthService {
       throw new Error('Account is inactive');
     }
 
-    // Update last login timestamp
+    // Check if MFA is enabled and return temp token for MFA verification
+    if (user.mfaEnabled) {
+      logger.info('MFA required for user', { userId: user.id, email: user.email });
+
+      // Generate temporary token (5 minute expiry) for MFA verification
+      const tempPayload = {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        sessionVersion: user.sessionVersion,
+        tenantId: user.tenantId,
+        tempAuth: true // Mark as temporary for MFA
+      };
+
+      const tempToken = jwt.sign(tempPayload, JWT_SECRET as string, { expiresIn: '5m' } as jwt.SignOptions);
+
+      // Log MFA requirement
+      try {
+        await this.prisma.activityLog.create({
+          data: {
+            userId: user.id,
+            userName: user.name,
+            userRole: user.role,
+            action: 'MFA_REQUIRED',
+            resourceType: 'AUTH',
+            ipAddress: ipAddress || 'unknown',
+            userAgent: userAgent || 'unknown',
+            details: JSON.stringify({
+              timestamp: new Date().toISOString(),
+              email: user.email,
+              mfaMethod: user.mfaMethod || 'totp'
+            })
+          }
+        });
+      } catch (logError) {
+        logger.error('Failed to log MFA requirement', { error: logError });
+      }
+
+      return {
+        token: tempToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          preferredName: user.preferredName,
+          email: user.email,
+          role: user.role,
+          sessionVersion: user.sessionVersion,
+          permissions: [],
+          hasAdminAccess: false,
+          judgeId: user.judgeId,
+          contestantId: user.contestantId,
+          gender: user.gender,
+          pronouns: user.pronouns,
+          imagePath: user.imagePath,
+          tenantId: user.tenantId,
+          tenant: user.tenant ? {
+            id: user.tenant.id,
+            name: user.tenant.name,
+            slug: user.tenant.slug
+          } : null
+        },
+        requiresMFA: true,
+        tempToken: tempToken,
+        message: 'Please provide MFA code to complete login'
+      };
+    }
+
+    // Update last login timestamp (only if MFA not required or after MFA verification)
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() }
