@@ -54,14 +54,14 @@ export function rateLimitMiddleware() {
         return;
       }
 
-      // Determine the tier based on tenant's subscription plan
-      const tier = await getTenantTier(tenantId);
-
-      // Skip for admins if configured
-      if (RATE_LIMIT_CONFIG.skipForAdmins && user?.role === 'ADMIN') {
+      // Skip for admins if configured (check BEFORE expensive DB query)
+      if (RATE_LIMIT_CONFIG.skipForAdmins && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')) {
         next();
         return;
       }
+
+      // Determine the tier based on tenant's subscription plan
+      const tier = await getTenantTier(tenantId);
 
       // Check rate limit
       const rateLimitService = getEnhancedRateLimitService();

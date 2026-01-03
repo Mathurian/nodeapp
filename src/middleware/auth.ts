@@ -109,6 +109,11 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 
     req.user = user;
 
+    // Set isSuperAdmin flag for tenant filtering bypass
+    // SUPER_ADMIN role can see data across all tenants
+    const userRole = String(user.role).trim().toUpperCase();
+    (req as any).isSuperAdmin = (userRole === 'SUPER_ADMIN');
+
     // Enhanced logging for admin access to sensitive endpoints
     const isSensitiveEndpoint = req.path && (
       req.path.includes('/cache/') ||
@@ -406,6 +411,10 @@ const optionalAuth = async (req: Request, _res: Response, next: NextFunction): P
 
     if (user && user.isActive && user.sessionVersion === decoded.sessionVersion) {
       req.user = user;
+
+      // Set isSuperAdmin flag for tenant filtering bypass
+      const userRole = String(user.role).trim().toUpperCase();
+      (req as any).isSuperAdmin = (userRole === 'SUPER_ADMIN');
     }
     // If user invalid, proceed without user context (don't fail)
     next();

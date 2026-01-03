@@ -83,7 +83,7 @@ const ScoringPage: React.FC = () => {
   const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'].includes(user?.role || '')
 
   // Fetch categories assigned to the judge
-  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>(
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>(
     ['scoring-categories', user?.id],
     async () => {
       const response = await scoringAPI.getCategories()
@@ -92,11 +92,13 @@ const ScoringPage: React.FC = () => {
     {
       enabled: isJudge,
       refetchInterval: 30000, // Refresh every 30 seconds
+      retry: 1,
+      onError: (err) => console.error('Fetch categories failed:', err),
     }
   )
 
   // Fetch contestants for selected category
-  const { data: contestants, isLoading: contestantsLoading } = useQuery<Contestant[]>(
+  const { data: contestants, isLoading: contestantsLoading, error: contestantsError } = useQuery<Contestant[]>(
     ['category-contestants', selectedCategory?.id],
     async () => {
       if (!selectedCategory) return []
@@ -109,11 +111,13 @@ const ScoringPage: React.FC = () => {
     },
     {
       enabled: !!selectedCategory,
+      retry: 1,
+      onError: (err) => console.error('Fetch contestants failed:', err),
     }
   )
 
   // Fetch criteria for selected category
-  const { data: criteria, isLoading: criteriaLoading } = useQuery<Criterion[]>(
+  const { data: criteria, isLoading: criteriaLoading, error: criteriaError } = useQuery<Criterion[]>(
     ['category-criteria', selectedCategory?.id],
     async () => {
       if (!selectedCategory) return []
@@ -123,11 +127,13 @@ const ScoringPage: React.FC = () => {
     },
     {
       enabled: !!selectedCategory,
+      retry: 1,
+      onError: (err) => console.error('Fetch criteria failed:', err),
     }
   )
 
   // Fetch existing scores for selected contestant
-  const { data: existingScores } = useQuery<Score[]>(
+  const { data: existingScores, error: existingScoresError } = useQuery<Score[]>(
     ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
     async () => {
       if (!selectedCategory || !selectedContestant) return []
@@ -136,6 +142,8 @@ const ScoringPage: React.FC = () => {
     },
     {
       enabled: !!selectedCategory && !!selectedContestant,
+      retry: 1,
+      onError: (err) => console.error('Fetch existing scores failed:', err),
     }
   )
 
@@ -214,6 +222,47 @@ const ScoringPage: React.FC = () => {
             You must be a judge to access the scoring page.
           </p>
         </div>
+      </div>
+    )
+  }
+
+  // Error state handling
+  if (categoriesError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(categoriesError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (contestantsError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(contestantsError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (criteriaError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(criteriaError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (existingScoresError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(existingScoresError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
       </div>
     )
   }

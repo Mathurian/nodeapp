@@ -55,13 +55,16 @@ const CustomFieldsPage: React.FC = () => {
   const fetchFields = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await api.get('/custom-fields')
       // Unwrap the response wrapper if needed
       const unwrapped = response.data.data || response.data
       const fieldsArray = Array.isArray(unwrapped) ? unwrapped : []
       setFields(fieldsArray)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load custom fields')
+      console.error('Failed to fetch custom fields:', err)
+      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to load custom fields')
+      setFields([]) // Ensure fields is always an array even on error
     } finally {
       setLoading(false)
     }
@@ -69,24 +72,40 @@ const CustomFieldsPage: React.FC = () => {
 
   const createField = async () => {
     try {
-      await api.post('/custom-fields', formData)
+      // Generate key from name (convert to lowercase, replace spaces with underscores)
+      const key = formData.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+
+      await api.post('/custom-fields', {
+        ...formData,
+        key,
+      })
       setShowModal(false)
       resetForm()
+      setError(null)
       await fetchFields()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create field')
+      console.error('Failed to create custom field:', err)
+      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to create field')
     }
   }
 
   const updateField = async () => {
     if (!editingField) return
     try {
-      await api.put(`/custom-fields/${editingField.id}`, formData)
+      // Generate key from name (convert to lowercase, replace spaces with underscores)
+      const key = formData.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+
+      await api.put(`/custom-fields/${editingField.id}`, {
+        ...formData,
+        key,
+      })
       setEditingField(null)
       resetForm()
+      setError(null)
       await fetchFields()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update field')
+      console.error('Failed to update custom field:', err)
+      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to update field')
     }
   }
 
@@ -120,7 +139,7 @@ const CustomFieldsPage: React.FC = () => {
       type: field.type,
       entityType: field.entityType,
       required: field.required,
-      options: field.options || [],
+      options: Array.isArray(field.options) ? field.options : [],
       defaultValue: field.defaultValue || '',
     })
     setShowModal(true)
@@ -251,7 +270,7 @@ const CustomFieldsPage: React.FC = () => {
                             </span>
                           </div>
 
-                          {field.options && field.options.length > 0 && (
+                          {field.options && Array.isArray(field.options) && field.options.length > 0 && (
                             <div className="mb-3">
                               <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                                 Options:

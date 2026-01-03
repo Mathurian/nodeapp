@@ -19,6 +19,9 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 8. **[Deployment Guide](08-DEPLOYMENT.md)** - Production deployment and configuration
 9. **[Development Guide](09-DEVELOPMENT.md)** - Developer workflow and contribution guidelines
 10. **[Troubleshooting](10-TROUBLESHOOTING.md)** - Common issues and solutions
+11. **[Disaster Recovery](11-DISASTER-RECOVERY.md)** - Backup, recovery, and failover procedures
+12. **[Workflow Customization](12-WORKFLOW-CUSTOMIZATION.md)** - Customizing certification workflows
+13. **[Administrator Guide](13-ADMIN-GUIDE.md)** - System administration, monitoring, and maintenance
 
 ### Additional Resources
 - **[Security Policy](../SECURITY.md)** - Security features and best practices
@@ -72,16 +75,31 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 7. **TALLY_MASTER** - Score verification and certification
 8. **AUDITOR** - Independent score audit and review
 
-## Support
+## System Access & Tools
 
-- **API Docs**: In-app Swagger UI at `/api-docs`
+### Application Access
+- **Main Application**: http://conmgr.com/
+- **API Docs**: Swagger UI at http://conmgr.com/api-docs
 - **Help System**: In-app help at `/help`
-- **Monitoring**: Prometheus metrics at `/metrics`
-- **Health Check**: System health at `/health`
+- **Health Check**: http://conmgr.com/health
+
+### Monitoring & Metrics (Production)
+- **Grafana Dashboard**: http://conmgr.com/monitoring/grafana/ (admin/admin)
+- **Prometheus**: http://conmgr.com/monitoring/prometheus/
+- **Metrics Endpoint**: http://conmgr.com/metrics
+
+### Development Tools
+- **Playwright Test UI**: Run `npm run test:e2e:ui` (interactive testing)
+- **Test Reports**: Run `npm run test:e2e:report` (HTML test results)
+- **Database GUI**: Run `npx prisma studio` (http://localhost:5555)
+- **Code Generator**: Run `npm run test:e2e:codegen` (record tests)
+
+See [Administrator Guide](13-ADMIN-GUIDE.md) for complete system administration documentation.
 
 ---
 
 **Next Steps:**
-1. New users: Start with [Getting Started](02-GETTING-STARTED.md)
-2. Developers: Review [Architecture](01-ARCHITECTURE.md) and [Development Guide](09-DEVELOPMENT.md)
-3. Administrators: Check [Deployment Guide](08-DEPLOYMENT.md) and [Security Guide](07-SECURITY.md)
+1. **New Users**: Start with [Getting Started](02-GETTING-STARTED.md)
+2. **Developers**: Review [Architecture](01-ARCHITECTURE.md) and [Development Guide](09-DEVELOPMENT.md)
+3. **Administrators**: Check [Administrator Guide](13-ADMIN-GUIDE.md), [Deployment Guide](08-DEPLOYMENT.md), and [Security Guide](07-SECURITY.md)
+4. **Troubleshooting**: See [Troubleshooting Guide](10-TROUBLESHOOTING.md) for common issues

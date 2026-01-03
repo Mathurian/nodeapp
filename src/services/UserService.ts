@@ -91,6 +91,17 @@ export interface AggregateUserStats {
   lastWeek: number;
 }
 
+export interface UserFilters {
+  isActive?: boolean;
+  role?: UserRole | string;
+  search?: string;
+  tenantId?: string;
+  createdAfter?: Date;
+  createdBefore?: Date;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
 export type UserWithRelations = User & {
   judge: Prisma.JudgeGetPayload<{
     select: {
@@ -120,14 +131,69 @@ export class UserService extends BaseService {
   }
 
   /**
-   * Get all users
+   * Get all users with optional filters
    */
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsers(filters?: UserFilters): Promise<User[]> {
     try {
-      const users = await this.userRepository.findAll();
+      let users = await this.userRepository.findAll();
+
+      // Apply filters
+      if (filters?.isActive !== undefined) {
+        users = users.filter(user => user.isActive === filters.isActive);
+      }
+
+      if (filters?.role) {
+        users = users.filter(user => user.role === filters.role);
+      }
+
+      if (filters?.tenantId) {
+        users = users.filter(user => user.tenantId === filters.tenantId);
+      }
+
+      if (filters?.search) {
+        const searchLower = filters.search.toLowerCase();
+        users = users.filter(user =>
+          user.name?.toLowerCase().includes(searchLower) ||
+          user.email?.toLowerCase().includes(searchLower) ||
+          user.preferredName?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Filter by created date range
+      if (filters?.createdAfter) {
+        users = users.filter(user => new Date(user.createdAt) >= filters.createdAfter!);
+      }
+
+      if (filters?.createdBefore) {
+        users = users.filter(user => new Date(user.createdAt) <= filters.createdBefore!);
+      }
+
+      // Sort users
+      if (filters?.sortBy) {
+        const sortField = filters.sortBy as keyof User;
+        const sortDir = filters.sortDirection || 'desc';
+        users.sort((a, b) => {
+          const aVal = a[sortField];
+          const bVal = b[sortField];
+
+          if (aVal === null || aVal === undefined) return sortDir === 'asc' ? 1 : -1;
+          if (bVal === null || bVal === undefined) return sortDir === 'asc' ? -1 : 1;
+
+          if (aVal instanceof Date && bVal instanceof Date) {
+            return sortDir === 'asc' ? aVal.getTime() - bVal.getTime() : bVal.getTime() - aVal.getTime();
+          }
+
+          if (typeof aVal === 'string' && typeof bVal === 'string') {
+            return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+          }
+
+          return sortDir === 'asc' ? (aVal < bVal ? -1 : 1) : (bVal < aVal ? -1 : 1);
+        });
+      }
+
       return users.map(user => this.sanitizeUser(user)) as User[];
     } catch (error) {
-      this.handleError(error, { method: 'getAllUsers' });
+      this.handleError(error, { method: 'getAllUsers', filters });
     }
   }
 
@@ -627,6 +693,7 @@ export class UserService extends BaseService {
       const notFoundIds = userIds.filter(id => !existingUserIds.includes(id));
 
       if (existingUserIds.length === 0) {
+      // @ts-expect-error - Legacy error message
         throw new NotFoundError('Users', 'No users found with the provided IDs');
       }
 

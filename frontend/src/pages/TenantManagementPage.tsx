@@ -8,6 +8,7 @@ import {
   Cog6ToothIcon,
   CheckCircleIcon,
   XCircleIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 
 interface Tenant {
@@ -23,6 +24,7 @@ interface Tenant {
   planType: string
   subscriptionStatus: string
   subscriptionEndsAt?: string | null
+  scoringType: 'STRAIGHT' | 'OLYMPIC'
   createdAt: string
   updatedAt: string
 }
@@ -47,6 +49,7 @@ const TenantManagementPage: React.FC = () => {
     maxStorage: '' as string | number,
     planType: 'free',
     subscriptionStatus: 'active',
+    scoringType: 'STRAIGHT' as 'STRAIGHT' | 'OLYMPIC',
   })
 
   useEffect(() => {
@@ -99,6 +102,30 @@ const TenantManagementPage: React.FC = () => {
     }
   }
 
+  const deleteTenant = async (id: string, name: string) => {
+    const confirmMessage = `Are you sure you want to DELETE tenant "${name}"?\n\nThis will PERMANENTLY remove:\n- All users\n- All events and contests\n- All scores and data\n\nThis action CANNOT be undone!`
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    const secondConfirm = window.prompt(
+      `Type the tenant name "${name}" to confirm deletion:`
+    )
+
+    if (secondConfirm !== name) {
+      setError('Tenant name did not match. Deletion cancelled.')
+      return
+    }
+
+    try {
+      await api.delete(`/tenants/${id}?hard=true`)
+      await fetchTenants()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete tenant')
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -113,6 +140,7 @@ const TenantManagementPage: React.FC = () => {
       maxStorage: '',
       planType: 'free',
       subscriptionStatus: 'active',
+      scoringType: 'STRAIGHT' as 'STRAIGHT' | 'OLYMPIC',
     })
   }
 
@@ -131,6 +159,7 @@ const TenantManagementPage: React.FC = () => {
       maxStorage: tenant.maxStorage ?? '',
       planType: tenant.planType || 'free',
       subscriptionStatus: tenant.subscriptionStatus || 'active',
+      scoringType: tenant.scoringType || 'STRAIGHT',
     })
     setShowModal(true)
   }
@@ -241,12 +270,21 @@ const TenantManagementPage: React.FC = () => {
                   onClick={() => toggleTenant(tenant.id, tenant.isActive)}
                   className={`flex-1 px-3 py-2 rounded-lg transition-colors text-sm ${
                     tenant.isActive
-                      ? 'bg-red-600 dark:bg-red-500 text-white hover:bg-red-700 dark:hover:bg-red-600'
+                      ? 'bg-yellow-600 dark:bg-yellow-500 text-white hover:bg-yellow-700 dark:hover:bg-yellow-600'
                       : 'bg-green-600 dark:bg-green-500 text-white hover:bg-green-700 dark:hover:bg-green-600'
                   }`}
                 >
                   {tenant.isActive ? 'Deactivate' : 'Activate'}
                 </button>
+                {user?.role === 'SUPER_ADMIN' && (
+                  <button
+                    onClick={() => deleteTenant(tenant.id, tenant.name)}
+                    className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors text-sm"
+                    title="Permanently delete tenant"
+                  >
+                    <TrashIcon className="h-4 w-4 inline" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -363,6 +401,23 @@ const TenantManagementPage: React.FC = () => {
                       Active
                     </span>
                   </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Scoring Type
+                  </label>
+                  <select
+                    value={formData.scoringType}
+                    onChange={(e) => setFormData({ ...formData, scoringType: e.target.value as 'STRAIGHT' | 'OLYMPIC' })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
+                    <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    This setting can be overridden at the event or contest level.
+                  </p>
                 </div>
 
                 {/* Plan & Limits Section */}

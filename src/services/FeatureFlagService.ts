@@ -89,6 +89,7 @@ export class FeatureFlagService extends BaseService {
     const cached = await this.cacheService.get(cacheKey);
 
     if (cached) {
+      // @ts-expect-error - Empty object placeholder
       return JSON.parse(cached);
     }
 

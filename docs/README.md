@@ -22,13 +22,16 @@ Welcome to the complete documentation for Event Manager Contest System!
 9. **[08-DEPLOYMENT.md](08-DEPLOYMENT.md)** - Production deployment guide
 10. **[09-DEVELOPMENT.md](09-DEVELOPMENT.md)** - Developer workflow and guidelines
 11. **[10-TROUBLESHOOTING.md](10-TROUBLESHOOTING.md)** - Common issues and solutions
+12. **[11-DISASTER-RECOVERY.md](11-DISASTER-RECOVERY.md)** - Backup and recovery procedures
+13. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow customization
+14. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - System administration and monitoring
 
 ## Documentation Statistics
 
-- **Total Files**: 11 comprehensive documentation files
-- **Total Lines**: 6,143 lines of documentation
-- **Total Size**: ~140 KB
-- **Coverage**: Complete system documentation from architecture to deployment
+- **Total Files**: 14 comprehensive documentation files
+- **Total Lines**: 7,500+ lines of documentation
+- **Total Size**: ~175 KB
+- **Coverage**: Complete system documentation from architecture to administration
 
 ## What's Documented
 
@@ -92,6 +95,16 @@ Welcome to the complete documentation for Event Manager Contest System!
 - Monitoring and logging
 - Backup strategies
 
+### Administration
+- System monitoring and health checks
+- Grafana and Prometheus setup
+- Service management
+- Database administration
+- Backup and recovery procedures
+- Security management
+- Performance tuning
+- Troubleshooting guides
+
 ### Development
 - Development setup
 - Coding standards
@@ -119,10 +132,11 @@ Welcome to the complete documentation for Event Manager Contest System!
 4. Consult [Database Documentation](05-DATABASE.md) for schema
 
 ### For Administrators
-1. Follow [Deployment Guide](08-DEPLOYMENT.md) for production setup
-2. Review [Security Guide](07-SECURITY.md) for best practices
-3. Set up monitoring per deployment guide
-4. Implement backup strategy
+1. Start with [Administrator Guide](13-ADMIN-GUIDE.md) for system management
+2. Follow [Deployment Guide](08-DEPLOYMENT.md) for production setup
+3. Review [Security Guide](07-SECURITY.md) for best practices
+4. Check [Disaster Recovery](11-DISASTER-RECOVERY.md) for backup procedures
+5. Monitor system health via Grafana dashboard
 
 ### For Integrators
 1. Review [API Reference](04-API-REFERENCE.md)
@@ -132,10 +146,24 @@ Welcome to the complete documentation for Event Manager Contest System!
 
 ## Additional Resources
 
-- **In-App Documentation**: Help system at `/help`
-- **API Explorer**: Swagger UI at `/api-docs`
-- **System Health**: `/health` endpoint
-- **Metrics**: Prometheus metrics at `/metrics`
+### System Access
+- **Main Application**: http://conmgr.com/
+- **In-App Help**: Help system at `/help`
+- **API Explorer**: Swagger UI at http://conmgr.com/api-docs
+- **System Health**: http://conmgr.com/health
+
+### Monitoring & Tools
+- **Grafana Dashboard**: http://conmgr.com/monitoring/grafana/
+- **Prometheus**: http://conmgr.com/monitoring/prometheus/
+- **Metrics Endpoint**: http://conmgr.com/metrics
+- **Database GUI**: Run `npx prisma studio`
+
+### Development Tools
+- **Playwright Test UI**: Run `npm run test:e2e:ui`
+- **Test Reports**: Run `npm run test:e2e:report`
+- **Code Generator**: Run `npm run test:e2e:codegen`
+
+See [Administrator Guide](13-ADMIN-GUIDE.md) for complete details.
 
 ## Documentation Maintenance
 

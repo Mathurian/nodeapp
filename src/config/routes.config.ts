@@ -83,6 +83,7 @@ import drRoutes from '../routes/drRoutes'
 import workflowRoutes from '../routes/workflowRoutes'
 import eventsLogRoutes from '../routes/eventsLogRoutes'
 import featureFlagsRoutes from '../routes/featureFlagsRoutes'
+import testRunnerRoutes from '../routes/testRunnerRoutes'
 
 /**
  * Helper to register routes for both legacy and versioned paths
@@ -117,6 +118,7 @@ export const registerRoutes = (app: Application): void => {
   // Health and monitoring
   registerRoute(app, '/health', healthRoutes);
   registerRoute(app, '/performance', performanceRoutes);
+  // Note: /monitoring routes are registered in server.ts before tenant middleware
   registerRoute(app, '/cache', cacheRoutes);
   registerRoute(app, '/logs', logFilesRoutes);
   registerRoute(app, '/error-handling', errorHandlingRoutes);
@@ -182,6 +184,7 @@ export const registerRoutes = (app: Application): void => {
   registerRoute(app, '/custom-fields', customFieldsRoutes);
   registerRoute(app, '/backups', backupRoutes);
   registerRoute(app, '/feature-flags', featureFlagsRoutes); // Backlog enhancement
+  registerRoute(app, '/test-runner', testRunnerRoutes); // Test management
 
   // Admin routes with /admin prefix
   app.use('/api/admin/backups', backupAdminRoutes);

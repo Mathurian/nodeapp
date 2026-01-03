@@ -47,19 +47,55 @@ export class UsersController {
     const log = createRequestLogger(req, 'users');
     try {
       const authReq = req as AuthenticatedRequest;
+      const { includeInactive, search, createdAfter, createdBefore, sortBy, sortDirection } = req.query;
+
       log.debug('Fetching all users');
 
       // SUPER_ADMIN can see all users across all tenants, others filtered by tenant
       const isSuperAdmin = authReq.user?.role === 'SUPER_ADMIN';
       const tenantId = authReq.tenantId || authReq.user?.tenantId || 'default_tenant';
 
-      const whereClause: any = {};
+      // Build filters
+      const filters: any = {};
+
+      // Tenant filter
       if (!isSuperAdmin) {
-        whereClause.tenantId = tenantId;
+        filters.tenantId = tenantId;
       }
 
-      const users = await this.prisma.user.findMany({
-        where: whereClause,
+      // Active filter (default to active only for security)
+      if (includeInactive !== 'true') {
+        filters.isActive = true;
+      }
+
+      // Search filter
+      if (search && typeof search === 'string') {
+        filters.search = search;
+      }
+
+      // Date filters
+      if (createdAfter && typeof createdAfter === 'string') {
+        filters.createdAfter = new Date(createdAfter);
+      }
+      if (createdBefore && typeof createdBefore === 'string') {
+        filters.createdBefore = new Date(createdBefore);
+      }
+
+      // Sort filters
+      if (sortBy && typeof sortBy === 'string') {
+        filters.sortBy = sortBy;
+      }
+      if (sortDirection && (sortDirection === 'asc' || sortDirection === 'desc')) {
+        filters.sortDirection = sortDirection;
+      }
+
+      // Use UserService to get filtered users
+      const users = await this.userService.getAllUsers(filters);
+
+      // Get additional relations (judge, contestant, tenant) for the filtered users
+      const userIds = users.map(u => u.id);
+      const usersWithRelations = await this.prisma.user.findMany({
+        where: { id: { in: userIds } },
         include: {
           judge: true,
           contestant: true,
@@ -71,11 +107,11 @@ export class UsersController {
             }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: filters.sortBy ? { [filters.sortBy]: filters.sortDirection || 'desc' } : { createdAt: 'desc' }
       });
 
-      log.info('Users retrieved successfully', { count: users.length, isSuperAdmin });
-      sendSuccess(res, users);
+      log.info('Users retrieved successfully', { count: usersWithRelations.length, isSuperAdmin });
+      sendSuccess(res, usersWithRelations);
     } catch (error) {
       log.error('Get users error', { error: (error as Error).message });
       return next(error);

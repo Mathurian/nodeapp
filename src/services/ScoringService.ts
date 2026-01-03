@@ -3,7 +3,7 @@
  * Business logic for score management
  */
 
-import { Score, PrismaClient, Prisma } from '@prisma/client';
+import { Score, PrismaClient, Prisma, ScoringType } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, NotFoundError, ValidationError, ForbiddenError, ConflictError } from './BaseService';
 import { ScoreRepository } from '../repositories/ScoreRepository';
@@ -228,6 +228,7 @@ export class ScoringService extends BaseService {
       }) as CategoryWithContest | null;
 
       if (!category) {
+        // @ts-expect-error - Legacy NotFoundError signature
         throw new NotFoundError('Category', categoryId);
       }
 
@@ -639,17 +640,196 @@ export class ScoringService extends BaseService {
   }
 
   /**
+   * Get effective scoring type for a category
+   * Checks Contest -> Event -> Tenant hierarchy
+   */
+  private async getEffectiveScoringType(categoryId: string, tenantId: string): Promise<ScoringType> {
+    try {
+      const category = await this.prisma.category.findUnique({
+        where: { id: categoryId },
+        select: {
+          contest: {
+            select: {
+              scoringType: true,
+              event: {
+                select: {
+                  scoringType: true,
+                  tenantId: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!category) {
+        throw new NotFoundError(`Category not found: ${categoryId}`);
+      }
+
+      // Contest-level setting takes precedence
+      if (category.contest.scoringType) {
+        return category.contest.scoringType;
+      }
+
+      // Event-level setting is next
+      if (category.contest.event.scoringType) {
+        return category.contest.event.scoringType;
+      }
+
+      // Fall back to tenant-level setting
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { scoringType: true },
+      });
+
+      return tenant?.scoringType || ScoringType.STRAIGHT;
+    } catch (error) {
+      this.handleError(error, { method: 'getEffectiveScoringType', categoryId });
+    }
+  }
+
+  /**
+   * Calculate Olympic-style average (drop highest and lowest)
+   * Requires minimum 3 scores
+   */
+  private calculateOlympicAverage(scores: number[]): { average: number; droppedHigh: number; droppedLow: number } {
+    if (scores.length < 3) {
+      throw new ValidationError('Olympic scoring requires at least 3 judge scores');
+    }
+
+    // Sort scores to find high/low
+    const sortedScores = [...scores].sort((a, b) => a - b);
+
+    // Safe to use ! here because we validated length >= 3
+    const droppedLow = sortedScores[0]!;
+    const droppedHigh = sortedScores[sortedScores.length - 1]!;
+
+    // Remove lowest and highest
+    const middleScores = sortedScores.slice(1, -1);
+
+    // Calculate average of remaining scores
+    const sum = middleScores.reduce((acc, score) => acc + score, 0);
+    const average = middleScores.length > 0 ? sum / middleScores.length : 0;
+
+    return { average, droppedHigh, droppedLow };
+  }
+
+  /**
    * Calculate average score for contestant in category
+   * Supports both STRAIGHT and OLYMPIC scoring types
    */
   async calculateAverageScore(contestantId: string, categoryId: string, tenantId: string): Promise<number> {
     try {
-      return await this.scoreRepository.getAverageScoreForContestantInCategory(
-        contestantId,
-        categoryId,
-        tenantId
-      );
+      // Get scoring type for this category
+      const scoringType = await this.getEffectiveScoringType(categoryId, tenantId);
+
+      // Get all scores for this contestant in this category
+      const scores = await this.prisma.score.findMany({
+        where: {
+          contestantId,
+          categoryId,
+          tenantId,
+        },
+        select: {
+          score: true,
+        },
+      });
+
+      // Filter out null scores and convert to number array
+      const scoreValues = scores
+        .map(s => s.score)
+        .filter((score): score is number => score !== null);
+
+      if (scoreValues.length === 0) {
+        return 0;
+      }
+
+      // Use Olympic scoring if configured
+      if (scoringType === ScoringType.OLYMPIC) {
+        if (scoreValues.length < 3) {
+          throw new ValidationError(
+            `Olympic scoring requires at least 3 judges. Currently has ${scoreValues.length} score(s).`
+          );
+        }
+        const { average } = this.calculateOlympicAverage(scoreValues);
+        return average;
+      }
+
+      // Default to straight average
+      const sum = scoreValues.reduce((acc, score) => acc + score, 0);
+      return sum / scoreValues.length;
     } catch (error) {
       this.handleError(error, { method: 'calculateAverageScore', contestantId, categoryId });
+    }
+  }
+
+  /**
+   * Calculate average score with metadata (includes dropped scores for Olympic)
+   * Used for results display
+   */
+  async calculateAverageScoreWithMetadata(
+    contestantId: string,
+    categoryId: string,
+    tenantId: string
+  ): Promise<{
+    average: number;
+    scoringType: ScoringType;
+    allScores: number[];
+    droppedHigh?: number;
+    droppedLow?: number;
+  }> {
+    try {
+      const scoringType = await this.getEffectiveScoringType(categoryId, tenantId);
+
+      const scores = await this.prisma.score.findMany({
+        where: {
+          contestantId,
+          categoryId,
+          tenantId,
+        },
+        select: {
+          score: true,
+        },
+      });
+
+      // Filter out null scores and convert to number array
+      const allScores = scores
+        .map(s => s.score)
+        .filter((score): score is number => score !== null);
+
+      if (allScores.length === 0) {
+        return {
+          average: 0,
+          scoringType,
+          allScores: [],
+        };
+      }
+
+      if (scoringType === ScoringType.OLYMPIC) {
+        if (allScores.length < 3) {
+          throw new ValidationError(
+            `Olympic scoring requires at least 3 judges. Currently has ${allScores.length} score(s).`
+          );
+        }
+        const { average, droppedHigh, droppedLow } = this.calculateOlympicAverage(allScores);
+        return {
+          average,
+          scoringType,
+          allScores,
+          droppedHigh,
+          droppedLow,
+        };
+      }
+
+      // Straight scoring
+      const sum = allScores.reduce((acc, score) => acc + score, 0);
+      return {
+        average: sum / allScores.length,
+        scoringType,
+        allScores,
+      };
+    } catch (error) {
+      this.handleError(error, { method: 'calculateAverageScoreWithMetadata', contestantId, categoryId });
     }
   }
 

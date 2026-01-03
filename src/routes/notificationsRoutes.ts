@@ -7,6 +7,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { NotificationService } from '../services/NotificationService';
 import { authenticateToken as authenticate } from '../middleware/auth';
+import { sendNotification, broadcastByRole } from '../controllers/notificationsController';
 
 const router = Router();
 
@@ -193,5 +194,81 @@ router.delete('/read-all', authenticate, async (req: Request, res: Response, nex
     return next(error);
   }
 });
+
+/**
+ * @swagger
+ * /api/notifications/send:
+ *   post:
+ *     summary: Send notification to specific users
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userIds
+ *               - title
+ *               - message
+ *             properties:
+ *               userIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               title:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [info, success, warning, error]
+ *               link:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Notifications sent successfully
+ */
+router.post('/send', authenticate, sendNotification);
+
+/**
+ * @swagger
+ * /api/notifications/broadcast:
+ *   post:
+ *     summary: Broadcast notification to users by role
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - roles
+ *               - title
+ *               - message
+ *             properties:
+ *               roles:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               title:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [info, success, warning, error]
+ *               link:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Notifications broadcast successfully
+ */
+router.post('/broadcast', authenticate, broadcastByRole);
 
 export default router;

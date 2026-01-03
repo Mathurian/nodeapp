@@ -52,9 +52,29 @@ cd frontend && npm run dev
 ```
 
 The application will be available at:
+- Frontend: http://localhost:5173 (development) or http://conmgr.com (production)
 - Backend API: http://localhost:3000
-- Frontend: http://localhost:5173
 - API Documentation: http://localhost:3000/api-docs
+
+## Accessing System UIs
+
+### Application & Development
+- **Main Application**: http://conmgr.com/ (production) or http://localhost:3002 (dev)
+- **API Docs (Swagger)**: http://conmgr.com/api-docs
+- **Database GUI**: Run `npx prisma studio` → http://localhost:5555
+- **Health Check**: http://conmgr.com/health
+
+### Testing & Debugging
+- **Playwright Test UI**: Run `npm run test:e2e:ui` (interactive test development)
+- **Test Reports**: Run `npm run test:e2e:report` (view HTML test results)
+- **Code Generator**: Run `npm run test:e2e:codegen` (record and generate tests)
+
+### Monitoring & Metrics (Production)
+- **Grafana Dashboard**: http://conmgr.com/monitoring/grafana/ (default: admin/admin)
+- **Prometheus**: http://conmgr.com/monitoring/prometheus/
+- **Metrics Endpoint**: http://conmgr.com/metrics
+
+See [Administrator Guide](./docs/13-ADMIN-GUIDE.md) for complete system administration documentation.
 
 ## Project Structure
 

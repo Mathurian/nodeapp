@@ -26,11 +26,30 @@ export class MetricsService {
   private softDeleteRestores: Counter<string>;
   // S4-4: Correlation ID tracking
   private requestsWithCorrelationId: Counter<string>;
+  // Test execution metrics
+  private testRunsTotal: Counter<string>;
+  private testPassTotal: Counter<string>;
+  private testFailTotal: Counter<string>;
+  private testSkipTotal: Counter<string>;
+  private testDuration: Histogram<string>;
+  private testSuiteStatus: Gauge<string>;
+  private lastTestRunTimestamp: Gauge<string>;
+  // System status metrics
+  private serviceStatus: Gauge<string>;
+  private serviceUptime: Gauge<string>;
+  private serviceMemoryUsage: Gauge<string>;
+  private serviceCpuUsage: Gauge<string>;
   private log = createLogger('metrics');
+
+  // Track test completion times for automatic IDLE reset
+  private testCompletionTimes: Map<string, number> = new Map();
+  private statusResetInterval: NodeJS.Timeout | null = null;
+  private readonly STATUS_RESET_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
     // Create a Registry to register the metrics
     this.register = new Registry();
+    this.log.info('MetricsService instance created with new Registry');
 
     // Add default metrics (CPU, memory, etc.)
     collectDefaultMetrics({ register: this.register });
@@ -140,7 +159,144 @@ export class MetricsService {
       registers: [this.register],
     });
 
-    this.log.info('Metrics service initialized with Sprint 4 enhancements');
+    // Test Execution Metrics
+    this.testRunsTotal = new Counter({
+      name: 'test_runs_total',
+      help: 'Total number of test runs',
+      labelNames: ['suite', 'type'], // type: unit, integration, e2e
+      registers: [this.register],
+    });
+
+    this.testPassTotal = new Counter({
+      name: 'test_pass_total',
+      help: 'Total number of passed tests',
+      labelNames: ['suite', 'type'],
+      registers: [this.register],
+    });
+
+    this.testFailTotal = new Counter({
+      name: 'test_fail_total',
+      help: 'Total number of failed tests',
+      labelNames: ['suite', 'type'],
+      registers: [this.register],
+    });
+
+    this.testSkipTotal = new Counter({
+      name: 'test_skip_total',
+      help: 'Total number of skipped tests',
+      labelNames: ['suite', 'type'],
+      registers: [this.register],
+    });
+
+    this.testDuration = new Histogram({
+      name: 'test_duration_seconds',
+      help: 'Duration of test execution in seconds',
+      labelNames: ['suite', 'type'],
+      buckets: [1, 5, 10, 30, 60, 120, 300, 600], // 1s to 10min
+      registers: [this.register],
+    });
+
+    this.testSuiteStatus = new Gauge({
+      name: 'test_suite_status',
+      help: 'Current test suite status (0=idle, 1=running, 2=passed, 3=failed)',
+      labelNames: ['suite', 'type'],
+      registers: [this.register],
+    });
+
+    this.lastTestRunTimestamp = new Gauge({
+      name: 'last_test_run_timestamp_seconds',
+      help: 'Unix timestamp of last test run',
+      labelNames: ['suite', 'type'],
+      registers: [this.register],
+    });
+
+    // System Status Metrics
+    this.serviceStatus = new Gauge({
+      name: 'service_status',
+      help: 'Service status (0=down, 1=up)',
+      labelNames: ['service', 'port'],
+      registers: [this.register],
+    });
+
+    this.serviceUptime = new Gauge({
+      name: 'service_uptime_seconds',
+      help: 'Service uptime in seconds',
+      labelNames: ['service'],
+      registers: [this.register],
+    });
+
+    this.serviceMemoryUsage = new Gauge({
+      name: 'service_memory_usage_bytes',
+      help: 'Service memory usage in bytes',
+      labelNames: ['service'],
+      registers: [this.register],
+    });
+
+    this.serviceCpuUsage = new Gauge({
+      name: 'service_cpu_usage_percent',
+      help: 'Service CPU usage percentage',
+      labelNames: ['service'],
+      registers: [this.register],
+    });
+
+    this.log.info('Metrics service initialized with test and system monitoring');
+
+    // Start periodic check to reset test suite status to IDLE after timeout
+    this.startStatusResetInterval();
+  }
+
+  /**
+   * Start interval to check and reset stale test statuses
+   */
+  private startStatusResetInterval(): void {
+    // Check every minute
+    this.statusResetInterval = setInterval(() => {
+      this.checkAndResetStaleTestStatuses();
+    }, 60 * 1000);
+
+    // Ensure interval doesn't prevent process exit
+    if (this.statusResetInterval.unref) {
+      this.statusResetInterval.unref();
+    }
+  }
+
+  /**
+   * Check for test suites that completed more than STATUS_RESET_TIMEOUT_MS ago
+   * and reset their status to IDLE (0)
+   */
+  private checkAndResetStaleTestStatuses(): void {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+
+    for (const [key, completionTime] of this.testCompletionTimes.entries()) {
+      const timeSinceCompletion = now - completionTime;
+
+      if (timeSinceCompletion > this.STATUS_RESET_TIMEOUT_MS) {
+        // Parse the key to get suite and type
+        const [suite, type] = key.split('::');
+
+        // Reset status to IDLE
+        this.testSuiteStatus.set({ suite, type }, 0);
+        this.log.debug(`Reset test suite status to IDLE: ${suite} (${type}) - ${(timeSinceCompletion / 1000 / 60).toFixed(1)} minutes since completion`);
+
+        keysToDelete.push(key);
+      }
+    }
+
+    // Clean up old entries
+    for (const key of keysToDelete) {
+      this.testCompletionTimes.delete(key);
+    }
+  }
+
+  /**
+   * Cleanup method to stop intervals
+   */
+  destroy(): void {
+    if (this.statusResetInterval) {
+      clearInterval(this.statusResetInterval);
+      this.statusResetInterval = null;
+    }
   }
 
   /**
@@ -214,9 +370,18 @@ export class MetricsService {
   }
 
   /**
+   * Get the Prometheus registry (for use by other metrics collectors)
+   */
+  getRegistry(): Registry {
+    return this.register;
+  }
+
+  /**
    * Get metrics in Prometheus format
    */
   async getMetrics(): Promise<string> {
+    const metricsCount = (this.register as any)._metrics ? Object.keys((this.register as any)._metrics).length : 'unknown';
+    this.log.info(`getMetrics() called - registry has ${metricsCount} metrics`);
     return this.register.metrics();
   }
 
@@ -289,6 +454,125 @@ export class MetricsService {
     this.requestsWithCorrelationId.inc({
       has_correlation_id: hasCorrelationId ? 'true' : 'false',
     });
+  }
+
+  /**
+   * Record test run start
+   */
+  recordTestRunStart(suite: string, type: 'unit' | 'integration' | 'e2e'): void {
+    this.testRunsTotal.inc({ suite, type });
+    this.testSuiteStatus.set({ suite, type }, 1); // 1 = running
+    this.log.debug(`Test run started: ${suite} (${type})`);
+  }
+
+  /**
+   * Record test results
+   */
+  recordTestResults(
+    suite: string,
+    type: 'unit' | 'integration' | 'e2e',
+    passed: number,
+    failed: number,
+    skipped: number,
+    durationSeconds: number
+  ): void {
+    const labels = { suite, type };
+
+    // Update counters
+    this.testPassTotal.inc(labels, passed);
+    this.testFailTotal.inc(labels, failed);
+    this.testSkipTotal.inc(labels, skipped);
+
+    // Update duration
+    this.testDuration.observe(labels, durationSeconds);
+
+    // Update status (2 = passed, 3 = failed)
+    const status = failed > 0 ? 3 : 2;
+    this.testSuiteStatus.set(labels, status);
+
+    // Update timestamp
+    this.lastTestRunTimestamp.set(labels, Date.now() / 1000);
+
+    // Track completion time for automatic IDLE reset
+    const key = `${suite}::${type}`;
+    this.testCompletionTimes.set(key, Date.now());
+
+    this.log.info(`Test results recorded: ${suite} (${type}) - ${passed} passed, ${failed} failed, ${skipped} skipped`);
+  }
+
+  /**
+   * Record test run completion
+   */
+  recordTestRunComplete(suite: string, type: 'unit' | 'integration' | 'e2e', success: boolean): void {
+    const status = success ? 2 : 3; // 2 = passed, 3 = failed
+    this.testSuiteStatus.set({ suite, type }, status);
+    this.lastTestRunTimestamp.set({ suite, type }, Date.now() / 1000);
+
+    // Track completion time for automatic IDLE reset
+    const key = `${suite}::${type}`;
+    this.testCompletionTimes.set(key, Date.now());
+
+    this.log.debug(`Test run completed: ${suite} (${type}) - ${success ? 'PASSED' : 'FAILED'}`);
+  }
+
+  /**
+   * Reset test suite status to idle
+   */
+  resetTestSuiteStatus(suite: string, type: 'unit' | 'integration' | 'e2e'): void {
+    this.testSuiteStatus.set({ suite, type }, 0); // 0 = idle
+  }
+
+  /**
+   * Update service status
+   */
+  updateServiceStatus(service: string, port: string, isRunning: boolean): void {
+    this.serviceStatus.set({ service, port }, isRunning ? 1 : 0);
+    this.log.debug(`Service status updated: ${service}:${port} - ${isRunning ? 'UP' : 'DOWN'}`);
+  }
+
+  /**
+   * Update service uptime
+   */
+  updateServiceUptime(service: string, uptimeSeconds: number): void {
+    this.serviceUptime.set({ service }, uptimeSeconds);
+  }
+
+  /**
+   * Update service memory usage
+   */
+  updateServiceMemory(service: string, memoryBytes: number): void {
+    this.serviceMemoryUsage.set({ service }, memoryBytes);
+  }
+
+  /**
+   * Update service CPU usage
+   */
+  updateServiceCpu(service: string, cpuPercent: number): void {
+    this.serviceCpuUsage.set({ service }, cpuPercent);
+  }
+
+  /**
+   * Update multiple service metrics at once
+   */
+  updateServiceMetrics(service: string, metrics: {
+    port?: string;
+    isRunning?: boolean;
+    uptimeSeconds?: number;
+    memoryBytes?: number;
+    cpuPercent?: number;
+  }): void {
+    if (metrics.port !== undefined && metrics.isRunning !== undefined) {
+      this.updateServiceStatus(service, metrics.port, metrics.isRunning);
+    }
+    if (metrics.uptimeSeconds !== undefined) {
+      this.updateServiceUptime(service, metrics.uptimeSeconds);
+    }
+    if (metrics.memoryBytes !== undefined) {
+      this.updateServiceMemory(service, metrics.memoryBytes);
+    }
+    if (metrics.cpuPercent !== undefined) {
+      this.updateServiceCpu(service, metrics.cpuPercent);
+    }
   }
 
   /**

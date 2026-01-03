@@ -237,7 +237,7 @@ const TestEventSetupPage: React.FC = () => {
           </div>
 
           {/* Participant Settings */}
-          <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-6">Participants per Category</h3>
+          <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-6">Participants</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -254,7 +254,7 @@ const TestEventSetupPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Judges per Category (1-15)
+                Judges per Contest (1-15)
               </label>
               <input
                 type="number"
@@ -264,6 +264,9 @@ const TestEventSetupPage: React.FC = () => {
                 onChange={(e) => updateConfig('judgesPerCategory', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Judges assigned to contest will auto-assign to all categories
+              </p>
             </div>
           </div>
 
@@ -300,6 +303,9 @@ const TestEventSetupPage: React.FC = () => {
 
           {/* Global Users */}
           <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-6">Global Event Users</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Global users not assigned to specific contests. Judges total: {config.judgesPerCategory * config.contestCount}
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -412,7 +418,7 @@ const TestEventSetupPage: React.FC = () => {
                 className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
               />
               <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                Automatically assign judges to categories
+                Automatically assign judges to contests (and all their categories)
               </label>
             </div>
             <div className="flex items-center">

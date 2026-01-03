@@ -18,7 +18,9 @@ export const superAdminOnly = (req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  if (!user.isSuperAdmin) {
+  // Check user role - must be SUPER_ADMIN (case-insensitive)
+  const userRole = String(user.role || '').trim().toUpperCase();
+  if (userRole !== 'SUPER_ADMIN') {
     res.status(403).json({
       success: false,
       error: 'Super Admin access required',

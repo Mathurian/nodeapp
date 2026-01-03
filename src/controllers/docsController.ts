@@ -67,6 +67,7 @@ function sanitizePath(userPath: string): string {
     '08-security',
     '09-performance',
     '10-reference',
+    'outdated',
     'outmoded',
     '',
   ];
@@ -74,9 +75,11 @@ function sanitizePath(userPath: string): string {
   const pathParts = sanitized.split('/').filter(p => p);
   if (pathParts.length > 0) {
     const topLevel = pathParts[0]!;
-    // Allow root-level markdown files (e.g., INDEX.md, README.md)
+    // Allow root-level markdown files (numbered docs like 01-ARCHITECTURE.md, INDEX.md, README.md, etc)
     const isRootFile = pathParts.length === 1 && topLevel.match(/\.(md|txt)$/i);
-    if (!isRootFile && !validPaths.includes(topLevel)) {
+    // Allow numbered documentation files (e.g., 01-ARCHITECTURE, 13-ADMIN-GUIDE)
+    const isNumberedDoc = topLevel.match(/^\d{2}-[A-Z-]+$/i);
+    if (!isRootFile && !isNumberedDoc && !validPaths.includes(topLevel)) {
       throw new Error('Invalid documentation path');
     }
   }

@@ -38,14 +38,35 @@ export class EventsController {
    */
   getAllEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { archived, search } = req.query;
+      const { archived, search, createdAfter, createdBefore, sortBy, sortDirection } = req.query;
 
-      const filters: { archived?: boolean; search?: string; tenantId?: string } = {};
+      const filters: {
+        archived?: boolean;
+        search?: string;
+        tenantId?: string;
+        createdAfter?: Date;
+        createdBefore?: Date;
+        sortBy?: string;
+        sortDirection?: 'asc' | 'desc';
+      } = {};
+
       if (archived !== undefined) {
         filters.archived = archived === 'true';
       }
       if (search && typeof search === 'string') {
         filters.search = search;
+      }
+      if (createdAfter && typeof createdAfter === 'string') {
+        filters.createdAfter = new Date(createdAfter);
+      }
+      if (createdBefore && typeof createdBefore === 'string') {
+        filters.createdBefore = new Date(createdBefore);
+      }
+      if (sortBy && typeof sortBy === 'string') {
+        filters.sortBy = sortBy;
+      }
+      if (sortDirection && (sortDirection === 'asc' || sortDirection === 'desc')) {
+        filters.sortDirection = sortDirection as 'asc' | 'desc';
       }
 
       // CRITICAL: Add tenant filtering for non-SUPER_ADMIN users

@@ -51,10 +51,13 @@ interface RateLimitTier {
 
 const RateLimitConfigPage: React.FC = () => {
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<'configs' | 'tiers'>('configs')
   const [configs, setConfigs] = useState<RateLimitConfig[]>([])
   const [tiers, setTiers] = useState<RateLimitTier[]>([])
+  const [editableTiers, setEditableTiers] = useState<Record<string, RateLimitTier>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [editingConfig, setEditingConfig] = useState<RateLimitConfig | null>(null)
@@ -98,10 +101,58 @@ const RateLimitConfigPage: React.FC = () => {
   const fetchTiers = async () => {
     try {
       const response = await api.get('/admin/rate-limit-configs/tiers')
-      setTiers(response.data.data || [])
+      const tiersData = response.data.data || []
+      setTiers(tiersData)
+
+      // Convert to editable format
+      const editableFormat: Record<string, RateLimitTier> = {}
+      tiersData.forEach((tier: RateLimitTier) => {
+        editableFormat[tier.key] = { ...tier }
+      })
+      setEditableTiers(editableFormat)
     } catch (err: any) {
       console.error('Failed to load tiers:', err)
     }
+  }
+
+  const saveTiers = async () => {
+    try {
+      setError(null)
+      setSuccess(null)
+      const response = await api.put('/admin/rate-limit-configs/tiers', { tiers: editableTiers })
+      setSuccess('Tier definitions updated successfully')
+      await fetchTiers()
+      await fetchConfigs() // Refresh configs since limits may have changed
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to save tier definitions')
+    }
+  }
+
+  const resetTiers = async () => {
+    if (!window.confirm('Are you sure you want to reset all tier definitions to defaults? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      setError(null)
+      setSuccess(null)
+      const response = await api.post('/admin/rate-limit-configs/tiers/reset')
+      setSuccess('Tier definitions reset to defaults')
+      await fetchTiers()
+      await fetchConfigs()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to reset tier definitions')
+    }
+  }
+
+  const updateTierValue = (tierKey: string, field: keyof RateLimitTier, value: any) => {
+    setEditableTiers(prev => ({
+      ...prev,
+      [tierKey]: {
+        ...prev[tierKey],
+        [field]: value
+      }
+    }))
   }
 
   const createConfig = async () => {
@@ -247,7 +298,7 @@ const RateLimitConfigPage: React.FC = () => {
     return badges
   }
 
-  if (!user?.isSuperAdmin) {
+  if (user?.role !== 'SUPER_ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -273,26 +324,41 @@ const RateLimitConfigPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               Rate Limit Configuration
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Manage API rate limits per tenant, user, and endpoint
+              Manage API rate limits and tier definitions
             </p>
           </div>
-          <button
-            onClick={() => {
-              resetForm()
-              setEditingConfig(null)
-              setShowModal(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Create Configuration
-          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex gap-6">
+            <button
+              onClick={() => setActiveTab('configs')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'configs'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+              }`}
+            >
+              Configurations
+            </button>
+            <button
+              onClick={() => setActiveTab('tiers')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'tiers'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+              }`}
+            >
+              Tier Definitions
+            </button>
+          </nav>
         </div>
 
         {error && (
@@ -300,6 +366,116 @@ const RateLimitConfigPage: React.FC = () => {
             <p className="text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
+
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+            <p className="text-green-800 dark:text-green-200">{success}</p>
+          </div>
+        )}
+
+        {/* Tier Definitions Tab */}
+        {activeTab === 'tiers' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <p className="text-gray-600 dark:text-gray-400">
+                Configure the rate limit tiers that apply to different subscription plans
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={resetTiers}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Reset to Defaults
+                </button>
+                <button
+                  onClick={saveTiers}
+                  className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tier
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Requests/Hour
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Requests/Minute
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Burst Limit
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {Object.entries(editableTiers).map(([key, tier]) => (
+                      <tr key={key}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {tier.name}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{key}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="number"
+                            min="1"
+                            value={tier.requestsPerHour}
+                            onChange={(e) => updateTierValue(key, 'requestsPerHour', parseInt(e.target.value) || 0)}
+                            className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="number"
+                            min="1"
+                            value={tier.requestsPerMinute}
+                            onChange={(e) => updateTierValue(key, 'requestsPerMinute', parseInt(e.target.value) || 0)}
+                            className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="number"
+                            min="1"
+                            value={tier.burstLimit}
+                            onChange={(e) => updateTierValue(key, 'burstLimit', parseInt(e.target.value) || 0)}
+                            className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Configurations Tab */}
+        {activeTab === 'configs' && (
+          <>
+            <div className="flex justify-end mb-6">
+              <button
+                onClick={() => {
+                  resetForm()
+                  setEditingConfig(null)
+                  setShowModal(true)
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Create Configuration
+              </button>
+            </div>
 
         {/* Search and Filters */}
         <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
@@ -460,6 +636,8 @@ const RateLimitConfigPage: React.FC = () => {
             </table>
           </div>
         </div>
+          </>
+        )}
 
         {/* Create/Edit Modal */}
         {showModal && (

@@ -32,6 +32,21 @@ router.get('/', RateLimitConfigController.getAll);
 router.get('/tiers', RateLimitConfigController.getTiers);
 
 /**
+ * @route   PUT /api/admin/rate-limit-configs/tiers
+ * @desc    Update rate limit tier definitions
+ * @access  Super Admin
+ * @body    tiers (object with tier definitions)
+ */
+router.put('/tiers', RateLimitConfigController.updateTiers);
+
+/**
+ * @route   POST /api/admin/rate-limit-configs/tiers/reset
+ * @desc    Reset rate limit tier definitions to defaults
+ * @access  Super Admin
+ */
+router.post('/tiers/reset', RateLimitConfigController.resetTiers);
+
+/**
  * @route   GET /api/admin/rate-limit-configs/effective
  * @desc    Get effective rate limit configuration for tenant/user/endpoint
  * @access  Super Admin

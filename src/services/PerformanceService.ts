@@ -42,7 +42,7 @@ interface PerformanceLogsQuery {
   endDate?: string;
 }
 
-interface HealthCheckResult {
+export interface HealthCheckResult {
   status: 'healthy' | 'unhealthy';
   timestamp: string;
   checks: {

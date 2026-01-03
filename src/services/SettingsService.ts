@@ -136,28 +136,56 @@ export class SettingsService extends BaseService {
     // Convert value to string (database stores all values as strings)
     const stringValue = String(value);
 
-    // Handle null tenantId for compound unique constraint
-    const whereClause = tenantId
-      ? { key_tenantId: { key, tenantId } }
-      : { key_tenantId: { key, tenantId: null as unknown as string } };
+    // Prisma doesn't support null in compound unique constraints for upsert
+    // So we need to handle global (tenantId = null) vs tenant-specific differently
+    if (tenantId) {
+      // Tenant-specific setting - use compound unique constraint
+      return await this.prisma.systemSetting.upsert({
+        where: { key_tenantId: { key, tenantId } },
+        update: {
+          value: stringValue,
+          category: categoryValue,
+          description,
+          updatedBy: userId
+        },
+        create: {
+          key,
+          value: stringValue,
+          tenantId,
+          category: categoryValue,
+          description: description || `Setting for ${key}`,
+          updatedBy: userId
+        }
+      });
+    } else {
+      // Global setting (tenantId = null) - find first, then update or create
+      const existing = await this.prisma.systemSetting.findFirst({
+        where: { key, tenantId: null }
+      });
 
-    return await this.prisma.systemSetting.upsert({
-      where: whereClause,
-      update: {
-        value: stringValue,
-        category: categoryValue,
-        description,
-        updatedBy: userId
-      },
-      create: {
-        key,
-        value: stringValue,
-        tenantId: tenantId || null,
-        category: categoryValue,
-        description: description || `Setting for ${key}`,
-        updatedBy: userId
+      if (existing) {
+        return await this.prisma.systemSetting.update({
+          where: { id: existing.id },
+          data: {
+            value: stringValue,
+            category: categoryValue,
+            description,
+            updatedBy: userId
+          }
+        });
+      } else {
+        return await this.prisma.systemSetting.create({
+          data: {
+            key,
+            value: stringValue,
+            tenantId: null,
+            category: categoryValue,
+            description: description || `Setting for ${key}`,
+            updatedBy: userId
+          }
+        });
       }
-    });
+    }
   }
 
   /**
@@ -270,7 +298,7 @@ export class SettingsService extends BaseService {
     ]);
 
     return {
-      appName: appName || 'Event Manager',
+      appName: appName || 'ConMGR',
       appSubtitle: appSubtitle || '',
     };
   }
@@ -296,7 +324,7 @@ export class SettingsService extends BaseService {
     }
 
     return {
-      appName: map['app_name'] || 'Event Manager',
+      appName: map['app_name'] || 'ConMGR',
       appSubtitle: map['app_subtitle'] || '',
       showForgotPassword: (map['show_forgot_password'] || 'true') === 'true',
       logoPath: map['theme_logoPath'] || null,
@@ -457,7 +485,7 @@ export class SettingsService extends BaseService {
       email_smtp_user: keyMap['email_smtp_user'] || keyMap['email_smtpUser'] || keyMap['smtp_user'] || '',
       email_smtp_pass: keyMap['email_smtp_pass'] || keyMap['email_smtpPassword'] || keyMap['smtp_password'] || '',
       email_from_address: keyMap['email_from_address'] || keyMap['email_fromEmail'] || keyMap['smtp_from'] || '',
-      email_from_name: keyMap['email_from_name'] || keyMap['email_fromName'] || 'Event Manager',
+      email_from_name: keyMap['email_from_name'] || keyMap['email_fromName'] || 'ConMGR',
     };
   }
 
@@ -511,7 +539,7 @@ export class SettingsService extends BaseService {
     await transporter.sendMail({
       from: emailSettings['email_from_address'] || emailSettings['email_from'] || 'noreply@example.com',
       to: testEmail,
-      subject: 'Test Email from Event Manager',
+      subject: 'Test Email from ConMGR',
       text: 'This is a test email to verify your SMTP settings are working correctly.',
     });
 
@@ -602,7 +630,7 @@ export class SettingsService extends BaseService {
       theme_secondaryColor: keyMap['theme_secondaryColor'] || '#8b5cf6',
       theme_logoPath: keyMap['theme_logoPath'] || '',
       theme_faviconPath: keyMap['theme_faviconPath'] || '',
-      app_name: keyMap['app_name'] || 'Event Manager',
+      app_name: keyMap['app_name'] || 'ConMGR',
       app_subtitle: keyMap['app_subtitle'] || '',
     };
   }
@@ -667,7 +695,7 @@ export class SettingsService extends BaseService {
 
     // Transform database keys to frontend expected keys
     return {
-      siteName: keyMap['app_name'] || 'Event Manager',
+      siteName: keyMap['app_name'] || 'ConMGR',
       siteDescription: keyMap['app_description'] || '',
       contactEmail: keyMap['footer_contactEmail'] || '',
       allowRegistration: (keyMap['allow_registration'] || 'true') === 'true',

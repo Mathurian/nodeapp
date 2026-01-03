@@ -798,5 +798,21 @@
       "message": "Cannot delete admin/organizer users. Found 3 protected user(s): cmhtnymr5000x8c28bvpoo4f5, cmhxo4ggl00bz8ca0cwpb9thq, cmhxnsme8008l8ca03qdjja00. Use forceDeleteAdmin flag to override.",
       "code": "VALIDATION_ERROR"
     }
+  },
+  {
+    "id": "err_1767473041809_r27a8l5v4",
+    "timestamp": "2026-01-03T20:44:01.809Z",
+    "severity": "low",
+    "message": "Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)",
+    "stack": "ValidationError: Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)\n    at UserService.resetUserPassword (/var/www/event-manager/dist/services/UserService.js:371:23)\n    at async resetPassword (/var/www/event-manager/dist/controllers/usersController.js:362:13)",
+    "context": {
+      "method": "resetUserPassword",
+      "userId": "cmjyrpkw4000mnetnoh5xu0zg"
+    },
+    "error": {
+      "name": "ValidationError",
+      "message": "Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)",
+      "code": "VALIDATION_ERROR"
+    }
   }
 ]

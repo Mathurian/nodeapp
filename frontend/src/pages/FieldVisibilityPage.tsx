@@ -15,6 +15,9 @@ interface FieldVisibility {
   visible: boolean
   required: boolean
   description?: string
+  isCustomField?: boolean
+  customFieldId?: string
+  type?: string
 }
 
 const FieldVisibilityPage: React.FC = () => {
@@ -37,7 +40,7 @@ const FieldVisibilityPage: React.FC = () => {
       const response = await api.get('/user-field-visibility')
       const fieldDataObj = response.data.data || response.data
 
-      // Convert object to array with labels
+      // Default labels for built-in fields
       const fieldLabels: Record<string, string> = {
         name: 'Name',
         email: 'Email',
@@ -61,9 +64,13 @@ const FieldVisibilityPage: React.FC = () => {
 
       const fieldArray = Object.keys(fieldDataObj).map(fieldName => ({
         field: fieldName,
-        label: fieldLabels[fieldName] || fieldName,
+        // Use label from API if available (for custom fields), otherwise use hardcoded label
+        label: fieldDataObj[fieldName].label || fieldLabels[fieldName] || fieldName,
         visible: fieldDataObj[fieldName].visible,
         required: fieldDataObj[fieldName].required,
+        isCustomField: fieldDataObj[fieldName].isCustomField || false,
+        customFieldId: fieldDataObj[fieldName].customFieldId,
+        type: fieldDataObj[fieldName].type,
       }))
 
       setFields(fieldArray)
@@ -278,14 +285,26 @@ const FieldVisibilityPage: React.FC = () => {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {field.label}
-                            {field.required && (
-                              <span className="ml-2 text-xs font-normal text-red-600 dark:text-red-400">
-                                (Required)
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {field.label}
+                              {field.required && (
+                                <span className="ml-2 text-xs font-normal text-red-600 dark:text-red-400">
+                                  (Required)
+                                </span>
+                              )}
+                            </h3>
+                            {field.isCustomField && (
+                              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                                Custom
                               </span>
                             )}
-                          </h3>
+                            {field.type && field.isCustomField && (
+                              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                {field.type}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                             {field.field}
                           </p>

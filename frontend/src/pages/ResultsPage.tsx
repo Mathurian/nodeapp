@@ -87,16 +87,20 @@ const ResultsPage: React.FC = () => {
   const [showScoreBreakdowns, setShowScoreBreakdowns] = useState(false)
 
   // Fetch events
-  const { data: events, isLoading: eventsLoading } = useQuery<Event[]>(
+  const { data: events, isLoading: eventsLoading, error: eventsError } = useQuery<Event[]>(
     'results-events',
     async () => {
       const response = await adminAPI.getEvents()
       return response.data
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch events failed:', err),
     }
   )
 
   // Fetch contests for selected event
-  const { data: contests, isLoading: contestsLoading } = useQuery<Contest[]>(
+  const { data: contests, isLoading: contestsLoading, error: contestsError } = useQuery<Contest[]>(
     ['results-contests', selectedEventId],
     async () => {
       if (!selectedEventId) return []
@@ -106,11 +110,13 @@ const ResultsPage: React.FC = () => {
     },
     {
       enabled: !!selectedEventId,
+      retry: 1,
+      onError: (err) => console.error('Fetch contests failed:', err),
     }
   )
 
   // Fetch categories for selected contest
-  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>(
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>(
     ['results-categories', selectedContestId],
     async () => {
       if (!selectedContestId) return []
@@ -120,11 +126,13 @@ const ResultsPage: React.FC = () => {
     },
     {
       enabled: !!selectedContestId,
+      retry: 1,
+      onError: (err) => console.error('Fetch categories failed:', err),
     }
   )
 
   // Fetch results for selected category
-  const { data: categoryResults, isLoading: resultsLoading } = useQuery<CategoryResults>(
+  const { data: categoryResults, isLoading: resultsLoading, error: resultsError } = useQuery<CategoryResults>(
     ['category-results', selectedCategoryId],
     async () => {
       if (!selectedCategoryId) return null
@@ -133,8 +141,51 @@ const ResultsPage: React.FC = () => {
     },
     {
       enabled: !!selectedCategoryId,
+      retry: 1,
+      onError: (err) => console.error('Fetch category results failed:', err),
     }
   )
+
+  // Early return for error states
+  if (eventsError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(eventsError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (contestsError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(contestsError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (categoriesError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(categoriesError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (resultsError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(resultsError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
 
   const handleExportResults = async () => {
     if (!selectedCategoryId || !categoryResults) return
@@ -450,7 +501,7 @@ const ResultsPage: React.FC = () => {
                           Score Breakdown by Judge:
                         </div>
                         <div className="space-y-1">
-                          {categoryResults.scoreBreakdowns[winner.contestantId].map((breakdown, idx) => (
+                          {categoryResults.scoreBreakdowns[winner.contestantId]?.map((breakdown, idx) => (
                             <div key={idx} className="flex justify-between text-sm">
                               <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500">
                                 {breakdown.judgeName}

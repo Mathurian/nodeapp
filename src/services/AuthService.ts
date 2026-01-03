@@ -184,15 +184,6 @@ export class AuthService {
         email,
         tenantId
       },
-      include: {
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-            slug: true
-          }
-        }
-      },
       // Explicitly select MFA fields
       select: {
         id: true,
@@ -222,15 +213,24 @@ export class AuthService {
       }
     });
 
-    // If not found in specified tenant and we're using default tenant,
-    // try to find user by email in any active tenant
-    if (!user && tenantId === 'default_tenant') {
-      user = await this.prisma.user.findFirst({
-        where: {
-          email,
-          isActive: true,
-          tenant: { isActive: true }
-        },
+    // If not found in specified tenant, try to find user by email in any active tenant
+    // This enables automatic tenant discovery based on email
+    if (!user) {
+      // First, check if we're using the default tenant
+      const defaultTenant = await this.prisma.tenant.findUnique({
+        where: { slug: 'default' },
+        select: { id: true }
+      });
+
+      // Only do cross-tenant search if we're logging in from default tenant context
+      // This prevents cross-tenant authentication when accessing tenant-specific URLs
+      if (defaultTenant && tenantId === defaultTenant.id) {
+        user = await this.prisma.user.findFirst({
+          where: {
+            email,
+            isActive: true,
+            tenant: { isActive: true }
+          },
         select: {
           id: true,
           name: true,
@@ -257,7 +257,8 @@ export class AuthService {
             }
           }
         }
-      });
+        });
+      }
     }
 
     // Validate credentials

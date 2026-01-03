@@ -177,7 +177,7 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
             <div className="border-t border-gray-300 pt-4 text-xs md:text-sm text-gray-500">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <div>
-                  Event Manager System
+                  ConMGR System
                 </div>
                 <div>
                   Page <span className="page-number"></span>

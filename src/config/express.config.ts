@@ -21,14 +21,19 @@ export const parseAllowedOrigins = (): string[] => {
     .map(s => s.trim())
     .filter(Boolean)
 
-  // In development with no env set, allow localhost for convenience
-  if (env.isDevelopment() && origins.length === 0) {
+  // In development/test with no env set, allow localhost for convenience
+  if ((env.isDevelopment() || env.get('NODE_ENV') === 'test') && origins.length === 0) {
     return [
       'http://localhost:3000',
       'http://localhost:5173',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5173',
     ]
+  }
+
+  // In test mode, always add Vite dev server port to allowed origins
+  if (env.get('NODE_ENV') === 'test' && !origins.includes('http://localhost:5173')) {
+    origins.push('http://localhost:5173', 'http://127.0.0.1:5173')
   }
 
   return origins
@@ -83,7 +88,7 @@ export const createCorsOptions = (allowedOrigins: string[]) => ({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token', 'X-Tenant-Slug', 'X-Tenant-ID'],
 })
 
 /**

@@ -31,7 +31,8 @@ export class TestEventSetupController {
       const result = await this.testEventSetupService.createTestEvent(
         config,
         req.user.id,
-        req.user.role
+        req.user.role,
+        req.user.tenantId
       );
 
       log.info('Test event created', { eventId: result.eventId, userId: req.user.id });

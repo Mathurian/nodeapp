@@ -17,8 +17,8 @@ export interface PrismaClients {
  * Create Prisma clients for primary and replica databases
  */
 export function createPrismaClientWithReplica(): PrismaClients {
-  const primaryUrl = process.env.DATABASE_URL;
-  const replicaUrl = process.env.DATABASE_REPLICA_URL;
+  const primaryUrl = process.env['DATABASE_URL'];
+  const replicaUrl = process.env['DATABASE_REPLICA_URL'];
 
   if (!primaryUrl) {
     throw new Error('DATABASE_URL environment variable is required');
@@ -31,7 +31,7 @@ export function createPrismaClientWithReplica(): PrismaClients {
         url: primaryUrl,
       },
     },
-    log: process.env.NODE_ENV === 'development'
+    log: process.env['NODE_ENV'] === 'development'
       ? ['query', 'info', 'warn', 'error']
       : ['error'],
   });
@@ -44,7 +44,7 @@ export function createPrismaClientWithReplica(): PrismaClients {
             url: replicaUrl,
           },
         },
-        log: process.env.NODE_ENV === 'development'
+        log: process.env['NODE_ENV'] === 'development'
           ? ['query', 'info', 'warn', 'error']
           : ['error'],
       })

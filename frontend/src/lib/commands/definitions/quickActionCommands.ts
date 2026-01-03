@@ -268,10 +268,10 @@ export const createQuickActionCommands = (options: {
     {
       id: 'quick-view-recent-activity',
       name: 'View Recent Activity',
-      description: 'See recent system activity',
+      description: 'See recent system activity and audit logs',
       icon: ClockIcon,
-      action: () => options.navigate!('/logs?filter=recent'),
-      keywords: ['activity', 'recent', 'history', 'log'],
+      action: () => options.navigate!('/activity'),
+      keywords: ['activity', 'recent', 'history', 'log', 'audit'],
       category: 'quick',
       group: 'System',
       priority: 15,

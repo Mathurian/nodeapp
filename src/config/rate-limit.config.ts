@@ -148,10 +148,11 @@ export const RATE_LIMIT_CONFIG = {
     '/healthz',
     '/metrics',
     '/api/health',
+    '/api/v1/test-runner', // Test runner has its own auth checks (SUPER_ADMIN/ADMIN only)
   ],
 
   // Skip rate limiting for authenticated admins (optional)
-  skipForAdmins: false,
+  skipForAdmins: true,
 
   // Add rate limit headers to all responses
   includeHeaders: true,

@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FeatureFlagService, FeatureFlagStrategy } from '../services/FeatureFlagService';
-import { sendSuccess, sendCreated, sendNoContent, sendError } from '../utils/responseHelpers';
+import { sendSuccess, sendNoContent, sendError } from '../utils/responseHelpers';
 
 export class FeatureFlagsController {
   private featureFlagService: FeatureFlagService;

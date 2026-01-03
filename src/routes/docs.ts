@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { authenticateToken } from '../middleware/auth';
+import { optionalAuth } from '../middleware/auth';
 import {
   listDocs,
   getDoc,
@@ -14,8 +14,8 @@ import {
 
 const router = express.Router();
 
-// All documentation routes require authentication
-router.use(authenticateToken);
+// Documentation routes are publicly accessible but can use auth for role-based filtering
+router.use(optionalAuth);
 
 /**
  * @swagger

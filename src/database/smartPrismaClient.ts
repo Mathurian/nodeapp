@@ -50,8 +50,8 @@ class SmartPrismaClient {
     const { primary, replica } = createPrismaClientWithReplica();
     this.primary = primary;
     this.replica = replica;
-    this.useReplica = process.env.USE_READ_REPLICA === 'true' && replica !== primary;
-    this.maxReplicationLag = parseInt(process.env.MAX_REPLICATION_LAG || '1000', 10);
+    this.useReplica = process.env['USE_READ_REPLICA'] === 'true' && replica !== primary;
+    this.maxReplicationLag = parseInt(process.env['MAX_REPLICATION_LAG'] || '1000', 10);
 
     if (this.useReplica) {
       logger.info('Read replica enabled', {
@@ -173,7 +173,7 @@ class SmartPrismaClient {
    */
   private stopHealthMonitoring(): void {
     if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
+      clearInterval(this.healthCheckInterval as unknown as NodeJS.Timeout);
       this.healthCheckInterval = null;
       logger.info('Replica health monitoring stopped');
     }
@@ -200,10 +200,10 @@ class SmartPrismaClient {
 
       // Update health status
       this.replicaHealth.lastCheck = new Date();
-      this.replicaHealth.lag = lag !== null ? Math.round(lag) : null;
+      this.replicaHealth.lag = (lag !== null && lag !== undefined) ? Math.round(lag) : null;
 
       // Check if lag exceeds threshold
-      if (lag !== null && lag > this.maxReplicationLag) {
+      if (lag !== null && lag !== undefined && lag > this.maxReplicationLag) {
         logger.warn('Replica replication lag exceeds threshold', {
           lag_ms: Math.round(lag),
           threshold_ms: this.maxReplicationLag,
@@ -213,7 +213,7 @@ class SmartPrismaClient {
         // Replica is healthy if lag is acceptable
         if (!this.replicaHealth.healthy) {
           logger.info('Replica recovered', {
-            lag_ms: lag !== null ? Math.round(lag) : null,
+            lag_ms: (lag !== null && lag !== undefined) ? Math.round(lag) : null,
           });
         }
         this.replicaHealth.healthy = true;
@@ -221,7 +221,7 @@ class SmartPrismaClient {
       }
 
       logger.debug('Replica health check passed', {
-        lag_ms: lag !== null ? Math.round(lag) : null,
+        lag_ms: (lag !== null && lag !== undefined) ? Math.round(lag) : null,
         healthy: this.replicaHealth.healthy,
       });
     } catch (error) {

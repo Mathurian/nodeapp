@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
@@ -82,15 +82,27 @@ const CategoriesPage: React.FC = () => {
   // Check permissions
   const canManageCategories = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
 
+  // Debug logging
+  useEffect(() => {
+    console.log('CategoriesPage - User role:', user?.role, 'Can manage:', canManageCategories)
+  }, [user?.role, canManageCategories])
+
   // Fetch contests for dropdowns
-  const { data: contests } = useQuery<Contest[]>('contests', async () => {
-    const response = await contestsAPI.getAll()
-    const unwrapped = response.data?.data || response.data
-    return Array.isArray(unwrapped) ? unwrapped : []
-  })
+  const { data: contests, error: contestsError } = useQuery<Contest[]>(
+    'contests',
+    async () => {
+      const response = await contestsAPI.getAll()
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch contests failed:', err),
+    }
+  )
 
   // Fetch categories
-  const { data: categories = [], isLoading } = useQuery<Category[]>(
+  const { data: categories = [], isLoading, error: categoriesError } = useQuery<Category[]>(
     'categories',
     async () => {
       const response = await categoriesAPI.getAll()
@@ -99,6 +111,8 @@ const CategoriesPage: React.FC = () => {
     },
     {
       refetchInterval: 30000,
+      retry: 1,
+      onError: (err) => console.error('Fetch categories failed:', err),
     }
   )
 
@@ -235,6 +249,24 @@ const CategoriesPage: React.FC = () => {
 
     return matchesSearch && matchesContest
   }) : []
+
+  // Error handling
+  if (contestsError || categoriesError) {
+    const error = contestsError || categoriesError
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+            <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">

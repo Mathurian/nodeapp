@@ -48,7 +48,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         return unwrapped
       } catch (error) {
         // Return defaults if settings not available
-        return { app_name: 'Event Manager', theme_logoPath: null }
+        return { app_name: 'ConMGR', theme_logoPath: null }
       }
     },
     {
@@ -57,7 +57,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     }
   )
 
-  const appName = themeSettings?.app_name || themeSettings?.appName || 'Event Manager'
+  const appName = themeSettings?.app_name || themeSettings?.appName || 'ConMGR'
   const logoPath = themeSettings?.theme_logoPath || themeSettings?.logoPath
 
   const getRoleColor = (role: string) => {
@@ -210,9 +210,17 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                 className="flex items-center space-x-2 pl-1 pr-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-md">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
+                {user?.imagePath ? (
+                  <img
+                    src={user.imagePath}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover shadow-md"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-md">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="hidden xl:block text-left">
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {user?.preferredName || user?.name}

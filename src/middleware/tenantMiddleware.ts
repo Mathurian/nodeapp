@@ -216,9 +216,9 @@ export async function tenantMiddleware(
 
     // 6. Default tenant (fallback)
     if (!tenantIdOrSlug) {
-      tenantIdOrSlug = 'default_tenant';
+      tenantIdOrSlug = 'default';  // Use slug 'default', not ID 'default_tenant'
       identificationMethod = 'default';
-      logger.warn(`No tenant identified, falling back to default_tenant`, {
+      logger.warn(`No tenant identified, falling back to default tenant`, {
         path: req.path,
         hasCookie: !!req.cookies?.['access_token'],
         hasUser: !!req.user,
@@ -285,11 +285,17 @@ export async function tenantMiddleware(
       req.isSuperAdmin = false;
     }
 
+    // Create tenant-aware Prisma client
+    // For Super Admin, this returns the global client without tenant filtering
+    // For other users, this returns a client with automatic tenant filtering
+    req.prisma = createTenantPrismaClient(tenant.id, req.isSuperAdmin);
+
     // Log tenant identification (info level for debugging)
     logger.info(`Tenant identified: ${tenant.slug} (${tenant.id}) via ${identificationMethod}`, {
       path: req.path,
       method: req.method,
-      user: req.user ? (req.user as any).email : 'not authenticated yet'
+      user: req.user ? (req.user as any).email : 'not authenticated yet',
+      isSuperAdmin: req.isSuperAdmin
     });
 
     next();

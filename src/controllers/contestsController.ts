@@ -16,11 +16,50 @@ export class ContestsController {
   }
 
   /**
-   * Get all contests
+   * Get all contests with optional filters
    */
-  getAllContests = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllContests = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const contests = await this.contestService.getAllContests();
+      const { eventId, archived, search, createdAfter, createdBefore, sortBy, sortDirection } = req.query;
+
+      const filters: any = {};
+
+      // Tenant filter for non-SUPER_ADMIN users
+      const isSuperAdmin = (req as any).isSuperAdmin;
+      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+      if (!isSuperAdmin && tenantId) {
+        filters.tenantId = tenantId;
+      }
+
+      if (eventId && typeof eventId === 'string') {
+        filters.eventId = eventId;
+      }
+
+      if (archived !== undefined) {
+        filters.archived = archived === 'true';
+      }
+
+      if (search && typeof search === 'string') {
+        filters.search = search;
+      }
+
+      if (createdAfter && typeof createdAfter === 'string') {
+        filters.createdAfter = new Date(createdAfter);
+      }
+
+      if (createdBefore && typeof createdBefore === 'string') {
+        filters.createdBefore = new Date(createdBefore);
+      }
+
+      if (sortBy && typeof sortBy === 'string') {
+        filters.sortBy = sortBy;
+      }
+
+      if (sortDirection && (sortDirection === 'asc' || sortDirection === 'desc')) {
+        filters.sortDirection = sortDirection;
+      }
+
+      const contests = await this.contestService.getAllContests(filters);
       return sendSuccess(res, contests, 'Contests retrieved successfully');
     } catch (error) {
       return next(error);

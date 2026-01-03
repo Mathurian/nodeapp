@@ -11,15 +11,20 @@ const logger = createLogger('AuthController');
 import { container } from 'tsyringe';
 import { AuthService } from '../services/AuthService';
 import { AuditLogService } from '../services/AuditLogService';
+import { ActiveSessionTracker } from '../services/ActiveSessionTracker';
 import { sendSuccess, sendUnauthorized, sendBadRequest, sendNotFound } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { env } from '../config/env';
+import jwt from 'jsonwebtoken';
+import { jwtSecret } from '../utils/config';
 
 export class AuthController {
   private authService: AuthService;
+  private sessionTracker: ActiveSessionTracker;
 
   constructor() {
     this.authService = container.resolve(AuthService);
+    this.sessionTracker = container.resolve(ActiveSessionTracker);
   }
 
   /**
@@ -74,6 +79,9 @@ export class AuthController {
       } catch (auditError) {
         log.error('Failed to log authentication audit', { error: auditError });
       }
+
+      // Track active session
+      this.sessionTracker.trackLogin(result.user.id, tenantId, userAgent);
 
       // Set token as httpOnly cookie instead of returning it
       res.cookie('access_token', result.token, {
@@ -241,7 +249,7 @@ export class AuthController {
 
       log.debug('Password reset requested', { email });
 
-      const resetToken = await this.authService.generatePasswordResetToken(email);
+      await this.authService.generatePasswordResetToken(email);
 
       // Audit log: password reset request
       try {
@@ -391,7 +399,36 @@ export class AuthController {
     const log = createRequestLogger(req, 'auth');
 
     try {
-      const userId = req.user?.id;
+      // Try to get userId from req.user first (if authenticated middleware ran)
+      let userId = req.user?.id;
+      let userEmail = req.user?.email;
+      let userRole = req.user?.role;
+      let tenantId = (req as any).tenantId;
+
+      // If not authenticated via middleware, try to decode JWT from cookie directly
+      if (!userId) {
+        const token = req.cookies?.['access_token'];
+        log.debug('Logout: Attempting JWT decode', {
+          hasToken: !!token,
+          hasCookies: !!req.cookies,
+          cookieKeys: req.cookies ? Object.keys(req.cookies) : []
+        });
+        if (token) {
+          try {
+            const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string };
+            userId = decoded.userId;
+            tenantId = tenantId || decoded.tenantId;
+            log.info('Decoded userId from JWT cookie', { userId, tenantId });
+          } catch (jwtError) {
+            // Token invalid or expired - that's okay for logout
+            log.warn('Failed to decode JWT during logout', {
+              error: jwtError instanceof Error ? jwtError.message : String(jwtError)
+            });
+          }
+        } else {
+          log.warn('Logout: No access_token cookie found');
+        }
+      }
 
       if (userId) {
         log.debug('User logout', { userId });
@@ -399,20 +436,25 @@ export class AuthController {
         // Audit log: logout
         try {
           const auditLogService = container.resolve(AuditLogService);
-          const tenantId = (req as any).tenantId || 'default_tenant';
+          const finalTenantId = tenantId || 'default_tenant';
           await auditLogService.logAuth({
             action: 'logout',
             userId: userId,
-            userName: req.user?.name || req.user?.email,
+            userName: userEmail,
             req,
-            tenantId: tenantId,
-            metadata: { role: req.user?.role }
+            tenantId: finalTenantId,
+            metadata: { role: userRole }
           });
         } catch (auditError) {
           log.error('Failed to log logout audit', { error: auditError });
         }
 
+        // Track session end
+        this.sessionTracker.trackLogout(userId);
+
         log.info('User logged out successfully', { userId });
+      } else {
+        log.debug('Logout called without valid session');
       }
 
       // Clear the httpOnly cookie

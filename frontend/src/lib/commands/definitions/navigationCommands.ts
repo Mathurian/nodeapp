@@ -392,12 +392,48 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       roles: ['SUPER_ADMIN', 'ADMIN']
     },
     {
+      id: 'nav-activity',
+      name: 'Activity Log',
+      description: 'View activity and audit logs',
+      icon: ClockIcon,
+      action: () => navigate('/activity'),
+      keywords: ['activity', 'audit', 'log', 'history', 'events'],
+      category: 'navigation',
+      group: 'System',
+      priority: 22,
+      roles: ['SUPER_ADMIN', 'ADMIN']
+    },
+    {
       id: 'nav-performance',
       name: 'Performance Metrics',
       description: 'View system performance',
       icon: ChartBarIcon,
       action: () => navigate('/performance'),
       keywords: ['performance', 'metrics', 'monitoring'],
+      category: 'navigation',
+      group: 'System',
+      priority: 0,
+      roles: ['SUPER_ADMIN', 'ADMIN']
+    },
+    {
+      id: 'nav-rate-limit-config',
+      name: 'Rate Limit Configuration',
+      description: 'Manage API rate limits and tier definitions',
+      icon: ShieldCheckIcon,
+      action: () => navigate('/rate-limit-configs'),
+      keywords: ['rate', 'limit', 'throttle', 'api', 'tier', 'quota'],
+      category: 'navigation',
+      group: 'System',
+      priority: 0,
+      roles: ['SUPER_ADMIN']
+    },
+    {
+      id: 'nav-test-runner',
+      name: 'Test Runner',
+      description: 'Execute and monitor E2E test suites',
+      icon: BeakerIcon,
+      action: () => navigate('/test-runner'),
+      keywords: ['test', 'testing', 'e2e', 'playwright', 'qa', 'quality'],
       category: 'navigation',
       group: 'System',
       priority: 0,

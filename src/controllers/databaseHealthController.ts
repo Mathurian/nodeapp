@@ -18,7 +18,7 @@ export class DatabaseHealthController {
    * Get database health status
    * GET /api/v1/health/database
    */
-  getHealthStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getHealthStatus = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const health = await this.healthService.getHealthStatus();
 
@@ -40,7 +40,7 @@ export class DatabaseHealthController {
    * Get detailed database metrics
    * GET /api/v1/health/database/metrics
    */
-  getDetailedMetrics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getDetailedMetrics = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const metrics = await this.healthService.getDetailedMetrics();
       res.json({

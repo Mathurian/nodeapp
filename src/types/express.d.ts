@@ -1,4 +1,4 @@
-import { User, Judge, Contestant } from '@prisma/client';
+import { User, Judge, Contestant, PrismaClient } from '@prisma/client';
 import { Logger } from 'winston';
 
 declare global {
@@ -21,6 +21,17 @@ declare global {
       csrfToken?: string;
       id?: string;
       tenantId?: string;
+      prisma?: PrismaClient;
+      isSuperAdmin?: boolean;
+      tenant?: {
+        id: string;
+        name: string;
+        slug: string;
+        domain: string | null;
+        isActive: boolean;
+        settings: Record<string, unknown>;
+        planType: string;
+      };
     }
   }
 }

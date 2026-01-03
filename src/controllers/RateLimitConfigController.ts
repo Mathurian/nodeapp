@@ -418,20 +418,175 @@ export class RateLimitConfigController {
    */
   public static async getTiers(_req: Request, res: Response): Promise<void> {
     try {
-      const tiers = Object.entries(RATE_LIMIT_TIERS).map(([key, value]) => ({
-        key,
-        ...value,
-      }));
+      const prisma = container.resolve<PrismaClient>('PrismaClient');
+
+      // Try to get custom tiers from database first
+      const customTiersSetting = await prisma.systemSetting.findFirst({
+        where: { key: 'rate_limit_tiers', tenantId: null },
+      });
+
+      let tiers;
+      if (customTiersSetting) {
+        try {
+          const customTiers = JSON.parse(customTiersSetting.value);
+          tiers = Object.entries(customTiers).map(([key, value]) => ({
+            key,
+            ...(value as any),
+          }));
+        } catch (parseError) {
+          logger.warn('Failed to parse custom tiers, using defaults', { parseError });
+          tiers = Object.entries(RATE_LIMIT_TIERS).map(([key, value]) => ({
+            key,
+            ...value,
+          }));
+        }
+      } else {
+        // Use default tiers from config
+        tiers = Object.entries(RATE_LIMIT_TIERS).map(([key, value]) => ({
+          key,
+          ...value,
+        }));
+      }
 
       res.json({
         success: true,
         data: tiers,
+        source: customTiersSetting ? 'database' : 'default',
       });
     } catch (error) {
       logger.error('Error fetching rate limit tiers', { error });
       res.status(500).json({
         success: false,
         error: 'Failed to fetch rate limit tiers',
+      });
+    }
+  }
+
+  /**
+   * Update rate limit tier definitions (SUPER_ADMIN only)
+   */
+  public static async updateTiers(req: Request, res: Response): Promise<void> {
+    try {
+      const prisma = container.resolve<PrismaClient>('PrismaClient');
+      const user = (req as any).user;
+      const { tiers } = req.body;
+
+      if (!tiers || typeof tiers !== 'object') {
+        res.status(400).json({
+          success: false,
+          error: 'Tiers object is required',
+        });
+        return;
+      }
+
+      // Validate tier structure
+      for (const [tierKey, tierValue] of Object.entries(tiers)) {
+        const tier = tierValue as any;
+        if (!tier.name || !tier.requestsPerHour || !tier.requestsPerMinute || !tier.burstLimit) {
+          res.status(400).json({
+            success: false,
+            error: `Invalid tier structure for ${tierKey}. Must include name, requestsPerHour, requestsPerMinute, and burstLimit`,
+          });
+          return;
+        }
+
+        if (tier.requestsPerHour < 1 || tier.requestsPerMinute < 1 || tier.burstLimit < 1) {
+          res.status(400).json({
+            success: false,
+            error: `All tier limits must be positive numbers for ${tierKey}`,
+          });
+          return;
+        }
+      }
+
+      // Store as JSON in system settings
+      const tiersJson = JSON.stringify(tiers);
+
+      const existing = await prisma.systemSetting.findFirst({
+        where: { key: 'rate_limit_tiers', tenantId: null },
+      });
+
+      if (existing) {
+        await prisma.systemSetting.update({
+          where: { id: existing.id },
+          data: {
+            value: tiersJson,
+            updatedBy: user?.['id'],
+          },
+        });
+      } else {
+        await prisma.systemSetting.create({
+          data: {
+            key: 'rate_limit_tiers',
+            value: tiersJson,
+            tenantId: null,
+            category: 'rate_limiting',
+            description: 'Custom rate limit tier definitions',
+            updatedBy: user?.['id'],
+          },
+        });
+      }
+
+      logger.info('Rate limit tiers updated', {
+        updatedBy: user?.['id'],
+        tierCount: Object.keys(tiers).length,
+      });
+
+      res.json({
+        success: true,
+        message: 'Rate limit tiers updated successfully',
+        data: Object.entries(tiers).map(([key, value]) => ({
+          key,
+          ...(value as any),
+        })),
+      });
+    } catch (error) {
+      logger.error('Error updating rate limit tiers', { error });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update rate limit tiers',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Reset rate limit tier definitions to defaults (SUPER_ADMIN only)
+   */
+  public static async resetTiers(req: Request, res: Response): Promise<void> {
+    try {
+      const prisma = container.resolve<PrismaClient>('PrismaClient');
+      const user = (req as any).user;
+
+      const existing = await prisma.systemSetting.findFirst({
+        where: { key: 'rate_limit_tiers', tenantId: null },
+      });
+
+      if (existing) {
+        await prisma.systemSetting.delete({
+          where: { id: existing.id },
+        });
+
+        logger.info('Rate limit tiers reset to defaults', {
+          resetBy: user?.['id'],
+        });
+      }
+
+      const defaultTiers = Object.entries(RATE_LIMIT_TIERS).map(([key, value]) => ({
+        key,
+        ...value,
+      }));
+
+      res.json({
+        success: true,
+        message: 'Rate limit tiers reset to defaults',
+        data: defaultTiers,
+      });
+    } catch (error) {
+      logger.error('Error resetting rate limit tiers', { error });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to reset rate limit tiers',
       });
     }
   }

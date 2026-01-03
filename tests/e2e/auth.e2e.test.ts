@@ -1,178 +1,256 @@
 /**
  * E2E Tests for Authentication Flow
  * Tests complete user authentication workflows in the browser
+ * Uses TestDataFactory for dynamic data creation and cleanup
  */
 
-import { test, expect } from '@playwright/test';
-import { loginAsUser, logout } from './helpers';
+import { test, expect, Browser } from '@playwright/test';
+import { PrismaClient } from '@prisma/client';
+import { TestDataFactory } from '../helpers/TestDataFactory';
+import {
+  createAuthContext,
+  cleanupContexts,
+  navigateAndWait,
+} from '../helpers/playwrightAuthHelpers';
+
+let browser: Browser;
+let prisma: PrismaClient;
+let factory: TestDataFactory;
+let testData: any;
+let authContext: any;
 
 test.describe('Authentication E2E Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to login page before each test
-    await page.goto('/login');
+  test.beforeAll(async ({ browser: b }) => {
+    browser = b;
+    prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: process.env.TEST_DATABASE_URL || 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public',
+        },
+      },
+    });
+    await prisma.$connect();
   });
 
-  test.afterEach(async ({ page }) => {
-    await logout(page);
+  test.beforeEach(async () => {
+    factory = new TestDataFactory(prisma, `auth_${Date.now()}`);
+    testData = await factory.createCompleteEnvironment({
+      createMultipleContests: false,
+      createScores: false,
+    });
   });
 
-  test('should display login page', async ({ page }) => {
-    // Check that login form is visible
-    await expect(page.locator('input[type="email"], input[name="email"]').first()).toBeVisible();
-    await expect(page.locator('input[type="password"], input[name="password"]').first()).toBeVisible();
-    await expect(page.locator('button[type="submit"], button:has-text("Login")').first()).toBeVisible();
-  });
-
-  test('should login successfully with valid credentials', async ({ page }) => {
-    // Use login helper which handles the login flow
-    try {
-      await loginAsUser(page, 'admin@eventmanager.com', 'password123');
-      
-      // Check that we're logged in (either redirected away from login or user menu visible)
-      const currentUrl = page.url();
-      const isRedirected = !currentUrl.includes('/login');
-      
-      // Also check for user menu/logout button as indication of being logged in
-      const userMenu = page.locator('[data-testid="user-menu"], button:has-text("Logout"), [aria-label*="user" i]').first();
-      const hasUserMenu = await userMenu.isVisible({ timeout: 3000 }).catch(() => false);
-      
-      expect(isRedirected || hasUserMenu).toBe(true);
-    } catch (error) {
-      // If login helper throws, check if we're actually logged in despite the error
-      const userMenu = page.locator('[data-testid="user-menu"], button:has-text("Logout")').first();
-      const hasUserMenu = await userMenu.isVisible({ timeout: 2000 }).catch(() => false);
-      if (!hasUserMenu) {
-        throw error; // Re-throw if we're definitely not logged in
-      }
-      // If we have user menu, we're logged in despite the error
+  test.afterEach(async () => {
+    if (authContext) {
+      await cleanupContexts({ main: authContext });
+      authContext = null;
+    }
+    await factory.cleanup();
+    const cleanupSuccess = await factory.verifyCleanup();
+    if (!cleanupSuccess) {
+      console.error('⚠️  Test data cleanup verification failed');
     }
   });
 
-  test('should show error with invalid credentials', async ({ page }) => {
+  test.afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  test('should display login page', async () => {
+    // Create context without authentication to test login page
+    const context = await browser.newContext({
+      extraHTTPHeaders: {
+        'X-Tenant-Slug': testData.tenant.slug,
+      },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+
+    // Check that login form is visible
+    await expect(page.locator('input[type="email"], input[name="email"]').first()).toBeVisible();
+    await expect(page.locator('input[type="password"], input[name="password"]').first()).toBeVisible();
+    await expect(page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first()).toBeVisible();
+
+    await context.close();
+  });
+
+  test('should login successfully with valid credentials', async () => {
+    // This test creates authenticated context which verifies login works
+    authContext = await createAuthContext(
+      browser,
+      testData.users.admin.email,
+      'password123',
+      testData.tenant.slug
+    );
+
+    const { page } = authContext;
+
+    // Check that we're logged in (not on login page)
+    const currentUrl = page.url();
+    expect(currentUrl).not.toContain('/login');
+
+    // Verify we can navigate to protected routes
+    await navigateAndWait(page, '/dashboard');
+    const dashboard = page.locator('h1, h2, [data-testid="dashboard"]').first();
+    await expect(dashboard).toBeVisible({ timeout: 10000 });
+  });
+
+  test('should show error with invalid credentials', async () => {
+    const context = await browser.newContext({
+      extraHTTPHeaders: {
+        'X-Tenant-Slug': testData.tenant.slug,
+      },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+
     const emailInput = page.locator('input[type="email"], input[name="email"]').first();
     const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
-    const submitButton = page.locator('button[type="submit"], button:has-text("Login")').first();
+    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
 
     await emailInput.fill('invalid@example.com');
     await passwordInput.fill('wrongpassword');
     await submitButton.click();
 
     // Wait for error message
-    await page.waitForTimeout(1000);
-    
-    // Check for error message (adjust selector based on actual implementation)
+    await page.waitForTimeout(2000);
+
+    // Check for error message or still on login page
     const errorMessage = page.locator('.error, .alert-error, [role="alert"]').first();
-    await expect(errorMessage).toBeVisible({ timeout: 5000 }).catch(() => {
-      // If no error message element, check that we're still on login page
-      expect(page.url()).toContain('/login');
-    });
+    const hasError = await errorMessage.isVisible({ timeout: 3000 }).catch(() => false);
+    const stillOnLogin = page.url().includes('/login');
+
+    expect(hasError || stillOnLogin).toBe(true);
+
+    await context.close();
   });
 
-  test('should navigate to forgot password page', async ({ page }) => {
+  test('should navigate to forgot password page', async () => {
+    const context = await browser.newContext({
+      extraHTTPHeaders: {
+        'X-Tenant-Slug': testData.tenant.slug,
+      },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+
     // Look for forgot password link
     const forgotPasswordLink = page.locator('a:has-text("Forgot"), a:has-text("password")').first();
-    
-    if (await forgotPasswordLink.isVisible()) {
+
+    if (await forgotPasswordLink.isVisible({ timeout: 3000 })) {
       await forgotPasswordLink.click();
       await page.waitForTimeout(1000);
       expect(page.url()).toContain('forgot-password');
     }
+
+    await context.close();
   });
 
-  test('should logout successfully', async ({ page }) => {
+  test('should logout successfully', async () => {
     // Login first
-    try {
-      await loginAsUser(page);
-    } catch (error) {
-      // If login fails, check if we're already logged in
-      const userMenu = page.locator('[data-testid="user-menu"], button:has-text("Logout")').first();
-      const isLoggedIn = await userMenu.isVisible({ timeout: 2000 }).catch(() => false);
-      if (!isLoggedIn) {
-        throw error; // Re-throw if we're definitely not logged in
-      }
-    }
-    
+    authContext = await createAuthContext(
+      browser,
+      testData.users.admin.email,
+      'password123',
+      testData.tenant.slug
+    );
+
+    const { page } = authContext;
+
     // Look for logout button/link
     const logoutButton = page.locator('button:has-text("Logout"), a:has-text("Logout"), [data-testid="logout"]').first();
-    
+
     if (await logoutButton.isVisible({ timeout: 5000 })) {
       await logoutButton.click();
       await page.waitForTimeout(2000);
-      
-      // Should be redirected to login page or logout successful
+
+      // Should be redirected to login page
       const currentUrl = page.url();
-      const isOnLogin = currentUrl.includes('/login');
-      
-      // Also check if logout button is gone
-      const logoutButtonGone = !(await logoutButton.isVisible({ timeout: 1000 }).catch(() => false));
-      
-      expect(isOnLogin || logoutButtonGone).toBe(true);
-    } else {
-      // If no logout button found, try using logout helper
-      await logout(page);
-      const currentUrl = page.url();
-      expect(currentUrl.includes('/login') || !currentUrl.includes('/admin')).toBe(true);
+      expect(currentUrl).toContain('/login');
     }
   });
 
-  test('should prevent access to protected routes when not logged in', async ({ page }) => {
+  test('should prevent access to protected routes when not logged in', async () => {
+    const context = await browser.newContext({
+      extraHTTPHeaders: {
+        'X-Tenant-Slug': testData.tenant.slug,
+      },
+    });
+    const page = await context.newPage();
+
     // Try to access protected route
-    await page.goto('/admin');
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
-    
+
     // Should be redirected to login
     expect(page.url()).toContain('/login');
+
+    await context.close();
   });
 
-  test('should maintain session across page navigation', async ({ page }) => {
+  test('should maintain session across page navigation', async () => {
     // Login first
-    try {
-      await loginAsUser(page);
-    } catch (error) {
-      // If login fails, check if we're already logged in
-      const userMenu = page.locator('[data-testid="user-menu"], button:has-text("Logout")').first();
-      const isLoggedIn = await userMenu.isVisible({ timeout: 2000 }).catch(() => false);
-      if (!isLoggedIn) {
-        throw error; // Re-throw if we're definitely not logged in
-      }
-    }
-    
+    authContext = await createAuthContext(
+      browser,
+      testData.users.admin.email,
+      'password123',
+      testData.tenant.slug
+    );
+
+    const { page } = authContext;
+
     // Navigate to different pages
-    await page.goto('/events');
+    await navigateAndWait(page, '/events');
     await page.waitForTimeout(1000);
-    await page.goto('/users');
+
+    // Check we're not redirected to login
+    let currentUrl = page.url();
+    expect(currentUrl).not.toContain('/login');
+
+    await navigateAndWait(page, '/users');
     await page.waitForTimeout(1000);
-    
+
     // Should still be logged in (not redirected to login)
-    const currentUrl = page.url();
-    const isOnLogin = currentUrl.includes('/login');
-    
-    // Also check for user menu/logout button
-    const userMenu = page.locator('[data-testid="user-menu"], button:has-text("Logout")').first();
-    const hasUserMenu = await userMenu.isVisible({ timeout: 2000 }).catch(() => false);
-    
-    expect(!isOnLogin || hasUserMenu).toBe(true);
+    currentUrl = page.url();
+    expect(currentUrl).not.toContain('/login');
+    expect(currentUrl).toContain('/users');
+
+    // Verify page content loaded (indicates successful authentication)
+    const pageHeading = page.locator('h1, h2').first();
+    const hasPageContent = await pageHeading.isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasPageContent).toBe(true);
   });
 
-  test('should handle password reset flow', async ({ page }) => {
-    await page.goto('/forgot-password');
+  test('should handle password reset flow', async () => {
+    const context = await browser.newContext({
+      extraHTTPHeaders: {
+        'X-Tenant-Slug': testData.tenant.slug,
+      },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/forgot-password', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
-    
+
     const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-    const submitButton = page.locator('button[type="submit"], button:has-text("Reset")').first();
-    
-    if (await emailInput.isVisible()) {
-      await emailInput.fill('admin@eventmanager.com');
+    const submitButton = page.locator('button[type="submit"], button:has-text("Reset"), button:has-text("Send")').first();
+
+    if (await emailInput.isVisible({ timeout: 3000 })) {
+      await emailInput.fill(testData.users.admin.email);
       await submitButton.click();
       await page.waitForTimeout(2000);
-      
+
       // Check for success message or redirect
       const successMessage = page.locator('.success, .alert-success, [role="alert"]').first();
-      await expect(successMessage).toBeVisible({ timeout: 5000 }).catch(() => {
-        // If no success message, check URL change
-        expect(page.url()).not.toContain('/forgot-password');
-      });
+      const hasSuccess = await successMessage.isVisible({ timeout: 5000 }).catch(() => false);
+      const urlChanged = !page.url().includes('/forgot-password');
+
+      expect(hasSuccess || urlChanged).toBe(true);
     }
+
+    await context.close();
   });
 });
-

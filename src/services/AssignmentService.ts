@@ -419,10 +419,17 @@ export class AssignmentService extends BaseService {
         throw this.conflictError('Assignment already exists for this judge and category');
       }
     } else if (data.contestId && !data.eventId) {
-      // If contestId provided without categoryId, fetch contest to get eventId
+      // If contestId provided without categoryId, fetch contest to get eventId and categories
       const contest = await this.prisma.contest.findUnique({
         where: { id: data.contestId },
-        include: { event: true },
+        include: {
+          event: true,
+          categories: {
+            select: {
+              id: true,
+            },
+          },
+        },
       });
 
       if (!contest) {
@@ -431,6 +438,108 @@ export class AssignmentService extends BaseService {
 
       tenantId = contest.tenantId;
       finalEventId = contest.eventId;
+
+      // Auto-assign judge to all categories under this contest
+      if (contest.categories && contest.categories.length > 0) {
+        this.logInfo('Auto-assigning judge to all categories in contest', {
+          contestId: data.contestId,
+          judgeId: data.judgeId,
+          categoryCount: contest.categories.length,
+        });
+
+        // Create assignments for all categories
+        const categoryAssignments = await Promise.all(
+          contest.categories.map(async (category) => {
+            // Check if assignment already exists
+            const existingAssignment = await this.prisma.assignment.findUnique({
+              where: {
+                tenantId_judgeId_categoryId: {
+                  tenantId,
+                  judgeId: data.judgeId,
+                  categoryId: category.id,
+                },
+              },
+            });
+
+            if (existingAssignment) {
+              this.logInfo('Assignment already exists, skipping', {
+                judgeId: data.judgeId,
+                categoryId: category.id,
+              });
+              return existingAssignment;
+            }
+
+            return this.prisma.assignment.create({
+              data: {
+                tenantId,
+                judgeId: data.judgeId,
+                categoryId: category.id,
+                contestId: data.contestId!,
+                eventId: finalEventId!,
+                priority: data.priority ?? 0,
+                status: 'PENDING' as AssignmentStatus,
+                assignedBy: userId,
+                assignedAt: new Date(),
+                notes: data.notes || null,
+              },
+            });
+          })
+        );
+
+        // Invalidate caches
+        await this.invalidateAssignmentCaches(data.judgeId);
+
+        // Return the first assignment (to maintain return type compatibility)
+        if (categoryAssignments.length === 0) {
+          throw this.createBadRequestError('No categories found in contest');
+        }
+
+        return this.prisma.assignment.findUnique({
+          where: { id: categoryAssignments[0]!.id },
+          include: {
+            judge: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                bio: true,
+                isHeadJudge: true,
+              },
+            },
+            category: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                scoreCap: true,
+              },
+            },
+            contest: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+              },
+            },
+            event: {
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+              },
+            },
+            assignedByUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+        }) as Promise<AssignmentWithRelations>;
+      }
     } else {
       // Fetch judge to get tenantId
       const judge = await this.prisma.judge.findUnique({

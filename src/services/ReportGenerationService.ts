@@ -774,9 +774,17 @@ export class ReportGenerationService extends BaseService {
 
   /**
    * Generate system analytics report data
+   * SECURITY FIX: Now properly tenant-scoped - regular users only see their tenant's data
+   * SUPER_ADMIN users see all data across all tenants
    */
-  async generateSystemAnalyticsData(userId?: string): Promise<ReportData> {
+  async generateSystemAnalyticsData(userId?: string, tenantId?: string, userRole?: string): Promise<ReportData> {
     try {
+      // SECURITY: Determine if user should see all tenant data or just their own
+      const isSuperAdmin = userRole === 'SUPER_ADMIN';
+
+      // Build tenant filter - SUPER_ADMIN sees everything, others see only their tenant
+      const tenantFilter = isSuperAdmin ? {} : { tenantId };
+
       const [
         totalEvents,
         totalContests,
@@ -785,12 +793,12 @@ export class ReportGenerationService extends BaseService {
         totalUsers,
         activeEvents
       ] = await Promise.all([
-        this.prisma.event.count(),
-        this.prisma.contest.count(),
-        this.prisma.category.count(),
-        this.prisma.score.count(),
-        this.prisma.user.count(),
-        this.prisma.event.count({ where: { archived: false } })
+        this.prisma.event.count({ where: tenantFilter }),
+        this.prisma.contest.count({ where: tenantFilter }),
+        this.prisma.category.count({ where: tenantFilter }),
+        this.prisma.score.count({ where: tenantFilter }),
+        this.prisma.user.count({ where: tenantFilter }),
+        this.prisma.event.count({ where: { ...tenantFilter, archived: false } })
       ]);
 
       const statistics: SystemStatistics = {

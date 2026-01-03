@@ -478,7 +478,8 @@ export class ScoringController {
       const eventId = req.query['eventId'] as string | undefined;
 
       const where: Prisma.CategoryWhereInput = {
-        tenantId: req.user!.tenantId
+        tenantId: req.user!.tenantId,
+        deletedAt: null // Manual soft-delete filter (middleware skipped due to nested includes)
       };
       if (contestId) where.contestId = contestId;
       if (eventId && !contestId) {
@@ -493,25 +494,42 @@ export class ScoringController {
             select: {
               id: true,
               name: true,
+              deletedAt: true, // Include to filter soft-deleted contests
               event: {
                 select: {
                   id: true,
-                  name: true
+                  name: true,
+                  deletedAt: true // Include to filter soft-deleted events
                 }
               }
             }
           },
           _count: {
             select: {
-              scores: true,
-              contestants: true
+              scores: true
             }
           }
         } as any,
         orderBy: { name: 'asc' }
       } as any)) as any;
 
-      return sendSuccess(res, categories);
+      // Filter out categories with soft-deleted contests or events
+      const filteredCategories = categories.filter((cat: any) => {
+        if (cat.contest?.deletedAt) return false; // Exclude if contest is deleted
+        if (cat.contest?.event?.deletedAt) return false; // Exclude if event is deleted
+        return true;
+      }).map((cat: any) => {
+        // Remove deletedAt fields from response
+        if (cat.contest) {
+          delete cat.contest.deletedAt;
+          if (cat.contest.event) {
+            delete cat.contest.event.deletedAt;
+          }
+        }
+        return cat;
+      });
+
+      return sendSuccess(res, filteredCategories);
     } catch (error) {
       return next(error);
     }

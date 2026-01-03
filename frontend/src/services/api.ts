@@ -61,8 +61,10 @@ api.interceptors.response.use(
     // Handle 401 - redirect to login
     if (error.response?.status === 401) {
       // Cookie expired or invalid - redirect to login
-      // But ONLY if we're not already on the login page (prevent redirect loop)
-      if (!window.location.pathname.includes('/login')) {
+      // But ONLY if we're not already on the login page or help page (prevent redirect loop)
+      const isPublicPage = window.location.pathname.includes('/login') ||
+                           window.location.pathname.includes('/help')
+      if (!isPublicPage) {
         window.location.href = '/login'
       }
       return Promise.reject(error)
@@ -101,7 +103,8 @@ api.interceptors.response.use(
 )
 
 export const eventsAPI = {
-  getAll: () => api.get('/events'),
+  getAll: (params?: { archived?: boolean; search?: string; createdAfter?: string; createdBefore?: string; sortBy?: string; sortDirection?: 'asc' | 'desc' }) =>
+    api.get('/events', { params }),
   getById: (id: string) => api.get(`/events/${id}`),
   create: (data: any) => api.post('/events', data),
   update: (id: string, data: any) => api.put(`/events/${id}`, data),
@@ -109,7 +112,8 @@ export const eventsAPI = {
 }
 
 export const contestsAPI = {
-  getAll: () => api.get('/contests'),
+  getAll: (params?: { eventId?: string; archived?: boolean; search?: string; createdAfter?: string; createdBefore?: string; sortBy?: string; sortDirection?: 'asc' | 'desc' }) =>
+    api.get('/contests', { params }),
   getByEvent: (eventId: string) => api.get(`/contests/event/${eventId}`),
   getById: (id: string) => api.get(`/contests/${id}`),
   create: (eventIdOrData: string | any, data?: any) => {
@@ -179,7 +183,8 @@ export const resultsAPI = {
 }
 
 export const usersAPI = {
-  getAll: () => api.get('/users'),
+  getAll: (params?: { includeInactive?: boolean; search?: string; createdAfter?: string; createdBefore?: string; sortBy?: string; sortDirection?: 'asc' | 'desc' }) =>
+    api.get('/users', { params }),
   getById: (id: string) => api.get(`/users/${id}`),
   create: (data: any) => api.post('/users', data),
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
@@ -375,8 +380,8 @@ export const assignmentsAPI = {
 
 export const auditorAPI = {
   getStats: () => api.get('/auditor/stats'),
-  getPendingAudits: () => api.get('/auditor/pending'),
-  getCompletedAudits: () => api.get('/auditor/completed'),
+  getPendingAudits: () => api.get('/auditor/pending-audits'),
+  getCompletedAudits: () => api.get('/auditor/completed-audits'),
   finalCertification: (categoryIdOrData: string | any, data?: any) => {
     if (typeof categoryIdOrData === 'string') {
       // Called with (categoryId, data)
@@ -448,6 +453,34 @@ export const fieldConfigurationAPI = {
   update: (fieldName: string, data: any) => api.put(`/settings/field-configurations/${fieldName}`, data),
   updateBulk: (configurations: any[]) => api.put('/settings/field-configurations/bulk', { configurations }),
   resetToDefaults: () => api.post('/settings/field-configurations/reset'),
+}
+
+export const notificationsAPI = {
+  getAll: () => api.get('/notifications'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markAsRead: (id: string) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  delete: (id: string) => api.delete(`/notifications/${id}`),
+  deleteAllRead: (daysOld?: number) => api.delete(`/notifications/read-all${daysOld ? `?daysOld=${daysOld}` : ''}`),
+  sendNotification: (data: { userIds: string[], title: string, message: string, type?: string, link?: string }) =>
+    api.post('/notifications/send', data),
+  broadcastByRole: (data: { roles: string[], title: string, message: string, type?: string, link?: string }) =>
+    api.post('/notifications/broadcast', data),
+}
+
+export const tenantsAPI = {
+  getAll: (params?: { page?: number; limit?: number; status?: string; planType?: string }) =>
+    api.get('/tenants', { params }),
+  getById: (id: string) => api.get(`/tenants/${id}`),
+  getCurrent: () => api.get('/tenants/current'),
+  create: (data: any) => api.post('/tenants', data),
+  update: (id: string, data: any) => api.put(`/tenants/${id}`, data),
+  delete: (id: string, confirm: string) => api.delete(`/tenants/${id}?confirm=${confirm}`),
+  activate: (id: string) => api.post(`/tenants/${id}/activate`),
+  deactivate: (id: string, reason?: string) => api.post(`/tenants/${id}/deactivate`, { reason }),
+  getAnalytics: (id: string, period?: string) => api.get(`/tenants/${id}/analytics`, { params: { period } }),
+  inviteUser: (id: string, data: { email: string; role: string; name?: string }) =>
+    api.post(`/tenants/${id}/users/invite`, data),
 }
 
 // Export the api instance for direct use

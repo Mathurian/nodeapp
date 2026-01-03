@@ -74,11 +74,13 @@ import { FileBackupService } from '../services/FileBackupService';
 import { FileManagementService } from '../services/FileManagementService';
 import { AdvancedReportingService } from '../services/AdvancedReportingService';
 import { EmailService } from '../services/EmailService';
+import { AuthService } from '../services/AuthService';
 import { AdminService } from '../services/AdminService';
 import { CertificationService } from '../services/CertificationService';
 import { ResultsService } from '../services/ResultsService';
 import { NotificationService } from '../services/NotificationService';
 import { RateLimitService } from '../services/RateLimitService';
+import { EnhancedRateLimitService } from '../services/EnhancedRateLimitService';
 import { MetricsService } from '../services/MetricsService';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { RestrictionService } from '../services/RestrictionService';
@@ -86,14 +88,35 @@ import { DataWipeService } from '../services/DataWipeService';
 import { TestEventSetupService } from '../services/TestEventSetupService';
 import { BulkCertificationResetService } from '../services/BulkCertificationResetService';
 import { SearchService } from '../services/SearchService';
+import { BusinessMetricsCollector } from '../services/BusinessMetricsCollector';
+import { ServiceMonitor } from '../services/ServiceMonitor';
+import { ActiveSessionTracker } from '../services/ActiveSessionTracker';
+
+// Track if container has been set up to prevent double initialization
+let isContainerSetup = false;
 
 /**
  * Register dependencies in the container
  */
 export function setupContainer(): void {
+  // Prevent double initialization which would create duplicate service instances
+  if (isContainerSetup) {
+    logger.warn('Container already initialized, skipping duplicate setup');
+    return;
+  }
+
+  isContainerSetup = true;
+  logger.info('Initializing dependency injection container...');
+
   // Register Prisma Client as singleton
   container.register<PrismaClient>('PrismaClient', {
     useValue: prisma
+  });
+
+  // Register RedisClient as null (EnhancedRateLimitService will use in-memory fallback)
+  // TODO: If Redis is configured in the future, replace this with actual Redis client
+  container.register('RedisClient', {
+    useValue: null
   });
 
   // Register repositories
@@ -270,12 +293,15 @@ export function setupContainer(): void {
   container.register(FileManagementService, FileManagementService);
   container.register(AdvancedReportingService, AdvancedReportingService);
   container.register(EmailService, EmailService);
+  container.register(AuthService, AuthService);
   container.register(AdminService, AdminService);
   container.register(CertificationService, CertificationService);
   container.register(ResultsService, ResultsService);
   container.register(NotificationService, NotificationService);
   container.register(RateLimitService, RateLimitService);
-  container.register(MetricsService, MetricsService);
+  container.register(EnhancedRateLimitService, EnhancedRateLimitService);
+  // Register MetricsService as singleton to ensure only one Registry instance
+  container.registerSingleton(MetricsService, MetricsService);
   container.register(ScoreFileService, ScoreFileService);
   container.register(RestrictionService, RestrictionService);
   container.register(DataWipeService, DataWipeService);
@@ -283,8 +309,24 @@ export function setupContainer(): void {
   container.register(BulkCertificationResetService, BulkCertificationResetService);
   container.register(SearchService, SearchService);
 
+  // Register MetricsRegistry from MetricsService for BusinessMetricsCollector
+  // This must be done after MetricsService is registered
+  const metricsService = container.resolve(MetricsService);
+  container.register('MetricsRegistry', {
+    useValue: metricsService.getRegistry()
+  });
+
+  // Register BusinessMetricsCollector
+  container.register(BusinessMetricsCollector, BusinessMetricsCollector);
+
+  // Register ServiceMonitor
+  container.register(ServiceMonitor, ServiceMonitor);
+
+  // Register ActiveSessionTracker as singleton (must be singleton to maintain session state)
+  container.registerSingleton(ActiveSessionTracker, ActiveSessionTracker);
+
   logger.info('Dependency injection container configured');
-  logger.info('Registered 63 services and 12 repositories');
+  logger.info('Registered 66 services (including BusinessMetricsCollector, ServiceMonitor, and ActiveSessionTracker) and 12 repositories');
 }
 
 /**
@@ -299,9 +341,10 @@ export function getService<T>(token: any): T {
  */
 export function resetContainer(): void {
   container.clearInstances();
+  isContainerSetup = false; // Allow re-initialization after reset
 }
 
-// Initialize the container
+// Initialize the container when this module is imported
 setupContainer();
 
 export { container };

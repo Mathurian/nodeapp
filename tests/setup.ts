@@ -7,7 +7,7 @@
 // This ensures database and other configs can read them during initialization
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing';
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://event_manager:password@localhost:5432/event_manager_test?schema=public';
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public';
 
 // Disable file logging in tests to avoid permission issues
 process.env.DISABLE_FILE_LOGGING = 'true';

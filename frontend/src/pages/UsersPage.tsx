@@ -19,6 +19,7 @@ import {
   DocumentIcon,
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
+import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 
 interface User {
   id: string
@@ -55,6 +56,21 @@ interface UserFormData {
   bio: string
   imagePath: string
   isActive: boolean
+  customFields?: Record<string, any>
+}
+
+interface CustomField {
+  id: string
+  name: string
+  label: string
+  key: string
+  type: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTI_SELECT' | 'BOOLEAN' | 'TEXT_AREA' | 'EMAIL' | 'PHONE' | 'URL'
+  entityType: string
+  required: boolean
+  options?: string[]
+  defaultValue?: string
+  validation?: any
+  order: number
 }
 
 const ROLES = [
@@ -90,6 +106,9 @@ const UsersPage: React.FC = () => {
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false)
   const [tenantReassignUserId, setTenantReassignUserId] = useState<string>('')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [dateFilters, setDateFilters] = useState<DateFilters>({
+    sortDirection: 'asc',
+  })
   const [formData, setFormData] = useState<UserFormData>({
     name: '',
     preferredName: '',
@@ -108,16 +127,56 @@ const UsersPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedBioFile, setSelectedBioFile] = useState<File | null>(null)
   const bioFileInputRef = useRef<HTMLInputElement>(null)
+  const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [loadingCustomFields, setLoadingCustomFields] = useState(true)
 
   // Check permissions
   const canManageUsers = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(currentUser?.role || '')
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
 
+  // Fetch custom fields for USER entity type
+  React.useEffect(() => {
+    const fetchCustomFields = async () => {
+      try {
+        setLoadingCustomFields(true)
+        const response = await api.get('/custom-fields/USER')
+        const fieldsData = response.data.data || response.data || []
+        const fieldsArray = Array.isArray(fieldsData) ? fieldsData : []
+        setCustomFields(fieldsArray.sort((a, b) => a.order - b.order))
+      } catch (error) {
+        console.error('Failed to fetch custom fields:', error)
+        setCustomFields([])
+      } finally {
+        setLoadingCustomFields(false)
+      }
+    }
+
+    fetchCustomFields()
+  }, [])
+
   // Fetch users
-  const { data: users = [], isLoading } = useQuery<User[]>(
-    'users',
+  const { data: users = [], isLoading, error } = useQuery<User[]>(
+    ['users', dateFilters],
     async () => {
-      const response = await usersAPI.getAll()
+      const params: any = {
+        includeInactive: true, // Always include inactive users for management purposes
+      }
+
+      // Add date filters if set
+      if (dateFilters.createdAfter) {
+        params.createdAfter = new Date(dateFilters.createdAfter).toISOString()
+      }
+      if (dateFilters.createdBefore) {
+        params.createdBefore = new Date(dateFilters.createdBefore).toISOString()
+      }
+      if (dateFilters.sortBy) {
+        params.sortBy = dateFilters.sortBy
+      }
+      if (dateFilters.sortDirection) {
+        params.sortDirection = dateFilters.sortDirection
+      }
+
+      const response = await usersAPI.getAll(params)
       // Backend returns { success: true, data: users }
       // response.data gives us { success, data, ... }, so we extract .data
       const unwrapped = response.data.data || response.data
@@ -126,6 +185,8 @@ const UsersPage: React.FC = () => {
     {
       enabled: canManageUsers,
       refetchInterval: 30000,
+      retry: 1,
+      onError: (err) => console.error('Fetch users failed:', err),
     }
   )
 
@@ -136,15 +197,30 @@ const UsersPage: React.FC = () => {
       return response.data
     },
     {
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
         queryClient.invalidateQueries('users')
+        const userId = data.data?.id
+
+        // Save custom field values
+        if (userId && formData.customFields) {
+          try {
+            await api.post('/custom-fields/values/bulk', {
+              entityId: userId,
+              values: formData.customFields,
+            })
+          } catch (error) {
+            console.error('Failed to save custom field values:', error)
+            toast.error('User created, but custom fields failed to save')
+          }
+        }
+
         // Upload image if selected
-        if (selectedImage && data.data?.id) {
-          uploadImageMutation.mutate({ userId: data.data.id, file: selectedImage })
+        if (selectedImage && userId) {
+          uploadImageMutation.mutate({ userId, file: selectedImage })
         }
         // Upload bio file if selected
-        if (selectedBioFile && data.data?.id) {
-          uploadBioFileMutation.mutate({ userId: data.data.id, file: selectedBioFile })
+        if (selectedBioFile && userId) {
+          uploadBioFileMutation.mutate({ userId, file: selectedBioFile })
         }
         resetForm()
         toast.success('User created successfully!')
@@ -163,15 +239,30 @@ const UsersPage: React.FC = () => {
       return { ...response.data, userId: id }
     },
     {
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
         queryClient.invalidateQueries('users')
+        const userId = data.userId
+
+        // Save custom field values
+        if (userId && formData.customFields) {
+          try {
+            await api.post('/custom-fields/values/bulk', {
+              entityId: userId,
+              values: formData.customFields,
+            })
+          } catch (error) {
+            console.error('Failed to save custom field values:', error)
+            toast.error('User updated, but custom fields failed to save')
+          }
+        }
+
         // Upload image if selected
-        if (selectedImage && data.userId) {
-          uploadImageMutation.mutate({ userId: data.userId, file: selectedImage })
+        if (selectedImage && userId) {
+          uploadImageMutation.mutate({ userId, file: selectedImage })
         }
         // Upload bio file if selected
-        if (selectedBioFile && data.userId) {
-          uploadBioFileMutation.mutate({ userId: data.userId, file: selectedBioFile })
+        if (selectedBioFile && userId) {
+          uploadBioFileMutation.mutate({ userId, file: selectedBioFile })
         }
         resetForm()
         toast.success('User updated successfully!')
@@ -279,7 +370,7 @@ const UsersPage: React.FC = () => {
   )
 
   // Fetch tenants for SUPER_ADMIN
-  const { data: tenants = [] } = useQuery<Tenant[]>(
+  const { data: tenants = [], error: tenantsError } = useQuery<Tenant[]>(
     'tenants',
     async () => {
       const response = await api.get('/tenants')
@@ -290,6 +381,8 @@ const UsersPage: React.FC = () => {
     },
     {
       enabled: isSuperAdmin,
+      retry: 1,
+      onError: (err) => console.error('Fetch tenants failed:', err),
     }
   )
 
@@ -314,6 +407,12 @@ const UsersPage: React.FC = () => {
   )
 
   const resetForm = () => {
+    // Initialize custom fields with default values
+    const initialCustomFields: Record<string, any> = {}
+    customFields.forEach(field => {
+      initialCustomFields[field.key] = field.defaultValue || ''
+    })
+
     setFormData({
       name: '',
       preferredName: '',
@@ -326,6 +425,7 @@ const UsersPage: React.FC = () => {
       bio: '',
       imagePath: '',
       isActive: true,
+      customFields: initialCustomFields,
     })
     setEditingUser(null)
     setIsFormOpen(false)
@@ -334,8 +434,24 @@ const UsersPage: React.FC = () => {
     setSelectedBioFile(null)
   }
 
-  const handleEdit = (user: User) => {
+  const handleEdit = async (user: User) => {
     setEditingUser(user)
+
+    // Fetch custom field values for this user
+    const userCustomFields: Record<string, any> = {}
+    try {
+      const response = await api.get(`/custom-fields/values/${user.id}?entityType=USER`)
+      const values = response.data.data || response.data || []
+      values.forEach((fieldValue: any) => {
+        const field = customFields.find(f => f.id === fieldValue.customFieldId)
+        if (field) {
+          userCustomFields[field.key] = fieldValue.value
+        }
+      })
+    } catch (error) {
+      console.error('Failed to fetch custom field values:', error)
+    }
+
     setFormData({
       name: user.name,
       preferredName: user.preferredName || '',
@@ -348,6 +464,7 @@ const UsersPage: React.FC = () => {
       bio: user.bio || '',
       imagePath: '',
       isActive: user.isActive,
+      customFields: userCustomFields,
     })
     setIsFormOpen(true)
   }
@@ -511,6 +628,129 @@ const UsersPage: React.FC = () => {
     )
   }
 
+  // Render custom field input based on field type
+  const renderCustomFieldInput = (field: CustomField) => {
+    const value = formData.customFields?.[field.key] || ''
+    const onChange = (newValue: any) => {
+      setFormData({
+        ...formData,
+        customFields: {
+          ...formData.customFields,
+          [field.key]: newValue,
+        },
+      })
+    }
+
+    const baseClassName = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+    switch (field.type) {
+      case 'TEXT':
+      case 'EMAIL':
+      case 'PHONE':
+      case 'URL':
+        return (
+          <input
+            type={field.type === 'EMAIL' ? 'email' : field.type === 'PHONE' ? 'tel' : field.type === 'URL' ? 'url' : 'text'}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className={baseClassName}
+            placeholder={field.defaultValue || ''}
+          />
+        )
+      case 'NUMBER':
+        return (
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className={baseClassName}
+            placeholder={field.defaultValue || ''}
+          />
+        )
+      case 'DATE':
+        return (
+          <input
+            type="date"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className={baseClassName}
+          />
+        )
+      case 'TEXT_AREA':
+        return (
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            rows={3}
+            className={baseClassName}
+            placeholder={field.defaultValue || ''}
+          />
+        )
+      case 'SELECT':
+        return (
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className={baseClassName}
+          >
+            <option value="">Select...</option>
+            {Array.isArray(field.options) && field.options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        )
+      case 'BOOLEAN':
+        return (
+          <input
+            type="checkbox"
+            checked={value === true || value === 'true'}
+            onChange={(e) => onChange(e.target.checked)}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+        )
+      case 'MULTI_SELECT':
+        const multiValues = Array.isArray(value) ? value : []
+        return (
+          <div className="space-y-2">
+            {Array.isArray(field.options) && field.options.map((option) => (
+              <label key={option} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={multiValues.includes(option)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onChange([...multiValues, option])
+                    } else {
+                      onChange(multiValues.filter((v: string) => v !== option))
+                    }
+                  }}
+                  className="h-4 w-4 text-blue-600 rounded"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">{option}</span>
+              </label>
+            ))}
+          </div>
+        )
+      default:
+        return (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className={baseClassName}
+          />
+        )
+    }
+  }
+
   // Filter users
   const filteredUsers = Array.isArray(users) ? users.filter((user) => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -536,6 +776,22 @@ const UsersPage: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to manage users.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+            <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+              Reload Page
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -580,7 +836,7 @@ const UsersPage: React.FC = () => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
@@ -636,6 +892,15 @@ const UsersPage: React.FC = () => {
                 ))}
               </select>
             )}
+          </div>
+
+          {/* Date Filter Controls */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <DateFilterControls
+              filters={dateFilters}
+              onFilterChange={setDateFilters}
+              onClear={() => setDateFilters({ sortDirection: 'asc' })}
+            />
           </div>
         </div>
 
@@ -1023,6 +1288,34 @@ const UsersPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Custom Fields Section */}
+                {customFields.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      Custom Fields
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                        {customFields.length}
+                      </span>
+                    </h3>
+                    <div className="space-y-4">
+                      {customFields.map((field) => (
+                        <div key={field.id}>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                            {field.type && (
+                              <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                {field.type}
+                              </span>
+                            )}
+                          </label>
+                          {renderCustomFieldInput(field)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center">
                   <input

@@ -21,6 +21,7 @@ import {
   ChevronUpIcon,
   PhotoIcon,
   BuildingOfficeIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline'
 
 interface GeneralSettings {
@@ -153,7 +154,7 @@ const SettingsPage: React.FC = () => {
     email_smtp_user: '',
     email_smtp_pass: '',
     email_from_address: '',
-    email_from_name: 'Event Manager',
+    email_from_name: 'ConMGR',
   })
 
   const [themeFormData, setThemeFormData] = useState<ThemeSettings>({
@@ -161,7 +162,7 @@ const SettingsPage: React.FC = () => {
     theme_secondaryColor: '#8b5cf6',
     theme_logoPath: '',
     theme_faviconPath: '',
-    app_name: 'Event Manager',
+    app_name: 'ConMGR',
     app_subtitle: '',
   })
 
@@ -195,6 +196,8 @@ const SettingsPage: React.FC = () => {
     user: '',
     password: '',
   })
+
+  const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
 
@@ -245,7 +248,7 @@ const SettingsPage: React.FC = () => {
             email_smtp_user: data.email_smtp_user || '',
             email_smtp_pass: data.email_smtp_pass || '',
             email_from_address: data.email_from_address || '',
-            email_from_name: data.email_from_name || 'Event Manager',
+            email_from_name: data.email_from_name || 'ConMGR',
           })
         }
       },
@@ -268,7 +271,7 @@ const SettingsPage: React.FC = () => {
             theme_secondaryColor: data.theme_secondaryColor || data.secondaryColor || '#8b5cf6',
             theme_logoPath: data.theme_logoPath || data.logoPath || '',
             theme_faviconPath: data.theme_faviconPath || data.faviconPath || '',
-            app_name: data.app_name || data.appName || 'Event Manager',
+            app_name: data.app_name || data.appName || 'ConMGR',
             app_subtitle: data.app_subtitle || data.appSubtitle || '',
           })
         }
@@ -362,6 +365,23 @@ const SettingsPage: React.FC = () => {
             user: data.user || '',
             password: data.password || '',
           })
+        }
+      },
+    }
+  )
+
+  // Fetch current tenant's scoring type
+  const { data: tenantScoringType, isLoading: scoringTypeLoading } = useQuery<any>(
+    ['tenant-scoring-type', selectedTenantId],
+    async () => {
+      const response = await api.get('/tenant/current')
+      return response.data
+    },
+    {
+      enabled: isAdmin,
+      onSuccess: (data) => {
+        if (data && data.scoringType) {
+          setScoringType(data.scoringType)
         }
       },
     }
@@ -477,6 +497,24 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const updateScoringTypeMutation = useMutation(
+    async (newScoringType: 'STRAIGHT' | 'OLYMPIC') => {
+      const response = await api.put('/tenant/current', { scoringType: newScoringType })
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['tenant-scoring-type', selectedTenantId])
+        setMessage({ type: 'success', text: 'Scoring type updated successfully!' })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Error: ${error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
   const uploadLogoMutation = useMutation(
     async (file: File) => {
       const response = await settingsAPI.uploadThemeLogo(file)
@@ -556,6 +594,9 @@ const SettingsPage: React.FC = () => {
         break
       case 'password-policy':
         updatePasswordPolicyMutation.mutate(passwordPolicyFormData)
+        break
+      case 'scoring':
+        updateScoringTypeMutation.mutate(scoringType)
         break
     }
   }
@@ -826,6 +867,73 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
                     >
                       {updateGeneralMutation.isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="h-5 w-5 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Scoring Settings */}
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleSection('scoring')}
+                className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center">
+                  <TrophyIcon className="h-6 w-6 mr-3 text-yellow-600 dark:text-yellow-400" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Scoring Settings</h2>
+                </div>
+                {expandedSections.includes('scoring') ? (
+                  <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                )}
+              </button>
+
+              {expandedSections.includes('scoring') && (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Default Scoring Type
+                      </label>
+                      <select
+                        value={scoringType}
+                        onChange={(e) => setScoringType(e.target.value as 'STRAIGHT' | 'OLYMPIC')}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
+                        <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
+                      </select>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        <strong>Straight Scoring:</strong> Calculates the average of all judge scores.
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <strong>Olympic Scoring:</strong> Drops the highest and lowest scores, then averages the remaining scores. Requires a minimum of 3 judges per contest.
+                      </p>
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                        This tenant-level setting can be overridden at the event or contest level.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => handleSaveSection('scoring')}
+                      disabled={updateScoringTypeMutation.isLoading}
+                      className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                    >
+                      {updateScoringTypeMutation.isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Saving...
@@ -1146,7 +1254,7 @@ const SettingsPage: React.FC = () => {
                           type="text"
                           value={emailFormData.email_from_name}
                           onChange={(e) => setEmailFormData({ ...emailFormData, email_from_name: e.target.value })}
-                          placeholder="Event Manager"
+                          placeholder="ConMGR"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>

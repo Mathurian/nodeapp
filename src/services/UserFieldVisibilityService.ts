@@ -5,6 +5,10 @@ import prisma from '../utils/prisma';
 interface FieldVisibility {
   visible: boolean;
   required: boolean;
+  isCustomField?: boolean;
+  customFieldId?: string;
+  label?: string;
+  type?: string;
 }
 
 interface FieldVisibilityConfig {
@@ -66,6 +70,36 @@ export class UserFieldVisibilityService extends BaseService {
       }
     });
 
+    // Add custom fields for USER entity type
+    const customFields = await prisma.customField.findMany({
+      where: {
+        entityType: 'USER',
+        active: true,
+      },
+      orderBy: {
+        order: 'asc',
+      },
+    });
+
+    // Add each custom field to the field visibility config
+    customFields.forEach((field: any) => {
+      // Use the field's key as the field name
+      const fieldKey = `custom_${field.key}`;
+
+      // Check if there's already a visibility setting for this custom field
+      if (!fieldVisibility[fieldKey]) {
+        // Default to visible and use the field's required setting
+        fieldVisibility[fieldKey] = {
+          visible: true,
+          required: field.required || false,
+          isCustomField: true,
+          customFieldId: field.id,
+          label: field.label || field.name,
+          type: field.type,
+        };
+      }
+    });
+
     return fieldVisibility;
   }
 
@@ -78,23 +112,39 @@ export class UserFieldVisibilityService extends BaseService {
     const value = JSON.stringify({ visible, required: required || false });
 
     const key = `user_field_visibility_${field}`;
-    await prisma.systemSetting.upsert({
+
+    // Check if setting exists
+    const existing = await prisma.systemSetting.findFirst({
       where: {
-        key_tenantId: { key, tenantId: null as unknown as string },
-      },
-      update: {
-        value: value,
-        updatedBy: userId,
-      },
-      create: {
         key,
-        value: value,
         tenantId: null,
-        description: `Visibility setting for user field: ${field}`,
-        category: 'user_fields',
-        updatedBy: userId,
       },
     });
+
+    if (existing) {
+      // Update existing setting
+      await prisma.systemSetting.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          value: value,
+          updatedBy: userId,
+        },
+      });
+    } else {
+      // Create new setting
+      await prisma.systemSetting.create({
+        data: {
+          key,
+          value: value,
+          tenantId: null,
+          description: `Visibility setting for user field: ${field}`,
+          category: 'user_fields',
+          updatedBy: userId,
+        },
+      });
+    }
 
     return {
       message: 'Field visibility updated successfully',

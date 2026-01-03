@@ -14,6 +14,17 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticateToken);
 
+// Re-check isSuperAdmin after authentication (fixes timing issue)
+router.use((req, _res, next) => {
+  if (req.user && 'role' in req.user) {
+    const userRole = String((req.user as { role: string }).role).trim().toUpperCase();
+    req.isSuperAdmin = (userRole === 'SUPER_ADMIN');
+  } else {
+    req.isSuperAdmin = false;
+  }
+  next();
+});
+
 /**
  * Public tenant routes (authenticated users)
  */

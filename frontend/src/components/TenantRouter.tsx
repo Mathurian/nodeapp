@@ -47,6 +47,18 @@ const TestEventSetupPage = lazy(() => import('../pages/TestEventSetupPage'))
 const BiosPage = lazy(() => import('../pages/BiosPage'))
 const AssignmentsPage = lazy(() => import('../pages/AssignmentsPage'))
 const RateLimitConfigPage = lazy(() => import('../pages/RateLimitConfigPage'))
+const ActivityLogPage = lazy(() => import('../pages/ActivityLogPage'))
+const TestRunnerPage = lazy(() => import('../pages/TestRunnerPage'))
+const AuditorPage = lazy(() => import('../pages/AuditorPage'))
+const AuditorPendingAuditsPage = lazy(() => import('../pages/AuditorPendingAuditsPage'))
+const AuditorScoreVerificationPage = lazy(() => import('../pages/AuditorScoreVerificationPage'))
+const AuditorFinalCertificationPage = lazy(() => import('../pages/AuditorFinalCertificationPage'))
+const AuditorCertificationStatusPage = lazy(() => import('../pages/AuditorCertificationStatusPage'))
+const AuditorReportsPage = lazy(() => import('../pages/AuditorReportsPage'))
+const AuditorAuditLogPage = lazy(() => import('../pages/AuditorAuditLogPage'))
+const BoardPage = lazy(() => import('../pages/BoardPage'))
+const BoardCertificationsPage = lazy(() => import('../pages/BoardCertificationsPage'))
+const BoardScoreRemovalPage = lazy(() => import('../pages/BoardScoreRemovalPage'))
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -72,7 +84,8 @@ const KNOWN_ROUTES = new Set([
   'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
   'bulk-operations', 'commentary', 'category-types', 'field-visibility',
-  'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs'
+  'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs', 'activity',
+  'auditor', 'board'
 ])
 
 // Helper to check if a path segment is a known route
@@ -141,15 +154,15 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/events/:eventId/contests" element={<ContestsPage />} />
             <Route path="/contests/:contestId/categories" element={<CategoriesPage />} />
-            <Route path="/scoring" element={<ScoringPage />} />
+            <Route path="/scoring" element={<ProtectedRoute requiredRole={['JUDGE', 'ADMIN', 'SUPER_ADMIN']}><ScoringPage /></ProtectedRoute>} />
             <Route path="/results" element={<ResultsPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><AdminPage /></ProtectedRoute>} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/emcee" element={<EmceePage />} />
-            <Route path="/templates" element={<TemplatesPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/templates" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><TemplatesPage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/backups" element={<BackupManagementPage />} />
             <Route path="/disaster-recovery" element={<DisasterRecoveryPage />} />
@@ -166,6 +179,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/deductions" element={<DeductionsPage />} />
             <Route path="/certifications" element={<CertificationsPage />} />
             <Route path="/logs" element={<LogViewerPage />} />
+            <Route path="/activity" element={<ActivityLogPage />} />
             <Route path="/performance" element={<PerformancePage />} />
             <Route path="/data-wipe" element={<DataWipePage />} />
             <Route path="/event-templates" element={<EventTemplatesPage />} />
@@ -174,10 +188,20 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/category-types" element={<CategoryTypesPage />} />
             <Route path="/field-visibility" element={<FieldVisibilityPage />} />
             <Route path="/test-event-setup" element={<TestEventSetupPage />} />
-            <Route path="/help" element={<HelpPage />} />
             <Route path="/bios" element={<BiosPage />} />
-            <Route path="/assignments" element={<AssignmentsPage />} />
+            <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'EMCEE']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/rate-limit-configs" element={<RateLimitConfigPage />} />
+            <Route path="/test-runner" element={<TestRunnerPage />} />
+            <Route path="/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
+            <Route path="/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
+            <Route path="/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
+            <Route path="/auditor/final-certification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorFinalCertificationPage /></ProtectedRoute>} />
+            <Route path="/auditor/certification-status" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorCertificationStatusPage /></ProtectedRoute>} />
+            <Route path="/auditor/reports" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorReportsPage /></ProtectedRoute>} />
+            <Route path="/auditor/audit-log" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorAuditLogPage /></ProtectedRoute>} />
+            <Route path="/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
+            <Route path="/board/certifications" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardCertificationsPage /></ProtectedRoute>} />
+            <Route path="/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
 
             {/* Tenant-prefixed routes - these match the same pages under /:slug prefix */}
             <Route path="/:slug/dashboard" element={<DashboardPage />} />
@@ -186,15 +210,15 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/categories" element={<CategoriesPage />} />
             <Route path="/:slug/events/:eventId/contests" element={<ContestsPage />} />
             <Route path="/:slug/contests/:contestId/categories" element={<CategoriesPage />} />
-            <Route path="/:slug/scoring" element={<ScoringPage />} />
+            <Route path="/:slug/scoring" element={<ProtectedRoute requiredRole={['JUDGE', 'ADMIN', 'SUPER_ADMIN']}><ScoringPage /></ProtectedRoute>} />
             <Route path="/:slug/results" element={<ResultsPage />} />
-            <Route path="/:slug/users" element={<UsersPage />} />
-            <Route path="/:slug/admin" element={<AdminPage />} />
+            <Route path="/:slug/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/:slug/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><AdminPage /></ProtectedRoute>} />
             <Route path="/:slug/settings" element={<SettingsPage />} />
             <Route path="/:slug/profile" element={<ProfilePage />} />
             <Route path="/:slug/emcee" element={<EmceePage />} />
-            <Route path="/:slug/templates" element={<TemplatesPage />} />
-            <Route path="/:slug/reports" element={<ReportsPage />} />
+            <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><TemplatesPage /></ProtectedRoute>} />
+            <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
             <Route path="/:slug/backups" element={<BackupManagementPage />} />
             <Route path="/:slug/disaster-recovery" element={<DisasterRecoveryPage />} />
@@ -219,10 +243,19 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/category-types" element={<CategoryTypesPage />} />
             <Route path="/:slug/field-visibility" element={<FieldVisibilityPage />} />
             <Route path="/:slug/test-event-setup" element={<TestEventSetupPage />} />
-            <Route path="/:slug/help" element={<HelpPage />} />
             <Route path="/:slug/bios" element={<BiosPage />} />
-            <Route path="/:slug/assignments" element={<AssignmentsPage />} />
+            <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'EMCEE']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/:slug/rate-limit-configs" element={<RateLimitConfigPage />} />
+            <Route path="/:slug/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/final-certification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorFinalCertificationPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/certification-status" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorCertificationStatusPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/reports" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorReportsPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/audit-log" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorAuditLogPage /></ProtectedRoute>} />
+            <Route path="/:slug/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
+            <Route path="/:slug/board/certifications" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardCertificationsPage /></ProtectedRoute>} />
+            <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<Navigate to={`${basePath}/dashboard`} replace />} />
 
             {/* Catch-all redirect */}
@@ -240,11 +273,15 @@ const TenantRouter: React.FC<TenantRouterProps> = ({ onOpenCommandPalette }) => 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
-            {/* Login routes */}
+            {/* Public routes - no authentication required */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/:slug/login" element={<LoginPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/help/*" element={<HelpPage />} />
+            <Route path="/:slug/help" element={<HelpPage />} />
+            <Route path="/:slug/help/*" element={<HelpPage />} />
 
-            {/* All other routes go through AppRoutes */}
+            {/* All other routes go through AppRoutes (with authentication) */}
             <Route path="/*" element={<AppRoutes onOpenCommandPalette={onOpenCommandPalette} />} />
           </Routes>
         </Suspense>

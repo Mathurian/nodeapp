@@ -17,6 +17,7 @@ import {
   TrophyIcon,
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
+import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 
 interface Event {
   id: string
@@ -27,6 +28,7 @@ interface Event {
   location: string | null
   archived: boolean
   isLocked: boolean
+  scoringType: 'STRAIGHT' | 'OLYMPIC' | null
   createdAt: string
   updatedAt: string
   _count?: {
@@ -40,6 +42,7 @@ interface EventFormData {
   startDate: string
   endDate: string
   location: string
+  scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
 }
 
 const EventsPage: React.FC = () => {
@@ -57,6 +60,10 @@ const EventsPage: React.FC = () => {
     startDate: '',
     endDate: '',
     location: '',
+    scoringType: null,
+  })
+  const [dateFilters, setDateFilters] = useState<DateFilters>({
+    sortDirection: 'asc',
   })
 
   // Check permissions
@@ -68,10 +75,26 @@ const EventsPage: React.FC = () => {
   }, [user?.role, canManageEvents])
 
   // Fetch events
-  const { data: events = [], isLoading } = useQuery<Event[]>(
-    'events',
+  const { data: events = [], isLoading, error } = useQuery<Event[]>(
+    ['events', dateFilters],
     async () => {
-      const response = await eventsAPI.getAll()
+      const params: any = {}
+
+      // Add date filters if set
+      if (dateFilters.createdAfter) {
+        params.createdAfter = new Date(dateFilters.createdAfter).toISOString()
+      }
+      if (dateFilters.createdBefore) {
+        params.createdBefore = new Date(dateFilters.createdBefore).toISOString()
+      }
+      if (dateFilters.sortBy) {
+        params.sortBy = dateFilters.sortBy
+      }
+      if (dateFilters.sortDirection) {
+        params.sortDirection = dateFilters.sortDirection
+      }
+
+      const response = await eventsAPI.getAll(params)
       // Backend returns { success: true, data: [...] }
       // Need to unwrap the data property
       const unwrapped = response.data?.data || response.data
@@ -79,6 +102,8 @@ const EventsPage: React.FC = () => {
     },
     {
       refetchInterval: 30000,
+      retry: 1,
+      onError: (err) => console.error('Fetch failed:', err),
     }
   )
 
@@ -145,6 +170,7 @@ const EventsPage: React.FC = () => {
       startDate: '',
       endDate: '',
       location: '',
+      scoringType: null,
     })
     setEditingEvent(null)
     setIsFormOpen(false)
@@ -158,6 +184,7 @@ const EventsPage: React.FC = () => {
       startDate: event.startDate.split('T')[0],
       endDate: event.endDate.split('T')[0],
       location: event.location || '',
+      scoringType: event.scoringType || null,
     })
     setIsFormOpen(true)
   }
@@ -206,6 +233,18 @@ const EventsPage: React.FC = () => {
     return matchesSearch && matchesArchived
   }) : []
 
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+          Reload Page
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -235,7 +274,7 @@ const EventsPage: React.FC = () => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
@@ -263,6 +302,15 @@ const EventsPage: React.FC = () => {
               <ArchiveBoxIcon className="h-5 w-5 mr-2" />
               {showArchived ? 'Hide' : 'Show'} Archived
             </button>
+          </div>
+
+          {/* Date Filter Controls */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <DateFilterControls
+              filters={dateFilters}
+              onFilterChange={setDateFilters}
+              onClear={() => setDateFilters({ sortDirection: 'asc' })}
+            />
           </div>
         </div>
 
@@ -454,6 +502,25 @@ const EventsPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter event location"
                   />
+                </div>
+
+                {/* Scoring Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Scoring Type (Optional)
+                  </label>
+                  <select
+                    value={formData.scoringType || ''}
+                    onChange={(e) => setFormData({ ...formData, scoringType: e.target.value ? (e.target.value as 'STRAIGHT' | 'OLYMPIC') : null })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Inherit from tenant</option>
+                    <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
+                    <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Leave empty to inherit from tenant. Can be overridden at contest level.
+                  </p>
                 </div>
 
                 {/* Form Actions */}

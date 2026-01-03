@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import {
@@ -9,8 +10,10 @@ import {
   Cog6ToothIcon,
   EnvelopeIcon,
   BellAlertIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { SendNotificationModal } from '../components/SendNotificationModal'
 
 interface Notification {
   id: string
@@ -33,82 +36,86 @@ interface NotificationPreferences {
 
 const NotificationsPage: React.FC = () => {
   const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
+  const queryClient = useQueryClient()
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
+  const [showPreferences, setShowPreferences] = useState(false)
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false)
+  const [localPreferences, setLocalPreferences] = useState<NotificationPreferences>({
     emailNotifications: true,
     pushNotifications: true,
     eventUpdates: true,
     scoreUpdates: true,
     systemAlerts: true,
   })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
-  const [showPreferences, setShowPreferences] = useState(false)
 
-  useEffect(() => {
-    fetchNotifications()
-    fetchPreferences()
-  }, [])
-
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true)
+  // Fetch notifications with proper error handling
+  const { data: notifications = [], isLoading: notificationsLoading, error: notificationsError } = useQuery<Notification[]>(
+    'notifications',
+    async () => {
       const response = await api.get('/notifications')
       const unwrapped = response.data.data || response.data
-      setNotifications(Array.isArray(unwrapped) ? unwrapped : [])
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load notifications')
-    } finally {
-      setLoading(false)
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch notifications failed:', err),
     }
-  }
+  )
 
-  const fetchPreferences = async () => {
-    try {
+  // Fetch preferences with proper error handling
+  const { data: preferences, isLoading: preferencesLoading, error: preferencesError } = useQuery<NotificationPreferences>(
+    'notification-preferences',
+    async () => {
       const response = await api.get('/notification-preferences')
-      setPreferences(response.data)
-    } catch (err: any) {
-      console.error('Failed to load preferences:', err)
+      return response.data
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch preferences failed:', err),
     }
-  }
+  )
+
+  // Update local preferences when fetched data changes
+  useEffect(() => {
+    if (preferences) {
+      setLocalPreferences(preferences)
+    }
+  }, [preferences])
 
   const markAsRead = async (id: string) => {
     try {
       await api.put(`/notifications/${id}`, { isRead: true })
-      setNotifications(notifications.map(n =>
-        n.id === id ? { ...n, isRead: true } : n
-      ))
+      queryClient.invalidateQueries('notifications')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to mark notification as read')
+      console.error('Failed to mark notification as read:', err)
     }
   }
 
   const markAllAsRead = async () => {
     try {
       await api.put('/notifications/mark-all-read')
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })))
+      queryClient.invalidateQueries('notifications')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to mark all as read')
+      console.error('Failed to mark all as read:', err)
     }
   }
 
   const deleteNotification = async (id: string) => {
     try {
       await api.delete(`/notifications/${id}`)
-      setNotifications(notifications.filter(n => n.id !== id))
+      queryClient.invalidateQueries('notifications')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete notification')
+      console.error('Failed to delete notification:', err)
     }
   }
 
   const updatePreferences = async (newPreferences: NotificationPreferences) => {
     try {
       await api.put('/notification-preferences', newPreferences)
-      setPreferences(newPreferences)
+      queryClient.invalidateQueries('notification-preferences')
       setShowPreferences(false)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update preferences')
+      console.error('Failed to update preferences:', err)
     }
   }
 
@@ -129,7 +136,31 @@ const NotificationsPage: React.FC = () => {
     return true
   })
 
-  if (loading) {
+  // Check if user can send notifications
+  const canSendNotifications = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+
+  // Handle errors with early return
+  if (notificationsError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Notifications</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(notificationsError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (preferencesError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Preferences</h2>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(preferencesError)}</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      </div>
+    )
+  }
+
+  if (notificationsLoading || preferencesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
         <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading notifications...</div>
@@ -151,6 +182,15 @@ const NotificationsPage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-3">
+            {canSendNotifications && (
+              <button
+                onClick={() => setIsSendModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              >
+                <PaperAirplaneIcon className="h-5 w-5" />
+                Send Notification
+              </button>
+            )}
             <button
               onClick={() => setShowPreferences(!showPreferences)}
               className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
@@ -161,7 +201,7 @@ const NotificationsPage: React.FC = () => {
             {notifications.some(n => !n.isRead) && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors"
               >
                 <CheckCircleIcon className="h-5 w-5" />
                 Mark All as Read
@@ -169,12 +209,6 @@ const NotificationsPage: React.FC = () => {
             )}
           </div>
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
-        )}
 
         {/* Preferences Panel */}
         {showPreferences && (
@@ -186,8 +220,8 @@ const NotificationsPage: React.FC = () => {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={preferences.emailNotifications}
-                  onChange={(e) => setPreferences({ ...preferences, emailNotifications: e.target.checked })}
+                  checked={localPreferences.emailNotifications}
+                  onChange={(e) => setLocalPreferences({ ...localPreferences, emailNotifications: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
                 <span className="text-gray-900 dark:text-white dark:text-white">Email Notifications</span>
@@ -195,8 +229,8 @@ const NotificationsPage: React.FC = () => {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={preferences.pushNotifications}
-                  onChange={(e) => setPreferences({ ...preferences, pushNotifications: e.target.checked })}
+                  checked={localPreferences.pushNotifications}
+                  onChange={(e) => setLocalPreferences({ ...localPreferences, pushNotifications: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
                 <span className="text-gray-900 dark:text-white dark:text-white">Push Notifications</span>
@@ -204,8 +238,8 @@ const NotificationsPage: React.FC = () => {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={preferences.eventUpdates}
-                  onChange={(e) => setPreferences({ ...preferences, eventUpdates: e.target.checked })}
+                  checked={localPreferences.eventUpdates}
+                  onChange={(e) => setLocalPreferences({ ...localPreferences, eventUpdates: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
                 <span className="text-gray-900 dark:text-white dark:text-white">Event Updates</span>
@@ -213,8 +247,8 @@ const NotificationsPage: React.FC = () => {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={preferences.scoreUpdates}
-                  onChange={(e) => setPreferences({ ...preferences, scoreUpdates: e.target.checked })}
+                  checked={localPreferences.scoreUpdates}
+                  onChange={(e) => setLocalPreferences({ ...localPreferences, scoreUpdates: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
                 <span className="text-gray-900 dark:text-white dark:text-white">Score Updates</span>
@@ -222,8 +256,8 @@ const NotificationsPage: React.FC = () => {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={preferences.systemAlerts}
-                  onChange={(e) => setPreferences({ ...preferences, systemAlerts: e.target.checked })}
+                  checked={localPreferences.systemAlerts}
+                  onChange={(e) => setLocalPreferences({ ...localPreferences, systemAlerts: e.target.checked })}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
                 <span className="text-gray-900 dark:text-white dark:text-white">System Alerts</span>
@@ -231,7 +265,7 @@ const NotificationsPage: React.FC = () => {
             </div>
             <div className="mt-6 flex gap-3">
               <button
-                onClick={() => updatePreferences(preferences)}
+                onClick={() => updatePreferences(localPreferences)}
                 className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Save Preferences
@@ -337,6 +371,13 @@ const NotificationsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Send Notification Modal */}
+      <SendNotificationModal
+        isOpen={isSendModalOpen}
+        onClose={() => setIsSendModalOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries('notifications')}
+      />
     </div>
   )
 }

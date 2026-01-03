@@ -31,8 +31,19 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
     const authReq = req as AuthenticatedRequest;
     const { name, key, type, entityType, required, defaultValue, options, validation, order } = authReq.body;
 
+    logger.debug('Create custom field request', {
+      body: authReq.body,
+      user: authReq.user,
+      tenantId: authReq.tenantId,
+      hasName: !!name,
+      hasKey: !!key,
+      hasType: !!type,
+      hasEntityType: !!entityType
+    });
+
     // Validate required fields
     if (!name || !key || !type || !entityType) {
+      logger.warn('Missing required fields', { name, key, type, entityType });
       res.status(400).json({
         success: false,
         message: 'Missing required fields: name, key, type, entityType'
@@ -97,9 +108,49 @@ export const getAllCustomFields = async (req: Request, res: Response): Promise<v
       allFields.push(...fields);
     }
 
+    // Parse JSON fields for frontend consumption
+    const parsedFields = allFields.map(field => {
+      let parsedOptions = null;
+      let parsedValidation = null;
+
+      try {
+        if (field.options) {
+          if (typeof field.options === 'string') {
+            parsedOptions = JSON.parse(field.options);
+          } else {
+            parsedOptions = field.options;
+          }
+        }
+      } catch (err) {
+        logger.warn(`Failed to parse options for field ${field.id}:`, err);
+        parsedOptions = null;
+      }
+
+      try {
+        if (field.validation) {
+          if (typeof field.validation === 'string') {
+            parsedValidation = JSON.parse(field.validation);
+          } else {
+            parsedValidation = field.validation;
+          }
+        }
+      } catch (err) {
+        logger.warn(`Failed to parse validation for field ${field.id}:`, err);
+        parsedValidation = null;
+      }
+
+      return {
+        ...field,
+        options: parsedOptions,
+        validation: parsedValidation,
+      };
+    });
+
+    logger.debug(`Returning ${parsedFields.length} custom fields`);
+
     res.json({
       success: true,
-      data: allFields
+      data: parsedFields
     });
   } catch (error) {
     const err = error as Error;

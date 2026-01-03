@@ -6,7 +6,7 @@
  * Uses Redis for distributed rate limiting with in-memory fallback.
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container as tsyringeContainer } from 'tsyringe';
 import { PrismaClient, RateLimitConfig } from '@prisma/client';
 import { Redis } from 'ioredis';
 import {
@@ -58,9 +58,15 @@ export class EnhancedRateLimitService {
   };
 
   constructor(
-    @inject('PrismaClient') private prisma: PrismaClient,
-    @inject('RedisClient') private redis: Redis | null
+    @inject('PrismaClient') private prisma: PrismaClient
   ) {
+    // Try to get Redis client from container, fallback to null
+    try {
+      this.redis = tsyringeContainer.resolve<Redis | null>('RedisClient');
+    } catch {
+      this.redis = null;
+    }
+
     // Check Redis availability
     if (this.redis) {
       this.checkRedisConnection();
@@ -69,6 +75,8 @@ export class EnhancedRateLimitService {
     // Cleanup expired cache entries periodically
     setInterval(() => this.cleanupCache(), 60000); // Every minute
   }
+
+  private redis: Redis | null = null;
 
   /**
    * Check Redis connection status

@@ -11,8 +11,10 @@ import {
 
 interface LogFile {
   name: string
+  folder: string
   size: number
-  modified: string
+  sizeFormatted: string
+  modifiedAt: string
   path: string
 }
 
@@ -31,6 +33,9 @@ const LogViewerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [maxLines, setMaxLines] = useState(500)
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'folder'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [groupByFolder, setGroupByFolder] = useState(true)
 
   useEffect(() => {
     fetchLogFiles()
@@ -104,6 +109,44 @@ const LogViewerPage: React.FC = () => {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
   }
 
+  const sortFiles = (files: LogFile[]): LogFile[] => {
+    return [...files].sort((a, b) => {
+      let comparison = 0
+
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name)
+          break
+        case 'date':
+          comparison = new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime()
+          break
+        case 'size':
+          comparison = a.size - b.size
+          break
+        case 'folder':
+          comparison = a.folder.localeCompare(b.folder)
+          break
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+  }
+
+  const groupFilesByFolder = (files: LogFile[]): Record<string, LogFile[]> => {
+    const grouped: Record<string, LogFile[]> = {}
+    files.forEach(file => {
+      const folder = file.folder || 'Root'
+      if (!grouped[folder]) {
+        grouped[folder] = []
+      }
+      grouped[folder].push(file)
+    })
+    return grouped
+  }
+
+  const sortedFiles = sortFiles(logFiles)
+  const groupedFiles = groupByFolder ? groupFilesByFolder(sortedFiles) : { 'All Files': sortedFiles }
+
   const filteredContent = logContent
     .split('\n')
     .filter(line => line.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -166,9 +209,49 @@ const LogViewerPage: React.FC = () => {
           {/* File List Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Log Files ({logFiles.length})
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Log Files ({logFiles.length})
+                </h2>
+              </div>
+
+              {/* Sort Controls */}
+              <div className="mb-4 space-y-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Sort By
+                  </label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="date">Date Modified</option>
+                    <option value="name">Name</option>
+                    <option value="size">Size</option>
+                    <option value="folder">Folder</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as any)}
+                    className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                  </select>
+                  <label className="flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={groupByFolder}
+                      onChange={(e) => setGroupByFolder(e.target.checked)}
+                      className="rounded"
+                    />
+                    Group
+                  </label>
+                </div>
+              </div>
               {loading ? (
                 <div className="text-center py-8 text-gray-600 dark:text-gray-400">
                   Loading...
@@ -179,22 +262,34 @@ const LogViewerPage: React.FC = () => {
                   <p className="text-gray-600 dark:text-gray-400 text-sm">No log files found</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
-                  {logFiles.map((file) => (
-                    <button
-                      key={file.name}
-                      onClick={() => setSelectedFile(file.name)}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                        selectedFile === file.name
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className="text-sm font-medium truncate">{file.name}</div>
-                      <div className={`text-xs mt-1 ${selectedFile === file.name ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {formatFileSize(file.size)}
+                <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
+                  {Object.entries(groupedFiles).map(([folder, files]) => (
+                    <div key={folder}>
+                      {groupByFolder && (
+                        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-1">
+                          {folder}
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        {files.map((file) => (
+                          <button
+                            key={file.name}
+                            onClick={() => setSelectedFile(file.name)}
+                            className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                              selectedFile === file.name
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            <div className="text-sm font-medium truncate">{file.name}</div>
+                            <div className={`text-xs mt-1 flex justify-between ${selectedFile === file.name ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                              <span>{file.sizeFormatted || formatFileSize(file.size)}</span>
+                              <span>{new Date(file.modifiedAt).toLocaleDateString()}</span>
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}

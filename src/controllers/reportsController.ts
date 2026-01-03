@@ -98,19 +98,60 @@ export class ReportsController {
 
   /**
    * Generate a report
+   * SECURITY FIX: Now validates user access to events/contests before generating reports
    */
   generateReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { type, eventId, contestId } = req.body;
       const userId = (req as any).user?.id;
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
+
+      // Get Prisma client for authorization checks
+      const prisma = require('../config/database').default;
 
       let reportData;
       if (type === 'event' && eventId) {
+        // SECURITY: Verify user has access to this event
+        const event = await prisma.event.findFirst({
+          where: {
+            id: eventId,
+            // SUPER_ADMIN can access all events, others must match tenantId
+            ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+          }
+        });
+
+        if (!event) {
+          res.status(403).json({
+            error: 'Access denied',
+            message: 'You do not have permission to generate reports for this event'
+          });
+          return;
+        }
+
         reportData = await this.generationService.generateEventReportData(eventId, userId);
       } else if (type === 'contest' && contestId) {
+        // SECURITY: Verify user has access to this contest
+        const contest = await prisma.contest.findFirst({
+          where: {
+            id: contestId,
+            // SUPER_ADMIN can access all contests, others must match tenantId
+            ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+          }
+        });
+
+        if (!contest) {
+          res.status(403).json({
+            error: 'Access denied',
+            message: 'You do not have permission to generate reports for this contest'
+          });
+          return;
+        }
+
         reportData = await this.generationService.generateContestResultsData(contestId, userId);
       } else if (type === 'system') {
-        reportData = await this.generationService.generateSystemAnalyticsData(userId);
+        // SECURITY: Pass tenantId and userRole for proper tenant scoping
+        reportData = await this.generationService.generateSystemAnalyticsData(userId, tenantId, userRole);
       } else {
         res.status(400).json({ error: 'Invalid report type or missing parameters' });
         return;
@@ -124,12 +165,34 @@ export class ReportsController {
 
   /**
    * Generate contestant reports (bulk)
-   * Note: This would need to be implemented in the service layer
+   * SECURITY FIX: Now validates user access to contest before generating reports
    */
   generateContestantReports = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { contestId } = req.body;
       const userId = (req as any).user?.id;
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
+
+      // Get Prisma client for authorization checks
+      const prisma = require('../config/database').default;
+
+      // SECURITY: Verify user has access to this contest
+      const contest = await prisma.contest.findFirst({
+        where: {
+          id: contestId,
+          // SUPER_ADMIN can access all contests, others must match tenantId
+          ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+        }
+      });
+
+      if (!contest) {
+        res.status(403).json({
+          error: 'Access denied',
+          message: 'You do not have permission to generate reports for this contest'
+        });
+        return;
+      }
 
       // For now, delegate to contest results report
       const reportData = await this.generationService.generateContestResultsData(contestId, userId);
@@ -145,16 +208,33 @@ export class ReportsController {
 
   /**
    * Get all report instances
+   * SECURITY FIX: Now filters by tenantId to prevent cross-tenant data leakage
    */
   getReportInstances = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { type, format, startDate, endDate } = req.query;
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
 
-      const instances = await this.instanceService.getInstances({
-        type: type as string | undefined,
-        format: format as string | undefined,
-        startDate: startDate ? new Date(startDate as string) : undefined,
-        endDate: endDate ? new Date(endDate as string) : undefined
+      // Get Prisma client for tenant filtering
+      const prisma = require('../config/database').default;
+
+      // SECURITY: Build tenant filter - SUPER_ADMIN sees all, others see only their tenant
+      const tenantFilter = userRole === 'SUPER_ADMIN' ? {} : { tenantId };
+
+      const instances = await prisma.reportInstance.findMany({
+        where: {
+          ...tenantFilter,
+          ...(type && { type: type as string }),
+          ...(format && { format: format as string }),
+          ...((startDate || endDate) && {
+            generatedAt: {
+              ...(startDate && { gte: new Date(startDate as string) }),
+              ...(endDate && { lte: new Date(endDate as string) })
+            }
+          })
+        },
+        orderBy: { generatedAt: 'desc' }
       });
 
       res.json({ data: instances });
@@ -165,6 +245,7 @@ export class ReportsController {
 
   /**
    * Delete a report instance
+   * SECURITY FIX: Now validates tenant access before deletion
    */
   deleteReportInstance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -173,6 +254,29 @@ export class ReportsController {
         res.status(400).json({ error: 'Instance ID is required' });
         return;
       }
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
+
+      // Get Prisma client for authorization checks
+      const prisma = require('../config/database').default;
+
+      // SECURITY: Verify user has access to this report instance
+      const instance = await prisma.reportInstance.findFirst({
+        where: {
+          id,
+          // SUPER_ADMIN can delete any instance, others must match tenantId
+          ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+        }
+      });
+
+      if (!instance) {
+        res.status(403).json({
+          error: 'Access denied',
+          message: 'You do not have permission to delete this report instance'
+        });
+        return;
+      }
+
       await this.instanceService.deleteInstance(id);
       res.status(204).send();
     } catch (error) {
@@ -182,6 +286,7 @@ export class ReportsController {
 
   /**
    * Export report to PDF
+   * SECURITY FIX: Now validates tenant access before export
    */
   exportToPDF = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -190,7 +295,11 @@ export class ReportsController {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const reportData = await this.getReportData(id);
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
+
+      // SECURITY: Validate tenant access to report
+      const reportData = await this.getReportData(id, tenantId, userRole);
 
       const buffer = await this.exportService.exportReport(reportData, 'pdf');
 
@@ -204,6 +313,7 @@ export class ReportsController {
 
   /**
    * Export report to Excel
+   * SECURITY FIX: Now validates tenant access before export
    */
   exportToExcel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -212,7 +322,11 @@ export class ReportsController {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const reportData = await this.getReportData(id);
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
+
+      // SECURITY: Validate tenant access to report
+      const reportData = await this.getReportData(id, tenantId, userRole);
 
       const buffer = await this.exportService.exportReport(reportData, 'excel');
 
@@ -226,6 +340,7 @@ export class ReportsController {
 
   /**
    * Export report to CSV
+   * SECURITY FIX: Now validates tenant access before export
    */
   exportToCSV = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -234,7 +349,11 @@ export class ReportsController {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const reportData = await this.getReportData(id);
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
+
+      // SECURITY: Validate tenant access to report
+      const reportData = await this.getReportData(id, tenantId, userRole);
 
       const buffer = await this.exportService.exportReport(reportData, 'csv');
 
@@ -248,27 +367,36 @@ export class ReportsController {
 
   /**
    * Helper to get report data from instance ID
+   * SECURITY FIX: Now validates tenant access to report instances
    */
-  private async getReportData(instanceId: string): Promise<any> {
-    const prisma = require('../utils/prisma');
-    const instance = await prisma.reportInstance.findUnique({
-      where: { id: instanceId }
+  private async getReportData(instanceId: string, tenantId: string, userRole: string): Promise<any> {
+    const prisma = require('../config/database').default;
+    const instance = await prisma.reportInstance.findFirst({
+      where: {
+        id: instanceId,
+        // SUPER_ADMIN can access all report instances, others must match tenantId
+        ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+      }
     });
     if (!instance) {
-      throw new Error('Report instance not found');
+      throw new Error('Report instance not found or access denied');
     }
     return typeof instance.data === 'string' ? JSON.parse(instance.data) : instance.data;
   }
 
   /**
    * Send report via email
+   * SECURITY FIX: Now validates tenant access before sending report
    */
   sendReportEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { reportId, recipients, subject, message, format } = req.body;
       const userId = (req as any).user?.id || 'system';
+      const tenantId = (req as any).user?.tenantId;
+      const userRole = (req as any).user?.role;
 
-      const reportData = await this.getReportData(reportId);
+      // SECURITY: Validate tenant access to report
+      const reportData = await this.getReportData(reportId, tenantId, userRole);
 
       await this.emailService.sendReportEmail({
         recipients,

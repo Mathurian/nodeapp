@@ -33,6 +33,7 @@ import { swaggerSpec, swaggerUiOptions } from './config/swagger.config';
 // Middleware
 import { requestLogging, errorLogging } from './middleware/requestLogger';
 import { generalLimiter, authLimiter } from './middleware/rateLimiting';
+import { rateLimitMiddleware } from './middleware/enhancedRateLimiting';
 import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
@@ -48,6 +49,10 @@ import { env } from './config/env';
 
 // Services
 import ScheduledBackupService from './services/scheduledBackupService';
+import { BusinessMetricsCollector } from './services/BusinessMetricsCollector';
+import { ServiceMonitor } from './services/ServiceMonitor';
+import { ActiveSessionTracker } from './services/ActiveSessionTracker';
+import { container } from './config/container';
 
 // Controllers
 import { logPerformance } from './controllers/performanceController';
@@ -89,6 +94,9 @@ initMetrics();
  * Initialize Services
  */
 const scheduledBackupService = new ScheduledBackupService(prisma);
+let businessMetricsCollector: BusinessMetricsCollector | null = null;
+let serviceMonitor: ServiceMonitor | null = null;
+let activeSessionTracker: ActiveSessionTracker | null = null;
 
 /**
  * Parse and configure CORS origins
@@ -144,6 +152,13 @@ app.use('/api/', metricsMiddleware);
 app.get('/metrics', metricsEndpoint);
 
 /**
+ * Monitoring endpoints (public - no tenant required)
+ */
+import monitoringRoutes from './routes/monitoringRoutes';
+app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/v1/monitoring', monitoringRoutes);
+
+/**
  * Health check endpoint (public)
  */
 app.get('/health', async (_req: Request, res: Response) => {
@@ -169,6 +184,7 @@ app.get('/health', async (_req: Request, res: Response) => {
  * CSRF token endpoint (public)
  */
 app.get('/api/csrf-token', getCsrfToken);
+app.get('/api/v1/csrf-token', getCsrfToken);
 
 /**
  * API Documentation (Swagger UI)
@@ -200,6 +216,13 @@ app.use('/api', tenantMiddleware);
  * so that req.tenantId and req.user are available in context
  */
 app.use('/api', contextMiddleware);
+
+/**
+ * Enhanced rate limiting with tenant-aware tiered limits
+ * Applied after tenant middleware to access tenant context
+ * Note: Basic rate limiters above still apply as first line of defense
+ */
+app.use('/api', rateLimitMiddleware());
 
 /**
  * Apply CSRF protection to mutating API routes
@@ -276,14 +299,15 @@ if (frontendDistExists) {
  */
 if (frontendDistExists) {
   app.get('*', (req: Request, res: Response, next: NextFunction) => {
-    // Skip API routes, metrics, health checks, uploads, and Socket.IO
+    // Skip API routes, metrics, health checks, uploads, monitoring, and Socket.IO
     if (
       req.path.startsWith('/api/') ||
       req.path.startsWith('/metrics') ||
       req.path.startsWith('/health') ||
       req.path.startsWith('/uploads') ||
       req.path.startsWith('/socket.io') ||
-      req.path.startsWith('/api-docs')
+      req.path.startsWith('/api-docs') ||
+      req.path.startsWith('/monitoring/')
     ) {
       return next();
     }
@@ -312,11 +336,6 @@ app.use(errorHandler);
  * Start Server
  */
 const startServer = async (): Promise<void> => {
-  // Don't start server in test environment
-  if (env.isTest()) {
-    return;
-  }
-
   try {
     // Test database connection
     const dbConnected = await testDatabaseConnection();
@@ -344,6 +363,36 @@ const startServer = async (): Promise<void> => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         backupLogger.error('Failed to start scheduled backup service', { error: errorMessage });
       }
+
+      // Start business metrics collector
+      try {
+        businessMetricsCollector = container.resolve(BusinessMetricsCollector);
+        businessMetricsCollector.start(30000); // Collect every 30 seconds
+        appLogger.info('Business metrics collector started (30s interval)');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        appLogger.error('Failed to start business metrics collector', { error: errorMessage });
+      }
+
+      // Start service monitor
+      try {
+        serviceMonitor = container.resolve(ServiceMonitor);
+        serviceMonitor.start(15000); // Update every 15 seconds
+        appLogger.info('Service monitor started (15s interval)');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        appLogger.error('Failed to start service monitor', { error: errorMessage });
+      }
+
+      // Start active session tracker
+      try {
+        activeSessionTracker = container.resolve(ActiveSessionTracker);
+        activeSessionTracker.start(60000); // Cleanup every 60 seconds
+        appLogger.info('Active session tracker started (60s cleanup interval)');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        appLogger.error('Failed to start active session tracker', { error: errorMessage });
+      }
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -367,6 +416,24 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
     // Stop scheduled services
     await scheduledBackupService.stop();
     backupLogger.info('Scheduled backup service stopped');
+
+    // Stop business metrics collector
+    if (businessMetricsCollector) {
+      businessMetricsCollector.stop();
+      appLogger.info('Business metrics collector stopped');
+    }
+
+    // Stop service monitor
+    if (serviceMonitor) {
+      serviceMonitor.stop();
+      appLogger.info('Service monitor stopped');
+    }
+
+    // Stop active session tracker
+    if (activeSessionTracker) {
+      activeSessionTracker.stop();
+      appLogger.info('Active session tracker stopped');
+    }
 
     // Close database connections
     await disconnectDatabase();
@@ -417,11 +484,9 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 /**
- * Start the server (only in non-test environments)
+ * Start the server
  */
-if (!env.isTest()) {
-  startServer();
-}
+startServer();
 
 /**
  * Export app for testing

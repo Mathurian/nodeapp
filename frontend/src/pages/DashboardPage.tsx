@@ -1,7 +1,7 @@
 import React from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
-import { adminAPI } from '../services/api'
+import { adminAPI, tenantsAPI } from '../services/api'
 import {
   ChartBarIcon,
   UsersIcon,
@@ -54,7 +54,7 @@ interface RecentActivity {
 const DashboardPage: React.FC = () => {
   const { user } = useAuth()
 
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>(
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>(
     'dashboard-stats',
     async () => {
       const response = await adminAPI.getStats()
@@ -64,10 +64,12 @@ const DashboardPage: React.FC = () => {
     },
     {
       refetchInterval: 30000, // Refresh every 30 seconds
+      retry: 1,
+      onError: (err) => console.error('Dashboard stats fetch failed:', err),
     }
   )
 
-  const { data: recentActivity, isLoading: activityLoading } = useQuery<RecentActivity[]>(
+  const { data: recentActivity, isLoading: activityLoading, error: activityError } = useQuery<RecentActivity[]>(
     'recent-activity',
     async () => {
       const response = await adminAPI.getActivityLogs()
@@ -78,6 +80,23 @@ const DashboardPage: React.FC = () => {
     },
     {
       refetchInterval: 30000,
+      retry: 1,
+      onError: (err) => console.error('Recent activity fetch failed:', err),
+    }
+  )
+
+  // Fetch tenants for super admin
+  const { data: tenants, isLoading: tenantsLoading } = useQuery(
+    'all-tenants',
+    async () => {
+      const response = await tenantsAPI.getAll({ limit: 100 })
+      // Backend returns { tenants: [...], total, skip, take }
+      return response.data.tenants || []
+    },
+    {
+      enabled: user?.role === 'SUPER_ADMIN',
+      retry: 1,
+      onError: (err) => console.error('Tenants fetch failed:', err),
     }
   )
 
@@ -92,7 +111,7 @@ const DashboardPage: React.FC = () => {
       BOARD: 'Welcome to your Board Dashboard',
       ADMIN: 'Welcome to your Admin Dashboard',
     }
-    return greetings[role as keyof typeof greetings] || 'Welcome to Event Manager'
+    return greetings[role as keyof typeof greetings] || 'Welcome to ConMGR'
   }
 
   const getRoleDescription = (role: string) => {
@@ -156,7 +175,7 @@ const DashboardPage: React.FC = () => {
     { label: 'Total Categories', value: stats?.totalCategories || 0, icon: ChartBarIcon, color: 'purple' },
     { label: 'Total Users', value: stats?.totalUsers || 0, icon: UsersIcon, color: 'orange' },
     { label: 'Total Scores', value: stats?.totalScores || 0, icon: ArrowTrendingUpIcon, color: 'blue' },
-    { label: 'Active Users (24h)', value: stats?.activeUsers || 0, icon: UsersIcon, color: 'green' },
+    { label: 'Recently Active (24h)', value: stats?.activeUsers || 0, icon: UsersIcon, color: 'green' },
     { label: 'System Uptime', value: stats?.uptime || 'N/A', icon: ClockIcon, color: 'purple', isText: true },
     { label: 'Database Size', value: stats?.databaseSize || 'N/A', icon: ChartBarIcon, color: 'orange', isText: true },
   ]
@@ -211,6 +230,30 @@ const DashboardPage: React.FC = () => {
     return colors[color as keyof typeof colors] || colors.blue
   }
 
+  // Handle errors
+  if (statsError || activityError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
+              Error Loading Dashboard
+            </h2>
+            <p className="text-red-800 dark:text-red-200 mb-4">
+              {statsError ? String(statsError) : String(activityError)}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -222,6 +265,27 @@ const DashboardPage: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">
             {getRoleDescription(user?.role || '')}
           </p>
+
+          {/* Super Admin Cross-Tenant Indicator */}
+          {user?.role === 'SUPER_ADMIN' && (
+            <div className="mt-4 bg-purple-50 dark:bg-purple-900 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                    Cross-Tenant View Active
+                  </h3>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
+                    You are viewing aggregated data across all tenants in the system.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
@@ -247,7 +311,7 @@ const DashboardPage: React.FC = () => {
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'ADMIN' || user?.role === 'BOARD') && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              System Overview
+              {user?.role === 'SUPER_ADMIN' ? 'System-Wide Overview (All Tenants)' : 'System Overview'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {statCards.map((stat) => (
@@ -265,6 +329,90 @@ const DashboardPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tenant Breakdown - Super Admin Only */}
+        {user?.role === 'SUPER_ADMIN' && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Tenant Breakdown
+            </h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+              {tenantsLoading ? (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  Loading tenants...
+                </div>
+              ) : !tenants || tenants.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  No tenants found
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Tenant
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Slug
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Plan
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {tenants.map((tenant: any) => (
+                        <tr key={tenant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                            {tenant.name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {tenant.slug}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              tenant.status === 'active'
+                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                : tenant.status === 'suspended'
+                                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                                : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                            }`}>
+                              {tenant.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {tenant.planType || 'free'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {new Date(tenant.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <Link
+                              to={`/tenants`}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
+                            >
+                              Manage
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -346,7 +494,7 @@ const DashboardPage: React.FC = () => {
                   Need Help?
                 </h3>
                 <p className="text-blue-800 dark:text-blue-200 mb-4">
-                  Access documentation, tutorials, and support resources to get the most out of Event Manager.
+                  Access documentation, tutorials, and support resources to get the most out of ConMGR.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <a

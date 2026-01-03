@@ -38,8 +38,8 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState('')
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
   const [settings, setSettings] = useState<PublicSettings>({
-    appName: 'Event Manager',
-    appSubtitle: 'Contest Management System',
+    appName: 'ConMGR',
+    appSubtitle: '',
     showForgotPassword: false,
     logoPath: null,
     faviconPath: null,
@@ -182,9 +182,11 @@ const LoginPage: React.FC = () => {
             </h1>
 
             {/* Subtitle */}
-            <p className="mt-2 text-center text-sm text-gray-600">
-              {settings.appSubtitle}
-            </p>
+            {settings.appSubtitle && (
+              <p className="mt-2 text-center text-sm text-gray-600">
+                {settings.appSubtitle}
+              </p>
+            )}
           </div>
         </div>
 
@@ -314,20 +316,21 @@ const LoginPage: React.FC = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 justify-center items-center text-sm">
                   <a
+                    href="/help"
+                    className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                    aria-label="View help documentation"
+                  >
+                    Help Documentation
+                  </a>
+                  <span className="hidden sm:inline text-gray-400">|</span>
+                  <a
                     href={`mailto:${settings.contactEmail || 'support@conmgr.com'}`}
                     className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
                     aria-label="Contact support via email"
                   >
                     Contact Support
                   </a>
-                  <span className="hidden sm:inline text-gray-400">|</span>
-                  <span className="text-gray-600">
-                    Email: {settings.contactEmail || 'support@conmgr.com'}
-                  </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Contact your administrator for login credentials
-                </p>
               </div>
             </div>
           </div>

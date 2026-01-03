@@ -21,6 +21,7 @@ import {
   UserIcon,
   ServerIcon,
   CloudArrowDownIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline'
 
 interface NavItem {
@@ -219,6 +220,12 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           href: '/logs',
           icon: DocumentTextIcon,
           roles: ['ORGANIZER', 'BOARD'],
+        },
+        {
+          name: 'Activity Log',
+          href: '/activity',
+          icon: ClockIcon,
+          roles: ['ADMIN', 'SUPER_ADMIN'],
         },
         {
           name: 'Performance',
