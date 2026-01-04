@@ -199,7 +199,7 @@ const SettingsPage: React.FC = () => {
 
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
-  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'BOARD'
 
   // Refetch settings when global/tenant mode or selected tenant changes
   useEffect(() => {

@@ -8,9 +8,9 @@ const PERMISSIONS = {
     "assignments:*", "results:*"
   ],
   BOARD: [
-    "events:read", "contests:read", "results:*", "reports:*", "approvals:*",
-    "users:read", "settings:read", "emcee:read", "category-types:read",
-    "assignments:*"
+    "events:*", "contests:*", "categories:*", "results:*", "reports:*", "approvals:*",
+    "users:*", "settings:*", "emcee:*", "category-types:*",
+    "assignments:*", "scores:read", "contestants:*", "criteria:*"
   ],
   JUDGE: [
     "scores:write", "scores:read", "results:read", "commentary:write",

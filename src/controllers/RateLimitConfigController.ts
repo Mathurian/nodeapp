@@ -499,9 +499,56 @@ export class RateLimitConfigController {
         }
       }
 
-      // Store as JSON in system settings
-      const tiersJson = JSON.stringify(tiers);
+      // CRITICAL FIX: Update the actual RateLimitConfig table (source of truth)
+      // This is what the rate limiting middleware actually uses
+      for (const [tierKey, tierValue] of Object.entries(tiers)) {
+        const tier = tierValue as any;
 
+        // Find existing tier config
+        const existingConfig = await prisma.rateLimitConfig.findFirst({
+          where: {
+            tier: tierKey,
+            tenantId: null,
+            userId: null,
+            endpoint: null,
+          },
+        });
+
+        if (existingConfig) {
+          // Update existing tier config
+          await prisma.rateLimitConfig.update({
+            where: { id: existingConfig.id },
+            data: {
+              name: `${tier.name} Tier Default`,
+              requestsPerHour: tier.requestsPerHour,
+              requestsPerMinute: tier.requestsPerMinute,
+              burstLimit: tier.burstLimit,
+              updatedBy: user?.['id'],
+            },
+          });
+        } else {
+          // Create new tier config (shouldn't normally happen)
+          await prisma.rateLimitConfig.create({
+            data: {
+              name: `${tier.name} Tier Default`,
+              tier: tierKey,
+              tenantId: null,
+              userId: null,
+              endpoint: null,
+              requestsPerHour: tier.requestsPerHour,
+              requestsPerMinute: tier.requestsPerMinute,
+              burstLimit: tier.burstLimit,
+              enabled: true,
+              priority: 0,
+              description: `Default rate limits for ${tier.name} tier subscribers`,
+              updatedBy: user?.['id'],
+            },
+          });
+        }
+      }
+
+      // Also store in SystemSettings for UI display (backup/reference)
+      const tiersJson = JSON.stringify(tiers);
       const existing = await prisma.systemSetting.findFirst({
         where: { key: 'rate_limit_tiers', tenantId: null },
       });
@@ -527,7 +574,7 @@ export class RateLimitConfigController {
         });
       }
 
-      logger.info('Rate limit tiers updated', {
+      logger.info('Rate limit tiers updated in both tables', {
         updatedBy: user?.['id'],
         tierCount: Object.keys(tiers).length,
       });
@@ -558,6 +605,51 @@ export class RateLimitConfigController {
       const prisma = container.resolve<PrismaClient>('PrismaClient');
       const user = (req as any).user;
 
+      // Reset the RateLimitConfig table to defaults (source of truth)
+      for (const [tierKey, tierValue] of Object.entries(RATE_LIMIT_TIERS)) {
+        const existingConfig = await prisma.rateLimitConfig.findFirst({
+          where: {
+            tier: tierKey,
+            tenantId: null,
+            userId: null,
+            endpoint: null,
+          },
+        });
+
+        if (existingConfig) {
+          // Update to default values
+          await prisma.rateLimitConfig.update({
+            where: { id: existingConfig.id },
+            data: {
+              name: `${tierValue.name} Tier Default`,
+              requestsPerHour: tierValue.requestsPerHour,
+              requestsPerMinute: tierValue.requestsPerMinute,
+              burstLimit: tierValue.burstLimit,
+              updatedBy: user?.['id'],
+            },
+          });
+        } else {
+          // Create default tier config if it doesn't exist
+          await prisma.rateLimitConfig.create({
+            data: {
+              name: `${tierValue.name} Tier Default`,
+              tier: tierKey,
+              tenantId: null,
+              userId: null,
+              endpoint: null,
+              requestsPerHour: tierValue.requestsPerHour,
+              requestsPerMinute: tierValue.requestsPerMinute,
+              burstLimit: tierValue.burstLimit,
+              enabled: true,
+              priority: 0,
+              description: `Default rate limits for ${tierValue.name} tier subscribers`,
+              updatedBy: user?.['id'],
+            },
+          });
+        }
+      }
+
+      // Also delete custom SystemSettings entry
       const existing = await prisma.systemSetting.findFirst({
         where: { key: 'rate_limit_tiers', tenantId: null },
       });
@@ -566,11 +658,11 @@ export class RateLimitConfigController {
         await prisma.systemSetting.delete({
           where: { id: existing.id },
         });
-
-        logger.info('Rate limit tiers reset to defaults', {
-          resetBy: user?.['id'],
-        });
       }
+
+      logger.info('Rate limit tiers reset to defaults in both tables', {
+        resetBy: user?.['id'],
+      });
 
       const defaultTiers = Object.entries(RATE_LIMIT_TIERS).map(([key, value]) => ({
         key,

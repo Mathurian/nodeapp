@@ -170,7 +170,7 @@ const CustomFieldsPage: React.FC = () => {
     return fieldsArray.filter(f => f.entityType === entityType).sort((a, b) => a.order - b.order)
   }
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER') {
+  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">

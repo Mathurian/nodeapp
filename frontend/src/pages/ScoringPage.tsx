@@ -79,8 +79,8 @@ const ScoringPage: React.FC = () => {
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Check if user can access scoring page (judges, admins, and tally masters for viewing)
-  const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'].includes(user?.role || '')
+  // Check if user can access scoring page (judges, admins, board members, and tally masters for viewing)
+  const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'BOARD'].includes(user?.role || '')
 
   // Fetch categories assigned to the judge
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>(

@@ -19,13 +19,18 @@ export class CategoriesController {
   }
 
   /**
-   * Get all categories - Note: For full list, query by contest is recommended
+   * Get all categories for the tenant with pagination
    */
   getAllCategories = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      // Return empty array or implement pagination - CategoryService doesn't have getAllCategories
-      // In production, this should require a contest filter or implement pagination
-      return sendSuccess(res, [], 'Please use getCategoriesByContest endpoint for category lists');
+      // Get all categories for tenant with high limit for UI compatibility
+      const result = await this.categoryService.getAllCategoriesPaginated({
+        page: 1,
+        limit: 1000
+      });
+
+      // Return just the data array to match expected format
+      return sendSuccess(res, result.data, 'Categories retrieved successfully');
     } catch (error) {
       return next(error);
     }

@@ -102,17 +102,53 @@ ADMIN (full access)
 
 ### Permission Matrix
 
-| Action | ADMIN | ORGANIZER | BOARD | JUDGE | TALLY | AUDITOR | EMCEE | CONTESTANT |
-|--------|-------|-----------|-------|-------|-------|---------|-------|------------|
-| Manage Events | ✓ | ✓ | - | - | - | - | - | - |
-| Score Entry | ✓ | ✓ | - | ✓ | - | - | - | - |
-| Certify Scores | ✓ | ✓ | - | ✓ | - | - | - | - |
-| Verify Totals | ✓ | ✓ | - | - | ✓ | - | - | - |
-| Audit Scores | ✓ | ✓ | ✓ | - | - | ✓ | - | - |
-| Final Approval | ✓ | ✓ | ✓ | - | - | - | - | - |
-| View Results | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓* |
+Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role.
 
-*After release
+**Legend**:
+- **C** = Create
+- **R** = Read
+- **U** = Update
+- **D** = Delete
+- **CRUD** = Full access to all operations
+- **RW** = Read and Write (Create/Update without Delete)
+- **-** = No access
+
+| Resource | SUPER_ADMIN | ADMIN | ORGANIZER | BOARD | JUDGE | CONTESTANT | EMCEE | TALLY_MASTER | AUDITOR |
+|----------|-------------|-------|-----------|-------|-------|------------|-------|--------------|---------|
+| **Events** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
+| **Contests** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
+| **Categories** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
+| **Users** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Contestants** | CRUD | CRUD | - | CRUD | - | - | - | - | - |
+| **Scores** | CRUD | CRUD | - | R | RW | R | R | CRUD | R |
+| **Results** | CRUD | CRUD | CRUD | CRUD | R | R | R | CRUD | R |
+| **Reports** | CRUD | CRUD | CRUD | CRUD | - | - | - | R | R |
+| **Templates** | CRUD | CRUD | CRUD | - | - | - | - | - | - |
+| **Settings** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Emcee Scripts** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Category Types** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Assignments** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Criteria** | CRUD | CRUD | - | CRUD | - | - | - | - | - |
+| **Approvals** | CRUD | CRUD | - | CRUD | - | - | - | - | - |
+| **Commentary** | CRUD | CRUD | - | - | W | R | - | - | - |
+| **Profile** | CRUD | CRUD | - | - | - | RW | - | - | - |
+| **Announcements** | CRUD | CRUD | - | - | - | - | W | - | - |
+| **Backup/Restore** | CRUD | CRUD | CRUD | - | - | - | - | - | - |
+| **Tracker** | CRUD | CRUD | - | - | - | - | - | CRUD | CRUD |
+| **Activity Logs** | CRUD | CRUD | - | - | - | - | - | - | R |
+| **Audit Logs** | CRUD | CRUD | - | - | - | - | - | - | R |
+
+#### Role Descriptions
+
+- **SUPER_ADMIN**: Full unrestricted access to everything (`"*"`)
+- **ADMIN**: Full unrestricted access to everything (`"*"`)
+- **ORGANIZER**: Full management of event operations, templates, settings, and backups
+- **BOARD**: Full management similar to ORGANIZER, plus contestant management, criteria, approvals, and users. Can view scores but not enter them.
+- **JUDGE**: Limited to reading event structure and entering/viewing scores. Can write commentary.
+- **CONTESTANT**: Very limited read-only access. Can view events, contests, categories, results, scores, and manage their own profile.
+- **EMCEE**: Read-only event information plus ability to write announcements.
+- **TALLY_MASTER**: Specialized for results management with full CRUD on scores and results, plus tracker access for monitoring.
+- **AUDITOR**: Read-only oversight role with access to all event data, scores, activity logs, audit logs, and tracker features.
 
 ### RBAC Implementation
 

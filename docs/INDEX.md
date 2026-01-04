@@ -75,6 +75,8 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 7. **TALLY_MASTER** - Score verification and certification
 8. **AUDITOR** - Independent score audit and review
 
+See [Security Guide - Permission Matrix](07-SECURITY.md#permission-matrix) for complete CRUD permissions breakdown by role.
+
 ## System Access & Tools
 
 ### Application Access

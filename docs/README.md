@@ -82,6 +82,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 ### Security
 - Authentication mechanisms (JWT, MFA)
 - Authorization and RBAC
+- **Complete CRUD permissions matrix for all roles**
 - Security middleware
 - Input validation
 - CSRF protection

@@ -114,7 +114,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           name: 'Judge Scoring',
           href: '/scoring',
           icon: TrophyIcon,
-          roles: ['JUDGE'],
+          roles: ['JUDGE', 'BOARD', 'TALLY_MASTER', 'AUDITOR'],
         },
         {
           name: 'Tally Master',
@@ -268,7 +268,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           name: 'Emcee Dashboard',
           href: '/emcee',
           icon: MicrophoneIcon,
-          roles: ['EMCEE'],
+          roles: ['EMCEE', 'BOARD', 'ORGANIZER'],
         },
         {
           name: 'Commentary',

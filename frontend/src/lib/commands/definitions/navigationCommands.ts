@@ -91,7 +91,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Core',
       priority: 80,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'AUDITOR', 'TALLY_MASTER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'AUDITOR', 'TALLY_MASTER', 'BOARD']
     },
     {
       id: 'nav-results',
@@ -116,7 +116,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Management',
       priority: 70,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'nav-assignments',
@@ -166,7 +166,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Admin',
       priority: 55,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'],
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'],
       shortcut: 'Cmd+,'
     },
 
@@ -181,7 +181,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Content',
       priority: 50,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'EMCEE']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'EMCEE', 'BOARD']
     },
     {
       id: 'nav-templates',
@@ -193,7 +193,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       category: 'navigation',
       group: 'Content',
       priority: 45,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'nav-reports',
