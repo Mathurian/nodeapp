@@ -362,6 +362,11 @@ export class ScoringService extends BaseService {
       const existingScore = await this.scoreRepository.findById(scoreId);
       this.assertExists(existingScore, 'Score', scoreId);
 
+      // CRITICAL: Enforce score lock and certification - scores cannot be edited after certification
+      if (existingScore!.isLocked || existingScore!.isCertified) {
+        throw new ForbiddenError('Cannot edit locked or certified scores. Scores are locked after Auditor certification.');
+      }
+
       // P2-2 OPTIMIZATION: Selective field loading
       const updatedScore = await this.prisma.score.update({
         where: { id: scoreId },
@@ -426,6 +431,11 @@ export class ScoringService extends BaseService {
     try {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
+
+      // CRITICAL: Enforce score lock and certification - scores cannot be deleted after certification
+      if (score!.isLocked || score!.isCertified) {
+        throw new ForbiddenError('Cannot delete locked or certified scores. Scores are locked after Auditor certification.');
+      }
 
       await this.scoreRepository.delete(scoreId);
 
@@ -547,6 +557,11 @@ export class ScoringService extends BaseService {
     try {
       const score = await this.scoreRepository.findById(scoreId);
       this.assertExists(score, 'Score', scoreId);
+
+      // CRITICAL: Cannot unsign locked scores - once Auditor locks, it's final
+      if (score!.isLocked) {
+        throw new ForbiddenError('Cannot unsign locked scores. Scores are permanently locked after Auditor certification.');
+      }
 
       // P2-2 OPTIMIZATION: Selective field loading
       const unsignedScore = await this.prisma.score.update({

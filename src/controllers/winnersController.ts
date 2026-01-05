@@ -219,6 +219,92 @@ export class WinnersController {
       return next(error);
     }
   };
+
+  /**
+   * Publish winners for a contest
+   */
+  publishWinners = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { contestId } = req.params;
+      const user = (req as any).user;
+
+      if (!contestId) {
+        res.status(400).json({ error: 'Contest ID is required' });
+        return;
+      }
+
+      const result = await this.winnerService.publishWinners(
+        contestId,
+        user.id,
+        user.role,
+        user.tenantId
+      );
+
+      sendSuccess(res, result, result.message);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Unpublish winners for a contest
+   */
+  unpublishWinners = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { contestId } = req.params;
+      const { reason } = req.body;
+      const user = (req as any).user;
+
+      if (!contestId) {
+        res.status(400).json({ error: 'Contest ID is required' });
+        return;
+      }
+
+      if (!reason) {
+        res.status(400).json({ error: 'Reason is required for unpublishing' });
+        return;
+      }
+
+      const result = await this.winnerService.unpublishWinners(
+        contestId,
+        user.id,
+        user.role,
+        reason
+      );
+
+      sendSuccess(res, result, result.message);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Get winners publication status
+   */
+  getWinnersPublicationStatus = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { contestId } = req.params;
+      const user = (req as any).user;
+
+      if (!contestId) {
+        res.status(400).json({ error: 'Contest ID is required' });
+        return;
+      }
+
+      const result = await this.winnerService.getWinnersPublicationStatus(
+        contestId,
+        user.tenantId
+      );
+
+      sendSuccess(res, result);
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and methods
@@ -231,3 +317,6 @@ export const getSignatureStatus = controller.getSignatureStatus;
 export const getCertificationProgress = controller.getCertificationProgress;
 export const getRoleCertificationStatus = controller.getRoleCertificationStatus;
 export const certifyScores = controller.certifyScores;
+export const publishWinners = controller.publishWinners;
+export const unpublishWinners = controller.unpublishWinners;
+export const getWinnersPublicationStatus = controller.getWinnersPublicationStatus;

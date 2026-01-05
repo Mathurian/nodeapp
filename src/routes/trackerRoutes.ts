@@ -12,8 +12,8 @@ const router: Router = express.Router();
 // Apply authentication to all routes
 router.use(authenticateToken)
 
-// Only Tally Master, Auditor, Board, Organizer, Admin can access
-router.use(requireRole(['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN']))
+// Only Tally Master, Auditor, Board, Organizer, Admin can access tracker
+router.use(requireRole(['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']))
 
 /**
  * @swagger

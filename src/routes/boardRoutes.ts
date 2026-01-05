@@ -15,6 +15,13 @@ import {
   rejectScoreRemoval
 } from '../controllers/boardController';
 import {
+  getBoardCertificationStatus,
+  submitBoardCertification,
+  getPendingBoardApprovals,
+  getApprovedCategories,
+  revokeBoardCertification
+} from '../controllers/boardCertificationController';
+import {
   createScoreRemovalRequest,
   getScoreRemovalRequests as getScoreRemovalRequestsNew,
   getScoreRemovalRequest,
@@ -59,9 +66,16 @@ router.get('/stats', getStats)
 router.get('/certifications', getCertifications)
 router.get('/certification-status', getCertificationStatus)
 
-// Certification management
+// Certification management (legacy)
 router.post('/certifications/:id/approve', logActivity('APPROVE_CERTIFICATION', 'CERTIFICATION'), approveCertification)
 router.post('/certifications/:id/reject', logActivity('REJECT_CERTIFICATION', 'CERTIFICATION'), rejectCertification)
+
+// Board Certification - Stage 4 Workflow
+router.get('/category/:categoryId/certification/status', getBoardCertificationStatus)
+router.post('/category/:categoryId/certification/submit', logActivity('SUBMIT_BOARD_CERTIFICATION', 'CATEGORY'), submitBoardCertification)
+router.get('/pending-approvals', getPendingBoardApprovals)
+router.get('/approved-categories', getApprovedCategories)
+router.delete('/category/:categoryId/certification/revoke', logActivity('REVOKE_BOARD_CERTIFICATION', 'CATEGORY'), revokeBoardCertification)
 
 // Emcee script management
 router.get('/emcee-scripts', getEmceeScripts)

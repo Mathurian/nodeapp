@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/ScoringService';
+import { ContestantScoreFilterService } from '../services/ContestantScoreFilterService';
 import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
@@ -13,26 +14,60 @@ import { PrismaClient, Prisma } from '@prisma/client';
 
 export class ScoringController {
   private scoringService: ScoringService;
+  private contestantFilterService: ContestantScoreFilterService;
   private prisma: PrismaClient;
 
   constructor() {
     this.scoringService = container.resolve(ScoringService);
+    this.contestantFilterService = container.resolve(ContestantScoreFilterService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
   /**
    * Get scores for a category
+   * PHASE 2.1: Enforces contestant score visibility restrictions
    */
   getScores = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
       const categoryId = req.params['categoryId']!;
-      const contestantId = req.params['contestantId'];
+      const contestantId = req.query['contestantId'] as string | undefined;
       const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const userRole = req.user?.role;
+      const userId = req.user?.id;
 
-      log.debug('Fetching scores', { categoryId, contestantId, tenantId });
+      log.debug('Fetching scores', { categoryId, contestantId, tenantId, userRole });
 
-      // Fix: Pass tenantId as second parameter, contestantId as third
+      // PHASE 2.1: Enforce contestant filtering for CONTESTANT role
+      if (userRole === 'CONTESTANT' && userId) {
+        // Get user's contestantId
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId, tenantId },
+          select: { contestantId: true }
+        });
+
+        const userContestantId = user?.contestantId || null;
+
+        // Use the ContestantScoreFilterService to get filtered scores
+        const filteredScores = await this.contestantFilterService.filterScoresByCategory(
+          categoryId,
+          userId,
+          userRole as any,
+          userContestantId,
+          tenantId
+        );
+
+        log.info('Scores retrieved successfully (filtered for contestant)', {
+          categoryId,
+          contestantId: userContestantId,
+          count: filteredScores.length
+        });
+
+        sendSuccess(res, filteredScores);
+        return;
+      }
+
+      // For non-contestant roles, use original logic
       const scores = await this.scoringService.getScoresByCategory(categoryId, tenantId, contestantId);
 
       log.info('Scores retrieved successfully', { categoryId, contestantId, count: scores.length });
@@ -411,15 +446,40 @@ export class ScoringController {
 
   /**
    * Get scores by contestant
+   * PHASE 2.1: Enforces contestant can only view their own scores
    */
   getScoresByContestant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
       const contestantId = req.params['contestantId']!;
+      const tenantId = req.user!.tenantId;
+      const userRole = req.user?.role;
+      const userId = req.user?.id;
 
-      log.debug('Fetching scores by contestant', { contestantId });
+      log.debug('Fetching scores by contestant', { contestantId, userRole });
 
-      const scores = await this.scoringService.getScoresByContestant(contestantId, req.user!.tenantId);
+      // PHASE 2.1: Enforce ownership for CONTESTANT role
+      if (userRole === 'CONTESTANT' && userId) {
+        // Get user's contestantId
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId, tenantId },
+          select: { contestantId: true }
+        });
+
+        // Verify user owns this contestant
+        if (user?.contestantId !== contestantId) {
+          log.warn('Contestant attempting to view another contestant\'s scores', {
+            userId,
+            userContestantId: user?.contestantId,
+            requestedContestantId: contestantId
+          });
+          sendError(res, 'You can only view your own scores', 403);
+          return;
+        }
+      }
+
+      // Fetch scores
+      const scores = await this.scoringService.getScoresByContestant(contestantId, tenantId);
 
       log.info('Scores by contestant retrieved successfully', { contestantId, count: scores.length });
       sendSuccess(res, scores);
@@ -434,15 +494,72 @@ export class ScoringController {
 
   /**
    * Get scores by contest
+   * PHASE 2.1: Enforces contestant visibility restrictions and ownership
    */
   getScoresByContest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
       const contestId = req.params['contestId']!;
+      const tenantId = req.user!.tenantId;
+      const userRole = req.user?.role;
+      const userId = req.user?.id;
 
-      log.debug('Fetching scores by contest', { contestId });
+      log.debug('Fetching scores by contest', { contestId, userRole });
 
-      const scores = await this.scoringService.getScoresByContest(contestId, req.user!.tenantId);
+      // PHASE 2.1: Check visibility restrictions for CONTESTANT role
+      if (userRole === 'CONTESTANT' && userId) {
+        // Check if scores are visible for this contest
+        const areVisible = await this.contestantFilterService.areScoresVisible(
+          contestId,
+          userRole as any,
+          tenantId
+        );
+
+        if (!areVisible) {
+          // Get release status for informative error message
+          const releaseStatus = await this.contestantFilterService.getScoreReleaseStatus(
+            contestId,
+            tenantId
+          );
+
+          log.warn('Contestant attempting to view restricted scores', {
+            userId,
+            contestId,
+            reason: releaseStatus.reason
+          });
+
+          sendError(res, releaseStatus.reason, 403);
+          return;
+        }
+
+        // Get user's contestantId
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId, tenantId },
+          select: { contestantId: true }
+        });
+
+        const userContestantId = user?.contestantId || null;
+
+        // Fetch all scores and filter to only show contestant's own scores
+        const allScores = await this.scoringService.getScoresByContest(contestId, tenantId);
+        const filteredScores = await this.contestantFilterService.filterScoresForContestant(
+          allScores as any,
+          userContestantId,
+          userRole as any
+        );
+
+        log.info('Scores by contest retrieved successfully (filtered for contestant)', {
+          contestId,
+          contestantId: userContestantId,
+          count: filteredScores.length
+        });
+
+        sendSuccess(res, filteredScores);
+        return;
+      }
+
+      // For non-contestant roles, use original logic
+      const scores = await this.scoringService.getScoresByContest(contestId, tenantId);
 
       log.info('Scores by contest retrieved successfully', { contestId, count: scores.length });
       sendSuccess(res, scores);

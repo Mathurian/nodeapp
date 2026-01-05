@@ -102,7 +102,7 @@ ADMIN (full access)
 
 ### Permission Matrix
 
-Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role.
+Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role. These permissions are designed to support the multi-stage certification workflow where ORGANIZER sets up events, JUDGES score contestants, TALLY_MASTER verifies totals, AUDITOR reviews for accuracy, and BOARD provides final approval.
 
 **Legend**:
 - **C** = Create
@@ -119,8 +119,8 @@ Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role.
 | **Contests** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
 | **Categories** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
 | **Users** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Contestants** | CRUD | CRUD | - | CRUD | - | - | - | - | - |
-| **Scores** | CRUD | CRUD | - | R | RW | R | R | CRUD | R |
+| **Contestants** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Scores** | CRUD | CRUD | R | R | RW | R | R | CRUD | R |
 | **Results** | CRUD | CRUD | CRUD | CRUD | R | R | R | CRUD | R |
 | **Reports** | CRUD | CRUD | CRUD | CRUD | - | - | - | R | R |
 | **Templates** | CRUD | CRUD | CRUD | - | - | - | - | - | - |
@@ -128,13 +128,14 @@ Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role.
 | **Emcee Scripts** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
 | **Category Types** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
 | **Assignments** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Criteria** | CRUD | CRUD | - | CRUD | - | - | - | - | - |
-| **Approvals** | CRUD | CRUD | - | CRUD | - | - | - | - | - |
-| **Commentary** | CRUD | CRUD | - | - | W | R | - | - | - |
-| **Profile** | CRUD | CRUD | - | - | - | RW | - | - | - |
+| **Criteria** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
+| **Approvals** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | W |
+| **Certifications** | CRUD | CRUD | CRUD | CRUD | - | - | - | W | W |
+| **Commentary** | CRUD | CRUD | R | R | W | R | - | - | - |
+| **Profile** | CRUD | CRUD | R | R | - | RW | - | - | - |
 | **Announcements** | CRUD | CRUD | - | - | - | - | W | - | - |
 | **Backup/Restore** | CRUD | CRUD | CRUD | - | - | - | - | - | - |
-| **Tracker** | CRUD | CRUD | - | - | - | - | - | CRUD | CRUD |
+| **Tracker** | CRUD | CRUD | CRUD | CRUD | - | - | - | CRUD | CRUD |
 | **Activity Logs** | CRUD | CRUD | - | - | - | - | - | - | R |
 | **Audit Logs** | CRUD | CRUD | - | - | - | - | - | - | R |
 
@@ -142,13 +143,13 @@ Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role.
 
 - **SUPER_ADMIN**: Full unrestricted access to everything (`"*"`)
 - **ADMIN**: Full unrestricted access to everything (`"*"`)
-- **ORGANIZER**: Full management of event operations, templates, settings, and backups
-- **BOARD**: Full management similar to ORGANIZER, plus contestant management, criteria, approvals, and users. Can view scores but not enter them.
+- **ORGANIZER**: Full management of event operations with tenant-level admin capabilities. Can manage events, contests, categories, contestants, users, criteria, approvals, templates, settings, and backups. Can view scores, commentary, profiles, and track progress. Cannot enter scores.
+- **BOARD**: Full oversight and approval authority. Same event management capabilities as ORGANIZER. Can manage contestants, criteria, approvals, and users. Can view scores, commentary, profiles, and track progress for informed decision-making. Cannot enter scores.
 - **JUDGE**: Limited to reading event structure and entering/viewing scores. Can write commentary.
-- **CONTESTANT**: Very limited read-only access. Can view events, contests, categories, results, scores, and manage their own profile.
+- **CONTESTANT**: Very limited read-only access. Can view events, contests, categories, results, scores, commentary, and manage their own profile.
 - **EMCEE**: Read-only event information plus ability to write announcements.
-- **TALLY_MASTER**: Specialized for results management with full CRUD on scores and results, plus tracker access for monitoring.
-- **AUDITOR**: Read-only oversight role with access to all event data, scores, activity logs, audit logs, and tracker features.
+- **TALLY_MASTER**: Specialized for results management with full CRUD on scores and results. Can write certifications as a signatory in Stage 2 of the certification workflow. Has tracker access for monitoring progress.
+- **AUDITOR**: Independent oversight role in Stage 3 of certification workflow. Read-only access to all event data, scores, logs. Can write certifications and approvals as required signatory after Tally Master and before Board approval. Has tracker access for monitoring.
 
 ### RBAC Implementation
 

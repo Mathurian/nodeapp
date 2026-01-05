@@ -80,8 +80,8 @@ export class RestrictionService extends BaseService {
       await this.prisma.event.update({
         where: { id: dto.eventId },
         data: {
-          // contestantViewRestricted: dto.restricted,
-          // contestantViewReleaseDate: dto.releaseDate || null
+          contestantViewRestricted: dto.restricted,
+          contestantViewReleaseDate: dto.releaseDate || null
         }
       });
 
@@ -90,8 +90,8 @@ export class RestrictionService extends BaseService {
         await this.prisma.contest.updateMany({
           where: { eventId: dto.eventId },
           data: {
-            // contestantViewRestricted: true,
-            // contestantViewReleaseDate: dto.releaseDate || null
+            contestantViewRestricted: true,
+            contestantViewReleaseDate: dto.releaseDate || null
           }
         });
       }
@@ -107,8 +107,8 @@ export class RestrictionService extends BaseService {
       await this.prisma.contest.update({
         where: { id: dto.contestId },
         data: {
-          // contestantViewRestricted: dto.restricted,
-          // contestantViewReleaseDate: dto.releaseDate || null
+          contestantViewRestricted: dto.restricted,
+          contestantViewReleaseDate: dto.releaseDate || null
         }
       });
     } else {
@@ -205,7 +205,7 @@ export class RestrictionService extends BaseService {
         await this.prisma.event.update({
           where: { id: dto.eventId },
           data: {
-            // isLocked: true,
+            isLocked: true,
             lockedAt: new Date(),
             lockVerifiedBy: null,
           }
@@ -239,7 +239,7 @@ export class RestrictionService extends BaseService {
         await this.prisma.event.update({
           where: { id: dto.eventId },
           data: {
-            // isLocked: false,
+            isLocked: false,
             lockVerifiedBy: dto.verifiedBy,
           }
         });
@@ -248,7 +248,7 @@ export class RestrictionService extends BaseService {
         await this.prisma.contest.updateMany({
           where: { eventId: dto.eventId },
           data: {
-            // isLocked: false,
+            isLocked: false,
             lockVerifiedBy: dto.verifiedBy,
           }
         });
@@ -267,7 +267,7 @@ export class RestrictionService extends BaseService {
         await this.prisma.contest.update({
           where: { id: dto.contestId },
           data: {
-            // isLocked: true,
+            isLocked: true,
             lockedAt: new Date(),
             lockVerifiedBy: null,
           }
@@ -290,7 +290,7 @@ export class RestrictionService extends BaseService {
         await this.prisma.contest.update({
           where: { id: dto.contestId },
           data: {
-            // isLocked: false,
+            isLocked: false,
             lockVerifiedBy: dto.verifiedBy,
           }
         });

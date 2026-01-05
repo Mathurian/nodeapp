@@ -333,6 +333,9 @@ export class WinnerService extends BaseService {
         id: true,
         name: true,
         eventId: true,
+        winnersPublished: true,
+        publishedAt: true,
+        publishedBy: true,
         event: {
           select: {
             id: true,
@@ -356,6 +359,13 @@ export class WinnerService extends BaseService {
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
+    }
+
+    // CRITICAL: Check publication status and user permissions
+    if (!contest.winnersPublished && !this.canViewUnpublishedWinners(_userRole)) {
+      throw this.forbiddenError(
+        'Winners have not been published yet. Only Board members and administrators can view unpublished results.'
+      );
     }
 
     const categories = contest.categories || [];
@@ -834,6 +844,201 @@ export class WinnerService extends BaseService {
       totalsCertified: progress.totalsCertified,
       rolesRemaining: progress.rolesRemaining,
     };
+  }
+
+  /**
+   * Publish winners for a contest
+   * Only Board+ can publish. Requires all categories to have Board approval.
+   */
+  async publishWinners(
+    contestId: string,
+    userId: string,
+    userRole: string,
+    tenantId: string
+  ) {
+    // Verify user has permission to publish
+    const allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER'];
+    if (!allowedRoles.includes(userRole)) {
+      throw this.forbiddenError(
+        `Only ${allowedRoles.join(', ')} can publish winners`
+      );
+    }
+
+    // Get contest with categories
+    const contest = await this.prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        categories: {
+          include: {
+            categoryCertifications: {
+              where: { role: 'BOARD' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contest) {
+      throw this.notFoundError('Contest', contestId);
+    }
+
+    // Check if already published
+    if (contest.winnersPublished) {
+      throw this.conflictError('Winners have already been published for this contest');
+    }
+
+    // Verify all categories have Board approval
+    const categoriesWithoutBoardApproval = contest.categories.filter(
+      (category) => category.categoryCertifications.length === 0
+    );
+
+    if (categoriesWithoutBoardApproval.length > 0) {
+      const categoryNames = categoriesWithoutBoardApproval
+        .map((cat) => cat.name)
+        .join(', ');
+      throw this.badRequestError(
+        `Cannot publish winners. ${categoriesWithoutBoardApproval.length} categor${
+          categoriesWithoutBoardApproval.length === 1 ? 'y' : 'ies'
+        } without Board approval: ${categoryNames}`
+      );
+    }
+
+    // Publish winners
+    const updatedContest = await this.prisma.contest.update({
+      where: { id: contestId },
+      data: {
+        winnersPublished: true,
+        publishedAt: new Date(),
+        publishedBy: userId,
+      },
+    });
+
+    this.logInfo('Winners published successfully', {
+      contestId,
+      publishedBy: userId,
+      categoriesCount: contest.categories.length,
+    });
+
+    return {
+      message: 'Winners published successfully',
+      contest: updatedContest,
+      categoriesPublished: contest.categories.length,
+    };
+  }
+
+  /**
+   * Unpublish winners for a contest (admin only - for corrections)
+   */
+  async unpublishWinners(
+    contestId: string,
+    userId: string,
+    userRole: string,
+    reason: string
+  ) {
+    // Only SUPER_ADMIN and ADMIN can unpublish
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+      throw this.forbiddenError('Only SUPER_ADMIN or ADMIN can unpublish winners');
+    }
+
+    const contest = await this.prisma.contest.findUnique({
+      where: { id: contestId },
+    });
+
+    if (!contest) {
+      throw this.notFoundError('Contest', contestId);
+    }
+
+    if (!contest.winnersPublished) {
+      throw this.badRequestError('Winners are not currently published for this contest');
+    }
+
+    const updatedContest = await this.prisma.contest.update({
+      where: { id: contestId },
+      data: {
+        winnersPublished: false,
+        publishedAt: null,
+        publishedBy: null,
+      },
+    });
+
+    this.logWarn('Winners unpublished', {
+      contestId,
+      unpublishedBy: userId,
+      reason,
+    });
+
+    return {
+      message: 'Winners unpublished successfully',
+      contest: updatedContest,
+      reason,
+    };
+  }
+
+  /**
+   * Get winners publication status for a contest
+   */
+  async getWinnersPublicationStatus(contestId: string, tenantId: string) {
+    const contest = await this.prisma.contest.findUnique({
+      where: { id: contestId },
+      include: {
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            boardApproved: true,
+            categoryCertifications: {
+              where: { role: 'BOARD' },
+              select: {
+                certifiedAt: true,
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contest) {
+      throw this.notFoundError('Contest', contestId);
+    }
+
+    const totalCategories = contest.categories.length;
+    const approvedCategories = contest.categories.filter(
+      (cat) => cat.categoryCertifications.length > 0
+    ).length;
+    const pendingCategories = totalCategories - approvedCategories;
+
+    const canPublish =
+      !contest.winnersPublished &&
+      totalCategories > 0 &&
+      approvedCategories === totalCategories;
+
+    return {
+      contestId,
+      contestName: contest.name,
+      winnersPublished: contest.winnersPublished,
+      publishedAt: contest.publishedAt,
+      publishedBy: contest.publishedBy,
+      canPublish,
+      categories: {
+        total: totalCategories,
+        approved: approvedCategories,
+        pending: pendingCategories,
+      },
+      categoriesWithoutApproval: contest.categories
+        .filter((cat) => cat.categoryCertifications.length === 0)
+        .map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+        })),
+    };
+  }
+
+  /**
+   * Check if user can view unpublished winners
+   */
+  private canViewUnpublishedWinners(userRole: string): boolean {
+    return ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER'].includes(userRole);
   }
 
   /**

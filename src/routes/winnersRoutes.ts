@@ -7,7 +7,10 @@ import {
   getSignatureStatus,
   getCertificationProgress,
   getRoleCertificationStatus,
-  certifyScores
+  certifyScores,
+  publishWinners,
+  unpublishWinners,
+  getWinnersPublicationStatus
 } from '../controllers/winnersController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
@@ -77,6 +80,11 @@ router.get('/category/:categoryId/signatures', requireRole(['SUPER_ADMIN', 'ADMI
 router.get('/category/:categoryId/certification-progress', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getCertificationProgress)
 router.get('/category/:categoryId/certification-status/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getRoleCertificationStatus)
 router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('CERTIFY_SCORES', 'CERTIFICATION'), certifyScores)
+
+// Winners publication control endpoints
+router.get('/contest/:contestId/publication-status', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), getWinnersPublicationStatus)
+router.post('/contest/:contestId/publish', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), logActivity('PUBLISH_WINNERS', 'CONTEST'), publishWinners)
+router.post('/contest/:contestId/unpublish', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('UNPUBLISH_WINNERS', 'CONTEST'), unpublishWinners)
 
 export default router;
 
