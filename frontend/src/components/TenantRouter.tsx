@@ -59,6 +59,8 @@ const AuditorAuditLogPage = lazy(() => import('../pages/AuditorAuditLogPage'))
 const BoardPage = lazy(() => import('../pages/BoardPage'))
 const BoardCertificationsPage = lazy(() => import('../pages/BoardCertificationsPage'))
 const BoardScoreRemovalPage = lazy(() => import('../pages/BoardScoreRemovalPage'))
+const PermissionsPage = lazy(() => import('../pages/PermissionsPage'))
+const PermissionAuditLogPage = lazy(() => import('../pages/PermissionAuditLogPage'))
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -85,7 +87,7 @@ const KNOWN_ROUTES = new Set([
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
   'bulk-operations', 'commentary', 'category-types', 'field-visibility',
   'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs', 'activity',
-  'auditor', 'board'
+  'auditor', 'board', 'permissions'
 ])
 
 // Helper to check if a path segment is a known route
@@ -202,6 +204,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
             <Route path="/board/certifications" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardCertificationsPage /></ProtectedRoute>} />
             <Route path="/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
+            <Route path="/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
+            <Route path="/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
 
             {/* Tenant-prefixed routes - these match the same pages under /:slug prefix */}
             <Route path="/:slug/dashboard" element={<DashboardPage />} />
@@ -256,6 +260,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
             <Route path="/:slug/board/certifications" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardCertificationsPage /></ProtectedRoute>} />
             <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
+            <Route path="/:slug/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
+            <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<Navigate to={`${basePath}/dashboard`} replace />} />
 
             {/* Catch-all redirect */}

@@ -79,6 +79,13 @@ const AdminPage: React.FC = () => {
       color: 'blue',
     },
     {
+      title: 'Permission Management',
+      description: 'Manage role-based CRUD permissions',
+      icon: ShieldCheckIcon,
+      link: '/permissions',
+      color: 'teal',
+    },
+    {
       title: 'Event Management',
       description: 'Create and manage competition events',
       icon: CalendarIcon,
@@ -139,6 +146,7 @@ const AdminPage: React.FC = () => {
       indigo: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400',
       pink: 'bg-pink-100 dark:bg-pink-900 text-pink-600 dark:text-pink-400',
       orange: 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400',
+      teal: 'bg-teal-100 dark:bg-teal-900 text-teal-600 dark:text-teal-400',
     }
     return colors[color] || colors.blue
   }

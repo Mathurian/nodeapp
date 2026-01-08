@@ -189,6 +189,86 @@ export interface AuditLog {
   createdAt: string;
 }
 
+// Permission Types (Phase 4: Dynamic CRUD Permissions System)
+export interface RolePermission {
+  id: string;
+  role: UserRole;
+  resource: string;
+  operation: string;
+  allowed: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  tenantId: string;
+}
+
+export interface PermissionAuditLog {
+  id: string;
+  role: UserRole;
+  resource: string;
+  operation: string;
+  previousVal: boolean | null;
+  newVal: boolean;
+  changedBy: string;
+  changedAt: string;
+  reason?: string;
+  tenantId: string;
+  changedByUser?: {
+    name: string;
+    email: string;
+  };
+}
+
+export interface UpdatePermissionRequest {
+  role: UserRole;
+  resource: string;
+  operation: string;
+  allowed: boolean;
+  reason?: string;
+}
+
+export interface BulkUpdatePermissionsRequest {
+  updates: Array<{
+    role: UserRole;
+    resource: string;
+    operation: string;
+    allowed: boolean;
+  }>;
+  reason?: string;
+}
+
+export interface ClonePermissionsRequest {
+  sourceRole: UserRole;
+  targetRole: UserRole;
+  reason?: string;
+}
+
+export interface PermissionStats {
+  totalPermissions: number;
+  permissionsByRole: Record<UserRole, number>;
+  mostCommonResources: Array<{
+    resource: string;
+    count: number;
+  }>;
+  allowedCount: number;
+  deniedCount: number;
+}
+
+export interface PermissionComparison {
+  role1: UserRole;
+  role2: UserRole;
+  onlyInRole1: string[];
+  onlyInRole2: string[];
+  inBoth: string[];
+}
+
+export interface CacheStats {
+  total: number;
+  cached: number;
+  hitRate: number;
+  roleStats: Record<string, boolean>;
+}
+
 // Export all types as a namespace for easier imports
 export namespace API {
   export type Response<T = any> = ApiResponse<T>;
