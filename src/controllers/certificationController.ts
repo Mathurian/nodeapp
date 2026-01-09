@@ -100,21 +100,22 @@ export class CertificationController {
         return sendSuccess(res, {}, 'Certification already exists for this category/contest/event', 409);
       }
 
-      // Verify that the category, contest, and event exist
+      // SECURITY FIX #12: Defense in depth - validate tenant ownership
+      const tenantId = (req as any).tenantId!;
       const [category, contest, event] = await Promise.all([
-        this.prisma.category.findUnique({ where: { id: categoryId } }),
-        this.prisma.contest.findUnique({ where: { id: contestId } }),
-        this.prisma.event.findUnique({ where: { id: eventId } })
+        this.prisma.category.findFirst({ where: { id: categoryId, tenantId } }),
+        this.prisma.contest.findFirst({ where: { id: contestId, tenantId } }),
+        this.prisma.event.findFirst({ where: { id: eventId, tenantId } })
       ]);
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found', 404);
+        return sendSuccess(res, {}, 'Category not found or access denied', 404);
       }
       if (!contest) {
-        return sendSuccess(res, {}, 'Contest not found', 404);
+        return sendSuccess(res, {}, 'Contest not found or access denied', 404);
       }
       if (!event) {
-        return sendSuccess(res, {}, 'Event not found', 404);
+        return sendSuccess(res, {}, 'Event not found or access denied', 404);
       }
 
       const certification = await this.prisma.certification.create({

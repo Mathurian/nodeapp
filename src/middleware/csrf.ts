@@ -49,9 +49,9 @@ const isSecureRequest = (req: Request): boolean => {
 const generateCsrfToken = (req: Request, res: Response, next: NextFunction): void => {
   const csrfToken = generateToken()
   req.csrfToken = csrfToken
-  // For HTTPS requests from external domains, use 'lax' instead of 'strict'
-  // to allow cookie to be sent on cross-site POST requests
-  const sameSite = isSecureRequest(req) ? 'lax' : 'strict'
+  // SECURITY FIX: Use 'strict' for production (HTTPS) to prevent CSRF attacks
+  // Use 'lax' for development (HTTP) to allow testing
+  const sameSite = isSecureRequest(req) ? 'strict' : 'lax'
   res.cookie('_csrf', csrfToken, {
     httpOnly: false, // Must be readable by JavaScript to include in request headers
     secure: isSecureRequest(req),
@@ -68,11 +68,11 @@ const generateCsrfToken = (req: Request, res: Response, next: NextFunction): voi
 const getCsrfToken = (req: Request, res: Response): void => {
   try {
     const csrfToken = generateToken()
-    
-    // For HTTPS requests from external domains, use 'lax' instead of 'strict'
-    // to allow cookie to be sent on cross-site POST requests
-    const sameSite = isSecureRequest(req) ? 'lax' : 'strict'
-    
+
+    // SECURITY FIX: Use 'strict' for production (HTTPS) to prevent CSRF attacks
+    // Use 'lax' for development (HTTP) to allow testing
+    const sameSite = isSecureRequest(req) ? 'strict' : 'lax'
+
     // Set cookie
     res.cookie('_csrf', csrfToken, {
       httpOnly: false, // Must be readable by JavaScript to include in request headers
@@ -80,7 +80,7 @@ const getCsrfToken = (req: Request, res: Response): void => {
       sameSite: sameSite,
       path: '/'
     })
-    
+
     // Return token
     res.json({ csrfToken })
   } catch (error: unknown) {

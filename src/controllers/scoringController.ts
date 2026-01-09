@@ -838,8 +838,12 @@ export class ScoringController {
         return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can approve deductions.`, 403);
       }
 
-      const deduction = await this.prisma.deductionRequest.findUnique({
-        where: { id: deductionId! }
+      // SECURITY FIX #12: Defense in depth - validate tenant ID
+      const deduction = await this.prisma.deductionRequest.findFirst({
+        where: {
+          id: deductionId!,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!deduction) {
@@ -882,8 +886,12 @@ export class ScoringController {
         return sendError(res, 'User not authenticated', 401);
       }
 
-      const deduction = await this.prisma.deductionRequest.findUnique({
-        where: { id: deductionId }
+      // SECURITY FIX #12: Defense in depth - validate tenant ID
+      const deduction = await this.prisma.deductionRequest.findFirst({
+        where: {
+          id: deductionId,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!deduction) {
@@ -895,7 +903,10 @@ export class ScoringController {
       }
 
       const updated = await this.prisma.deductionRequest.update({
-        where: { id: deductionId },
+        where: {
+          id: deductionId,
+          tenantId: req.user!.tenantId
+        },
         data: { status: 'REJECTED' }
         // include removed - no relations in schema
       });

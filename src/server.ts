@@ -32,7 +32,7 @@ import { swaggerSpec, swaggerUiOptions } from './config/swagger.config';
 
 // Middleware
 import { requestLogging, errorLogging } from './middleware/requestLogger';
-import { generalLimiter, authLimiter } from './middleware/rateLimiting';
+import { generalLimiter, authLimiter, publicEndpointLimiter } from './middleware/rateLimiting';
 import { rateLimitMiddleware } from './middleware/enhancedRateLimiting';
 import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
@@ -182,9 +182,10 @@ app.get('/health', async (_req: Request, res: Response) => {
 
 /**
  * CSRF token endpoint (public)
+ * SECURITY FIX #10: Added IP-based rate limiting to prevent abuse
  */
-app.get('/api/csrf-token', getCsrfToken);
-app.get('/api/v1/csrf-token', getCsrfToken);
+app.get('/api/csrf-token', publicEndpointLimiter, getCsrfToken);
+app.get('/api/v1/csrf-token', publicEndpointLimiter, getCsrfToken);
 
 /**
  * API Documentation (Swagger UI)

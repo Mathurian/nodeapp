@@ -8,6 +8,7 @@
 import express from 'express';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
+import { publicEndpointLimiter } from '../middleware/rateLimiting';
 
 const logger = createLogger('publicTenantRoutes');
 
@@ -49,7 +50,8 @@ const router = express.Router();
  *       404:
  *         description: Tenant not found
  */
-router.get('/slug/:slug', async (req, res) => {
+// SECURITY FIX #10: Added IP-based rate limiting to prevent abuse
+router.get('/slug/:slug', publicEndpointLimiter, async (req, res) => {
   try {
     const { slug } = req.params;
 
@@ -151,7 +153,8 @@ router.get('/slug/:slug', async (req, res) => {
  *       404:
  *         description: Slug not found or inactive
  */
-router.get('/check/:slug', async (req, res) => {
+// SECURITY FIX #10: Added IP-based rate limiting to prevent abuse
+router.get('/check/:slug', publicEndpointLimiter, async (req, res) => {
   try {
     const { slug } = req.params;
 

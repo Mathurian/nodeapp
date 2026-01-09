@@ -71,7 +71,7 @@ router.post('/login', perEmailAuthLimiter, login);
  *         description: Logout successful
  */
 router.post('/logout', logout);
-router.get('/logout', logout); // Allow GET requests for logout
+// SECURITY FIX: GET logout removed - logout must be POST only to prevent CSRF and accidental logouts
 
 /**
  * @swagger
@@ -121,7 +121,8 @@ router.post('/forgot-password', passwordResetLimiter, forgotPassword);
  *       200:
  *         description: Password reset successful
  */
-router.post('/reset-password', resetPasswordWithToken);
+// SECURITY FIX: Added rate limiting to prevent brute-force token attacks
+router.post('/reset-password', passwordResetLimiter, resetPasswordWithToken);
 
 /**
  * @swagger

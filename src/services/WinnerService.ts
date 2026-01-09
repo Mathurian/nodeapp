@@ -455,6 +455,7 @@ export class WinnerService extends BaseService {
 
   /**
    * Sign winners for a category
+   * SECURITY FIX #11: Added transaction support for atomicity
    */
   async signWinners(
     categoryId: string,
@@ -508,16 +509,19 @@ export class WinnerService extends BaseService {
       select: { name: true },
     });
 
-    // Create certification record
-    const certification = await this.prisma.categoryCertification.create({
-      data: {
-        categoryId,
-        userId,
-        role: userRole,
-        signatureName: user?.name || 'Unknown User',
-        tenantId,
-        comments: `Signed from IP: ${ipAddress || 'unknown'}, User-Agent: ${userAgent || 'unknown'}`,
-      },
+    // SECURITY FIX #11: Use transaction to ensure atomic operations
+    const certification = await this.prisma.$transaction(async (tx) => {
+      // Create certification record
+      return tx.categoryCertification.create({
+        data: {
+          categoryId,
+          userId,
+          role: userRole,
+          signatureName: user?.name || 'Unknown User',
+          tenantId,
+          comments: `Signed from IP: ${ipAddress || 'unknown'}, User-Agent: ${userAgent || 'unknown'}`,
+        },
+      });
     });
 
     return {
@@ -714,6 +718,7 @@ export class WinnerService extends BaseService {
 
   /**
    * Certify scores for a category
+   * SECURITY FIX #11: Added transaction support for atomicity
    */
   async certifyScores(
     categoryId: string,
@@ -790,64 +795,69 @@ export class WinnerService extends BaseService {
       throw this.badRequestError('Cannot certify category with no scores');
     }
 
-    // Create certification record
-    const certification = await this.prisma.categoryCertification.create({
-      data: {
-        categoryId,
-        userId,
-        role: userRole,
-        signatureName: user?.name || 'Unknown User',
-        tenantId,
-        comments: comments || `Certified by ${userRole}`,
-      },
-    });
-
-    // Update the Certification workflow if it exists
-    const certificationWorkflow = await this.prisma.certification.findFirst({
-      where: {
-        categoryId,
-        tenantId,
-      },
-    });
-
-    if (certificationWorkflow) {
-      // Update workflow based on role
-      const updates: {
-        tallyCertified?: boolean;
-        auditorCertified?: boolean;
-        boardApproved?: boolean;
-        currentStep?: number;
-        status?: string;
-      } = {};
-
-      if (userRole === 'TALLY_MASTER') {
-        updates.tallyCertified = true;
-        updates.currentStep = Math.max(certificationWorkflow.currentStep, 2);
-      } else if (userRole === 'AUDITOR') {
-        updates.auditorCertified = true;
-        updates.currentStep = Math.max(certificationWorkflow.currentStep, 3);
-      } else if (userRole === 'BOARD') {
-        updates.boardApproved = true;
-        updates.currentStep = Math.max(certificationWorkflow.currentStep, 4);
-      }
-
-      // Check if all required roles have certified
-      const allCertified =
-        (updates.tallyCertified ?? certificationWorkflow.tallyCertified) &&
-        (updates.auditorCertified ?? certificationWorkflow.auditorCertified) &&
-        (updates.boardApproved ?? certificationWorkflow.boardApproved);
-
-      if (allCertified) {
-        updates.status = 'CERTIFIED';
-      } else if (certificationWorkflow.status === 'PENDING') {
-        updates.status = 'IN_PROGRESS';
-      }
-
-      await this.prisma.certification.update({
-        where: { id: certificationWorkflow.id },
-        data: updates as Prisma.CertificationUpdateInput,
+    // SECURITY FIX #11: Use transaction to ensure atomic operations
+    const certification = await this.prisma.$transaction(async (tx) => {
+      // Create certification record
+      const cert = await tx.categoryCertification.create({
+        data: {
+          categoryId,
+          userId,
+          role: userRole,
+          signatureName: user?.name || 'Unknown User',
+          tenantId,
+          comments: comments || `Certified by ${userRole}`,
+        },
       });
-    }
+
+      // Update the Certification workflow if it exists
+      const certificationWorkflow = await tx.certification.findFirst({
+        where: {
+          categoryId,
+          tenantId,
+        },
+      });
+
+      if (certificationWorkflow) {
+        // Update workflow based on role
+        const updates: {
+          tallyCertified?: boolean;
+          auditorCertified?: boolean;
+          boardApproved?: boolean;
+          currentStep?: number;
+          status?: string;
+        } = {};
+
+        if (userRole === 'TALLY_MASTER') {
+          updates.tallyCertified = true;
+          updates.currentStep = Math.max(certificationWorkflow.currentStep, 2);
+        } else if (userRole === 'AUDITOR') {
+          updates.auditorCertified = true;
+          updates.currentStep = Math.max(certificationWorkflow.currentStep, 3);
+        } else if (userRole === 'BOARD') {
+          updates.boardApproved = true;
+          updates.currentStep = Math.max(certificationWorkflow.currentStep, 4);
+        }
+
+        // Check if all required roles have certified
+        const allCertified =
+          (updates.tallyCertified ?? certificationWorkflow.tallyCertified) &&
+          (updates.auditorCertified ?? certificationWorkflow.auditorCertified) &&
+          (updates.boardApproved ?? certificationWorkflow.boardApproved);
+
+        if (allCertified) {
+          updates.status = 'CERTIFIED';
+        } else if (certificationWorkflow.status === 'PENDING') {
+          updates.status = 'IN_PROGRESS';
+        }
+
+        await tx.certification.update({
+          where: { id: certificationWorkflow.id },
+          data: updates as Prisma.CertificationUpdateInput,
+        });
+      }
+
+      return cert;
+    });
 
     // Get updated progress
     const progress = await this.getCertificationProgress(categoryId, tenantId);

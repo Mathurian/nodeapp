@@ -59,9 +59,28 @@ const passwordResetLimiter = isTestEnv ? noopLimiter : rateLimit({
   skip: (req: Request): boolean => isLocalhost(req)
 })
 
+// SECURITY FIX #10: IP-based rate limiting for public endpoints
+// Prevents abuse of unauthenticated endpoints like tenant lookup, CSRF token, health checks
+const publicEndpointLimiter = isTestEnv ? noopLimiter : rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 100, // 100 requests per 5 minutes per IP (20/min average)
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false, // Count all requests to prevent abuse
+  skip: (req: Request): boolean => {
+    // Skip rate limiting for health check in monitoring systems
+    if (req.path === '/health' && isLocalhost(req)) {
+      return true;
+    }
+    return false;
+  }
+})
+
 export {
   generalLimiter,
   authLimiter,
   perEmailAuthLimiter,
-  passwordResetLimiter
+  passwordResetLimiter,
+  publicEndpointLimiter
  }
