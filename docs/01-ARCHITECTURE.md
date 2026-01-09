@@ -38,19 +38,19 @@ Event Manager follows a modern three-tier architecture with clear separation of 
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  Node.js 18+ / Express (TypeScript)                │    │
 │  │  ┌──────────────────────────────────────────────┐  │    │
-│  │  │  API Layer (69 Routes)                       │  │    │
+│  │  │  API Layer (77+ Routes)                      │  │    │
 │  │  │  - RESTful endpoints                         │  │    │
 │  │  │  - WebSocket handlers                        │  │    │
 │  │  │  - Middleware stack                          │  │    │
 │  │  └──────────────────────────────────────────────┘  │    │
 │  │  ┌──────────────────────────────────────────────┐  │    │
-│  │  │  Controllers (70)                            │  │    │
+│  │  │  Controllers (80+)                           │  │    │
 │  │  │  - Request handling                          │  │    │
 │  │  │  - Input validation                          │  │    │
 │  │  │  - Response formatting                       │  │    │
 │  │  └──────────────────────────────────────────────┘  │    │
 │  │  ┌──────────────────────────────────────────────┐  │    │
-│  │  │  Services (79)                               │  │    │
+│  │  │  Services (104+)                             │  │    │
 │  │  │  - Business logic                            │  │    │
 │  │  │  - Data processing                           │  │    │
 │  │  │  - External integrations                     │  │    │
@@ -67,8 +67,8 @@ Event Manager follows a modern three-tier architecture with clear separation of 
 │                    DATA LAYER                                │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  PostgreSQL 12+                                     │    │
-│  │  - 60+ Tables                                       │    │
-│  │  - 80+ Indexes                                      │    │
+│  │  - 82+ Tables (87 including migrations)            │    │
+│  │  - 311+ Indexes                                     │    │
 │  │  - Multi-tenant data isolation                     │    │
 │  │  - JSONB for flexible data                         │    │
 │  └─────────────────────────────────────────────────────┘    │
@@ -113,10 +113,10 @@ Event Manager follows a modern three-tier architecture with clear separation of 
 | Runtime | Node.js | 18+ | JavaScript runtime |
 | Framework | Express | 4.x | Web application framework |
 | Language | TypeScript | 5.9 | Type-safe development |
-| ORM | Prisma | 6.18 | Database access layer |
+| ORM | Prisma | 5.19.1 | Database access layer |
 | Database | PostgreSQL | 12+ | Primary data store |
 | Cache | Redis + Node-Cache | Latest | Caching layer |
-| Real-time | Socket.IO | 4.8 | WebSocket communication |
+| Real-time | Socket.IO | 4.7.5 | WebSocket communication |
 | Authentication | JWT | 9.0 | Token-based auth |
 | Validation | Express-Validator | 7.x | Input validation |
 | Jobs | BullMQ | 5.x | Background job processing |
@@ -162,12 +162,12 @@ src/
 │   ├── routes.config.ts  # Route registration
 │   ├── swagger.config.ts # API documentation
 │   └── container.ts      # Dependency injection
-├── controllers/          # Request handlers (70 files)
+├── controllers/          # Request handlers (80+ files)
 │   ├── authController.ts
 │   ├── eventsController.ts
 │   ├── scoringController.ts
 │   └── ...
-├── services/             # Business logic (79 files)
+├── services/             # Business logic (104+ files)
 │   ├── AuthService.ts
 │   ├── EventService.ts
 │   ├── ScoringService.ts
@@ -184,7 +184,7 @@ src/
 │   ├── errorHandler.ts   # Error handling
 │   ├── validation.ts     # Input validation
 │   └── tenantMiddleware.ts # Multi-tenancy
-├── routes/               # API route definitions (69 files)
+├── routes/               # API route definitions (77+ files)
 │   ├── authRoutes.ts
 │   ├── eventsRoutes.ts
 │   └── ...

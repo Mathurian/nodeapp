@@ -49,7 +49,7 @@ Event Manager uses PostgreSQL 12+ as its primary database with Prisma as the ORM
 
 ### Prisma ORM
 
-**Version**: 6.18.0
+**Version**: 5.19.1
 
 **Features**:
 - Type-safe database access

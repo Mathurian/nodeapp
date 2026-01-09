@@ -70,18 +70,41 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
                   // Include relevant request data
                   body: req.body ? Object.keys(req.body).reduce((acc: Record<string, unknown>, key: string) => {
                     // Exclude sensitive fields from logging
-                    // SECURITY FIX: Case-insensitive field filtering with comprehensive list
+                    // SECURITY FIX #14: Enhanced sensitive field detection with comprehensive patterns
                     const sensitiveFields = [
-                      'password', 'token', 'secret', 'apikey', 'api_key',
-                      'mfa', 'totp', 'otp', 'mfasecret', 'mfa_secret',
-                      'certificate', 'privatekey', 'private_key',
-                      'accesstoken', 'access_token', 'refreshtoken', 'refresh_token',
-                      'sessionid', 'session_id', 'auth', 'authorization',
-                      'bearer', 'jwt', 'ssn', 'creditcard', 'credit_card',
-                      'cvv', 'pin', 'backupcodes', 'backup_codes'
+                      // Password variants
+                      'password', 'passwd', 'pwd', 'pass', 'passcode',
+                      'oldpassword', 'old_password', 'newpassword', 'new_password',
+                      'confirmpassword', 'confirm_password', 'currentpassword', 'current_password',
+                      // Token variants
+                      'token', 'accesstoken', 'access_token', 'refreshtoken', 'refresh_token',
+                      'idtoken', 'id_token', 'authtoken', 'auth_token', 'csrftoken', 'csrf_token',
+                      'bearer', 'jwt', 'jwttoken', 'jwt_token',
+                      // Secret/Key variants
+                      'secret', 'secretkey', 'secret_key', 'apisecret', 'api_secret',
+                      'apikey', 'api_key', 'privatekey', 'private_key', 'publickey', 'public_key',
+                      'encryptionkey', 'encryption_key', 'signingkey', 'signing_key',
+                      // Authentication variants
+                      'auth', 'authorization', 'authkey', 'auth_key', 'credentials',
+                      'sessionid', 'session_id', 'sessiontoken', 'session_token',
+                      // MFA/OTP variants
+                      'mfa', 'totp', 'otp', 'mfasecret', 'mfa_secret', 'otpsecret', 'otp_secret',
+                      'backupcodes', 'backup_codes', 'recoverycodes', 'recovery_codes',
+                      'verificationcode', 'verification_code', 'code',
+                      // Certificate variants
+                      'certificate', 'cert', 'ssl', 'tls', 'x509',
+                      // Financial/PII variants
+                      'ssn', 'social', 'socialsecurity', 'social_security',
+                      'creditcard', 'credit_card', 'cardnumber', 'card_number',
+                      'cvv', 'cvc', 'cvv2', 'pin', 'securitycode', 'security_code',
+                      'bankaccount', 'bank_account', 'routing', 'accountnumber', 'account_number',
+                      // Other sensitive data
+                      'signature', 'biometric', 'fingerprint', 'faceid', 'face_id'
                     ];
-                    const normalizedKey = key.toLowerCase();
-                    const isSensitive = sensitiveFields.some(field => normalizedKey.includes(field));
+                    const normalizedKey = key.toLowerCase().replace(/[-_\s]/g, '');
+                    const isSensitive = sensitiveFields.some(field =>
+                      normalizedKey.includes(field.replace(/[-_\s]/g, ''))
+                    );
 
                     if (!isSensitive) {
                       acc[key] = req.body[key];

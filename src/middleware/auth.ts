@@ -75,9 +75,35 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    // Check session version to detect security events (password change, etc.)
+    // SECURITY FIX #17: Improve session version tracking to prevent race conditions
+    // Always fetch fresh session version from database when user is from cache
+    // to prevent stale cached data from bypassing security checks
     const tokenSessionVersion = decoded.sessionVersion || 1;
-    const dbSessionVersion = user.sessionVersion || 1;
+    let dbSessionVersion = user.sessionVersion || 1;
+
+    if (fromCache) {
+      // Fetch fresh session version from database for cached users
+      // This prevents race condition where session is invalidated but cache is stale
+      const freshSessionData = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { sessionVersion: true }
+      });
+
+      if (freshSessionData) {
+        dbSessionVersion = freshSessionData.sessionVersion || 1;
+
+        // Update cache if session version changed
+        if (dbSessionVersion !== (user.sessionVersion || 1)) {
+          logger.info('Session version changed, updating cache', {
+            userId: decoded.userId,
+            oldVersion: user.sessionVersion,
+            newVersion: dbSessionVersion
+          });
+          // Invalidate cache to force fresh fetch next time
+          userCache.invalidate(decoded.userId);
+        }
+      }
+    }
 
     if (tokenSessionVersion !== dbSessionVersion) {
       // Invalidate cache on session version mismatch

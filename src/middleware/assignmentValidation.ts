@@ -75,33 +75,70 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
       res.status(400).json({ error: 'Either categoryId or contestId is required' }); return;
     }
 
+    // SECURITY FIX #15: Assignment validation race condition mitigation
+    // WARNING: There is a potential race condition between checking for existing
+    // assignments here and creating them in the controller. Under concurrent requests,
+    // duplicate assignments could be created.
+    //
+    // Mitigation strategies implemented:
+    // 1. Enhanced logging to detect duplicate creation attempts
+    // 2. Recommendation: Add unique composite index in Prisma schema:
+    //    @@unique([judgeId, categoryId, status]) for category assignments
+    //    @@unique([judgeId, contestId, categoryId, status]) for contest assignments
+    // 3. Controller should handle P2002 (unique constraint violation) gracefully
+    // 4. Consider using upsert() or createMany() with skipDuplicates in controller
+
     // Check for existing assignment
     // For category-level assignments, check exact match
     // For contest-level assignments, check if judge has ANY assignment to this contest
     let existingAssignment = null
-    
+
     if (category) {
       // Category-level assignment - check for exact category assignment
       existingAssignment = await prisma.assignment.findFirst({
-        where: { 
-          judgeId, 
-          categoryId, 
-          status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] } 
+        where: {
+          judgeId,
+          categoryId,
+          status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] }
         }
       })
+
+      // Log check for race condition monitoring
+      if (!existingAssignment) {
+        logger.debug('No existing category assignment found', {
+          judgeId,
+          categoryId,
+          timestamp: new Date().toISOString()
+        });
+      }
     } else if (contestId) {
       // Contest-level assignment - check for contest-level assignment only
       existingAssignment = await prisma.assignment.findFirst({
-        where: { 
-          judgeId, 
-          contestId, 
+        where: {
+          judgeId,
+          contestId,
           categoryId: null,  // Only contest-level
-          status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] } 
+          status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] }
         }
       })
+
+      // Log check for race condition monitoring
+      if (!existingAssignment) {
+        logger.debug('No existing contest assignment found', {
+          judgeId,
+          contestId,
+          timestamp: new Date().toISOString()
+        });
+      }
     }
 
     if (existingAssignment) {
+      logger.warn('Duplicate assignment attempt blocked', {
+        judgeId,
+        categoryId: existingAssignment.categoryId,
+        contestId: existingAssignment.contestId,
+        existingStatus: existingAssignment.status
+      });
       res.status(400).json({ error: 'Judge is already assigned to this contest/category' }); return;
     }
 

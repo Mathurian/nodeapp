@@ -84,7 +84,19 @@ const validatePassword = async (req: Request, res: Response, next: NextFunction)
     })
 
     if (!policy) {
-      // No policy set, allow any password
+      // SECURITY FIX #13: Use hardcoded secure fallback policy when no database policy exists
+      // Previously allowed any password - now enforces minimum security standards
+      logger.warn('No password policy found, using hardcoded secure fallback');
+      const validation = validatePasswordStatic(password);
+
+      if (!validation.valid) {
+        res.status(400).json({
+          error: 'Password does not meet security requirements',
+          details: validation.errors
+        });
+        return;
+      }
+
       next();
       return;
     }
