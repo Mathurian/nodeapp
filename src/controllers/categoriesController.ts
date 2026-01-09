@@ -407,12 +407,35 @@ export class CategoriesController {
   bulkUpdateCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { updates } = req.body;
+      const tenantId = (req as any).tenantId;
+
       if (!updates || !Array.isArray(updates)) {
         return sendError(res, 'Updates array is required', 400);
       }
 
       if (updates.length === 0) {
         return sendSuccess(res, { updated: 0 }, 'No categories to update');
+      }
+
+      if (!tenantId) {
+        return sendError(res, 'Tenant identification is required', 400);
+      }
+
+      // SECURITY FIX: Pre-validate all IDs belong to tenant
+      const categoryIds = updates.map((u: any) => u.id).filter((id: string) => id);
+      const validCategories = await this.prisma.category.findMany({
+        where: {
+          id: { in: categoryIds },
+          tenantId: tenantId
+        },
+        select: { id: true }
+      });
+
+      const validIds = new Set(validCategories.map(c => c.id));
+      const invalidIds = categoryIds.filter((id: string) => !validIds.has(id));
+
+      if (invalidIds.length > 0) {
+        return sendError(res, `Access denied: ${invalidIds.length} categor${invalidIds.length === 1 ? 'y' : 'ies'} do not belong to your tenant`, 403);
       }
 
       // Each update should have { id, ...fields }
@@ -422,8 +445,12 @@ export class CategoriesController {
           if (!id) {
             throw new Error('Each update must have an id');
           }
+          // Add tenantId to WHERE clause for defense in depth
           return this.prisma.category.update({
-            where: { id },
+            where: {
+              id,
+              tenantId: tenantId
+            },
             data
           });
         })
@@ -477,12 +504,35 @@ export class CategoriesController {
   bulkUpdateCriteria = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { updates } = req.body;
+      const tenantId = (req as any).tenantId;
+
       if (!updates || !Array.isArray(updates)) {
         return sendError(res, 'Updates array is required', 400);
       }
 
       if (updates.length === 0) {
         return sendSuccess(res, { updated: 0 }, 'No criteria to update');
+      }
+
+      if (!tenantId) {
+        return sendError(res, 'Tenant identification is required', 400);
+      }
+
+      // SECURITY FIX: Pre-validate all IDs belong to tenant
+      const criterionIds = updates.map((u: any) => u.id).filter((id: string) => id);
+      const validCriteria = await this.prisma.criterion.findMany({
+        where: {
+          id: { in: criterionIds },
+          tenantId: tenantId
+        },
+        select: { id: true }
+      });
+
+      const validIds = new Set(validCriteria.map(c => c.id));
+      const invalidIds = criterionIds.filter((id: string) => !validIds.has(id));
+
+      if (invalidIds.length > 0) {
+        return sendError(res, `Access denied: ${invalidIds.length} criteri${invalidIds.length === 1 ? 'on' : 'a'} do not belong to your tenant`, 403);
       }
 
       // Each update should have { id, ...fields }
@@ -492,8 +542,12 @@ export class CategoriesController {
           if (!id) {
             throw new Error('Each update must have an id');
           }
+          // Add tenantId to WHERE clause for defense in depth
           return this.prisma.criterion.update({
-            where: { id },
+            where: {
+              id,
+              tenantId: tenantId
+            },
             data
           });
         })

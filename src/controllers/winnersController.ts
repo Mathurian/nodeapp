@@ -21,15 +21,22 @@ export class WinnersController {
     try {
       const { categoryId } = req.params;
       const user = (req as any).user;
+      const tenantId = (req as any).tenantId;
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });
         return;
       }
 
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant identification is required' });
+        return;
+      }
+
       const result = await this.winnerService.getWinnersByCategory(
         categoryId,
-        user.role
+        user.role,
+        tenantId
       );
 
       sendSuccess(res, result, result.message);
@@ -50,16 +57,23 @@ export class WinnersController {
       const { contestId } = req.params;
       const { includeCategoryBreakdown = true } = req.query;
       const user = (req as any).user;
+      const tenantId = (req as any).tenantId;
 
       if (!contestId) {
         res.status(400).json({ error: 'Contest ID is required' });
         return;
       }
 
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant identification is required' });
+        return;
+      }
+
       const result = await this.winnerService.getWinnersByContest(
         contestId,
         user.role,
-        Boolean(includeCategoryBreakdown)
+        Boolean(includeCategoryBreakdown),
+        tenantId
       );
 
       sendSuccess(res, result, result.message);
@@ -75,6 +89,7 @@ export class WinnersController {
     try {
       const { categoryId } = req.body;
       const user = (req as any).user;
+      const tenantId = (req as any).tenantId;
       const ipAddress = req.ip;
       const userAgent = req.get('user-agent');
 
@@ -83,10 +98,16 @@ export class WinnersController {
         return;
       }
 
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant identification is required' });
+        return;
+      }
+
       const result = await this.winnerService.signWinners(
         categoryId,
         user.id,
         user.role,
+        tenantId,
         ipAddress || 'unknown',
         userAgent
       );
@@ -208,10 +229,19 @@ export class WinnersController {
   getWinners = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { eventId, contestId } = req.query;
+      const user = (req as any).user;
+      const tenantId = (req as any).tenantId;
+
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant identification is required' });
+        return;
+      }
 
       const result = await this.winnerService.getWinners(
         eventId as string | undefined,
-        contestId as string | undefined
+        contestId as string | undefined,
+        user?.role || 'ADMIN',
+        tenantId
       );
 
       sendSuccess(res, result, result.message || 'Winners retrieved successfully');
@@ -254,6 +284,7 @@ export class WinnersController {
       const { contestId } = req.params;
       const { reason } = req.body;
       const user = (req as any).user;
+      const tenantId = (req as any).tenantId;
 
       if (!contestId) {
         res.status(400).json({ error: 'Contest ID is required' });
@@ -265,11 +296,17 @@ export class WinnersController {
         return;
       }
 
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant identification is required' });
+        return;
+      }
+
       const result = await this.winnerService.unpublishWinners(
         contestId,
         user.id,
         user.role,
-        reason
+        reason,
+        tenantId
       );
 
       sendSuccess(res, result, result.message);

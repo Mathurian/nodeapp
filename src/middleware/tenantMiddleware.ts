@@ -214,15 +214,44 @@ export async function tenantMiddleware(
       }
     }
 
-    // 6. Default tenant (fallback)
+    // 6. Public endpoints that don't require tenant identification
     if (!tenantIdOrSlug) {
-      tenantIdOrSlug = 'default';  // Use slug 'default', not ID 'default_tenant'
-      identificationMethod = 'default';
-      logger.warn(`No tenant identified, falling back to default tenant`, {
+      // Define explicitly public endpoints
+      const publicEndpoints = [
+        '/api/csrf-token',
+        '/api/v1/csrf-token',
+        '/api/tenants/slug/',
+        '/api/tenants/check/',
+        '/health',
+        '/metrics',
+        '/api-docs'
+      ];
+
+      const isPublicEndpoint = publicEndpoints.some(endpoint =>
+        req.path.startsWith(endpoint)
+      );
+
+      if (isPublicEndpoint) {
+        logger.debug('Public endpoint accessed without tenant', {
+          path: req.path,
+          method: req.method
+        });
+        return next();
+      }
+
+      // Reject all other requests without tenant identification
+      logger.error('Tenant identification required', {
         path: req.path,
-        hasCookie: !!req.cookies?.['access_token'],
-        hasUser: !!req.user,
-        host: req.get('host')
+        method: req.method,
+        ip: req.ip,
+        host: req.get('host'),
+        userAgent: req.get('user-agent')
+      });
+
+      return res.status(400).json({
+        error: 'Tenant identification required',
+        message: 'Please provide tenant identification via subdomain, header, or cookie',
+        hint: 'Use X-Tenant-ID header or tenant subdomain'
       });
     }
 

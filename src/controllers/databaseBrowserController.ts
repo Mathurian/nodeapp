@@ -49,35 +49,41 @@ export class DatabaseBrowserController {
 
   executeQuery = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { query } = req.body;
+      // SECURITY FIX: Direct database query execution has been disabled
+      // due to SQL injection vulnerability (P0-1)
 
-      if (!query) {
-        return sendSuccess(res, {}, 'Query is required', 400);
-      }
+      logger.warn('Database query endpoint access attempt', {
+        userId: req.user?.id,
+        userRole: req.user?.role,
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      });
 
-      // Security: Only allow SELECT queries for safety
-      const trimmedQuery = query.trim().toUpperCase();
-      if (!trimmedQuery.startsWith('SELECT')) {
-        return sendSuccess(res, {}, 'Only SELECT queries are allowed for security reasons', 403);
-      }
-
-      // Execute raw query using Prisma
-      const result = await this.prisma.$queryRawUnsafe(query);
-
-      // Log query execution
+      // Log the attempt
       await this.prisma.activityLog.create({
         data: {
-          action: 'DATABASE_QUERY',
+          action: 'DATABASE_QUERY_ATTEMPT_BLOCKED',
           resourceType: 'DATABASE',
           userId: req.user?.id || null,
           ipAddress: req.ip || null,
-          details: JSON.stringify({ query })
+          userAgent: req.get('user-agent') || null,
+          logLevel: 'WARN',
+          details: {
+            message: 'Direct database query execution is disabled for security',
+            path: req.path,
+            method: req.method
+          }
         }
       });
 
-      return sendSuccess(res, {
-        rows: result,
-        count: Array.isArray(result) ? result.length : 0
+      return res.status(403).json({
+        error: 'Feature disabled',
+        message: 'Direct database query execution has been disabled for security. Please use Prisma Studio or contact your system administrator.',
+        alternativeSolutions: [
+          'Use Prisma Studio for database browsing',
+          'Use predefined report endpoints',
+          'Contact system administrator for custom queries'
+        ]
       });
     } catch (error) {
       return next(error);

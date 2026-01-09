@@ -25,28 +25,28 @@ const encryptFile = async (filePath: string, password: string): Promise<Buffer> 
   try {
     // Read file content
     const fileContent = await fs.readFile(filePath)
-    
+
     // Generate salt and key
     const salt = generateSalt()
     const key = generateKey(password, salt)
-    
+
     // Generate random IV
     const iv = crypto.randomBytes(IV_LENGTH)
-    
-    // Create cipher
-    const cipher = crypto.createCipher(ENCRYPTION_ALGORITHM, key)
+
+    // Create cipher with IV
+    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv)
     cipher.setAAD(salt)
-    
+
     // Encrypt content
     let encrypted = cipher.update(fileContent)
     encrypted = Buffer.concat([encrypted, cipher.final()])
-    
+
     // Get authentication tag
     const tag = cipher.getAuthTag()
-    
+
     // Combine salt + iv + tag + encrypted content
     const encryptedData = Buffer.concat([salt, iv, tag, encrypted])
-    
+
     return encryptedData
   } catch (error) {
     logger.error('File encryption error', { error })
@@ -59,22 +59,22 @@ const decryptFile = async (encryptedData: Buffer, password: string): Promise<Buf
   try {
     // Extract components
     const salt = encryptedData.slice(0, 16)
-    // IV generated but not returned: const iv = encryptedData.slice(16, 32)
+    const iv = encryptedData.slice(16, 32)
     const tag = encryptedData.slice(32, 48)
     const encrypted = encryptedData.slice(48)
-    
+
     // Generate key
     const key = generateKey(password, salt)
-    
-    // Create decipher
-    const decipher = crypto.createDecipher(ENCRYPTION_ALGORITHM, key)
+
+    // Create decipher with IV
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv)
     decipher.setAAD(salt)
     decipher.setAuthTag(tag)
-    
+
     // Decrypt content
     let decrypted = decipher.update(encrypted)
     decrypted = Buffer.concat([decrypted, decipher.final()])
-    
+
     return decrypted
   } catch (error) {
     logger.error('File decryption error', { error })
@@ -85,23 +85,27 @@ const decryptFile = async (encryptedData: Buffer, password: string): Promise<Buf
 // Encrypt file and save to secure location
 const encryptAndStoreFile = async (originalPath: string, encryptedPath: string, password: string): Promise<{ success: boolean; encryptedPath: string; originalSize: number; encryptedSize: number }> => {
   try {
+    // Get file stats BEFORE encryption/deletion
+    const stats = await fs.stat(originalPath)
+    const originalSize = stats.size
+
     // Encrypt file
     const encryptedData = await encryptFile(originalPath, password)
-    
+
     // Create secure directory if it doesn't exist
     const secureDir = path.dirname(encryptedPath)
     await fs.mkdir(secureDir, { recursive: true, mode: 0o700 })
-    
+
     // Write encrypted file
     await fs.writeFile(encryptedPath, encryptedData, { mode: 0o600 })
-    
+
     // Remove original file
     await fs.unlink(originalPath)
-    
+
     return {
       success: true,
       encryptedPath,
-      originalSize: (await fs.stat(originalPath)).size,
+      originalSize,
       encryptedSize: encryptedData.length
     }
   } catch (error) {
@@ -159,16 +163,16 @@ const encryptMetadata = (metadata: any, password: string): string => {
     const salt = generateSalt()
     const key = generateKey(password, salt)
     const iv = crypto.randomBytes(IV_LENGTH)
-    
-    const cipher = crypto.createCipher(ENCRYPTION_ALGORITHM, key)
+
+    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv)
     cipher.setAAD(salt)
-    
+
     const metadataString = JSON.stringify(metadata)
     let encrypted = cipher.update(metadataString, 'utf8')
     encrypted = Buffer.concat([encrypted, cipher.final()])
-    
+
     const tag = cipher.getAuthTag()
-    
+
     return Buffer.concat([salt, iv, tag, encrypted]).toString('base64')
   } catch (error) {
     logger.error('Metadata encryption error', { error })
@@ -180,21 +184,21 @@ const encryptMetadata = (metadata: any, password: string): string => {
 const decryptMetadata = (encryptedMetadata: string, password: string): any => {
   try {
     const encryptedData = Buffer.from(encryptedMetadata, 'base64')
-    
+
     const salt = encryptedData.slice(0, 16)
-    // IV generated but not returned: const iv = encryptedData.slice(16, 32)
+    const iv = encryptedData.slice(16, 32)
     const tag = encryptedData.slice(32, 48)
     const encrypted = encryptedData.slice(48)
-    
+
     const key = generateKey(password, salt)
-    
-    const decipher = crypto.createDecipher(ENCRYPTION_ALGORITHM, key)
+
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv)
     decipher.setAAD(salt)
     decipher.setAuthTag(tag)
-    
+
     let decrypted = decipher.update(encrypted)
     decrypted = Buffer.concat([decrypted, decipher.final()])
-    
+
     return JSON.parse(decrypted.toString('utf8'))
   } catch (error) {
     logger.error('Metadata decryption error', { error })

@@ -661,6 +661,12 @@ export class ScoringController {
         return sendError(res, 'User not authenticated', 401);
       }
 
+      // SECURITY FIX: Verify user has TALLY_MASTER role
+      const allowedRoles = ['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN'];
+      if (!allowedRoles.includes(req.user.role)) {
+        return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can certify totals.`, 403);
+      }
+
       // Check if category exists
       const category = await this.prisma.category.findUnique({
         where: { id: categoryId! }
@@ -709,6 +715,12 @@ export class ScoringController {
 
       if (!req.user) {
         return sendError(res, 'User not authenticated', 401);
+      }
+
+      // SECURITY FIX: Verify user has AUDITOR role
+      const allowedRoles = ['AUDITOR', 'ADMIN', 'SUPER_ADMIN'];
+      if (!allowedRoles.includes(req.user.role)) {
+        return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can perform final certification.`, 403);
       }
 
       // Check if category exists
@@ -818,6 +830,12 @@ export class ScoringController {
 
       if (!req.user) {
         return sendError(res, 'User not authenticated', 401);
+      }
+
+      // SECURITY FIX: Verify user has appropriate role to approve deductions
+      const allowedRoles = ['BOARD', 'JUDGE', 'ADMIN', 'SUPER_ADMIN', 'ORGANIZER'];
+      if (!allowedRoles.includes(req.user.role)) {
+        return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can approve deductions.`, 403);
       }
 
       const deduction = await this.prisma.deductionRequest.findUnique({

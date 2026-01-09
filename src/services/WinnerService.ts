@@ -148,10 +148,13 @@ export class WinnerService extends BaseService {
   /**
    * Get winners by category
    */
-  async getWinnersByCategory(categoryId: string, _userRole: string) {
+  async getWinnersByCategory(categoryId: string, _userRole: string, tenantId: string) {
     // P2-2 OPTIMIZATION: Selective field loading
     const category = await this.prisma.category.findUnique({
-      where: { id: categoryId },
+      where: {
+        id: categoryId,
+        tenantId: tenantId
+      },
       select: {
         id: true,
         name: true,
@@ -187,6 +190,7 @@ export class WinnerService extends BaseService {
     const scores = await this.prisma.score.findMany({
       where: {
         categoryId,
+        tenantId: tenantId,
         score: { not: null },
       },
       select: {
@@ -218,7 +222,10 @@ export class WinnerService extends BaseService {
 
     // Get overall deductions for this category
     const deductions = await this.prisma.overallDeduction.findMany({
-      where: { categoryId },
+      where: {
+        categoryId,
+        tenantId: tenantId
+      },
       select: {
         contestantId: true,
         deduction: true,
@@ -280,7 +287,10 @@ export class WinnerService extends BaseService {
 
     // Get certification status
     const categoryCertifications = await this.prisma.categoryCertification.findMany({
-      where: { categoryId },
+      where: {
+        categoryId,
+        tenantId: tenantId
+      },
       select: {
         userId: true,
         role: true,
@@ -290,7 +300,10 @@ export class WinnerService extends BaseService {
     });
 
     const judgeCertifications = await this.prisma.judgeCertification.findMany({
-      where: { categoryId },
+      where: {
+        categoryId,
+        tenantId: tenantId
+      },
       select: {
         judgeId: true,
         certifiedAt: true,
@@ -324,11 +337,15 @@ export class WinnerService extends BaseService {
   async getWinnersByContest(
     contestId: string,
     _userRole: string,
-    includeCategoryBreakdown = true
+    includeCategoryBreakdown = true,
+    tenantId: string
   ) {
     // P2-2 OPTIMIZATION: Selective field loading
     const contest = await this.prisma.contest.findUnique({
-      where: { id: contestId },
+      where: {
+        id: contestId,
+        tenantId: tenantId
+      },
       select: {
         id: true,
         name: true,
@@ -381,7 +398,7 @@ export class WinnerService extends BaseService {
     // Get winners for each category
     for (const category of categories) {
       try {
-        const categoryResult = await this.getWinnersByCategory(category.id, _userRole);
+        const categoryResult = await this.getWinnersByCategory(category.id, _userRole, tenantId);
         categoryWinners.push({
           category: categoryResult.category,
           contestants: categoryResult.contestants,
@@ -448,7 +465,10 @@ export class WinnerService extends BaseService {
     userAgent?: string
   ) {
     const category = await this.prisma.category.findUnique({
-      where: { id: categoryId },
+      where: {
+        id: categoryId,
+        tenantId: tenantId
+      },
       select: {
         id: true,
         name: true,
@@ -866,12 +886,18 @@ export class WinnerService extends BaseService {
 
     // Get contest with categories
     const contest = await this.prisma.contest.findUnique({
-      where: { id: contestId },
+      where: {
+        id: contestId,
+        tenantId: tenantId
+      },
       include: {
         categories: {
           include: {
             categoryCertifications: {
-              where: { role: 'BOARD' },
+              where: {
+                role: 'BOARD',
+                tenantId: tenantId
+              },
             },
           },
         },
@@ -933,7 +959,8 @@ export class WinnerService extends BaseService {
     contestId: string,
     userId: string,
     userRole: string,
-    reason: string
+    reason: string,
+    tenantId: string
   ) {
     // Only SUPER_ADMIN and ADMIN can unpublish
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
@@ -941,7 +968,10 @@ export class WinnerService extends BaseService {
     }
 
     const contest = await this.prisma.contest.findUnique({
-      where: { id: contestId },
+      where: {
+        id: contestId,
+        tenantId: tenantId
+      },
     });
 
     if (!contest) {
@@ -979,7 +1009,10 @@ export class WinnerService extends BaseService {
    */
   async getWinnersPublicationStatus(contestId: string, tenantId: string) {
     const contest = await this.prisma.contest.findUnique({
-      where: { id: contestId },
+      where: {
+        id: contestId,
+        tenantId: tenantId
+      },
       include: {
         categories: {
           select: {
@@ -987,7 +1020,10 @@ export class WinnerService extends BaseService {
             name: true,
             boardApproved: true,
             categoryCertifications: {
-              where: { role: 'BOARD' },
+              where: {
+                role: 'BOARD',
+                tenantId: tenantId
+              },
               select: {
                 certifiedAt: true,
                 userId: true,
@@ -1044,15 +1080,24 @@ export class WinnerService extends BaseService {
   /**
    * Get all winners (general query)
    */
-  async getWinners(eventId?: string, contestId?: string) {
+  async getWinners(eventId?: string, contestId?: string, userRole: string = 'ADMIN', tenantId?: string) {
     if (contestId) {
-      return this.getWinnersByContest(contestId, 'ADMIN');
+      if (!tenantId) {
+        throw this.badRequestError('Tenant identification is required');
+      }
+      return this.getWinnersByContest(contestId, userRole, true, tenantId);
     }
 
     if (eventId) {
+      if (!tenantId) {
+        throw this.badRequestError('Tenant identification is required');
+      }
       // P2-2 OPTIMIZATION: Selective field loading
       const event = await this.prisma.event.findUnique({
-        where: { id: eventId },
+        where: {
+          id: eventId,
+          tenantId: tenantId
+        },
         select: {
           id: true,
           name: true,
@@ -1097,7 +1142,7 @@ export class WinnerService extends BaseService {
       // Get winners for each contest
       for (const contest of event.contests || []) {
         try {
-          const contestResult = await this.getWinnersByContest(contest.id, 'ADMIN', true);
+          const contestResult = await this.getWinnersByContest(contest.id, userRole, true, tenantId);
           contestWinners.push({
             contest: contestResult.contest,
             contestants: contestResult.contestants,
