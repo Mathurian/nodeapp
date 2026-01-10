@@ -145,6 +145,21 @@ export const loginSchema = z.object({
 });
 
 /**
+ * Forgot password schema
+ */
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address')
+});
+
+/**
+ * Reset password schema
+ */
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters')
+});
+
+/**
  * Change password schema
  */
 export const changePasswordSchema = z.object({
@@ -371,6 +386,52 @@ export const sendEmailSchema = z.object({
     path: z.string().optional(),
     content: z.string().optional()
   })).optional()
+});
+
+/**
+ * Email template creation schema
+ */
+export const createEmailTemplateSchema = z.object({
+  name: z.string().min(1, 'Template name is required').max(100),
+  subject: z.string().min(1, 'Subject is required').max(200),
+  body: z.string().min(1, 'Body is required'),
+  html: z.string().optional(),
+  variables: z.array(z.string()).optional(),
+  category: z.string().max(50).optional()
+});
+
+/**
+ * Email campaign creation schema
+ */
+export const createEmailCampaignSchema = z.object({
+  name: z.string().min(1, 'Campaign name is required').max(100),
+  templateId: z.string().cuid('Invalid template ID').optional(),
+  subject: z.string().min(1, 'Subject is required').max(200),
+  body: z.string().min(1, 'Body is required'),
+  html: z.string().optional(),
+  recipients: z.array(z.string().email('Invalid email address')).optional(),
+  roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).optional(),
+  scheduledFor: z.string().datetime().or(z.date()).optional()
+});
+
+/**
+ * Send email to multiple recipients schema
+ */
+export const sendMultipleEmailsSchema = z.object({
+  recipients: z.array(z.string().email('Invalid email address')).min(1, 'At least one recipient required'),
+  subject: z.string().min(1, 'Subject is required').max(200),
+  body: z.string().min(1, 'Body is required'),
+  html: z.string().optional()
+});
+
+/**
+ * Send email by role schema
+ */
+export const sendEmailByRoleSchema = z.object({
+  roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).min(1, 'At least one role required'),
+  subject: z.string().min(1, 'Subject is required').max(200),
+  body: z.string().min(1, 'Body is required'),
+  html: z.string().optional()
 });
 
 /**

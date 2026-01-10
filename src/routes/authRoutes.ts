@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import { login, getProfile, getPermissions, forgotPassword, resetPasswordWithToken, logout } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 import { authLimiter, perEmailAuthLimiter, passwordResetLimiter } from '../middleware/rateLimiting';
+import { validate, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
 
@@ -56,7 +57,7 @@ router.use(authLimiter);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', perEmailAuthLimiter, login);
+router.post('/login', perEmailAuthLimiter, validate(loginSchema, 'body'), login);
 
 /**
  * @swagger
@@ -95,7 +96,7 @@ router.post('/logout', logout);
  *       200:
  *         description: Password reset email sent
  */
-router.post('/forgot-password', passwordResetLimiter, forgotPassword);
+router.post('/forgot-password', passwordResetLimiter, validate(forgotPasswordSchema, 'body'), forgotPassword);
 
 /**
  * @swagger
@@ -122,7 +123,7 @@ router.post('/forgot-password', passwordResetLimiter, forgotPassword);
  *         description: Password reset successful
  */
 // SECURITY FIX: Added rate limiting to prevent brute-force token attacks
-router.post('/reset-password', passwordResetLimiter, resetPasswordWithToken);
+router.post('/reset-password', passwordResetLimiter, validate(resetPasswordSchema, 'body'), resetPasswordWithToken);
 
 /**
  * @swagger
