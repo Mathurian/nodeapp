@@ -90,6 +90,13 @@ export const idParamSchema = z.object({
 });
 
 /**
+ * File ID parameter schema
+ */
+export const fileIdParamSchema = z.object({
+  fileId: z.string().cuid('Invalid file ID format')
+});
+
+/**
  * Pagination query schema
  */
 export const paginationSchema = z.object({
@@ -272,4 +279,141 @@ export const updateCategorySchema = z.object({
   contestantMin: z.number().int().positive().optional(),
   contestantMax: z.number().int().positive().optional(),
   totalsCertified: z.boolean().optional()
+});
+
+/**
+ * Notification creation schema
+ */
+export const createNotificationSchema = z.object({
+  userIds: z.array(z.string().cuid('Invalid user ID format')).min(1, 'At least one user ID required'),
+  title: z.string().min(1, 'Title is required').max(200),
+  message: z.string().min(1, 'Message is required').max(1000),
+  type: z.enum(['info', 'success', 'warning', 'error']).optional(),
+  link: z.string().url('Invalid URL').optional().or(z.literal(''))
+});
+
+/**
+ * Notification broadcast schema
+ */
+export const broadcastNotificationSchema = z.object({
+  roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).min(1, 'At least one role required'),
+  title: z.string().min(1, 'Title is required').max(200),
+  message: z.string().min(1, 'Message is required').max(1000),
+  type: z.enum(['info', 'success', 'warning', 'error']).optional(),
+  link: z.string().url('Invalid URL').optional().or(z.literal(''))
+});
+
+/**
+ * Notification query schema
+ */
+export const notificationQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0)
+});
+
+/**
+ * Cleanup query schema
+ */
+export const cleanupQuerySchema = z.object({
+  daysOld: z.coerce.number().int().min(1).max(365).default(30)
+});
+
+/**
+ * Certification creation schema
+ */
+export const createCertificationSchema = z.object({
+  eventId: z.string().cuid('Invalid event ID format').optional(),
+  contestId: z.string().cuid('Invalid contest ID format').optional(),
+  categoryId: z.string().cuid('Invalid category ID format').optional(),
+  judgeId: z.string().cuid('Invalid judge ID format').optional(),
+  type: z.enum(['JUDGE', 'TALLY', 'AUDITOR', 'BOARD']).optional(),
+  notes: z.string().max(1000).optional()
+});
+
+/**
+ * Certification update schema
+ */
+export const updateCertificationSchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  notes: z.string().max(1000).optional()
+});
+
+/**
+ * File upload metadata schema
+ */
+export const fileUploadMetadataSchema = z.object({
+  category: z.enum(['EVENT', 'CONTESTANT', 'SCORE', 'REPORT', 'OTHER']).optional(),
+  eventId: z.string().cuid('Invalid event ID format').optional(),
+  contestId: z.string().cuid('Invalid contest ID format').optional(),
+  categoryId: z.string().cuid('Invalid category ID format').optional(),
+  isPublic: z.string().regex(/^(true|false)$/).transform(val => val === 'true').optional()
+});
+
+/**
+ * File update schema
+ */
+export const updateFileSchema = z.object({
+  category: z.enum(['EVENT', 'CONTESTANT', 'SCORE', 'REPORT', 'OTHER']).optional(),
+  isPublic: z.boolean().optional(),
+  metadata: z.record(z.unknown()).optional()
+});
+
+/**
+ * Email send schema
+ */
+export const sendEmailSchema = z.object({
+  to: z.string().email('Invalid email address').or(z.array(z.string().email())),
+  subject: z.string().min(1, 'Subject is required').max(200),
+  body: z.string().min(1, 'Body is required'),
+  html: z.string().optional(),
+  attachments: z.array(z.object({
+    filename: z.string(),
+    path: z.string().optional(),
+    content: z.string().optional()
+  })).optional()
+});
+
+/**
+ * SMS send schema
+ */
+export const sendSmsSchema = z.object({
+  to: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format'),
+  message: z.string().min(1, 'Message is required').max(160, 'SMS message too long')
+});
+
+/**
+ * Deduction request schema
+ */
+export const createDeductionSchema = z.object({
+  categoryId: z.string().cuid('Invalid category ID format'),
+  contestantId: z.string().cuid('Invalid contestant ID format'),
+  points: z.number().int().min(1, 'Deduction must be at least 1 point').max(100),
+  reason: z.string().min(1, 'Reason is required').max(500),
+  requestedBy: z.string().cuid('Invalid user ID format').optional()
+});
+
+/**
+ * Contestant creation schema
+ */
+export const createContestantSchema = z.object({
+  contestId: z.string().cuid('Invalid contest ID format'),
+  name: z.string().min(1, 'Name is required').max(200),
+  number: z.string().max(50).optional(),
+  email: z.string().email('Invalid email address').optional(),
+  phone: z.string().optional(),
+  bio: z.string().optional(),
+  metadata: z.record(z.unknown()).optional()
+});
+
+/**
+ * Contestant update schema
+ */
+export const updateContestantSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  number: z.string().max(50).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  bio: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+  archived: z.boolean().optional()
 });

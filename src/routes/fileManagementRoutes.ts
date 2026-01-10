@@ -8,6 +8,7 @@ import {
 } from '../controllers/fileManagementController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
+import { validate, fileIdParamSchema, paginationSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
 
@@ -35,7 +36,7 @@ router.get('/files/search', getFileSearchSuggestions)
 router.get('/files/analytics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getFileAnalytics)
 
 // File integrity checks
-router.get('/files/:fileId/integrity', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), checkFileIntegrity)
+router.get('/files/:fileId/integrity', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(fileIdParamSchema, 'params'), checkFileIntegrity)
 router.post('/files/integrity/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_INTEGRITY_CHECK', 'FILE'), bulkCheckFileIntegrity)
 
 export default router;

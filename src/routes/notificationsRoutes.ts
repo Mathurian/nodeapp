@@ -8,6 +8,7 @@ import { container } from 'tsyringe';
 import { NotificationService } from '../services/NotificationService';
 import { authenticateToken as authenticate } from '../middleware/auth';
 import { sendNotification, broadcastByRole } from '../controllers/notificationsController';
+import { validate, notificationQuerySchema, cleanupQuerySchema, createNotificationSchema, broadcastNotificationSchema, idParamSchema } from '../middleware/validation';
 
 const router = Router();
 
@@ -36,7 +37,7 @@ const router = Router();
  *       200:
  *         description: Notifications retrieved successfully
  */
-router.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', authenticate, validate(notificationQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
@@ -94,7 +95,7 @@ router.get('/unread-count', authenticate, async (req: Request, res: Response, ne
  *       200:
  *         description: Notification marked as read
  */
-router.put('/:id/read', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id/read', authenticate, validate(idParamSchema, 'params'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const notificationService = container.resolve(NotificationService);
     const { id } = req.params;
@@ -150,7 +151,7 @@ router.put('/read-all', authenticate, async (req: Request, res: Response, next: 
  *       200:
  *         description: Notification deleted
  */
-router.delete('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', authenticate, validate(idParamSchema, 'params'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const notificationService = container.resolve(NotificationService);
     const { id } = req.params;
@@ -182,7 +183,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response, next: Ne
  *       200:
  *         description: Old notifications deleted
  */
-router.delete('/read-all', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/read-all', authenticate, validate(cleanupQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const notificationService = container.resolve(NotificationService);
     const userId = req.user!.id;
@@ -231,7 +232,7 @@ router.delete('/read-all', authenticate, async (req: Request, res: Response, nex
  *       200:
  *         description: Notifications sent successfully
  */
-router.post('/send', authenticate, sendNotification);
+router.post('/send', authenticate, validate(createNotificationSchema, 'body'), sendNotification);
 
 /**
  * @swagger
@@ -269,6 +270,6 @@ router.post('/send', authenticate, sendNotification);
  *       200:
  *         description: Notifications broadcast successfully
  */
-router.post('/broadcast', authenticate, broadcastByRole);
+router.post('/broadcast', authenticate, validate(broadcastNotificationSchema, 'body'), broadcastByRole);
 
 export default router;
