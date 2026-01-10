@@ -8,7 +8,7 @@ import { container } from 'tsyringe';
 import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/ScoringService';
 import { ContestantScoreFilterService } from '../services/ContestantScoreFilterService';
 import { AuditLogService } from '../services/AuditLogService';
-import { sendSuccess, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
@@ -672,7 +672,7 @@ export class ScoringController {
       });
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found', 404);
+        return sendNotFound(res, 'Category not found');
       }
 
       // Create or update category certification for TALLY_MASTER
@@ -728,7 +728,7 @@ export class ScoringController {
       });
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found', 404);
+        return sendNotFound(res, 'Category not found');
       }
 
       // Check if Tally Master has certified
@@ -743,7 +743,7 @@ export class ScoringController {
       });
 
       if (!tallyMasterCert) {
-        return sendSuccess(res, {}, 'Tally Master must certify totals first', 400);
+        return sendBadRequest(res, 'Tally Master must certify totals first');
       }
 
       // Create or update category certification for AUDITOR
@@ -787,7 +787,7 @@ export class ScoringController {
       }
 
       if (!contestantId || !categoryId || amount === undefined || !reason) {
-        return sendSuccess(res, {}, 'contestantId, categoryId, amount, and reason are required', 400);
+        return sendBadRequest(res, 'contestantId, categoryId, amount, and reason are required');
       }
 
       // Verify category and contestant exist
@@ -797,10 +797,10 @@ export class ScoringController {
       ]);
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found', 404);
+        return sendNotFound(res, 'Category not found');
       }
       if (!contestant) {
-        return sendSuccess(res, {}, 'Contestant not found', 404);
+        return sendNotFound(res, 'Contestant not found');
       }
 
       const deductionRequest = await this.prisma.deductionRequest.create({
@@ -846,11 +846,11 @@ export class ScoringController {
       });
 
       if (!deduction) {
-        return sendSuccess(res, {}, 'Deduction request not found', 404);
+        return sendNotFound(res, 'Deduction request not found');
       }
 
       if (deduction.status !== 'PENDING') {
-        return sendSuccess(res, {}, `Deduction request already ${deduction.status.toLowerCase()}`, 400);
+        return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
       }
 
       // Create approval record
@@ -894,11 +894,11 @@ export class ScoringController {
       });
 
       if (!deduction) {
-        return sendSuccess(res, {}, 'Deduction request not found', 404);
+        return sendNotFound(res, 'Deduction request not found');
       }
 
       if (deduction.status !== 'PENDING') {
-        return sendSuccess(res, {}, `Deduction request already ${deduction.status.toLowerCase()}`, 400);
+        return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
       }
 
       const updated = await this.prisma.deductionRequest.update({
@@ -948,7 +948,7 @@ export class ScoringController {
       }
 
       if (!judgeId || !contestId) {
-        return sendSuccess(res, {}, 'judgeId and contestId are required', 400);
+        return sendBadRequest(res, 'judgeId and contestId are required');
       }
 
       // Verify judge and contest exist
@@ -958,10 +958,10 @@ export class ScoringController {
       ]);
 
       if (!judge) {
-        return sendSuccess(res, {}, 'Judge not found', 404);
+        return sendNotFound(res, 'Judge not found');
       }
       if (!contest) {
-        return sendSuccess(res, {}, 'Contest not found', 404);
+        return sendNotFound(res, 'Contest not found');
       }
 
       // Get all categories in this contest
@@ -1012,7 +1012,7 @@ export class ScoringController {
       });
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found', 404);
+        return sendNotFound(res, 'Category not found');
       }
 
       // Remove all role-based certifications for this category

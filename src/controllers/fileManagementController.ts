@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileManagementService } from '../services/FileManagementService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, FileCategory } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -174,7 +174,7 @@ export class FileManagementController {
       const { operation, fileIds, options } = req.body;
 
       if (!operation || !fileIds || !Array.isArray(fileIds)) {
-        return sendSuccess(res, {}, 'operation and fileIds array are required', 400);
+        return sendBadRequest(res, 'operation and fileIds array are required');
       }
 
       if (fileIds.length === 0) {
@@ -198,7 +198,7 @@ export class FileManagementController {
         case 'update':
           // Bulk update file metadata
           if (!options) {
-            return sendSuccess(res, {}, 'options object is required for update operation', 400);
+            return sendBadRequest(res, 'options object is required for update operation');
           }
           const updateData: Prisma.FileUpdateInput = {};
           if (options.category !== undefined) updateData.category = options.category;
@@ -237,7 +237,7 @@ export class FileManagementController {
           break;
 
         default:
-          return sendSuccess(res, {}, 'Invalid operation. Supported: delete, update, move, copy', 400);
+          return sendBadRequest(res, 'Invalid operation. Supported: delete, update, move, copy');
       }
 
       return sendSuccess(res, result, `Bulk ${operation} operation completed`);
@@ -370,7 +370,7 @@ export class FileManagementController {
       });
 
       if (!file) {
-        return sendSuccess(res, {}, 'File not found', 404);
+        return sendNotFound(res, 'File not found');
       }
 
       // Check if file exists on disk
@@ -428,7 +428,7 @@ export class FileManagementController {
       const { fileIds } = req.body;
 
       if (!fileIds || !Array.isArray(fileIds)) {
-        return sendSuccess(res, {}, 'fileIds array is required', 400);
+        return sendBadRequest(res, 'fileIds array is required');
       }
 
       if (fileIds.length === 0) {

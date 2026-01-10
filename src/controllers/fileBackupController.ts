@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileBackupService } from '../services/FileBackupService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class FileBackupController {
@@ -46,7 +46,7 @@ export class FileBackupController {
       const { type, location } = req.body;
 
       if (!type || !location) {
-        return sendSuccess(res, {}, 'type and location are required', 400);
+        return sendBadRequest(res, 'type and location are required');
       }
 
       const backupLog = await this.prisma.backupLog.create({
@@ -100,11 +100,11 @@ export class FileBackupController {
       });
 
       if (!backup) {
-        return sendSuccess(res, {}, 'Backup not found', 404);
+        return sendNotFound(res, 'Backup not found');
       }
 
       if (backup.status !== 'success') {
-        return sendSuccess(res, {}, 'Cannot restore from unsuccessful backup', 400);
+        return sendBadRequest(res, 'Cannot restore from unsuccessful backup');
       }
 
       // Placeholder for actual restore logic
@@ -167,7 +167,7 @@ export class FileBackupController {
       });
 
       if (!backup) {
-        return sendSuccess(res, {}, 'Backup not found', 404);
+        return sendNotFound(res, 'Backup not found');
       }
 
       await this.prisma.backupLog.delete({
@@ -189,7 +189,7 @@ export class FileBackupController {
       });
 
       if (!backup) {
-        return sendSuccess(res, {}, 'Backup not found', 404);
+        return sendNotFound(res, 'Backup not found');
       }
 
       return sendSuccess(res, backup);
@@ -207,11 +207,11 @@ export class FileBackupController {
       });
 
       if (!backup) {
-        return sendSuccess(res, {}, 'Backup not found', 404);
+        return sendNotFound(res, 'Backup not found');
       }
 
       if (backup.status !== 'success') {
-        return sendSuccess(res, {}, 'Cannot download unsuccessful backup', 400);
+        return sendBadRequest(res, 'Cannot download unsuccessful backup');
       }
 
       // In a real implementation, this would stream the backup file

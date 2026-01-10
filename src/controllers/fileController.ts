@@ -3,7 +3,7 @@ import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/request
 import { container } from '../config/container';
 import { FileService } from '../services/FileService';
 import { AuditLogService } from '../services/AuditLogService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 
@@ -122,14 +122,14 @@ export class FileController {
   uploadFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
-        return sendSuccess(res, {}, 'User not authenticated', 401);
+        return sendUnauthorized(res, 'User not authenticated');
       }
 
       const files = req.files as Express.Multer.File[] | undefined;
       const { category, eventId, contestId, categoryId, isPublic } = req.body;
 
       if (!files || files.length === 0) {
-        return sendSuccess(res, {}, 'No files provided', 400);
+        return sendBadRequest(res, 'No files provided');
       }
 
       const uploadedFiles = await Promise.all(
@@ -193,7 +193,7 @@ export class FileController {
       });
 
       if (!file) {
-        return sendSuccess(res, {}, 'File not found', 404);
+        return sendNotFound(res, 'File not found');
       }
 
       return sendSuccess(res, file);
@@ -212,7 +212,7 @@ export class FileController {
       });
 
       if (!existing) {
-        return sendSuccess(res, {}, 'File not found', 404);
+        return sendNotFound(res, 'File not found');
       }
 
       const updateData: any = {};
@@ -284,14 +284,14 @@ export class FileController {
   upload = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
-        return sendSuccess(res, {}, 'User not authenticated', 401);
+        return sendUnauthorized(res, 'User not authenticated');
       }
 
       const file = req.file as Express.Multer.File | undefined;
       const { category, eventId, isPublic, metadata } = req.body;
 
       if (!file) {
-        return sendSuccess(res, {}, 'No file provided', 400);
+        return sendBadRequest(res, 'No file provided');
       }
 
       const uploadedFile = await this.prisma.file.create({

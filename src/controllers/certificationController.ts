@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CertificationService } from '../services/CertificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { requireAuthenticatedUser } from '../utils/requestValidation';
 
@@ -85,7 +85,7 @@ export class CertificationController {
       const { categoryId, contestId, eventId, comments } = req.body;
 
       if (!categoryId || !contestId || !eventId) {
-        return sendSuccess(res, {}, 'categoryId, contestId, and eventId are required', 400);
+        return sendBadRequest(res, 'categoryId, contestId, and eventId are required');
       }
 
       // Check if certification already exists for this combination
@@ -101,7 +101,7 @@ export class CertificationController {
       });
 
       if (existing) {
-        return sendSuccess(res, {}, 'Certification already exists for this category/contest/event', 409);
+        return sendConflict(res, 'Certification already exists for this category/contest/event');
       }
 
       // SECURITY FIX #12: Defense in depth - validate tenant ownership
@@ -113,13 +113,13 @@ export class CertificationController {
       ]);
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found or access denied', 404);
+        return sendNotFound(res, 'Category not found or access denied');
       }
       if (!contest) {
-        return sendSuccess(res, {}, 'Contest not found or access denied', 404);
+        return sendNotFound(res, 'Contest not found or access denied');
       }
       if (!event) {
-        return sendSuccess(res, {}, 'Event not found or access denied', 404);
+        return sendNotFound(res, 'Event not found or access denied');
       }
 
       const certification = await this.prisma.certification.create({
@@ -153,7 +153,7 @@ export class CertificationController {
       });
 
       if (!existing) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       const updateData: any = {};
@@ -182,7 +182,7 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       await this.prisma.certification.delete({
@@ -205,7 +205,7 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       return sendSuccess(res, certification);
@@ -224,11 +224,11 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       if (certification.judgeCertified) {
-        return sendSuccess(res, {}, 'Judge certification already completed', 400);
+        return sendBadRequest(res, 'Judge certification already completed');
       }
 
       const updated = await this.prisma.certification.update({
@@ -258,15 +258,15 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       if (!certification.judgeCertified) {
-        return sendSuccess(res, {}, 'Judge must certify first', 400);
+        return sendBadRequest(res, 'Judge must certify first');
       }
 
       if (certification.tallyCertified) {
-        return sendSuccess(res, {}, 'Tally Master certification already completed', 400);
+        return sendBadRequest(res, 'Tally Master certification already completed');
       }
 
       const updated = await this.prisma.certification.update({
@@ -296,15 +296,15 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       if (!certification.tallyCertified) {
-        return sendSuccess(res, {}, 'Tally Master must certify first', 400);
+        return sendBadRequest(res, 'Tally Master must certify first');
       }
 
       if (certification.auditorCertified) {
-        return sendSuccess(res, {}, 'Auditor certification already completed', 400);
+        return sendBadRequest(res, 'Auditor certification already completed');
       }
 
       const updated = await this.prisma.certification.update({
@@ -334,15 +334,15 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       if (!certification.auditorCertified) {
-        return sendSuccess(res, {}, 'Auditor must certify first', 400);
+        return sendBadRequest(res, 'Auditor must certify first');
       }
 
       if (certification.boardApproved) {
-        return sendSuccess(res, {}, 'Board approval already completed', 400);
+        return sendBadRequest(res, 'Board approval already completed');
       }
 
       const updated = await this.prisma.certification.update({
@@ -369,7 +369,7 @@ export class CertificationController {
       const { rejectionReason } = req.body;
 
       if (!rejectionReason) {
-        return sendSuccess(res, {}, 'Rejection reason is required', 400);
+        return sendBadRequest(res, 'Rejection reason is required');
       }
 
       const certification = await this.prisma.certification.findUnique({
@@ -377,11 +377,11 @@ export class CertificationController {
       });
 
       if (!certification) {
-        return sendSuccess(res, {}, 'Certification not found', 404);
+        return sendNotFound(res, 'Certification not found');
       }
 
       if (certification.status === 'CERTIFIED') {
-        return sendSuccess(res, {}, 'Cannot reject a finalized certification', 400);
+        return sendBadRequest(res, 'Cannot reject a finalized certification');
       }
 
       const updated = await this.prisma.certification.update({

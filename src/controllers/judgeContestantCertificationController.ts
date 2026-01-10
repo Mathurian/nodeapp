@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { JudgeContestantCertificationService } from '../services/JudgeContestantCertificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class JudgeContestantCertificationController {
@@ -57,7 +57,7 @@ export class JudgeContestantCertificationController {
       const { contestantId, categoryId } = req.body;
 
       if (!contestantId || !categoryId) {
-        return sendSuccess(res, {}, 'contestantId and categoryId are required', 400);
+        return sendBadRequest(res, 'contestantId and categoryId are required');
       }
 
       // Certify all scores for this contestant in this category
@@ -88,7 +88,7 @@ export class JudgeContestantCertificationController {
     try {
       const { categoryId } = req.params;
       if (!categoryId) {
-        return sendSuccess(res, {}, 'Category ID is required', 400);
+        return sendBadRequest(res, 'Category ID is required');
       }
 
       const status = await this.judgeContestantCertificationService.getCategoryCertificationStatus(categoryId);
@@ -103,7 +103,7 @@ export class JudgeContestantCertificationController {
       const { categoryId } = req.params;
 
       if (!categoryId) {
-        return sendSuccess(res, {}, 'Category ID is required', 400);
+        return sendBadRequest(res, 'Category ID is required');
       }
 
       // Certify all scores in this category

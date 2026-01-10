@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { EmailService } from '../services/EmailService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class EmailController {
@@ -97,7 +97,7 @@ export class EmailController {
       const { name, subject, body, type, eventId, variables } = req.body;
 
       if (!req.user?.id) {
-        return sendSuccess(res, {}, 'User not authenticated', 401);
+        return sendUnauthorized(res, 'User not authenticated');
       }
 
       const template = await this.prisma.emailTemplate.create({
@@ -130,7 +130,7 @@ export class EmailController {
       });
 
       if (!existing) {
-        return sendSuccess(res, {}, 'Template not found', 404);
+        return sendNotFound(res, 'Template not found');
       }
 
       const template = await this.prisma.emailTemplate.update({
@@ -161,7 +161,7 @@ export class EmailController {
       });
 
       if (!template) {
-        return sendSuccess(res, {}, 'Template not found', 404);
+        return sendNotFound(res, 'Template not found');
       }
 
       await this.prisma.emailTemplate.delete({
@@ -220,7 +220,7 @@ export class EmailController {
       const { recipients, subject, body } = req.body;
 
       if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-        return sendSuccess(res, {}, 'Recipients list is required', 400);
+        return sendBadRequest(res, 'Recipients list is required');
       }
 
       // Send emails to all recipients
@@ -285,7 +285,7 @@ export class EmailController {
       const { emails } = req.body;
 
       if (!emails || !Array.isArray(emails) || emails.length === 0) {
-        return sendSuccess(res, {}, 'Emails array is required', 400);
+        return sendBadRequest(res, 'Emails array is required');
       }
 
       const results = await Promise.allSettled(
@@ -312,7 +312,7 @@ export class EmailController {
       const { role, subject, body } = req.body;
 
       if (!role) {
-        return sendSuccess(res, {}, 'Role is required', 400);
+        return sendBadRequest(res, 'Role is required');
       }
 
       // Get all users with the specified role

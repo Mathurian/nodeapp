@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { ErrorHandlingService } from '../services/ErrorHandlingService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient, ActivityLog } from '@prisma/client';
 
 type ActivityLogWithUser = ActivityLog & {
@@ -104,7 +104,7 @@ export class ErrorHandlingController {
         } as any);
 
         if (!errorLog) {
-          return sendSuccess(res, {}, 'Error log not found', 404);
+          return sendNotFound(res, 'Error log not found');
         }
 
         return sendSuccess(res, errorLog);
@@ -155,7 +155,7 @@ export class ErrorHandlingController {
       });
 
       if (!existing) {
-        return sendSuccess(res, {}, 'Error log not found', 404);
+        return sendNotFound(res, 'Error log not found');
       }
 
       // Update activity log with resolution details
@@ -233,7 +233,7 @@ export class ErrorHandlingController {
       const { olderThanDays } = req.body;
 
       if (!olderThanDays) {
-        return sendSuccess(res, {}, 'olderThanDays parameter is required', 400);
+        return sendBadRequest(res, 'olderThanDays parameter is required');
       }
 
       const cutoffDate = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);

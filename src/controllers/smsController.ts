@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { SMSService } from '../services/SMSService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class SMSController {
@@ -50,11 +50,11 @@ export class SMSController {
       const { recipients, message } = req.body;
 
       if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-        return sendSuccess(res, {}, 'Recipients array is required', 400);
+        return sendBadRequest(res, 'Recipients array is required');
       }
 
       if (!message) {
-        return sendSuccess(res, {}, 'Message is required', 400);
+        return sendBadRequest(res, 'Message is required');
       }
 
       const results = await Promise.allSettled(
@@ -81,7 +81,7 @@ export class SMSController {
       const { userRole, message } = req.body;
 
       if (!message) {
-        return sendSuccess(res, {}, 'Message is required', 400);
+        return sendBadRequest(res, 'Message is required');
       }
 
       // Get users by role and event

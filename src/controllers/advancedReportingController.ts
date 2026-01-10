@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { AdvancedReportingService } from '../services/AdvancedReportingService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, Event, Contest, Category, Score } from '@prisma/client';
 
 type AuthenticatedRequest = Request & {
@@ -85,7 +85,7 @@ export class AdvancedReportingController {
       const { eventId } = authReq.params;
 
       if (!eventId) {
-        return sendSuccess(res, {}, 'eventId is required', 400);
+        return sendBadRequest(res, 'eventId is required');
       }
 
       // Get event with all related data
@@ -110,11 +110,11 @@ export class AdvancedReportingController {
 
       // Verify tenant access
       if (event && event.tenantId !== authReq.user!.tenantId) {
-        return sendSuccess(res, {}, 'Event not found', 404);
+        return sendNotFound(res, 'Event not found');
       }
 
       if (!event) {
-        return sendSuccess(res, {}, 'Event not found', 404);
+        return sendNotFound(res, 'Event not found');
       }
 
       // Get contest IDs for this event
@@ -202,7 +202,7 @@ export class AdvancedReportingController {
       const contestId = authReq.query['contestId'] as string | undefined;
 
       if (!judgeId) {
-        return sendSuccess(res, {}, 'judgeId is required', 400);
+        return sendBadRequest(res, 'judgeId is required');
       }
 
       // Get judge information
@@ -214,7 +214,7 @@ export class AdvancedReportingController {
       });
 
       if (!judge) {
-        return sendSuccess(res, {}, 'Judge not found', 404);
+        return sendNotFound(res, 'Judge not found');
       }
 
       // Build where clause for scores
@@ -463,7 +463,7 @@ export class AdvancedReportingController {
       const { contestId } = authReq.params;
 
       if (!contestId) {
-        return sendSuccess(res, {}, 'contestId is required', 400);
+        return sendBadRequest(res, 'contestId is required');
       }
 
       // Get contest with all related data
@@ -483,12 +483,12 @@ export class AdvancedReportingController {
       }) as ContestWithCategories | null;
 
       if (!contest) {
-        return sendSuccess(res, {}, 'Contest not found', 404);
+        return sendNotFound(res, 'Contest not found');
       }
 
       // Verify contest tenant access
       if (contest.tenantId !== authReq.user!.tenantId) {
-        return sendSuccess(res, {}, 'Contest not found', 404);
+        return sendNotFound(res, 'Contest not found');
       }
 
       // Get event info separately

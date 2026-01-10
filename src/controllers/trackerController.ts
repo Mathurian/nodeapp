@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { TrackerService } from '../services/TrackerService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class TrackerController {
@@ -39,7 +39,7 @@ export class TrackerController {
       const eventId = req.query['eventId'] as string | undefined;
 
       if (!judgeId) {
-        return sendSuccess(res, {}, 'Judge ID is required', 400);
+        return sendBadRequest(res, 'Judge ID is required');
       }
 
       const where: any = { judgeId };
@@ -75,7 +75,7 @@ export class TrackerController {
       const { categoryId } = req.params;
 
       if (!categoryId) {
-        return sendSuccess(res, {}, 'Category ID is required', 400);
+        return sendBadRequest(res, 'Category ID is required');
       }
 
       const certification = await this.prisma.certification.findFirst({

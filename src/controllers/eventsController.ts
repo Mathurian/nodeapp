@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { container } from 'tsyringe';
 import { EventService } from '../services/EventService';
 import { AuditLogService } from '../services/AuditLogService';
@@ -111,7 +111,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
       const event = await this.eventService.getEventById(id);
       return sendSuccess(res, event);
@@ -127,7 +127,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
       const event = await this.eventService.getEventWithDetails(id);
       return sendSuccess(res, event);
@@ -207,7 +207,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
 
       // Get old data for change tracking
@@ -246,7 +246,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
 
       // Get event data before deletion for audit log
@@ -285,7 +285,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
 
       const restoredEvent = await this.eventService.restoreEvent(id);
@@ -318,7 +318,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
       const event = await this.eventService.archiveEvent(id);
 
@@ -350,7 +350,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
       const event = await this.eventService.unarchiveEvent(id);
 
@@ -382,7 +382,7 @@ export class EventsController {
     try {
       const { id } = req.params;
       if (!id) {
-        return sendSuccess(res, null, 'Event ID is required', 400);
+        return sendBadRequest(res, 'Event ID is required');
       }
       const stats = await this.eventService.getEventStats(id);
       return sendSuccess(res, stats);

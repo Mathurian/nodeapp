@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { JudgeUncertificationService } from '../services/JudgeUncertificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class JudgeUncertificationController {
@@ -70,11 +70,11 @@ export class JudgeUncertificationController {
       const { judgeId, categoryId, reason } = req.body;
 
       if (!judgeId || !categoryId || !reason) {
-        return sendSuccess(res, {}, 'judgeId, categoryId, and reason are required', 400);
+        return sendBadRequest(res, 'judgeId, categoryId, and reason are required');
       }
 
       if (!req.user) {
-        return sendSuccess(res, {}, 'User not authenticated', 401);
+        return sendUnauthorized(res, 'User not authenticated');
       }
 
       // Verify judge exists
@@ -83,7 +83,7 @@ export class JudgeUncertificationController {
       });
 
       if (!judge) {
-        return sendSuccess(res, {}, 'Judge not found', 404);
+        return sendNotFound(res, 'Judge not found');
       }
 
       // Verify category exists
@@ -92,7 +92,7 @@ export class JudgeUncertificationController {
       });
 
       if (!category) {
-        return sendSuccess(res, {}, 'Category not found', 404);
+        return sendNotFound(res, 'Category not found');
       }
 
       // Create uncertification request
@@ -118,7 +118,7 @@ export class JudgeUncertificationController {
       const { id } = req.params;
 
       if (!req.user) {
-        return sendSuccess(res, {}, 'User not authenticated', 401);
+        return sendUnauthorized(res, 'User not authenticated');
       }
 
       // Get the uncertification request
@@ -127,11 +127,11 @@ export class JudgeUncertificationController {
       });
 
       if (!request) {
-        return sendSuccess(res, {}, 'Uncertification request not found', 404);
+        return sendNotFound(res, 'Uncertification request not found');
       }
 
       if (request.status !== 'PENDING') {
-        return sendSuccess(res, {}, `Cannot approve ${request.status.toLowerCase()} request`, 400);
+        return sendBadRequest(res, `Cannot approve ${request.status.toLowerCase()} request`);
       }
 
       // Approve the request
@@ -170,11 +170,11 @@ export class JudgeUncertificationController {
       const { rejectionReason } = req.body;
 
       if (!req.user) {
-        return sendSuccess(res, {}, 'User not authenticated', 401);
+        return sendUnauthorized(res, 'User not authenticated');
       }
 
       if (!rejectionReason) {
-        return sendSuccess(res, {}, 'rejectionReason is required', 400);
+        return sendBadRequest(res, 'rejectionReason is required');
       }
 
       // Get the uncertification request
@@ -183,11 +183,11 @@ export class JudgeUncertificationController {
       });
 
       if (!request) {
-        return sendSuccess(res, {}, 'Uncertification request not found', 404);
+        return sendNotFound(res, 'Uncertification request not found');
       }
 
       if (request.status !== 'PENDING') {
-        return sendSuccess(res, {}, `Cannot reject ${request.status.toLowerCase()} request`, 400);
+        return sendBadRequest(res, `Cannot reject ${request.status.toLowerCase()} request`);
       }
 
       // Reject the request
@@ -216,7 +216,7 @@ export class JudgeUncertificationController {
       const status = req.query['status'] as string | undefined;
 
       if (!judgeId) {
-        return sendSuccess(res, {}, 'judgeId is required', 400);
+        return sendBadRequest(res, 'judgeId is required');
       }
 
       const where: any = { judgeId };

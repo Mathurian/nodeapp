@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { CategoryCertificationService } from '../services/CategoryCertificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class CategoryCertificationController {
@@ -44,7 +44,7 @@ export class CategoryCertificationController {
       const { contestantId, categoryId } = req.body;
 
       if (!contestantId || !categoryId) {
-        return sendSuccess(res, {}, 'contestantId and categoryId are required', 400);
+        return sendBadRequest(res, 'contestantId and categoryId are required');
       }
 
       // Create certification record
@@ -69,7 +69,7 @@ export class CategoryCertificationController {
       const { judgeId, categoryId } = req.body;
 
       if (!judgeId || !categoryId) {
-        return sendSuccess(res, {}, 'judgeId and categoryId are required', 400);
+        return sendBadRequest(res, 'judgeId and categoryId are required');
       }
 
       // Certify all scores for this judge in this category
