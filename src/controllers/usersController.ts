@@ -220,47 +220,79 @@ export class UsersController {
 
       const user = await this.userService.createUser(userData as CreateUserDTO);
 
-      // Create associated Judge or Contestant record if applicable
-      if (data.role === 'JUDGE') {
-        log.debug('Creating judge record', { userId: user.id });
-        const authReq = req as AuthenticatedRequest;
-        const judge = await this.prisma.judge.create({
-          data: {
-            tenantId: authReq.tenantId!,
-            name: data.name,
-            email: data.email,
-            gender: data.gender || null,
-            pronouns: data.pronouns || null,
-            bio: data.bio || null,
-            isHeadJudge: data.isHeadJudge || false
-          }
+      // TRANSACTION BOUNDARY: Create associated Judge or Contestant record if applicable
+      // Wrap in try-catch to cleanup user if role-specific record creation fails
+      try {
+        if (data.role === 'JUDGE') {
+          log.debug('Creating judge record', { userId: user.id });
+          const authReq = req as AuthenticatedRequest;
+
+          // Use transaction for judge creation and user linkage
+          await this.prisma.$transaction(async (tx) => {
+            const judge = await tx.judge.create({
+              data: {
+                tenantId: authReq.tenantId!,
+                name: data.name,
+                email: data.email,
+                gender: data.gender || null,
+                pronouns: data.pronouns || null,
+                bio: data.bio || null,
+                isHeadJudge: data.isHeadJudge || false
+              }
+            });
+
+            await tx.user.update({
+              where: { id: user.id },
+              data: { judgeId: judge.id }
+            });
+          });
+
+          log.info('Judge record created and linked', { userId: user.id });
+        } else if (data.role === 'CONTESTANT') {
+          log.debug('Creating contestant record', { userId: user.id });
+          const authReq = req as AuthenticatedRequest;
+
+          // Use transaction for contestant creation and user linkage
+          await this.prisma.$transaction(async (tx) => {
+            const contestant = await tx.contestant.create({
+              data: {
+                tenantId: authReq.tenantId!,
+                name: data.name,
+                email: data.email,
+                contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
+                bio: data.bio || null,
+                gender: data.gender || null,
+                pronouns: data.pronouns || null
+              }
+            });
+
+            await tx.user.update({
+              where: { id: user.id },
+              data: { contestantId: contestant.id }
+            });
+          });
+
+          log.info('Contestant record created and linked', { userId: user.id });
+        }
+      } catch (roleError) {
+        // Cleanup: delete the user if role-specific record creation failed
+        log.error('Role-specific record creation failed, cleaning up user', {
+          userId: user.id,
+          role: data.role,
+          error: (roleError as Error).message
         });
 
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { judgeId: judge.id }
-        });
-        log.info('Judge record created and linked', { userId: user.id, judgeId: judge.id });
-      } else if (data.role === 'CONTESTANT') {
-        log.debug('Creating contestant record', { userId: user.id });
-        const authReq = req as AuthenticatedRequest;
-        const contestant = await this.prisma.contestant.create({
-          data: {
-            tenantId: authReq.tenantId!,
-            name: data.name,
-            email: data.email,
-            contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
-            bio: data.bio || null,
-            gender: data.gender || null,
-            pronouns: data.pronouns || null
-          }
-        });
+        try {
+          await this.prisma.user.delete({ where: { id: user.id } });
+          log.info('User cleanup successful after role record failure', { userId: user.id });
+        } catch (cleanupError) {
+          log.error('Failed to cleanup user after role record failure', {
+            userId: user.id,
+            error: (cleanupError as Error).message
+          });
+        }
 
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { contestantId: contestant.id }
-        });
-        log.info('Contestant record created and linked', { userId: user.id, contestantId: contestant.id });
+        throw roleError; // Re-throw to trigger error response
       }
 
       // Fetch the updated user with relations
