@@ -305,6 +305,7 @@ export class ScoringController {
     try {
       const scoreId = req.params['scoreId']!;
       const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const userRole = req.user?.role;
 
       log.info('Score deletion requested', { scoreId });
 
@@ -319,51 +320,88 @@ export class ScoringController {
       // SECURITY: Check if score exists
       if (!score) {
         log.warn('Score not found for deletion', { scoreId });
-        sendError(res, 'Score not found', 404);
+        sendNotFound(res, 'Score not found');
         return;
       }
 
-      // SECURITY: Check if score is locked or certified
-      if (score.isLocked) {
-        log.warn('Attempt to delete locked score', {
-          scoreId,
-          userId: req.user?.id,
-          lockedAt: score.lockedAt,
-          lockedBy: score.lockedBy
+      // RACE CONDITION FIX: Use atomic delete with all conditions in WHERE clause
+      const whereConditions: any = {
+        id: scoreId,
+        tenantId: tenantId,
+        isLocked: false,
+        isCertified: false
+      };
+
+      // Non-admins can only delete their own scores
+      if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+        whereConditions.judgeId = req.user?.judgeId;
+      }
+
+      // Atomic delete: all checks happen in the database query
+      const deleteResult = await this.prisma.score.deleteMany({
+        where: whereConditions
+      });
+
+      // If no rows were deleted, determine the specific reason
+      if (deleteResult.count === 0) {
+        // Re-query to determine failure reason
+        const existingScore = await this.prisma.score.findFirst({
+          where: { id: scoreId, tenantId: tenantId },
+          select: {
+            id: true,
+            isLocked: true,
+            isCertified: true,
+            judgeId: true,
+            lockedAt: true,
+            lockedBy: true,
+            certifiedAt: true,
+            certifiedBy: true
+          }
         });
-        sendError(res, 'Cannot delete locked score', 403);
+
+        if (!existingScore) {
+          log.warn('Score not found or already deleted', { scoreId });
+          sendNotFound(res, 'Score not found');
+          return;
+        }
+
+        if (existingScore.isLocked) {
+          log.warn('Attempt to delete locked score', {
+            scoreId,
+            userId: req.user?.id,
+            lockedAt: existingScore.lockedAt,
+            lockedBy: existingScore.lockedBy
+          });
+          sendForbidden(res, 'Cannot delete locked score');
+          return;
+        }
+
+        if (existingScore.isCertified) {
+          log.warn('Attempt to delete certified score', {
+            scoreId,
+            userId: req.user?.id,
+            certifiedAt: existingScore.certifiedAt,
+            certifiedBy: existingScore.certifiedBy
+          });
+          sendForbidden(res, 'Cannot delete certified score');
+          return;
+        }
+
+        if (existingScore.judgeId !== req.user?.judgeId) {
+          log.warn('Attempt to delete another judge\'s score', {
+            scoreId,
+            userId: req.user?.id,
+            userJudgeId: req.user?.judgeId,
+            scoreJudgeId: existingScore.judgeId
+          });
+          sendForbidden(res, 'Can only delete your own scores');
+          return;
+        }
+
+        // Shouldn't reach here, but handle gracefully
+        sendError(res, 'Score could not be deleted', 500);
         return;
       }
-
-      if (score.isCertified) {
-        log.warn('Attempt to delete certified score', {
-          scoreId,
-          userId: req.user?.id,
-          certifiedAt: score.certifiedAt,
-          certifiedBy: score.certifiedBy
-        });
-        sendError(res, 'Cannot delete certified score', 403);
-        return;
-      }
-
-      // SECURITY: Verify judge owns score (unless admin)
-      const userRole = req.user?.role;
-      if (
-        userRole !== 'SUPER_ADMIN' &&
-        userRole !== 'ADMIN' &&
-        score.judgeId !== req.user?.judgeId
-      ) {
-        log.warn('Attempt to delete another judge\'s score', {
-          scoreId,
-          userId: req.user?.id,
-          userJudgeId: req.user?.judgeId,
-          scoreJudgeId: score.judgeId
-        });
-        sendError(res, 'Can only delete your own scores', 403);
-        return;
-      }
-
-      await this.scoringService.deleteScore(scoreId, tenantId);
 
       // Audit log: score deletion
       try {
