@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { AuditorCertificationService } from '../services/AuditorCertificationService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -26,8 +27,8 @@ export class AuditorCertificationController {
       const { confirmation1, confirmation2 } = req.body;
       const certification = await this.auditorCertificationService.submitFinalCertification(
         categoryId!,
-        req.user!.id,
-        req.user!.role,
+        req.user.id,
+        req.user.role,
         { confirmation1, confirmation2 }
       );
       return sendSuccess(res, certification, 'Final certification completed successfully. All scores are now permanently locked.');

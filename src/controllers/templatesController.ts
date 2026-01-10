@@ -4,6 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { TemplateService } from '../services/TemplateService';
 import { sendSuccess, sendCreated, sendNoContent } from '../utils/responseHelpers';
@@ -20,7 +21,7 @@ export class TemplatesController {
    */
   getAllTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const templates = await this.templateService.getAllTemplates(req.user!.tenantId);
+      const templates = await this.templateService.getAllTemplates(req.user.tenantId);
       sendSuccess(res, templates, 'Templates retrieved successfully');
     } catch (error) {
       return next(error);
@@ -33,7 +34,7 @@ export class TemplatesController {
   getTemplateById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params['id'] as string;
-      const template = await this.templateService.getTemplateById(id, req.user!.tenantId);
+      const template = await this.templateService.getTemplateById(id, req.user.tenantId);
       sendSuccess(res, template, 'Template retrieved successfully');
     } catch (error) {
       return next(error);
@@ -51,7 +52,7 @@ export class TemplatesController {
         name,
         description,
         criteria,
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       });
 
       sendCreated(res, template, 'Template created successfully');
@@ -68,7 +69,7 @@ export class TemplatesController {
       const id = req.params['id'] as string;
       const { name, description, criteria } = req.body;
 
-      const template = await this.templateService.updateTemplate(id, req.user!.tenantId, {
+      const template = await this.templateService.updateTemplate(id, req.user.tenantId, {
         name,
         description,
         criteria
@@ -86,7 +87,7 @@ export class TemplatesController {
   deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params['id'] as string;
-      await this.templateService.deleteTemplate(id, req.user!.tenantId);
+      await this.templateService.deleteTemplate(id, req.user.tenantId);
       sendNoContent(res);
     } catch (error) {
       return next(error);
@@ -99,7 +100,7 @@ export class TemplatesController {
   duplicateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params['id'] as string;
-      const template = await this.templateService.duplicateTemplate(id, req.user!.tenantId);
+      const template = await this.templateService.duplicateTemplate(id, req.user.tenantId);
       sendCreated(res, template, 'Template duplicated successfully');
     } catch (error) {
       return next(error);

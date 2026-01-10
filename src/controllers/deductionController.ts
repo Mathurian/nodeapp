@@ -4,6 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { DeductionService } from '../services/DeductionService';
 import { sendSuccess, sendCreated } from '../utils/responseHelpers';
@@ -25,7 +26,7 @@ export class DeductionController {
   ): Promise<void> => {
     try {
       const { contestantId, categoryId, amount, reason } = req.body;
-      const requestedBy = req.user!.id;
+      const requestedBy = req.user.id;
 
       const deduction = await this.deductionService.createDeductionRequest({
         contestantId,
@@ -33,7 +34,7 @@ export class DeductionController {
         amount: parseFloat(amount),
         reason,
         requestedBy,
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       });
 
       sendCreated(res, deduction, 'Deduction request created successfully');
@@ -51,13 +52,13 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const userRole = req.user!.role;
-      const userId = req.user!.id;
+      const userRole = req.user.role;
+      const userId = req.user.id;
 
       const deductions = await this.deductionService.getPendingDeductions(
         userRole,
         userId,
-        req.user!.tenantId
+        req.user.tenantId
       );
 
       sendSuccess(res, deductions, 'Pending deductions retrieved successfully');
@@ -77,8 +78,8 @@ export class DeductionController {
     try {
       const id = req.params['id'] as string;
       const { signature, notes } = req.body;
-      const approvedBy = req.user!.id;
-      const userRole = req.user!.role;
+      const approvedBy = req.user.id;
+      const userRole = req.user.role;
 
       const result = await this.deductionService.approveDeduction(
         id,
@@ -105,9 +106,9 @@ export class DeductionController {
     try {
       const id = req.params['id'] as string;
       const { reason } = req.body;
-      const rejectedBy = req.user!.id;
+      const rejectedBy = req.user.id;
 
-      await this.deductionService.rejectDeduction(id, rejectedBy, reason, req.user!.tenantId);
+      await this.deductionService.rejectDeduction(id, rejectedBy, reason, req.user.tenantId);
 
       sendSuccess(res, null, 'Deduction rejected successfully');
     } catch (error) {
@@ -126,7 +127,7 @@ export class DeductionController {
     try {
       const id = req.params['id'] as string;
 
-      const status = await this.deductionService.getApprovalStatus(id, req.user!.tenantId);
+      const status = await this.deductionService.getApprovalStatus(id, req.user.tenantId);
 
       sendSuccess(res, status, 'Approval status retrieved successfully');
     } catch (error) {
@@ -150,7 +151,7 @@ export class DeductionController {
           status: status as string,
           categoryId: categoryId as string,
           contestantId: contestantId as string,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         },
         parseInt(page as string),
         parseInt(limit as string)

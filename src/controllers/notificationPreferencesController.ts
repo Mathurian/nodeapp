@@ -4,6 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -20,8 +21,8 @@ export class NotificationPreferencesController {
    */
   getPreferences = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const userId = req.user!.id;
+      const tenantId = req.user.tenantId;
+      const userId = req.user.id;
       const preferences = await this.preferenceRepository.getOrCreate(tenantId, userId);
 
       // emailTypes, pushTypes, inAppTypes are already arrays in Prisma, no need to parse
@@ -43,8 +44,8 @@ export class NotificationPreferencesController {
    */
   updatePreferences = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const userId = req.user!.id;
+      const tenantId = req.user.tenantId;
+      const userId = req.user.id;
       const {
         emailEnabled,
         pushEnabled,
@@ -88,8 +89,8 @@ export class NotificationPreferencesController {
    */
   resetPreferences = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const userId = req.user!.id;
+      const tenantId = req.user.tenantId;
+      const userId = req.user.id;
 
       // Delete existing and create new with defaults
       await this.preferenceRepository.delete(tenantId, userId).catch(() => {});

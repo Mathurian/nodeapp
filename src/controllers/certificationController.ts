@@ -3,6 +3,7 @@ import { container } from '../config/container';
 import { CertificationService } from '../services/CertificationService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
+import { requireAuthenticatedUser } from '../utils/requestValidation';
 
 export class CertificationController {
   private certificationService: CertificationService;
@@ -25,8 +26,11 @@ export class CertificationController {
 
   certifyAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Guard: Ensure user is authenticated
+      if (!requireAuthenticatedUser(req, res)) return;
+
       const { eventId } = req.params;
-      const result = await this.certificationService.certifyAll(eventId!, req.user!.id, req.user!.role);
+      const result = await this.certificationService.certifyAll(eventId!, req.user.id, req.user.role);
       return sendSuccess(res, result, 'All categories certified');
     } catch (error) {
       return next(error);

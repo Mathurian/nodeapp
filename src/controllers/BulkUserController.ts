@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { injectable, inject } from 'tsyringe';
 import { BulkOperationService } from '../services/BulkOperationService';
 import { CSVService } from '../services/CSVService';
@@ -99,7 +100,7 @@ export class BulkUserController {
       }
 
       // Prevent deleting self
-      if (userIds.includes(req.user!.id)) {
+      if (userIds.includes(req.user.id)) {
         res.status(400).json({ error: 'Cannot delete your own account' });
         return;
       }
@@ -153,7 +154,7 @@ export class BulkUserController {
       }
 
       // Prevent changing own role
-      if (userIds.includes(req.user!.id)) {
+      if (userIds.includes(req.user.id)) {
         res.status(400).json({ error: 'Cannot change your own role' });
         return;
       }

@@ -11,6 +11,7 @@ import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -84,14 +85,12 @@ export class ScoringController {
   submitScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
+      // Guard: Ensure user is authenticated and tenant context exists
+      if (!requireAuthAndTenant(req, res)) return;
+
       const categoryId = req.params['categoryId']!;
       const contestantId = req.params['contestantId']!;
       const { criteriaId, score, comments } = req.body;
-
-      if (!req.user) {
-        sendError(res, 'User not authenticated', 401);
-        return;
-      }
 
       const data: SubmitScoreDTO = {
         categoryId,
@@ -110,7 +109,7 @@ export class ScoringController {
         userId: req.user.id
       });
 
-      const newScore = await this.scoringService.submitScore(data, req.user.id, req.user!.tenantId);
+      const newScore = await this.scoringService.submitScore(data, req.user.id, req.user.tenantId);
 
       log.info('Score submitted successfully', { scoreId: newScore.id });
 
@@ -353,7 +352,7 @@ export class ScoringController {
 
       log.info('Score certification requested', { scoreId, certifiedBy: req.user.id });
 
-      const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, req.user!.tenantId);
+      const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, req.user.tenantId);
 
       log.info('Score certified successfully', { scoreId });
 
@@ -394,7 +393,7 @@ export class ScoringController {
 
       log.info('Category scores certification requested', { categoryId, certifiedBy: req.user.id });
 
-      const result = await this.scoringService.certifyScores(categoryId, req.user.id, req.user!.tenantId);
+      const result = await this.scoringService.certifyScores(categoryId, req.user.id, req.user.tenantId);
 
       log.info('Category scores certified successfully', { categoryId, certified: result.certified });
       sendSuccess(res, result);
@@ -414,7 +413,7 @@ export class ScoringController {
 
       log.info('Score unsigned requested', { scoreId });
 
-      const unsignedScore = await this.scoringService.unsignScore(scoreId, req.user!.tenantId);
+      const unsignedScore = await this.scoringService.unsignScore(scoreId, req.user.tenantId);
 
       log.info('Score unsigned successfully', { scoreId });
       sendSuccess(res, unsignedScore);
@@ -434,7 +433,7 @@ export class ScoringController {
 
       log.debug('Fetching scores by judge', { judgeId });
 
-      const scores = await this.scoringService.getScoresByJudge(judgeId, req.user!.tenantId);
+      const scores = await this.scoringService.getScoresByJudge(judgeId, req.user.tenantId);
 
       log.info('Scores by judge retrieved successfully', { judgeId, count: scores.length });
       sendSuccess(res, scores);
@@ -452,7 +451,7 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const contestantId = req.params['contestantId']!;
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user.tenantId;
       const userRole = req.user?.role;
       const userId = req.user?.id;
 
@@ -500,7 +499,7 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const contestId = req.params['contestId']!;
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user.tenantId;
       const userRole = req.user?.role;
       const userId = req.user?.id;
 
@@ -579,7 +578,7 @@ export class ScoringController {
 
       log.debug('Fetching contest statistics', { contestId });
 
-      const stats = await this.scoringService.getContestStats(contestId, req.user!.tenantId);
+      const stats = await this.scoringService.getContestStats(contestId, req.user.tenantId);
 
       log.info('Contest statistics retrieved successfully', { contestId });
       sendSuccess(res, stats);
@@ -595,7 +594,7 @@ export class ScoringController {
       const eventId = req.query['eventId'] as string | undefined;
 
       const where: Prisma.CategoryWhereInput = {
-        tenantId: req.user!.tenantId,
+        tenantId: req.user.tenantId,
         deletedAt: null // Manual soft-delete filter (middleware skipped due to nested includes)
       };
       if (contestId) where.contestId = contestId;
@@ -680,7 +679,7 @@ export class ScoringController {
       const certification = await this.prisma.categoryCertification.upsert({
         where: {
           tenantId_categoryId_role: {
-            tenantId: req.user!.tenantId,
+            tenantId: req.user.tenantId,
             categoryId: categoryId!,
             role: 'TALLY_MASTER'
           }
@@ -691,7 +690,7 @@ export class ScoringController {
           userId: req.user.id,
           signatureName: signatureName || null,
           comments: comments || null,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         },
         update: {
           userId: req.user.id,
@@ -736,7 +735,7 @@ export class ScoringController {
       const tallyMasterCert = await this.prisma.categoryCertification.findUnique({
         where: {
           tenantId_categoryId_role: {
-            tenantId: req.user!.tenantId,
+            tenantId: req.user.tenantId,
             categoryId: categoryId!,
             role: 'TALLY_MASTER'
           }
@@ -751,7 +750,7 @@ export class ScoringController {
       const certification = await this.prisma.categoryCertification.upsert({
         where: {
           tenantId_categoryId_role: {
-            tenantId: req.user!.tenantId,
+            tenantId: req.user.tenantId,
             categoryId: categoryId!,
             role: 'AUDITOR'
           }
@@ -762,7 +761,7 @@ export class ScoringController {
           userId: req.user.id,
           signatureName: signatureName || null,
           comments: comments || null,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         },
         update: {
           userId: req.user.id,
@@ -812,7 +811,7 @@ export class ScoringController {
           reason,
           requestedById: req.user.id,
           status: 'PENDING',
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         },
         // include removed - no relations in schema
       });
@@ -842,7 +841,7 @@ export class ScoringController {
       const deduction = await this.prisma.deductionRequest.findFirst({
         where: {
           id: deductionId!,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         }
       });
 
@@ -861,7 +860,7 @@ export class ScoringController {
           approvedById: req.user.id,
           role: req.user.role,
           isHeadJudge: isHeadJudge || false,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         }
       });
 
@@ -890,7 +889,7 @@ export class ScoringController {
       const deduction = await this.prisma.deductionRequest.findFirst({
         where: {
           id: deductionId,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         }
       });
 
@@ -905,7 +904,7 @@ export class ScoringController {
       const updated = await this.prisma.deductionRequest.update({
         where: {
           id: deductionId,
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         },
         data: { status: 'REJECTED' }
         // include removed - no relations in schema

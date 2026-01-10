@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { BoardService } from '../services/BoardService';
 import { createRequestLogger } from '../utils/logger';
@@ -137,7 +138,7 @@ export class BoardController {
         order,
         notes,
         userId,
-        tenantId: req.user!.tenantId,
+        tenantId: req.user.tenantId,
       });
 
       res.status(201).json(script);

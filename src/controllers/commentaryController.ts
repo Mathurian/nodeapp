@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { CommentaryService } from '../services/CommentaryService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -18,7 +19,7 @@ export class CommentaryController {
         scoreId,
         criterionId,
         contestantId,
-        judgeId: req.user!.id,
+        judgeId: req.user.id,
         comment,
         isPrivate
       });
@@ -31,7 +32,7 @@ export class CommentaryController {
   getCommentsForScore = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const scoreId = getRequiredParam(req, 'scoreId');
-      const comments = await this.commentaryService.getCommentsForScore(scoreId, req.user!.role);
+      const comments = await this.commentaryService.getCommentsForScore(scoreId, req.user.role);
       return sendSuccess(res, comments);
     } catch (error) {
       return next(error);
@@ -41,7 +42,7 @@ export class CommentaryController {
   getCommentsByContestant = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const contestantId = getRequiredParam(req, 'contestantId');
-      const comments = await this.commentaryService.getCommentsByContestant(contestantId, req.user!.role);
+      const comments = await this.commentaryService.getCommentsByContestant(contestantId, req.user.role);
       return sendSuccess(res, comments);
     } catch (error) {
       return next(error);
@@ -52,7 +53,7 @@ export class CommentaryController {
     try {
       const id = getRequiredParam(req, 'id');
       const { comment, isPrivate } = req.body;
-      const updatedComment = await this.commentaryService.update(id, { comment, isPrivate }, req.user!.id, req.user!.role);
+      const updatedComment = await this.commentaryService.update(id, { comment, isPrivate }, req.user.id, req.user.role);
       return sendSuccess(res, updatedComment, 'Comment updated');
     } catch (error) {
       return next(error);
@@ -62,7 +63,7 @@ export class CommentaryController {
   deleteComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = getRequiredParam(req, 'id');
-      await this.commentaryService.delete(id, req.user!.id, req.user!.role);
+      await this.commentaryService.delete(id, req.user.id, req.user.role);
       return sendSuccess(res, null, 'Comment deleted');
     } catch (error) {
       return next(error);

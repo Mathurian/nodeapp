@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { TallyMasterService } from '../services/TallyMasterService';
 import { createRequestLogger } from '../utils/logger';
@@ -243,7 +244,7 @@ export class TallyMasterController {
           for (const cId of contestantIds) {
             const request = await this.prisma.judgeScoreRemovalRequest.create({
               data: {
-                tenantId: req.user!.tenantId,
+                tenantId: req.user.tenantId,
                 categoryId: category.id,
                 contestantId: cId,
                 judgeId,
@@ -269,7 +270,7 @@ export class TallyMasterController {
 
         const request = await this.prisma.judgeScoreRemovalRequest.create({
           data: {
-            tenantId: req.user!.tenantId,
+            tenantId: req.user.tenantId,
             categoryId,
             contestantId,
             judgeId,

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import prisma from '../config/database';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { createLogger as loggerFactory } from '../utils/logger';
@@ -17,7 +18,7 @@ export class EmailTemplateController {
     try {
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getAllEmailTemplates(eventId as string, req.user!.tenantId);
+      const templates = await emailTemplateService.getAllEmailTemplates(eventId as string, req.user.tenantId);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: unknown) {
@@ -35,7 +36,7 @@ export class EmailTemplateController {
     try {
       const id = getRequiredParam(req, 'id');
 
-      const template = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
+      const template = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
 
       if (!template) {
         sendError(res, 'Email template not found', 404);
@@ -59,7 +60,7 @@ export class EmailTemplateController {
       const type = getRequiredParam(req, 'type');
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string, req.user!.tenantId);
+      const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string, req.user.tenantId);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: unknown) {
@@ -89,7 +90,7 @@ export class EmailTemplateController {
       }
 
       data.createdBy = userId;
-      data.tenantId = req.user!.tenantId;
+      data.tenantId = req.user.tenantId;
 
       const template = await emailTemplateService.createEmailTemplate(data);
 
@@ -110,13 +111,13 @@ export class EmailTemplateController {
       const id = getRequiredParam(req, 'id');
       const data = req.body;
 
-      const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
+      const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
       if (!existing) {
         sendError(res, 'Email template not found', 404);
         return;
       }
 
-      const template = await emailTemplateService.updateEmailTemplate(id, req.user!.tenantId, data);
+      const template = await emailTemplateService.updateEmailTemplate(id, req.user.tenantId, data);
 
       sendSuccess(res, template, 'Email template updated successfully');
     } catch (error: unknown) {
@@ -134,13 +135,13 @@ export class EmailTemplateController {
     try {
       const id = getRequiredParam(req, 'id');
 
-      const existing = await emailTemplateService.getEmailTemplateById(id, req.user!.tenantId);
+      const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
       if (!existing) {
         sendError(res, 'Email template not found', 404);
         return;
       }
 
-      await emailTemplateService.deleteEmailTemplate(id, req.user!.tenantId);
+      await emailTemplateService.deleteEmailTemplate(id, req.user.tenantId);
 
       sendSuccess(res, null, 'Email template deleted successfully');
     } catch (error: unknown) {
@@ -164,7 +165,7 @@ export class EmailTemplateController {
         return;
       }
 
-      const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, req.user!.tenantId);
+      const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, req.user.tenantId);
 
       sendSuccess(res, cloned, 'Email template cloned successfully', 201);
     } catch (error: unknown) {
@@ -183,7 +184,7 @@ export class EmailTemplateController {
       const id = getRequiredParam(req, 'id');
       const { variables } = req.body;
 
-      const preview = await emailTemplateService.previewEmailTemplate(id, req.user!.tenantId, variables);
+      const preview = await emailTemplateService.previewEmailTemplate(id, req.user.tenantId, variables);
 
       sendSuccess(res, preview, 'Email template preview generated successfully');
     } catch (error: unknown) {

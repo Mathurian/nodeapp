@@ -4,6 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { SearchService } from '../services/SearchService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -20,7 +21,7 @@ export class SearchController {
    */
   search = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const {
         query,
         entityTypes,
@@ -41,7 +42,7 @@ export class SearchController {
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
         facets: facets ? JSON.parse(facets as string) : undefined,
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       };
 
       const results = await this.searchService.search(userId, options);
@@ -57,7 +58,7 @@ export class SearchController {
    */
   searchByType = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { type } = req.params;
       const { query, filters, limit = 20, offset = 0 } = req.query;
 
@@ -70,7 +71,7 @@ export class SearchController {
         filters: filters ? JSON.parse(filters as string) : undefined,
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       };
 
       const results = await this.searchService.searchByType(userId, type!, options);
@@ -135,7 +136,7 @@ export class SearchController {
    */
   saveSearch = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { name, query, filters, entityTypes, isPublic } = req.body;
 
       if (!name || !query) {
@@ -149,7 +150,7 @@ export class SearchController {
         filters,
         entityTypes,
         isPublic,
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       });
 
       return sendSuccess(res, savedSearch, 'Search saved successfully', 201);
@@ -163,12 +164,12 @@ export class SearchController {
    */
   getSavedSearches = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { includePublic = 'false' } = req.query;
 
       const searches = await this.searchService.getSavedSearches(
         userId,
-        req.user!.tenantId,
+        req.user.tenantId,
         includePublic === 'true'
       );
 
@@ -190,10 +191,10 @@ export class SearchController {
    */
   deleteSavedSearch = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { id } = req.params;
 
-      await this.searchService.deleteSavedSearch(id!, userId, req.user!.tenantId);
+      await this.searchService.deleteSavedSearch(id!, userId, req.user.tenantId);
 
       return res.status(204).send();
     } catch (error) {
@@ -206,10 +207,10 @@ export class SearchController {
    */
   executeSavedSearch = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { id } = req.params;
 
-      const results = await this.searchService.executeSavedSearch(userId, req.user!.tenantId, id!);
+      const results = await this.searchService.executeSavedSearch(userId, req.user.tenantId, id!);
 
       return sendSuccess(res, results);
     } catch (error) {
@@ -224,10 +225,10 @@ export class SearchController {
    */
   getSearchHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { limit = 10 } = req.query;
 
-      const history = await this.searchService.getSearchHistory(userId, req.user!.tenantId, parseInt(limit as string));
+      const history = await this.searchService.getSearchHistory(userId, req.user.tenantId, parseInt(limit as string));
 
       // Parse JSON fields
       const parsed = history.map((item) => ({
@@ -247,8 +248,8 @@ export class SearchController {
    */
   clearSearchHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const userId = req.user!.id;
-      const count = await this.searchService.clearSearchHistory(userId, req.user!.tenantId);
+      const userId = req.user.id;
+      const count = await this.searchService.clearSearchHistory(userId, req.user.tenantId);
 
       return sendSuccess(res, { count }, 'Search history cleared successfully');
     } catch (error) {

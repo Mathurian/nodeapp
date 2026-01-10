@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { CategoryCertificationService } from '../services/CategoryCertificationService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -28,9 +29,9 @@ export class CategoryCertificationController {
       const { categoryId } = req.params;
       const certification = await this.categoryCertificationService.certifyCategory(
         categoryId!,
-        req.user!.id,
-        req.user!.role,
-        req.user!.tenantId
+        req.user.id,
+        req.user.role,
+        req.user.tenantId
       );
       return sendSuccess(res, certification, 'Category certified successfully');
     } catch (error) {
@@ -53,7 +54,7 @@ export class CategoryCertificationController {
           categoryId,
           contestantId,
           certifiedAt: new Date(),
-          tenantId: req.user!.tenantId
+          tenantId: req.user.tenantId
         }
       });
 

@@ -5,6 +5,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { ReportGenerationService } from '../services/ReportGenerationService';
 import { ReportExportService } from '../services/ReportExportService';
@@ -35,7 +36,7 @@ export class ReportsController {
    */
   getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const templates = await this.templateService.getAllTemplates(req.user!.tenantId);
+      const templates = await this.templateService.getAllTemplates(req.user.tenantId);
       res.json({ data: templates });
     } catch (error) {
       return next(error);
@@ -53,7 +54,7 @@ export class ReportsController {
         template: template || '{}',
         parameters: parameters || '{}',
         type: type || 'event',
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       });
       res.status(201).json(reportTemplate);
     } catch (error) {
@@ -72,7 +73,7 @@ export class ReportsController {
         res.status(400).json({ error: 'Template ID is required' });
         return;
       }
-      const updated = await this.templateService.updateTemplate(id, req.user!.tenantId, updates);
+      const updated = await this.templateService.updateTemplate(id, req.user.tenantId, updates);
       res.json(updated);
     } catch (error) {
       return next(error);
@@ -89,7 +90,7 @@ export class ReportsController {
         res.status(400).json({ error: 'Template ID is required' });
         return;
       }
-      await this.templateService.deleteTemplate(id, req.user!.tenantId);
+      await this.templateService.deleteTemplate(id, req.user.tenantId);
       res.status(204).send();
     } catch (error) {
       return next(error);

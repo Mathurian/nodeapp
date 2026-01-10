@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { FileService } from '../services/FileService';
 import { AuditLogService } from '../services/AuditLogService';
@@ -135,14 +136,14 @@ export class FileController {
         files.map(async (file) => {
           return this.prisma.file.create({
             data: {
-              tenantId: req.user!.tenantId,
+              tenantId: req.user.tenantId,
               filename: file.filename,
               originalName: file.originalname,
               mimeType: file.mimetype,
               size: file.size,
               path: file.path,
               category: category || 'OTHER',
-              uploadedBy: req.user!.id,
+              uploadedBy: req.user.id,
               isPublic: isPublic === 'true',
               ...(eventId && { eventId }),
               ...(contestId && { contestId }),
@@ -161,7 +162,7 @@ export class FileController {
             fileName: uploadedFile.originalName,
             fileId: uploadedFile.id,
             req,
-            tenantId: req.user!.tenantId,
+            tenantId: req.user.tenantId,
             metadata: {
               fileSize: uploadedFile.size,
               mimeType: uploadedFile.mimeType,

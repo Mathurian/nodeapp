@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { EventTemplateService } from '../services/EventTemplateService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -18,8 +19,8 @@ export class EventTemplateController {
         description,
         contests,
         categories,
-        createdBy: req.user!.id,
-        tenantId: req.user!.tenantId
+        createdBy: req.user.id,
+        tenantId: req.user.tenantId
       });
       return sendSuccess(res, template, 'Template created', 201);
     } catch (error) {
@@ -29,7 +30,7 @@ export class EventTemplateController {
 
   getTemplates = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const templates = await this.eventTemplateService.getAll(req.user!.tenantId);
+      const templates = await this.eventTemplateService.getAll(req.user.tenantId);
       return sendSuccess(res, templates);
     } catch (error) {
       return next(error);
@@ -39,7 +40,7 @@ export class EventTemplateController {
   getTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const template = await this.eventTemplateService.getById(id!, req.user!.tenantId);
+      const template = await this.eventTemplateService.getById(id!, req.user.tenantId);
       return sendSuccess(res, template);
     } catch (error) {
       return next(error);
@@ -50,7 +51,7 @@ export class EventTemplateController {
     try {
       const { id } = req.params;
       const { name, description, contests, categories } = req.body;
-      const template = await this.eventTemplateService.update(id!, req.user!.tenantId, {
+      const template = await this.eventTemplateService.update(id!, req.user.tenantId, {
         name,
         description,
         contests,
@@ -65,7 +66,7 @@ export class EventTemplateController {
   deleteTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      await this.eventTemplateService.delete(id!, req.user!.tenantId);
+      await this.eventTemplateService.delete(id!, req.user.tenantId);
       return sendSuccess(res, null, 'Template deleted');
     } catch (error) {
       return next(error);
@@ -81,7 +82,7 @@ export class EventTemplateController {
         eventDescription,
         startDate,
         endDate,
-        tenantId: req.user!.tenantId
+        tenantId: req.user.tenantId
       });
       return sendSuccess(res, event, 'Event created from template', 201);
     } catch (error) {

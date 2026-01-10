@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { ScoreRemovalService } from '../services/ScoreRemovalService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -18,9 +19,9 @@ export class ScoreRemovalController {
         judgeId,
         categoryId,
         reason,
-        requestedBy: req.user!.id,
-        userRole: req.user!.role,
-        tenantId: req.user!.tenantId
+        requestedBy: req.user.id,
+        userRole: req.user.role,
+        tenantId: req.user.tenantId
       });
       return sendSuccess(res, request, 'Score removal request created. Awaiting co-signatures.');
     } catch (error) {
@@ -31,7 +32,7 @@ export class ScoreRemovalController {
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
-      const requests = await this.scoreRemovalService.getAll(status as string, req.user!.tenantId);
+      const requests = await this.scoreRemovalService.getAll(status as string, req.user.tenantId);
       return sendSuccess(res, requests);
     } catch (error) {
       return next(error);
@@ -41,7 +42,7 @@ export class ScoreRemovalController {
   getScoreRemovalRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = getRequiredParam(req, 'id');
-      const request = await this.scoreRemovalService.getById(id, req.user!.tenantId);
+      const request = await this.scoreRemovalService.getById(id, req.user.tenantId);
       return sendSuccess(res, request);
     } catch (error) {
       return next(error);
@@ -52,10 +53,10 @@ export class ScoreRemovalController {
     try {
       const id = getRequiredParam(req, 'id');
       const { signatureName } = req.body;
-      const result = await this.scoreRemovalService.signRequest(id, req.user!.tenantId, {
+      const result = await this.scoreRemovalService.signRequest(id, req.user.tenantId, {
         signatureName,
-        userId: req.user!.id,
-        userRole: req.user!.role
+        userId: req.user.id,
+        userRole: req.user.role
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
@@ -66,7 +67,7 @@ export class ScoreRemovalController {
   executeScoreRemoval = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = getRequiredParam(req, 'id');
-      const result = await this.scoreRemovalService.executeRemoval(id, req.user!.tenantId);
+      const result = await this.scoreRemovalService.executeRemoval(id, req.user.tenantId);
       return sendSuccess(res, result, 'Score removal executed successfully');
     } catch (error) {
       return next(error);

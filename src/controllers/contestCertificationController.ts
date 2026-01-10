@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { ContestCertificationService } from '../services/ContestCertificationService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -25,9 +26,9 @@ export class ContestCertificationController {
       const { contestId } = req.params;
       const certification = await this.contestCertificationService.certifyContest(
         contestId!,
-        req.user!.id,
-        req.user!.role,
-        req.user!.tenantId
+        req.user.id,
+        req.user.role,
+        req.user.tenantId
       );
       return sendSuccess(res, certification, 'Contest certified successfully');
     } catch (error) {

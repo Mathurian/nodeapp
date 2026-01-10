@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { RoleAssignmentService } from '../services/RoleAssignmentService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -35,7 +36,7 @@ export class RoleAssignmentController {
         eventId,
         categoryId,
         notes,
-        assignedBy: req.user!.id
+        assignedBy: req.user.id
       });
       return sendSuccess(res, assignment, 'Role assignment created', 201);
     } catch (error) {

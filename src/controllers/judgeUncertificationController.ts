@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { JudgeUncertificationService } from '../services/JudgeUncertificationService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -30,8 +31,8 @@ export class JudgeUncertificationController {
         judgeId,
         categoryId,
         reason,
-        requestedBy: req.user!.id,
-        userRole: req.user!.role
+        requestedBy: req.user.id,
+        userRole: req.user.role
       });
       return sendSuccess(res, request, 'Uncertification request created. Awaiting co-signatures.');
     } catch (error) {
@@ -45,8 +46,8 @@ export class JudgeUncertificationController {
       const { signatureName } = req.body;
       const result = await this.judgeUncertificationService.signRequest(id!, {
         signatureName,
-        userId: req.user!.id,
-        userRole: req.user!.role
+        userId: req.user.id,
+        userRole: req.user.role
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {

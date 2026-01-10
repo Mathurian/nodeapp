@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { NotificationService } from '../services/NotificationService';
 import { sendSuccess } from '../utils/responseHelpers';
@@ -15,7 +16,7 @@ export class NotificationsController {
 
   getAllNotifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const notifications = await this.notificationService.getUserNotifications(req.user!.id, req.user!.tenantId);
+      const notifications = await this.notificationService.getUserNotifications(req.user.id, req.user.tenantId);
       return sendSuccess(res, notifications);
     } catch (error) {
       return next(error);
@@ -37,7 +38,7 @@ export class NotificationsController {
     try {
       const notification = await this.notificationService.createNotification({
         ...req.body,
-        userId: req.user!.id
+        userId: req.user.id
       });
       return sendSuccess(res, notification, 'Notification created successfully', 201);
     } catch (error) {
@@ -58,7 +59,7 @@ export class NotificationsController {
   deleteNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      await this.notificationService.deleteNotification(id!, req.user!.id, req.user!.tenantId);
+      await this.notificationService.deleteNotification(id!, req.user.id, req.user.tenantId);
       return res.status(204).send();
     } catch (error) {
       return next(error);
@@ -68,7 +69,7 @@ export class NotificationsController {
   markAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
-      await this.notificationService.markAsRead(id!, req.user!.id, req.user!.tenantId);
+      await this.notificationService.markAsRead(id!, req.user.id, req.user.tenantId);
       return sendSuccess(res, null, 'Notification marked as read');
     } catch (error) {
       return next(error);
@@ -77,7 +78,7 @@ export class NotificationsController {
 
   markAllAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const count = await this.notificationService.markAllAsRead(req.user!.id, req.user!.tenantId);
+      const count = await this.notificationService.markAllAsRead(req.user.id, req.user.tenantId);
       return sendSuccess(res, { count }, 'All notifications marked as read');
     } catch (error) {
       return next(error);
@@ -91,8 +92,8 @@ export class NotificationsController {
   sendNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { userIds, title, message, type, link } = req.body;
-      const senderRole = req.user!.role;
-      const tenantId = req.user!.tenantId;
+      const senderRole = req.user.role;
+      const tenantId = req.user.tenantId;
 
       // Permission check: ADMIN, SUPER_ADMIN, ORGANIZER, BOARD can send
       if (!['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(senderRole)) {
@@ -150,8 +151,8 @@ export class NotificationsController {
   broadcastByRole = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { roles, title, message, type, link } = req.body;
-      const senderRole = req.user!.role;
-      const tenantId = req.user!.tenantId;
+      const senderRole = req.user.role;
+      const tenantId = req.user.tenantId;
 
       // Permission check: only ADMIN and SUPER_ADMIN can broadcast by role
       if (!['ADMIN', 'SUPER_ADMIN'].includes(senderRole)) {
