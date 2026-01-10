@@ -157,75 +157,131 @@ export class ScoringController {
 
       log.info('Score update requested', { scoreId });
 
-      // Get old score for change tracking with tenant filtering
       const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
-      const oldScore = await this.prisma.score.findFirst({
-        where: {
-          id: scoreId,
-          tenantId: tenantId
+      const userRole = req.user?.role;
+
+      // RACE CONDITION FIX: Use atomic update with all conditions in WHERE clause
+      // This prevents TOCTOU (Time-of-Check to Time-of-Use) vulnerabilities
+      const whereConditions: any = {
+        id: scoreId,
+        tenantId: tenantId,
+        isLocked: false,
+        isCertified: false
+      };
+
+      // Non-admins can only update their own scores
+      if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+        whereConditions.judgeId = req.user?.judgeId;
+      }
+
+      // Atomic update: all checks happen in the database query
+      const updateResult = await this.prisma.score.updateMany({
+        where: whereConditions,
+        data: {
+          score: data.score,
+          ...(data.comments !== undefined && { comment: data.comments }),
+          updatedAt: new Date()
         }
       });
 
-      // SECURITY: Check if score exists
-      if (!oldScore) {
-        log.warn('Score not found for update', { scoreId });
-        sendError(res, 'Score not found', 404);
-        return;
-      }
-
-      // SECURITY: Check if score is locked
-      if (oldScore.isLocked) {
-        log.warn('Attempt to update locked score', {
-          scoreId,
-          userId: req.user?.id,
-          lockedAt: oldScore.lockedAt,
-          lockedBy: oldScore.lockedBy
+      // If no rows were updated, determine the specific reason
+      if (updateResult.count === 0) {
+        // Query to determine failure reason
+        const existingScore = await this.prisma.score.findFirst({
+          where: { id: scoreId, tenantId: tenantId },
+          select: {
+            id: true,
+            isLocked: true,
+            isCertified: true,
+            judgeId: true,
+            lockedAt: true,
+            lockedBy: true,
+            certifiedAt: true,
+            certifiedBy: true
+          }
         });
-        sendError(res, 'Cannot modify locked score', 403);
+
+        if (!existingScore) {
+          log.warn('Score not found for update', { scoreId });
+          sendNotFound(res, 'Score not found');
+          return;
+        }
+
+        if (existingScore.isLocked) {
+          log.warn('Attempt to update locked score', {
+            scoreId,
+            userId: req.user?.id,
+            lockedAt: existingScore.lockedAt,
+            lockedBy: existingScore.lockedBy
+          });
+          sendForbidden(res, 'Cannot modify locked score');
+          return;
+        }
+
+        if (existingScore.isCertified) {
+          log.warn('Attempt to update certified score', {
+            scoreId,
+            userId: req.user?.id,
+            certifiedAt: existingScore.certifiedAt,
+            certifiedBy: existingScore.certifiedBy
+          });
+          sendForbidden(res, 'Cannot modify certified score');
+          return;
+        }
+
+        if (existingScore.judgeId !== req.user?.judgeId) {
+          log.warn('Attempt to update another judge\'s score', {
+            scoreId,
+            userId: req.user?.id,
+            userJudgeId: req.user?.judgeId,
+            scoreJudgeId: existingScore.judgeId
+          });
+          sendForbidden(res, 'Can only update your own scores');
+          return;
+        }
+
+        // Shouldn't reach here, but handle gracefully
+        sendError(res, 'Score could not be updated', 500);
         return;
       }
 
-      // SECURITY: Check if score is certified
-      if (oldScore.isCertified) {
-        log.warn('Attempt to update certified score', {
-          scoreId,
-          userId: req.user?.id,
-          certifiedAt: oldScore.certifiedAt,
-          certifiedBy: oldScore.certifiedBy
-        });
-        sendError(res, 'Cannot modify certified score', 403);
-        return;
-      }
-
-      // SECURITY: Verify judge owns score (unless admin)
-      const userRole = req.user?.role;
-      if (
-        userRole !== 'SUPER_ADMIN' &&
-        userRole !== 'ADMIN' &&
-        oldScore.judgeId !== req.user?.judgeId
-      ) {
-        log.warn('Attempt to update another judge\'s score', {
-          scoreId,
-          userId: req.user?.id,
-          userJudgeId: req.user?.judgeId,
-          scoreJudgeId: oldScore.judgeId
-        });
-        sendError(res, 'Can only update your own scores', 403);
-        return;
-      }
-
-      const updatedScore = await this.scoringService.updateScore(scoreId, data, tenantId);
+      // Fetch the updated score for response and audit log
+      const updatedScore = await this.prisma.score.findUnique({
+        where: { id: scoreId },
+        include: {
+          contestant: {
+            select: {
+              id: true,
+              name: true,
+              contestantNumber: true
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true
+            }
+          }
+        }
+      });
 
       log.info('Score updated successfully', { scoreId });
 
-      // Audit log: score update with change tracking
+      // Audit log: score update
       try {
         const auditLogService = container.resolve(AuditLogService);
         await auditLogService.logEntityChange({
           action: 'score.updated',
           entityType: 'Score',
           entityId: scoreId,
-          oldData: oldScore,
+          oldData: null, // Old data not available in atomic pattern
           newData: updatedScore,
           req,
           tenantId
