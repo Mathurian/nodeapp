@@ -187,8 +187,11 @@ export class FileController {
     try {
       const { id } = req.params;
 
-      const file = await this.prisma.file.findUnique({
-        where: { id },
+      const file = await this.prisma.file.findFirst({
+        where: {
+          id,
+          tenantId: req.user!.tenantId
+        }
         // include removed - no relations in schema
       });
 
@@ -207,8 +210,11 @@ export class FileController {
       const { id } = req.params;
       const { category, isPublic, metadata } = req.body;
 
-      const existing = await this.prisma.file.findUnique({
-        where: { id }
+      const existing = await this.prisma.file.findFirst({
+        where: {
+          id,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!existing) {

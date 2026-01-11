@@ -222,7 +222,12 @@ export class FileManagementController {
           // Use FileManagementService for move/copy operations
           const operations = await Promise.allSettled(
             fileIds.map(async (fileId: string) => {
-              const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+              const file = await this.prisma.file.findFirst({
+                where: {
+                  id: fileId,
+                  tenantId: req.user!.tenantId
+                }
+              });
               if (!file) throw new Error(`File ${fileId} not found`);
 
               if (operation === 'move') {
@@ -365,8 +370,11 @@ export class FileManagementController {
     try {
       const { id } = req.params;
 
-      const file = await this.prisma.file.findUnique({
-        where: { id }
+      const file = await this.prisma.file.findFirst({
+        where: {
+          id,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!file) {
@@ -438,7 +446,12 @@ export class FileManagementController {
       // Check integrity for each file
       const results = await Promise.allSettled(
         fileIds.map(async (fileId: string) => {
-          const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+          const file = await this.prisma.file.findFirst({
+            where: {
+              id: fileId,
+              tenantId: req.user!.tenantId
+            }
+          });
 
           if (!file) {
             return {

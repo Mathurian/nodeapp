@@ -95,8 +95,11 @@ export class FileBackupController {
     try {
       const { backupId } = req.params;
 
-      const backup = await this.prisma.backupLog.findUnique({
-        where: { id: backupId }
+      const backup = await this.prisma.backupLog.findFirst({
+        where: {
+          id: backupId,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!backup) {
@@ -162,8 +165,11 @@ export class FileBackupController {
     try {
       const { backupId } = req.params;
 
-      const backup = await this.prisma.backupLog.findUnique({
-        where: { id: backupId }
+      const backup = await this.prisma.backupLog.findFirst({
+        where: {
+          id: backupId,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!backup) {
@@ -184,8 +190,11 @@ export class FileBackupController {
     try {
       const { backupId } = req.params;
 
-      const backup = await this.prisma.backupLog.findUnique({
-        where: { id: backupId }
+      const backup = await this.prisma.backupLog.findFirst({
+        where: {
+          id: backupId,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!backup) {
@@ -202,8 +211,11 @@ export class FileBackupController {
     try {
       const { backupId } = req.params;
 
-      const backup = await this.prisma.backupLog.findUnique({
-        where: { id: backupId }
+      const backup = await this.prisma.backupLog.findFirst({
+        where: {
+          id: backupId,
+          tenantId: req.user!.tenantId
+        }
       });
 
       if (!backup) {

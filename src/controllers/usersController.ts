@@ -55,47 +55,47 @@ export class UsersController {
       const isSuperAdmin = authReq.user?.role === 'SUPER_ADMIN';
       const tenantId = authReq.tenantId || authReq.user?.tenantId || 'default_tenant';
 
-      // Build filters
-      const filters: any = {};
+      // Build Prisma where clause for database-level filtering
+      const where: any = {};
 
       // Tenant filter
       if (!isSuperAdmin) {
-        filters.tenantId = tenantId;
+        where.tenantId = tenantId;
       }
 
       // Active filter (default to active only for security)
       if (includeInactive !== 'true') {
-        filters.isActive = true;
+        where.isActive = true;
       }
 
       // Search filter
       if (search && typeof search === 'string') {
-        filters.search = search;
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { preferredName: { contains: search, mode: 'insensitive' } }
+        ];
       }
 
       // Date filters
       if (createdAfter && typeof createdAfter === 'string') {
-        filters.createdAfter = new Date(createdAfter);
+        where.createdAt = { ...where.createdAt, gte: new Date(createdAfter) };
       }
       if (createdBefore && typeof createdBefore === 'string') {
-        filters.createdBefore = new Date(createdBefore);
+        where.createdAt = { ...where.createdAt, lte: new Date(createdBefore) };
       }
 
-      // Sort filters
+      // Build orderBy clause
+      const orderBy: any = {};
       if (sortBy && typeof sortBy === 'string') {
-        filters.sortBy = sortBy;
-      }
-      if (sortDirection && (sortDirection === 'asc' || sortDirection === 'desc')) {
-        filters.sortDirection = sortDirection;
+        orderBy[sortBy] = sortDirection === 'asc' ? 'asc' : 'desc';
+      } else {
+        orderBy.createdAt = 'desc';
       }
 
-      // Use UserService to get filtered users
-      const users = await this.userService.getAllUsers(filters);
-
-      // Get additional relations (judge, contestant, tenant) for the filtered users
-      const userIds = users.map(u => u.id);
+      // Single database query with relations included
       const usersWithRelations = await this.prisma.user.findMany({
-        where: { id: { in: userIds } },
+        where,
         include: {
           judge: true,
           contestant: true,
@@ -107,7 +107,7 @@ export class UsersController {
             }
           }
         },
-        orderBy: filters.sortBy ? { [filters.sortBy]: filters.sortDirection || 'desc' } : { createdAt: 'desc' }
+        orderBy
       });
 
       log.info('Users retrieved successfully', { count: usersWithRelations.length, isSuperAdmin });
@@ -926,9 +926,18 @@ export class UsersController {
         return sendError(res, 'No file provided', 400);
       }
 
+      // File size limit check (10MB max to prevent memory issues)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      if (authReq.file.size > MAX_FILE_SIZE) {
+        log.warn('Bulk upload failed: File too large', { size: authReq.file.size, maxSize: MAX_FILE_SIZE });
+        return sendError(res, `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`, 400);
+      }
+
       log.debug('Processing bulk upload', { filename: authReq.file.originalname, size: authReq.file.size });
 
       // Parse CSV file
+      // TODO: For files larger than a few MB, consider using a streaming CSV parser
+      // to avoid loading entire file into memory (e.g., csv-parser, papaparse with streaming)
       const csvContent = authReq.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n').filter((line: string) => line.trim() && !line.trim().startsWith('#'));
 
@@ -1249,9 +1258,9 @@ export class UsersController {
 
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
+        if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
           // Escaped quote
           current += '"';
           i++;

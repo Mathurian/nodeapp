@@ -87,8 +87,12 @@ export class JudgeUncertificationController {
       }
 
       // Verify category exists
-      const category = await this.prisma.category.findUnique({
-        where: { id: categoryId }
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          tenantId: req.user.tenantId,
+          deletedAt: null
+        }
       });
 
       if (!category) {

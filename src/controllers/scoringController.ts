@@ -691,11 +691,11 @@ export class ScoringController {
         tenantId: req.user.tenantId,
         deletedAt: null // Manual soft-delete filter (middleware skipped due to nested includes)
       };
-      if (contestId) where.contestId = contestId;
-      if (eventId && !contestId) {
-        // Only use nested filter if not using contestId
-        where.contestId = undefined;
+      if (contestId) {
+        where.contestId = contestId;
       }
+      // Don't set contestId at all if using eventId filter
+      // This allows Prisma to use the nested contest.eventId filter properly
 
       const categories = (await this.prisma.category.findMany({
         where,
@@ -761,8 +761,12 @@ export class ScoringController {
       }
 
       // Check if category exists
-      const category = await this.prisma.category.findUnique({
-        where: { id: categoryId! }
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId!,
+          tenantId: req.user.tenantId,
+          deletedAt: null
+        }
       });
 
       if (!category) {
@@ -817,8 +821,12 @@ export class ScoringController {
       }
 
       // Check if category exists
-      const category = await this.prisma.category.findUnique({
-        where: { id: categoryId }
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          tenantId: req.user.tenantId,
+          deletedAt: null
+        }
       });
 
       if (!category) {
@@ -884,10 +892,20 @@ export class ScoringController {
         return sendBadRequest(res, 'contestantId, categoryId, amount, and reason are required');
       }
 
-      // Verify category and contestant exist
+      // Verify category and contestant exist with tenant validation
       const [category, contestant] = await Promise.all([
-        this.prisma.category.findUnique({ where: { id: categoryId } }),
-        this.prisma.contestant.findUnique({ where: { id: contestantId } })
+        this.prisma.category.findFirst({
+          where: {
+            id: categoryId,
+            tenantId: req.user.tenantId
+          }
+        }),
+        this.prisma.contestant.findFirst({
+          where: {
+            id: contestantId,
+            tenantId: req.user.tenantId
+          }
+        })
       ]);
 
       if (!category) {
@@ -1045,10 +1063,20 @@ export class ScoringController {
         return sendBadRequest(res, 'judgeId and contestId are required');
       }
 
-      // Verify judge and contest exist
+      // Verify judge and contest exist with tenant validation
       const [judge, contest] = await Promise.all([
-        this.prisma.user.findUnique({ where: { id: judgeId } }),
-        this.prisma.contest.findUnique({ where: { id: contestId } })
+        this.prisma.user.findFirst({
+          where: {
+            id: judgeId,
+            tenantId: req.user.tenantId
+          }
+        }),
+        this.prisma.contest.findFirst({
+          where: {
+            id: contestId,
+            tenantId: req.user.tenantId
+          }
+        })
       ]);
 
       if (!judge) {
@@ -1101,8 +1129,12 @@ export class ScoringController {
       }
 
       // Check if category exists
-      const category = await this.prisma.category.findUnique({
-        where: { id: categoryId }
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          tenantId: req.user.tenantId,
+          deletedAt: null
+        }
       });
 
       if (!category) {

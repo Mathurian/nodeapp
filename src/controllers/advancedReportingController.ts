@@ -89,8 +89,12 @@ export class AdvancedReportingController {
       }
 
       // Get event with all related data
-      const event = await this.prisma.event.findUnique({
-        where: { id: eventId },
+      const event = await this.prisma.event.findFirst({
+        where: {
+          id: eventId,
+          tenantId: authReq.user!.tenantId,
+          deletedAt: null
+        },
         include: {
           contests: {
             include: {
@@ -467,8 +471,12 @@ export class AdvancedReportingController {
       }
 
       // Get contest with all related data
-      const contest = await this.prisma.contest.findUnique({
-        where: { id: contestId },
+      const contest = await this.prisma.contest.findFirst({
+        where: {
+          id: contestId,
+          tenantId: authReq.user!.tenantId,
+          deletedAt: null
+        },
         include: {
           categories: {
             include: {
@@ -486,14 +494,13 @@ export class AdvancedReportingController {
         return sendNotFound(res, 'Contest not found');
       }
 
-      // Verify contest tenant access
-      if (contest.tenantId !== authReq.user!.tenantId) {
-        return sendNotFound(res, 'Contest not found');
-      }
-
       // Get event info separately
-      const event = await this.prisma.event.findUnique({
-        where: { id: contest.eventId },
+      const event = await this.prisma.event.findFirst({
+        where: {
+          id: contest.eventId,
+          tenantId: authReq.user!.tenantId,
+          deletedAt: null
+        },
         select: {
           id: true,
           name: true,
