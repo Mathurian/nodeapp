@@ -111,7 +111,6 @@ export class EmailController {
           variables: variables ? JSON.parse(JSON.stringify(variables)) : null,
           createdBy: req.user.id
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, template, 'Template created successfully', 201);
@@ -143,7 +142,6 @@ export class EmailController {
           eventId: eventId !== undefined ? eventId : existing.eventId,
           variables: variables !== undefined ? JSON.parse(JSON.stringify(variables)) : existing.variables
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, template, 'Template updated successfully');

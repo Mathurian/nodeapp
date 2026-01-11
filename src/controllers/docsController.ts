@@ -13,6 +13,7 @@ import { Request, Response } from 'express';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { createLogger } from '../utils/logger';
+import { CACHE_TTL } from '../config/constants';
 
 const log = createLogger('docsController');
 
@@ -25,7 +26,6 @@ const ALLOWED_EXTENSIONS = ['.md', '.txt'];
 // Cache for documentation metadata
 let docsMetadataCache: DocMetadata[] | null = null;
 let docsCacheTime: number = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface DocMetadata {
   path: string;
@@ -184,7 +184,7 @@ async function scanDirectory(dir: string, relativePath: string = ''): Promise<Do
 async function getDocsMetadata(): Promise<DocMetadata[]> {
   // Check cache
   const now = Date.now();
-  if (docsMetadataCache && now - docsCacheTime < CACHE_TTL) {
+  if (docsMetadataCache && now - docsCacheTime < CACHE_TTL.SHORT) {
     return docsMetadataCache;
   }
 

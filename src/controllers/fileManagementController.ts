@@ -142,7 +142,6 @@ export class FileManagementController {
       const [files, total] = await Promise.all([
         this.prisma.file.findMany({
           where,
-          // include removed - no relations in schema
           skip,
           take: limit,
           orderBy: { uploadedAt: 'desc' }

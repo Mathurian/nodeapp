@@ -3,6 +3,7 @@ import { container } from '../config/container';
 import { ErrorHandlingService } from '../services/ErrorHandlingService';
 import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient, ActivityLog } from '@prisma/client';
+import { TIME, QUERY_LIMITS } from '../config/constants';
 
 type ActivityLogWithUser = ActivityLog & {
   user?: {
@@ -43,7 +44,7 @@ export class ErrorHandlingController {
   getErrorStatistics = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query['days'] as string) || 7;
-      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const since = new Date(Date.now() - days * TIME.DAY);
 
       // Get error logs from activity log (action='ERROR')
       const errorLogs = await this.prisma.activityLog.findMany({
@@ -180,7 +181,7 @@ export class ErrorHandlingController {
   getErrorTrends = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const days = parseInt(req.query['days'] as string) || 30;
-      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const since = new Date(Date.now() - days * TIME.DAY);
 
       const errorLogs = await this.prisma.activityLog.findMany({
         where: {
@@ -236,7 +237,7 @@ export class ErrorHandlingController {
         return sendBadRequest(res, 'olderThanDays parameter is required');
       }
 
-      const cutoffDate = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+      const cutoffDate = new Date(Date.now() - olderThanDays * TIME.DAY);
 
       const result = await this.prisma.activityLog.deleteMany({
         where: {
@@ -257,9 +258,9 @@ export class ErrorHandlingController {
   exportErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const format = (req.query['format'] as string) || 'json';
-      const limit = parseInt(req.query['limit'] as string) || 1000;
+      const limit = parseInt(req.query['limit'] as string) || QUERY_LIMITS.DEFAULT;
       const days = parseInt(req.query['days'] as string) || 30;
-      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const since = new Date(Date.now() - days * TIME.DAY);
 
       const errorLogs = await this.prisma.activityLog.findMany({
         where: {

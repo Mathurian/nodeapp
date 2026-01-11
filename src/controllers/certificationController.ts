@@ -57,7 +57,6 @@ export class CertificationController {
       const [certifications, total] = await Promise.all([
         this.prisma.certification.findMany({
           where,
-          // include removed - no relations in schema
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
@@ -134,7 +133,6 @@ export class CertificationController {
           totalSteps: 4,
           comments: comments || null
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, certification, 'Certification created successfully', 201);
@@ -164,7 +162,6 @@ export class CertificationController {
       const certification = await this.prisma.certification.update({
         where: { id },
         data: updateData,
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, certification, 'Certification updated successfully');
@@ -201,7 +198,6 @@ export class CertificationController {
 
       const certification = await this.prisma.certification.findUnique({
         where: { id },
-        // include removed - no relations in schema
       });
 
       if (!certification) {
@@ -239,7 +235,6 @@ export class CertificationController {
           status: 'IN_PROGRESS',
           comments: comments || certification.comments
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Judge certification completed successfully');
@@ -277,7 +272,6 @@ export class CertificationController {
           status: 'IN_PROGRESS',
           comments: comments || certification.comments
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Tally Master certification completed successfully');
@@ -315,7 +309,6 @@ export class CertificationController {
           status: 'IN_PROGRESS',
           comments: comments || certification.comments
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Auditor certification completed successfully');
@@ -354,7 +347,6 @@ export class CertificationController {
           certifiedBy: req.user?.id || null,
           comments: comments || certification.comments
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Board approval completed - Certification finalized');
@@ -391,7 +383,6 @@ export class CertificationController {
           rejectionReason,
           certifiedBy: req.user?.id || null
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Certification rejected');

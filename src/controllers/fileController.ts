@@ -96,7 +96,6 @@ export class FileController {
       const [files, total] = await Promise.all([
         this.prisma.file.findMany({
           where,
-          // include removed - no relations in schema
           skip,
           take: limit,
           orderBy: { uploadedAt: 'desc' }
@@ -192,7 +191,6 @@ export class FileController {
           id,
           tenantId: req.user!.tenantId
         }
-        // include removed - no relations in schema
       });
 
       if (!file) {
@@ -229,7 +227,6 @@ export class FileController {
       const file = await this.prisma.file.update({
         where: { id },
         data: updateData
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, file, 'File updated successfully');

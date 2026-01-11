@@ -796,7 +796,6 @@ export class ScoringController {
           comments: comments || null,
           certifiedAt: new Date()
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, certification, 'Totals certified successfully by Tally Master');
@@ -871,7 +870,6 @@ export class ScoringController {
           comments: comments || null,
           certifiedAt: new Date()
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, certification, 'Final certification completed by Auditor');
@@ -925,7 +923,6 @@ export class ScoringController {
           status: 'PENDING',
           tenantId: req.user.tenantId
         },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, deductionRequest, 'Deduction request created successfully', 201);
@@ -980,7 +977,6 @@ export class ScoringController {
       const updated = await this.prisma.deductionRequest.update({
         where: { id: deductionId! },
         data: { status: 'APPROVED' },
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Deduction request approved successfully');
@@ -1019,7 +1015,6 @@ export class ScoringController {
           tenantId: req.user.tenantId
         },
         data: { status: 'REJECTED' }
-        // include removed - no relations in schema
       });
 
       return sendSuccess(res, updated, 'Deduction request rejected');
@@ -1041,7 +1036,6 @@ export class ScoringController {
 
       const deductions = await this.prisma.deductionRequest.findMany({
         where,
-        // include removed - no relations in schema
         orderBy: { createdAt: 'desc' }
       });
 

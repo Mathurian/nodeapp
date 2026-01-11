@@ -12,6 +12,7 @@ import { sendSuccess, sendCreated, sendError, sendNoContent, sendNotFound, sendB
 import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
+import { FILE_SIZE } from '../config/constants';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -927,10 +928,9 @@ export class UsersController {
       }
 
       // File size limit check (10MB max to prevent memory issues)
-      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-      if (authReq.file.size > MAX_FILE_SIZE) {
-        log.warn('Bulk upload failed: File too large', { size: authReq.file.size, maxSize: MAX_FILE_SIZE });
-        return sendError(res, `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`, 400);
+      if (authReq.file.size > FILE_SIZE.MAX_CSV_UPLOAD) {
+        log.warn('Bulk upload failed: File too large', { size: authReq.file.size, maxSize: FILE_SIZE.MAX_CSV_UPLOAD });
+        return sendError(res, `File size exceeds maximum allowed size of ${FILE_SIZE.MAX_CSV_UPLOAD / FILE_SIZE.MB}MB`, 400);
       }
 
       log.debug('Processing bulk upload', { filename: authReq.file.originalname, size: authReq.file.size });

@@ -134,7 +134,6 @@ export class TrackerController {
 
       const pendingCertifications = await this.prisma.certification.findMany({
         where,
-        // include removed - no relations in schema
         orderBy: { createdAt: 'desc' }
       });
 

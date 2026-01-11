@@ -5,6 +5,7 @@ import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { parsePaginationQuery } from '../utils/pagination';
 import { createLogger } from '../utils/logger';
+import { TIME, QUERY_LIMITS } from '../config/constants';
 
 const logger = createLogger('AdminController');
 
@@ -133,7 +134,7 @@ export class AdminController {
   getActiveUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const hours = parseInt(req.query['hours'] as string) || 24;
-      const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const since = new Date(Date.now() - hours * TIME.HOUR);
 
       // Build where clause with tenant filtering (unless SUPER_ADMIN)
       const where: Prisma.UserWhereInput = {
@@ -471,7 +472,7 @@ export class AdminController {
   exportAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const format = (req.query['format'] as string) || 'json';
-      const limit = parseInt(req.query['limit'] as string) || 1000;
+      const limit = parseInt(req.query['limit'] as string) || QUERY_LIMITS.DEFAULT;
 
       const logsResult = await this.adminService.getAuditLogs(limit);
       const logs = Array.isArray(logsResult) ? logsResult : (logsResult as any).data || [];

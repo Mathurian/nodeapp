@@ -3,6 +3,7 @@ import { container } from '../config/container';
 import { AdvancedReportingService } from '../services/AdvancedReportingService';
 import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { PrismaClient, Prisma, Event, Contest, Category, Score } from '@prisma/client';
+import { TIME } from '../config/constants';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -345,7 +346,7 @@ export class AdvancedReportingController {
     try {
       const authReq = req as AuthenticatedRequest;
       const days = parseInt(authReq.query['days'] as string) || 30;
-      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const since = new Date(Date.now() - days * TIME.DAY);
 
       // Get comprehensive system statistics
       const tenantId = authReq.user!.tenantId;
