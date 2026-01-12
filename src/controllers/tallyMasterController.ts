@@ -24,6 +24,11 @@ export class TallyMasterController {
   getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const stats = await this.tallyMasterService.getStats();
       res.json(stats);
     } catch (error) {
@@ -38,6 +43,11 @@ export class TallyMasterController {
   getCertifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 20;
 
@@ -55,6 +65,11 @@ export class TallyMasterController {
   getCertificationQueue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 20;
 
@@ -72,6 +87,11 @@ export class TallyMasterController {
   getPendingCertifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 20;
 
@@ -89,6 +109,11 @@ export class TallyMasterController {
   certifyTotals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId } = req.body;
       const userId = req.user?.id;
       const userRole = req.user?.role as UserRole;
@@ -165,6 +190,11 @@ export class TallyMasterController {
   getBiasCheckingTools = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId } = req.params;
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID required' });
@@ -184,6 +214,11 @@ export class TallyMasterController {
   getTallyMasterHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 10;
 
@@ -201,6 +236,11 @@ export class TallyMasterController {
   requestScoreRemoval = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId, contestId, judgeId, contestantId, reason } = req.body;
 
       if (!judgeId) {

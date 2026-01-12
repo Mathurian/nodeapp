@@ -16,6 +16,11 @@ export class CategoryCertificationController {
 
   getCategoryCertificationProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId } = req.params;
       const progress = await this.categoryCertificationService.getCertificationProgress(categoryId!);
       return sendSuccess(res, progress);
@@ -26,6 +31,11 @@ export class CategoryCertificationController {
 
   certifyCategory = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId } = req.params;
       const certification = await this.categoryCertificationService.certifyCategory(
         categoryId!,
@@ -41,6 +51,11 @@ export class CategoryCertificationController {
 
   certifyContestant = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { contestantId, categoryId } = req.body;
 
       if (!contestantId || !categoryId) {
@@ -66,6 +81,11 @@ export class CategoryCertificationController {
 
   certifyJudgeScores = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { judgeId, categoryId } = req.body;
 
       if (!judgeId || !categoryId) {

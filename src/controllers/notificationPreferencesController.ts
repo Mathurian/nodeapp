@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 
 export class NotificationPreferencesController {
   private preferenceRepository: NotificationPreferenceRepository;
@@ -21,6 +21,11 @@ export class NotificationPreferencesController {
    */
   getPreferences = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const tenantId = req.user.tenantId;
       const userId = req.user.id;
       const preferences = await this.preferenceRepository.getOrCreate(tenantId, userId);
@@ -44,6 +49,11 @@ export class NotificationPreferencesController {
    */
   updatePreferences = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const tenantId = req.user.tenantId;
       const userId = req.user.id;
       const {
@@ -89,6 +99,11 @@ export class NotificationPreferencesController {
    */
   resetPreferences = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const tenantId = req.user.tenantId;
       const userId = req.user.id;
 

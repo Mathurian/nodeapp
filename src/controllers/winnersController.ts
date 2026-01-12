@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { WinnerService } from '../services/WinnerService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 
 export class WinnersController {
   private winnerService: WinnerService;

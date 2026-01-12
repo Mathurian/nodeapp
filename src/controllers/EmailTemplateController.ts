@@ -3,7 +3,7 @@ import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/request
 import prisma from '../config/database';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { createLogger as loggerFactory } from '../utils/logger';
-import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { sendSuccess, sendError , sendUnauthorized} from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 
 const logger = loggerFactory('EmailTemplateController');
@@ -16,6 +16,11 @@ export class EmailTemplateController {
    */
   async getAllTemplates(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { eventId } = req.query;
 
       const templates = await emailTemplateService.getAllEmailTemplates(eventId as string, req.user.tenantId);
@@ -34,6 +39,11 @@ export class EmailTemplateController {
    */
   async getTemplateById(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
 
       const template = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
@@ -57,6 +67,11 @@ export class EmailTemplateController {
    */
   async getTemplatesByType(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const type = getRequiredParam(req, 'type');
       const { eventId } = req.query;
 
@@ -76,6 +91,11 @@ export class EmailTemplateController {
    */
   async createTemplate(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const data = req.body;
       const userId = req.user?.id;
 
@@ -108,6 +128,11 @@ export class EmailTemplateController {
    */
   async updateTemplate(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
       const data = req.body;
 
@@ -133,6 +158,11 @@ export class EmailTemplateController {
    */
   async deleteTemplate(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
 
       const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
@@ -157,6 +187,11 @@ export class EmailTemplateController {
    */
   async cloneTemplate(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
       const userId = req.user?.id;
 
@@ -181,6 +216,11 @@ export class EmailTemplateController {
    */
   async previewTemplate(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
       const { variables } = req.body;
 

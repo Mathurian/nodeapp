@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { AuditorCertificationService } from '../services/AuditorCertificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 
 export class AuditorCertificationController {
   private auditorCertificationService: AuditorCertificationService;
@@ -13,6 +13,11 @@ export class AuditorCertificationController {
 
   getFinalCertificationStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId } = req.params;
       const status = await this.auditorCertificationService.getFinalCertificationStatus(categoryId!);
       return sendSuccess(res, status);
@@ -23,6 +28,11 @@ export class AuditorCertificationController {
 
   submitFinalCertification = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { categoryId } = req.params;
       const { confirmation1, confirmation2 } = req.body;
       const certification = await this.auditorCertificationService.submitFinalCertification(

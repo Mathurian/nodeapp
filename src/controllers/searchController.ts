@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { SearchService } from '../services/SearchService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 
 export class SearchController {
   private searchService: SearchService;
@@ -21,6 +21,11 @@ export class SearchController {
    */
   search = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const {
         query,
@@ -58,6 +63,11 @@ export class SearchController {
    */
   searchByType = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const { type } = req.params;
       const { query, filters, limit = 20, offset = 0 } = req.query;
@@ -87,6 +97,11 @@ export class SearchController {
    */
   getSuggestions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { query, limit = 5 } = req.query;
 
       if (!query || typeof query !== 'string') {
@@ -106,6 +121,11 @@ export class SearchController {
    */
   getPopularSearches = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { limit = 10 } = req.query;
       const searches = await this.searchService.getPopularSearches(parseInt(limit as string));
 
@@ -120,6 +140,11 @@ export class SearchController {
    */
   getTrendingSearches = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { limit = 5 } = req.query;
       const searches = await this.searchService.getTrendingSearches(parseInt(limit as string));
 
@@ -136,6 +161,11 @@ export class SearchController {
    */
   saveSearch = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const { name, query, filters, entityTypes, isPublic } = req.body;
 
@@ -164,6 +194,11 @@ export class SearchController {
    */
   getSavedSearches = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const { includePublic = 'false' } = req.query;
 
@@ -191,6 +226,11 @@ export class SearchController {
    */
   deleteSavedSearch = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const { id } = req.params;
 
@@ -207,6 +247,11 @@ export class SearchController {
    */
   executeSavedSearch = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const { id } = req.params;
 
@@ -225,6 +270,11 @@ export class SearchController {
    */
   getSearchHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const { limit = 10 } = req.query;
 
@@ -248,6 +298,11 @@ export class SearchController {
    */
   clearSearchHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userId = req.user.id;
       const count = await this.searchService.clearSearchHistory(userId, req.user.tenantId);
 

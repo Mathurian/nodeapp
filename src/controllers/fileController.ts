@@ -20,6 +20,11 @@ export class FileController {
 
   listFiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { directory } = req.query;
       const files = await this.fileService.listFiles(directory as string | undefined);
       return sendSuccess(res, files);
@@ -30,6 +35,11 @@ export class FileController {
 
   downloadFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { filename } = req.params;
       const filePath = await this.fileService.getFilePath(filename!);
 
@@ -56,6 +66,11 @@ export class FileController {
 
   deleteFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { filename } = req.params;
       await this.fileService.deleteFile(filename!);
 
@@ -82,6 +97,11 @@ export class FileController {
 
   getAllFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 50;
       const category = req.query['category'] as string | undefined;
@@ -205,6 +225,11 @@ export class FileController {
 
   updateFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { category, isPublic, metadata } = req.body;
 
@@ -237,6 +262,11 @@ export class FileController {
 
   getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const [
         totalFiles,
         totalSize,

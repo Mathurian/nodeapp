@@ -11,7 +11,7 @@ import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
+import { requireAuthAndTenant } from '../utils/requestValidation';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -503,6 +503,11 @@ export class ScoringController {
   unsignScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const scoreId = req.params['scoreId']!;
 
       log.info('Score unsigned requested', { scoreId });
@@ -523,6 +528,11 @@ export class ScoringController {
   getScoresByJudge = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const judgeId = req.params['judgeId']!;
 
       log.debug('Fetching scores by judge', { judgeId });
@@ -544,10 +554,15 @@ export class ScoringController {
   getScoresByContestant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const contestantId = req.params['contestantId']!;
       const tenantId = req.user.tenantId;
-      const userRole = req.user?.role;
-      const userId = req.user?.id;
+      const userRole = req.user.role;
+      const userId = req.user.id;
 
       log.debug('Fetching scores by contestant', { contestantId, userRole });
 
@@ -592,10 +607,15 @@ export class ScoringController {
   getScoresByContest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const contestId = req.params['contestId']!;
       const tenantId = req.user.tenantId;
-      const userRole = req.user?.role;
-      const userId = req.user?.id;
+      const userRole = req.user.role;
+      const userId = req.user.id;
 
       log.debug('Fetching scores by contest', { contestId, userRole });
 
@@ -668,6 +688,11 @@ export class ScoringController {
   getContestStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoring');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const contestId = req.params['contestId']!;
 
       log.debug('Fetching contest statistics', { contestId });
@@ -684,8 +709,12 @@ export class ScoringController {
 
   getCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const contestId = req.query['contestId'] as string | undefined;
-      const eventId = req.query['eventId'] as string | undefined;
 
       const where: Prisma.CategoryWhereInput = {
         tenantId: req.user.tenantId,

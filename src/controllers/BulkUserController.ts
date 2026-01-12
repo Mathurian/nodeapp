@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { sendUnauthorized } from '../utils/responseHelpers';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { injectable, inject } from 'tsyringe';
 import { BulkOperationService } from '../services/BulkOperationService';
@@ -22,6 +23,11 @@ export class BulkUserController {
    */
   async activateUsers(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { userIds } = req.body;
 
       if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -57,6 +63,11 @@ export class BulkUserController {
    */
   async deactivateUsers(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { userIds } = req.body;
 
       if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -92,6 +103,11 @@ export class BulkUserController {
    */
   async deleteUsers(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { userIds } = req.body;
 
       if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -133,6 +149,11 @@ export class BulkUserController {
    */
   async changeUserRoles(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { userIds, role } = req.body;
 
       if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -187,6 +208,11 @@ export class BulkUserController {
    */
   async importUsers(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       if (!req.file) {
         res.status(400).json({ error: 'CSV file is required' });
         return;
@@ -236,6 +262,11 @@ export class BulkUserController {
    */
   async exportUsers(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { active, role } = req.query;
 
       // Get all users (UserService doesn't support filters directly)

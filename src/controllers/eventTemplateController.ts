@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { EventTemplateService } from '../services/EventTemplateService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 
 export class EventTemplateController {
   private eventTemplateService: EventTemplateService;
@@ -13,6 +13,11 @@ export class EventTemplateController {
 
   createTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { name, description, contests, categories } = req.body;
       const template = await this.eventTemplateService.create({
         name,
@@ -30,6 +35,11 @@ export class EventTemplateController {
 
   getTemplates = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const templates = await this.eventTemplateService.getAll(req.user.tenantId);
       return sendSuccess(res, templates);
     } catch (error) {
@@ -39,6 +49,11 @@ export class EventTemplateController {
 
   getTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const template = await this.eventTemplateService.getById(id!, req.user.tenantId);
       return sendSuccess(res, template);
@@ -49,6 +64,11 @@ export class EventTemplateController {
 
   updateTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { name, description, contests, categories } = req.body;
       const template = await this.eventTemplateService.update(id!, req.user.tenantId, {
@@ -65,6 +85,11 @@ export class EventTemplateController {
 
   deleteTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       await this.eventTemplateService.delete(id!, req.user.tenantId);
       return sendSuccess(res, null, 'Template deleted');
@@ -75,6 +100,11 @@ export class EventTemplateController {
 
   createEventFromTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { templateId, eventName, eventDescription, startDate, endDate } = req.body;
       const event = await this.eventTemplateService.createEventFromTemplate({
         templateId,

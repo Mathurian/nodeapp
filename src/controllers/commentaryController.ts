@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { CommentaryService } from '../services/CommentaryService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 
 export class CommentaryController {
@@ -14,6 +14,11 @@ export class CommentaryController {
 
   createComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { scoreId, criterionId, contestantId, comment, isPrivate } = req.body;
       const scoreComment = await this.commentaryService.create({
         scoreId,
@@ -31,6 +36,11 @@ export class CommentaryController {
 
   getCommentsForScore = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const scoreId = getRequiredParam(req, 'scoreId');
       const comments = await this.commentaryService.getCommentsForScore(scoreId, req.user.role);
       return sendSuccess(res, comments);
@@ -41,6 +51,11 @@ export class CommentaryController {
 
   getCommentsByContestant = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const contestantId = getRequiredParam(req, 'contestantId');
       const comments = await this.commentaryService.getCommentsByContestant(contestantId, req.user.role);
       return sendSuccess(res, comments);
@@ -51,6 +66,11 @@ export class CommentaryController {
 
   updateComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
       const { comment, isPrivate } = req.body;
       const updatedComment = await this.commentaryService.update(id, { comment, isPrivate }, req.user.id, req.user.role);
@@ -62,6 +82,11 @@ export class CommentaryController {
 
   deleteComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = getRequiredParam(req, 'id');
       await this.commentaryService.delete(id, req.user.id, req.user.role);
       return sendSuccess(res, null, 'Comment deleted');

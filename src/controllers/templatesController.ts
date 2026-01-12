@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { TemplateService } from '../services/TemplateService';
-import { sendSuccess, sendCreated, sendNoContent } from '../utils/responseHelpers';
+import { sendSuccess, sendCreated, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';
 
 export class TemplatesController {
   private templateService: TemplateService;
@@ -21,6 +21,11 @@ export class TemplatesController {
    */
   getAllTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const templates = await this.templateService.getAllTemplates(req.user.tenantId);
       sendSuccess(res, templates, 'Templates retrieved successfully');
     } catch (error) {
@@ -33,6 +38,11 @@ export class TemplatesController {
    */
   getTemplateById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
       const template = await this.templateService.getTemplateById(id, req.user.tenantId);
       sendSuccess(res, template, 'Template retrieved successfully');
@@ -46,6 +56,11 @@ export class TemplatesController {
    */
   createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { name, description, criteria } = req.body;
 
       const template = await this.templateService.createTemplate({
@@ -66,6 +81,11 @@ export class TemplatesController {
    */
   updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
       const { name, description, criteria } = req.body;
 
@@ -86,6 +106,11 @@ export class TemplatesController {
    */
   deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
       await this.templateService.deleteTemplate(id, req.user.tenantId);
       sendNoContent(res);
@@ -99,6 +124,11 @@ export class TemplatesController {
    */
   duplicateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
       const template = await this.templateService.duplicateTemplate(id, req.user.tenantId);
       sendCreated(res, template, 'Template duplicated successfully');

@@ -36,6 +36,11 @@ export class ReportsController {
    */
   getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const templates = await this.templateService.getAllTemplates(req.user.tenantId);
       res.json({ data: templates });
     } catch (error) {
@@ -48,6 +53,11 @@ export class ReportsController {
    */
   createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { name, template, parameters, type } = req.body;
       const reportTemplate = await this.templateService.createTemplate({
         name,
@@ -67,6 +77,11 @@ export class ReportsController {
    */
   updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const updates = req.body;
       if (!id) {
@@ -85,6 +100,11 @@ export class ReportsController {
    */
   deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Template ID is required' });

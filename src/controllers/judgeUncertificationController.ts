@@ -16,6 +16,11 @@ export class JudgeUncertificationController {
 
   getUncertificationRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { status } = req.query;
       const requests = await this.judgeUncertificationService.getUncertificationRequests(status as string | undefined);
       return sendSuccess(res, requests);
@@ -26,6 +31,11 @@ export class JudgeUncertificationController {
 
   createUncertificationRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { judgeId, categoryId, reason } = req.body;
       const request = await this.judgeUncertificationService.createUncertificationRequest({
         judgeId,
@@ -42,6 +52,11 @@ export class JudgeUncertificationController {
 
   signUncertificationRequest = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { signatureName } = req.body;
       const result = await this.judgeUncertificationService.signRequest(id!, {
@@ -57,6 +72,11 @@ export class JudgeUncertificationController {
 
   executeUncertification = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const result = await this.judgeUncertificationService.executeUncertification(id!);
       return sendSuccess(res, result, 'Uncertification executed successfully');
@@ -67,6 +87,11 @@ export class JudgeUncertificationController {
 
   requestUncertification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { judgeId, categoryId, reason } = req.body;
 
       if (!judgeId || !categoryId || !reason) {

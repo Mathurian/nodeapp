@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { ContestCertificationService } from '../services/ContestCertificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 
 export class ContestCertificationController {
   private contestCertificationService: ContestCertificationService;
@@ -13,6 +13,11 @@ export class ContestCertificationController {
 
   getContestCertificationProgress = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { contestId } = req.params;
       const progress = await this.contestCertificationService.getCertificationProgress(contestId!);
       return sendSuccess(res, progress);
@@ -23,6 +28,11 @@ export class ContestCertificationController {
 
   certifyContest = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { contestId } = req.params;
       const certification = await this.contestCertificationService.certifyContest(
         contestId!,

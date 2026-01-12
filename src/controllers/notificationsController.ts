@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { NotificationService } from '../services/NotificationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class NotificationsController {
@@ -16,6 +16,11 @@ export class NotificationsController {
 
   getAllNotifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const notifications = await this.notificationService.getUserNotifications(req.user.id, req.user.tenantId);
       return sendSuccess(res, notifications);
     } catch (error) {
@@ -25,6 +30,11 @@ export class NotificationsController {
 
   getNotificationById = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       // id from params not currently used
       // NotificationService doesn't have getById, we can use the repository directly or return error
       // For now, return a not implemented error
@@ -36,6 +46,11 @@ export class NotificationsController {
 
   createNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const notification = await this.notificationService.createNotification({
         ...req.body,
         userId: req.user.id
@@ -48,6 +63,11 @@ export class NotificationsController {
 
   updateNotification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       // id from params not currently used
       // NotificationService doesn't have update method
       return res.status(501).json({ error: 'Not implemented' });
@@ -58,6 +78,11 @@ export class NotificationsController {
 
   deleteNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       await this.notificationService.deleteNotification(id!, req.user.id, req.user.tenantId);
       return res.status(204).send();
@@ -68,6 +93,11 @@ export class NotificationsController {
 
   markAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       await this.notificationService.markAsRead(id!, req.user.id, req.user.tenantId);
       return sendSuccess(res, null, 'Notification marked as read');
@@ -78,6 +108,11 @@ export class NotificationsController {
 
   markAllAsRead = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const count = await this.notificationService.markAllAsRead(req.user.id, req.user.tenantId);
       return sendSuccess(res, { count }, 'All notifications marked as read');
     } catch (error) {
@@ -91,6 +126,11 @@ export class NotificationsController {
    */
   sendNotification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { userIds, title, message, type, link } = req.body;
       const senderRole = req.user.role;
       const tenantId = req.user.tenantId;
@@ -150,6 +190,11 @@ export class NotificationsController {
    */
   broadcastByRole = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { roles, title, message, type, link } = req.body;
       const senderRole = req.user.role;
       const tenantId = req.user.tenantId;

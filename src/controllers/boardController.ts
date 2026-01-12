@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { sendUnauthorized } from '../utils/responseHelpers';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { BoardService } from '../services/BoardService';
@@ -36,6 +37,11 @@ export class BoardController {
   getCertifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const certifications = await this.boardService.getCertifications();
       res.json(certifications);
     } catch (error) {
@@ -50,6 +56,11 @@ export class BoardController {
   approveCertification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Category ID required' });
@@ -70,6 +81,11 @@ export class BoardController {
   rejectCertification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { reason } = req.body;
 
@@ -92,6 +108,11 @@ export class BoardController {
   getCertificationStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const status = await this.boardService.getCertificationStatus();
       res.json(status);
     } catch (error) {
@@ -106,6 +127,11 @@ export class BoardController {
   getEmceeScripts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const scripts = await this.boardService.getEmceeScripts();
       res.json(scripts);
     } catch (error) {
@@ -120,6 +146,11 @@ export class BoardController {
   createEmceeScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { title, content, type, eventId, contestId, categoryId, order, notes } = req.body;
       const userId = req.user?.id;
 
@@ -154,6 +185,11 @@ export class BoardController {
   updateEmceeScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { title, content, type, eventId, contestId, categoryId, order, notes, isActive } = req.body;
 
@@ -187,6 +223,11 @@ export class BoardController {
   deleteEmceeScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
 
       if (!id) {
@@ -208,6 +249,11 @@ export class BoardController {
   generateReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { type } = req.body;
 
       log.warn('Generate report - not fully implemented', { type });
@@ -224,6 +270,11 @@ export class BoardController {
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const status = req.query['status'] as RequestStatus | undefined;
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 20;
@@ -242,6 +293,11 @@ export class BoardController {
   approveScoreRemoval = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { reason } = req.body;
       const userId = req.user?.id;
@@ -265,6 +321,11 @@ export class BoardController {
   rejectScoreRemoval = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { id } = req.params;
       const { reason } = req.body;
       const userId = req.user?.id;

@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { DeductionService } from '../services/DeductionService';
-import { sendSuccess, sendCreated } from '../utils/responseHelpers';
+import { sendSuccess, sendCreated , sendUnauthorized} from '../utils/responseHelpers';
 
 export class DeductionController {
   private deductionService: DeductionService;
