@@ -3,6 +3,9 @@ import { container } from '../config/container';
 import { DatabaseBrowserService } from '../services/DatabaseBrowserService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('DatabaseBrowserController');
 
 export class DatabaseBrowserController {
   private databaseBrowserService: DatabaseBrowserService;

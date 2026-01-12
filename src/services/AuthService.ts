@@ -401,7 +401,7 @@ export class AuthService {
     const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as jwt.SignOptions);
 
     // Get user permissions
-    const permissions = getRolePermissions(user.role);
+    const permissions = await getRolePermissions(user.role, user.tenantId);
     const hasAdminAccess = isAdmin(user.role);
 
     // Log login activity
@@ -464,7 +464,7 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    const permissions = getRolePermissions(user.role);
+    const permissions = await getRolePermissions(user.role, user.tenantId);
     const hasAdminAccess = isAdmin(user.role);
 
     return {
@@ -496,7 +496,7 @@ export class AuthService {
       throw new Error('User not found');
     }
 
-    const permissions = getRolePermissions(user.role);
+    const permissions = await getRolePermissions(user.role, user.tenantId);
     const hasAdminAccess = isAdmin(user.role);
 
     return {
@@ -709,7 +709,7 @@ export class AuthService {
       return false;
     }
 
-    const permissions = getRolePermissions(user.role);
+    const permissions = await getRolePermissions(user.role, user.tenantId);
     return permissions.includes(permission);
   }
 }

@@ -27,6 +27,7 @@ model Tenant {
   systemSettings   SystemSetting[]
   users            User[]
   rateLimitConfigs RateLimitConfig[]
+  activityLogs     ActivityLog[]
 
   @@index([slug])
   @@index([domain])
@@ -449,9 +450,14 @@ model ActivityLog {
   logLevel     LogLevel @default(INFO)
   createdAt    DateTime @default(now())
   details      Json?
+  tenantId     String?
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId])
+  @@index([userId])
+  @@index([createdAt])
   @@map("activity_logs")
 }
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CertificationService } from '../services/CertificationService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, sendConflict } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { requireAuthenticatedUser } from '../utils/requestValidation';
 
