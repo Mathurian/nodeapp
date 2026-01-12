@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { NotificationService } from '../services/NotificationService';
 import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
@@ -30,7 +29,7 @@ export class NotificationsController {
 
   getNotificationById = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      if (!req.user) {
+      if (!_req.user) {
         sendUnauthorized(res);
         return;
       }
@@ -63,7 +62,7 @@ export class NotificationsController {
 
   updateNotification = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      if (!req.user) {
+      if (!_req.user) {
         sendUnauthorized(res);
         return;
       }

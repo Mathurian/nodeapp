@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { sendUnauthorized } from '../utils/responseHelpers';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { injectable, inject } from 'tsyringe';
 import { BulkOperationService } from '../services/BulkOperationService';
 import { CSVService } from '../services/CSVService';

@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { JudgeUncertificationService } from '../services/JudgeUncertificationService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized} from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class JudgeUncertificationController {

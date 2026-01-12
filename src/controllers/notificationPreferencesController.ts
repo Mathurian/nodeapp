@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
 import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';

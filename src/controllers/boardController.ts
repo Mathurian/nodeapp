@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { sendUnauthorized } from '../utils/responseHelpers';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { BoardService } from '../services/BoardService';
 import { createRequestLogger } from '../utils/logger';

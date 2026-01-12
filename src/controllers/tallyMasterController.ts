@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { TallyMasterService } from '../services/TallyMasterService';
 import { createRequestLogger } from '../utils/logger';
 import { UserRole, PrismaClient } from '@prisma/client';
+import { sendUnauthorized } from '../utils/responseHelpers';
 
 /**
  * Controller for Tally Master functionality

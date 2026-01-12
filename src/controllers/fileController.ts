@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { FileService } from '../services/FileService';
 import { AuditLogService } from '../services/AuditLogService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized} from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 
@@ -151,18 +150,21 @@ export class FileController {
         return sendBadRequest(res, 'No files provided');
       }
 
+      const tenantId = req.user.tenantId;
+      const userId = req.user.id;
+
       const uploadedFiles = await Promise.all(
         files.map(async (file) => {
           return this.prisma.file.create({
             data: {
-              tenantId: req.user.tenantId,
+              tenantId: tenantId,
               filename: file.filename,
               originalName: file.originalname,
               mimeType: file.mimetype,
               size: file.size,
               path: file.path,
               category: category || 'OTHER',
-              uploadedBy: req.user.id,
+              uploadedBy: userId,
               isPublic: isPublic === 'true',
               ...(eventId && { eventId }),
               ...(contestId && { contestId }),
@@ -181,7 +183,7 @@ export class FileController {
             fileName: uploadedFile.originalName,
             fileId: uploadedFile.id,
             req,
-            tenantId: req.user.tenantId,
+            tenantId: tenantId,
             metadata: {
               fileSize: uploadedFile.size,
               mimeType: uploadedFile.mimeType,
@@ -262,7 +264,7 @@ export class FileController {
 
   getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      if (!req.user) {
+      if (!_req.user) {
         sendUnauthorized(res);
         return;
       }

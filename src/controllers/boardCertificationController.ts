@@ -18,6 +18,10 @@ export const getBoardCertificationStatus = async (req: Request, res: Response) =
     const { categoryId } = req.params;
     const tenantId = req.user?.tenantId;
 
+    if (!categoryId) {
+      return res.status(400).json({ error: 'Category ID is required' });
+    }
+
     if (!tenantId) {
       return res.status(401).json({ error: 'Tenant ID not found in request' });
     }
@@ -42,6 +46,10 @@ export const submitBoardCertification = async (req: Request, res: Response) => {
     const { signatureName, comments } = req.body;
     const userId = req.user?.id;
     const tenantId = req.user?.tenantId;
+
+    if (!categoryId) {
+      return res.status(400).json({ error: 'Category ID is required' });
+    }
 
     if (!userId || !tenantId) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -132,6 +140,10 @@ export const revokeBoardCertification = async (req: Request, res: Response) => {
     const { reason } = req.body;
     const userId = req.user?.id;
     const tenantId = req.user?.tenantId;
+
+    if (!categoryId) {
+      return res.status(400).json({ error: 'Category ID is required' });
+    }
 
     if (!userId || !tenantId) {
       return res.status(401).json({ error: 'Authentication required' });

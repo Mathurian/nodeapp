@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { AdvancedReportingService } from '../services/AdvancedReportingService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest} from '../utils/responseHelpers';
 import { PrismaClient, Prisma, Event, Contest, Category, Score } from '@prisma/client';
 import { TIME } from '../config/constants';
 

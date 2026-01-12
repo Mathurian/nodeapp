@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { TemplateService } from '../services/TemplateService';
 import { sendSuccess, sendCreated, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';

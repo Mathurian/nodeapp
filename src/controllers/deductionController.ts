@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { DeductionService } from '../services/DeductionService';
 import { sendSuccess, sendCreated , sendUnauthorized} from '../utils/responseHelpers';
@@ -25,6 +24,11 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { contestantId, categoryId, amount, reason } = req.body;
       const requestedBy = req.user.id;
 
@@ -52,6 +56,11 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const userRole = req.user.role;
       const userId = req.user.id;
 
@@ -76,6 +85,11 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
       const { signature, notes } = req.body;
       const approvedBy = req.user.id;
@@ -104,6 +118,11 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
       const { reason } = req.body;
       const rejectedBy = req.user.id;
@@ -125,6 +144,11 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const id = req.params['id'] as string;
 
       const status = await this.deductionService.getApprovalStatus(id, req.user.tenantId);
@@ -144,6 +168,11 @@ export class DeductionController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
       const { page = '1', limit = '50', status, categoryId, contestantId } = req.query;
 
       const result = await this.deductionService.getDeductionHistory(

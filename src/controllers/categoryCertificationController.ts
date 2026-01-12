@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { CategoryCertificationService } from '../services/CategoryCertificationService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
+import { sendSuccess, sendBadRequest, sendUnauthorized} from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class CategoryCertificationController {

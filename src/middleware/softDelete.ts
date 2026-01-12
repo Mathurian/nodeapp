@@ -41,7 +41,7 @@ function isSoftDeleteModel(modelName: string): boolean {
  *   router.get('/api/events', excludeSoftDeleted('event'), getEvents);
  */
 export const excludeSoftDeleted = (modelName: string) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     if (!isSoftDeleteModel(modelName)) {
       logger.warn('excludeSoftDeleted called for non-soft-delete model', { modelName });
       next();
@@ -54,7 +54,7 @@ export const excludeSoftDeleted = (modelName: string) => {
     };
 
     // Add includeDeleted query parameter support for admins
-    const includeDeleted = req.query.includeDeleted === 'true';
+    const includeDeleted = req.query['includeDeleted'] === 'true';
     const userRole = req.user?.role;
 
     if (includeDeleted && (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN')) {
@@ -96,7 +96,7 @@ export const validateSoftDeletePermission = (modelName: string) => {
         userId: req.user.id,
         role: userRole,
         model: modelName,
-        resourceId: req.params.id
+        resourceId: req.params['id']
       });
 
       res.status(403).json({
@@ -184,7 +184,7 @@ export const validateRestorePermission = (modelName: string) => {
         userId: req.user.id,
         role: userRole,
         model: modelName,
-        resourceId: req.params.id
+        resourceId: req.params['id']
       });
 
       res.status(403).json({
@@ -195,7 +195,7 @@ export const validateRestorePermission = (modelName: string) => {
     }
 
     // Verify the resource exists and is soft-deleted
-    const resourceId = req.params.id;
+    const resourceId = req.params['id'];
     if (!resourceId) {
       res.status(400).json({
         success: false,

@@ -27,14 +27,6 @@ type CategoryWithCertifications = Prisma.CategoryGetPayload<{
   };
 }>;
 
-type AuditorAssignment = Prisma.AuditorAssignmentGetPayload<{
-  select: {
-    id: true;
-    auditorId: true;
-    categoryId: true;
-  };
-}>;
-
 interface BoardCertificationStatus {
   canCertify: boolean;
   reason?: string;
@@ -97,10 +89,10 @@ export class BoardCertificationService extends BaseService {
         },
         select: {
           id: true,
-          auditorId: true,
+          userId: true,
           categoryId: true,
         },
-      }) as AuditorAssignment[];
+      });
 
       // Get all Auditor certifications for this category
       const auditorCertifications = category.categoryCertifications.filter(

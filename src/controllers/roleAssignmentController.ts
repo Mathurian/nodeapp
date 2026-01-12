@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { RoleAssignmentService } from '../services/RoleAssignmentService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { sendSuccess, sendUnauthorized } from '../utils/responseHelpers';
 
 export class RoleAssignmentController {
   private roleAssignmentService: RoleAssignmentService;
@@ -28,6 +27,10 @@ export class RoleAssignmentController {
 
   createRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user) {
+        return sendUnauthorized(res);
+      }
+
       const { userId, role, contestId, eventId, categoryId, notes } = req.body;
       const assignment = await this.roleAssignmentService.create({
         userId,

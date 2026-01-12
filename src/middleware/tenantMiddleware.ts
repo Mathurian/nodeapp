@@ -248,11 +248,12 @@ export async function tenantMiddleware(
         userAgent: req.get('user-agent')
       });
 
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Tenant identification required',
         message: 'Please provide tenant identification via subdomain, header, or cookie',
         hint: 'Use X-Tenant-ID header or tenant subdomain'
       });
+      return;
     }
 
     // Fetch tenant from database

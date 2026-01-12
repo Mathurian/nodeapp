@@ -5,13 +5,13 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { ReportGenerationService } from '../services/ReportGenerationService';
 import { ReportExportService } from '../services/ReportExportService';
 import { ReportTemplateService } from '../services/ReportTemplateService';
 import { ReportEmailService } from '../services/ReportEmailService';
 import { ReportInstanceService } from '../services/ReportInstanceService';
+import { sendUnauthorized } from '../utils/responseHelpers';
 
 /**
  * Reports Controller Class

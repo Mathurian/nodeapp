@@ -49,7 +49,7 @@ const PERMISSIONS = {
 }
 
 // Feature flag - set to true to enable dynamic permissions
-const ENABLE_DYNAMIC_PERMISSIONS = process.env.ENABLE_DYNAMIC_PERMISSIONS === 'true';
+const ENABLE_DYNAMIC_PERMISSIONS = process.env['ENABLE_DYNAMIC_PERMISSIONS'] === 'true';
 
 /**
  * Get permissions from either dynamic system or hardcoded fallback

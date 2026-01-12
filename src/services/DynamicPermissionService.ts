@@ -6,7 +6,7 @@
  * Replaces hardcoded permissions with GUI-configurable permissions
  */
 
-import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
@@ -54,7 +54,7 @@ export class DynamicPermissionService extends BaseService {
     // Try cache first
     const cached = await this.cacheService.get(cacheKey);
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached as string);
     }
 
     // Load from database
@@ -295,7 +295,7 @@ export class DynamicPermissionService extends BaseService {
    */
   async resetToDefaults(
     role: UserRole,
-    userId: string,
+    _userId: string,
     userRole: UserRole,
     tenantId: string
   ): Promise<number> {

@@ -103,7 +103,7 @@ export class PermissionAuditService extends BaseService {
           resourceType: 'Permission',
           resourceId: `${resource}:${operation}`,
           userId,
-          logLevel: 'WARNING',
+          logLevel: 'WARN',
           details: {
             resource,
             operation,
@@ -337,7 +337,9 @@ export class PermissionAuditService extends BaseService {
       stats.denialsByResource[resource] = (stats.denialsByResource[resource] || 0) + 1;
 
       // By user
-      stats.denialsByUser[userId] = (stats.denialsByUser[userId] || 0) + 1;
+      if (userId) {
+        stats.denialsByUser[userId] = (stats.denialsByUser[userId] || 0) + 1;
+      }
 
       // Operation counts
       const opKey = `${resource}:${operation}`;
@@ -348,7 +350,7 @@ export class PermissionAuditService extends BaseService {
     stats.topDeniedOperations = Array.from(operationCounts.entries())
       .map(([key, count]) => {
         const [resource, operation] = key.split(':');
-        return { resource, operation, count };
+        return { resource: resource || 'unknown', operation: operation || 'unknown', count };
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
@@ -400,7 +402,9 @@ export class PermissionAuditService extends BaseService {
     };
 
     logs.forEach(log => {
-      summary.uniqueUsers.add(log.userId);
+      if (log.userId) {
+        summary.uniqueUsers.add(log.userId);
+      }
 
       if (log.action === 'permission.granted') {
         summary.grantsCount++;

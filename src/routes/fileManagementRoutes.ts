@@ -8,7 +8,7 @@ import {
 } from '../controllers/fileManagementController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import { validate, fileIdParamSchema, paginationSchema } from '../middleware/validation';
+import { validate, fileIdParamSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
 

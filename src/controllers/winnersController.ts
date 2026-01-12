@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { WinnerService } from '../services/WinnerService';
-import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
+import { sendSuccess, sendUnauthorized } from '../utils/responseHelpers';
 
 export class WinnersController {
   private winnerService: WinnerService;
@@ -22,6 +22,11 @@ export class WinnersController {
       const { categoryId } = req.params;
       const user = req.user;
       const tenantId = req.tenantId;
+
+      if (!user) {
+        sendUnauthorized(res);
+        return;
+      }
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });

@@ -28,7 +28,6 @@ export interface CacheWarmupResult {
 
 @injectable()
 export class PermissionCacheService extends BaseService {
-  private readonly TTL = 300; // 5 minutes (300 seconds)
   private readonly CACHE_KEY_PREFIX = 'permissions';
 
   constructor(
@@ -106,9 +105,9 @@ export class PermissionCacheService extends BaseService {
    * Invalidate all permission caches for a tenant
    * Call this when permissions are modified
    */
-  async invalidateAll(tenantId: string): Promise<number> {
+  async invalidateAll(tenantId: string): Promise<void> {
     const pattern = `${this.CACHE_KEY_PREFIX}:${tenantId}:*`;
-    return await this.cacheService.invalidatePattern(pattern);
+    await this.cacheService.invalidatePattern(pattern);
   }
 
   /**
@@ -205,8 +204,9 @@ export class PermissionCacheService extends BaseService {
    */
   async getCacheTTL(role: UserRole, tenantId: string): Promise<number> {
     const cacheKey = `${this.CACHE_KEY_PREFIX}:${tenantId}:${role}`;
-    const ttl = await this.cacheService.getTTL(cacheKey);
-    return ttl;
+    // CacheService doesn't have getTTL, so return -1 for now
+    const exists = await this.cacheService.exists(cacheKey);
+    return exists ? 300 : -1; // Default TTL is 300 seconds
   }
 
   /**
@@ -329,8 +329,8 @@ export class PermissionCacheService extends BaseService {
    * Clear all permission caches (for all tenants)
    * Use with caution - only for maintenance or debugging
    */
-  async clearAllTenantCaches(): Promise<number> {
+  async clearAllTenantCaches(): Promise<void> {
     const pattern = `${this.CACHE_KEY_PREFIX}:*`;
-    return await this.cacheService.invalidatePattern(pattern);
+    await this.cacheService.invalidatePattern(pattern);
   }
 }

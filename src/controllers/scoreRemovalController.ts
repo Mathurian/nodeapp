@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from '../config/container';
 import { ScoreRemovalService } from '../services/ScoreRemovalService';
 import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';

@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import prisma from '../config/database';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { createLogger as loggerFactory } from '../utils/logger';

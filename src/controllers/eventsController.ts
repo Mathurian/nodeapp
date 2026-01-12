@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
+import { sendSuccess, sendBadRequest} from '../utils/responseHelpers';
 import { container } from 'tsyringe';
 import { EventService } from '../services/EventService';
 import { AuditLogService } from '../services/AuditLogService';

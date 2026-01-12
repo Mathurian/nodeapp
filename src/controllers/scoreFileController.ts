@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requireAuthenticatedUser, requireAuthAndTenant } from '../utils/requestValidation';
 import { container } from 'tsyringe';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { sendSuccess, sendError, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';

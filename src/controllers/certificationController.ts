@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CertificationService } from '../services/CertificationService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, sendConflict } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendConflict, sendUnauthorized } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
-import { requireAuthenticatedUser } from '../utils/requestValidation';
 
 export class CertificationController {
   private certificationService: CertificationService;
@@ -27,7 +26,9 @@ export class CertificationController {
   certifyAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Guard: Ensure user is authenticated
-      if (!requireAuthenticatedUser(req, res)) return;
+      if (!req.user) {
+        return sendUnauthorized(res);
+      }
 
       const { eventId } = req.params;
       const result = await this.certificationService.certifyAll(eventId!, req.user.id, req.user.role);
