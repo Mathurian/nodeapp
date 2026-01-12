@@ -15,7 +15,7 @@ export class JudgeController {
    */
   getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
       const stats = await this.judgeService.getStats(user.id, user.tenantId);
       sendSuccess(res, stats);
     } catch (error) {
@@ -28,7 +28,7 @@ export class JudgeController {
    */
   getAssignments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
       const assignments = await this.judgeService.getAssignments(
         user.id,
         user.role,
@@ -51,7 +51,7 @@ export class JudgeController {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
 
       if (!id) {
         res.status(400).json({ error: 'Assignment ID is required' });
@@ -82,7 +82,7 @@ export class JudgeController {
   ): Promise<void> => {
     try {
       const { categoryId } = req.params;
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });
@@ -106,7 +106,7 @@ export class JudgeController {
    */
   submitScore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
       const { categoryId, contestantId, criterionId, score, comment } = req.body;
 
       const scoreRecord = await this.judgeService.submitScore(
@@ -137,7 +137,7 @@ export class JudgeController {
   ): Promise<void> => {
     try {
       const { categoryId } = req.params;
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });
@@ -166,7 +166,7 @@ export class JudgeController {
   ): Promise<void> => {
     try {
       const { categoryId } = req.params;
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });
@@ -195,7 +195,7 @@ export class JudgeController {
   ): Promise<void> => {
     try {
       const { contestantId } = req.params;
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
 
       if (!contestantId) {
         res.status(400).json({ error: 'Contestant ID is required' });
@@ -219,7 +219,7 @@ export class JudgeController {
    */
   getJudgeHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user!; // Authentication middleware ensures user is defined
       const result = await this.judgeService.getJudgeHistory(user.id, user.tenantId, req.query as any);
       sendSuccess(res, result);
     } catch (error) {

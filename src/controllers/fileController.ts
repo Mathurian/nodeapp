@@ -36,7 +36,7 @@ export class FileController {
       // Audit log: file download
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
+        const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
         await auditLogService.logFileAccess({
           action: 'download',
           fileName: filename!,
@@ -62,7 +62,7 @@ export class FileController {
       // Audit log: file deletion
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
+        const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
         await auditLogService.logFileAccess({
           action: 'delete',
           fileName: filename!,

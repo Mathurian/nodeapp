@@ -108,11 +108,15 @@ export class ExportController {
    */
   getExportHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
       const { limit } = req.query;
 
       const result = await this.exportService.getExportHistory(
-        user.id,
+        req.user.id,
         limit ? Number(limit) : undefined
       );
 

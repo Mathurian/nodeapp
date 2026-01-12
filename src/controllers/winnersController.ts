@@ -20,8 +20,8 @@ export class WinnersController {
   ): Promise<void> => {
     try {
       const { categoryId } = req.params;
-      const user = (req as any).user;
-      const tenantId = (req as any).tenantId;
+      const user = req.user;
+      const tenantId = req.tenantId;
 
       if (!categoryId) {
         res.status(400).json({ error: 'Category ID is required' });

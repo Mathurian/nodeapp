@@ -155,7 +155,7 @@ export class ArchiveController {
     const log = createRequestLogger(req, 'archive');
     try {
       const { eventId } = req.params;
-      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+      const tenantId = req.tenantId || req.user?.tenantId;
 
       if (!eventId) {
         res.status(400).json({ error: 'Event ID required' });

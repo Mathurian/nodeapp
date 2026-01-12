@@ -25,8 +25,8 @@ export class ContestsController {
       const filters: any = {};
 
       // Tenant filter for non-SUPER_ADMIN users
-      const isSuperAdmin = (req as any).isSuperAdmin;
-      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+      const isSuperAdmin = req.isSuperAdmin;
+      const tenantId = req.tenantId || req.user?.tenantId;
       if (!isSuperAdmin && tenantId) {
         filters.tenantId = tenantId;
       }

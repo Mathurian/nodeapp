@@ -21,9 +21,9 @@ export class AdminController {
   getDashboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Pass tenant context for tenant-scoped stats
-      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
-      const isSuperAdmin = (req as any).isSuperAdmin;
-      const userEmail = (req as any).user?.email;
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const isSuperAdmin = req.isSuperAdmin;
+      const userEmail = req.user?.email;
 
       logger.debug('[AdminController.getDashboard]', {
         tenantId,
@@ -109,8 +109,8 @@ export class AdminController {
   getStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Pass tenant context for tenant-scoped stats
-      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
-      const isSuperAdmin = (req as any).isSuperAdmin;
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const isSuperAdmin = req.isSuperAdmin;
 
       const stats = await this.adminService.getDashboardStats(
         !isSuperAdmin ? tenantId : undefined
@@ -475,7 +475,9 @@ export class AdminController {
       const limit = parseInt(req.query['limit'] as string) || QUERY_LIMITS.DEFAULT;
 
       const logsResult = await this.adminService.getAuditLogs(limit);
-      const logs = Array.isArray(logsResult) ? logsResult : (logsResult as any).data || [];
+      const logs = Array.isArray(logsResult)
+        ? logsResult
+        : (logsResult && typeof logsResult === 'object' && 'data' in logsResult ? logsResult.data : []) || [];
 
       if (format === 'csv') {
         // Convert to CSV format
