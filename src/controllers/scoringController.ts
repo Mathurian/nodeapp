@@ -12,6 +12,7 @@ import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbid
 import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuthAndTenant } from '../utils/requestValidation';
+import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -1057,18 +1058,30 @@ export class ScoringController {
       const status = req.query['status'] as string | undefined;
       const categoryId = req.query['categoryId'] as string | undefined;
       const contestantId = req.query['contestantId'] as string | undefined;
+      const tenantId = (req as any).user?.tenantId || (req as any).tenantId;
 
-      const where: any = {};
+      // SECURITY FIX (2026-01-13): Add tenant isolation to prevent cross-tenant data access
+      const where: any = {
+        tenantId  // Enforce tenant boundary - CRITICAL SECURITY FIX
+      };
       if (status) where.status = status;
       if (categoryId) where.categoryId = categoryId;
       if (contestantId) where.contestantId = contestantId;
 
-      const deductions = await this.prisma.deductionRequest.findMany({
-        where,
-        orderBy: { createdAt: 'desc' }
-      });
+      // SECURITY FIX (2026-01-13): Add pagination to prevent DoS attacks
+      const paginationOptions = parsePaginationQuery(req.query);
+      const paginationParams = getPaginationParams(paginationOptions);
 
-      return sendSuccess(res, deductions);
+      const [deductions, total] = await Promise.all([
+        this.prisma.deductionRequest.findMany({
+          where,
+          ...paginationParams,
+          orderBy: { createdAt: 'desc' }
+        }),
+        this.prisma.deductionRequest.count({ where })
+      ]);
+
+      return sendSuccess(res, createPaginatedResponse(deductions, total, paginationOptions));
     } catch (error) {
       return next(error);
     }

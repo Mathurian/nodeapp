@@ -87,7 +87,7 @@ export class AuthController {
       res.cookie('access_token', result.token, {
         httpOnly: true, // Prevents XSS attacks by making cookie inaccessible to JavaScript
         secure: env.isProduction(), // HTTPS only in production
-        sameSite: 'strict', // CSRF protection
+        sameSite: 'lax', // CSRF protection - 'lax' allows cookie on top-level navigations (Fix for tenant routing issue)
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
       });
@@ -461,7 +461,7 @@ export class AuthController {
       res.clearCookie('access_token', {
         httpOnly: true,
         secure: env.isProduction(),
-        sameSite: 'strict',
+        sameSite: 'lax', // Must match cookie creation setting
         path: '/',
       });
 

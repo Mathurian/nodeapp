@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
 import { settingsAPI } from '../services/api'
@@ -28,6 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const { user, logout } = useAuth()
+  const { buildPath } = useTenant()
   const { isConnected } = useSocket()
   const { getRecentCommands, getFavoriteCommands } = useCommands({
     enableKeyboardShortcuts: false // Global shortcuts handled elsewhere
@@ -186,7 +188,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
             {/* Notifications */}
             <Link
-              to="/notifications"
+              to={buildPath("/notifications")}
               className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Notifications"
             >
@@ -245,7 +247,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                       </div>
                     </div>
                     <Link
-                      to="/profile"
+                      to={buildPath("/profile")}
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => setProfileMenuOpen(false)}
                     >
@@ -253,7 +255,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                       My Profile
                     </Link>
                     <Link
-                      to="/settings"
+                      to={buildPath("/settings")}
                       className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => setProfileMenuOpen(false)}
                     >

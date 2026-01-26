@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenant } from '../contexts/TenantContext'
 import {
   HomeIcon,
   CalendarIcon,
@@ -45,6 +46,7 @@ interface AccordionNavProps {
 
 const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
   const { user } = useAuth()
+  const { buildPath } = useTenant()
   const location = useLocation()
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Navigation']))
 
@@ -375,11 +377,12 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
               {isExpanded && (
                 <div className="bg-gray-50">
                   {filteredItems.map((item) => {
-                    const isActive = isActiveLink(item.href)
+                    const fullPath = buildPath(item.href)
+                    const isActive = isActiveLink(fullPath)
                     return (
                       <Link
                         key={item.href}
-                        to={item.href}
+                        to={fullPath}
                         className={`flex items-center space-x-3 px-4 py-2 pl-12 text-sm transition-colors ${
                           isActive
                             ? 'bg-indigo-50 text-indigo-600 border-l-4 border-indigo-600'

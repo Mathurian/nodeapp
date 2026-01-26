@@ -3,6 +3,11 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests', '<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/e2e/', // Exclude E2E tests (Playwright) from Jest
+    '.e2e.test.ts$', // Exclude files ending with .e2e.test.ts
+  ],
 
   // Coverage collection configuration
   collectCoverageFrom: [
@@ -107,7 +112,6 @@ module.exports = {
   // Transform configuration
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      isolatedModules: true,
       tsconfig: {
         experimentalDecorators: true,
         emitDecoratorMetadata: true,

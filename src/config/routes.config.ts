@@ -84,6 +84,7 @@ import workflowRoutes from '../routes/workflowRoutes'
 import eventsLogRoutes from '../routes/eventsLogRoutes'
 import featureFlagsRoutes from '../routes/featureFlagsRoutes'
 import testRunnerRoutes from '../routes/testRunnerRoutes'
+import permissionsRoutes from '../routes/permissionsRoutes'
 
 /**
  * Helper to register routes for both legacy and versioned paths
@@ -130,6 +131,7 @@ export const registerRoutes = (app: Application): void => {
   registerRoute(app, '/role-assignments', roleAssignmentRoutes);
   registerRoute(app, '/navigation', navigationRoutes);
   registerRoute(app, '/user-field-visibility', userFieldVisibilityRoutes);
+  registerRoute(app, '/permissions', permissionsRoutes);
 
   // Core entities
   registerRoute(app, '/events', eventsRoutes);

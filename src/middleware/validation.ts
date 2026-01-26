@@ -140,7 +140,7 @@ export const updateUserSchema = z.object({
  * Login schema
  */
 export const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
+  email: z.string().email('Valid email is required'),
   password: z.string().min(1, 'Password is required')
 });
 
@@ -302,9 +302,10 @@ export const updateCategorySchema = z.object({
 export const createNotificationSchema = z.object({
   userIds: z.array(z.string().cuid('Invalid user ID format')).min(1, 'At least one user ID required'),
   title: z.string().min(1, 'Title is required').max(200),
-  message: z.string().min(1, 'Message is required').max(1000),
-  type: z.enum(['info', 'success', 'warning', 'error']).optional(),
-  link: z.string().url('Invalid URL').optional().or(z.literal(''))
+  message: z.string().min(1, 'Message is required').max(5000),
+  type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
+  link: z.string().max(500).optional(),
+  targetTenantId: z.union([z.string().cuid('Invalid tenant ID format'), z.null()]).optional()
 });
 
 /**
@@ -313,9 +314,10 @@ export const createNotificationSchema = z.object({
 export const broadcastNotificationSchema = z.object({
   roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).min(1, 'At least one role required'),
   title: z.string().min(1, 'Title is required').max(200),
-  message: z.string().min(1, 'Message is required').max(1000),
-  type: z.enum(['info', 'success', 'warning', 'error']).optional(),
-  link: z.string().url('Invalid URL').optional().or(z.literal(''))
+  message: z.string().min(1, 'Message is required').max(5000),
+  type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
+  link: z.string().max(500).optional(),
+  targetTenantId: z.union([z.string().cuid('Invalid tenant ID format'), z.null()]).optional()
 });
 
 /**

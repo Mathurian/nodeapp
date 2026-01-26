@@ -172,14 +172,28 @@ export async function tenantMiddleware(
     tenantIdOrSlug = TenantIdentifier.fromHeader(req);
     if (tenantIdOrSlug) {
       identificationMethod = 'header';
+      logger.debug(`Tenant identified from header: ${tenantIdOrSlug}`, { path: req.path });
     }
 
-    // 2. JWT Token (for authenticated users)
+    // 2. JWT Token (for authenticated users) - HIGHEST PRIORITY for logged-in users
     if (!tenantIdOrSlug) {
       tenantIdOrSlug = TenantIdentifier.fromToken(req);
       if (tenantIdOrSlug) {
         identificationMethod = 'token';
-        logger.debug(`Tenant identified from JWT token: ${tenantIdOrSlug}`, { path: req.path });
+        logger.info(`Tenant identified from JWT token: ${tenantIdOrSlug}`, {
+          path: req.path,
+          method: req.method,
+          hasCookie: !!req.cookies?.['access_token']
+        });
+      } else {
+        // Log when token extraction fails
+        if (req.cookies?.['access_token']) {
+          logger.warn(`Failed to extract tenant from JWT token`, {
+            path: req.path,
+            method: req.method,
+            hasToken: true
+          });
+        }
       }
     }
 
@@ -245,13 +259,21 @@ export async function tenantMiddleware(
         method: req.method,
         ip: req.ip,
         host: req.get('host'),
-        userAgent: req.get('user-agent')
+        userAgent: req.get('user-agent'),
+        hasAccessToken: !!req.cookies?.['access_token'],
+        headerTenantId: req.get('X-Tenant-ID') || req.get('x-tenant-id'),
+        headerTenantSlug: req.get('X-Tenant-Slug') || req.get('x-tenant-slug')
       });
 
       res.status(400).json({
         error: 'Tenant identification required',
-        message: 'Please provide tenant identification via subdomain, header, or cookie',
-        hint: 'Use X-Tenant-ID header or tenant subdomain'
+        message: 'Please provide tenant identification via subdomain, header, or authenticated session',
+        hint: 'Ensure you are logged in or provide X-Tenant-ID/X-Tenant-Slug header',
+        debug: env.isDevelopment() ? {
+          hasAccessToken: !!req.cookies?.['access_token'],
+          path: req.path,
+          host: req.get('host')
+        } : undefined
       });
       return;
     }

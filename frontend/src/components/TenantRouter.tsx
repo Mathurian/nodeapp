@@ -158,13 +158,13 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/contests/:contestId/categories" element={<CategoriesPage />} />
             <Route path="/scoring" element={<ProtectedRoute requiredRole={['JUDGE', 'ADMIN', 'SUPER_ADMIN']}><ScoringPage /></ProtectedRoute>} />
             <Route path="/results" element={<ResultsPage />} />
-            <Route path="/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><UsersPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><AdminPage /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AdminPage /></ProtectedRoute>} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/emcee" element={<EmceePage />} />
             <Route path="/templates" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><TemplatesPage /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER']}><ReportsPage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/backups" element={<BackupManagementPage />} />
             <Route path="/disaster-recovery" element={<DisasterRecoveryPage />} />
@@ -216,13 +216,13 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/contests/:contestId/categories" element={<CategoriesPage />} />
             <Route path="/:slug/scoring" element={<ProtectedRoute requiredRole={['JUDGE', 'ADMIN', 'SUPER_ADMIN']}><ScoringPage /></ProtectedRoute>} />
             <Route path="/:slug/results" element={<ResultsPage />} />
-            <Route path="/:slug/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><UsersPage /></ProtectedRoute>} />
-            <Route path="/:slug/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><AdminPage /></ProtectedRoute>} />
+            <Route path="/:slug/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/:slug/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AdminPage /></ProtectedRoute>} />
             <Route path="/:slug/settings" element={<SettingsPage />} />
             <Route path="/:slug/profile" element={<ProfilePage />} />
             <Route path="/:slug/emcee" element={<EmceePage />} />
             <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><TemplatesPage /></ProtectedRoute>} />
-            <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER']}><ReportsPage /></ProtectedRoute>} />
+            <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
             <Route path="/:slug/backups" element={<BackupManagementPage />} />
             <Route path="/:slug/disaster-recovery" element={<DisasterRecoveryPage />} />

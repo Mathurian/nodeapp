@@ -7,9 +7,69 @@ import prisma from '../config/database';
 import { userCache } from '../utils/cache';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
+import { createTenantPrismaClient } from './tenantMiddleware';
 
 const logger = createLogger('auth');
 
+/**
+ * JWT Payload Interface
+ * Defines the expected structure of JWT payload
+ * SECURITY FIX (2026-01-13): Added to prevent authentication bypass via malformed tokens
+ */
+interface JWTPayload {
+  userId: string;
+  tenantId: string;
+  sessionVersion?: number;
+  role?: string;
+  iat?: number;
+  exp?: number;
+}
+
+/**
+ * Type Guard for JWT Payload Validation
+ * SECURITY FIX (2026-01-13): Validates JWT payload structure before use
+ * Prevents authentication bypass through malformed or tampered tokens
+ *
+ * @param obj - Object to validate
+ * @returns True if object is a valid JWTPayload
+ */
+function isValidJWTPayload(obj: unknown): obj is JWTPayload {
+  if (typeof obj !== 'object' || obj === null) {
+    logger.warn('JWT payload validation failed: not an object', { received: typeof obj });
+    return false;
+  }
+
+  const payload = obj as Record<string, unknown>;
+
+  // Validate userId (using bracket notation for TypeScript strict mode)
+  if (typeof payload['userId'] !== 'string' || payload['userId'].length === 0) {
+    logger.warn('JWT payload validation failed: invalid userId', {
+      userId: payload['userId'],
+      type: typeof payload['userId']
+    });
+    return false;
+  }
+
+  // Validate tenantId (using bracket notation for TypeScript strict mode)
+  if (typeof payload['tenantId'] !== 'string' || payload['tenantId'].length === 0) {
+    logger.warn('JWT payload validation failed: invalid tenantId', {
+      tenantId: payload['tenantId'],
+      type: typeof payload['tenantId']
+    });
+    return false;
+  }
+
+  // Validate optional sessionVersion (using bracket notation for TypeScript strict mode)
+  if (payload['sessionVersion'] !== undefined && typeof payload['sessionVersion'] !== 'number') {
+    logger.warn('JWT payload validation failed: invalid sessionVersion', {
+      sessionVersion: payload['sessionVersion'],
+      type: typeof payload['sessionVersion']
+    });
+    return false;
+  }
+
+  return true;
+}
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   // Read token from httpOnly cookie instead of Authorization header
@@ -37,7 +97,19 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
   }
 
   try {
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string; sessionVersion?: number };
+    // SECURITY FIX (2026-01-13): Verify and validate JWT payload structure
+    const decoded = jwt.verify(token, jwtSecret);
+
+    // Validate JWT payload structure before use
+    if (!isValidJWTPayload(decoded)) {
+      logger.error('Invalid JWT payload structure detected', {
+        path: req.path,
+        method: req.method,
+        receivedPayload: decoded
+      });
+      res.status(401).json({ error: 'Invalid authentication token' });
+      return;
+    }
 
     // Try to get user from cache first (50-70% reduction in DB queries)
     let user = userCache.getById(decoded.userId) as (User & { judge?: any; contestant?: any }) | null;
@@ -121,7 +193,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       res.clearCookie('access_token', {
         httpOnly: true,
         secure: env.isProduction(),
-        sameSite: 'strict',
+        sameSite: 'lax', // Must match cookie creation setting
         path: '/',
       });
 
@@ -139,6 +211,13 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     // SUPER_ADMIN role can see data across all tenants
     const userRole = String(user.role).trim().toUpperCase();
     (req as any).isSuperAdmin = (userRole === 'SUPER_ADMIN');
+
+    // Recreate req.prisma with correct isSuperAdmin flag
+    // Tenant middleware runs before auth, so it created req.prisma with isSuperAdmin=false
+    // Now that we know the user's role, recreate it if needed
+    if ((req as any).isSuperAdmin && (req as any).tenantId) {
+      (req as any).prisma = createTenantPrismaClient((req as any).tenantId, true);
+    }
 
     // Enhanced logging for admin access to sensitive endpoints
     const isSensitiveEndpoint = req.path && (
@@ -192,7 +271,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     res.clearCookie('access_token', {
       httpOnly: true,
       secure: env.isProduction(),
-      sameSite: 'strict',
+      sameSite: 'lax', // Must match cookie creation setting
       path: '/',
     });
 
@@ -413,7 +492,18 @@ const optionalAuth = async (req: Request, _res: Response, next: NextFunction): P
   }
 
   try {
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string; sessionVersion?: number };
+    // SECURITY FIX (2026-01-13): Verify and validate JWT payload structure
+    const decoded = jwt.verify(token, jwtSecret);
+
+    // Validate JWT payload structure before use
+    if (!isValidJWTPayload(decoded)) {
+      logger.warn('Invalid JWT payload in optional auth middleware', {
+        path: req.path,
+        receivedPayload: decoded
+      });
+      // For optional auth, just proceed without user context
+      return next();
+    }
 
     // Try to get user from cache first
     let user = userCache.getById(decoded.userId) as (User & { judge?: any; contestant?: any }) | null;

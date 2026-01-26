@@ -6,6 +6,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { NotificationService } from '../services/NotificationService';
+import { NotificationsController } from '../controllers/notificationsController';
 import { authenticateToken as authenticate } from '../middleware/auth';
 import { sendNotification, broadcastByRole } from '../controllers/notificationsController';
 import { validate, notificationQuerySchema, cleanupQuerySchema, createNotificationSchema, broadcastNotificationSchema, idParamSchema } from '../middleware/validation';
@@ -45,7 +46,21 @@ router.get('/', authenticate, validate(notificationQuerySchema, 'query'), async 
     const limit = parseInt(req.query['limit'] as string) || 50;
     const offset = parseInt(req.query['offset'] as string) || 0;
 
+    console.log('[NOTIFICATIONS_GET] Fetching notifications:', {
+      userId,
+      tenantId,
+      userEmail: req.user!.email,
+      limit,
+      offset
+    });
+
     const notifications = await notificationService.getUserNotifications(userId, tenantId, limit, offset);
+
+    console.log('[NOTIFICATIONS_GET] Found notifications:', {
+      count: notifications.length,
+      notifications: notifications.map(n => ({ id: n.id, title: n.title, userId: n.userId }))
+    });
+
     res.json(notifications);
   } catch (error) {
     return next(error);
@@ -191,6 +206,112 @@ router.delete('/read-all', authenticate, validate(cleanupQuerySchema, 'query'), 
     const daysOld = parseInt(req.query['daysOld'] as string) || 30;
     const count = await notificationService.cleanupOldNotifications(userId, tenantId, daysOld);
     res.json({ count });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/sent:
+ *   get:
+ *     summary: Get notifications sent by the current user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of notifications to return
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: Offset for pagination
+ *     responses:
+ *       200:
+ *         description: Sent notifications retrieved successfully
+ */
+router.get('/sent', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const controller = container.resolve(NotificationsController);
+    return controller.getSentNotifications(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/deleted:
+ *   get:
+ *     summary: Get deleted notifications for the current user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of notifications to return
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: Offset for pagination
+ *     responses:
+ *       200:
+ *         description: Deleted notifications retrieved successfully
+ */
+router.get('/deleted', authenticate, validate(notificationQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const notificationService = container.resolve(NotificationService);
+    const userId = req.user!.id;
+    const tenantId = req.user!.tenantId;
+    const limit = parseInt(req.query['limit'] as string) || 50;
+    const offset = parseInt(req.query['offset'] as string) || 0;
+
+    const notifications = await notificationService.getDeletedNotifications(userId, tenantId, limit, offset);
+    res.json(notifications);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /api/notifications/{id}/restore:
+ *   put:
+ *     summary: Restore a deleted notification
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification restored successfully
+ */
+router.put('/:id/restore', authenticate, validate(idParamSchema, 'params'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const notificationService = container.resolve(NotificationService);
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const tenantId = req.user!.tenantId;
+    const notification = await notificationService.restoreNotification(id!, userId, tenantId);
+    res.json(notification);
   } catch (error) {
     return next(error);
   }

@@ -34,6 +34,8 @@ const TenantManagementPage: React.FC = () => {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [deletingTenantId, setDeletingTenantId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [formData, setFormData] = useState({
@@ -103,6 +105,10 @@ const TenantManagementPage: React.FC = () => {
   }
 
   const deleteTenant = async (id: string, name: string) => {
+    // Clear any previous messages
+    setError(null)
+    setSuccessMessage(null)
+
     const confirmMessage = `Are you sure you want to DELETE tenant "${name}"?\n\nThis will PERMANENTLY remove:\n- All users\n- All events and contests\n- All scores and data\n\nThis action CANNOT be undone!`
 
     if (!window.confirm(confirmMessage)) {
@@ -113,16 +119,31 @@ const TenantManagementPage: React.FC = () => {
       `Type the tenant name "${name}" to confirm deletion:`
     )
 
-    if (secondConfirm !== name) {
-      setError('Tenant name did not match. Deletion cancelled.')
+    // Case-insensitive comparison with whitespace trimming
+    if (!secondConfirm || secondConfirm.trim().toLowerCase() !== name.trim().toLowerCase()) {
+      setError(`Tenant name did not match. You typed "${secondConfirm || ''}" but expected "${name}". Deletion cancelled.`)
       return
     }
 
     try {
+      // Set loading state
+      setDeletingTenantId(id)
+
       await api.delete(`/tenants/${id}?hard=true`)
+
+      // Show success message
+      setSuccessMessage(`Tenant "${name}" has been permanently deleted.`)
+
+      // Refresh tenant list
       await fetchTenants()
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete tenant')
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to delete tenant'
+      setError(`Failed to delete tenant "${name}": ${errorMsg}`)
+    } finally {
+      setDeletingTenantId(null)
     }
   }
 
@@ -213,8 +234,31 @@ const TenantManagementPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg flex justify-between items-start">
             <p className="text-red-800 dark:text-red-200">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
+              title="Dismiss"
+            >
+              <XCircleIcon className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg flex justify-between items-start">
+            <div className="flex items-start gap-3">
+              <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+              <p className="text-green-800 dark:text-green-200">{successMessage}</p>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200"
+              title="Dismiss"
+            >
+              <XCircleIcon className="h-5 w-5" />
+            </button>
           </div>
         )}
 
@@ -279,10 +323,24 @@ const TenantManagementPage: React.FC = () => {
                 {user?.role === 'SUPER_ADMIN' && (
                   <button
                     onClick={() => deleteTenant(tenant.id, tenant.name)}
-                    className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors text-sm"
-                    title="Permanently delete tenant"
+                    disabled={deletingTenantId === tenant.id}
+                    className={`px-3 py-2 text-white rounded-lg transition-colors text-sm ${
+                      deletingTenantId === tenant.id
+                        ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                        : 'bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600'
+                    }`}
+                    title={deletingTenantId === tenant.id ? 'Deleting...' : 'Permanently delete tenant'}
                   >
-                    <TrashIcon className="h-4 w-4 inline" />
+                    {deletingTenantId === tenant.id ? (
+                      <div className="flex items-center gap-1">
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    ) : (
+                      <TrashIcon className="h-4 w-4 inline" />
+                    )}
                   </button>
                 )}
               </div>

@@ -48,7 +48,7 @@ export class UsersController {
     const log = createRequestLogger(req, 'users');
     try {
       const authReq = req as AuthenticatedRequest;
-      const { includeInactive, search, createdAfter, createdBefore, sortBy, sortDirection } = req.query;
+      const { includeInactive, search, createdAfter, createdBefore, sortBy, sortDirection, tenantId: queryTenantId } = req.query;
 
       log.debug('Fetching all users');
 
@@ -62,6 +62,9 @@ export class UsersController {
       // Tenant filter
       if (!isSuperAdmin) {
         where.tenantId = tenantId;
+      } else if (queryTenantId && typeof queryTenantId === 'string') {
+        // SUPER_ADMIN can filter by specific tenant via query parameter
+        where.tenantId = queryTenantId;
       }
 
       // Active filter (default to active only for security)

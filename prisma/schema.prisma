@@ -756,6 +756,8 @@ model Notification {
   pushSent    Boolean          @default(false)
   pushSentAt  DateTime?
   templateId  String?
+  sentBy      String?          // User ID of who sent the notification
+  deletedAt   DateTime?        // Soft delete timestamp
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -763,6 +765,8 @@ model Notification {
   @@index([tenantId, userId, read])
   @@index([userId, createdAt])
   @@index([userId, read])
+  @@index([sentBy, createdAt])
+  @@index([deletedAt])
   @@index([templateId])
   @@map("notifications")
 }

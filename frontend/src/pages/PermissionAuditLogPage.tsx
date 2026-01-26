@@ -132,7 +132,7 @@ const PermissionAuditLogPage: React.FC = () => {
 
   // Export audit logs
   const handleExport = () => {
-    toast.info('Export functionality coming soon');
+    toast('Export functionality coming soon');
   };
 
   if (!isAdmin) {

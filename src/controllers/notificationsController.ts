@@ -120,6 +120,49 @@ export class NotificationsController {
   };
 
   /**
+   * Get notifications sent by the current user
+   */
+  getSentNotifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : 50;
+      const offset = req.query['offset'] ? parseInt(req.query['offset'] as string) : 0;
+
+      const notifications = await this.prisma.notification.findMany({
+        where: {
+          sentBy: req.user.id,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      });
+
+      const total = await this.prisma.notification.count({
+        where: {
+          sentBy: req.user.id,
+        }
+      });
+
+      return sendSuccess(res, { notifications, total, limit, offset }, 'Sent notifications retrieved');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
    * Send notification to specific users
    * Requires ADMIN, SUPER_ADMIN, ORGANIZER, or BOARD role
    */
@@ -130,9 +173,14 @@ export class NotificationsController {
         return;
       }
 
-      const { userIds, title, message, type, link } = req.body;
+      const { userIds, title, message, type, link, targetTenantId } = req.body;
       const senderRole = req.user.role;
-      const tenantId = req.user.tenantId;
+      let tenantId = req.user.tenantId;
+
+      // SUPER_ADMIN can specify targetTenantId to send to other tenants
+      if (senderRole === 'SUPER_ADMIN' && targetTenantId) {
+        tenantId = targetTenantId;
+      }
 
       // Permission check: ADMIN, SUPER_ADMIN, ORGANIZER, BOARD can send
       if (!['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(senderRole)) {
@@ -147,37 +195,64 @@ export class NotificationsController {
         return res.status(400).json({ error: 'title and message are required' });
       }
 
+      // Fetch users to validate and get their tenantIds
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, tenantId: true }
+      });
+
+      if (users.length !== userIds.length) {
+        return res.status(404).json({
+          error: 'Some user IDs not found'
+        });
+      }
+
       // For non-SUPER_ADMIN, validate users belong to same tenant
       if (senderRole !== 'SUPER_ADMIN') {
-        const users = await this.prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, tenantId: true }
-        });
-
         const invalidUsers = users.filter(u => u.tenantId !== tenantId);
         if (invalidUsers.length > 0) {
           return res.status(403).json({
             error: 'Cannot send notifications to users outside your tenant'
           });
         }
-
-        if (users.length !== userIds.length) {
-          return res.status(404).json({
-            error: 'Some user IDs not found'
-          });
-        }
       }
 
-      // Send notifications
-      const count = await this.notificationService.broadcastNotification(userIds, {
-        title,
-        message,
-        type: type || 'INFO',
-        link: link || null,
-        tenantId,
+      // For SUPER_ADMIN sending to users across multiple tenants,
+      // create notifications individually with each user's correct tenantId
+      const usersByTenant = new Map<string, string[]>();
+      for (const user of users) {
+        const userTenantId = user.tenantId;
+        if (!usersByTenant.has(userTenantId)) {
+          usersByTenant.set(userTenantId, []);
+        }
+        usersByTenant.get(userTenantId)!.push(user.id);
+      }
+
+      console.log('[NOTIFICATIONS] Sending notification to users across tenants:', {
+        totalUsers: users.length,
+        tenantsCount: usersByTenant.size,
+        senderRole,
       });
 
-      return sendSuccess(res, { count, recipientCount: userIds.length }, 'Notifications sent successfully');
+      // Send notifications grouped by tenant
+      let count = 0;
+      for (const [userTenantId, tenantUserIds] of usersByTenant.entries()) {
+        const notificationData = {
+          title,
+          message,
+          type: type || 'INFO',
+          link: link || null,
+          tenantId: userTenantId, // Use each user's tenant ID
+          sentBy: req.user.id, // Track who sent the notification
+        };
+
+        const tenantCount = await this.notificationService.broadcastNotification(tenantUserIds, notificationData);
+        count += tenantCount;
+      }
+
+      console.log('[NOTIFICATIONS] Notification sent, count:', count);
+
+      return sendSuccess(res, { count, recipientCount: users.length }, 'Notifications sent successfully');
     } catch (error) {
       return next(error);
     }
@@ -194,9 +269,16 @@ export class NotificationsController {
         return;
       }
 
-      const { roles, title, message, type, link } = req.body;
+      const { roles, title, message, type, link, targetTenantId } = req.body;
       const senderRole = req.user.role;
-      const tenantId = req.user.tenantId;
+      let tenantId = req.user.tenantId;
+
+      // SUPER_ADMIN can specify targetTenantId to send to other tenants
+      // targetTenantId === null means all tenants (cross-tenant broadcast)
+      const isAllTenants = senderRole === 'SUPER_ADMIN' && targetTenantId === null;
+      if (senderRole === 'SUPER_ADMIN' && targetTenantId && targetTenantId !== null) {
+        tenantId = targetTenantId;
+      }
 
       // Permission check: only ADMIN and SUPER_ADMIN can broadcast by role
       if (!['ADMIN', 'SUPER_ADMIN'].includes(senderRole)) {
@@ -217,31 +299,50 @@ export class NotificationsController {
         isActive: true,
       };
 
-      if (senderRole !== 'SUPER_ADMIN') {
+      // Only filter by tenant if:
+      // - User is not SUPER_ADMIN, OR
+      // - User is SUPER_ADMIN but not broadcasting to all tenants
+      if (senderRole !== 'SUPER_ADMIN' || !isAllTenants) {
         whereClause.tenantId = tenantId;
       }
 
       const users = await this.prisma.user.findMany({
         where: whereClause,
-        select: { id: true }
+        select: { id: true, tenantId: true }
       });
 
       if (users.length === 0) {
         return sendSuccess(res, { count: 0, recipientCount: 0 }, 'No users found with specified roles');
       }
 
-      const userIds = users.map(u => u.id);
+      // For cross-tenant broadcasts, create notifications individually with correct tenantId
+      let count = 0;
+      if (isAllTenants) {
+        for (const user of users) {
+          const userCount = await this.notificationService.broadcastNotification([user.id], {
+            title,
+            message,
+            type: type || 'INFO',
+            link: link || null,
+            tenantId: user.tenantId,
+            sentBy: req.user.id, // Track who sent the notification
+          });
+          count += userCount;
+        }
+      } else {
+        // Single tenant broadcast
+        const userIds = users.map(u => u.id);
+        count = await this.notificationService.broadcastNotification(userIds, {
+          title,
+          message,
+          type: type || 'INFO',
+          link: link || null,
+          tenantId,
+          sentBy: req.user.id, // Track who sent the notification
+        });
+      }
 
-      // Send notifications
-      const count = await this.notificationService.broadcastNotification(userIds, {
-        title,
-        message,
-        type: type || 'INFO',
-        link: link || null,
-        tenantId,
-      });
-
-      return sendSuccess(res, { count, recipientCount: userIds.length }, 'Notifications broadcast successfully');
+      return sendSuccess(res, { count, recipientCount: users.length }, 'Notifications broadcast successfully');
     } catch (error) {
       return next(error);
     }

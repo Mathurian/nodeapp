@@ -14,6 +14,7 @@ export interface CreateNotificationDTO {
   message: string;
   link?: string;
   metadata?: Record<string, any>;
+  sentBy?: string; // User ID of who sent the notification
 }
 
 export interface NotificationFilters {
@@ -42,6 +43,7 @@ export class NotificationRepository {
         message: data.message,
         link: data.link,
         metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+        sentBy: data.sentBy || null,
       },
     });
   }
@@ -50,17 +52,30 @@ export class NotificationRepository {
    * Create notifications for multiple users (broadcast)
    */
   async createMany(userIds: string[], notification: Omit<CreateNotificationDTO, 'userId'>): Promise<number> {
-    const result = await this.prisma.notification.createMany({
-      data: userIds.map((userId) => ({
-        tenantId: notification.tenantId,
-        userId,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        link: notification.link,
-        metadata: notification.metadata ? JSON.stringify(notification.metadata) : null,
-      })),
+    console.log('[NOTIFICATION_REPO] createMany called:', {
+      userCount: userIds.length,
+      userIds,
+      notification,
     });
+
+    const data = userIds.map((userId) => ({
+      tenantId: notification.tenantId,
+      userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      link: notification.link || undefined,
+      metadata: notification.metadata ? JSON.stringify(notification.metadata) : undefined,
+      sentBy: notification.sentBy || undefined,
+    }));
+
+    console.log('[NOTIFICATION_REPO] Data to insert:', data);
+
+    const result = await this.prisma.notification.createMany({
+      data,
+    });
+
+    console.log('[NOTIFICATION_REPO] createMany result:', result);
 
     return result.count;
   }
@@ -72,6 +87,7 @@ export class NotificationRepository {
     const where: Prisma.NotificationWhereInput = {
       userId: filters.userId,
       tenantId: filters.tenantId,
+      deletedAt: null, // Exclude soft-deleted notifications
     };
 
     if (filters.read !== undefined) {
@@ -101,6 +117,7 @@ export class NotificationRepository {
         userId,
         tenantId,
         read: false,
+        deletedAt: null, // Exclude soft-deleted notifications
       },
     });
   }
@@ -147,21 +164,80 @@ export class NotificationRepository {
   }
 
   /**
-   * Delete a notification
+   * Soft delete a notification
    */
   async delete(id: string, userId: string, tenantId: string): Promise<Notification> {
     // Verify notification belongs to user and tenant
     const notification = await this.prisma.notification.findFirst({
-      where: { id, userId, tenantId },
+      where: { id, userId, tenantId, deletedAt: null },
     });
 
     if (!notification) {
       throw new Error('Notification not found');
     }
 
-    return this.prisma.notification.delete({
+    return this.prisma.notification.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
+  }
+
+  /**
+   * Restore a soft-deleted notification
+   */
+  async restore(id: string, userId: string, tenantId: string): Promise<Notification> {
+    // Verify notification belongs to user and tenant and is deleted
+    const notification = await this.prisma.notification.findFirst({
+      where: { id, userId, tenantId, deletedAt: { not: null } },
+    });
+
+    if (!notification) {
+      throw new Error('Deleted notification not found');
+    }
+
+    return this.prisma.notification.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
+
+  /**
+   * Get deleted notifications for a user
+   */
+  async findDeleted(userId: string, tenantId: string, limit?: number, offset?: number): Promise<Notification[]> {
+    return this.prisma.notification.findMany({
+      where: {
+        userId,
+        tenantId,
+        deletedAt: { not: null },
+      },
+      orderBy: {
+        deletedAt: 'desc',
+      },
+      take: limit,
+      skip: offset,
+    });
+  }
+
+  /**
+   * Permanently delete old soft-deleted notifications
+   */
+  async permanentlyDeleteOld(userId: string, tenantId: string, daysOld: number = 30): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const result = await this.prisma.notification.deleteMany({
+      where: {
+        userId,
+        tenantId,
+        deletedAt: {
+          not: null,
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    return result.count;
   }
 
   /**

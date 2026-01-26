@@ -19,12 +19,38 @@ process.env.REDIS_PASSWORD = process.env.REDIS_PASSWORD || '';
 
 // Now import dependencies (they will use the env vars set above)
 import 'reflect-metadata'; // Required for tsyringe dependency injection
+import { PrismaClient } from '@prisma/client';
 import '../src/config/container'; // Initialize dependency injection container
 
 // Global test timeout
 jest.setTimeout(30000); // Increased timeout for integration tests
 
+// Singleton PrismaClient for tests to prevent connection pool exhaustion
+let prismaClientInstance: PrismaClient | null = null;
+
+export function getTestPrismaClient(): PrismaClient {
+  if (!prismaClientInstance) {
+    prismaClientInstance = new PrismaClient({
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+      log: process.env.DEBUG_TESTS === 'true' ? ['query', 'error', 'warn'] : ['error'],
+    });
+  }
+  return prismaClientInstance;
+}
+
 beforeEach(() => {
   // Reset mocks before each test
   jest.clearAllMocks();
+});
+
+// Global cleanup after all tests complete
+afterAll(async () => {
+  if (prismaClientInstance) {
+    await prismaClientInstance.$disconnect();
+    prismaClientInstance = null;
+  }
 });

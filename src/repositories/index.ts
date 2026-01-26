@@ -3,7 +3,11 @@
  * Export all repositories
  */
 
-export { BaseRepository, IBaseRepository, FindManyOptions, PaginationOptions, PaginatedResult } from './BaseRepository';
-export { UserRepository, UserWithRelations } from './UserRepository';
-export { EventRepository, EventWithRelations } from './EventRepository';
-export { ScoreRepository, ScoreWithRelations } from './ScoreRepository';
+export { BaseRepository } from './BaseRepository';
+export type { IBaseRepository, FindManyOptions, PaginationOptions, PaginatedResult } from './BaseRepository';
+export { UserRepository } from './UserRepository';
+export type { UserWithRelations } from './UserRepository';
+export { EventRepository } from './EventRepository';
+export type { EventWithRelations } from './EventRepository';
+export { ScoreRepository } from './ScoreRepository';
+export type { ScoreWithRelations } from './ScoreRepository';

@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import { Modal } from './Modal'
 import { notificationsAPI, usersAPI } from '../services/api'
 import { PaperAirplaneIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { useAuth } from '../contexts/AuthContext'
+import axios from 'axios'
 
 interface SendNotificationModalProps {
   isOpen: boolean
@@ -59,7 +61,10 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
   onSuccess,
 }) => {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const [activeTab, setActiveTab] = useState<'users' | 'broadcast'>('users')
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('current')
 
   // Form state for "Send to Users"
   const [sendFormData, setSendFormData] = useState<SendFormData>({
@@ -79,15 +84,39 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
     link: '',
   })
 
-  // Fetch users for the dropdown
-  const { data: usersResponse, isLoading: isLoadingUsers } = useQuery<{ data: User[] }>(
-    'users-for-notifications',
+  // Fetch tenants for SUPER_ADMIN - only active tenants
+  const { data: tenantsResponse } = useQuery<{ tenants: Array<{ id: string; name: string; slug: string }> }>(
+    'tenants-for-notifications',
     async () => {
-      const response = await usersAPI.getAll({ includeInactive: false })
+      const response = await axios.get('/api/tenants?isActive=true')
       return response.data
     },
     {
-      enabled: isOpen,
+      enabled: isOpen && isSuperAdmin,
+    }
+  )
+
+  const tenants = tenantsResponse?.tenants || []
+
+  // Fetch users for the dropdown - filtered by tenant for SUPER_ADMIN
+  const { data: usersResponse, isLoading: isLoadingUsers } = useQuery<{ data: User[] }>(
+    ['users-for-notifications', selectedTenantId],
+    async () => {
+      let url = '/api/users?includeInactive=false'
+      if (isSuperAdmin) {
+        if (selectedTenantId === 'current') {
+          // For "current" selection, filter by the user's actual tenant
+          url += `&tenantId=${user?.tenantId}`
+        } else if (selectedTenantId !== 'all') {
+          // For specific tenant selection, filter by that tenant
+          url += `&tenantId=${selectedTenantId}`
+        }
+      }
+      const response = await axios.get(url)
+      return response.data
+    },
+    {
+      enabled: isOpen && activeTab === 'users',
     }
   )
 
@@ -96,12 +125,16 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
   // Send to specific users mutation
   const sendMutation = useMutation(
     async (data: SendFormData) => {
-      const payload = {
+      const payload: any = {
         userIds: data.userIds,
         title: data.title,
         message: data.message,
         type: data.type,
         ...(data.link && { link: data.link }),
+      }
+      // Add targetTenantId for SUPER_ADMIN
+      if (isSuperAdmin && selectedTenantId !== 'current') {
+        payload.targetTenantId = selectedTenantId === 'all' ? null : selectedTenantId
       }
       const response = await notificationsAPI.sendNotification(payload)
       return response.data
@@ -115,7 +148,9 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         onSuccess?.()
       },
       onError: (error: any) => {
-        const errorMessage = error.response?.data?.error || error.message || 'Failed to send notification'
+        console.error('Send notification error:', error)
+        console.error('Response data:', error.response?.data)
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to send notification'
         toast.error(`Error: ${errorMessage}`)
       },
     }
@@ -124,12 +159,16 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
   // Broadcast by role mutation
   const broadcastMutation = useMutation(
     async (data: BroadcastFormData) => {
-      const payload = {
+      const payload: any = {
         roles: data.roles,
         title: data.title,
         message: data.message,
         type: data.type,
         ...(data.link && { link: data.link }),
+      }
+      // Add targetTenantId for SUPER_ADMIN
+      if (isSuperAdmin && selectedTenantId !== 'current') {
+        payload.targetTenantId = selectedTenantId === 'all' ? null : selectedTenantId
       }
       const response = await notificationsAPI.broadcastByRole(payload)
       return response.data
@@ -269,6 +308,31 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         {/* Send to Users Tab */}
         {activeTab === 'users' && (
           <form onSubmit={handleSendSubmit} className="space-y-4">
+            {/* Tenant Selection (SUPER_ADMIN only) */}
+            {isSuperAdmin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Target Tenant
+                </label>
+                <select
+                  value={selectedTenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  disabled={isLoading}
+                >
+                  <option value="current">Current Tenant</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name} ({tenant.slug})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Select which tenant's users to send notifications to
+                </p>
+              </div>
+            )}
+
             {/* User Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -403,6 +467,32 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         {/* Broadcast by Role Tab */}
         {activeTab === 'broadcast' && (
           <form onSubmit={handleBroadcastSubmit} className="space-y-4">
+            {/* Tenant Selection (SUPER_ADMIN only) */}
+            {isSuperAdmin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Target Tenant
+                </label>
+                <select
+                  value={selectedTenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  disabled={isLoading}
+                >
+                  <option value="current">Current Tenant</option>
+                  <option value="all">All Tenants</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name} ({tenant.slug})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Select "All Tenants" to broadcast to this role across all tenants
+                </p>
+              </div>
+            )}
+
             {/* Role Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

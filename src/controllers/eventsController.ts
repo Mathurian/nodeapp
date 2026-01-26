@@ -73,15 +73,47 @@ export class EventsController {
       const isSuperAdmin = (req as any).isSuperAdmin;
       const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
 
-      if (!isSuperAdmin && tenantId) {
-        filters.tenantId = tenantId;
-      }
+      // For SUPER_ADMIN, use req.prisma which bypasses tenant filtering
+      let events;
+      if (isSuperAdmin && (req as any).prisma) {
+        // Use request-specific Prisma client that bypasses tenant filtering for SUPER_ADMIN
+        const prisma = (req as any).prisma;
+        const whereClause: any = {};
 
-      const events = await this.eventService.getAllEvents(filters);
+        if (filters.archived !== undefined) {
+          whereClause.archived = filters.archived;
+        }
+        if (filters.search) {
+          whereClause.OR = [
+            { name: { contains: filters.search, mode: 'insensitive' } },
+            { description: { contains: filters.search, mode: 'insensitive' } }
+          ];
+        }
+        if (filters.createdAfter) {
+          whereClause.createdAt = { ...(whereClause.createdAt || {}), gte: filters.createdAfter };
+        }
+        if (filters.createdBefore) {
+          whereClause.createdAt = { ...(whereClause.createdAt || {}), lte: filters.createdBefore };
+        }
+
+        events = await prisma.event.findMany({
+          where: whereClause,
+          orderBy: filters.sortBy ? { [filters.sortBy]: filters.sortDirection || 'desc' } : { startDate: 'desc' },
+          include: {
+            contests: true
+          }
+        });
+      } else {
+        // Non-SUPER_ADMIN: use service with tenant filtering
+        if (tenantId) {
+          filters.tenantId = tenantId;
+        }
+        events = await this.eventService.getAllEvents(filters);
+      }
 
       // Compute status based on dates
       const now = new Date();
-      const eventsWithStatus = events.map(event => {
+      const eventsWithStatus = events.map((event: any) => {
         let status = 'DRAFT';
 
         if (event.archived) {

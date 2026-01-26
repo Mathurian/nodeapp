@@ -11,6 +11,7 @@ import {
   EnvelopeIcon,
   BellAlertIcon,
   PaperAirplaneIcon,
+  ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import { SendNotificationModal } from '../components/SendNotificationModal'
@@ -21,9 +22,14 @@ interface Notification {
   type: string
   title: string
   message: string
-  isRead: boolean
+  read: boolean
   createdAt: string
   data?: any
+  user?: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 interface NotificationPreferences {
@@ -37,7 +43,7 @@ interface NotificationPreferences {
 const NotificationsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'sent' | 'deleted'>('all')
   const [showPreferences, setShowPreferences] = useState(false)
   const [isSendModalOpen, setIsSendModalOpen] = useState(false)
   const [localPreferences, setLocalPreferences] = useState<NotificationPreferences>({
@@ -48,7 +54,7 @@ const NotificationsPage: React.FC = () => {
     systemAlerts: true,
   })
 
-  // Fetch notifications with proper error handling
+  // Fetch received notifications with proper error handling
   const { data: notifications = [], isLoading: notificationsLoading, error: notificationsError } = useQuery<Notification[]>(
     'notifications',
     async () => {
@@ -59,6 +65,36 @@ const NotificationsPage: React.FC = () => {
     {
       retry: 1,
       onError: (err) => console.error('Fetch notifications failed:', err),
+      enabled: filter !== 'sent' && filter !== 'deleted',
+    }
+  )
+
+  // Fetch sent notifications with proper error handling
+  const { data: sentNotificationsData, isLoading: sentNotificationsLoading, error: sentNotificationsError } = useQuery<{ notifications: Notification[], total: number }>(
+    'sent-notifications',
+    async () => {
+      const response = await api.get('/notifications/sent')
+      return response.data.data || response.data
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch sent notifications failed:', err),
+      enabled: filter === 'sent',
+    }
+  )
+
+  // Fetch deleted notifications with proper error handling
+  const { data: deletedNotifications = [], isLoading: deletedNotificationsLoading, error: deletedNotificationsError } = useQuery<Notification[]>(
+    'deleted-notifications',
+    async () => {
+      const response = await api.get('/notifications/deleted')
+      const unwrapped = response.data.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch deleted notifications failed:', err),
+      enabled: filter === 'deleted',
     }
   )
 
@@ -84,7 +120,7 @@ const NotificationsPage: React.FC = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      await api.put(`/notifications/${id}`, { isRead: true })
+      await api.put(`/notifications/${id}/read`)
       queryClient.invalidateQueries('notifications')
     } catch (err: any) {
       console.error('Failed to mark notification as read:', err)
@@ -93,7 +129,7 @@ const NotificationsPage: React.FC = () => {
 
   const markAllAsRead = async () => {
     try {
-      await api.put('/notifications/mark-all-read')
+      await api.put('/notifications/read-all')
       queryClient.invalidateQueries('notifications')
     } catch (err: any) {
       console.error('Failed to mark all as read:', err)
@@ -104,8 +140,19 @@ const NotificationsPage: React.FC = () => {
     try {
       await api.delete(`/notifications/${id}`)
       queryClient.invalidateQueries('notifications')
+      queryClient.invalidateQueries('deleted-notifications')
     } catch (err: any) {
       console.error('Failed to delete notification:', err)
+    }
+  }
+
+  const restoreNotification = async (id: string) => {
+    try {
+      await api.put(`/notifications/${id}/restore`)
+      queryClient.invalidateQueries('notifications')
+      queryClient.invalidateQueries('deleted-notifications')
+    } catch (err: any) {
+      console.error('Failed to restore notification:', err)
     }
   }
 
@@ -130,11 +177,15 @@ const NotificationsPage: React.FC = () => {
     }
   }
 
-  const filteredNotifications = notifications.filter(n => {
-    if (filter === 'unread') return !n.isRead
-    if (filter === 'read') return n.isRead
-    return true
-  })
+  const filteredNotifications = filter === 'sent'
+    ? (sentNotificationsData?.notifications || [])
+    : filter === 'deleted'
+    ? deletedNotifications
+    : notifications.filter(n => {
+        if (filter === 'unread') return !n.read
+        if (filter === 'read') return n.read
+        return true
+      })
 
   // Check if user can send notifications
   const canSendNotifications = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
@@ -178,7 +229,12 @@ const NotificationsPage: React.FC = () => {
               Notifications
             </h1>
             <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              {notifications.filter(n => !n.isRead).length} unread notifications
+              {filter === 'sent'
+                ? `${sentNotificationsData?.total || 0} sent notifications`
+                : filter === 'deleted'
+                ? `${deletedNotifications.length} deleted notifications`
+                : `${notifications.filter(n => !n.read).length} unread notifications`
+              }
             </p>
           </div>
           <div className="flex gap-3">
@@ -198,7 +254,7 @@ const NotificationsPage: React.FC = () => {
               <Cog6ToothIcon className="h-5 w-5" />
               Preferences
             </button>
-            {notifications.some(n => !n.isRead) && (
+            {filter !== 'sent' && notifications.some(n => !n.read) && (
               <button
                 onClick={markAllAsRead}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors"
@@ -312,6 +368,28 @@ const NotificationsPage: React.FC = () => {
           >
             Read
           </button>
+          {canSendNotifications && (
+            <button
+              onClick={() => setFilter('sent')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filter === 'sent'
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              Sent
+            </button>
+          )}
+          <button
+            onClick={() => setFilter('deleted')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'deleted'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            Deleted
+          </button>
         </div>
 
         {/* Notifications List */}
@@ -327,17 +405,24 @@ const NotificationsPage: React.FC = () => {
               return (
                 <div
                   key={notification.id}
+                  onClick={() => filter !== 'sent' && filter !== 'deleted' && !notification.read && markAsRead(notification.id)}
                   className={`bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors ${
-                    !notification.isRead ? 'border-l-4 border-blue-600' : ''
+                    filter !== 'sent' && filter !== 'deleted' && !notification.read ? 'border-l-4 border-blue-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750' : ''
                   }`}
+                  title={filter !== 'sent' && filter !== 'deleted' && !notification.read ? 'Click to mark as read' : ''}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex gap-4 flex-1">
-                      <Icon className={`h-6 w-6 mt-1 ${!notification.isRead ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <Icon className={`h-6 w-6 mt-1 ${!notification.read ? 'text-blue-600' : 'text-gray-400'}`} />
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white dark:text-white mb-1">
                           {notification.title}
                         </h3>
+                        {filter === 'sent' && notification.user && (
+                          <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">
+                            Sent to: {notification.user.name} ({notification.user.email})
+                          </p>
+                        )}
                         <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mb-2">
                           {notification.message}
                         </p>
@@ -346,23 +431,35 @@ const NotificationsPage: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2 ml-4">
-                      {!notification.isRead && (
+                    <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                      {filter === 'deleted' ? (
                         <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg transition-colors"
-                          title="Mark as read"
+                          onClick={() => restoreNotification(notification.id)}
+                          className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
+                          title="Restore notification"
                         >
-                          <CheckCircleIcon className="h-5 w-5" />
+                          <ArrowUturnLeftIcon className="h-5 w-5" />
                         </button>
+                      ) : (
+                        <>
+                          {filter !== 'sent' && !notification.read && (
+                            <button
+                              onClick={() => markAsRead(notification.id)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                              title="Mark as read"
+                            >
+                              <CheckCircleIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteNotification(notification.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </>
                       )}
-                      <button
-                        onClick={() => deleteNotification(notification.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
                     </div>
                   </div>
                 </div>

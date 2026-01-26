@@ -125,6 +125,34 @@ export class NotificationService {
     return this.notificationRepository.deleteOldRead(userId, tenantId, daysOld);
   }
 
+  /**
+   * Restore a soft-deleted notification
+   */
+  async restoreNotification(id: string, userId: string, tenantId: string): Promise<Notification> {
+    const notification = await this.notificationRepository.restore(id, userId, tenantId);
+
+    // Emit real-time update
+    if (this.io) {
+      this.io.to(`user:${userId}`).emit('notification:restored', notification);
+    }
+
+    return notification;
+  }
+
+  /**
+   * Get deleted notifications for a user
+   */
+  async getDeletedNotifications(userId: string, tenantId: string, limit = 50, offset = 0): Promise<Notification[]> {
+    return this.notificationRepository.findDeleted(userId, tenantId, limit, offset);
+  }
+
+  /**
+   * Permanently delete old soft-deleted notifications
+   */
+  async permanentlyDeleteOld(userId: string, tenantId: string, daysOld = 30): Promise<number> {
+    return this.notificationRepository.permanentlyDeleteOld(userId, tenantId, daysOld);
+  }
+
   // ==================== Specific Notification Creators ====================
 
   /**

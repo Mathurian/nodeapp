@@ -40,7 +40,10 @@
 
     /* Advanced Options */
     "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
+    /* Performance Options */
+    "isolatedModules": true
   },
   "include": [
     "src/**/*"
