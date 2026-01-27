@@ -33,6 +33,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   const location = useLocation()
   const { user, logout } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
+  const isHoveringRef = useRef(false)
 
   // Initialize registry with commands
   useEffect(() => {
@@ -136,9 +137,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
     }
   }, [query, user, registry, location.pathname])
 
-  // Reset selected index when displayed commands change
+  // Reset selected index when displayed commands change (only if not hovering)
   useEffect(() => {
-    setSelectedIndex(0)
+    if (!isHoveringRef.current) {
+      setSelectedIndex(0)
+    }
   }, [displayedCommands])
 
   // Focus input when opened
@@ -301,7 +304,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                           <button
                             key={command.id}
                             onClick={() => handleSelect(command)}
-                            onMouseEnter={() => setSelectedIndex(globalIndex)}
+                            onMouseEnter={() => {
+                              isHoveringRef.current = true
+                              setSelectedIndex(globalIndex)
+                            }}
+                            onMouseLeave={() => {
+                              isHoveringRef.current = false
+                            }}
                             className={`relative group w-full flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors isolate ${
                               isSelected
                                 ? 'bg-indigo-600 dark:bg-indigo-500 text-white'

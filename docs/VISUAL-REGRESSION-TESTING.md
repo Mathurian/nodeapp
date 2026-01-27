@@ -468,6 +468,6 @@ await expect(page).toHaveScreenshot({
 
 ---
 
-*Last Updated: November 25, 2025*
+*Last Updated: January 27, 2026*
 *Owner: Engineering Team*
 *Review Frequency: Quarterly*

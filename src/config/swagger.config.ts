@@ -22,7 +22,7 @@ Comprehensive API for Event Manager - Contest Management System with Multi-Tenan
 
 ## Features
 - Multi-stage certification workflow (Judge → Tally Master → Auditor → Board)
-- Role-based access control (8 distinct roles)
+- Role-based access control (9 distinct roles)
 - Real-time updates via WebSocket
 - Multi-tenancy with tenant isolation
 - Comprehensive scoring and results management

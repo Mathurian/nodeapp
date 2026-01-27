@@ -757,7 +757,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
 ---
 
-*Last Updated: November 25, 2025*
+*Last Updated: January 27, 2026*
 *Owner: Engineering Team*
 *WCAG Target: Level AA*
 *Review Frequency: Every Sprint*

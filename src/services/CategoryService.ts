@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy code with type issues
 /**
  * Category Service
  * Business logic layer for Category entity with caching support
@@ -117,7 +116,7 @@ export class CategoryService extends BaseService {
       const category = await this.categoryRepo.findCategoryWithDetails(id);
 
       if (!category) {
-        // @ts-expect-error - Legacy NotFoundError signature
+        throw this.notFoundError('Category', id);
       }
 
       await this.cacheService.set(cacheKey, category, 900);

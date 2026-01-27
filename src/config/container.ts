@@ -76,7 +76,6 @@ import { AdvancedReportingService } from '../services/AdvancedReportingService';
 import { EmailService } from '../services/EmailService';
 import { AuthService } from '../services/AuthService';
 import { AdminService } from '../services/AdminService';
-import { CertificationService } from '../services/CertificationService';
 import { ResultsService } from '../services/ResultsService';
 import { NotificationService } from '../services/NotificationService';
 import { RateLimitService } from '../services/RateLimitService';
@@ -295,7 +294,6 @@ export function setupContainer(): void {
   container.register(EmailService, EmailService);
   container.register(AuthService, AuthService);
   container.register(AdminService, AdminService);
-  container.register(CertificationService, CertificationService);
   container.register(ResultsService, ResultsService);
   container.register(NotificationService, NotificationService);
   container.register(RateLimitService, RateLimitService);

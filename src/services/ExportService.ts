@@ -5,7 +5,6 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import ExcelJS from 'exceljs';
 import { stringify } from 'csv-stringify/sync';
-// @ts-ignore - pdfkit types not available
 import PDFDocument from 'pdfkit';
 import { createWriteStream } from 'fs';
 

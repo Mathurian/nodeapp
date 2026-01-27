@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy code with type issues
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { PerformanceService } from '../services/PerformanceService';
@@ -138,7 +137,6 @@ export class PerformanceController {
    * S4-4: Get comprehensive monitoring dashboard
    * Aggregates circuit breakers, metrics, health, and performance data
    */
-  // @ts-expect-error - HealthCheckResult export issue
   getMonitoringDashboard = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const dashboard = await this.performanceService.getMonitoringDashboard();
@@ -156,6 +154,5 @@ export const getPerformanceStats = controller.getPerformanceStats;
 export const getSystemMetrics = controller.getSystemMetrics;
 export const getPerformanceLogs = controller.getPerformanceLogs;
 export const clearPerformanceLogs = controller.clearPerformanceLogs;
-// @ts-expect-error - HealthCheckResult export issue
 export const getHealthCheck = controller.getHealthCheck;
 export const getMonitoringDashboard = controller.getMonitoringDashboard;

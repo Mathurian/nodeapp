@@ -19,7 +19,6 @@ type ScoreWithRelations = Score & {
 import * as fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import * as path from 'path';
-// @ts-ignore - pdfkit doesn't have type definitions
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 

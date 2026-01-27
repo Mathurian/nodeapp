@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy code with type issues
 /**
  * Template Service
  * Business logic for category templates
@@ -32,8 +31,7 @@ export class TemplateService extends BaseService {
     const template = await this.templateRepo.findByIdWithCriteria(id, tenantId);
 
     if (!template) {
-        // @ts-expect-error - Legacy NotFoundError signature
-      throw new NotFoundError('Template', id);
+      throw this.notFoundError('Template', id);
     }
 
     return template;

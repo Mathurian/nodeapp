@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy code with type issues
 /**
  * Event Service
  * Business logic layer for Event entity with caching support
@@ -159,8 +158,7 @@ export class EventService extends BaseService {
       const event = await this.eventRepo.findById(id);
 
       if (!event) {
-        // @ts-expect-error - Legacy NotFoundError signature
-        throw new NotFoundError('Event', id);
+        throw this.notFoundError('Event', id);
       }
 
       // Cache for 1 hour

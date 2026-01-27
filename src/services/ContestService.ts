@@ -1,4 +1,3 @@
-// @ts-nocheck - Legacy code with type issues
 /**
  * Contest Service
  * Business logic layer for Contest entity with caching support
@@ -6,7 +5,7 @@
 
 import { Contest, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, ValidationError, NotFoundError } from './BaseService';
+import { BaseService, ValidationError } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
@@ -121,8 +120,7 @@ export class ContestService extends BaseService {
       const contest = await this.contestRepo.findById(id);
 
       if (!contest) {
-        // @ts-expect-error - Legacy NotFoundError signature
-        throw new NotFoundError('Contest', id);
+        throw this.notFoundError('Contest', id);
       }
 
       // Cache for 30 minutes
@@ -149,7 +147,7 @@ export class ContestService extends BaseService {
       const contest = await this.contestRepo.findContestWithDetails(id);
 
       if (!contest) {
-        throw new NotFoundError(`Contest ${id} not found`);
+        throw this.notFoundError('Contest', id);
       }
 
       // Cache for 15 minutes

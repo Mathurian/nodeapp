@@ -5,7 +5,7 @@
 
 import { Score, PrismaClient, Prisma, ScoringType } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
-import { BaseService, NotFoundError, ValidationError, ForbiddenError, ConflictError } from './BaseService';
+import { BaseService, ValidationError, ForbiddenError, ConflictError } from './BaseService';
 import { ScoreRepository } from '../repositories/ScoreRepository';
 import { CacheService } from './CacheService';
 
@@ -228,8 +228,7 @@ export class ScoringService extends BaseService {
       }) as CategoryWithContest | null;
 
       if (!category) {
-        // @ts-expect-error - Legacy NotFoundError signature
-        throw new NotFoundError('Category', categoryId);
+        throw this.notFoundError('Category', categoryId);
       }
 
       // Get the Judge record from the User
@@ -678,7 +677,7 @@ export class ScoringService extends BaseService {
       });
 
       if (!category) {
-        throw new NotFoundError(`Category not found: ${categoryId}`);
+        throw this.notFoundError('Category', categoryId);
       }
 
       // Contest-level setting takes precedence

@@ -2,7 +2,7 @@
 
 Comprehensive guide for optimizing database queries, adding indexes, and improving performance in the Event Manager application.
 
-**Last Updated:** 2025-11-17
+**Last Updated:** 2026-01-27
 
 ---
 

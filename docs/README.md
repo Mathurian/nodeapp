@@ -25,10 +25,11 @@ Welcome to the complete documentation for Event Manager Contest System!
 12. **[11-DISASTER-RECOVERY.md](11-DISASTER-RECOVERY.md)** - Backup and recovery procedures
 13. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow customization
 14. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - System administration and monitoring
+15. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced features and enterprise capabilities
 
 ## Documentation Statistics
 
-- **Total Files**: 14 comprehensive documentation files
+- **Total Files**: 15 comprehensive documentation files
 - **Total Lines**: 7,500+ lines of documentation
 - **Total Size**: ~175 KB
 - **Coverage**: Complete system documentation from architecture to administration
@@ -50,7 +51,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 - Docker deployment option
 
 ### Features & Usage
-- All 8 user roles and capabilities
+- All 9 user roles and capabilities
 - Event, contest, and category management
 - Scoring system and workflows
 - Multi-stage certification process
@@ -179,7 +180,7 @@ This documentation is generated from the actual codebase and should be updated w
 
 - **Documentation Version**: 1.0.0
 - **Application Version**: 1.0.0
-- **Last Updated**: November 2024
+- **Last Updated**: January 2026
 
 ---
 

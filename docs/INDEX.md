@@ -22,6 +22,7 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 11. **[Disaster Recovery](11-DISASTER-RECOVERY.md)** - Backup, recovery, and failover procedures
 12. **[Workflow Customization](12-WORKFLOW-CUSTOMIZATION.md)** - Customizing certification workflows
 13. **[Administrator Guide](13-ADMIN-GUIDE.md)** - System administration, monitoring, and maintenance
+14. **[Advanced Features](14-ADVANCED-FEATURES.md)** - Feature flags, webhooks, custom fields, and 14 more advanced features
 
 ### Additional Resources
 - **[Security Policy](../SECURITY.md)** - Security features and best practices
@@ -35,7 +36,7 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 
 ### Key Features
 - **Multi-Stage Certification Workflow** - Judge, Tally Master, Auditor, and Board approval process
-- **Role-Based Access Control** - 8 distinct user roles with granular permissions
+- **Role-Based Access Control** - 9 distinct user roles with granular permissions
 - **Real-Time Updates** - WebSocket-based live score updates and notifications
 - **Multi-Tenancy** - Full tenant isolation with domain-based routing
 - **Offline Capability** - Progressive Web App (PWA) with offline support
@@ -66,14 +67,15 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 
 ## System Roles
 
-1. **ADMIN** - Full system access and configuration
-2. **ORGANIZER** - Event management and oversight
-3. **BOARD** - Final approval authority
-4. **JUDGE** - Score entry and certification
-5. **CONTESTANT** - View assigned events and results
-6. **EMCEE** - Access to scripts and event flow
-7. **TALLY_MASTER** - Score verification and certification
-8. **AUDITOR** - Independent score audit and review
+1. **SUPER_ADMIN** - Platform-wide access across all tenants
+2. **ADMIN** - Full system access and configuration within tenant
+3. **ORGANIZER** - Event management and oversight
+4. **BOARD** - Final approval authority
+5. **JUDGE** - Score entry and certification
+6. **CONTESTANT** - View assigned events and results
+7. **EMCEE** - Access to scripts and event flow
+8. **TALLY_MASTER** - Score verification and certification
+9. **AUDITOR** - Independent score audit and review
 
 See [Security Guide - Permission Matrix](07-SECURITY.md#permission-matrix) for complete CRUD permissions breakdown by role.
 

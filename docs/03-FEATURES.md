@@ -20,26 +20,42 @@ Complete documentation of all Event Manager features organized by user role and 
 
 ## User Roles
 
-Event Manager supports 8 distinct user roles with specific capabilities:
+Event Manager supports 9 distinct user roles with specific capabilities:
 
-### 1. ADMIN
-**Full System Access**
+### 1. SUPER_ADMIN
+**Platform-Wide Administrative Access**
 
 Capabilities:
-- All ORGANIZER capabilities
+- All ADMIN capabilities across all tenants
+- Multi-tenant management and oversight
+- Platform-level configuration
+- Unrestricted access to all tenant data
+- System-wide security controls
+- Global user management
+- Cross-tenant operations
+- Platform monitoring and metrics
+- Tenant creation and deletion
+- Bypass tenant isolation for support purposes
+
+**Note:** SUPER_ADMIN is the highest privilege level in the system, typically used for platform administrators managing the multi-tenant SaaS environment.
+
+### 2. ADMIN
+**Tenant-Level Full System Access**
+
+Capabilities:
+- All ORGANIZER capabilities within tenant
 - System configuration and settings
-- User management across all tenants
+- User management within tenant
 - Database browser access
 - Cache management
 - Log file access
 - Backup management
 - Security settings
 - Theme customization
-- Multi-tenant management
 - Bulk operations
 - Data wipe capabilities
 
-### 2. ORGANIZER
+### 3. ORGANIZER
 **Event Management**
 
 Capabilities:
@@ -54,7 +70,7 @@ Capabilities:
 - Configure event templates
 - Manage event restrictions
 
-### 3. BOARD
+### 4. BOARD
 **Final Approval Authority**
 
 Capabilities:
@@ -66,7 +82,7 @@ Capabilities:
 - Approve deductions
 - Request score uncertifications
 
-### 4. JUDGE
+### 5. JUDGE
 **Score Entry**
 
 Capabilities:
@@ -78,7 +94,7 @@ Capabilities:
 - Access emcee scripts (if also EMCEE)
 - Request score edits
 
-### 5. TALLY_MASTER
+### 6. TALLY_MASTER
 **Score Verification**
 
 Capabilities:
@@ -90,7 +106,7 @@ Capabilities:
 - Flag discrepancies
 - Review judge certifications
 
-### 6. AUDITOR
+### 7. AUDITOR
 **Independent Audit**
 
 Capabilities:
@@ -102,7 +118,7 @@ Capabilities:
 - Approve final tallies
 - Request uncertifications
 
-### 7. EMCEE
+### 8. EMCEE
 **Event Presentation**
 
 Capabilities:
@@ -113,7 +129,7 @@ Capabilities:
 - Manage script templates
 - Print announcements
 
-### 8. CONTESTANT
+### 9. CONTESTANT
 **Participant View**
 
 Capabilities:

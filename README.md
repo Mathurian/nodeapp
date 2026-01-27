@@ -8,7 +8,7 @@ Multi-tenant event management system built with Node.js, TypeScript, React, and 
 - 🔐 **JWT authentication** - Secure authentication with MFA support
 - 📊 **Event and contest management** - Comprehensive event lifecycle management
 - 🏆 **Scoring system** - Advanced scoring with multi-stage certification workflow
-- 👥 **Role-based access control** - 8 distinct user roles (Admin, Organizer, Judge, Tally Master, Auditor, Board, Emcee, Contestant)
+- 👥 **Role-based access control** - 9 distinct user roles (Super Admin, Admin, Organizer, Judge, Tally Master, Auditor, Board, Emcee, Contestant)
 - 📱 **Responsive UI** - Modern React frontend with real-time updates
 - 📈 **Advanced reporting** - PDF, Excel, and CSV export capabilities
 - 🔄 **Real-time updates** - WebSocket support for live data synchronization

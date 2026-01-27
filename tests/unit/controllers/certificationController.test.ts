@@ -6,22 +6,19 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { CertificationController } from '../../../src/controllers/certificationController';
-import { CertificationService } from '../../../src/services/CertificationService';
 import { container } from 'tsyringe';
 import { createRequestLogger } from '../../../src/utils/logger';
-import { sendSuccess } from '../../../src/utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendConflict } from '../../../src/utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { UserRole } from '@prisma/client';
 
 // Mock dependencies
-jest.mock('../../../src/services/CertificationService');
 jest.mock('../../../src/utils/logger');
 jest.mock('../../../src/utils/responseHelpers');
 
 describe('CertificationController', () => {
   let controller: CertificationController;
-  let mockCertificationService: jest.Mocked<CertificationService>;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -62,22 +59,25 @@ describe('CertificationController', () => {
       error: jest.fn(),
     });
 
-    // Mock sendSuccess helper
+    // Mock response helpers
     (sendSuccess as jest.Mock).mockImplementation((res, data, message, status = 200) => {
       return res.status(status).json({ success: true, data, message });
     });
-
-    mockCertificationService = {
-      getOverallStatus: jest.fn(),
-      certifyAll: jest.fn(),
-    } as any;
+    (sendNotFound as jest.Mock).mockImplementation((res, message) => {
+      return res.status(404).json({ success: false, error: message });
+    });
+    (sendBadRequest as jest.Mock).mockImplementation((res, message) => {
+      return res.status(400).json({ success: false, error: message });
+    });
+    (sendConflict as jest.Mock).mockImplementation((res, message) => {
+      return res.status(409).json({ success: false, error: message });
+    });
 
     mockPrisma = mockDeep<PrismaClient>();
 
     (container.resolve as jest.Mock) = jest.fn((token) => {
       if (token === 'PrismaClient') return mockPrisma;
-      if (token === CertificationService) return mockCertificationService;
-      return mockCertificationService;
+      return mockPrisma;
     });
 
     controller = new CertificationController();
@@ -87,7 +87,8 @@ describe('CertificationController', () => {
       query: {},
       body: {},
       user: { id: 'user-1', role: UserRole.ADMIN },
-    };
+      tenantId: 'tenant-1',
+    } as any;
 
     mockRes = {
       status: jest.fn().mockReturnThis(),
@@ -95,78 +96,6 @@ describe('CertificationController', () => {
     };
 
     mockNext = jest.fn();
-  });
-
-  describe('getOverallStatus', () => {
-    it('should return overall certification status for an event', async () => {
-      mockReq.params = { eventId: 'event-1' };
-      const mockStatus = {
-        eventId: 'event-1',
-        total: 10,
-        certified: 5,
-        pending: 3,
-        inProgress: 2,
-      };
-      mockCertificationService.getOverallStatus.mockResolvedValue(mockStatus as any);
-
-      await controller.getOverallStatus(
-        mockReq as Request,
-        mockRes as Response,
-        mockNext
-      );
-
-      expect(mockCertificationService.getOverallStatus).toHaveBeenCalledWith('event-1');
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockStatus);
-    });
-
-    it('should call next with error when service throws', async () => {
-      mockReq.params = { eventId: 'event-1' };
-      const error = new Error('Service error');
-      mockCertificationService.getOverallStatus.mockRejectedValue(error);
-
-      await controller.getOverallStatus(
-        mockReq as Request,
-        mockRes as Response,
-        mockNext
-      );
-
-      expect(mockNext).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe('certifyAll', () => {
-    it('should certify all categories for an event', async () => {
-      mockReq.params = { eventId: 'event-1' };
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
-      const mockResult = {
-        certifiedCount: 10,
-        message: 'All categories certified',
-      };
-      mockCertificationService.certifyAll.mockResolvedValue(mockResult as any);
-
-      await controller.certifyAll(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockCertificationService.certifyAll).toHaveBeenCalledWith(
-        'event-1',
-        'admin-1',
-        UserRole.ADMIN
-      );
-      expect(sendSuccess).toHaveBeenCalledWith(
-        mockRes,
-        mockResult,
-        'All categories certified'
-      );
-    });
-
-    it('should call next with error when service throws', async () => {
-      mockReq.params = { eventId: 'event-1' };
-      const error = new Error('Service error');
-      mockCertificationService.certifyAll.mockRejectedValue(error);
-
-      await controller.certifyAll(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(error);
-    });
   });
 
   describe('getAllCertifications', () => {
@@ -268,9 +197,9 @@ describe('CertificationController', () => {
       mockReq.user = { id: 'user-1', role: UserRole.ADMIN };
 
       mockPrisma.certification.findUnique.mockResolvedValue(null);
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-1' } as any);
-      mockPrisma.contest.findUnique.mockResolvedValue({ id: 'contest-1' } as any);
-      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event-1' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-1' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' } as any);
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1' } as any);
       mockPrisma.certification.create.mockResolvedValue(mockCertification as any);
 
       await controller.createCertification(
@@ -310,11 +239,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'categoryId, contestId, and eventId are required',
-        400
+        'categoryId, contestId, and eventId are required'
       );
       expect(mockPrisma.certification.create).not.toHaveBeenCalled();
     });
@@ -333,11 +260,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendConflict).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Certification already exists for this category/contest/event',
-        409
+        'Certification already exists for this category/contest/event'
       );
       expect(mockPrisma.certification.create).not.toHaveBeenCalled();
     });
@@ -349,9 +274,9 @@ describe('CertificationController', () => {
         eventId: 'event-1',
       };
       mockPrisma.certification.findUnique.mockResolvedValue(null);
-      mockPrisma.category.findUnique.mockResolvedValue(null);
-      mockPrisma.contest.findUnique.mockResolvedValue({ id: 'contest-1' } as any);
-      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event-1' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue(null);
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' } as any);
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1' } as any);
 
       await controller.createCertification(
         mockReq as Request,
@@ -359,7 +284,7 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'Category not found', 404);
+      expect(sendNotFound).toHaveBeenCalledWith(mockRes, 'Category not found or access denied');
       expect(mockPrisma.certification.create).not.toHaveBeenCalled();
     });
 
@@ -370,9 +295,9 @@ describe('CertificationController', () => {
         eventId: 'event-1',
       };
       mockPrisma.certification.findUnique.mockResolvedValue(null);
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-1' } as any);
-      mockPrisma.contest.findUnique.mockResolvedValue(null);
-      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event-1' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-1' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue(null);
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1' } as any);
 
       await controller.createCertification(
         mockReq as Request,
@@ -380,7 +305,7 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'Contest not found', 404);
+      expect(sendNotFound).toHaveBeenCalledWith(mockRes, 'Contest not found or access denied');
       expect(mockPrisma.certification.create).not.toHaveBeenCalled();
     });
 
@@ -391,9 +316,9 @@ describe('CertificationController', () => {
         eventId: 'event-1',
       };
       mockPrisma.certification.findUnique.mockResolvedValue(null);
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-1' } as any);
-      mockPrisma.contest.findUnique.mockResolvedValue({ id: 'contest-1' } as any);
-      mockPrisma.event.findUnique.mockResolvedValue(null);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-1' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' } as any);
+      mockPrisma.event.findFirst.mockResolvedValue(null);
 
       await controller.createCertification(
         mockReq as Request,
@@ -401,7 +326,7 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'Event not found', 404);
+      expect(sendNotFound).toHaveBeenCalledWith(mockRes, 'Event not found or access denied');
       expect(mockPrisma.certification.create).not.toHaveBeenCalled();
     });
   });
@@ -446,11 +371,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendNotFound).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Certification not found',
-        404
+        'Certification not found'
       );
       expect(mockPrisma.certification.update).not.toHaveBeenCalled();
     });
@@ -488,11 +411,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendNotFound).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Certification not found',
-        404
+        'Certification not found'
       );
       expect(mockPrisma.certification.delete).not.toHaveBeenCalled();
     });
@@ -526,11 +447,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendNotFound).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Certification not found',
-        404
+        'Certification not found'
       );
     });
   });
@@ -580,11 +499,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendNotFound).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Certification not found',
-        404
+        'Certification not found'
       );
     });
 
@@ -601,11 +518,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Judge certification already completed',
-        400
+        'Judge certification already completed'
       );
       expect(mockPrisma.certification.update).not.toHaveBeenCalled();
     });
@@ -659,11 +574,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Judge must certify first',
-        400
+        'Judge must certify first'
       );
       expect(mockPrisma.certification.update).not.toHaveBeenCalled();
     });
@@ -682,11 +595,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Tally Master certification already completed',
-        400
+        'Tally Master certification already completed'
       );
     });
   });
@@ -735,11 +646,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Tally Master must certify first',
-        400
+        'Tally Master must certify first'
       );
     });
 
@@ -758,11 +667,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Auditor certification already completed',
-        400
+        'Auditor certification already completed'
       );
     });
   });
@@ -824,11 +731,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Auditor must certify first',
-        400
+        'Auditor must certify first'
       );
     });
 
@@ -848,11 +753,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Board approval already completed',
-        400
+        'Board approval already completed'
       );
     });
   });
@@ -901,11 +804,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Rejection reason is required',
-        400
+        'Rejection reason is required'
       );
       expect(mockPrisma.certification.update).not.toHaveBeenCalled();
     });
@@ -921,11 +822,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendNotFound).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Certification not found',
-        404
+        'Certification not found'
       );
     });
 
@@ -943,11 +842,9 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Cannot reject a finalized certification',
-        400
+        'Cannot reject a finalized certification'
       );
       expect(mockPrisma.certification.update).not.toHaveBeenCalled();
     });
@@ -1051,11 +948,9 @@ describe('CertificationController', () => {
         mockRes as Response,
         mockNext
       );
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Judge must certify first',
-        400
+        'Judge must certify first'
       );
 
       // Try to certify as Auditor before any - should fail
@@ -1064,11 +959,9 @@ describe('CertificationController', () => {
         mockRes as Response,
         mockNext
       );
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Tally Master must certify first',
-        400
+        'Tally Master must certify first'
       );
 
       // Try to approve by Board before any - should fail
@@ -1077,11 +970,9 @@ describe('CertificationController', () => {
         mockRes as Response,
         mockNext
       );
-      expect(sendSuccess).toHaveBeenCalledWith(
+      expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        {},
-        'Auditor must certify first',
-        400
+        'Auditor must certify first'
       );
     });
   });

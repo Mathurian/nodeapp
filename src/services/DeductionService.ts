@@ -1,11 +1,10 @@
-// @ts-nocheck - Legacy code with type issues
 /**
  * Deduction Service
  * Business logic for deduction requests and approvals
  */
 
 import { injectable, inject } from 'tsyringe';
-import { BaseService, NotFoundError, ValidationError } from './BaseService';
+import { BaseService, ValidationError } from './BaseService';
 import {
   DeductionRepository,
   CreateDeductionData,
@@ -84,12 +83,11 @@ export class DeductionService extends BaseService {
     ]);
 
     if (!contestant) {
-        // @ts-expect-error - Legacy NotFoundError signature
-      throw new NotFoundError('Contestant', data.contestantId);
+      throw this.notFoundError('Contestant', data.contestantId);
     }
 
     if (!category) {
-      throw new NotFoundError('Category', data.categoryId);
+      throw this.notFoundError('Category', data.categoryId);
     }
 
     return await this.deductionRepo.createDeduction(data);
@@ -160,9 +158,8 @@ export class DeductionService extends BaseService {
 
     // Find deduction request
     const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
-          // @ts-expect-error - Legacy NotFoundError signature
     if (!deductionRequest) {
-      throw new NotFoundError('Deduction request', id);
+      throw this.notFoundError('Deduction request', id);
     }
 
     if (deductionRequest.status !== 'PENDING') {
@@ -230,10 +227,9 @@ export class DeductionService extends BaseService {
   ): Promise<void> {
     this.validateRequired({ id, reason } as unknown as Record<string, unknown>, ['id', 'reason']);
 
-          // @ts-expect-error - Legacy NotFoundError signature
     const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
     if (!deductionRequest) {
-      throw new NotFoundError('Deduction request', id);
+      throw this.notFoundError('Deduction request', id);
     }
 
     if (deductionRequest.status !== 'PENDING') {
@@ -253,11 +249,10 @@ export class DeductionService extends BaseService {
   async getApprovalStatus(
     id: string,
     tenantId: string
-          // @ts-expect-error - Legacy NotFoundError signature
   ): Promise<DeductionWithRelations & { approvalStatus: ApprovalStatus }> {
     const deductionRequest = await this.deductionRepo.findByIdWithRelations(id, tenantId);
     if (!deductionRequest) {
-      throw new NotFoundError('Deduction request', id);
+      throw this.notFoundError('Deduction request', id);
     }
 
     const approvalStatus = this.calculateApprovalStatus(

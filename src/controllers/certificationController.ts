@@ -1,42 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
-import { CertificationService } from '../services/CertificationService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendConflict, sendUnauthorized } from '../utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendConflict } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 
 export class CertificationController {
-  private certificationService: CertificationService;
   private prisma: PrismaClient;
 
   constructor() {
-    this.certificationService = container.resolve(CertificationService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
-
-  getOverallStatus = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { eventId } = req.params;
-      const status = await this.certificationService.getOverallStatus(eventId!);
-      return sendSuccess(res, status);
-    } catch (error) {
-      return next(error);
-    }
-  };
-
-  certifyAll = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      // Guard: Ensure user is authenticated
-      if (!req.user) {
-        return sendUnauthorized(res);
-      }
-
-      const { eventId } = req.params;
-      const result = await this.certificationService.certifyAll(eventId!, req.user.id, req.user.role);
-      return sendSuccess(res, result, 'All categories certified');
-    } catch (error) {
-      return next(error);
-    }
-  };
 
   getAllCertifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
@@ -452,8 +424,6 @@ export class CertificationController {
 }
 
 const controller = new CertificationController();
-export const getOverallStatus = controller.getOverallStatus;
-export const certifyAll = controller.certifyAll;
 export const getAllCertifications = controller.getAllCertifications;
 export const createCertification = controller.createCertification;
 export const updateCertification = controller.updateCertification;

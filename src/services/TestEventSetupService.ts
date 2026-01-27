@@ -204,6 +204,13 @@ export class TestEventSetupService extends BaseService {
       admins: 0
     };
 
+    // Get tenant slug for email domain
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true }
+    });
+    const emailDomain = tenant?.slug || 'test';
+
     const result: any = await this.prisma.$transaction(async (tx) => {
       // Create event
       const event = await tx.event.create({
@@ -224,7 +231,7 @@ export class TestEventSetupService extends BaseService {
           data: {
             tenantId,
             name: `Test Admin ${i + 1}`,
-            email: `testadmin_${Date.now()}_${i + 1}@test.com`,
+            email: `admin${i + 1}@${emailDomain}.com`,
             password: hashedPassword,
             role: 'ADMIN',
             isActive: true
@@ -239,7 +246,7 @@ export class TestEventSetupService extends BaseService {
           data: {
             tenantId,
             name: `Test Emcee ${i + 1}`,
-            email: `testemcee_${Date.now()}_${i + 1}@test.com`,
+            email: `emcee${i + 1}@${emailDomain}.com`,
             password: hashedPassword,
             role: 'EMCEE',
             isActive: true
@@ -266,7 +273,7 @@ export class TestEventSetupService extends BaseService {
           data: {
             tenantId,
             name: `Test Organizer ${i + 1}`,
-            email: `testorganizer_${Date.now()}_${i + 1}@test.com`,
+            email: `organizer${i + 1}@${emailDomain}.com`,
             password: hashedPassword,
             role: 'ORGANIZER',
             isActive: true
@@ -281,7 +288,7 @@ export class TestEventSetupService extends BaseService {
           data: {
             tenantId,
             name: `Test Board ${i + 1}`,
-            email: `testboard_${Date.now()}_${i + 1}@test.com`,
+            email: `board${i + 1}@${emailDomain}.com`,
             password: hashedPassword,
             role: 'BOARD',
             isActive: true
@@ -307,11 +314,12 @@ export class TestEventSetupService extends BaseService {
 
         // Create tally masters for this contest
         for (let t = 0; t < tallyMastersPerContest; t++) {
+          const tallyNum = (c * tallyMastersPerContest) + t + 1;
           const user = await tx.user.create({
             data: {
               tenantId,
-              name: `Test Tally Master ${c + 1}-${t + 1}`,
-              email: `testtally_${Date.now()}_${c + 1}_${t + 1}@test.com`,
+              name: `Test Tally Master ${tallyNum}`,
+              email: `tally${tallyNum}@${emailDomain}.com`,
               password: hashedPassword,
               role: 'TALLY_MASTER',
               isActive: true
@@ -335,11 +343,12 @@ export class TestEventSetupService extends BaseService {
 
         // Create auditors for this contest
         for (let a = 0; a < auditorsPerContest; a++) {
+          const auditorNum = (c * auditorsPerContest) + a + 1;
           const user = await tx.user.create({
             data: {
               tenantId,
-              name: `Test Auditor ${c + 1}-${a + 1}`,
-              email: `testauditor_${Date.now()}_${c + 1}_${a + 1}@test.com`,
+              name: `Test Auditor ${auditorNum}`,
+              email: `auditor${auditorNum}@${emailDomain}.com`,
               password: hashedPassword,
               role: 'AUDITOR',
               isActive: true
@@ -364,12 +373,13 @@ export class TestEventSetupService extends BaseService {
         // Create judges for this contest (not per category)
         const contestJudges = [];
         for (let j = 0; j < judgesPerCategory; j++) {
+          const judgeNum = (c * judgesPerCategory) + j + 1;
           const judge = await tx.judge.create({
             data: {
               tenantId,
-              name: `Test Judge ${c + 1}-${j + 1}`,
-              email: `testjudge_${Date.now()}_${c + 1}_${j + 1}@test.com`,
-              bio: `Test judge bio ${c + 1}-${j + 1}`
+              name: `Test Judge ${judgeNum}`,
+              email: `judge${judgeNum}@${emailDomain}.com`,
+              bio: `Test judge bio ${judgeNum}`
             }
           });
           counts.judges++;
@@ -379,7 +389,7 @@ export class TestEventSetupService extends BaseService {
             data: {
               tenantId,
               name: judge.name,
-              email: judge.email || `judge_${Date.now()}_${judge.id}@test.com`,
+              email: judge.email || `judge${judgeNum}@${emailDomain}.com`,
               password: hashedPassword,
               role: 'JUDGE',
               isActive: true
@@ -472,13 +482,14 @@ export class TestEventSetupService extends BaseService {
 
           // Create contestants for this category
           for (let cont = 0; cont < contestantsPerCategory; cont++) {
+            const contestantNum = (c * categoriesPerContest * contestantsPerCategory) + (cat * contestantsPerCategory) + cont + 1;
             const contestant = await tx.contestant.create({
               data: {
                 tenantId,
-                name: `Test Contestant ${c + 1}-${cat + 1}-${cont + 1}`,
-                email: `testcontestant_${Date.now()}_${c + 1}_${cat + 1}_${cont + 1}@test.com`,
-                bio: `Test contestant bio ${c + 1}-${cat + 1}-${cont + 1}`,
-                contestantNumber: cont + 1
+                name: `Test Contestant ${contestantNum}`,
+                email: `contestant${contestantNum}@${emailDomain}.com`,
+                bio: `Test contestant bio ${contestantNum}`,
+                contestantNumber: contestantNum
               }
             });
             counts.contestants++;
@@ -488,7 +499,7 @@ export class TestEventSetupService extends BaseService {
               data: {
                 tenantId,
                 name: contestant.name,
-                email: contestant.email || `contestant_${Date.now()}_${contestant.id}@test.com`,
+                email: contestant.email || `contestant${contestantNum}@${emailDomain}.com`,
                 password: hashedPassword,
                 role: 'CONTESTANT',
                 isActive: true

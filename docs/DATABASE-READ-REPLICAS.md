@@ -759,6 +759,6 @@ const stats = await db.read.$queryRaw`
 
 ---
 
-*Last Updated: November 25, 2025*
+*Last Updated: January 27, 2026*
 *Owner: DevOps/Engineering Team*
 *Review Frequency: Quarterly*

@@ -1,4 +1,4 @@
-// @ts-nocheck - Legacy code with type issues
+// @ts-nocheck - Has real implementation issues requiring fixes beyond type cleanup
 /**
  * Cache Admin Controller
  * Admin endpoints for cache management and monitoring
