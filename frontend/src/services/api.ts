@@ -279,20 +279,20 @@ export const archiveAPI = {
 }
 
 export const backupAPI = {
-  getAll: () => api.get('/backup'),
-  create: (type: 'FULL' | 'SCHEMA' | 'DATA') => api.post('/backup', { type }),
-  list: () => api.get('/backup'),
+  getAll: () => api.get('/backups'),
+  create: (type: 'FULL' | 'SCHEMA' | 'DATA') => api.post('/backups', { type }),
+  list: () => api.get('/backups'),
   download: async (backupId: string) => {
-    const response = await api.get(`/backup/${backupId}/download`, { responseType: 'blob' })
+    const response = await api.get(`/backups/${backupId}/download`, { responseType: 'blob' })
     return response.data
   },
   restore: (backupIdOrFile: string | File) => {
     if (typeof backupIdOrFile === 'string') {
-      return api.post(`/backup/${backupIdOrFile}/restore`)
+      return api.post(`/backups/${backupIdOrFile}/restore`)
     } else {
       const formData = new FormData()
       formData.append('file', backupIdOrFile)
-      return api.post('/backup/restore-from-file', formData, {
+      return api.post('/backups/restore-from-file', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -302,13 +302,13 @@ export const backupAPI = {
   restoreFromFile: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post('/backup/restore-from-file', formData, {
+    return api.post('/backups/restore-from-file', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
   },
-  delete: (backupId: string) => api.delete(`/backup/${backupId}`),
+  delete: (backupId: string) => api.delete(`/backups/${backupId}`),
 }
 
 export const settingsAPI = {

@@ -276,7 +276,7 @@ export class PerformanceService extends BaseService {
       system: systemInfo,
       database: {
         status: dbStatus ? 'connected' : 'disconnected',
-        connectionCount: connectionCount[0]?.count || 0,
+        connectionCount: Number(connectionCount[0]?.count || 0),
       },
       disk: diskUsage,
     };

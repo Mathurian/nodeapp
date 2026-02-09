@@ -1,6 +1,9 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('DatabaseBrowserService');
 
 @injectable()
 export class DatabaseBrowserService extends BaseService {
@@ -171,13 +174,13 @@ export class DatabaseBrowserService extends BaseService {
           resourceId: recordId,
           userId: userId,
           logLevel: 'INFO',
-          details: {
+          details: JSON.parse(JSON.stringify({
             table: tableName,
             recordId,
             originalData: originalRecord,
             updatedFields: Object.keys(sanitizedData),
             newData: sanitizedData
-          }
+          })) as Prisma.InputJsonValue
         }
       });
 
@@ -208,7 +211,7 @@ export class DatabaseBrowserService extends BaseService {
     const protectedTables = ['tenant'];
     if (protectedTables.includes(tableName.toLowerCase())) {
       // Allow deletion but log as critical
-      this.logger.warn(`Deleting record from protected table: ${tableName}`, { recordId, userId });
+      logger.warn(`Deleting record from protected table: ${tableName}`, { recordId, userId });
     }
 
     try {
@@ -234,11 +237,11 @@ export class DatabaseBrowserService extends BaseService {
           resourceId: recordId,
           userId: userId,
           logLevel: 'WARN',
-          details: {
+          details: JSON.parse(JSON.stringify({
             table: tableName,
             recordId,
             deletedData: record
-          }
+          })) as Prisma.InputJsonValue
         }
       });
 
@@ -283,11 +286,11 @@ export class DatabaseBrowserService extends BaseService {
           resourceId: newRecord.id,
           userId: userId,
           logLevel: 'INFO',
-          details: {
+          details: JSON.parse(JSON.stringify({
             table: tableName,
             recordId: newRecord.id,
             createdData: data
-          }
+          })) as Prisma.InputJsonValue
         }
       });
 

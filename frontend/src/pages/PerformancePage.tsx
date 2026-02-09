@@ -52,12 +52,43 @@ const PerformancePage: React.FC = () => {
   const fetchMetrics = async () => {
     try {
       setLoading(true)
-      const [metricsRes, queriesRes] = await Promise.all([
-        api.get('/performance/metrics'),
-        api.get('/performance/slow-queries'),
-      ])
-      setMetrics(metricsRes.data)
-      setSlowQueries(queriesRes.data)
+      const dashboardRes = await api.get('/performance/dashboard')
+      const dashboard = dashboardRes.data?.data || dashboardRes.data
+
+      // Map dashboard response to expected metrics format
+      setMetrics({
+        cpu: {
+          usage: (dashboard.system?.cpu?.user || 0) / 1000000, // Convert microseconds to percentage approximation
+          loadAverage: dashboard.system?.loadAverage || [0, 0, 0],
+        },
+        memory: {
+          used: dashboard.system?.memory?.heapUsed || 0,
+          total: dashboard.system?.memory?.heapTotal || 1,
+          percentage: dashboard.system?.memory?.heapTotal
+            ? (dashboard.system?.memory?.heapUsed / dashboard.system?.memory?.heapTotal) * 100
+            : 0,
+        },
+        database: {
+          activeConnections: dashboard.database?.activeConnections || 0,
+          slowQueries: 0, // Not tracked as a list
+          averageQueryTime: dashboard.performance?.averageResponseTime || 0,
+        },
+        requests: {
+          totalRequests: dashboard.performance?.totalRequests || 0,
+          averageResponseTime: dashboard.performance?.averageResponseTime || 0,
+          errorRate: parseFloat(dashboard.performance?.errorRate || '0'),
+        },
+      })
+
+      // Map slow endpoints as "slow queries" for display
+      const slowEndpoints = dashboard.performance?.slowEndpoints || []
+      setSlowQueries(
+        slowEndpoints.map((ep: any) => ({
+          query: ep.endpoint,
+          duration: ep._avg?.responseTime || 0,
+          timestamp: new Date().toISOString(),
+        }))
+      )
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load performance metrics')
     } finally {
@@ -260,16 +291,16 @@ const PerformancePage: React.FC = () => {
           </>
         )}
 
-        {/* Slow Queries */}
+        {/* Slow Endpoints */}
         <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
-              Slow Queries
+              Slow Endpoints
             </h2>
           </div>
           {slowQueries.length === 0 ? (
             <div className="p-12 text-center text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-              No slow queries detected
+              No slow endpoints detected
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
