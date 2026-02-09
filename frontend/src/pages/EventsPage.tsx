@@ -18,6 +18,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
+import { ConfirmModal } from '../components/ui'
 
 interface Event {
   id: string
@@ -64,6 +65,10 @@ const EventsPage: React.FC = () => {
   })
   const [dateFilters, setDateFilters] = useState<DateFilters>({
     sortDirection: 'asc',
+  })
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; event: Event | null }>({
+    isOpen: false,
+    event: null,
   })
 
   // Check permissions
@@ -190,9 +195,14 @@ const EventsPage: React.FC = () => {
   }
 
   const handleDelete = (event: Event) => {
-    if (window.confirm(`Are you sure you want to delete "${event.name}"? This action cannot be undone.`)) {
-      deleteMutation.mutate(event.id)
+    setConfirmDelete({ isOpen: true, event })
+  }
+
+  const executeDelete = () => {
+    if (confirmDelete.event) {
+      deleteMutation.mutate(confirmDelete.event.id)
     }
+    setConfirmDelete({ isOpen: false, event: null })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -427,6 +437,7 @@ const EventsPage: React.FC = () => {
                 <button
                   onClick={resetForm}
                   className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label="Close dialog"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -554,6 +565,18 @@ const EventsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Delete Event Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmDelete.isOpen}
+          onClose={() => setConfirmDelete({ isOpen: false, event: null })}
+          onConfirm={executeDelete}
+          title="Delete Event"
+          message={`Are you sure you want to delete "${confirmDelete.event?.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="danger"
+          loading={deleteMutation.isLoading}
+        />
       </div>
     </div>
   )

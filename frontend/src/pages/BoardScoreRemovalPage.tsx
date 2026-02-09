@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { scoringAPI } from '../services/api'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
 
 interface ScoreRemovalRequest {
   id: string
@@ -21,6 +22,10 @@ const BoardScoreRemovalPage: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<ScoreRemovalRequest | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [confirmApprove, setConfirmApprove] = useState<{ isOpen: boolean; request: ScoreRemovalRequest | null }>({
+    isOpen: false,
+    request: null,
+  })
 
   const { data: requests, isLoading, error } = useQuery<ScoreRemovalRequest[]>(
     'score-removal-requests',
@@ -85,9 +90,14 @@ const BoardScoreRemovalPage: React.FC = () => {
   )
 
   const handleApprove = (request: ScoreRemovalRequest) => {
-    if (window.confirm(`Approve score removal for ${request.contestantName}?`)) {
-      approveMutation.mutate(request.id)
+    setConfirmApprove({ isOpen: true, request })
+  }
+
+  const executeApprove = () => {
+    if (confirmApprove.request) {
+      approveMutation.mutate(confirmApprove.request.id)
     }
+    setConfirmApprove({ isOpen: false, request: null })
   }
 
   const handleReject = (request: ScoreRemovalRequest) => {
@@ -268,6 +278,18 @@ const BoardScoreRemovalPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Approve Score Removal Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmApprove.isOpen}
+          onClose={() => setConfirmApprove({ isOpen: false, request: null })}
+          onConfirm={executeApprove}
+          title="Approve Score Removal"
+          message={`Approve score removal for ${confirmApprove.request?.contestantName}?`}
+          confirmText="Approve"
+          variant="warning"
+          loading={approveMutation.isLoading}
+        />
       </div>
     </div>
   )

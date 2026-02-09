@@ -11,6 +11,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
 
 interface RateLimitConfig {
   id: string
@@ -65,6 +66,7 @@ const RateLimitConfigPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterEnabled, setFilterEnabled] = useState<boolean | null>(null)
   const [filterTier, setFilterTier] = useState<string>('')
+  const [confirmResetTiers, setConfirmResetTiers] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -129,10 +131,11 @@ const RateLimitConfigPage: React.FC = () => {
   }
 
   const resetTiers = async () => {
-    if (!window.confirm('Are you sure you want to reset all tier definitions to defaults? This cannot be undone.')) {
-      return
-    }
+    setConfirmResetTiers(true)
+  }
 
+  const executeResetTiers = async () => {
+    setConfirmResetTiers(false)
     try {
       setError(null)
       setSuccess(null)
@@ -874,6 +877,17 @@ const RateLimitConfigPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Reset Tiers Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmResetTiers}
+          onClose={() => setConfirmResetTiers(false)}
+          onConfirm={executeResetTiers}
+          title="Reset Tier Definitions"
+          message="Are you sure you want to reset all tier definitions to defaults? This cannot be undone."
+          confirmText="Reset"
+          variant="danger"
+        />
       </div>
     </div>
   )

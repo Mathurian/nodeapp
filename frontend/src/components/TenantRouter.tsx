@@ -61,6 +61,7 @@ const BoardCertificationsPage = lazy(() => import('../pages/BoardCertificationsP
 const BoardScoreRemovalPage = lazy(() => import('../pages/BoardScoreRemovalPage'))
 const PermissionsPage = lazy(() => import('../pages/PermissionsPage'))
 const PermissionAuditLogPage = lazy(() => import('../pages/PermissionAuditLogPage'))
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -264,8 +265,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<Navigate to={`${basePath}/dashboard`} replace />} />
 
-            {/* Catch-all redirect */}
-            <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+            {/* 404 Not Found */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </Layout>

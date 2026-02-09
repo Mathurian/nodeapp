@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,6 +6,7 @@ import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
 import { settingsAPI } from '../services/api'
+import AccordionNav from './AccordionNav'
 import {
   UserIcon,
   BellIcon,
@@ -17,7 +18,9 @@ import {
   ClockIcon,
   LightBulbIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  Bars3Icon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 
 interface LayoutProps {
@@ -25,10 +28,59 @@ interface LayoutProps {
   onOpenCommandPalette?: () => void
 }
 
+const SIDEBAR_STORAGE_KEY = 'event-manager-sidebar-open'
+
 const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Initialize from localStorage, default to true on desktop
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      if (stored !== null) {
+        return stored === 'true'
+      }
+    }
+    return true
+  })
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { user, logout } = useAuth()
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarOpen))
+  }, [sidebarOpen])
+
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [mobileMenuOpen])
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileMenuOpen])
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev)
+  }, [])
+
+  const toggleMobileMenu = useCallback(() => {
+    setMobileMenuOpen(prev => !prev)
+  }, [])
   const { buildPath } = useTenant()
   const { isConnected } = useSocket()
   const { getRecentCommands, getFavoriteCommands } = useCommands({
@@ -108,9 +160,37 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Skip Navigation Link - Accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:bg-white focus:px-4 focus:py-2 focus:rounded focus:shadow-lg dark:focus:bg-gray-800 focus:text-gray-900 dark:focus:text-gray-100 focus:ring-2 focus:ring-indigo-500"
+      >
+        Skip to main content
+      </a>
+
       {/* Minimal Top Bar - Command Palette First */}
       <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex items-center justify-between px-4 lg:px-6 py-3">
+          {/* Hamburger Menu for Mobile */}
+          <button
+            onClick={toggleMobileMenu}
+            className="lg:hidden p-2 -ml-2 mr-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <Bars3Icon className="h-6 w-6" />
+          </button>
+
+          {/* Sidebar Toggle for Desktop */}
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex p-2 -ml-2 mr-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            aria-expanded={sidebarOpen}
+          >
+            <Bars3Icon className="h-5 w-5" />
+          </button>
+
           {/* Logo - links to dashboard */}
           <Link
             to={user?.tenant?.slug ? `/${user.tenant.slug}/dashboard` : '/dashboard'}
@@ -358,16 +438,66 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         )}
       </div>
 
-      {/* Main Content - Full Width, No Sidebar */}
-      <main className="p-4 lg:p-6 max-w-[1920px] mx-auto">
-        {children}
-      </main>
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/50 transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Drawer */}
+          <div className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Navigation
+              </span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Close navigation menu"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Navigation Content */}
+            <AccordionNav className="py-2" />
+          </div>
+        </div>
+      )}
+
+      {/* Main Layout with Sidebar */}
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <aside
+          className={`hidden lg:block ${sidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden`}
+          aria-label="Main navigation"
+        >
+          <div className="w-64 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <AccordionNav className="py-2" />
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main
+          id="main-content"
+          className="flex-1 p-4 lg:p-6 max-w-[1920px] mx-auto min-w-0"
+          tabIndex={-1}
+        >
+          {children}
+        </main>
+      </div>
 
       {/* Floating Command Palette Hint - Mobile */}
       <button
         onClick={onOpenCommandPalette}
         className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all z-40 flex items-center justify-center"
         title="Open Command Palette"
+        aria-label="Open Command Palette"
       >
         <MagnifyingGlassIcon className="h-6 w-6" />
       </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { categoriesAPI, contestsAPI } from '../services/api'
@@ -14,6 +15,8 @@ import {
   ArchiveBoxIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
+import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 
 interface Contest {
   id: string
@@ -64,6 +67,7 @@ interface CategoryFormData {
 const CategoriesPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const { contestId, slug } = useParams<{ contestId?: string; slug?: string }>()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedContestFilter, setSelectedContestFilter] = useState<string>('')
@@ -77,6 +81,10 @@ const CategoriesPage: React.FC = () => {
     timeLimit: '',
     contestantMin: '',
     contestantMax: '',
+  })
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; category: Category | null }>({
+    isOpen: false,
+    category: null,
   })
 
   // Check permissions
@@ -100,6 +108,29 @@ const CategoriesPage: React.FC = () => {
       onError: (err) => console.error('Fetch contests failed:', err),
     }
   )
+
+  // Get parent contest for breadcrumb when accessed via /contests/:contestId/categories
+  const parentContest = contestId ? contests?.find(c => c.id === contestId) : null
+
+  // Build breadcrumb items
+  const buildBreadcrumbItems = (): BreadcrumbItem[] => {
+    const basePath = slug ? `/${slug}` : ''
+    const items: BreadcrumbItem[] = []
+
+    if (parentContest) {
+      items.push({ label: 'Events', href: `${basePath}/events` })
+      if (parentContest.event) {
+        items.push({ label: parentContest.event.name, href: `${basePath}/events/${parentContest.eventId}/contests` })
+      }
+      items.push({ label: parentContest.name })
+      items.push({ label: 'Categories' })
+    } else if (contestId) {
+      items.push({ label: 'Contests', href: `${basePath}/contests` })
+      items.push({ label: 'Categories' })
+    }
+
+    return items
+  }
 
   // Fetch categories
   const { data: categories = [], isLoading, error: categoriesError } = useQuery<Category[]>(
@@ -219,9 +250,14 @@ const CategoriesPage: React.FC = () => {
   }
 
   const handleDelete = (category: Category) => {
-    if (window.confirm(`Are you sure you want to delete "${category.name}"? This action cannot be undone.`)) {
-      deleteMutation.mutate(category.id)
+    setConfirmDelete({ isOpen: true, category })
+  }
+
+  const executeDelete = () => {
+    if (confirmDelete.category) {
+      deleteMutation.mutate(confirmDelete.category.id)
     }
+    setConfirmDelete({ isOpen: false, category: null })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -271,12 +307,17 @@ const CategoriesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb - only show when accessed via contest context */}
+        {contestId && (
+          <Breadcrumb items={buildBreadcrumbItems()} />
+        )}
+
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
               <ListBulletIcon className="h-8 w-8 mr-3 text-blue-600" />
-              Categories
+              {parentContest ? `${parentContest.name} - Categories` : 'Categories'}
             </h1>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               Manage competition categories and judging criteria
@@ -447,6 +488,7 @@ const CategoriesPage: React.FC = () => {
                 <button
                   onClick={resetForm}
                   className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                  aria-label="Close dialog"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -594,6 +636,18 @@ const CategoriesPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Delete Category Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmDelete.isOpen}
+          onClose={() => setConfirmDelete({ isOpen: false, category: null })}
+          onConfirm={executeDelete}
+          title="Delete Category"
+          message={`Are you sure you want to delete "${confirmDelete.category?.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="danger"
+          loading={deleteMutation.isLoading}
+        />
       </div>
     </div>
   )

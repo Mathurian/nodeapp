@@ -6,6 +6,7 @@ import {
   FlagIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
 
 interface Score {
   id: string
@@ -28,6 +29,10 @@ const AuditorScoreVerificationPage: React.FC = () => {
   const [flagComment, setFlagComment] = useState('')
   const [notes, setNotes] = useState('')
   const [showFlagModal, setShowFlagModal] = useState(false)
+  const [confirmVerify, setConfirmVerify] = useState<{ isOpen: boolean; score: Score | null }>({
+    isOpen: false,
+    score: null,
+  })
   const [showNotesModal, setShowNotesModal] = useState(false)
 
   const { data: scores, isLoading, error } = useQuery<Score[]>(
@@ -119,9 +124,14 @@ const AuditorScoreVerificationPage: React.FC = () => {
   )
 
   const handleVerify = (score: Score) => {
-    if (window.confirm(`Verify score ${score.score} for ${score.contestantName}?`)) {
-      verifyMutation.mutate(score.id)
+    setConfirmVerify({ isOpen: true, score })
+  }
+
+  const executeVerify = () => {
+    if (confirmVerify.score) {
+      verifyMutation.mutate(confirmVerify.score.id)
     }
+    setConfirmVerify({ isOpen: false, score: null })
   }
 
   const handleFlag = (score: Score) => {
@@ -344,6 +354,18 @@ const AuditorScoreVerificationPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Verify Score Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmVerify.isOpen}
+          onClose={() => setConfirmVerify({ isOpen: false, score: null })}
+          onConfirm={executeVerify}
+          title="Verify Score"
+          message={`Verify score ${confirmVerify.score?.score} for ${confirmVerify.score?.contestantName}?`}
+          confirmText="Verify"
+          variant="info"
+          loading={verifyMutation.isLoading}
+        />
       </div>
     </div>
   )

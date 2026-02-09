@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { boardAPI } from '../services/api'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
 
 interface Certification {
   id: string
@@ -21,6 +22,10 @@ const BoardCertificationsPage: React.FC = () => {
   const [selectedCertification, setSelectedCertification] = useState<Certification | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [confirmApprove, setConfirmApprove] = useState<{ isOpen: boolean; certification: Certification | null }>({
+    isOpen: false,
+    certification: null,
+  })
 
   const { data: certifications, isLoading, error } = useQuery<Certification[]>(
     'board-certifications',
@@ -69,9 +74,14 @@ const BoardCertificationsPage: React.FC = () => {
   )
 
   const handleApprove = (certification: Certification) => {
-    if (window.confirm(`Approve certification for ${certification.categoryName}?`)) {
-      approveMutation.mutate(certification.id)
+    setConfirmApprove({ isOpen: true, certification })
+  }
+
+  const executeApprove = () => {
+    if (confirmApprove.certification) {
+      approveMutation.mutate(confirmApprove.certification.id)
     }
+    setConfirmApprove({ isOpen: false, certification: null })
   }
 
   const handleReject = (certification: Certification) => {
@@ -246,6 +256,18 @@ const BoardCertificationsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Approve Certification Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmApprove.isOpen}
+          onClose={() => setConfirmApprove({ isOpen: false, certification: null })}
+          onConfirm={executeApprove}
+          title="Approve Certification"
+          message={`Approve certification for ${confirmApprove.certification?.categoryName}?`}
+          confirmText="Approve"
+          variant="info"
+          loading={approveMutation.isLoading}
+        />
       </div>
     </div>
   )

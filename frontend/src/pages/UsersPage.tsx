@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
+import { ConfirmModal } from '../components/ui'
 
 interface User {
   id: string
@@ -129,6 +130,11 @@ const UsersPage: React.FC = () => {
   const bioFileInputRef = useRef<HTMLInputElement>(null)
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [loadingCustomFields, setLoadingCustomFields] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; user: User | null }>({
+    isOpen: false,
+    user: null,
+  })
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
 
   // Check permissions
   const canManageUsers = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(currentUser?.role || '')
@@ -474,9 +480,14 @@ const UsersPage: React.FC = () => {
       toast.error('You cannot delete your own account!')
       return
     }
-    if (window.confirm(`Are you sure you want to delete user "${user.name}"? This action cannot be undone.`)) {
-      deleteMutation.mutate(user.id)
+    setConfirmDelete({ isOpen: true, user })
+  }
+
+  const executeDelete = () => {
+    if (confirmDelete.user) {
+      deleteMutation.mutate(confirmDelete.user.id)
     }
+    setConfirmDelete({ isOpen: false, user: null })
   }
 
   const handleResetPassword = (userId: string) => {
@@ -509,9 +520,13 @@ const UsersPage: React.FC = () => {
       toast.error('No users selected for deletion (you cannot delete yourself)')
       return
     }
-    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} user(s)? This action cannot be undone.`)) {
-      bulkDeleteMutation.mutate(selectedIds)
-    }
+    setConfirmBulkDelete(true)
+  }
+
+  const executeBulkDelete = () => {
+    const selectedIds = Array.from(selectedUsers).filter(id => id !== currentUser?.id)
+    bulkDeleteMutation.mutate(selectedIds)
+    setConfirmBulkDelete(false)
   }
 
   const handleTenantReassign = (userId: string) => {
@@ -913,37 +928,39 @@ const UsersPage: React.FC = () => {
         ) : filteredUsers.length > 0 ? (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
+              <caption className="sr-only">List of users with their roles, status, and available actions</caption>
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
-                  <th className="px-4 py-3 text-left">
+                  <th scope="col" className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
                       checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
                       onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      aria-label="Select all users"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     Role
                   </th>
                   {isSuperAdmin && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                       Tenant
                     </th>
                   )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     Last Login
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -960,12 +977,12 @@ const UsersPage: React.FC = () => {
                         disabled={user.id === currentUser?.id}
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <th scope="row" className="px-6 py-4 whitespace-nowrap font-normal">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
                       {user.preferredName && (
                         <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{user.preferredName}</div>
                       )}
-                    </td>
+                    </th>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white">{user.email}</div>
                       {user.phone && (
@@ -1006,14 +1023,14 @@ const UsersPage: React.FC = () => {
                         <button
                           onClick={() => handleEdit(user)}
                           className="text-blue-600 hover:text-blue-900"
-                          title="Edit"
+                          aria-label={`Edit user ${user.name}`}
                         >
                           <PencilIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleResetPassword(user.id)}
                           className="text-yellow-600 hover:text-yellow-900"
-                          title="Reset Password"
+                          aria-label={`Reset password for ${user.name}`}
                         >
                           <KeyIcon className="h-5 w-5" />
                         </button>
@@ -1021,7 +1038,7 @@ const UsersPage: React.FC = () => {
                           <button
                             onClick={() => handleTenantReassign(user.id)}
                             className="text-purple-600 hover:text-purple-900"
-                            title="Move to Tenant"
+                            aria-label={`Move ${user.name} to different tenant`}
                           >
                             <ArrowsRightLeftIcon className="h-5 w-5" />
                           </button>
@@ -1030,7 +1047,7 @@ const UsersPage: React.FC = () => {
                           <button
                             onClick={() => handleDelete(user)}
                             className="text-red-600 hover:text-red-900"
-                            title="Delete"
+                            aria-label={`Delete user ${user.name}`}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -1061,7 +1078,7 @@ const UsersPage: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {editingUser ? 'Edit User' : 'Create New User'}
                 </h2>
-                <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">
+                <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500" aria-label="Close dialog">
                   <XMarkIcon className="h-6 w-6" />
                 </button>
               </div>
@@ -1214,6 +1231,7 @@ const UsersPage: React.FC = () => {
                             }
                           }}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          aria-label="Remove selected image"
                         >
                           <XMarkIcon className="h-4 w-4" />
                         </button>
@@ -1261,6 +1279,7 @@ const UsersPage: React.FC = () => {
                             }
                           }}
                           className="ml-2 text-red-500 hover:text-red-700"
+                          aria-label="Remove selected bio file"
                         >
                           <XMarkIcon className="h-4 w-4" />
                         </button>
@@ -1369,6 +1388,7 @@ const UsersPage: React.FC = () => {
                 <button
                   onClick={() => setIsResetPasswordOpen(false)}
                   className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                  aria-label="Close reset password dialog"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -1429,6 +1449,7 @@ const UsersPage: React.FC = () => {
                 <button
                   onClick={() => setIsTenantModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                  aria-label="Close tenant reassignment dialog"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -1484,6 +1505,30 @@ const UsersPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Delete User Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmDelete.isOpen}
+          onClose={() => setConfirmDelete({ isOpen: false, user: null })}
+          onConfirm={executeDelete}
+          title="Delete User"
+          message={`Are you sure you want to delete user "${confirmDelete.user?.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="danger"
+          loading={deleteMutation.isLoading}
+        />
+
+        {/* Bulk Delete Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmBulkDelete}
+          onClose={() => setConfirmBulkDelete(false)}
+          onConfirm={executeBulkDelete}
+          title="Delete Selected Users"
+          message={`Are you sure you want to delete ${Array.from(selectedUsers).filter(id => id !== currentUser?.id).length} user(s)? This action cannot be undone.`}
+          confirmText="Delete All"
+          variant="danger"
+          loading={bulkDeleteMutation.isLoading}
+        />
       </div>
     </div>
   )

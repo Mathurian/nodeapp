@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { contestsAPI, eventsAPI } from '../services/api'
@@ -17,6 +17,8 @@ import {
   ListBulletIcon,
 } from '@heroicons/react/24/outline'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
+import { ConfirmModal } from '../components/ui'
+import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 
 interface Event {
   id: string
@@ -53,6 +55,8 @@ const ContestsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { eventId, slug } = useParams<{ eventId?: string; slug?: string }>()
+  const location = useLocation()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
@@ -67,6 +71,10 @@ const ContestsPage: React.FC = () => {
   })
   const [dateFilters, setDateFilters] = useState<DateFilters>({
     sortDirection: 'asc',
+  })
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; contest: Contest | null }>({
+    isOpen: false,
+    contest: null,
   })
 
   // Check permissions
@@ -86,6 +94,24 @@ const ContestsPage: React.FC = () => {
     retry: 1,
     onError: (err) => console.error('Fetch events failed:', err),
   })
+
+  // Get parent event name for breadcrumb when accessed via /events/:eventId/contests
+  const parentEvent = eventId ? events?.find(e => e.id === eventId) : null
+
+  // Build breadcrumb items
+  const buildBreadcrumbItems = (): BreadcrumbItem[] => {
+    const basePath = slug ? `/${slug}` : ''
+    const items: BreadcrumbItem[] = [{ label: 'Events', href: `${basePath}/events` }]
+
+    if (parentEvent) {
+      items.push({ label: parentEvent.name })
+      items.push({ label: 'Contests' })
+    } else if (eventId) {
+      items.push({ label: 'Contests' })
+    }
+
+    return items
+  }
 
   // Fetch contests
   const { data: contests = [], isLoading, error: contestsError } = useQuery<Contest[]>(
@@ -197,9 +223,14 @@ const ContestsPage: React.FC = () => {
   }
 
   const handleDelete = (contest: Contest) => {
-    if (window.confirm(`Are you sure you want to delete "${contest.name}"? This action cannot be undone.`)) {
-      deleteMutation.mutate(contest.id)
+    setConfirmDelete({ isOpen: true, contest })
+  }
+
+  const executeDelete = () => {
+    if (confirmDelete.contest) {
+      deleteMutation.mutate(confirmDelete.contest.id)
     }
+    setConfirmDelete({ isOpen: false, contest: null })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -258,12 +289,17 @@ const ContestsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb - only show when accessed via event context */}
+        {eventId && (
+          <Breadcrumb items={buildBreadcrumbItems()} />
+        )}
+
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
               <TrophyIcon className="h-8 w-8 mr-3 text-blue-600" />
-              Contests
+              {parentEvent ? `${parentEvent.name} - Contests` : 'Contests'}
             </h1>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               Manage competition contests and categories
@@ -447,6 +483,7 @@ const ContestsPage: React.FC = () => {
                 <button
                   onClick={resetForm}
                   className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                  aria-label="Close dialog"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -552,6 +589,18 @@ const ContestsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Delete Contest Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmDelete.isOpen}
+          onClose={() => setConfirmDelete({ isOpen: false, contest: null })}
+          onConfirm={executeDelete}
+          title="Delete Contest"
+          message={`Are you sure you want to delete "${confirmDelete.contest?.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="danger"
+          loading={deleteMutation.isLoading}
+        />
       </div>
     </div>
   )

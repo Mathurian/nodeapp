@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { auditorAPI, categoriesAPI } from '../services/api'
 import { CheckCircleIcon, DocumentCheckIcon } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
 
 interface CategoryCertification {
   id: string
@@ -19,6 +20,10 @@ const AuditorFinalCertificationPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryCertification | null>(null)
   const [certificationNotes, setCertificationNotes] = useState('')
   const [showNotesModal, setShowNotesModal] = useState(false)
+  const [confirmCertify, setConfirmCertify] = useState<{ isOpen: boolean; category: CategoryCertification | null }>({
+    isOpen: false,
+    category: null,
+  })
 
   const { data: categories, isLoading, error } = useQuery<CategoryCertification[]>(
     'final-certification-categories',
@@ -63,9 +68,14 @@ const AuditorFinalCertificationPage: React.FC = () => {
   )
 
   const handleCertify = (category: CategoryCertification) => {
-    if (window.confirm(`Finalize certification for ${category.name}?`)) {
-      certifyMutation.mutate({ categoryId: category.id })
+    setConfirmCertify({ isOpen: true, category })
+  }
+
+  const executeCertify = () => {
+    if (confirmCertify.category) {
+      certifyMutation.mutate({ categoryId: confirmCertify.category.id })
     }
+    setConfirmCertify({ isOpen: false, category: null })
   }
 
   const handleAddNotes = (category: CategoryCertification) => {
@@ -276,6 +286,18 @@ const AuditorFinalCertificationPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Certify Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmCertify.isOpen}
+          onClose={() => setConfirmCertify({ isOpen: false, category: null })}
+          onConfirm={executeCertify}
+          title="Finalize Certification"
+          message={`Finalize certification for ${confirmCertify.category?.name}?`}
+          confirmText="Certify"
+          variant="info"
+          loading={certifyMutation.isLoading}
+        />
       </div>
     </div>
   )

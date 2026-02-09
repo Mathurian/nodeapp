@@ -11,6 +11,7 @@ import {
   ClipboardDocumentIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
+import { ConfirmModal } from '../components/ui'
 
 interface TestEventConfig {
   eventName: string
@@ -81,6 +82,10 @@ const TestEventSetupPage: React.FC = () => {
   })
 
   const [result, setResult] = useState<TestEventResult | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; deleteTenant: boolean }>({
+    isOpen: false,
+    deleteTenant: false,
+  })
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
@@ -126,14 +131,14 @@ const TestEventSetupPage: React.FC = () => {
 
   const handleDelete = (deleteTenant: boolean = false) => {
     if (!result?.eventId) return
+    setConfirmDelete({ isOpen: true, deleteTenant })
+  }
 
-    const confirmMessage = deleteTenant
-      ? `Are you sure you want to delete this test event AND its tenant? This will delete ALL data in the tenant and cannot be undone!`
-      : `Are you sure you want to delete this test event? This cannot be undone!`
-
-    if (window.confirm(confirmMessage)) {
-      deleteTestEventMutation.mutate({ eventId: result.eventId, deleteTenant })
+  const executeDelete = () => {
+    if (result?.eventId) {
+      deleteTestEventMutation.mutate({ eventId: result.eventId, deleteTenant: confirmDelete.deleteTenant })
     }
+    setConfirmDelete({ isOpen: false, deleteTenant: false })
   }
 
   const handleCopyPassword = () => {
@@ -578,6 +583,22 @@ const TestEventSetupPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Delete Test Event Confirmation Modal */}
+        <ConfirmModal
+          isOpen={confirmDelete.isOpen}
+          onClose={() => setConfirmDelete({ isOpen: false, deleteTenant: false })}
+          onConfirm={executeDelete}
+          title={confirmDelete.deleteTenant ? 'Delete Test Event and Tenant' : 'Delete Test Event'}
+          message={
+            confirmDelete.deleteTenant
+              ? 'Are you sure you want to delete this test event AND its tenant? This will delete ALL data in the tenant and cannot be undone!'
+              : 'Are you sure you want to delete this test event? This cannot be undone!'
+          }
+          confirmText="Delete"
+          variant="danger"
+          loading={deleteTestEventMutation.isLoading}
+        />
       </div>
     </div>
   )
