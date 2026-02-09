@@ -636,8 +636,9 @@ export class AuditorService extends BaseService {
     const uniqueJudges = new Set(category.scores.map((s) => s.judgeId)).size;
     const averageScore =
       totalScores > 0 ? category.scores.reduce((sum, s) => sum + (s.score ?? 0), 0) / totalScores : 0;
-    const maxScore = Math.max(...category.scores.map((s) => s.score ?? 0), 0);
-    const minScore = Math.min(...category.scores.map((s) => s.score ?? 0), 0);
+    const scoreValues = category.scores.map((s) => s.score ?? 0);
+    const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : 0;
+    const minScore = scoreValues.length > 0 ? Math.min(...scoreValues) : 0;
 
     // Group by contestant for rankings
     const contestantScores = category.scores.reduce((acc: Record<string, {

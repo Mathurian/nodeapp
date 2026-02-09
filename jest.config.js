@@ -81,6 +81,9 @@ module.exports = {
   },
 
   moduleDirectories: ['node_modules', '<rootDir>'],
+
+  // Global mocks - runs BEFORE setupFilesAfterEnv to mock modules before container loads
+  setupFiles: ['<rootDir>/tests/jest.globalMocks.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 
   // Increased timeout for integration tests
@@ -102,7 +105,8 @@ module.exports = {
   detectOpenHandles: true,
 
   // Max workers for parallel test execution
-  maxWorkers: '50%',
+  // Limited to prevent database connection pool exhaustion
+  maxWorkers: 2,
 
   // Clear mocks between tests
   clearMocks: true,

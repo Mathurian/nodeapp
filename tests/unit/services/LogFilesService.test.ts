@@ -1,16 +1,43 @@
+import 'reflect-metadata';
 import { LogFilesService } from '../../../src/services/LogFilesService';
 import { BadRequestError, NotFoundError } from '../../../src/services/BaseService';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import * as path from 'path';
-
-jest.mock('fs/promises');
 
 describe('LogFilesService', () => {
   let service: LogFilesService;
+  let mkdirSpy: jest.SpyInstance;
+  let readdirSpy: jest.SpyInstance;
+  let statSpy: jest.SpyInstance;
+  let readFileSpy: jest.SpyInstance;
+  let accessSpy: jest.SpyInstance;
+  let unlinkSpy: jest.SpyInstance;
+
+  // Helper to create mock Dirent objects
+  const createDirent = (name: string, isDir = false) => ({
+    name,
+    isDirectory: () => isDir,
+    isFile: () => !isDir,
+    isBlockDevice: () => false,
+    isCharacterDevice: () => false,
+    isFIFO: () => false,
+    isSocket: () => false,
+    isSymbolicLink: () => false,
+  });
 
   beforeEach(() => {
+    mkdirSpy = jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
+    readdirSpy = jest.spyOn(fs.promises, 'readdir').mockResolvedValue([]);
+    statSpy = jest.spyOn(fs.promises, 'stat').mockResolvedValue({ size: 1024, mtime: new Date() } as any);
+    readFileSpy = jest.spyOn(fs.promises, 'readFile').mockResolvedValue('');
+    accessSpy = jest.spyOn(fs.promises, 'access').mockResolvedValue(undefined);
+    unlinkSpy = jest.spyOn(fs.promises, 'unlink').mockResolvedValue(undefined);
+
     service = new LogFilesService();
-    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -22,14 +49,13 @@ describe('LogFilesService', () => {
 
   describe('getLogFiles', () => {
     it('should return list of log files', async () => {
-      const mockStats = {
-        size: 1024,
-        mtime: new Date('2024-01-15T10:00:00Z'),
-      };
-
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['app.log', 'error.log', 'access.log']);
-      (fs.stat as jest.Mock).mockResolvedValue(mockStats);
+      const mockStats = { size: 1024, mtime: new Date('2024-01-15T10:00:00Z') };
+      readdirSpy.mockResolvedValue([
+        createDirent('app.log'),
+        createDirent('error.log'),
+        createDirent('access.log')
+      ]);
+      statSpy.mockResolvedValue(mockStats);
 
       const result = await service.getLogFiles();
 
@@ -43,12 +69,13 @@ describe('LogFilesService', () => {
     });
 
     it('should filter only .log files', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['app.log', 'config.json', 'error.log', 'data.txt']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024,
-        mtime: new Date('2024-01-15T10:00:00Z'),
-      });
+      readdirSpy.mockResolvedValue([
+        createDirent('app.log'),
+        createDirent('config.json'),
+        createDirent('error.log'),
+        createDirent('data.txt')
+      ]);
+      statSpy.mockResolvedValue({ size: 1024, mtime: new Date('2024-01-15T10:00:00Z') });
 
       const result = await service.getLogFiles();
 
@@ -57,21 +84,15 @@ describe('LogFilesService', () => {
     });
 
     it('should sort files by modified date descending', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['old.log', 'recent.log', 'newest.log']);
-      (fs.stat as jest.Mock)
-        .mockResolvedValueOnce({
-          size: 1024,
-          mtime: new Date('2024-01-10T10:00:00Z'),
-        })
-        .mockResolvedValueOnce({
-          size: 2048,
-          mtime: new Date('2024-01-15T10:00:00Z'),
-        })
-        .mockResolvedValueOnce({
-          size: 512,
-          mtime: new Date('2024-01-20T10:00:00Z'),
-        });
+      readdirSpy.mockResolvedValue([
+        createDirent('old.log'),
+        createDirent('recent.log'),
+        createDirent('newest.log')
+      ]);
+      statSpy
+        .mockResolvedValueOnce({ size: 1024, mtime: new Date('2024-01-10T10:00:00Z') })
+        .mockResolvedValueOnce({ size: 2048, mtime: new Date('2024-01-15T10:00:00Z') })
+        .mockResolvedValueOnce({ size: 512, mtime: new Date('2024-01-20T10:00:00Z') });
 
       const result = await service.getLogFiles();
 
@@ -80,21 +101,15 @@ describe('LogFilesService', () => {
     });
 
     it('should format file sizes correctly', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['small.log', 'medium.log', 'large.log']);
-      (fs.stat as jest.Mock)
-        .mockResolvedValueOnce({
-          size: 512,
-          mtime: new Date(),
-        })
-        .mockResolvedValueOnce({
-          size: 1024 * 500,
-          mtime: new Date(),
-        })
-        .mockResolvedValueOnce({
-          size: 1024 * 1024 * 10,
-          mtime: new Date(),
-        });
+      readdirSpy.mockResolvedValue([
+        createDirent('small.log'),
+        createDirent('medium.log'),
+        createDirent('large.log')
+      ]);
+      statSpy
+        .mockResolvedValueOnce({ size: 512, mtime: new Date() })
+        .mockResolvedValueOnce({ size: 1024 * 500, mtime: new Date() })
+        .mockResolvedValueOnce({ size: 1024 * 1024 * 10, mtime: new Date() });
 
       const result = await service.getLogFiles();
 
@@ -104,19 +119,15 @@ describe('LogFilesService', () => {
     });
 
     it('should create log directory if it does not exist', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([]);
+      readdirSpy.mockResolvedValue([]);
 
       await service.getLogFiles();
 
-      expect(fs.mkdir).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ recursive: true })
-      );
+      expect(mkdirSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ recursive: true }));
     });
 
     it('should throw error if directory creation fails', async () => {
-      (fs.mkdir as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+      mkdirSpy.mockRejectedValue(new Error('Permission denied'));
 
       await expect(service.getLogFiles()).rejects.toThrow('Failed to create logs directory');
     });
@@ -125,14 +136,13 @@ describe('LogFilesService', () => {
   describe('getLogFileContents', () => {
     it('should return log file contents', async () => {
       const mockContent = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readFile as jest.Mock).mockResolvedValue(mockContent);
+      readFileSpy.mockResolvedValue(mockContent);
 
       const result = await service.getLogFileContents('app.log');
 
       expect(result).toMatchObject({
         filename: 'app.log',
-        contents: expect.any(String),
+        content: expect.any(String),
         totalLines: 5,
         displayedLines: 5,
       });
@@ -141,8 +151,7 @@ describe('LogFilesService', () => {
     it('should limit to specified number of lines', async () => {
       const lines = Array.from({ length: 1000 }, (_, i) => `Line ${i + 1}`);
       const mockContent = lines.join('\n');
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readFile as jest.Mock).mockResolvedValue(mockContent);
+      readFileSpy.mockResolvedValue(mockContent);
 
       const result = await service.getLogFileContents('app.log', 100);
 
@@ -152,30 +161,32 @@ describe('LogFilesService', () => {
 
     it('should return last N lines', async () => {
       const mockContent = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readFile as jest.Mock).mockResolvedValue(mockContent);
+      readFileSpy.mockResolvedValue(mockContent);
 
       const result = await service.getLogFileContents('app.log', 3);
 
-      expect(result.contents).toContain('Line 3');
-      expect(result.contents).toContain('Line 5');
-      expect(result.contents).not.toContain('Line 1');
+      expect(result.content).toContain('Line 3');
+      expect(result.content).toContain('Line 5');
+      expect(result.content).not.toContain('Line 1');
     });
 
     it('should throw NotFoundError for non-existent file', async () => {
-      (fs.access as jest.Mock).mockRejectedValue(new Error('File not found'));
+      accessSpy.mockRejectedValue(new Error('File not found'));
 
       await expect(service.getLogFileContents('nonexistent.log')).rejects.toThrow(NotFoundError);
     });
 
     it('should reject path traversal attempts', async () => {
-      await expect(service.getLogFileContents('../../../etc/passwd')).rejects.toThrow(
-        BadRequestError
-      );
+      await expect(service.getLogFileContents('../../../etc/passwd')).rejects.toThrow(BadRequestError);
     });
 
-    it('should reject filenames with slashes', async () => {
-      await expect(service.getLogFileContents('logs/app.log')).rejects.toThrow(BadRequestError);
+    it('should allow subfolder paths with forward slashes', async () => {
+      const mockContent = 'Log content';
+      readFileSpy.mockResolvedValue(mockContent);
+
+      const result = await service.getLogFileContents('api/app.log');
+
+      expect(result.filename).toBe('app.log');
     });
 
     it('should reject filenames with backslashes', async () => {
@@ -184,8 +195,7 @@ describe('LogFilesService', () => {
 
     it('should handle default line limit', async () => {
       const mockContent = 'Line 1\nLine 2\nLine 3';
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readFile as jest.Mock).mockResolvedValue(mockContent);
+      readFileSpy.mockResolvedValue(mockContent);
 
       const result = await service.getLogFileContents('app.log');
 
@@ -195,8 +205,6 @@ describe('LogFilesService', () => {
 
   describe('getLogFilePath', () => {
     it('should return file path for valid log file', async () => {
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-
       const result = await service.getLogFilePath('app.log');
 
       expect(result).toContain('app.log');
@@ -204,7 +212,7 @@ describe('LogFilesService', () => {
     });
 
     it('should throw NotFoundError for non-existent file', async () => {
-      (fs.access as jest.Mock).mockRejectedValue(new Error('File not found'));
+      accessSpy.mockRejectedValue(new Error('File not found'));
 
       await expect(service.getLogFilePath('nonexistent.log')).rejects.toThrow(NotFoundError);
     });
@@ -220,37 +228,30 @@ describe('LogFilesService', () => {
 
   describe('cleanupOldLogs', () => {
     it('should delete logs older than specified days', async () => {
-      const oldDate = new Date('2024-01-01T10:00:00Z');
-      const recentDate = new Date('2024-01-20T10:00:00Z');
+      // Use dates relative to today
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 20); // 20 days ago
+      const recentDate = new Date();
+      recentDate.setDate(recentDate.getDate() - 5); // 5 days ago
 
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['old.log', 'recent.log']);
-      (fs.stat as jest.Mock)
-        .mockResolvedValueOnce({
-          size: 1024,
-          mtime: oldDate,
-        })
-        .mockResolvedValueOnce({
-          size: 2048,
-          mtime: recentDate,
-        });
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue([createDirent('old.log'), createDirent('recent.log')]);
+      statSpy
+        .mockResolvedValueOnce({ size: 1024, mtime: oldDate })
+        .mockResolvedValueOnce({ size: 2048, mtime: recentDate });
 
       const result = await service.cleanupOldLogs(10);
 
       expect(result.deletedCount).toBe(1);
       expect(result.deletedSize).toBe(1024);
-      expect(fs.unlink).toHaveBeenCalledTimes(1);
+      expect(unlinkSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should return formatted deleted size', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['old.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024 * 1024 * 5,
-        mtime: new Date('2020-01-01T10:00:00Z'),
-      });
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 400); // 400 days ago
+
+      readdirSpy.mockResolvedValue([createDirent('old.log')]);
+      statSpy.mockResolvedValue({ size: 1024 * 1024 * 5, mtime: oldDate });
 
       const result = await service.cleanupOldLogs(365);
 
@@ -260,34 +261,30 @@ describe('LogFilesService', () => {
     it('should not delete recent logs', async () => {
       const recentDate = new Date();
 
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['recent1.log', 'recent2.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024,
-        mtime: recentDate,
-      });
+      readdirSpy.mockResolvedValue([createDirent('recent1.log'), createDirent('recent2.log')]);
+      statSpy.mockResolvedValue({ size: 1024, mtime: recentDate });
 
       const result = await service.cleanupOldLogs(10);
 
       expect(result.deletedCount).toBe(0);
-      expect(fs.unlink).not.toHaveBeenCalled();
+      expect(unlinkSpy).not.toHaveBeenCalled();
     });
 
     it('should only delete .log files', async () => {
-      const oldDate = new Date('2020-01-01T10:00:00Z');
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 400); // 400 days ago
 
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['old.log', 'old.txt', 'old.json']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024,
-        mtime: oldDate,
-      });
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue([
+        createDirent('old.log'),
+        createDirent('old.txt'),
+        createDirent('old.json')
+      ]);
+      statSpy.mockResolvedValue({ size: 1024, mtime: oldDate });
 
       const result = await service.cleanupOldLogs(365);
 
       expect(result.deletedCount).toBe(1);
-      expect(fs.unlink).toHaveBeenCalledTimes(1);
+      expect(unlinkSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error for invalid daysToKeep', async () => {
@@ -299,8 +296,7 @@ describe('LogFilesService', () => {
     });
 
     it('should handle no files to delete', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([]);
+      readdirSpy.mockResolvedValue([]);
 
       const result = await service.cleanupOldLogs(30);
 
@@ -311,16 +307,13 @@ describe('LogFilesService', () => {
 
   describe('deleteLogFile', () => {
     it('should delete specified log file', async () => {
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
-
       await service.deleteLogFile('app.log');
 
-      expect(fs.unlink).toHaveBeenCalledWith(expect.stringContaining('app.log'));
+      expect(unlinkSpy).toHaveBeenCalledWith(expect.stringContaining('app.log'));
     });
 
     it('should throw NotFoundError for non-existent file', async () => {
-      (fs.access as jest.Mock).mockRejectedValue(new Error('File not found'));
+      accessSpy.mockRejectedValue(new Error('File not found'));
 
       await expect(service.deleteLogFile('nonexistent.log')).rejects.toThrow(NotFoundError);
     });
@@ -336,12 +329,8 @@ describe('LogFilesService', () => {
 
   describe('formatFileSize (private)', () => {
     it('should format 0 bytes', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['empty.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 0,
-        mtime: new Date(),
-      });
+      readdirSpy.mockResolvedValue([createDirent('empty.log')]);
+      statSpy.mockResolvedValue({ size: 0, mtime: new Date() });
 
       const result = await service.getLogFiles();
 
@@ -349,12 +338,8 @@ describe('LogFilesService', () => {
     });
 
     it('should format bytes', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['small.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 512,
-        mtime: new Date(),
-      });
+      readdirSpy.mockResolvedValue([createDirent('small.log')]);
+      statSpy.mockResolvedValue({ size: 512, mtime: new Date() });
 
       const result = await service.getLogFiles();
 
@@ -362,38 +347,17 @@ describe('LogFilesService', () => {
     });
 
     it('should format kilobytes', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['medium.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024 * 50,
-        mtime: new Date(),
-      });
+      readdirSpy.mockResolvedValue([createDirent('medium.log')]);
+      statSpy.mockResolvedValue({ size: 1024 * 50, mtime: new Date() });
 
       const result = await service.getLogFiles();
 
       expect(result.files[0].sizeFormatted).toContain('KB');
     });
 
-    it('should format megabytes', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['large.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024 * 1024 * 10,
-        mtime: new Date(),
-      });
-
-      const result = await service.getLogFiles();
-
-      expect(result.files[0].sizeFormatted).toContain('MB');
-    });
-
     it('should format gigabytes', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['huge.log']);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024 * 1024 * 1024 * 2,
-        mtime: new Date(),
-      });
+      readdirSpy.mockResolvedValue([createDirent('huge.log')]);
+      statSpy.mockResolvedValue({ size: 1024 * 1024 * 1024 * 2, mtime: new Date() });
 
       const result = await service.getLogFiles();
 

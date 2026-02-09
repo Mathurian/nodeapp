@@ -324,7 +324,7 @@ export class PermissionAuditService extends BaseService {
     const operationCounts = new Map<string, number>();
 
     denials.forEach(denial => {
-      const details = denial.details as any;
+      const details = (denial.details as any) || {};
       const role = details.role || 'unknown';
       const resource = details.resource || 'unknown';
       const operation = details.operation || 'unknown';

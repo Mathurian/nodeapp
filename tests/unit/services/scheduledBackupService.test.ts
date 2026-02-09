@@ -4,7 +4,6 @@
  */
 
 import 'reflect-metadata';
-import { ScheduledBackupService } from '../../../src/services/scheduledBackupService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import cron from 'node-cron';
@@ -16,16 +15,52 @@ jest.mock('node-cron');
 jest.mock('fs');
 jest.mock('child_process');
 
+// Mock the env module
+const mockEnv = {
+  isTest: jest.fn().mockReturnValue(false),
+  isProduction: jest.fn().mockReturnValue(false),
+  isDevelopment: jest.fn().mockReturnValue(false),
+  get: jest.fn().mockImplementation((key: string) => {
+    if (key === 'DATABASE_URL') return 'postgresql://user:password@localhost:5432/testdb';
+    return undefined;
+  }),
+};
+
+jest.mock('../../../src/config/env', () => ({
+  env: mockEnv,
+}));
+
+// Mock the logger
+const mockLogger = {
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+};
+
+jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => mockLogger,
+}));
+
+import { ScheduledBackupService } from '../../../src/services/scheduledBackupService';
+
 describe('ScheduledBackupService', () => {
   let service: ScheduledBackupService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockCronJob: any;
-  const originalEnv = process.env;
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new ScheduledBackupService(mockPrisma as any);
     jest.clearAllMocks();
+
+    // Reset env mock defaults
+    mockEnv.isTest.mockReturnValue(false);
+    mockEnv.isProduction.mockReturnValue(false);
+    mockEnv.get.mockImplementation((key: string) => {
+      if (key === 'DATABASE_URL') return 'postgresql://user:password@localhost:5432/testdb';
+      return undefined;
+    });
 
     // Mock cron job
     mockCronJob = {
@@ -49,17 +84,10 @@ describe('ScheduledBackupService', () => {
       isSocket: () => false
     }));
     (fs.unlinkSync as jest.Mock).mockImplementation();
-
-    // Setup environment
-    process.env = {
-      ...originalEnv,
-      DATABASE_URL: 'postgresql://user:password@localhost:5432/testdb'
-    };
   });
 
   afterEach(() => {
     mockReset(mockPrisma);
-    process.env = originalEnv;
   });
 
   describe('constructor', () => {
@@ -76,30 +104,24 @@ describe('ScheduledBackupService', () => {
 
   describe('start()', () => {
     it('should start the service', async () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      process.env.NODE_ENV = 'test'; // Prevent actual DB calls
+      mockEnv.isTest.mockReturnValue(true); // Prevent actual DB calls
 
       await service.start();
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Starting scheduled backup service...');
-
-      consoleLogSpy.mockRestore();
+      expect(mockLogger.info).toHaveBeenCalledWith('Starting scheduled backup service...');
     });
 
     it('should not start if already running', async () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      process.env.NODE_ENV = 'test';
+      mockEnv.isTest.mockReturnValue(true);
 
       await service.start();
       await service.start();
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Scheduled backup service is already running');
-
-      consoleLogSpy.mockRestore();
+      expect(mockLogger.info).toHaveBeenCalledWith('Scheduled backup service is already running');
     });
 
     it('should load backup settings on start in non-test environment', async () => {
-      process.env.NODE_ENV = 'production';
+      mockEnv.isTest.mockReturnValue(false);
       mockPrisma.backupSetting.findMany.mockResolvedValue([]);
 
       await service.start();
@@ -110,19 +132,16 @@ describe('ScheduledBackupService', () => {
 
   describe('stop()', () => {
     it('should stop the service', async () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      process.env.NODE_ENV = 'test';
+      mockEnv.isTest.mockReturnValue(true);
 
       await service.start();
       await service.stop();
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Scheduled backup service stopped');
-
-      consoleLogSpy.mockRestore();
+      expect(mockLogger.info).toHaveBeenCalledWith('Scheduled backup service stopped');
     });
 
     it('should stop all cron jobs', async () => {
-      process.env.NODE_ENV = 'production';
+      mockEnv.isTest.mockReturnValue(false);
       mockPrisma.backupSetting.findMany.mockResolvedValue([
         {
           id: '1',
@@ -143,19 +162,15 @@ describe('ScheduledBackupService', () => {
     });
 
     it('should not stop if not running', async () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-
       await service.stop();
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Scheduled backup service is not running');
-
-      consoleLogSpy.mockRestore();
+      expect(mockLogger.info).toHaveBeenCalledWith('Scheduled backup service is not running');
     });
   });
 
   describe('loadBackupSettings()', () => {
     it('should skip in test environment', async () => {
-      process.env.NODE_ENV = 'test';
+      mockEnv.isTest.mockReturnValue(true);
 
       await service.loadBackupSettings();
 
@@ -163,7 +178,7 @@ describe('ScheduledBackupService', () => {
     });
 
     it('should load and schedule enabled backups', async () => {
-      process.env.NODE_ENV = 'production';
+      mockEnv.isTest.mockReturnValue(false);
       mockPrisma.backupSetting.findMany.mockResolvedValue([
         {
           id: '1',
@@ -192,16 +207,13 @@ describe('ScheduledBackupService', () => {
       expect(cron.schedule).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle errors gracefully in production', async () => {
-      process.env.NODE_ENV = 'production';
+    it('should handle errors gracefully in non-test environment', async () => {
+      mockEnv.isTest.mockReturnValue(false);
       mockPrisma.backupSetting.findMany.mockRejectedValue(new Error('Database error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await service.loadBackupSettings();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error loading backup settings:', expect.any(Error));
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalledWith('Error loading backup settings', expect.any(Object));
     });
   });
 
@@ -214,7 +226,7 @@ describe('ScheduledBackupService', () => {
         retentionDays: 7
       };
 
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
 
       expect(cron.schedule).toHaveBeenCalledWith('*/30 * * * *', expect.any(Function));
     });
@@ -227,7 +239,7 @@ describe('ScheduledBackupService', () => {
         retentionDays: 7
       };
 
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
 
       expect(cron.schedule).toHaveBeenCalledWith('0 */6 * * *', expect.any(Function));
     });
@@ -240,7 +252,7 @@ describe('ScheduledBackupService', () => {
         retentionDays: 7
       };
 
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
 
       expect(cron.schedule).toHaveBeenCalledWith('0 2 * * *', expect.any(Function));
     });
@@ -253,7 +265,7 @@ describe('ScheduledBackupService', () => {
         retentionDays: 30
       };
 
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
 
       expect(cron.schedule).toHaveBeenCalledWith('0 3 * * 0', expect.any(Function));
     });
@@ -266,7 +278,7 @@ describe('ScheduledBackupService', () => {
         retentionDays: 90
       };
 
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
 
       expect(cron.schedule).toHaveBeenCalledWith('0 1 1 * *', expect.any(Function));
     });
@@ -279,8 +291,8 @@ describe('ScheduledBackupService', () => {
         retentionDays: 7
       };
 
-      await service.scheduleBackup(setting);
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
+      await service.scheduleBackup(setting as any);
 
       expect(mockCronJob.stop).toHaveBeenCalled();
     });
@@ -292,13 +304,10 @@ describe('ScheduledBackupService', () => {
         frequencyValue: 1,
         retentionDays: 7
       };
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      await service.scheduleBackup(setting);
+      await service.scheduleBackup(setting as any);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Unknown backup frequency: UNKNOWN');
-
-      consoleWarnSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith('Unknown backup frequency: UNKNOWN');
     });
   });
 
@@ -306,6 +315,7 @@ describe('ScheduledBackupService', () => {
     beforeEach(() => {
       mockPrisma.backupLog.create.mockResolvedValue({
         id: 'log-1',
+        tenantId: 'default_tenant',
         type: 'FULL',
         location: 'backups/test.sql',
         size: 0,
@@ -325,7 +335,7 @@ describe('ScheduledBackupService', () => {
     it('should create backup directory if not exists', async () => {
       const setting = { backupType: 'FULL', retentionDays: 7 };
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       expect(fs.existsSync).toHaveBeenCalledWith('backups');
       expect(fs.mkdirSync).toHaveBeenCalledWith('backups', { recursive: true });
@@ -334,7 +344,7 @@ describe('ScheduledBackupService', () => {
     it('should create backup log entry', async () => {
       const setting = { backupType: 'FULL', retentionDays: 7 };
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       expect(mockPrisma.backupLog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -347,9 +357,9 @@ describe('ScheduledBackupService', () => {
     it('should execute pg_dump for FULL backup', async () => {
       const setting = { backupType: 'FULL', retentionDays: 7 };
       const execMock = exec as unknown as jest.Mock;
-      execMock.mockImplementation((cmd, callback) => callback(null, '', ''));
+      execMock.mockImplementation((cmd: string, callback: Function) => callback(null, '', ''));
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       expect(exec).toHaveBeenCalled();
       const command = execMock.mock.calls[0][0];
@@ -360,9 +370,9 @@ describe('ScheduledBackupService', () => {
     it('should execute pg_dump with --schema-only for SCHEMA backup', async () => {
       const setting = { backupType: 'SCHEMA', retentionDays: 7 };
       const execMock = exec as unknown as jest.Mock;
-      execMock.mockImplementation((cmd, callback) => callback(null, '', ''));
+      execMock.mockImplementation((cmd: string, callback: Function) => callback(null, '', ''));
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       const command = execMock.mock.calls[0][0];
       expect(command).toContain('--schema-only');
@@ -371,9 +381,9 @@ describe('ScheduledBackupService', () => {
     it('should execute pg_dump with --data-only for DATA backup', async () => {
       const setting = { backupType: 'DATA', retentionDays: 7 };
       const execMock = exec as unknown as jest.Mock;
-      execMock.mockImplementation((cmd, callback) => callback(null, '', ''));
+      execMock.mockImplementation((cmd: string, callback: Function) => callback(null, '', ''));
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       const command = execMock.mock.calls[0][0];
       expect(command).toContain('--data-only');
@@ -382,7 +392,7 @@ describe('ScheduledBackupService', () => {
     it('should handle invalid backup type', async () => {
       const setting = { backupType: 'INVALID', retentionDays: 7 };
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       expect(mockPrisma.backupLog.update).toHaveBeenCalledWith({
         where: { id: 'log-1' },
@@ -397,17 +407,14 @@ describe('ScheduledBackupService', () => {
       const setting = { backupType: 'FULL', retentionDays: 7 };
       const execMock = exec as unknown as jest.Mock;
       const error = new Error('pg_dump failed');
-      execMock.mockImplementation((cmd, callback) => callback(error, '', ''));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      execMock.mockImplementation((cmd: string, callback: Function) => callback(error, '', ''));
 
-      await service.runScheduledBackup(setting);
+      await service.runScheduledBackup(setting as any);
 
       // Wait for async exec callback
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -430,7 +437,7 @@ describe('ScheduledBackupService', () => {
       mockPrisma.backupLog.delete.mockResolvedValue({} as any);
       (fs.existsSync as jest.Mock).mockReturnValue(true);
 
-      await service.cleanupOldBackups(setting);
+      await service.cleanupOldBackups(setting as any);
 
       expect(mockPrisma.backupLog.findMany).toHaveBeenCalled();
       expect(fs.unlinkSync).toHaveBeenCalledWith('backups/old-backup.sql');
@@ -452,9 +459,10 @@ describe('ScheduledBackupService', () => {
         } as any
       ]);
 
+      mockPrisma.backupLog.delete.mockResolvedValue({} as any);
       (fs.existsSync as jest.Mock).mockReturnValue(false);
 
-      await service.cleanupOldBackups(setting);
+      await service.cleanupOldBackups(setting as any);
 
       expect(fs.unlinkSync).not.toHaveBeenCalled();
       expect(mockPrisma.backupLog.delete).toHaveBeenCalled();
@@ -463,13 +471,10 @@ describe('ScheduledBackupService', () => {
     it('should handle cleanup errors gracefully', async () => {
       const setting = { backupType: 'FULL', retentionDays: 7 };
       mockPrisma.backupLog.findMany.mockRejectedValue(new Error('Database error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      await service.cleanupOldBackups(setting);
+      await service.cleanupOldBackups(setting as any);
 
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalledWith('Error cleaning up old backups', expect.any(Object));
     });
   });
 
@@ -483,8 +488,8 @@ describe('ScheduledBackupService', () => {
         enabled: true
       };
 
-      await service.scheduleBackup(setting);
-      await service.updateBackupSchedule(setting);
+      await service.scheduleBackup(setting as any);
+      await service.updateBackupSchedule(setting as any);
 
       expect(mockCronJob.stop).toHaveBeenCalled();
       expect(cron.schedule).toHaveBeenCalled();
@@ -499,8 +504,8 @@ describe('ScheduledBackupService', () => {
         enabled: false
       };
 
-      await service.scheduleBackup({ ...setting, enabled: true });
-      await service.updateBackupSchedule(setting);
+      await service.scheduleBackup({ ...setting, enabled: true } as any);
+      await service.updateBackupSchedule(setting as any);
 
       expect(mockCronJob.stop).toHaveBeenCalled();
     });
@@ -508,13 +513,13 @@ describe('ScheduledBackupService', () => {
 
   describe('reloadSettings()', () => {
     it('should stop all jobs and reload settings', async () => {
-      process.env.NODE_ENV = 'test';
+      mockEnv.isTest.mockReturnValue(true);
       await service.scheduleBackup({
         backupType: 'FULL',
         frequency: 'DAILY',
         frequencyValue: 2,
         retentionDays: 7
-      });
+      } as any);
 
       await service.reloadSettings();
 
@@ -537,11 +542,12 @@ describe('ScheduledBackupService', () => {
 
       mockPrisma.backupLog.create.mockResolvedValue({
         id: 'log-1',
+        tenantId: 'default_tenant',
         startedAt: new Date()
       } as any);
 
       const execMock = exec as unknown as jest.Mock;
-      execMock.mockImplementation((cmd, callback) => callback(null, '', ''));
+      execMock.mockImplementation((cmd: string, callback: Function) => callback(null, '', ''));
 
       const result = await service.runManualBackup('setting-1');
 
@@ -560,14 +566,11 @@ describe('ScheduledBackupService', () => {
 
     it('should handle manual backup errors', async () => {
       mockPrisma.backupSetting.findUnique.mockRejectedValue(new Error('Database error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await service.runManualBackup('setting-1');
 
       expect(result.success).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -584,14 +587,14 @@ describe('ScheduledBackupService', () => {
         frequency: 'DAILY',
         frequencyValue: 2,
         retentionDays: 7
-      });
+      } as any);
 
       await service.scheduleBackup({
         backupType: 'SCHEMA',
         frequency: 'WEEKLY',
         frequencyValue: 3,
         retentionDays: 30
-      });
+      } as any);
 
       const schedules = service.getActiveSchedules();
 

@@ -20,12 +20,23 @@ jest.mock('../../../src/services/ReportTemplateService');
 jest.mock('../../../src/services/ReportEmailService');
 jest.mock('../../../src/services/ReportInstanceService');
 
-// Mock prisma for getReportData helper
-jest.mock('../../../src/utils/prisma', () => ({
+// Mock the database module used by the controller for authorization checks
+const mockPrisma = {
+  event: { findFirst: jest.fn() },
+  contest: { findFirst: jest.fn() },
   reportInstance: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
     findUnique: jest.fn(),
   },
+};
+jest.mock('../../../src/config/database', () => ({
+  __esModule: true,
+  default: mockPrisma,
 }));
+
+// Also mock the old prisma path in case it's still referenced
+jest.mock('../../../src/utils/prisma', () => mockPrisma);
 
 describe('ReportsController', () => {
   let controller: ReportsController;
@@ -84,7 +95,7 @@ describe('ReportsController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'ADMIN' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {
@@ -142,7 +153,10 @@ describe('ReportsController', () => {
 
       await controller.createTemplate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTemplateService.createTemplate).toHaveBeenCalledWith(templateData);
+      expect(mockTemplateService.createTemplate).toHaveBeenCalledWith({
+        ...templateData,
+        tenantId: 'tenant-1',
+      });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockTemplate);
     });
@@ -158,6 +172,7 @@ describe('ReportsController', () => {
         template: '{}',
         parameters: '{}',
         type: 'event',
+        tenantId: 'tenant-1',
       });
     });
 
@@ -183,7 +198,8 @@ describe('ReportsController', () => {
 
       await controller.updateTemplate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTemplateService.updateTemplate).toHaveBeenCalledWith('template-1', updates);
+      // Controller now passes tenantId as second parameter
+      expect(mockTemplateService.updateTemplate).toHaveBeenCalledWith('template-1', 'tenant-1', updates);
       expect(mockRes.json).toHaveBeenCalledWith(mockUpdated);
     });
 
@@ -216,7 +232,8 @@ describe('ReportsController', () => {
 
       await controller.deleteTemplate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTemplateService.deleteTemplate).toHaveBeenCalledWith('template-1');
+      // Controller now passes tenantId as second parameter
+      expect(mockTemplateService.deleteTemplate).toHaveBeenCalledWith('template-1', 'tenant-1');
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();
     });
@@ -246,6 +263,8 @@ describe('ReportsController', () => {
       const mockReportData = { eventId: 'event-1', data: { participants: 50 } };
 
       mockReq.body = { type: 'event', eventId: 'event-1' };
+      // Mock auth check - event exists and user has access
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1', tenantId: 'tenant-1' });
       mockGenerationService.generateEventReportData.mockResolvedValue(mockReportData as any);
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
@@ -262,6 +281,8 @@ describe('ReportsController', () => {
       const mockReportData = { contestId: 'contest-1', results: [] };
 
       mockReq.body = { type: 'contest', contestId: 'contest-1' };
+      // Mock auth check - contest exists and user has access
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1', tenantId: 'tenant-1' });
       mockGenerationService.generateContestResultsData.mockResolvedValue(mockReportData as any);
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
@@ -282,7 +303,8 @@ describe('ReportsController', () => {
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockGenerationService.generateSystemAnalyticsData).toHaveBeenCalledWith('user-1');
+      // Controller now passes tenantId and userRole
+      expect(mockGenerationService.generateSystemAnalyticsData).toHaveBeenCalledWith('user-1', 'tenant-1', 'ADMIN');
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockReportData);
     });
@@ -309,6 +331,8 @@ describe('ReportsController', () => {
     it('should call next with error when service throws', async () => {
       const error = new Error('Generation failed');
       mockReq.body = { type: 'event', eventId: 'event-1' };
+      // Mock auth check passes
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1', tenantId: 'tenant-1' });
       mockGenerationService.generateEventReportData.mockRejectedValue(error);
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
@@ -322,6 +346,8 @@ describe('ReportsController', () => {
       const mockReportData = { contestId: 'contest-1', contestants: [] };
 
       mockReq.body = { contestId: 'contest-1' };
+      // Mock auth check
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1', tenantId: 'tenant-1' });
       mockGenerationService.generateContestResultsData.mockResolvedValue(mockReportData as any);
 
       await controller.generateContestantReports(mockReq as Request, mockRes as Response, mockNext);
@@ -339,6 +365,8 @@ describe('ReportsController', () => {
     it('should call next with error when service throws', async () => {
       const error = new Error('Generation failed');
       mockReq.body = { contestId: 'contest-1' };
+      // Mock auth check passes
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1', tenantId: 'tenant-1' });
       mockGenerationService.generateContestResultsData.mockRejectedValue(error);
 
       await controller.generateContestantReports(mockReq as Request, mockRes as Response, mockNext);
@@ -361,37 +389,43 @@ describe('ReportsController', () => {
         endDate: '2025-12-31',
       };
 
-      mockInstanceService.getInstances.mockResolvedValue(mockInstances as any);
+      // Controller now uses prisma directly for tenant-filtered queries
+      mockPrisma.reportInstance.findMany.mockResolvedValue(mockInstances);
 
       await controller.getReportInstances(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockInstanceService.getInstances).toHaveBeenCalledWith({
-        type: 'event',
-        format: 'pdf',
-        startDate: new Date('2025-01-01'),
-        endDate: new Date('2025-12-31'),
-      });
+      expect(mockPrisma.reportInstance.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            type: 'event',
+            format: 'pdf',
+          }),
+          orderBy: { generatedAt: 'desc' },
+        })
+      );
       expect(mockRes.json).toHaveBeenCalledWith({ data: mockInstances });
     });
 
     it('should handle query without filters', async () => {
       mockReq.query = {};
-      mockInstanceService.getInstances.mockResolvedValue([]);
+      mockPrisma.reportInstance.findMany.mockResolvedValue([]);
 
       await controller.getReportInstances(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockInstanceService.getInstances).toHaveBeenCalledWith({
-        type: undefined,
-        format: undefined,
-        startDate: undefined,
-        endDate: undefined,
-      });
+      expect(mockPrisma.reportInstance.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId: 'tenant-1' }),
+          orderBy: { generatedAt: 'desc' },
+        })
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ data: [] });
     });
 
     it('should call next with error when service throws', async () => {
       const error = new Error('Query failed');
       mockReq.query = {};
-      mockInstanceService.getInstances.mockRejectedValue(error);
+      mockPrisma.reportInstance.findMany.mockRejectedValue(error);
 
       await controller.getReportInstances(mockReq as Request, mockRes as Response, mockNext);
 
@@ -402,6 +436,8 @@ describe('ReportsController', () => {
   describe('deleteReportInstance', () => {
     it('should delete report instance successfully', async () => {
       mockReq.params = { id: 'inst-1' };
+      // Mock auth check - instance exists and user has access
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({ id: 'inst-1', tenantId: 'tenant-1' });
       mockInstanceService.deleteInstance.mockResolvedValue(undefined);
 
       await controller.deleteReportInstance(mockReq as Request, mockRes as Response, mockNext);
@@ -423,6 +459,8 @@ describe('ReportsController', () => {
     it('should call next with error when service throws', async () => {
       const error = new Error('Delete failed');
       mockReq.params = { id: 'inst-1' };
+      // Mock auth check passes
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({ id: 'inst-1', tenantId: 'tenant-1' });
       mockInstanceService.deleteInstance.mockRejectedValue(error);
 
       await controller.deleteReportInstance(mockReq as Request, mockRes as Response, mockNext);
@@ -438,9 +476,8 @@ describe('ReportsController', () => {
 
       mockReq.params = { id: 'report-1' };
 
-      // Mock the private getReportData method
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      // Mock the getReportData helper (uses prisma.reportInstance.findFirst with tenant check)
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-1',
         data: JSON.stringify(mockReportData),
       });
@@ -470,8 +507,7 @@ describe('ReportsController', () => {
     it('should call next with error when report not found', async () => {
       mockReq.params = { id: 'nonexistent' };
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue(null);
+      mockPrisma.reportInstance.findFirst.mockResolvedValue(null);
 
       await controller.exportToPDF(mockReq as Request, mockRes as Response, mockNext);
 
@@ -486,8 +522,7 @@ describe('ReportsController', () => {
 
       mockReq.params = { id: 'report-2' };
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-2',
         data: mockReportData, // Already parsed object
       });
@@ -525,8 +560,7 @@ describe('ReportsController', () => {
 
       mockReq.params = { id: 'report-3' };
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-3',
         data: JSON.stringify(mockReportData),
       });
@@ -568,8 +602,8 @@ describe('ReportsController', () => {
 
       mockReq.body = emailData;
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      // Mock getReportData (uses findFirst with tenant check)
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-1',
         data: JSON.stringify(mockReportData),
       });
@@ -597,8 +631,7 @@ describe('ReportsController', () => {
         message: 'Message',
       };
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-1',
         data: '{}',
       });
@@ -623,8 +656,7 @@ describe('ReportsController', () => {
         message: 'Message',
       };
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-1',
         data: '{}',
       });
@@ -649,8 +681,7 @@ describe('ReportsController', () => {
         message: 'Message',
       };
 
-      const prisma = require('../../../src/utils/prisma');
-      prisma.reportInstance.findUnique.mockResolvedValue({
+      mockPrisma.reportInstance.findFirst.mockResolvedValue({
         id: 'report-1',
         data: '{}',
       });

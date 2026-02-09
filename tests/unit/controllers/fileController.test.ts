@@ -7,7 +7,7 @@ import 'reflect-metadata';
 import { Request, Response, NextFunction } from 'express';
 import { FileController } from '../../../src/controllers/fileController';
 import { FileService } from '../../../src/services/FileService';
-import { sendSuccess } from '../../../src/utils/responseHelpers';
+import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized } from '../../../src/utils/responseHelpers';
 import { container } from 'tsyringe';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
@@ -32,6 +32,17 @@ describe('FileController', () => {
       return res.status(status).json({ success: true, data, message });
     });
 
+    // Mock error response helpers
+    (sendNotFound as jest.Mock).mockImplementation((res, message = 'Resource not found') => {
+      return res.status(404).json({ success: false, message });
+    });
+    (sendBadRequest as jest.Mock).mockImplementation((res, message = 'Bad request') => {
+      return res.status(400).json({ success: false, message });
+    });
+    (sendUnauthorized as jest.Mock).mockImplementation((res, message = 'Unauthorized') => {
+      return res.status(401).json({ success: false, message });
+    });
+
     // Create mock service
     mockFileService = {
       listFiles: jest.fn(),
@@ -54,7 +65,7 @@ describe('FileController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'ADMIN' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
       file: undefined,
       files: undefined,
     } as any;
@@ -222,7 +233,7 @@ describe('FileController', () => {
 
       await controller.uploadFiles(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'User not authenticated', 401);
+      expect(sendUnauthorized).toHaveBeenCalledWith(mockRes, 'User not authenticated');
     });
 
     it('should return 400 when no files provided', async () => {
@@ -230,7 +241,7 @@ describe('FileController', () => {
 
       await controller.uploadFiles(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'No files provided', 400);
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'No files provided');
     });
 
     it('should call next with error when upload fails', async () => {
@@ -248,29 +259,29 @@ describe('FileController', () => {
     it('should return file by ID', async () => {
       mockReq.params = { id: 'file-1' };
       const mockFile = { id: 'file-1', filename: 'test.pdf', user: { id: 'user-1', name: 'John' } };
-      mockPrisma.file.findUnique.mockResolvedValue(mockFile as any);
+      mockPrisma.file.findFirst.mockResolvedValue(mockFile as any);
 
       await controller.getFileById(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.file.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'file-1' } })
+      expect(mockPrisma.file.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'file-1', tenantId: 'tenant-1' } })
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockFile);
     });
 
     it('should return 404 when file not found', async () => {
       mockReq.params = { id: 'missing-file' };
-      mockPrisma.file.findUnique.mockResolvedValue(null);
+      mockPrisma.file.findFirst.mockResolvedValue(null);
 
       await controller.getFileById(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'File not found', 404);
+      expect(sendNotFound).toHaveBeenCalledWith(mockRes, 'File not found');
     });
 
     it('should call next with error when query fails', async () => {
       mockReq.params = { id: 'file-1' };
       const error = new Error('Query error');
-      mockPrisma.file.findUnique.mockRejectedValue(error);
+      mockPrisma.file.findFirst.mockRejectedValue(error);
 
       await controller.getFileById(mockReq as Request, mockRes as Response, mockNext);
 
@@ -283,7 +294,7 @@ describe('FileController', () => {
       mockReq.params = { id: 'file-1' };
       mockReq.body = { category: 'IMAGE', isPublic: true, metadata: { tags: ['test'] } };
       
-      mockPrisma.file.findUnique.mockResolvedValue({ id: 'file-1' } as any);
+      mockPrisma.file.findFirst.mockResolvedValue({ id: 'file-1' } as any);
       mockPrisma.file.update.mockResolvedValue({ id: 'file-1', category: 'IMAGE' } as any);
 
       await controller.updateFile(mockReq as Request, mockRes as Response, mockNext);
@@ -300,17 +311,17 @@ describe('FileController', () => {
     it('should return 404 when file not found', async () => {
       mockReq.params = { id: 'missing-file' };
       mockReq.body = { category: 'IMAGE' };
-      mockPrisma.file.findUnique.mockResolvedValue(null);
+      mockPrisma.file.findFirst.mockResolvedValue(null);
 
       await controller.updateFile(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'File not found', 404);
+      expect(sendNotFound).toHaveBeenCalledWith(mockRes, 'File not found');
     });
 
     it('should call next with error when update fails', async () => {
       mockReq.params = { id: 'file-1' };
       mockReq.body = { category: 'IMAGE' };
-      mockPrisma.file.findUnique.mockResolvedValue({ id: 'file-1' } as any);
+      mockPrisma.file.findFirst.mockResolvedValue({ id: 'file-1' } as any);
       const error = new Error('Update failed');
       mockPrisma.file.update.mockRejectedValue(error);
 
@@ -386,7 +397,7 @@ describe('FileController', () => {
 
       await controller.upload(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'User not authenticated', 401);
+      expect(sendUnauthorized).toHaveBeenCalledWith(mockRes, 'User not authenticated');
     });
 
     it('should return 400 when no file provided', async () => {
@@ -394,7 +405,7 @@ describe('FileController', () => {
 
       await controller.upload(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'No file provided', 400);
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'No file provided');
     });
 
     it('should call next with error when upload fails', async () => {

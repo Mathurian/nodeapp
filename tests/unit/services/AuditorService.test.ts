@@ -16,19 +16,24 @@
  * - Audit history
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { mock, MockProxy } from 'jest-mock-extended';
+import 'reflect-metadata';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { AuditorService } from '../../src/services/AuditorService';
-import { NotFoundError } from '../../src/services/BaseService';
+import { AuditorService } from '../../../src/services/AuditorService';
+import { NotFoundError } from '../../../src/services/BaseService';
 
 describe('AuditorService', () => {
   let service: AuditorService;
-  let prismaMock: MockProxy<PrismaClient>;
+  let prismaMock: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = mock<PrismaClient>();
+    prismaMock = mockDeep<PrismaClient>();
     service = new AuditorService(prismaMock as any);
+  });
+
+  afterEach(() => {
+    mockReset(prismaMock);
   });
 
   describe('getStats', () => {
@@ -215,6 +220,7 @@ describe('AuditorService', () => {
       const mockCategory = {
         id: 'cat1',
         name: 'Solo',
+        tenantId: 'tenant1',
         contest: { id: 'c1', event: { id: 'e1' } },
       };
 
@@ -223,6 +229,7 @@ describe('AuditorService', () => {
         categoryId: 'cat1',
         userId: 'u1',
         role: 'AUDITOR',
+        tenantId: 'tenant1',
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -234,6 +241,7 @@ describe('AuditorService', () => {
       expect(result.certification).toEqual(mockCertification);
       expect(prismaMock.categoryCertification.create).toHaveBeenCalledWith({
         data: {
+          tenantId: 'tenant1',
           categoryId: 'cat1',
           userId: 'u1',
           role: 'AUDITOR',
@@ -251,6 +259,7 @@ describe('AuditorService', () => {
     it('should include event information in response', async () => {
       const mockCategory = {
         id: 'cat1',
+        tenantId: 'tenant1',
         contest: {
           id: 'c1',
           event: { id: 'e1', name: 'Spring Event' },
@@ -405,9 +414,9 @@ describe('AuditorService', () => {
 
       const mockUpdated = {
         ...mockScore,
-        verified: true,
-        verificationComments: 'Score verified',
-        verifiedBy: 'u1',
+        isCertified: true,
+        certifiedBy: 'u1',
+        certifiedAt: expect.any(Date),
       };
 
       prismaMock.score.findUnique.mockResolvedValue(mockScore as any);
@@ -418,15 +427,13 @@ describe('AuditorService', () => {
         comments: 'Score verified',
       });
 
-      expect(result.verified).toBe(true);
-      expect(result.verificationComments).toBe('Score verified');
+      expect(result.isCertified).toBe(true);
       expect(prismaMock.score.update).toHaveBeenCalledWith({
         where: { id: 's1' },
         data: expect.objectContaining({
-          verified: true,
-          verificationComments: 'Score verified',
-          verifiedBy: 'u1',
-          verifiedAt: expect.any(Date),
+          isCertified: true,
+          certifiedBy: 'u1',
+          certifiedAt: expect.any(Date),
         }),
       });
     });
@@ -443,8 +450,9 @@ describe('AuditorService', () => {
       expect(prismaMock.score.update).toHaveBeenCalledWith({
         where: { id: 's1' },
         data: expect.objectContaining({
-          verified: false,
-          verificationIssues: 'Score calculation error',
+          isCertified: false,
+          certifiedBy: 'u1',
+          certifiedAt: expect.any(Date),
         }),
       });
     });
@@ -469,7 +477,7 @@ describe('AuditorService', () => {
           { id: 's2', verified: true },
           { id: 's3', verified: false },
         ],
-        certifications: [{ type: 'TALLY_MASTER' }],
+        categoryCertifications: [{ role: 'TALLY_MASTER' }],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -495,7 +503,7 @@ describe('AuditorService', () => {
         id: 'cat1',
         name: 'Solo',
         scores: [],
-        certifications: [],
+        categoryCertifications: [],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -518,9 +526,9 @@ describe('AuditorService', () => {
           event: { id: 'e1', name: 'Spring Event' },
         },
         scores: [{ id: 's1', createdAt: new Date() }],
-        certifications: [
-          { type: 'TALLY_MASTER', createdAt: new Date() },
-          { type: 'AUDITOR', createdAt: new Date() },
+        categoryCertifications: [
+          { role: 'TALLY_MASTER', certifiedAt: new Date() },
+          { role: 'AUDITOR', certifiedAt: new Date() },
         ],
       };
 
@@ -540,7 +548,7 @@ describe('AuditorService', () => {
         name: 'Solo',
         contest: { id: 'c1', name: 'Contest', event: { id: 'e1', name: 'Event' } },
         scores: [],
-        certifications: [],
+        categoryCertifications: [],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -574,15 +582,17 @@ describe('AuditorService', () => {
           {
             score: 85,
             contestantId: 'cont1',
+            judgeId: 'j1',
             contestant: { id: 'cont1', name: 'Alice' },
           },
           {
             score: 90,
             contestantId: 'cont2',
+            judgeId: 'j1',
             contestant: { id: 'cont2', name: 'Bob' },
           },
         ],
-        certifications: [{ type: 'TALLY_MASTER' }],
+        categoryCertifications: [{ role: 'TALLY_MASTER' }],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -604,11 +614,12 @@ describe('AuditorService', () => {
           {
             score: 85,
             contestantId: 'cont1',
+            judgeId: 'j1',
             contestant: { id: 'cont1' },
           },
         ],
         contest: { id: 'c1', event: { id: 'e1' } },
-        certifications: [],
+        categoryCertifications: [],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -625,11 +636,12 @@ describe('AuditorService', () => {
           {
             score: 85,
             contestantId: 'cont1',
+            judgeId: 'j1',
             contestant: { id: 'cont1' },
           },
         ],
         contest: { id: 'c1', event: { id: 'e1' } },
-        certifications: [],
+        categoryCertifications: [],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -651,12 +663,12 @@ describe('AuditorService', () => {
       const mockCategory = {
         id: 'cat1',
         scores: [
-          { score: 70, contestantId: 'cont1', contestant: { id: 'cont1' } },
-          { score: 85, contestantId: 'cont2', contestant: { id: 'cont2' } },
-          { score: 95, contestantId: 'cont3', contestant: { id: 'cont3' } },
+          { score: 70, contestantId: 'cont1', judgeId: 'j1', contestant: { id: 'cont1' } },
+          { score: 85, contestantId: 'cont2', judgeId: 'j1', contestant: { id: 'cont2' } },
+          { score: 95, contestantId: 'cont3', judgeId: 'j1', contestant: { id: 'cont3' } },
         ],
         contest: { id: 'c1', event: { id: 'e1' } },
-        certifications: [],
+        categoryCertifications: [],
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);

@@ -280,7 +280,7 @@ describe('BoardCertificationService', () => {
 
       await expect(
         service.submitBoardCertification(mockCategoryId, mockUserId, mockTenantId)
-      ).rejects.toThrow('Not all required certifications are complete');
+      ).rejects.toThrow('Not all Auditors have signed');
     });
 
     it('should reject if Board has already certified', async () => {
@@ -354,6 +354,8 @@ describe('BoardCertificationService', () => {
       };
 
       mockPrisma.category.findMany.mockResolvedValue([readyCategory] as any);
+      // Mock findUnique for the internal getBoardCertificationStatus call
+      mockPrisma.category.findUnique.mockResolvedValue(readyCategory as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
 
       const result = await service.getPendingBoardApprovals(mockTenantId);
@@ -363,13 +365,8 @@ describe('BoardCertificationService', () => {
     });
 
     it('should exclude categories already Board approved', async () => {
-      const approvedCategory = {
-        ...mockCategory,
-        boardApproved: true,
-        categoryCertifications: mockAuditorCertifications
-      };
-
-      mockPrisma.category.findMany.mockResolvedValue([approvedCategory] as any);
+      // Query filters by boardApproved: false, so approved categories won't be returned
+      mockPrisma.category.findMany.mockResolvedValue([] as any);
 
       const result = await service.getPendingBoardApprovals(mockTenantId);
 
@@ -383,6 +380,8 @@ describe('BoardCertificationService', () => {
       };
 
       mockPrisma.category.findMany.mockResolvedValue([incompleteCategory] as any);
+      // Mock findUnique for the internal getBoardCertificationStatus call
+      mockPrisma.category.findUnique.mockResolvedValue(incompleteCategory as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
 
       const result = await service.getPendingBoardApprovals(mockTenantId);

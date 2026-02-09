@@ -4,21 +4,21 @@ import { PrismaClient, ScoreFile } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { promises as fs } from 'fs';
 
-jest.mock('fs', () => ({
-  promises: {
-    unlink: jest.fn(),
-  },
-}));
+// Use the global fs.promises mock from jest.globalMocks.ts
+const mockUnlink = fs.unlink as jest.Mock;
 
 describe('ScoreFileService', () => {
   let service: ScoreFileService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+
+  const tenantId = 'tenant-123';
 
   const mockScoreFile: ScoreFile = {
     id: 'file-123',
     categoryId: 'cat-123',
     judgeId: 'judge-123',
     contestantId: 'contestant-123',
+    tenantId: tenantId,
     fileName: 'score.pdf',
     fileType: 'application/pdf',
     filePath: '/uploads/score.pdf',
@@ -52,6 +52,7 @@ describe('ScoreFileService', () => {
       categoryId: 'cat-123',
       judgeId: 'judge-123',
       contestantId: 'contestant-123',
+      tenantId: tenantId,
       fileName: 'score.pdf',
       fileType: 'application/pdf',
       filePath: '/uploads/score.pdf',
@@ -60,9 +61,9 @@ describe('ScoreFileService', () => {
     };
 
     it('should upload score file successfully', async () => {
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-123' } as any);
-      mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-123' } as any);
-      mockPrisma.contestant.findUnique.mockResolvedValue({ id: 'contestant-123' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-123', tenantId } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge-123', tenantId } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant-123', tenantId } as any);
       mockPrisma.scoreFile.create.mockResolvedValue(mockScoreFile);
 
       const result = await service.uploadScoreFile(uploadData, 'user-123');
@@ -79,7 +80,7 @@ describe('ScoreFileService', () => {
     });
 
     it('should throw error if category not found', async () => {
-      mockPrisma.category.findUnique.mockResolvedValue(null);
+      mockPrisma.category.findFirst.mockResolvedValue(null);
 
       await expect(
         service.uploadScoreFile(uploadData, 'user-123')
@@ -87,8 +88,8 @@ describe('ScoreFileService', () => {
     });
 
     it('should throw error if judge not found', async () => {
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-123' } as any);
-      mockPrisma.judge.findUnique.mockResolvedValue(null);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-123', tenantId } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue(null);
 
       await expect(
         service.uploadScoreFile(uploadData, 'user-123')
@@ -96,9 +97,9 @@ describe('ScoreFileService', () => {
     });
 
     it('should throw error if contestant not found', async () => {
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-123' } as any);
-      mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-123' } as any);
-      mockPrisma.contestant.findUnique.mockResolvedValue(null);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-123', tenantId } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge-123', tenantId } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue(null);
 
       await expect(
         service.uploadScoreFile(uploadData, 'user-123')
@@ -107,8 +108,8 @@ describe('ScoreFileService', () => {
 
     it('should upload without contestant if not provided', async () => {
       const dataWithoutContestant = { ...uploadData, contestantId: undefined };
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-123' } as any);
-      mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-123' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-123', tenantId } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge-123', tenantId } as any);
       mockPrisma.scoreFile.create.mockResolvedValue({
         ...mockScoreFile,
         contestantId: null,
@@ -125,8 +126,9 @@ describe('ScoreFileService', () => {
     });
 
     it('should set status to pending by default', async () => {
-      mockPrisma.category.findUnique.mockResolvedValue({ id: 'cat-123' } as any);
-      mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-123' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-123', tenantId } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge-123', tenantId } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant-123', tenantId } as any);
       mockPrisma.scoreFile.create.mockResolvedValue(mockScoreFile);
 
       await service.uploadScoreFile(uploadData, 'user-123');
@@ -139,21 +141,20 @@ describe('ScoreFileService', () => {
 
   describe('getScoreFileById', () => {
     it('should get score file by ID', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile as any);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile as any);
 
-      const result = await service.getScoreFileById('file-123');
+      const result = await service.getScoreFileById('file-123', tenantId);
 
       expect(result).toEqual(mockScoreFile);
-      expect(mockPrisma.scoreFile.findUnique).toHaveBeenCalledWith({
-        where: { id: 'file-123' },
-        include: expect.any(Object),
+      expect(mockPrisma.scoreFile.findFirst).toHaveBeenCalledWith({
+        where: { id: 'file-123', tenantId },
       });
     });
 
     it('should return null if not found', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(null);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(null);
 
-      const result = await service.getScoreFileById('nonexistent');
+      const result = await service.getScoreFileById('nonexistent', tenantId);
 
       expect(result).toBeNull();
     });
@@ -164,12 +165,11 @@ describe('ScoreFileService', () => {
       const files = [mockScoreFile, { ...mockScoreFile, id: 'file-124' }];
       mockPrisma.scoreFile.findMany.mockResolvedValue(files as any);
 
-      const result = await service.getScoreFilesByCategory('cat-123');
+      const result = await service.getScoreFilesByCategory('cat-123', tenantId);
 
       expect(result).toEqual(files);
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: { categoryId: 'cat-123' },
-        include: expect.any(Object),
+        where: { categoryId: 'cat-123', tenantId },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -177,7 +177,7 @@ describe('ScoreFileService', () => {
     it('should return empty array if no files found', async () => {
       mockPrisma.scoreFile.findMany.mockResolvedValue([]);
 
-      const result = await service.getScoreFilesByCategory('cat-123');
+      const result = await service.getScoreFilesByCategory('cat-123', tenantId);
 
       expect(result).toEqual([]);
     });
@@ -188,12 +188,11 @@ describe('ScoreFileService', () => {
       const files = [mockScoreFile];
       mockPrisma.scoreFile.findMany.mockResolvedValue(files as any);
 
-      const result = await service.getScoreFilesByJudge('judge-123');
+      const result = await service.getScoreFilesByJudge('judge-123', tenantId);
 
       expect(result).toEqual(files);
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: { judgeId: 'judge-123' },
-        include: expect.any(Object),
+        where: { judgeId: 'judge-123', tenantId },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -204,12 +203,11 @@ describe('ScoreFileService', () => {
       const files = [mockScoreFile];
       mockPrisma.scoreFile.findMany.mockResolvedValue(files as any);
 
-      const result = await service.getScoreFilesByContestant('contestant-123');
+      const result = await service.getScoreFilesByContestant('contestant-123', tenantId);
 
       expect(result).toEqual(files);
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: { contestantId: 'contestant-123' },
-        include: expect.any(Object),
+        where: { contestantId: 'contestant-123', tenantId },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -217,7 +215,7 @@ describe('ScoreFileService', () => {
 
   describe('updateScoreFile', () => {
     it('should update score file status (admin)', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
       mockPrisma.scoreFile.update.mockResolvedValue({
         ...mockScoreFile,
         status: 'approved',
@@ -225,6 +223,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.updateScoreFile(
         'file-123',
+        tenantId,
         { status: 'approved' },
         'user-123',
         'ADMIN'
@@ -238,7 +237,7 @@ describe('ScoreFileService', () => {
     });
 
     it('should update notes without changing status', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
       mockPrisma.scoreFile.update.mockResolvedValue({
         ...mockScoreFile,
         notes: 'Updated notes',
@@ -246,6 +245,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.updateScoreFile(
         'file-123',
+        tenantId,
         { notes: 'Updated notes' },
         'user-123',
         'JUDGE'
@@ -255,19 +255,20 @@ describe('ScoreFileService', () => {
     });
 
     it('should throw error if file not found', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(null);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.updateScoreFile('nonexistent', {}, 'user-123', 'ADMIN')
+        service.updateScoreFile('nonexistent', tenantId, {}, 'user-123', 'ADMIN')
       ).rejects.toThrow('Score file not found');
     });
 
     it('should throw error if non-admin tries to update status', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
 
       await expect(
         service.updateScoreFile(
           'file-123',
+          tenantId,
           { status: 'approved' },
           'user-123',
           'JUDGE'
@@ -276,7 +277,7 @@ describe('ScoreFileService', () => {
     });
 
     it('should allow organizer to update status', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
       mockPrisma.scoreFile.update.mockResolvedValue({
         ...mockScoreFile,
         status: 'approved',
@@ -284,6 +285,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.updateScoreFile(
         'file-123',
+        tenantId,
         { status: 'approved' },
         'user-123',
         'ORGANIZER'
@@ -293,7 +295,7 @@ describe('ScoreFileService', () => {
     });
 
     it('should allow board to update status', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
       mockPrisma.scoreFile.update.mockResolvedValue({
         ...mockScoreFile,
         status: 'rejected',
@@ -301,6 +303,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.updateScoreFile(
         'file-123',
+        tenantId,
         { status: 'rejected' },
         'user-123',
         'BOARD'
@@ -312,50 +315,50 @@ describe('ScoreFileService', () => {
 
   describe('deleteScoreFile', () => {
     it('should delete score file and physical file (admin)', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
+      mockUnlink.mockResolvedValue(undefined);
       mockPrisma.scoreFile.delete.mockResolvedValue(mockScoreFile);
 
-      await service.deleteScoreFile('file-123', 'user-123', 'ADMIN');
+      await service.deleteScoreFile('file-123', tenantId, 'user-123', 'ADMIN');
 
-      expect(fs.unlink).toHaveBeenCalledWith(mockScoreFile.filePath);
+      expect(mockUnlink).toHaveBeenCalledWith(mockScoreFile.filePath);
       expect(mockPrisma.scoreFile.delete).toHaveBeenCalledWith({
         where: { id: 'file-123' },
       });
     });
 
     it('should allow uploader to delete their own file', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
+      mockUnlink.mockResolvedValue(undefined);
       mockPrisma.scoreFile.delete.mockResolvedValue(mockScoreFile);
 
-      await service.deleteScoreFile('file-123', 'user-123', 'JUDGE');
+      await service.deleteScoreFile('file-123', tenantId, 'user-123', 'JUDGE');
 
       expect(mockPrisma.scoreFile.delete).toHaveBeenCalled();
     });
 
     it('should throw error if file not found', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(null);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.deleteScoreFile('nonexistent', 'user-123', 'ADMIN')
+        service.deleteScoreFile('nonexistent', tenantId, 'user-123', 'ADMIN')
       ).rejects.toThrow('Score file not found');
     });
 
     it('should throw error if unauthorized user tries to delete', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
 
       await expect(
-        service.deleteScoreFile('file-123', 'other-user', 'JUDGE')
+        service.deleteScoreFile('file-123', tenantId, 'other-user', 'JUDGE')
       ).rejects.toThrow('You do not have permission to delete this score file');
     });
 
     it('should continue deletion even if physical file deletion fails', async () => {
-      mockPrisma.scoreFile.findUnique.mockResolvedValue(mockScoreFile);
-      (fs.unlink as jest.Mock).mockRejectedValue(new Error('File not found'));
+      mockPrisma.scoreFile.findFirst.mockResolvedValue(mockScoreFile);
+      mockUnlink.mockRejectedValue(new Error('File not found'));
       mockPrisma.scoreFile.delete.mockResolvedValue(mockScoreFile);
 
-      await service.deleteScoreFile('file-123', 'user-123', 'ADMIN');
+      await service.deleteScoreFile('file-123', tenantId, 'user-123', 'ADMIN');
 
       expect(mockPrisma.scoreFile.delete).toHaveBeenCalled();
     });
@@ -366,19 +369,28 @@ describe('ScoreFileService', () => {
       const files = [mockScoreFile];
       mockPrisma.scoreFile.findMany.mockResolvedValue(files as any);
 
-      const result = await service.getAllScoreFiles();
+      const result = await service.getAllScoreFiles(tenantId);
 
       expect(result).toEqual(files);
+      expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId,
+          categoryId: undefined,
+          judgeId: undefined,
+          contestantId: undefined,
+          status: undefined,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
     });
 
     it('should filter by category', async () => {
       mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
 
-      await service.getAllScoreFiles({ categoryId: 'cat-123' });
+      await service.getAllScoreFiles(tenantId, { categoryId: 'cat-123' });
 
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({ categoryId: 'cat-123' }),
-        include: expect.any(Object),
+        where: expect.objectContaining({ categoryId: 'cat-123', tenantId }),
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -386,11 +398,10 @@ describe('ScoreFileService', () => {
     it('should filter by judge', async () => {
       mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
 
-      await service.getAllScoreFiles({ judgeId: 'judge-123' });
+      await service.getAllScoreFiles(tenantId, { judgeId: 'judge-123' });
 
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({ judgeId: 'judge-123' }),
-        include: expect.any(Object),
+        where: expect.objectContaining({ judgeId: 'judge-123', tenantId }),
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -398,11 +409,10 @@ describe('ScoreFileService', () => {
     it('should filter by contestant', async () => {
       mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
 
-      await service.getAllScoreFiles({ contestantId: 'contestant-123' });
+      await service.getAllScoreFiles(tenantId, { contestantId: 'contestant-123' });
 
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({ contestantId: 'contestant-123' }),
-        include: expect.any(Object),
+        where: expect.objectContaining({ contestantId: 'contestant-123', tenantId }),
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -410,11 +420,10 @@ describe('ScoreFileService', () => {
     it('should filter by status', async () => {
       mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
 
-      await service.getAllScoreFiles({ status: 'approved' });
+      await service.getAllScoreFiles(tenantId, { status: 'approved' });
 
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({ status: 'approved' }),
-        include: expect.any(Object),
+        where: expect.objectContaining({ status: 'approved', tenantId }),
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -422,7 +431,7 @@ describe('ScoreFileService', () => {
     it('should apply multiple filters', async () => {
       mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
 
-      await service.getAllScoreFiles({
+      await service.getAllScoreFiles(tenantId, {
         categoryId: 'cat-123',
         judgeId: 'judge-123',
         status: 'approved',
@@ -433,8 +442,8 @@ describe('ScoreFileService', () => {
           categoryId: 'cat-123',
           judgeId: 'judge-123',
           status: 'approved',
+          tenantId,
         }),
-        include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
       });
     });

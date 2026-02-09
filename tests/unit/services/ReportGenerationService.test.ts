@@ -143,16 +143,16 @@ describe('ReportGenerationService', () => {
     it('should calculate total possible score from criteria', async () => {
       const contestWithCriteria = {
         ...mockContest,
-        categories: [{ ...mockCategory, id: 'category-1' }],
+        categories: [{ ...mockCategory, id: 'cat1' }],
       };
 
       mockPrisma.criterion.findMany.mockResolvedValue([
-        { ...mockCriterion, categoryId: 'category-1', maxScore: 50 },
-        { ...mockCriterion, id: 'criterion-2', categoryId: 'category-1', maxScore: 50 },
+        { ...mockCriterion, categoryId: 'cat1', maxScore: 50 },
+        { ...mockCriterion, id: 'criterion-2', categoryId: 'cat1', maxScore: 50 },
       ]);
 
       mockPrisma.score.findMany.mockResolvedValue([
-        { ...mockScore, contestantId: 'contestant-1', categoryId: 'category-1', judgeId: 'judge-1', score: 45 },
+        { ...mockScore, contestantId: 'contestant1', categoryId: 'cat1', judgeId: 'judge1', score: 45 },
       ] as any);
 
       const winners = await service.calculateContestWinners(contestWithCriteria);
@@ -238,16 +238,16 @@ describe('ReportGenerationService', () => {
     it('should aggregate scores per judge-category pair', async () => {
       const contestWithPairs = {
         ...mockContest,
-        categories: [{ ...mockCategory, id: 'category-1' }],
+        categories: [{ ...mockCategory, id: 'cat1' }],
       };
 
       mockPrisma.criterion.findMany.mockResolvedValue([
-        { ...mockCriterion, categoryId: 'category-1', maxScore: 100 },
+        { ...mockCriterion, categoryId: 'cat1', maxScore: 100 },
       ]);
 
       mockPrisma.score.findMany.mockResolvedValue([
-        { ...mockScore, contestantId: 'contestant-1', categoryId: 'category-1', judgeId: 'judge-1', score: 85 },
-        { ...mockScore, id: 'score-2', contestantId: 'contestant-1', categoryId: 'category-1', judgeId: 'judge-2', score: 90 },
+        { ...mockScore, contestantId: 'contestant1', categoryId: 'cat1', judgeId: 'judge1', score: 85 },
+        { ...mockScore, id: 'score2', contestantId: 'contestant1', categoryId: 'cat1', judgeId: 'judge2', score: 90 },
       ] as any);
 
       const winners = await service.calculateContestWinners(contestWithPairs);

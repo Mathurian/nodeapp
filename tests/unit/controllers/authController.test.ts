@@ -20,6 +20,12 @@ jest.mock('tsyringe', () => ({
 
 // Mock logger
 jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => ({
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }),
   createRequestLogger: () => ({
     debug: jest.fn(),
     info: jest.fn(),
@@ -65,12 +71,15 @@ describe('AuthController', () => {
       ip: '127.0.0.1',
       get: jest.fn(),
       connection: { remoteAddress: '127.0.0.1' } as any,
+      tenantId: 'tenant-1',
     };
 
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
+      clearCookie: jest.fn().mockReturnThis(),
+      cookie: jest.fn().mockReturnThis(),
     };
 
     mockNext = jest.fn();
@@ -105,6 +114,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.login).toHaveBeenCalledWith(
         { email: 'test@example.com', password: 'password123' },
+        'tenant-1',
         '127.0.0.1',
         undefined
       );
@@ -216,6 +226,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.login).toHaveBeenCalledWith(
         { email: 'test@example.com', password: 'password123' },
+        'tenant-1',
         '192.168.1.100',
         'Mozilla/5.0'
       );

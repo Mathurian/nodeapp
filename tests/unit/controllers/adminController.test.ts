@@ -8,7 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AdminController } from '../../../src/controllers/adminController';
 import { AdminService } from '../../../src/services/AdminService';
 import { container } from 'tsyringe';
-import { createRequestLogger } from '../../../src/utils/logger';
+// Logger is mocked below
 import { sendSuccess } from '../../../src/utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
@@ -16,7 +16,20 @@ import { UserRole } from '@prisma/client';
 
 // Mock dependencies
 jest.mock('../../../src/services/AdminService');
-jest.mock('../../../src/utils/logger');
+jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => ({
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }),
+  createRequestLogger: () => ({
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }),
+}));
 jest.mock('../../../src/utils/responseHelpers');
 
 describe('AdminController', () => {
@@ -30,12 +43,7 @@ describe('AdminController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mock logger
-    (createRequestLogger as jest.Mock).mockReturnValue({
-      debug: jest.fn(),
-      info: jest.fn(),
-      error: jest.fn(),
-    });
+    // Logger is mocked via jest.mock factory above
 
     // Mock sendSuccess helper
     (sendSuccess as jest.Mock).mockImplementation((res, data, message, status = 200) => {
@@ -291,13 +299,13 @@ describe('AdminController', () => {
 
   describe('getLogs', () => {
     it('should return activity logs with custom limit', async () => {
-      mockReq.query = { limit: '50' };
+      mockReq.query = { limit: '50', page: '1' };
       const mockLogs = [{ id: '1', action: 'login' }];
       mockAdminService.getActivityLogs.mockResolvedValue(mockLogs as any);
 
       await controller.getLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(50);
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: 50, page: 1 });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
 
@@ -307,7 +315,7 @@ describe('AdminController', () => {
 
       await controller.getLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(100);
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: undefined, page: undefined });
     });
   });
 
@@ -520,8 +528,8 @@ describe('AdminController', () => {
       });
     });
 
-    it('should filter by categoryId and contestId', async () => {
-      mockReq.query = { categoryId: 'cat-1', contestId: 'contest-1' };
+    it('should filter by categoryId', async () => {
+      mockReq.query = { categoryId: 'cat-1' };
       mockPrisma.score.findMany.mockResolvedValue([] as any);
       mockPrisma.score.count.mockResolvedValue(0);
 
@@ -529,7 +537,7 @@ describe('AdminController', () => {
 
       expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { categoryId: 'cat-1', contestId: 'contest-1' },
+          where: { categoryId: 'cat-1' },
         })
       );
     });
@@ -537,13 +545,13 @@ describe('AdminController', () => {
 
   describe('getActivityLogs', () => {
     it('should return activity logs', async () => {
-      mockReq.query = { limit: '200' };
+      mockReq.query = { limit: '200', page: '2' };
       const mockLogs = [{ id: '1', action: 'create' }];
       mockAdminService.getActivityLogs.mockResolvedValue(mockLogs as any);
 
       await controller.getActivityLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(200);
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: 200, page: 2 });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
 
@@ -553,7 +561,7 @@ describe('AdminController', () => {
 
       await controller.getActivityLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(100);
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: undefined, page: undefined });
     });
   });
 

@@ -228,7 +228,33 @@ export async function tenantMiddleware(
       }
     }
 
-    // 6. Public endpoints that don't require tenant identification
+    // 6. Default tenant fallback
+    // If no tenant could be identified, fall back to the default tenant
+    // This enables login from neutral URLs (no subdomain/header) while still
+    // supporting cross-tenant user lookup in AuthService
+    if (!tenantIdOrSlug) {
+      const defaultTenant = await prisma.tenant.findFirst({
+        where: {
+          OR: [
+            { id: 'default_tenant' },
+            { slug: 'default' }
+          ],
+          isActive: true
+        }
+      });
+
+      if (defaultTenant) {
+        tenantIdOrSlug = defaultTenant.id;
+        identificationMethod = 'default_fallback';
+        logger.info(`Falling back to default tenant: ${defaultTenant.slug}`, {
+          path: req.path,
+          method: req.method,
+          host: req.get('host')
+        });
+      }
+    }
+
+    // 7. Public endpoints that don't require tenant identification
     if (!tenantIdOrSlug) {
       // Define explicitly public endpoints
       const publicEndpoints = [

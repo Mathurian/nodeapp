@@ -1,18 +1,24 @@
 /**
  * BaseService Tests
  * Comprehensive test coverage for base service functionality
+ * P3-3: Updated to use BaseAppError hierarchy (no more ServiceError)
  */
 
 import 'reflect-metadata';
 import {
   BaseService,
-  ServiceError,
   ValidationError,
   NotFoundError,
   UnauthorizedError,
   ForbiddenError,
   ConflictError
 } from '../../../src/services/BaseService';
+import {
+  BaseAppError,
+  BadRequestError,
+  InternalError,
+  isAppError,
+} from '../../../src/types/errors';
 import { ErrorSeverity } from '../../../src/utils/errorTracking';
 
 // Create concrete implementation for testing
@@ -41,7 +47,7 @@ class TestService extends BaseService {
     return this.createNotFoundError(message);
   }
 
-  public testBadRequestError(message: string): ServiceError {
+  public testBadRequestError(message: string): BadRequestError {
     return this.badRequestError(message);
   }
 
@@ -91,28 +97,29 @@ describe('BaseService', () => {
   });
 
   describe('Error Classes', () => {
-    describe('ServiceError', () => {
-      it('should create ServiceError with message', () => {
-        const error = new ServiceError('Test error');
+    describe('BaseAppError (replaces ServiceError)', () => {
+      it('should create ValidationError with message', () => {
+        const error = new ValidationError('Test error');
 
-        expect(error).toBeInstanceOf(ServiceError);
+        expect(error).toBeInstanceOf(ValidationError);
+        expect(error).toBeInstanceOf(BaseAppError);
         expect(error).toBeInstanceOf(Error);
         expect(error.message).toBe('Test error');
-        expect(error.statusCode).toBe(500);
-        expect(error.name).toBe('ServiceError');
-      });
-
-      it('should create ServiceError with custom status code', () => {
-        const error = new ServiceError('Test error', 400);
-
         expect(error.statusCode).toBe(400);
+        expect(error.name).toBe('ValidationError');
       });
 
-      it('should create ServiceError with code and details', () => {
-        const details = { field: 'value' };
-        const error = new ServiceError('Test error', 500, 'TEST_CODE', details);
+      it('should create InternalError with default status code 500', () => {
+        const error = new InternalError('Test error');
 
-        expect(error.code).toBe('TEST_CODE');
+        expect(error.statusCode).toBe(500);
+      });
+
+      it('should create BadRequestError with code and details', () => {
+        const details = { field: 'value' };
+        const error = new BadRequestError('Test error', undefined, details);
+
+        expect(error.code).toBe('BAD_REQUEST');
         expect(error.details).toEqual(details);
       });
     });
@@ -122,52 +129,51 @@ describe('BaseService', () => {
         const error = new ValidationError('Validation failed');
 
         expect(error).toBeInstanceOf(ValidationError);
-        expect(error).toBeInstanceOf(ServiceError);
+        expect(error).toBeInstanceOf(BaseAppError);
         expect(error.message).toBe('Validation failed');
-        expect(error.statusCode).toBe(422);
+        expect(error.statusCode).toBe(400);
         expect(error.code).toBe('VALIDATION_ERROR');
         expect(error.name).toBe('ValidationError');
       });
 
-      it('should create ValidationError with validation errors', () => {
+      it('should create ValidationError with validation errors as details', () => {
         const validationErrors = [
           { field: 'email', message: 'Invalid email' }
         ];
         const error = new ValidationError('Validation failed', validationErrors);
 
-        expect(error.validationErrors).toEqual(validationErrors);
         expect(error.details).toEqual(validationErrors);
       });
     });
 
     describe('NotFoundError', () => {
-      it('should create NotFoundError with resource only', () => {
-        const error = new NotFoundError('User');
+      it('should create NotFoundError with message', () => {
+        const error = new NotFoundError('User not found');
 
         expect(error).toBeInstanceOf(NotFoundError);
-        expect(error).toBeInstanceOf(ServiceError);
+        expect(error).toBeInstanceOf(BaseAppError);
         expect(error.message).toBe('User not found');
         expect(error.statusCode).toBe(404);
         expect(error.code).toBe('NOT_FOUND');
         expect(error.name).toBe('NotFoundError');
       });
 
-      it('should create NotFoundError with resource and identifier', () => {
-        const error = new NotFoundError('User', 'user-123');
+      it('should create NotFoundError with default message', () => {
+        const error = new NotFoundError();
 
-        expect(error.message).toBe("User with identifier 'user-123' not found");
+        expect(error.message).toBe('Resource not found');
       });
     });
 
-    describe('UnauthorizedError', () => {
+    describe('UnauthorizedError (AuthenticationError)', () => {
       it('should create UnauthorizedError with default message', () => {
         const error = new UnauthorizedError();
 
         expect(error).toBeInstanceOf(UnauthorizedError);
-        expect(error.message).toBe('Unauthorized');
+        expect(error.message).toBe('Authentication failed');
         expect(error.statusCode).toBe(401);
-        expect(error.code).toBe('UNAUTHORIZED');
-        expect(error.name).toBe('UnauthorizedError');
+        expect(error.code).toBe('AUTHENTICATION_ERROR');
+        expect(error.name).toBe('AuthenticationError');
       });
 
       it('should create UnauthorizedError with custom message', () => {
@@ -177,15 +183,15 @@ describe('BaseService', () => {
       });
     });
 
-    describe('ForbiddenError', () => {
+    describe('ForbiddenError (AuthorizationError)', () => {
       it('should create ForbiddenError with default message', () => {
         const error = new ForbiddenError();
 
         expect(error).toBeInstanceOf(ForbiddenError);
-        expect(error.message).toBe('Forbidden');
+        expect(error.message).toBe('Insufficient permissions');
         expect(error.statusCode).toBe(403);
-        expect(error.code).toBe('FORBIDDEN');
-        expect(error.name).toBe('ForbiddenError');
+        expect(error.code).toBe('AUTHORIZATION_ERROR');
+        expect(error.name).toBe('AuthorizationError');
       });
 
       it('should create ForbiddenError with custom message', () => {
@@ -209,17 +215,17 @@ describe('BaseService', () => {
   });
 
   describe('handleError', () => {
-    it('should re-throw ServiceError as-is', () => {
-      const error = new ServiceError('Test error', 400);
+    it('should re-throw app errors as-is', () => {
+      const error = new BadRequestError('Test error');
 
-      expect(() => service.testHandleError(error)).toThrow(ServiceError);
+      expect(() => service.testHandleError(error)).toThrow(BadRequestError);
       expect(() => service.testHandleError(error)).toThrow('Test error');
     });
 
-    it('should wrap generic errors', () => {
+    it('should wrap generic errors as InternalError', () => {
       const error = new Error('Generic error');
 
-      expect(() => service.testHandleError(error)).toThrow(ServiceError);
+      expect(() => service.testHandleError(error)).toThrow(InternalError);
       expect(() => service.testHandleError(error)).toThrow('Generic error');
     });
 
@@ -237,7 +243,7 @@ describe('BaseService', () => {
     });
 
     it('should return LOW for NotFoundError', () => {
-      const error = new NotFoundError('User');
+      const error = new NotFoundError('User not found');
       expect(service.testGetErrorSeverity(error)).toBe(ErrorSeverity.LOW);
     });
 
@@ -294,15 +300,17 @@ describe('BaseService', () => {
       expect(() => service.testValidateRequired(data, ['name'])).toThrow(ValidationError);
     });
 
-    it('should include validation errors in thrown error', () => {
+    it('should include validation errors in thrown error details', () => {
       const data = { name: 'Test' };
 
       try {
         service.testValidateRequired(data, ['name', 'email', 'password']);
       } catch (error: any) {
-        expect(error.validationErrors).toHaveLength(2);
-        expect(error.validationErrors[0].field).toBe('email');
-        expect(error.validationErrors[0].rule).toBe('required');
+        // P3-3: validation errors are now in details, not validationErrors
+        const details = error.details as any[];
+        expect(details).toHaveLength(2);
+        expect(details[0].field).toBe('email');
+        expect(details[0].rule).toBe('required');
       }
     });
   });
@@ -340,13 +348,14 @@ describe('BaseService', () => {
       const error = service.testCreateNotFoundError('Custom message');
 
       expect(error).toBeInstanceOf(NotFoundError);
-      expect(error.message).toBe('Custom message not found');
+      // createNotFoundError passes message directly, no " not found" suffix
+      expect(error.message).toBe('Custom message');
     });
 
     it('should create BadRequestError via badRequestError', () => {
       const error = service.testBadRequestError('Invalid request');
 
-      expect(error).toBeInstanceOf(ServiceError);
+      expect(error).toBeInstanceOf(BadRequestError);
       expect(error.message).toBe('Invalid request');
       expect(error.statusCode).toBe(400);
       expect(error.code).toBe('BAD_REQUEST');
@@ -357,7 +366,8 @@ describe('BaseService', () => {
       const error = service.testValidationError('Validation failed', validationErrors);
 
       expect(error).toBeInstanceOf(ValidationError);
-      expect(error.validationErrors).toEqual(validationErrors);
+      // P3-3: validation errors are now in details
+      expect(error.details).toEqual(validationErrors);
     });
 
     it('should create ForbiddenError via forbiddenError', () => {
@@ -388,7 +398,7 @@ describe('BaseService', () => {
     });
 
     it('should throw when condition is false', () => {
-      expect(() => service.testAssert(false, 'Test error')).toThrow(ServiceError);
+      expect(() => service.testAssert(false, 'Test error')).toThrow(BadRequestError);
       expect(() => service.testAssert(false, 'Test error')).toThrow('Test error');
     });
 
@@ -400,11 +410,22 @@ describe('BaseService', () => {
       }
     });
 
-    it('should throw with custom status code', () => {
+    it('should throw with status code 404 for NotFoundError', () => {
+      try {
+        service.testAssert(false, 'Test error', 404);
+      } catch (error: any) {
+        expect(error.statusCode).toBe(404);
+        expect(error).toBeInstanceOf(NotFoundError);
+      }
+    });
+
+    it('should throw InternalError for unrecognized status codes', () => {
       try {
         service.testAssert(false, 'Test error', 422);
       } catch (error: any) {
-        expect(error.statusCode).toBe(422);
+        // 422 is not a recognized status code in the assert method, falls through to InternalError
+        expect(error.statusCode).toBe(500);
+        expect(error).toBeInstanceOf(InternalError);
       }
     });
   });
@@ -532,7 +553,7 @@ describe('BaseService', () => {
     });
 
     it('should not retry NotFoundError', async () => {
-      const operation = jest.fn().mockRejectedValue(new NotFoundError('User'));
+      const operation = jest.fn().mockRejectedValue(new NotFoundError('User not found'));
 
       await expect(service.testWithRetry(operation, 3, 10)).rejects.toThrow(NotFoundError);
       expect(operation).toHaveBeenCalledTimes(1);

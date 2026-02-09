@@ -17,6 +17,9 @@ process.env.REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 process.env.REDIS_PORT = process.env.REDIS_PORT || '6379';
 process.env.REDIS_PASSWORD = process.env.REDIS_PASSWORD || '';
 
+// Limit database connections for tests to prevent pool exhaustion
+process.env.DATABASE_POOL_SIZE = '5';
+
 // Now import dependencies (they will use the env vars set above)
 import 'reflect-metadata'; // Required for tsyringe dependency injection
 import { PrismaClient } from '@prisma/client';
@@ -49,8 +52,17 @@ beforeEach(() => {
 
 // Global cleanup after all tests complete
 afterAll(async () => {
+  // Disconnect Prisma client
   if (prismaClientInstance) {
     await prismaClientInstance.$disconnect();
     prismaClientInstance = null;
   }
+
+  // Force garbage collection if available (helps with connection cleanup)
+  if (global.gc) {
+    global.gc();
+  }
+
+  // Small delay to allow async cleanup to complete
+  await new Promise(resolve => setTimeout(resolve, 100));
 });

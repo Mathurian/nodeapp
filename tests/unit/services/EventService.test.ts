@@ -6,12 +6,16 @@
 import { EventService } from '../../../src/services/EventService';
 import { EventRepository } from '../../../src/repositories/EventRepository';
 import { CacheService } from '../../../src/services/CacheService';
+import { RestrictionService } from '../../../src/services/RestrictionService';
+import { MetricsService } from '../../../src/services/MetricsService';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('EventService', () => {
   let eventService: EventService;
   let mockEventRepo: jest.Mocked<EventRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
+  let mockRestrictionService: jest.Mocked<RestrictionService>;
+  let mockMetricsService: jest.Mocked<MetricsService>;
 
   beforeEach(() => {
     mockEventRepo = {
@@ -48,7 +52,16 @@ describe('EventService', () => {
       enabled: true,
     } as any;
 
-    eventService = new EventService(mockEventRepo, mockCacheService);
+    mockRestrictionService = {
+      isLocked: jest.fn().mockResolvedValue(false),
+    } as any;
+
+    mockMetricsService = {
+      recordSoftDelete: jest.fn(),
+      recordSoftDeleteRestore: jest.fn(),
+    } as any;
+
+    eventService = new EventService(mockEventRepo, mockCacheService, mockRestrictionService, mockMetricsService);
   });
 
   afterEach(() => {
@@ -411,20 +424,25 @@ describe('EventService', () => {
   });
 
   describe('deleteEvent', () => {
-    it('should delete event and invalidate cache', async () => {
+    it('should soft delete event and invalidate cache', async () => {
       const existingEvent = {
         id: '1',
         name: 'Event',
+        tenantId: 'tenant-1',
         startDate: new Date(),
         endDate: new Date(),
       };
       mockCacheService.get.mockResolvedValue(null);
       mockEventRepo.findById.mockResolvedValue(existingEvent as any);
-      mockEventRepo.delete.mockResolvedValue(undefined);
+      mockEventRepo.update.mockResolvedValue(existingEvent as any);
 
       await eventService.deleteEvent('1');
 
-      expect(mockEventRepo.delete).toHaveBeenCalledWith('1');
+      expect(mockEventRepo.update).toHaveBeenCalledWith('1', expect.objectContaining({
+        deletedAt: expect.any(Date),
+        deletedBy: null,
+      }));
+      expect(mockMetricsService.recordSoftDelete).toHaveBeenCalledWith('Event', 'tenant-1');
       expect(mockCacheService.del).toHaveBeenCalledWith('event:1');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('events:list:*');
     });

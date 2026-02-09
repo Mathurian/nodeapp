@@ -20,6 +20,12 @@ jest.mock('tsyringe', () => ({
 
 // Mock logger
 jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => ({
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }),
   createRequestLogger: () => ({
     debug: jest.fn(),
     info: jest.fn(),
@@ -34,8 +40,13 @@ const mockSendSuccess = jest.fn((res, data, message, status) => {
   return res.status(statusCode).json({ success: true, data, message });
 });
 
+const mockSendBadRequest = jest.fn((res, message) => {
+  return res.status(400).json({ success: false, message });
+});
+
 jest.mock('../../../src/utils/responseHelpers', () => ({
   sendSuccess: (...args: any[]) => mockSendSuccess(...args),
+  sendBadRequest: (...args: any[]) => mockSendBadRequest(...args),
 }));
 
 describe('EventsController', () => {
@@ -74,6 +85,7 @@ describe('EventsController', () => {
 
     jest.clearAllMocks();
     mockSendSuccess.mockClear();
+    mockSendBadRequest.mockClear();
   });
 
   afterEach(() => {
@@ -239,7 +251,7 @@ describe('EventsController', () => {
 
       await controller.getEventById(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {
@@ -276,7 +288,7 @@ describe('EventsController', () => {
 
       await controller.getEventWithDetails(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {
@@ -425,7 +437,7 @@ describe('EventsController', () => {
 
       await controller.updateEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {
@@ -447,7 +459,7 @@ describe('EventsController', () => {
 
       await controller.deleteEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.deleteEvent).toHaveBeenCalledWith('event-1');
+      expect(mockEventService.deleteEvent).toHaveBeenCalledWith('event-1', 'admin-1');
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event deleted successfully', 204);
     });
 
@@ -456,7 +468,7 @@ describe('EventsController', () => {
 
       await controller.deleteEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {
@@ -487,7 +499,7 @@ describe('EventsController', () => {
 
       await controller.archiveEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {
@@ -518,7 +530,7 @@ describe('EventsController', () => {
 
       await controller.unarchiveEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {
@@ -556,7 +568,7 @@ describe('EventsController', () => {
 
       await controller.getEventStats(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event ID is required', 400);
+      expect(mockSendBadRequest).toHaveBeenCalledWith(mockRes, 'Event ID is required');
     });
 
     it('should handle errors and call next', async () => {

@@ -10,6 +10,12 @@ import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 describe('AssignmentService', () => {
   let service: AssignmentService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  let mockCacheService: {
+    get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
+    invalidatePattern: jest.Mock;
+  };
 
   const mockAssignment = {
     id: 'assignment-1',
@@ -32,16 +38,24 @@ describe('AssignmentService', () => {
   const mockCategory = {
     id: 'category-1',
     contestId: 'contest-1',
+    tenantId: 'tenant-1',
     contest: {
       id: 'contest-1',
       eventId: 'event-1',
+      tenantId: 'tenant-1',
       event: { id: 'event-1' }
     }
   };
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
-    service = new AssignmentService(mockPrisma as any);
+    mockCacheService = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+      invalidatePattern: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new AssignmentService(mockPrisma as any, mockCacheService as any);
     jest.clearAllMocks();
   });
 
@@ -214,6 +228,8 @@ describe('AssignmentService', () => {
         contestId: 'contest-1',
         eventId: 'event-1'
       };
+      const mockJudge = { id: 'judge-1', tenantId: 'tenant-1' };
+      (mockPrisma.judge.findUnique as jest.Mock).mockResolvedValue(mockJudge);
       (mockPrisma.assignment.create as jest.Mock).mockResolvedValue(mockAssignment);
 
       const result = await service.createAssignment(contestData, 'user-1');
@@ -230,8 +246,12 @@ describe('AssignmentService', () => {
       (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({
         id: 'contest-1',
         eventId: 'event-1',
-        event: { id: 'event-1' }
+        tenantId: 'tenant-1',
+        event: { id: 'event-1' },
+        categories: []
       });
+      const mockJudge = { id: 'judge-1', tenantId: 'tenant-1' };
+      (mockPrisma.judge.findUnique as jest.Mock).mockResolvedValue(mockJudge);
       (mockPrisma.assignment.create as jest.Mock).mockResolvedValue(mockAssignment);
 
       const result = await service.createAssignment(contestData, 'user-1');
@@ -416,23 +436,30 @@ describe('AssignmentService', () => {
 
     beforeEach(() => {
       (mockPrisma.judge.findMany as jest.Mock).mockResolvedValue(mockJudges);
+      (mockPrisma.judge.count as jest.Mock).mockResolvedValue(2);
     });
 
-    it('should return all judges', async () => {
+    it('should return all judges with pagination', async () => {
       const result = await service.getJudges();
 
-      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith({
-        select: expect.any(Object),
-        orderBy: {
-          name: 'asc'
-        }
-      });
-      expect(result).toEqual(mockJudges);
+      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.any(Object),
+          orderBy: {
+            name: 'asc'
+          },
+          skip: expect.any(Number),
+          take: expect.any(Number),
+        })
+      );
+      expect(result.data).toEqual(mockJudges);
+      expect(result.pagination).toBeDefined();
     });
   });
 
   describe('createJudge', () => {
     const judgeData = {
+      tenantId: 'tenant-1',
       name: 'New Judge',
       email: 'newjudge@test.com',
       bio: 'Bio',
@@ -460,7 +487,7 @@ describe('AssignmentService', () => {
 
     it('should throw error when name is missing', async () => {
       await expect(
-        service.createJudge({ email: 'test@test.com' })
+        service.createJudge({ tenantId: 'tenant-1', email: 'test@test.com' } as any)
       ).rejects.toThrow();
     });
   });

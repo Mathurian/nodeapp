@@ -47,7 +47,8 @@ describe('DeductionController', () => {
       params: {},
       body: {},
       query: {},
-      user: { id: 'user-1', role: 'JUDGE' },
+      user: { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' },
+      tenantId: 'tenant-1',
     } as any;
 
     mockRes = {
@@ -77,6 +78,7 @@ describe('DeductionController', () => {
         amount: 5.5,
         reason: 'Late arrival penalty',
         requestedBy: 'user-1',
+        tenantId: 'tenant-1',
       });
       expect(sendCreated).toHaveBeenCalledWith(mockRes, mockDeduction, 'Deduction request created successfully');
     });
@@ -110,7 +112,7 @@ describe('DeductionController', () => {
 
   describe('getPendingDeductions', () => {
     it('should get pending deductions for user', async () => {
-      mockReq.user = { id: 'user-1', role: 'TALLY_MASTER' };
+      mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' };
       const mockDeductions = [
         { id: 'ded-1', amount: 5.5, status: 'PENDING' },
         { id: 'ded-2', amount: 3.0, status: 'PENDING' },
@@ -119,7 +121,7 @@ describe('DeductionController', () => {
 
       await controller.getPendingDeductions(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.getPendingDeductions).toHaveBeenCalledWith('TALLY_MASTER', 'user-1');
+      expect(mockService.getPendingDeductions).toHaveBeenCalledWith('TALLY_MASTER', 'user-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockDeductions, 'Pending deductions retrieved successfully');
     });
 
@@ -137,7 +139,7 @@ describe('DeductionController', () => {
     it('should approve deduction successfully', async () => {
       mockReq.params = { id: 'ded-1' };
       mockReq.body = { signature: 'John Doe', notes: 'Approved by board' };
-      mockReq.user = { id: 'user-1', role: 'BOARD_MEMBER' };
+      mockReq.user = { id: 'user-1', role: 'BOARD_MEMBER', tenantId: 'tenant-1' };
       const mockResult = { id: 'ded-1', status: 'APPROVED', message: 'Deduction approved' };
       mockService.approveDeduction.mockResolvedValue(mockResult as any);
 
@@ -189,7 +191,7 @@ describe('DeductionController', () => {
 
       await controller.rejectDeduction(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.rejectDeduction).toHaveBeenCalledWith('ded-1', 'user-1', 'Invalid penalty');
+      expect(mockService.rejectDeduction).toHaveBeenCalledWith('ded-1', 'user-1', 'Invalid penalty', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, null, 'Deduction rejected successfully');
     });
 
@@ -218,7 +220,7 @@ describe('DeductionController', () => {
 
       await controller.getApprovalStatus(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.getApprovalStatus).toHaveBeenCalledWith('ded-1');
+      expect(mockService.getApprovalStatus).toHaveBeenCalledWith('ded-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockStatus, 'Approval status retrieved successfully');
     });
 
@@ -250,6 +252,7 @@ describe('DeductionController', () => {
           status: undefined,
           categoryId: undefined,
           contestantId: undefined,
+          tenantId: 'tenant-1',
         },
         1,
         50
@@ -274,6 +277,7 @@ describe('DeductionController', () => {
           status: 'APPROVED',
           categoryId: 'cat-1',
           contestantId: 'cont-1',
+          tenantId: 'tenant-1',
         },
         2,
         25

@@ -90,4 +90,226 @@ export class DatabaseBrowserService extends BaseService {
       message: 'Schema introspection limited in Prisma runtime'
     };
   }
+
+  /**
+   * Get a single record by ID
+   * SUPER_ADMIN only
+   */
+  async getRecord(tableName: string, recordId: string) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) {
+      throw this.notFoundError('Table', tableName);
+    }
+
+    try {
+      const record = await model.findUnique({
+        where: { id: recordId }
+      });
+
+      if (!record) {
+        throw this.notFoundError('Record', recordId);
+      }
+
+      return record;
+    } catch (error: unknown) {
+      const errorObj = error as { code?: string; message?: string };
+      if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
+        throw this.notFoundError('Table', tableName);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update a record by ID
+   * SUPER_ADMIN only - all updates are logged
+   */
+  async updateRecord(
+    tableName: string,
+    recordId: string,
+    data: Record<string, unknown>,
+    userId: string
+  ) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) {
+      throw this.notFoundError('Table', tableName);
+    }
+
+    // Prevent modification of system-critical fields
+    const protectedFields = ['id', 'createdAt'];
+    const sanitizedData = { ...data };
+    for (const field of protectedFields) {
+      delete sanitizedData[field];
+    }
+
+    // Auto-set updatedAt if the field exists
+    if ('updatedAt' in sanitizedData || this.hasUpdatedAtField(tableName)) {
+      sanitizedData['updatedAt'] = new Date();
+    }
+
+    try {
+      // Get the original record for audit logging
+      const originalRecord = await model.findUnique({
+        where: { id: recordId }
+      });
+
+      if (!originalRecord) {
+        throw this.notFoundError('Record', recordId);
+      }
+
+      // Perform the update
+      const updatedRecord = await model.update({
+        where: { id: recordId },
+        data: sanitizedData
+      });
+
+      // Log the update action
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'DATABASE_RECORD_UPDATE',
+          resourceType: 'DATABASE',
+          resourceId: recordId,
+          userId: userId,
+          logLevel: 'INFO',
+          details: {
+            table: tableName,
+            recordId,
+            originalData: originalRecord,
+            updatedFields: Object.keys(sanitizedData),
+            newData: sanitizedData
+          }
+        }
+      });
+
+      return updatedRecord;
+    } catch (error: unknown) {
+      const errorObj = error as { code?: string; message?: string };
+      if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
+        throw this.notFoundError('Table', tableName);
+      }
+      if (errorObj.code === 'P2025') {
+        throw this.notFoundError('Record', recordId);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a record by ID
+   * SUPER_ADMIN only - all deletions are logged
+   */
+  async deleteRecord(tableName: string, recordId: string, userId: string) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) {
+      throw this.notFoundError('Table', tableName);
+    }
+
+    // Prevent deletion of critical system records
+    const protectedTables = ['tenant'];
+    if (protectedTables.includes(tableName.toLowerCase())) {
+      // Allow deletion but log as critical
+      this.logger.warn(`Deleting record from protected table: ${tableName}`, { recordId, userId });
+    }
+
+    try {
+      // Get the record before deletion for audit logging
+      const record = await model.findUnique({
+        where: { id: recordId }
+      });
+
+      if (!record) {
+        throw this.notFoundError('Record', recordId);
+      }
+
+      // Delete the record
+      await model.delete({
+        where: { id: recordId }
+      });
+
+      // Log the deletion
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'DATABASE_RECORD_DELETE',
+          resourceType: 'DATABASE',
+          resourceId: recordId,
+          userId: userId,
+          logLevel: 'WARN',
+          details: {
+            table: tableName,
+            recordId,
+            deletedData: record
+          }
+        }
+      });
+
+      return { success: true, message: `Record ${recordId} deleted from ${tableName}` };
+    } catch (error: unknown) {
+      const errorObj = error as { code?: string; message?: string };
+      if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
+        throw this.notFoundError('Table', tableName);
+      }
+      if (errorObj.code === 'P2025') {
+        throw this.notFoundError('Record', recordId);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new record
+   * SUPER_ADMIN only - all creations are logged
+   */
+  async createRecord(
+    tableName: string,
+    data: Record<string, unknown>,
+    userId: string
+  ) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) {
+      throw this.notFoundError('Table', tableName);
+    }
+
+    try {
+      // Create the record
+      const newRecord = await model.create({
+        data
+      });
+
+      // Log the creation
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'DATABASE_RECORD_CREATE',
+          resourceType: 'DATABASE',
+          resourceId: newRecord.id,
+          userId: userId,
+          logLevel: 'INFO',
+          details: {
+            table: tableName,
+            recordId: newRecord.id,
+            createdData: data
+          }
+        }
+      });
+
+      return newRecord;
+    } catch (error: unknown) {
+      const errorObj = error as { code?: string; message?: string };
+      if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
+        throw this.notFoundError('Table', tableName);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a table has an updatedAt field
+   */
+  private hasUpdatedAtField(tableName: string): boolean {
+    // Common tables with updatedAt
+    const tablesWithUpdatedAt = [
+      'user', 'event', 'contest', 'category', 'contestant', 'judge',
+      'score', 'tenant', 'notification', 'file', 'backup'
+    ];
+    return tablesWithUpdatedAt.includes(tableName.toLowerCase());
+  }
 }

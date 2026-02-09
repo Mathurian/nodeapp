@@ -54,6 +54,7 @@ describe('SettingsController', () => {
       getDatabaseConnectionInfo: jest.fn(),
       getContestantVisibilitySettings: jest.fn(),
       updateContestantVisibilitySettings: jest.fn(),
+      getTenantBySlug: jest.fn(),
     } as any;
 
     // Mock container
@@ -65,7 +66,8 @@ describe('SettingsController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'ADMIN' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
+      tenantId: 'tenant-1',
       file: undefined,
     } as any;
 
@@ -115,8 +117,12 @@ describe('SettingsController', () => {
 
       await controller.getSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.getAllSettings).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(mockSettings);
+      expect(mockSettingsService.getAllSettings).toHaveBeenCalledWith('tenant-1');
+      expect(successResponse).toHaveBeenCalledWith(
+        mockRes,
+        mockSettings,
+        'Settings retrieved successfully'
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -193,10 +199,10 @@ describe('SettingsController', () => {
 
       await controller.updateSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.updateSettings).toHaveBeenCalledWith(settings, 'user-1');
+      expect(mockSettingsService.updateSettings).toHaveBeenCalledWith(settings, 'user-1', 'tenant-1');
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Settings updated successfully'
       );
     });
@@ -208,7 +214,7 @@ describe('SettingsController', () => {
 
       await controller.updateSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.updateSettings).toHaveBeenCalledWith({ appName: 'Test' }, '');
+      expect(mockSettingsService.updateSettings).toHaveBeenCalledWith({ appName: 'Test' }, '', 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {
@@ -230,7 +236,7 @@ describe('SettingsController', () => {
 
       await controller.testSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.testEmailSettings).toHaveBeenCalledWith('test@example.com');
+      expect(mockSettingsService.testEmailSettings).toHaveBeenCalledWith('test@example.com', 'tenant-1');
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
         { success: true },
@@ -289,7 +295,7 @@ describe('SettingsController', () => {
 
       await controller.updateLoggingLevel(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.updateLoggingLevel).toHaveBeenCalledWith('debug', 'user-1');
+      expect(mockSettingsService.updateLoggingLevel).toHaveBeenCalledWith('debug', 'user-1', 'tenant-1');
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
         mockSetting,
@@ -320,8 +326,12 @@ describe('SettingsController', () => {
 
       await controller.getSecuritySettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.getSecuritySettings).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(mockSecuritySettings);
+      expect(mockSettingsService.getSecuritySettings).toHaveBeenCalledWith('tenant-1');
+      expect(successResponse).toHaveBeenCalledWith(
+        mockRes,
+        mockSecuritySettings,
+        'Security settings retrieved successfully'
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -348,11 +358,12 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateSecuritySettings).toHaveBeenCalledWith(
         securitySettings,
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Security settings updated successfully'
       );
     });
@@ -380,7 +391,7 @@ describe('SettingsController', () => {
 
       await controller.getBackupSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.getBackupSettings).toHaveBeenCalled();
+      expect(mockSettingsService.getBackupSettings).toHaveBeenCalledWith('tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockBackupSettings);
     });
 
@@ -408,11 +419,12 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateBackupSettings).toHaveBeenCalledWith(
         backupSettings,
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Backup settings updated successfully'
       );
     });
@@ -441,8 +453,10 @@ describe('SettingsController', () => {
 
       await controller.getEmailSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.getEmailSettings).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(mockEmailSettings);
+      expect(mockSettingsService.getEmailSettings).toHaveBeenCalledWith('tenant-1');
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: mockEmailSettings })
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -469,11 +483,12 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateEmailSettings).toHaveBeenCalledWith(
         emailSettings,
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Email settings updated successfully'
       );
     });
@@ -503,8 +518,12 @@ describe('SettingsController', () => {
 
       await controller.getPasswordPolicy(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.getPasswordPolicy).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(mockPolicy);
+      expect(mockSettingsService.getPasswordPolicy).toHaveBeenCalledWith('tenant-1');
+      expect(successResponse).toHaveBeenCalledWith(
+        mockRes,
+        mockPolicy,
+        'Password policy retrieved successfully'
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -531,11 +550,12 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updatePasswordPolicy).toHaveBeenCalledWith(
         passwordPolicy,
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Password policy updated successfully'
       );
     });
@@ -589,10 +609,10 @@ describe('SettingsController', () => {
 
       await controller.updateJWTConfig(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.updateJWTConfig).toHaveBeenCalledWith(jwtConfig, 'user-1');
+      expect(mockSettingsService.updateJWTConfig).toHaveBeenCalledWith(jwtConfig, 'user-1', 'tenant-1');
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'JWT configuration updated successfully'
       );
     });
@@ -621,8 +641,12 @@ describe('SettingsController', () => {
 
       await controller.getThemeSettings(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSettingsService.getThemeSettings).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(mockThemeSettings);
+      expect(mockSettingsService.getThemeSettings).toHaveBeenCalledWith('tenant-1');
+      expect(successResponse).toHaveBeenCalledWith(
+        mockRes,
+        mockThemeSettings,
+        'Theme settings retrieved successfully'
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -649,11 +673,12 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateThemeSettings).toHaveBeenCalledWith(
         themeSettings,
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Theme settings updated successfully'
       );
     });
@@ -683,11 +708,12 @@ describe('SettingsController', () => {
       expect(mockSettingsService.updateSetting).toHaveBeenCalledWith(
         'theme_logoPath',
         '/uploads/logo-123.png',
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { logoPath: '/uploads/logo-123.png' },
+        { logoPath: '/uploads/logo-123.png', scope: 'tenant' },
         'Logo uploaded successfully'
       );
     });
@@ -728,11 +754,12 @@ describe('SettingsController', () => {
       expect(mockSettingsService.updateSetting).toHaveBeenCalledWith(
         'theme_faviconPath',
         '/uploads/favicon-123.ico',
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { faviconPath: '/uploads/favicon-123.ico' },
+        { faviconPath: '/uploads/favicon-123.ico', scope: 'tenant' },
         'Favicon uploaded successfully'
       );
     });
@@ -787,10 +814,10 @@ describe('SettingsController', () => {
   });
 
   describe('getContestantVisibilitySettings', () => {
-    it('should return transformed contestant visibility settings', async () => {
+    it('should return contestant visibility settings', async () => {
       const mockSettings = {
-        contestant_visibility_canViewWinners: 'true',
-        contestant_visibility_canViewOverallResults: 'false',
+        canViewWinners: true,
+        canViewOverallResults: false,
       };
 
       mockSettingsService.getContestantVisibilitySettings.mockResolvedValue(mockSettings as any);
@@ -801,21 +828,18 @@ describe('SettingsController', () => {
         mockNext
       );
 
-      expect(mockSettingsService.getContestantVisibilitySettings).toHaveBeenCalled();
+      expect(mockSettingsService.getContestantVisibilitySettings).toHaveBeenCalledWith('tenant-1');
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        {
-          canViewWinners: true,
-          canViewOverallResults: false,
-        },
+        mockSettings,
         'Contestant visibility settings retrieved successfully'
       );
     });
 
     it('should handle alternate key format', async () => {
       const mockSettings = {
-        canViewWinners: 'true',
-        canViewOverallResults: 'true',
+        canViewWinners: true,
+        canViewOverallResults: true,
       };
 
       mockSettingsService.getContestantVisibilitySettings.mockResolvedValue(mockSettings as any);
@@ -828,10 +852,7 @@ describe('SettingsController', () => {
 
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        {
-          canViewWinners: true,
-          canViewOverallResults: true,
-        },
+        mockSettings,
         'Contestant visibility settings retrieved successfully'
       );
     });
@@ -868,11 +889,12 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateContestantVisibilitySettings).toHaveBeenCalledWith(
         visibilitySettings,
-        'user-1'
+        'user-1',
+        'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { updatedCount: 2 },
+        { updatedCount: 2, scope: 'tenant' },
         'Contestant visibility settings updated successfully'
       );
     });

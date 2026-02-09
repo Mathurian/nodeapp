@@ -176,7 +176,7 @@ describe('PermissionAuditService - Audit Trail Tests', () => {
       expect(mockPrisma.activityLog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           action: 'permission.check.denied',
-          logLevel: 'WARNING',
+          logLevel: 'WARN',
           details: expect.objectContaining({
             resource: mockResource,
             operation: mockOperation,

@@ -8,20 +8,20 @@ import { BulkOperationService, BulkOperationResult, BulkOperationOptions } from 
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
+// Mock the database module
+const mockPrisma = mockDeep<PrismaClient>();
+jest.mock('../../../src/config/database', () => ({
+  __esModule: true,
+  default: mockPrisma
+}));
+
 describe('BulkOperationService', () => {
   let service: BulkOperationService;
-  let mockPrisma: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {
-    mockPrisma = mockDeep<PrismaClient>();
-    service = new BulkOperationService();
-    // Replace the prisma instance
-    (service as any).prisma = mockPrisma;
-    jest.clearAllMocks();
-  });
-
-  afterEach(() => {
     mockReset(mockPrisma);
+    service = new BulkOperationService();
+    jest.clearAllMocks();
   });
 
   describe('executeBulkOperation', () => {

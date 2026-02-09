@@ -351,7 +351,6 @@ describe('CertificationController', () => {
       expect(mockPrisma.certification.update).toHaveBeenCalledWith({
         where: { id: 'cert-1' },
         data: { status: 'IN_PROGRESS', comments: 'Updated' },
-        include: expect.any(Object),
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -432,7 +431,6 @@ describe('CertificationController', () => {
 
       expect(mockPrisma.certification.findUnique).toHaveBeenCalledWith({
         where: { id: 'cert-1' },
-        include: expect.any(Object),
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockCertification);
     });
@@ -480,7 +478,6 @@ describe('CertificationController', () => {
           status: 'IN_PROGRESS',
           comments: 'Judge approved',
         },
-        include: expect.any(Object),
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -555,7 +552,6 @@ describe('CertificationController', () => {
           status: 'IN_PROGRESS',
           comments: 'Tally approved',
         },
-        include: expect.any(Object),
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -703,12 +699,13 @@ describe('CertificationController', () => {
 
       expect(mockPrisma.certification.update).toHaveBeenCalledWith({
         where: { id: 'cert-1' },
-        data: expect.objectContaining({
+        data: {
           boardApproved: true,
           status: 'CERTIFIED',
+          certifiedAt: expect.any(Date),
           certifiedBy: 'board-user',
-        }),
-        include: expect.any(Object),
+          comments: 'Board approved',
+        },
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -785,7 +782,6 @@ describe('CertificationController', () => {
           rejectionReason: 'Scores inconsistent',
           certifiedBy: 'admin-1',
         },
-        include: expect.any(Object),
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,

@@ -51,7 +51,8 @@ describe('JudgeController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'judge-1', role: 'JUDGE' },
+      user: { id: 'judge-1', role: 'JUDGE', tenantId: 'tenant-1' },
+      tenantId: 'tenant-1',
     } as any;
 
     mockRes = {
@@ -77,7 +78,7 @@ describe('JudgeController', () => {
 
       await controller.getStats(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getStats).toHaveBeenCalledWith('judge-1');
+      expect(mockJudgeService.getStats).toHaveBeenCalledWith('judge-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockStats);
     });
 
@@ -114,17 +115,17 @@ describe('JudgeController', () => {
 
       await controller.getAssignments(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getAssignments).toHaveBeenCalledWith('judge-1', 'JUDGE');
+      expect(mockJudgeService.getAssignments).toHaveBeenCalledWith('judge-1', 'JUDGE', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockAssignments);
     });
 
     it('should pass correct role to service', async () => {
-      mockReq.user = { id: 'judge-2', role: 'HEAD_JUDGE' };
+      mockReq.user = { id: 'judge-2', role: 'HEAD_JUDGE', tenantId: 'tenant-1' };
       mockJudgeService.getAssignments.mockResolvedValue([]);
 
       await controller.getAssignments(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getAssignments).toHaveBeenCalledWith('judge-2', 'HEAD_JUDGE');
+      expect(mockJudgeService.getAssignments).toHaveBeenCalledWith('judge-2', 'HEAD_JUDGE', 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {
@@ -155,7 +156,8 @@ describe('JudgeController', () => {
         'assign-1',
         'IN_PROGRESS',
         'judge-1',
-        'JUDGE'
+        'JUDGE',
+        'tenant-1'
       );
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -206,7 +208,7 @@ describe('JudgeController', () => {
 
       await controller.getScoringInterface(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getScoringInterface).toHaveBeenCalledWith('cat-1', 'judge-1');
+      expect(mockJudgeService.getScoringInterface).toHaveBeenCalledWith('cat-1', 'judge-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockScoringData);
     });
 
@@ -252,7 +254,7 @@ describe('JudgeController', () => {
 
       await controller.submitScore(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.submitScore).toHaveBeenCalledWith(scoreData, 'judge-1');
+      expect(mockJudgeService.submitScore).toHaveBeenCalledWith({ ...scoreData, tenantId: 'tenant-1' }, 'judge-1');
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         mockScoreRecord,
@@ -316,7 +318,7 @@ describe('JudgeController', () => {
 
       await controller.getCertificationWorkflow(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getCertificationWorkflow).toHaveBeenCalledWith('cat-1', 'judge-1');
+      expect(mockJudgeService.getCertificationWorkflow).toHaveBeenCalledWith('cat-1', 'judge-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockCertificationData);
     });
 
@@ -366,7 +368,7 @@ describe('JudgeController', () => {
 
       await controller.getContestantBios(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getContestantBios).toHaveBeenCalledWith('cat-1', 'judge-1');
+      expect(mockJudgeService.getContestantBios).toHaveBeenCalledWith('cat-1', 'judge-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockContestants);
     });
 
@@ -407,7 +409,7 @@ describe('JudgeController', () => {
 
       await controller.getContestantBio(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getContestantBio).toHaveBeenCalledWith('cont-1', 'judge-1');
+      expect(mockJudgeService.getContestantBio).toHaveBeenCalledWith('cont-1', 'judge-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockContestant);
     });
 
@@ -465,7 +467,7 @@ describe('JudgeController', () => {
 
       await controller.getJudgeHistory(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getJudgeHistory).toHaveBeenCalledWith('judge-1', {
+      expect(mockJudgeService.getJudgeHistory).toHaveBeenCalledWith('judge-1', 'tenant-1', {
         page: '1',
         limit: '50',
         categoryId: 'cat-1',
@@ -479,7 +481,7 @@ describe('JudgeController', () => {
 
       await controller.getJudgeHistory(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getJudgeHistory).toHaveBeenCalledWith('judge-1', {});
+      expect(mockJudgeService.getJudgeHistory).toHaveBeenCalledWith('judge-1', 'tenant-1', {});
     });
 
     it('should call next with error when service throws', async () => {

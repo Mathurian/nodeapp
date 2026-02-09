@@ -6,7 +6,7 @@ import 'reflect-metadata';
 import { Request, Response, NextFunction } from 'express';
 import { CategoryCertificationController } from '../../../src/controllers/categoryCertificationController';
 import { CategoryCertificationService } from '../../../src/services/CategoryCertificationService';
-import { sendSuccess } from '../../../src/utils/responseHelpers';
+import { sendSuccess, sendBadRequest } from '../../../src/utils/responseHelpers';
 import { container } from 'tsyringe';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
@@ -46,7 +46,7 @@ describe('CategoryCertificationController', () => {
     mockReq = {
       params: {},
       body: {},
-      user: { id: 'user-1', role: 'JUDGE', judgeId: 'judge-1' },
+      user: { id: 'user-1', role: 'JUDGE', judgeId: 'judge-1', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {
@@ -97,7 +97,7 @@ describe('CategoryCertificationController', () => {
 
       await controller.certifyCategory(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.certifyCategory).toHaveBeenCalledWith('cat-1', 'user-1', 'JUDGE');
+      expect(mockService.certifyCategory).toHaveBeenCalledWith('cat-1', 'user-1', 'JUDGE', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockCertification, 'Category certified successfully');
     });
 
@@ -140,7 +140,7 @@ describe('CategoryCertificationController', () => {
 
       await controller.certifyContestant(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'contestantId and categoryId are required', 400);
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'contestantId and categoryId are required');
     });
 
     it('should return 400 when categoryId missing', async () => {
@@ -148,7 +148,7 @@ describe('CategoryCertificationController', () => {
 
       await controller.certifyContestant(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'contestantId and categoryId are required', 400);
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'contestantId and categoryId are required');
     });
 
     it('should call next with error when prisma throws', async () => {
@@ -192,7 +192,7 @@ describe('CategoryCertificationController', () => {
 
       await controller.certifyJudgeScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'judgeId and categoryId are required', 400);
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'judgeId and categoryId are required');
     });
 
     it('should return 400 when categoryId missing', async () => {
@@ -200,7 +200,7 @@ describe('CategoryCertificationController', () => {
 
       await controller.certifyJudgeScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'judgeId and categoryId are required', 400);
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'judgeId and categoryId are required');
     });
 
     it('should call next with error when prisma throws', async () => {

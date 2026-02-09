@@ -4,24 +4,27 @@
  */
 
 import 'reflect-metadata';
-import { RedisCacheService, CacheOptions, CacheStatistics } from '../../../src/services/RedisCacheService';
-import Redis from 'ioredis';
 
-// Mock ioredis
+// Mock ioredis before importing the service
 jest.mock('ioredis');
 
-// Mock redis config
+// Define mock config values
+const mockRedisConfig = {
+  enabled: true,
+  mode: 'docker',
+  fallbackToMemory: true
+};
+
+const mockRedisOptions = {
+  host: 'localhost',
+  port: 6379,
+  retryStrategy: (times: number) => Math.min(times * 50, 2000)
+};
+
+// Mock redis config - use factory functions that always return the mock values
 jest.mock('../../../src/config/redis.config', () => ({
-  getRedisOptions: jest.fn(() => ({
-    host: 'localhost',
-    port: 6379,
-    retryStrategy: (times: number) => Math.min(times * 50, 2000)
-  })),
-  getRedisConfig: jest.fn(() => ({
-    enabled: true,
-    mode: 'docker',
-    fallbackToMemory: true
-  })),
+  getRedisOptions: jest.fn().mockImplementation(() => mockRedisOptions),
+  getRedisConfig: jest.fn().mockImplementation(() => mockRedisConfig),
   CacheTTL: {
     SHORT: 60,
     MEDIUM: 300,
@@ -34,6 +37,41 @@ jest.mock('../../../src/config/redis.config', () => ({
   }
 }));
 
+import { RedisCacheService, CacheOptions, CacheStatistics } from '../../../src/services/RedisCacheService';
+import Redis from 'ioredis';
+import { getRedisConfig, getRedisOptions } from '../../../src/config/redis.config';;
+
+// Helper function to create mock Redis instances
+const createMockRedis = () => ({
+  on: jest.fn().mockReturnThis(),
+  get: jest.fn(),
+  set: jest.fn(),
+  setex: jest.fn(),
+  del: jest.fn(),
+  exists: jest.fn(),
+  mget: jest.fn(),
+  keys: jest.fn(),
+  flushdb: jest.fn(),
+  info: jest.fn(),
+  dbsize: jest.fn(),
+  ping: jest.fn(),
+  pipeline: jest.fn(),
+  incrby: jest.fn(),
+  decrby: jest.fn(),
+  expire: jest.fn(),
+  ttl: jest.fn(),
+  sadd: jest.fn(),
+  smembers: jest.fn(),
+  publish: jest.fn(),
+  quit: jest.fn().mockResolvedValue('OK')
+} as any);
+
+const createMockSubscriber = () => ({
+  on: jest.fn().mockReturnThis(),
+  subscribe: jest.fn(),
+  quit: jest.fn().mockResolvedValue('OK')
+} as any);
+
 describe('RedisCacheService', () => {
   let service: RedisCacheService;
   let mockRedis: jest.Mocked<Redis>;
@@ -42,36 +80,21 @@ describe('RedisCacheService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Create mock Redis instances
-    mockRedis = {
-      on: jest.fn().mockReturnThis(),
-      get: jest.fn(),
-      set: jest.fn(),
-      setex: jest.fn(),
-      del: jest.fn(),
-      exists: jest.fn(),
-      mget: jest.fn(),
-      keys: jest.fn(),
-      flushdb: jest.fn(),
-      info: jest.fn(),
-      dbsize: jest.fn(),
-      ping: jest.fn(),
-      pipeline: jest.fn(),
-      incrby: jest.fn(),
-      decrby: jest.fn(),
-      expire: jest.fn(),
-      ttl: jest.fn(),
-      sadd: jest.fn(),
-      smembers: jest.fn(),
-      publish: jest.fn(),
-      quit: jest.fn().mockResolvedValue('OK')
-    } as any;
+    // Re-setup mock implementations after clearAllMocks
+    (getRedisConfig as jest.Mock).mockReturnValue({
+      enabled: true,
+      mode: 'docker',
+      fallbackToMemory: true
+    });
+    (getRedisOptions as jest.Mock).mockReturnValue({
+      host: 'localhost',
+      port: 6379,
+      retryStrategy: (times: number) => Math.min(times * 50, 2000)
+    });
 
-    mockSubscriber = {
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
-      quit: jest.fn().mockResolvedValue('OK')
-    } as any;
+    // Create mock Redis instances
+    mockRedis = createMockRedis();
+    mockSubscriber = createMockSubscriber();
 
     // Mock Redis constructor to return different instances
     let callCount = 0;
@@ -84,7 +107,9 @@ describe('RedisCacheService', () => {
   });
 
   afterEach(async () => {
-    await service.disconnect();
+    if (service) {
+      await service.disconnect();
+    }
     jest.clearAllTimers();
   });
 
@@ -107,7 +132,7 @@ describe('RedisCacheService', () => {
       expect(mockSubscriber.on).toHaveBeenCalledWith('message', expect.any(Function));
     });
 
-    it('should enable in-memory fallback when Redis initialization fails', () => {
+    it('should enable in-memory fallback when Redis initialization fails', async () => {
       (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => {
         throw new Error('Redis connection failed');
       });
@@ -118,8 +143,12 @@ describe('RedisCacheService', () => {
       const failedService = new RedisCacheService();
 
       expect(consoleErrorSpy).toHaveBeenCalled();
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Falling back to in-memory cache');
+      // The logger prefixes the message with [REDISCACHESERVICE]
+      expect(consoleWarnSpy).toHaveBeenCalledWith('[REDISCACHESERVICE] Falling back to in-memory cache');
       expect(failedService.isUsingMemoryCache()).toBe(true);
+
+      // Clean up to avoid open handles
+      await failedService.disconnect();
 
       consoleErrorSpy.mockRestore();
       consoleWarnSpy.mockRestore();
@@ -639,6 +668,18 @@ describe('RedisCacheService', () => {
     let memoryService: RedisCacheService;
 
     beforeEach(() => {
+      // Re-setup mock config before creating the service
+      (getRedisConfig as jest.Mock).mockReturnValue({
+        enabled: true,
+        mode: 'docker',
+        fallbackToMemory: true
+      });
+      (getRedisOptions as jest.Mock).mockReturnValue({
+        host: 'localhost',
+        port: 6379,
+        retryStrategy: (times: number) => Math.min(times * 50, 2000)
+      });
+
       (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => {
         throw new Error('Redis unavailable');
       });
@@ -650,7 +691,9 @@ describe('RedisCacheService', () => {
     });
 
     afterEach(async () => {
-      await memoryService.disconnect();
+      if (memoryService) {
+        await memoryService.disconnect();
+      }
       jest.restoreAllMocks();
     });
 

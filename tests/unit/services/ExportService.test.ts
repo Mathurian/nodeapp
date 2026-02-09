@@ -11,18 +11,75 @@ import { NotFoundError } from '../../../src/services/BaseService';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
-// Mock fs module
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: jest.fn(),
-    writeFile: jest.fn(),
-    readFile: jest.fn(),
-    unlink: jest.fn(),
-    readdir: jest.fn(),
+// Mock ExcelJS
+const mockWorkbook = {
+  creator: '',
+  created: null as Date | null,
+  addWorksheet: jest.fn().mockReturnValue({
+    columns: [],
+    addRows: jest.fn(),
+    addRow: jest.fn(),
+    getRow: jest.fn().mockReturnValue({
+      font: {},
+      fill: {},
+    }),
+  }),
+  xlsx: {
+    writeFile: jest.fn().mockResolvedValue(undefined),
   },
+};
+
+jest.mock('exceljs', () => ({
+  Workbook: jest.fn().mockImplementation(() => mockWorkbook),
 }));
 
-const mockFs = fs as jest.Mocked<typeof fs>;
+// Mock csv-stringify
+jest.mock('csv-stringify/sync', () => ({
+  stringify: jest.fn().mockReturnValue('mock,csv,data'),
+}));
+
+// Mock pdfkit
+const mockPdfDoc = {
+  pipe: jest.fn(),
+  fontSize: jest.fn().mockReturnThis(),
+  text: jest.fn().mockReturnThis(),
+  moveDown: jest.fn().mockReturnThis(),
+  addPage: jest.fn().mockReturnThis(),
+  end: jest.fn(),
+  page: { height: 800 },
+};
+
+jest.mock('pdfkit', () => {
+  return jest.fn().mockImplementation(() => mockPdfDoc);
+});
+
+// Mock fs module - both promises and createWriteStream
+const mockMkdir = jest.fn();
+const mockWriteFile = jest.fn();
+const mockReadFile = jest.fn();
+const mockUnlink = jest.fn();
+const mockReaddir = jest.fn();
+
+const mockWriteStream = {
+  on: jest.fn((event: string, callback: () => void) => {
+    if (event === 'finish') {
+      // Trigger finish callback synchronously for testing
+      setImmediate(callback);
+    }
+    return mockWriteStream;
+  }),
+};
+
+jest.mock('fs', () => ({
+  promises: {
+    mkdir: (...args: unknown[]) => mockMkdir(...args),
+    writeFile: (...args: unknown[]) => mockWriteFile(...args),
+    readFile: (...args: unknown[]) => mockReadFile(...args),
+    unlink: (...args: unknown[]) => mockUnlink(...args),
+    readdir: (...args: unknown[]) => mockReaddir(...args),
+  },
+  createWriteStream: jest.fn().mockReturnValue(mockWriteStream),
+}));
 
 describe('ExportService', () => {
   let service: ExportService;
@@ -31,7 +88,19 @@ describe('ExportService', () => {
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new ExportService(mockPrisma as any);
+
+    // Reset all mocks
     jest.clearAllMocks();
+
+    // Setup default fs mock behavior
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+    mockReadFile.mockResolvedValue('');
+    mockUnlink.mockResolvedValue(undefined);
+    mockReaddir.mockResolvedValue([]);
+
+    // Reset ExcelJS mock
+    mockWorkbook.xlsx.writeFile.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -56,35 +125,34 @@ describe('ExportService', () => {
           id: 'contest-1',
           name: 'Junior Division',
           categories: [
-            { id: 'cat-1', name: 'Dance', ageGroup: 'JUNIOR' },
-            { id: 'cat-2', name: 'Vocal', ageGroup: 'JUNIOR' },
+            { id: 'cat-1', name: 'Dance', ageGroup: 'JUNIOR', criteria: [] },
+            { id: 'cat-2', name: 'Vocal', ageGroup: 'JUNIOR', criteria: [] },
           ],
         },
       ],
     };
-
-    beforeEach(() => {
-      mockFs.mkdir.mockResolvedValue(undefined);
-      mockFs.writeFile.mockResolvedValue(undefined);
-    });
 
     it('should export event to Excel successfully', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
       const result = await service.exportEventToExcel('event-1');
 
-      expect(mockFs.mkdir).toHaveBeenCalled();
+      expect(mockMkdir).toHaveBeenCalled();
       expect(mockPrisma.event.findUnique).toHaveBeenCalledWith({
         where: { id: 'event-1' },
         include: {
           contests: {
             include: {
-              categories: true,
+              categories: {
+                include: {
+                  criteria: true,
+                },
+              },
             },
           },
         },
       });
-      expect(mockFs.writeFile).toHaveBeenCalled();
+      expect(mockWorkbook.xlsx.writeFile).toHaveBeenCalled();
       expect(result).toContain('event_event-1_');
       expect(result).toContain('.xlsx');
     });
@@ -95,7 +163,7 @@ describe('ExportService', () => {
       const result = await service.exportEventToExcel('event-1', true);
 
       expect(result).toContain('detailed');
-      expect(mockFs.writeFile).toHaveBeenCalled();
+      expect(mockWorkbook.xlsx.writeFile).toHaveBeenCalled();
     });
 
     it('should export event without details when includeDetails is false', async () => {
@@ -104,7 +172,7 @@ describe('ExportService', () => {
       const result = await service.exportEventToExcel('event-1', false);
 
       expect(result).toContain('summary');
-      expect(mockFs.writeFile).toHaveBeenCalled();
+      expect(mockWorkbook.xlsx.writeFile).toHaveBeenCalled();
     });
 
     it('should throw NotFoundError when event does not exist', async () => {

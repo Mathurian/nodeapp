@@ -211,7 +211,7 @@ describe('AuditorCertificationService', () => {
       expect(result.readyForFinalCertification).toBe(false);
       expect(result.auditorCertification).toEqual({
         certifiedAt: mockAuditorCertification.certifiedAt,
-        certifiedBy: mockAuditorCertification.user
+        certifiedBy: mockAuditorCertification.userId
       });
     });
 
@@ -445,12 +445,14 @@ describe('AuditorCertificationService', () => {
     });
 
     it('should lock all uncertified scores on submission', async () => {
-      const mixedScores = [
+      // All scores must be certified for submission to succeed
+      // The updateMany call locks any remaining uncertified scores (scores without criterionId are ignored)
+      const allCertifiedScores = [
         { ...mockScores[0], isCertified: true },
-        { ...mockScores[1], isCertified: false }
+        { ...mockScores[1], isCertified: true }
       ];
 
-      mockPrisma.score.findMany.mockResolvedValue(mixedScores as any);
+      mockPrisma.score.findMany.mockResolvedValue(allCertifiedScores as any);
       mockPrisma.categoryCertification.create.mockResolvedValue({
         id: 'cert-123',
         categoryId: mockCategoryId,
@@ -458,7 +460,7 @@ describe('AuditorCertificationService', () => {
         userId: mockUserId,
         certifiedAt: new Date()
       } as any);
-      mockPrisma.score.updateMany.mockResolvedValue({ count: 1 } as any);
+      mockPrisma.score.updateMany.mockResolvedValue({ count: 0 } as any);
 
       await service.submitFinalCertification(mockCategoryId, mockUserId, 'AUDITOR', validConfirmations);
 

@@ -4,14 +4,16 @@
  */
 
 import 'reflect-metadata';
-import { QueueService } from '../../../src/services/QueueService';
 import { Queue, Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 
-// Mock BullMQ and Redis
+// Mock BullMQ and Redis before importing the service
 jest.mock('bullmq');
 jest.mock('ioredis');
 jest.mock('../../../src/utils/logger');
+
+// Import after mocks are set up
+import { QueueService } from '../../../src/services/QueueService';
 
 describe('QueueService', () => {
   let service: QueueService;
@@ -24,13 +26,22 @@ describe('QueueService', () => {
     // Clear all mocks
     jest.clearAllMocks();
 
+    // Reset modules to clear singleton
+    jest.resetModules();
+
+    // Re-mock the modules after resetModules
+    jest.mock('bullmq');
+    jest.mock('ioredis');
+    jest.mock('../../../src/utils/logger');
+
     // Mock Redis instance
     mockRedis = {
       on: jest.fn(),
       quit: jest.fn().mockResolvedValue(undefined),
     } as any;
 
-    (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => mockRedis);
+    const RedisMock = require('ioredis').default || require('ioredis');
+    RedisMock.mockImplementation(() => mockRedis);
 
     // Mock Queue
     mockQueue = {
@@ -46,13 +57,14 @@ describe('QueueService', () => {
       getCompleted: jest.fn(),
       getFailed: jest.fn(),
       getDelayed: jest.fn(),
-      clean: jest.fn(),
-      pause: jest.fn(),
-      resume: jest.fn(),
+      clean: jest.fn().mockResolvedValue([]),
+      pause: jest.fn().mockResolvedValue(undefined),
+      resume: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
     } as any;
 
-    (Queue as jest.MockedClass<typeof Queue>).mockImplementation(() => mockQueue);
+    const { Queue: QueueMock } = require('bullmq');
+    QueueMock.mockImplementation(() => mockQueue);
 
     // Mock Worker
     mockWorker = {
@@ -60,7 +72,8 @@ describe('QueueService', () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as any;
 
-    (Worker as jest.MockedClass<typeof Worker>).mockImplementation(() => mockWorker);
+    const { Worker: WorkerMock } = require('bullmq');
+    WorkerMock.mockImplementation(() => mockWorker);
 
     // Mock Job
     mockJob = {
@@ -72,8 +85,11 @@ describe('QueueService', () => {
       attemptsMade: 0,
     } as any;
 
-    // Get fresh singleton instance
-    service = QueueService.getInstance();
+    // Get fresh singleton instance after mocks are set up
+    const { QueueService: FreshQueueService } = require('../../../src/services/QueueService');
+    // Clear the singleton instance
+    (FreshQueueService as any).instance = undefined;
+    service = FreshQueueService.getInstance();
   });
 
   afterEach(() => {
@@ -82,13 +98,15 @@ describe('QueueService', () => {
 
   describe('getInstance', () => {
     it('should return singleton instance', () => {
-      const instance1 = QueueService.getInstance();
-      const instance2 = QueueService.getInstance();
+      const { QueueService: FreshQueueService } = require('../../../src/services/QueueService');
+      const instance1 = FreshQueueService.getInstance();
+      const instance2 = FreshQueueService.getInstance();
       expect(instance1).toBe(instance2);
     });
 
     it('should create Redis connection on initialization', () => {
-      expect(Redis).toHaveBeenCalledWith(
+      const RedisMock = require('ioredis').default || require('ioredis');
+      expect(RedisMock).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           maxRetriesPerRequest: null,
@@ -108,7 +126,8 @@ describe('QueueService', () => {
     it('should create and return a new queue', () => {
       const queue = service.getQueue('email');
       expect(queue).toBeDefined();
-      expect(Queue).toHaveBeenCalledWith(
+      const { Queue: QueueMock } = require('bullmq');
+      expect(QueueMock).toHaveBeenCalledWith(
         'email',
         expect.objectContaining({
           connection: mockRedis,
@@ -127,12 +146,14 @@ describe('QueueService', () => {
       const queue1 = service.getQueue('email');
       const queue2 = service.getQueue('email');
       expect(queue1).toBe(queue2);
-      expect(Queue).toHaveBeenCalledTimes(1);
+      const { Queue: QueueMock } = require('bullmq');
+      expect(QueueMock).toHaveBeenCalledTimes(1);
     });
 
     it('should create queue with proper retention settings', () => {
       service.getQueue('reports');
-      expect(Queue).toHaveBeenCalledWith(
+      const { Queue: QueueMock } = require('bullmq');
+      expect(QueueMock).toHaveBeenCalledWith(
         'reports',
         expect.objectContaining({
           defaultJobOptions: expect.objectContaining({
@@ -152,7 +173,8 @@ describe('QueueService', () => {
       service.getQueue('email');
       service.getQueue('reports');
       service.getQueue('import');
-      expect(Queue).toHaveBeenCalledTimes(3);
+      const { Queue: QueueMock } = require('bullmq');
+      expect(QueueMock).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -286,7 +308,8 @@ describe('QueueService', () => {
 
       const worker = service.createWorker('email', processor, 1);
 
-      expect(Worker).toHaveBeenCalledWith(
+      const { Worker: WorkerMock } = require('bullmq');
+      expect(WorkerMock).toHaveBeenCalledWith(
         'email',
         processor,
         expect.objectContaining({
@@ -302,7 +325,8 @@ describe('QueueService', () => {
 
       service.createWorker('reports', processor, 5);
 
-      expect(Worker).toHaveBeenCalledWith(
+      const { Worker: WorkerMock } = require('bullmq');
+      expect(WorkerMock).toHaveBeenCalledWith(
         'reports',
         processor,
         expect.objectContaining({
@@ -329,7 +353,8 @@ describe('QueueService', () => {
       const worker2 = service.createWorker('email', processor);
 
       expect(worker1).toBe(worker2);
-      expect(Worker).toHaveBeenCalledTimes(1);
+      const { Worker: WorkerMock } = require('bullmq');
+      expect(WorkerMock).toHaveBeenCalledTimes(1);
     });
 
     it('should use default concurrency of 1', () => {
@@ -337,7 +362,8 @@ describe('QueueService', () => {
 
       service.createWorker('jobs', processor);
 
-      expect(Worker).toHaveBeenCalledWith(
+      const { Worker: WorkerMock } = require('bullmq');
+      expect(WorkerMock).toHaveBeenCalledWith(
         'jobs',
         processor,
         expect.objectContaining({
@@ -449,7 +475,12 @@ describe('QueueService', () => {
     });
 
     it('should return empty array if no queues', async () => {
-      const stats = await service.getAllQueueStats();
+      // Create a fresh service with no queues
+      const { QueueService: FreshService } = require('../../../src/services/QueueService');
+      (FreshService as any).instance = undefined;
+      const freshService = FreshService.getInstance();
+
+      const stats = await freshService.getAllQueueStats();
       expect(stats).toEqual([]);
     });
 
@@ -604,18 +635,21 @@ describe('QueueService', () => {
 
   describe('cleanQueue', () => {
     it('should clean completed jobs with default grace period', async () => {
+      service.getQueue('email'); // Ensure queue exists
       await service.cleanQueue('email');
 
       expect(mockQueue.clean).toHaveBeenCalledWith(3600000, 1000, 'completed');
     });
 
     it('should clean failed jobs', async () => {
+      service.getQueue('email'); // Ensure queue exists
       await service.cleanQueue('email', 3600000, 'failed');
 
       expect(mockQueue.clean).toHaveBeenCalledWith(3600000, 1000, 'failed');
     });
 
     it('should clean with custom grace period', async () => {
+      service.getQueue('email'); // Ensure queue exists
       const customGrace = 7200000; // 2 hours
       await service.cleanQueue('email', customGrace, 'completed');
 
@@ -623,6 +657,8 @@ describe('QueueService', () => {
     });
 
     it('should clean multiple queues', async () => {
+      service.getQueue('email');
+      service.getQueue('reports');
       await service.cleanQueue('email', 3600000, 'completed');
       await service.cleanQueue('reports', 3600000, 'failed');
 
@@ -632,6 +668,7 @@ describe('QueueService', () => {
 
   describe('pauseQueue', () => {
     it('should pause a queue', async () => {
+      service.getQueue('email'); // Ensure queue exists
       await service.pauseQueue('email');
 
       expect(mockQueue.pause).toHaveBeenCalled();
@@ -650,6 +687,7 @@ describe('QueueService', () => {
 
   describe('resumeQueue', () => {
     it('should resume a queue', async () => {
+      service.getQueue('email'); // Ensure queue exists
       await service.resumeQueue('email');
 
       expect(mockQueue.resume).toHaveBeenCalled();

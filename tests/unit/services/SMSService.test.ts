@@ -164,15 +164,15 @@ describe('SMSService', () => {
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledTimes(5);
 
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
-        where: { key: 'SMS_ENABLED' },
+        where: { key_tenantId: { key: 'SMS_ENABLED', tenantId: null } },
         update: {
           value: 'true',
-          updatedAt: expect.any(Date),
           updatedBy: 'user-1'
         },
         create: {
           key: 'SMS_ENABLED',
           value: 'true',
+          tenantId: null,
           category: 'sms',
           description: 'Enable SMS notifications',
           updatedBy: 'user-1'
@@ -218,7 +218,7 @@ describe('SMSService', () => {
 
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { key: 'SMS_ENABLED' },
+          where: { key_tenantId: { key: 'SMS_ENABLED', tenantId: null } },
           update: expect.objectContaining({
             value: 'false'
           })
@@ -241,7 +241,7 @@ describe('SMSService', () => {
 
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { key: 'SMS_PROVIDER' },
+          where: { key_tenantId: { key: 'SMS_PROVIDER', tenantId: null } },
           update: expect.objectContaining({
             value: 'twilio' // Defaults to twilio when empty
           })
@@ -263,15 +263,15 @@ describe('SMSService', () => {
       await service.updateSettings(newSettings, 'user-1');
 
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
-        where: { key: 'SMS_API_KEY' },
+        where: { key_tenantId: { key: 'SMS_API_KEY', tenantId: null } },
         update: {
           value: 'updated-key',
-          updatedAt: expect.any(Date),
           updatedBy: 'user-1'
         },
         create: {
           key: 'SMS_API_KEY',
           value: 'updated-key',
+          tenantId: null,
           category: 'sms',
           description: 'SMS API Key',
           updatedBy: 'user-1'
@@ -293,15 +293,15 @@ describe('SMSService', () => {
       await service.updateSettings(newSettings, 'user-1');
 
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
-        where: { key: 'SMS_API_SECRET' },
+        where: { key_tenantId: { key: 'SMS_API_SECRET', tenantId: null } },
         update: {
           value: 'updated-secret',
-          updatedAt: expect.any(Date),
           updatedBy: 'user-1'
         },
         create: {
           key: 'SMS_API_SECRET',
           value: 'updated-secret',
+          tenantId: null,
           category: 'sms',
           description: 'SMS API Secret',
           updatedBy: 'user-1'
@@ -323,15 +323,15 @@ describe('SMSService', () => {
       await service.updateSettings(newSettings, 'user-1');
 
       expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
-        where: { key: 'SMS_FROM_NUMBER' },
+        where: { key_tenantId: { key: 'SMS_FROM_NUMBER', tenantId: null } },
         update: {
           value: '+9999999999',
-          updatedAt: expect.any(Date),
           updatedBy: 'user-1'
         },
         create: {
           key: 'SMS_FROM_NUMBER',
           value: '+9999999999',
+          tenantId: null,
           category: 'sms',
           description: 'SMS From Number',
           updatedBy: 'user-1'
@@ -509,7 +509,7 @@ describe('SMSService', () => {
 
         expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: { key: 'SMS_PROVIDER' },
+            where: { key_tenantId: { key: 'SMS_PROVIDER', tenantId: null } },
             update: expect.objectContaining({
               value: provider
             })

@@ -47,7 +47,8 @@ describe('NotificationsController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'ADMIN' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
+      tenantId: 'tenant-1',
     } as any;
 
     mockRes = {
@@ -86,7 +87,7 @@ describe('NotificationsController', () => {
 
       await controller.getAllNotifications(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.getUserNotifications).toHaveBeenCalledWith('user-1');
+      expect(mockNotificationService.getUserNotifications).toHaveBeenCalledWith('user-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockNotifications);
     });
 
@@ -163,7 +164,7 @@ describe('NotificationsController', () => {
         title: 'Test',
         message: 'Test message',
       };
-      mockReq.user = { id: 'user-123', role: 'JUDGE' };
+      mockReq.user = { id: 'user-123', role: 'JUDGE', tenantId: 'tenant-1' };
 
       mockNotificationService.createNotification.mockResolvedValue({
         id: 'notif-4',
@@ -224,19 +225,19 @@ describe('NotificationsController', () => {
 
       await controller.deleteNotification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.deleteNotification).toHaveBeenCalledWith('notif-1', 'user-1');
+      expect(mockNotificationService.deleteNotification).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();
     });
 
     it('should use authenticated user ID', async () => {
       mockReq.params = { id: 'notif-2' };
-      mockReq.user = { id: 'user-456', role: 'CONTESTANT' };
+      mockReq.user = { id: 'user-456', role: 'CONTESTANT', tenantId: 'tenant-1' };
       mockNotificationService.deleteNotification.mockResolvedValue(undefined);
 
       await controller.deleteNotification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.deleteNotification).toHaveBeenCalledWith('notif-2', 'user-456');
+      expect(mockNotificationService.deleteNotification).toHaveBeenCalledWith('notif-2', 'user-456', 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {
@@ -257,7 +258,7 @@ describe('NotificationsController', () => {
 
       await controller.markAsRead(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.markAsRead).toHaveBeenCalledWith('notif-1', 'user-1');
+      expect(mockNotificationService.markAsRead).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         null,
@@ -267,12 +268,12 @@ describe('NotificationsController', () => {
 
     it('should use authenticated user ID', async () => {
       mockReq.params = { id: 'notif-3' };
-      mockReq.user = { id: 'user-789', role: 'JUDGE' };
+      mockReq.user = { id: 'user-789', role: 'JUDGE', tenantId: 'tenant-1' };
       mockNotificationService.markAsRead.mockResolvedValue(undefined);
 
       await controller.markAsRead(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.markAsRead).toHaveBeenCalledWith('notif-3', 'user-789');
+      expect(mockNotificationService.markAsRead).toHaveBeenCalledWith('notif-3', 'user-789', 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {
@@ -292,7 +293,7 @@ describe('NotificationsController', () => {
 
       await controller.markAllAsRead(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.markAllAsRead).toHaveBeenCalledWith('user-1');
+      expect(mockNotificationService.markAllAsRead).toHaveBeenCalledWith('user-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         { count: 5 },
@@ -305,7 +306,7 @@ describe('NotificationsController', () => {
 
       await controller.markAllAsRead(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.markAllAsRead).toHaveBeenCalledWith('user-1');
+      expect(mockNotificationService.markAllAsRead).toHaveBeenCalledWith('user-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         { count: 0 },
@@ -314,12 +315,12 @@ describe('NotificationsController', () => {
     });
 
     it('should use authenticated user ID', async () => {
-      mockReq.user = { id: 'user-999', role: 'ADMIN' };
+      mockReq.user = { id: 'user-999', role: 'ADMIN', tenantId: 'tenant-1' };
       mockNotificationService.markAllAsRead.mockResolvedValue(3);
 
       await controller.markAllAsRead(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNotificationService.markAllAsRead).toHaveBeenCalledWith('user-999');
+      expect(mockNotificationService.markAllAsRead).toHaveBeenCalledWith('user-999', 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {

@@ -16,12 +16,17 @@ describe('NotificationService', () => {
 
   const mockNotification = {
     id: 'notif-1',
+    tenantId: 'tenant-1',
     userId: 'user-1',
     type: 'SUCCESS' as const,
     title: 'Test Notification',
     message: 'This is a test notification',
     link: '/dashboard',
     read: false,
+    readAt: null,
+    metadata: null,
+    sentBy: null,
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -50,6 +55,7 @@ describe('NotificationService', () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
       const result = await service.createNotification({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         type: 'SUCCESS',
         title: 'Test',
@@ -58,6 +64,7 @@ describe('NotificationService', () => {
 
       expect(result).toEqual(mockNotification);
       expect(mockRepository.create).toHaveBeenCalledWith({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         type: 'SUCCESS',
         title: 'Test',
@@ -71,6 +78,7 @@ describe('NotificationService', () => {
       mockIo.to.mockReturnValue(mockIo as any);
 
       await service.createNotification({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         type: 'INFO',
         title: 'Test',
@@ -85,6 +93,7 @@ describe('NotificationService', () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
       await service.createNotification({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         type: 'INFO',
         title: 'Test',
@@ -99,6 +108,7 @@ describe('NotificationService', () => {
       mockRepository.create.mockResolvedValue(withLink);
 
       const result = await service.createNotification({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         type: 'INFO',
         title: 'Test',
@@ -117,6 +127,7 @@ describe('NotificationService', () => {
       mockIo.to.mockReturnValue(mockIo as any);
 
       const count = await service.broadcastNotification(['user-1', 'user-2', 'user-3'], {
+        tenantId: 'tenant-1',
         type: 'SYSTEM',
         title: 'Maintenance',
         message: 'System maintenance scheduled',
@@ -124,6 +135,7 @@ describe('NotificationService', () => {
 
       expect(count).toBe(3);
       expect(mockRepository.createMany).toHaveBeenCalledWith(['user-1', 'user-2', 'user-3'], {
+        tenantId: 'tenant-1',
         type: 'SYSTEM',
         title: 'Maintenance',
         message: 'System maintenance scheduled',
@@ -135,6 +147,7 @@ describe('NotificationService', () => {
       mockRepository.createMany.mockResolvedValue(0);
 
       const count = await service.broadcastNotification([], {
+        tenantId: 'tenant-1',
         type: 'INFO',
         title: 'Test',
         message: 'Message',
@@ -147,6 +160,7 @@ describe('NotificationService', () => {
       mockRepository.createMany.mockResolvedValue(2);
 
       const count = await service.broadcastNotification(['user-1', 'user-2'], {
+        tenantId: 'tenant-1',
         type: 'INFO',
         title: 'Test',
         message: 'Message',
@@ -161,11 +175,12 @@ describe('NotificationService', () => {
     it('should get user notifications with defaults', async () => {
       mockRepository.findByUser.mockResolvedValue([mockNotification]);
 
-      const result = await service.getUserNotifications('user-1');
+      const result = await service.getUserNotifications('user-1', 'tenant-1');
 
       expect(result).toEqual([mockNotification]);
       expect(mockRepository.findByUser).toHaveBeenCalledWith({
         userId: 'user-1',
+        tenantId: 'tenant-1',
         limit: 50,
         offset: 0,
       });
@@ -174,10 +189,11 @@ describe('NotificationService', () => {
     it('should get user notifications with custom limit and offset', async () => {
       mockRepository.findByUser.mockResolvedValue([mockNotification]);
 
-      await service.getUserNotifications('user-1', 20, 10);
+      await service.getUserNotifications('user-1', 'tenant-1', 20, 10);
 
       expect(mockRepository.findByUser).toHaveBeenCalledWith({
         userId: 'user-1',
+        tenantId: 'tenant-1',
         limit: 20,
         offset: 10,
       });
@@ -186,7 +202,7 @@ describe('NotificationService', () => {
     it('should return empty array when no notifications', async () => {
       mockRepository.findByUser.mockResolvedValue([]);
 
-      const result = await service.getUserNotifications('user-1');
+      const result = await service.getUserNotifications('user-1', 'tenant-1');
 
       expect(result).toEqual([]);
     });
@@ -196,16 +212,16 @@ describe('NotificationService', () => {
     it('should get unread notification count', async () => {
       mockRepository.getUnreadCount.mockResolvedValue(5);
 
-      const result = await service.getUnreadCount('user-1');
+      const result = await service.getUnreadCount('user-1', 'tenant-1');
 
       expect(result).toBe(5);
-      expect(mockRepository.getUnreadCount).toHaveBeenCalledWith('user-1');
+      expect(mockRepository.getUnreadCount).toHaveBeenCalledWith('user-1', 'tenant-1');
     });
 
     it('should return zero when no unread notifications', async () => {
       mockRepository.getUnreadCount.mockResolvedValue(0);
 
-      const result = await service.getUnreadCount('user-1');
+      const result = await service.getUnreadCount('user-1', 'tenant-1');
 
       expect(result).toBe(0);
     });
@@ -218,10 +234,10 @@ describe('NotificationService', () => {
       mockRepository.markAsRead.mockResolvedValue(readNotification);
       mockIo.to.mockReturnValue(mockIo as any);
 
-      const result = await service.markAsRead('notif-1', 'user-1');
+      const result = await service.markAsRead('notif-1', 'user-1', 'tenant-1');
 
       expect(result.read).toBe(true);
-      expect(mockRepository.markAsRead).toHaveBeenCalledWith('notif-1', 'user-1');
+      expect(mockRepository.markAsRead).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
       expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
       expect(mockIo.emit).toHaveBeenCalledWith('notification:read', { id: 'notif-1' });
     });
@@ -230,7 +246,7 @@ describe('NotificationService', () => {
       const readNotification = { ...mockNotification, read: true };
       mockRepository.markAsRead.mockResolvedValue(readNotification);
 
-      const result = await service.markAsRead('notif-1', 'user-1');
+      const result = await service.markAsRead('notif-1', 'user-1', 'tenant-1');
 
       expect(result.read).toBe(true);
       expect(mockIo.to).not.toHaveBeenCalled();
@@ -243,10 +259,10 @@ describe('NotificationService', () => {
       mockRepository.markAllAsRead.mockResolvedValue(5);
       mockIo.to.mockReturnValue(mockIo as any);
 
-      const count = await service.markAllAsRead('user-1');
+      const count = await service.markAllAsRead('user-1', 'tenant-1');
 
       expect(count).toBe(5);
-      expect(mockRepository.markAllAsRead).toHaveBeenCalledWith('user-1');
+      expect(mockRepository.markAllAsRead).toHaveBeenCalledWith('user-1', 'tenant-1');
       expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
       expect(mockIo.emit).toHaveBeenCalledWith('notification:read-all');
     });
@@ -254,7 +270,7 @@ describe('NotificationService', () => {
     it('should return zero when no notifications to mark', async () => {
       mockRepository.markAllAsRead.mockResolvedValue(0);
 
-      const count = await service.markAllAsRead('user-1');
+      const count = await service.markAllAsRead('user-1', 'tenant-1');
 
       expect(count).toBe(0);
     });
@@ -266,10 +282,10 @@ describe('NotificationService', () => {
       mockRepository.delete.mockResolvedValue(mockNotification);
       mockIo.to.mockReturnValue(mockIo as any);
 
-      const result = await service.deleteNotification('notif-1', 'user-1');
+      const result = await service.deleteNotification('notif-1', 'user-1', 'tenant-1');
 
       expect(result).toEqual(mockNotification);
-      expect(mockRepository.delete).toHaveBeenCalledWith('notif-1', 'user-1');
+      expect(mockRepository.delete).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
       expect(mockIo.emit).toHaveBeenCalledWith('notification:deleted', { id: 'notif-1' });
     });
   });
@@ -278,19 +294,56 @@ describe('NotificationService', () => {
     it('should cleanup old notifications with default days', async () => {
       mockRepository.deleteOldRead.mockResolvedValue(10);
 
-      const count = await service.cleanupOldNotifications('user-1');
+      const count = await service.cleanupOldNotifications('user-1', 'tenant-1');
 
       expect(count).toBe(10);
-      expect(mockRepository.deleteOldRead).toHaveBeenCalledWith('user-1', 30);
+      expect(mockRepository.deleteOldRead).toHaveBeenCalledWith('user-1', 'tenant-1', 30);
     });
 
     it('should cleanup with custom days', async () => {
       mockRepository.deleteOldRead.mockResolvedValue(5);
 
-      const count = await service.cleanupOldNotifications('user-1', 60);
+      const count = await service.cleanupOldNotifications('user-1', 'tenant-1', 60);
 
       expect(count).toBe(5);
-      expect(mockRepository.deleteOldRead).toHaveBeenCalledWith('user-1', 60);
+      expect(mockRepository.deleteOldRead).toHaveBeenCalledWith('user-1', 'tenant-1', 60);
+    });
+  });
+
+  describe('restoreNotification', () => {
+    it('should restore a soft-deleted notification', async () => {
+      service.setSocketIO(mockIo as any);
+      mockRepository.restore.mockResolvedValue(mockNotification);
+      mockIo.to.mockReturnValue(mockIo as any);
+
+      const result = await service.restoreNotification('notif-1', 'user-1', 'tenant-1');
+
+      expect(result).toEqual(mockNotification);
+      expect(mockRepository.restore).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
+      expect(mockIo.emit).toHaveBeenCalledWith('notification:restored', mockNotification);
+    });
+  });
+
+  describe('getDeletedNotifications', () => {
+    it('should get deleted notifications for a user', async () => {
+      const deletedNotification = { ...mockNotification, deletedAt: new Date() };
+      mockRepository.findDeleted.mockResolvedValue([deletedNotification]);
+
+      const result = await service.getDeletedNotifications('user-1', 'tenant-1');
+
+      expect(result).toEqual([deletedNotification]);
+      expect(mockRepository.findDeleted).toHaveBeenCalledWith('user-1', 'tenant-1', 50, 0);
+    });
+  });
+
+  describe('permanentlyDeleteOld', () => {
+    it('should permanently delete old soft-deleted notifications', async () => {
+      mockRepository.permanentlyDeleteOld.mockResolvedValue(5);
+
+      const count = await service.permanentlyDeleteOld('user-1', 'tenant-1', 30);
+
+      expect(count).toBe(5);
+      expect(mockRepository.permanentlyDeleteOld).toHaveBeenCalledWith('user-1', 'tenant-1', 30);
     });
   });
 
@@ -298,16 +351,16 @@ describe('NotificationService', () => {
     it('should create score submitted notification', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      const result = await service.notifyScoreSubmitted('user-1', 'John Doe', 'Dance');
+      const result = await service.notifyScoreSubmitted('tenant-1', 'user-1', 'John Doe', 'Dance');
 
       expect(result).toEqual(mockNotification);
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
           userId: 'user-1',
           type: 'SUCCESS',
           title: 'Score Submitted',
           message: expect.stringContaining('John Doe'),
-          message: expect.stringContaining('Dance'),
         })
       );
     });
@@ -317,10 +370,12 @@ describe('NotificationService', () => {
     it('should create contest certified notification', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      const result = await service.notifyContestCertified('user-1', 'Solo Dance');
+      const result = await service.notifyContestCertified('tenant-1', 'user-1', 'Solo Dance');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'SUCCESS',
           title: 'Contest Certified',
           message: expect.stringContaining('Solo Dance'),
@@ -333,10 +388,12 @@ describe('NotificationService', () => {
     it('should notify assignment assigned', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyAssignmentChange('user-1', 'Dance Contest', 'assigned');
+      await service.notifyAssignmentChange('tenant-1', 'user-1', 'Dance Contest', 'assigned');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'INFO',
           title: 'New Assignment',
           message: expect.stringContaining('assigned'),
@@ -347,10 +404,12 @@ describe('NotificationService', () => {
     it('should notify assignment removed', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyAssignmentChange('user-1', 'Dance Contest', 'removed');
+      await service.notifyAssignmentChange('tenant-1', 'user-1', 'Dance Contest', 'removed');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'INFO',
           title: 'Assignment Removed',
           message: expect.stringContaining('removed'),
@@ -363,10 +422,12 @@ describe('NotificationService', () => {
     it('should create report ready notification', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyReportReady('user-1', 'Annual Report', 'report-123');
+      await service.notifyReportReady('tenant-1', 'user-1', 'Annual Report', 'report-123');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'SUCCESS',
           title: 'Report Ready',
           link: '/reports/report-123',
@@ -379,10 +440,12 @@ describe('NotificationService', () => {
     it('should notify certification required for level 1', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyCertificationRequired('user-1', 'Dance Contest', 1);
+      await service.notifyCertificationRequired('tenant-1', 'user-1', 'Dance Contest', 1);
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'WARNING',
           message: expect.stringContaining('Judge Review'),
         })
@@ -392,10 +455,12 @@ describe('NotificationService', () => {
     it('should notify certification required for level 2', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyCertificationRequired('user-1', 'Dance Contest', 2);
+      await service.notifyCertificationRequired('tenant-1', 'user-1', 'Dance Contest', 2);
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           message: expect.stringContaining('Tally Master Review'),
         })
       );
@@ -404,10 +469,12 @@ describe('NotificationService', () => {
     it('should notify certification required for level 3', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyCertificationRequired('user-1', 'Dance Contest', 3);
+      await service.notifyCertificationRequired('tenant-1', 'user-1', 'Dance Contest', 3);
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           message: expect.stringContaining('Board Approval'),
         })
       );
@@ -418,10 +485,12 @@ describe('NotificationService', () => {
     it('should create role change notification', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyRoleChange('user-1', 'ADMIN');
+      await service.notifyRoleChange('tenant-1', 'user-1', 'ADMIN');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'INFO',
           title: 'Role Updated',
           message: expect.stringContaining('ADMIN'),
@@ -434,10 +503,12 @@ describe('NotificationService', () => {
     it('should create event status change notification', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyEventStatusChange('user-1', 'Summer Festival', 'ACTIVE');
+      await service.notifyEventStatusChange('tenant-1', 'user-1', 'Summer Festival', 'ACTIVE');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'INFO',
           title: 'Event Status Changed',
           message: expect.stringContaining('ACTIVE'),
@@ -450,7 +521,7 @@ describe('NotificationService', () => {
     it('should broadcast system maintenance notification', async () => {
       mockRepository.createMany.mockResolvedValue(3);
 
-      const count = await service.notifySystemMaintenance('Maintenance at 2AM', [
+      const count = await service.notifySystemMaintenance('tenant-1', 'Maintenance at 2AM', [
         'user-1',
         'user-2',
         'user-3',
@@ -458,6 +529,7 @@ describe('NotificationService', () => {
 
       expect(count).toBe(3);
       expect(mockRepository.createMany).toHaveBeenCalledWith(['user-1', 'user-2', 'user-3'], {
+        tenantId: 'tenant-1',
         type: 'SYSTEM',
         title: 'System Maintenance',
         message: 'Maintenance at 2AM',
@@ -469,10 +541,12 @@ describe('NotificationService', () => {
     it('should create error notification', async () => {
       mockRepository.create.mockResolvedValue(mockNotification);
 
-      await service.notifyError('user-1', 'Error Title', 'Error message');
+      await service.notifyError('tenant-1', 'user-1', 'Error Title', 'Error message');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
           type: 'ERROR',
           title: 'Error Title',
           message: 'Error message',

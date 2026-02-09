@@ -12,6 +12,8 @@ describe('SearchService', () => {
   let service: SearchService;
   let mockRepository: DeepMockProxy<SearchRepository>;
 
+  const testTenantId = 'tenant-1';
+
   const mockSearchResults: SearchResult[] = [
     {
       id: '1',

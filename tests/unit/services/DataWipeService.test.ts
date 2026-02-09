@@ -9,6 +9,8 @@ describe('DataWipeService', () => {
   let mockTransaction: any;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
     mockPrisma = mockDeep<PrismaClient>();
     service = new DataWipeService(mockPrisma as any);
 
@@ -24,7 +26,7 @@ describe('DataWipeService', () => {
       judgeContestantCertification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       reviewContestantCertification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       reviewJudgeScoreCertification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      scoreRemovalRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      judgeScoreRemovalRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       judgeUncertificationRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       deductionRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       deductionApproval: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -36,7 +38,7 @@ describe('DataWipeService', () => {
       contestContestant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       contestJudge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       criterion: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      category: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      category: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn() },
       contest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn() },
       event: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), delete: jest.fn() },
       contestant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -47,8 +49,6 @@ describe('DataWipeService', () => {
     mockPrisma.$transaction.mockImplementation(async (callback) => {
       return callback(mockTransaction);
     });
-
-    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -408,7 +408,7 @@ describe('DataWipeService', () => {
     it('should delete score removal requests for categories', async () => {
       await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
 
-      expect(mockTransaction.scoreRemovalRequest.deleteMany).toHaveBeenCalledWith({
+      expect(mockTransaction.judgeScoreRemovalRequest.deleteMany).toHaveBeenCalledWith({
         where: {
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },

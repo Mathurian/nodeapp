@@ -1,45 +1,23 @@
 import 'reflect-metadata';
 import { HealthCheckService, getHealthCheckService } from '../../../src/services/HealthCheckService';
-
-// Mock dependencies
-jest.mock('../../../src/utils/prisma', () => ({
-  default: {
-    $queryRaw: jest.fn(),
-  },
-}));
-
-jest.mock('../../../src/services/RedisCacheService', () => ({
-  getCacheService: jest.fn(),
-}));
-
-jest.mock('../../../src/services/VirusScanService', () => ({
-  getVirusScanService: jest.fn(),
-}));
-
-jest.mock('../../../src/services/SecretManager', () => ({
-  SecretManager: {
-    getInstance: jest.fn(),
-  },
-}));
-
-jest.mock('fs', () => ({
-  promises: {
-    writeFile: jest.fn(),
-    unlink: jest.fn(),
-  },
-}));
-
 import prisma from '../../../src/utils/prisma';
-import { getCacheService } from '../../../src/services/RedisCacheService';
-import { getVirusScanService } from '../../../src/services/VirusScanService';
+import * as RedisCacheService from '../../../src/services/RedisCacheService';
+import * as VirusScanService from '../../../src/services/VirusScanService';
 import { SecretManager } from '../../../src/services/SecretManager';
-import { promises as fs } from 'fs';
+import fs from 'fs';
 
 describe('HealthCheckService', () => {
   let service: HealthCheckService;
   let mockCacheService: any;
   let mockVirusScanService: any;
   let mockSecretManager: any;
+
+  let prismaSpy: jest.SpyInstance;
+  let getCacheServiceSpy: jest.SpyInstance;
+  let getVirusScanServiceSpy: jest.SpyInstance;
+  let secretManagerGetInstanceSpy: jest.SpyInstance;
+  let fsWriteFileSyncSpy: jest.SpyInstance;
+  let fsUnlinkSyncSpy: jest.SpyInstance;
 
   beforeEach(() => {
     service = new HealthCheckService();
@@ -60,16 +38,24 @@ describe('HealthCheckService', () => {
       healthCheck: jest.fn(),
     };
 
-    (getCacheService as jest.Mock).mockReturnValue(mockCacheService);
-    (getVirusScanService as jest.Mock).mockReturnValue(mockVirusScanService);
-    (SecretManager.getInstance as jest.Mock).mockReturnValue(mockSecretManager);
+    // Use jest.spyOn for all external dependencies
+    prismaSpy = jest.spyOn(prisma, '$queryRaw');
+    getCacheServiceSpy = jest.spyOn(RedisCacheService, 'getCacheService').mockReturnValue(mockCacheService);
+    getVirusScanServiceSpy = jest.spyOn(VirusScanService, 'getVirusScanService').mockReturnValue(mockVirusScanService);
+    secretManagerGetInstanceSpy = jest.spyOn(SecretManager, 'getInstance').mockReturnValue(mockSecretManager as any);
 
-    jest.clearAllMocks();
+    // Mock synchronous fs methods (the service uses fs.writeFileSync and fs.unlinkSync)
+    fsWriteFileSyncSpy = jest.spyOn(fs, 'writeFileSync');
+    fsUnlinkSyncSpy = jest.spyOn(fs, 'unlinkSync');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('checkHealth', () => {
     it('should return healthy status when all services are healthy', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -91,8 +77,8 @@ describe('HealthCheckService', () => {
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
 
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -109,7 +95,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should return degraded status when cache is using memory fallback', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'memory', redisMode: null });
@@ -128,8 +114,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -142,7 +128,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should return unhealthy status when database fails', async () => {
-      (prisma.$queryRaw as jest.Mock).mockRejectedValue(new Error('Connection timeout'));
+      prismaSpy.mockRejectedValue(new Error('Connection timeout'));
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -153,8 +139,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -167,7 +153,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle virus scan disabled gracefully', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -181,8 +167,8 @@ describe('HealthCheckService', () => {
       });
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -192,7 +178,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle virus scan unavailable with allow fallback', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -208,8 +194,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(false);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -220,7 +206,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle virus scan unavailable with block fallback', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -236,8 +222,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(false);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -248,7 +234,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle secrets management failure', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -259,8 +245,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(false);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -270,7 +256,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle file system write failure', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -281,7 +267,9 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+      fsWriteFileSyncSpy.mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
 
       const result = await service.checkHealth();
 
@@ -292,7 +280,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle cache service check failure gracefully', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockRejectedValue(new Error('Cache connection failed'));
 
@@ -300,8 +288,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -311,7 +299,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle virus scan check exception gracefully', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -323,8 +311,8 @@ describe('HealthCheckService', () => {
       });
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -334,7 +322,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should handle secrets check exception', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -345,8 +333,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockRejectedValue(new Error('Secrets unavailable'));
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -356,7 +344,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should include response times for all services', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -367,8 +355,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkHealth();
 
@@ -381,7 +369,7 @@ describe('HealthCheckService', () => {
 
   describe('checkReadiness', () => {
     it('should return true when database is healthy', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -392,8 +380,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkReadiness();
 
@@ -401,7 +389,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should return false when database is unhealthy', async () => {
-      (prisma.$queryRaw as jest.Mock).mockRejectedValue(new Error('Connection failed'));
+      prismaSpy.mockRejectedValue(new Error('Connection failed'));
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'redis', redisMode: 'standalone' });
@@ -412,8 +400,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.isAvailable.mockResolvedValue(true);
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkReadiness();
 
@@ -421,7 +409,7 @@ describe('HealthCheckService', () => {
     });
 
     it('should return true even if other services are degraded', async () => {
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ result: 1 }]);
+      prismaSpy.mockResolvedValue([{ result: 1 }]);
 
       mockCacheService.healthCheck.mockResolvedValue(true);
       mockCacheService.getCacheMode.mockReturnValue({ mode: 'memory', redisMode: null });
@@ -431,8 +419,8 @@ describe('HealthCheckService', () => {
       mockVirusScanService.getServiceInfo.mockReturnValue({ enabled: false, mode: 'disabled', config: { fallbackBehavior: 'allow' } });
 
       mockSecretManager.healthCheck.mockResolvedValue(true);
-      (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      fsWriteFileSyncSpy.mockReturnValue(undefined);
+      fsUnlinkSyncSpy.mockReturnValue(undefined);
 
       const result = await service.checkReadiness();
 

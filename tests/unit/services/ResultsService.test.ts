@@ -76,6 +76,14 @@ describe('ResultsService', () => {
     it('should return all results for ADMIN with full access', async () => {
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([mockScore]);
       (mockPrisma.score.count as jest.Mock).mockResolvedValue(1);
+      (mockPrisma.score.groupBy as jest.Mock).mockResolvedValue([
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          _sum: { score: 85 },
+          _count: 1
+        }
+      ]);
 
       const result = await service.getAllResults({
         userRole: 'ADMIN' as UserRole,
@@ -96,6 +104,14 @@ describe('ResultsService', () => {
       });
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([mockScore]);
       (mockPrisma.score.count as jest.Mock).mockResolvedValue(1);
+      (mockPrisma.score.groupBy as jest.Mock).mockResolvedValue([
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          _sum: { score: 85 },
+          _count: 1
+        }
+      ]);
 
       const result = await service.getAllResults({
         userRole: 'JUDGE' as UserRole,
@@ -112,7 +128,7 @@ describe('ResultsService', () => {
         id: 'user-1',
         contestantId: 'contestant-1'
       });
-      (mockPrisma.systemSetting.findUnique as jest.Mock).mockResolvedValue({
+      (mockPrisma.systemSetting.findFirst as jest.Mock).mockResolvedValue({
         key: 'contestant_can_view_overall_results',
         value: 'true'
       });
@@ -121,6 +137,14 @@ describe('ResultsService', () => {
       ]);
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([mockScore]);
       (mockPrisma.score.count as jest.Mock).mockResolvedValue(1);
+      (mockPrisma.score.groupBy as jest.Mock).mockResolvedValue([
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          _sum: { score: 85 },
+          _count: 1
+        }
+      ]);
 
       const result = await service.getAllResults({
         userRole: 'CONTESTANT' as UserRole,
@@ -183,6 +207,14 @@ describe('ResultsService', () => {
     it('should apply pagination correctly', async () => {
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([mockScore]);
       (mockPrisma.score.count as jest.Mock).mockResolvedValue(100);
+      (mockPrisma.score.groupBy as jest.Mock).mockResolvedValue([
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          _sum: { score: 85 },
+          _count: 1
+        }
+      ]);
 
       const result = await service.getAllResults({
         userRole: 'ADMIN' as UserRole,

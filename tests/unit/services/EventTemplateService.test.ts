@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 /**
  * EventTemplateService Tests
  *
@@ -13,19 +14,23 @@
  * - Validation and error handling
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { mock, MockProxy } from 'jest-mock-extended';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { EventTemplateService } from '../../src/services/EventTemplateService';
-import { NotFoundError, ValidationError } from '../../src/services/BaseService';
+import { EventTemplateService } from '../../../src/services/EventTemplateService';
+import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('EventTemplateService', () => {
   let service: EventTemplateService;
-  let prismaMock: MockProxy<PrismaClient>;
+  let prismaMock: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = mock<PrismaClient>();
+    prismaMock = mockDeep<PrismaClient>();
     service = new EventTemplateService(prismaMock as any);
+  });
+
+  afterEach(() => {
+    mockReset(prismaMock);
   });
 
   describe('create', () => {

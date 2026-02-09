@@ -4,11 +4,48 @@
  */
 
 import 'reflect-metadata';
-import { CacheService } from '../../../src/services/cacheService';
+import { CacheService } from '../../../src/services/CacheService';
 import Redis from 'ioredis';
 
 // Mock ioredis
 jest.mock('ioredis');
+
+// Mock env module
+jest.mock('../../../src/config/env', () => ({
+  env: {
+    get: jest.fn((key: string) => {
+      const defaults: Record<string, string | number | undefined> = {
+        'REDIS_HOST': 'localhost',
+        'REDIS_PORT': 6379,
+        'REDIS_PASSWORD': undefined,
+        'REDIS_DB': 0,
+      };
+      return defaults[key];
+    }),
+  },
+}));
+
+// Mock logger
+jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  }),
+}));
+
+// Mock circuit breaker
+jest.mock('../../../src/utils/circuitBreaker', () => ({
+  CircuitBreakerRegistry: {
+    get: jest.fn(() => ({
+      on: jest.fn(),
+      execute: jest.fn((fn: () => Promise<unknown>) => fn()),
+      isOpen: jest.fn(() => false),
+    })),
+  },
+  CircuitBreaker: jest.fn(),
+}));
 
 describe('CacheService', () => {
   let cacheService: CacheService;
@@ -42,7 +79,7 @@ describe('CacheService', () => {
   });
 
   afterEach(async () => {
-    await cacheService.close();
+    await cacheService.disconnect();
   });
 
   describe('constructor and initialization', () => {
@@ -679,7 +716,7 @@ describe('CacheService', () => {
     it('should close Redis connection', async () => {
       mockRedis.quit.mockResolvedValue('OK');
 
-      await cacheService.close();
+      await cacheService.disconnect();
 
       expect(mockRedis.quit).toHaveBeenCalled();
     });
@@ -688,7 +725,7 @@ describe('CacheService', () => {
       const emptyService = new CacheService();
       (emptyService as any).redis = null;
 
-      await expect(emptyService.close()).resolves.not.toThrow();
+      await expect(emptyService.disconnect()).resolves.not.toThrow();
     });
   });
 

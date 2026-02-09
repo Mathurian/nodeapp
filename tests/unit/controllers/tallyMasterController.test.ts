@@ -281,7 +281,7 @@ describe('TallyMasterController', () => {
       await controller.certifyTotals(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: 'Unauthorized' }));
       expect(mockTallyMasterService.certifyTotals).not.toHaveBeenCalled();
     });
 

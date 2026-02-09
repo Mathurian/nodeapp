@@ -93,18 +93,22 @@ describe('CategoriesController', () => {
       getCategoryStats: jest.fn(),
       certifyTotals: jest.fn(),
       searchCategories: jest.fn(),
+      getAllCategoriesPaginated: jest.fn(),
     } as any;
 
     // Setup mock Prisma
     mockPrisma = {
       category: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
         deleteMany: jest.fn(),
         update: jest.fn(),
       },
       criterion: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -125,8 +129,9 @@ describe('CategoriesController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'admin' },
-    };
+      user: { id: 'user-1', role: 'admin', tenantId: 'default_tenant' },
+      tenantId: 'default_tenant',
+    } as any;
 
     mockRes = {
       status: jest.fn().mockReturnThis(),
@@ -143,15 +148,18 @@ describe('CategoriesController', () => {
   });
 
   describe('getAllCategories', () => {
-    it('should return empty array with message', async () => {
+    it('should return categories from paginated service', async () => {
+      mockCategoryService.getAllCategoriesPaginated.mockResolvedValue({ data: mockCategories });
+
       await controller.getAllCategories(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, [], 'Please use getCategoriesByContest endpoint for category lists');
+      expect(mockCategoryService.getAllCategoriesPaginated).toHaveBeenCalledWith({ page: 1, limit: 1000 });
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockCategories, 'Categories retrieved successfully');
     });
 
     it('should call next with error if exception occurs', async () => {
       const error = new Error('Unexpected error');
-      (sendSuccess as jest.Mock).mockImplementation(() => { throw error; });
+      mockCategoryService.getAllCategoriesPaginated.mockRejectedValue(error);
 
       await controller.getAllCategories(mockReq as Request, mockRes as Response, mockNext);
 
@@ -330,7 +338,7 @@ describe('CategoriesController', () => {
 
       await controller.deleteCategory(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockCategoryService.deleteCategory).toHaveBeenCalledWith('category-1');
+      expect(mockCategoryService.deleteCategory).toHaveBeenCalledWith('category-1', 'user-1');
       expect(sendNoContent).toHaveBeenCalledWith(mockRes);
     });
 
@@ -463,7 +471,7 @@ describe('CategoriesController', () => {
       await controller.getCategoryCriteria(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.criterion.findMany).toHaveBeenCalledWith({
-        where: { categoryId: 'category-1' },
+        where: { categoryId: 'category-1', tenantId: 'default_tenant' },
         orderBy: { name: 'asc' },
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, criteria, 'Category criteria retrieved successfully');
@@ -492,17 +500,18 @@ describe('CategoriesController', () => {
     it('should create criterion with valid data', async () => {
       mockReq.params = { categoryId: 'category-1' };
       mockReq.body = { name: 'Pitch', maxScore: 25 };
-      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(mockCategory);
+      (mockPrisma.category.findFirst as jest.Mock).mockResolvedValue(mockCategory);
       (mockPrisma.criterion.create as jest.Mock).mockResolvedValue(mockCriterion);
 
       await controller.createCriterion(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.category.findUnique).toHaveBeenCalledWith({ where: { id: 'category-1' } });
+      expect(mockPrisma.category.findFirst).toHaveBeenCalledWith({ where: { id: 'category-1', tenantId: 'default_tenant' } });
       expect(mockPrisma.criterion.create).toHaveBeenCalledWith({
         data: {
           categoryId: 'category-1',
           name: 'Pitch',
           maxScore: 25,
+          tenantId: 'default_tenant',
         },
       });
       expect(sendCreated).toHaveBeenCalledWith(mockRes, mockCriterion, 'Criterion created successfully');
@@ -537,7 +546,7 @@ describe('CategoriesController', () => {
     it('should return 404 when category does not exist', async () => {
       mockReq.params = { categoryId: 'category-1' };
       mockReq.body = { name: 'Test', maxScore: 10 };
-      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.category.findFirst as jest.Mock).mockResolvedValue(null);
 
       await controller.createCriterion(mockReq as Request, mockRes as Response, mockNext);
 
@@ -548,7 +557,7 @@ describe('CategoriesController', () => {
       const error = new Error('Database error');
       mockReq.params = { categoryId: 'category-1' };
       mockReq.body = { name: 'Test', maxScore: 10 };
-      (mockPrisma.category.findUnique as jest.Mock).mockRejectedValue(error);
+      (mockPrisma.category.findFirst as jest.Mock).mockRejectedValue(error);
 
       await controller.createCriterion(mockReq as Request, mockRes as Response, mockNext);
 
@@ -560,7 +569,7 @@ describe('CategoriesController', () => {
     it('should update criterion with valid data', async () => {
       mockReq.params = { criterionId: 'crit-1' };
       mockReq.body = { name: 'Updated Name', maxScore: 30 };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockResolvedValue(mockCriterion);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockResolvedValue(mockCriterion);
       const updated = { ...mockCriterion, name: 'Updated Name', maxScore: 30 };
       (mockPrisma.criterion.update as jest.Mock).mockResolvedValue(updated);
 
@@ -576,7 +585,7 @@ describe('CategoriesController', () => {
     it('should update only provided fields', async () => {
       mockReq.params = { criterionId: 'crit-1' };
       mockReq.body = { name: 'Updated Name' };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockResolvedValue(mockCriterion);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockResolvedValue(mockCriterion);
       (mockPrisma.criterion.update as jest.Mock).mockResolvedValue(mockCriterion);
 
       await controller.updateCriterion(mockReq as Request, mockRes as Response, mockNext);
@@ -598,7 +607,7 @@ describe('CategoriesController', () => {
     it('should return 404 when criterion not found', async () => {
       mockReq.params = { criterionId: 'crit-1' };
       mockReq.body = { name: 'Test' };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockResolvedValue(null);
 
       await controller.updateCriterion(mockReq as Request, mockRes as Response, mockNext);
 
@@ -609,7 +618,7 @@ describe('CategoriesController', () => {
       const error = new Error('Database error');
       mockReq.params = { criterionId: 'crit-1' };
       mockReq.body = { name: 'Test' };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockRejectedValue(error);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockRejectedValue(error);
 
       await controller.updateCriterion(mockReq as Request, mockRes as Response, mockNext);
 
@@ -620,7 +629,7 @@ describe('CategoriesController', () => {
   describe('deleteCriterion', () => {
     it('should delete criterion and return 204', async () => {
       mockReq.params = { criterionId: 'crit-1' };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockResolvedValue(mockCriterion);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockResolvedValue(mockCriterion);
       (mockPrisma.criterion.delete as jest.Mock).mockResolvedValue(mockCriterion);
 
       await controller.deleteCriterion(mockReq as Request, mockRes as Response, mockNext);
@@ -639,7 +648,7 @@ describe('CategoriesController', () => {
 
     it('should return 404 when criterion not found', async () => {
       mockReq.params = { criterionId: 'crit-1' };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockResolvedValue(null);
 
       await controller.deleteCriterion(mockReq as Request, mockRes as Response, mockNext);
 
@@ -649,7 +658,7 @@ describe('CategoriesController', () => {
     it('should call next with error when database throws', async () => {
       const error = new Error('Database error');
       mockReq.params = { criterionId: 'crit-1' };
-      (mockPrisma.criterion.findUnique as jest.Mock).mockRejectedValue(error);
+      (mockPrisma.criterion.findFirst as jest.Mock).mockRejectedValue(error);
 
       await controller.deleteCriterion(mockReq as Request, mockRes as Response, mockNext);
 
@@ -698,7 +707,7 @@ describe('CategoriesController', () => {
       await controller.bulkDeleteCategories(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.category.deleteMany).toHaveBeenCalledWith({
-        where: { id: { in: ['cat-1', 'cat-2', 'cat-3'] } },
+        where: { id: { in: ['cat-1', 'cat-2', 'cat-3'] }, tenantId: 'default_tenant' },
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, { deleted: 3 }, 'Categories deleted successfully');
     });
@@ -747,6 +756,7 @@ describe('CategoriesController', () => {
           { id: 'cat-2', scoreCap: 150 },
         ],
       };
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue([{ id: 'cat-1' }, { id: 'cat-2' }]);
       (mockPrisma.category.update as jest.Mock).mockResolvedValue(mockCategory);
 
       await controller.bulkUpdateCategories(mockReq as Request, mockRes as Response, mockNext);
@@ -791,6 +801,7 @@ describe('CategoriesController', () => {
           { id: 'cat-3', name: 'Updated 3' },
         ],
       };
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue([{ id: 'cat-1' }, { id: 'cat-2' }, { id: 'cat-3' }]);
       (mockPrisma.category.update as jest.Mock)
         .mockResolvedValueOnce(mockCategory)
         .mockRejectedValueOnce(new Error('Failed'))
@@ -808,6 +819,8 @@ describe('CategoriesController', () => {
     it('should call next with error when catastrophic failure', async () => {
       const error = new Error('Catastrophic error');
       mockReq.body = { updates: [{ id: 'cat-1' }] };
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue([{ id: 'cat-1' }]);
+      (mockPrisma.category.update as jest.Mock).mockResolvedValue(mockCategory);
       (sendSuccess as jest.Mock).mockImplementation(() => { throw error; });
 
       await controller.bulkUpdateCategories(mockReq as Request, mockRes as Response, mockNext);
@@ -824,7 +837,7 @@ describe('CategoriesController', () => {
       await controller.bulkDeleteCriteria(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.criterion.deleteMany).toHaveBeenCalledWith({
-        where: { id: { in: ['crit-1', 'crit-2'] } },
+        where: { id: { in: ['crit-1', 'crit-2'] }, tenantId: 'default_tenant' },
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, { deleted: 2 }, 'Criteria deleted successfully');
     });
@@ -864,6 +877,7 @@ describe('CategoriesController', () => {
           { id: 'crit-2', maxScore: 40 },
         ],
       };
+      (mockPrisma.criterion.findMany as jest.Mock).mockResolvedValue([{ id: 'crit-1' }, { id: 'crit-2' }]);
       (mockPrisma.criterion.update as jest.Mock).mockResolvedValue(mockCriterion);
 
       await controller.bulkUpdateCriteria(mockReq as Request, mockRes as Response, mockNext);
@@ -899,6 +913,7 @@ describe('CategoriesController', () => {
           { id: 'crit-2', maxScore: 40 },
         ],
       };
+      (mockPrisma.criterion.findMany as jest.Mock).mockResolvedValue([{ id: 'crit-1' }, { id: 'crit-2' }]);
       (mockPrisma.criterion.update as jest.Mock)
         .mockResolvedValueOnce(mockCriterion)
         .mockRejectedValueOnce(new Error('Failed'));
@@ -915,6 +930,8 @@ describe('CategoriesController', () => {
     it('should call next with error when catastrophic failure', async () => {
       const error = new Error('Catastrophic error');
       mockReq.body = { updates: [{ id: 'crit-1' }] };
+      (mockPrisma.criterion.findMany as jest.Mock).mockResolvedValue([{ id: 'crit-1' }]);
+      (mockPrisma.criterion.update as jest.Mock).mockResolvedValue(mockCriterion);
       (sendSuccess as jest.Mock).mockImplementation(() => { throw error; });
 
       await controller.bulkUpdateCriteria(mockReq as Request, mockRes as Response, mockNext);

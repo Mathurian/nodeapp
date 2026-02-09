@@ -6,19 +6,26 @@
 import { ContestService } from '../../../src/services/ContestService';
 import { ContestRepository } from '../../../src/repositories/ContestRepository';
 import { CacheService } from '../../../src/services/CacheService';
+import { RestrictionService } from '../../../src/services/RestrictionService';
+import { MetricsService } from '../../../src/services/MetricsService';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('ContestService', () => {
   let contestService: ContestService;
   let mockContestRepo: jest.Mocked<ContestRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
+  let mockRestrictionService: jest.Mocked<RestrictionService>;
+  let mockMetricsService: jest.Mocked<MetricsService>;
 
   beforeEach(() => {
     mockContestRepo = {
       findById: jest.fn(),
       findAll: jest.fn(),
       findByEventId: jest.fn(),
+      findByEventIdWithArchived: jest.fn(),
       findActiveByEventId: jest.fn(),
+      findAllActive: jest.fn(),
+      findArchivedContests: jest.fn(),
       findContestWithDetails: jest.fn(),
       getContestStats: jest.fn(),
       searchContests: jest.fn(),
@@ -45,7 +52,16 @@ describe('ContestService', () => {
       enabled: true,
     } as any;
 
-    contestService = new ContestService(mockContestRepo, mockCacheService);
+    mockRestrictionService = {
+      isLocked: jest.fn().mockResolvedValue(false),
+    } as any;
+
+    mockMetricsService = {
+      recordSoftDelete: jest.fn(),
+      recordSoftDeleteRestore: jest.fn(),
+    } as any;
+
+    contestService = new ContestService(mockContestRepo, mockCacheService, mockRestrictionService, mockMetricsService);
   });
 
   afterEach(() => {
@@ -176,10 +192,10 @@ describe('ContestService', () => {
 
       expect(result).toEqual(contests);
       expect(mockContestRepo.findActiveByEventId).toHaveBeenCalledWith('event-1');
-      expect(mockCacheService.set).toHaveBeenCalledWith('contests:event:event-1:false', contests, 600);
+      expect(mockCacheService.set).toHaveBeenCalledWith('contests:event:event-1:false:false', contests, 600);
     });
 
-    it('should return all contests for event (including archived)', async () => {
+    it('should return all contests for event (including archived, not forEventView)', async () => {
       const contests = [
         { id: '1', name: 'Contest 1', eventId: 'event-1' },
         { id: '2', name: 'Contest 2', eventId: 'event-1', archived: true },
@@ -190,7 +206,7 @@ describe('ContestService', () => {
       const result = await contestService.getContestsByEventId('event-1', true);
 
       expect(result).toEqual(contests);
-      expect(mockContestRepo.findByEventId).toHaveBeenCalledWith('event-1');
+      expect(mockContestRepo.findByEventId).toHaveBeenCalledWith('event-1', false);
     });
 
     it('should return cached contests if available', async () => {
@@ -272,15 +288,19 @@ describe('ContestService', () => {
   });
 
   describe('deleteContest', () => {
-    it('should delete contest and invalidate cache', async () => {
-      const existingContest = { id: '1', name: 'Contest', eventId: 'event-1' };
+    it('should soft delete contest and invalidate cache', async () => {
+      const existingContest = { id: '1', name: 'Contest', eventId: 'event-1', tenantId: 'tenant-1' };
       mockCacheService.get.mockResolvedValue(null);
       mockContestRepo.findById.mockResolvedValue(existingContest as any);
-      mockContestRepo.delete.mockResolvedValue(undefined);
+      mockContestRepo.update.mockResolvedValue(existingContest as any);
 
       await contestService.deleteContest('1');
 
-      expect(mockContestRepo.delete).toHaveBeenCalledWith('1');
+      expect(mockContestRepo.update).toHaveBeenCalledWith('1', expect.objectContaining({
+        deletedAt: expect.any(Date),
+        deletedBy: null,
+      }));
+      expect(mockMetricsService.recordSoftDelete).toHaveBeenCalledWith('Contest', 'tenant-1');
       expect(mockCacheService.del).toHaveBeenCalledWith('contest:1');
       expect(mockCacheService.del).toHaveBeenCalledWith('contests:event:event-1');
     });

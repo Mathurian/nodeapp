@@ -13,19 +13,24 @@
  * - Validation
  */
 
-import { describe, it, expect, beforeEach, vi } from '@jest/globals';
-import { mock, MockProxy } from 'jest-mock-extended';
+import 'reflect-metadata';
+import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals';
+import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { EmceeService } from '../../src/services/EmceeService';
-import { NotFoundError, ValidationError } from '../../src/services/BaseService';
+import { EmceeService } from '../../../src/services/EmceeService';
+import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('EmceeService', () => {
   let service: EmceeService;
-  let prismaMock: MockProxy<PrismaClient>;
+  let prismaMock: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = mock<PrismaClient>();
+    prismaMock = mockDeep<PrismaClient>();
     service = new EmceeService(prismaMock as any);
+  });
+
+  afterEach(() => {
+    mockReset(prismaMock);
   });
 
   describe('getStats', () => {
@@ -157,7 +162,6 @@ describe('EmceeService', () => {
         event: { id: 'e1', name: 'Spring Event' },
         contest: { id: 'c1', name: 'Talent Show' },
         category: { id: 'cat1', name: 'Solo Performance' },
-        author: { id: 'u1', name: 'John Doe' },
       };
 
       prismaMock.emceeScript.findUnique.mockResolvedValue(mockScript as any);
@@ -182,8 +186,6 @@ describe('EmceeService', () => {
               id: true,
               name: true,
               description: true,
-              startTime: true,
-              endTime: true,
             },
           },
           category: {
@@ -191,15 +193,7 @@ describe('EmceeService', () => {
               id: true,
               name: true,
               description: true,
-              maxScore: true,
-            },
-          },
-          author: {
-            select: {
-              id: true,
-              name: true,
-              preferredName: true,
-              email: true,
+              scoreCap: true,
             },
           },
         },
@@ -210,7 +204,7 @@ describe('EmceeService', () => {
       prismaMock.emceeScript.findUnique.mockResolvedValue(null);
 
       await expect(service.getScript('nonexistent')).rejects.toThrow(NotFoundError);
-      await expect(service.getScript('nonexistent')).rejects.toThrow('Script with ID nonexistent not found');
+      await expect(service.getScript('nonexistent')).rejects.toThrow("Script with identifier 'nonexistent' not found");
     });
 
     it('should handle script with null relations', async () => {
@@ -514,7 +508,7 @@ describe('EmceeService', () => {
       prismaMock.event.findUnique.mockResolvedValue(null);
 
       await expect(service.getEvent('nonexistent')).rejects.toThrow(NotFoundError);
-      await expect(service.getEvent('nonexistent')).rejects.toThrow('Event with ID nonexistent not found');
+      await expect(service.getEvent('nonexistent')).rejects.toThrow("Event with identifier 'nonexistent' not found");
     });
   });
 
@@ -597,7 +591,6 @@ describe('EmceeService', () => {
         pages: 3,
       });
       expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
-        where: { isActive: true },
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
         skip: 10,
@@ -630,11 +623,13 @@ describe('EmceeService', () => {
         title: 'Opening Script',
         content: 'Welcome everyone!',
         eventId: 'e1',
+        tenantId: 'tenant1',
       });
 
       expect(result).toEqual(mockScript);
       expect(prismaMock.emceeScript.create).toHaveBeenCalledWith({
         data: {
+          tenantId: 'tenant1',
           title: 'Opening Script',
           content: 'Welcome everyone!',
           filePath: null,
@@ -659,6 +654,7 @@ describe('EmceeService', () => {
       const result = await service.uploadScript({
         title: 'Script',
         filePath: '/uploads/script.pdf',
+        tenantId: 'tenant1',
       });
 
       expect(result.filePath).toBe('/uploads/script.pdf');
@@ -666,13 +662,13 @@ describe('EmceeService', () => {
 
     it('should throw ValidationError when title is missing', async () => {
       await expect(
-        service.uploadScript({ title: '' } as any)
+        service.uploadScript({ title: '', tenantId: 'tenant1' } as any)
       ).rejects.toThrow(ValidationError);
     });
 
     it('should throw ValidationError when both content and filePath are missing', async () => {
       await expect(
-        service.uploadScript({ title: 'Test' })
+        service.uploadScript({ title: 'Test', tenantId: 'tenant1' })
       ).rejects.toThrow('Content or file is required');
     });
 
@@ -683,6 +679,7 @@ describe('EmceeService', () => {
         title: 'Script',
         content: 'Content',
         order: 5,
+        tenantId: 'tenant1',
       });
 
       expect(prismaMock.emceeScript.create).toHaveBeenCalledWith({
@@ -699,6 +696,7 @@ describe('EmceeService', () => {
         eventId: 'e1',
         contestId: 'c1',
         categoryId: 'cat1',
+        tenantId: 'tenant1',
       });
 
       expect(prismaMock.emceeScript.create).toHaveBeenCalledWith({
@@ -820,7 +818,7 @@ describe('EmceeService', () => {
       prismaMock.emceeScript.findUnique.mockResolvedValue(mockScript as any);
 
       await expect(service.getScriptFileInfo('s1')).rejects.toThrow(NotFoundError);
-      await expect(service.getScriptFileInfo('s1')).rejects.toThrow('Script file with ID s1 not found');
+      await expect(service.getScriptFileInfo('s1')).rejects.toThrow("Script file with identifier 's1' not found");
     });
   });
 });

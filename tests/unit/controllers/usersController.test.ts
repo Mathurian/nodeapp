@@ -22,6 +22,12 @@ jest.mock('tsyringe', () => ({
 
 // Mock logger
 jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => ({
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  }),
   createRequestLogger: () => ({
     debug: jest.fn(),
     info: jest.fn(),

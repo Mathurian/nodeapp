@@ -11,6 +11,8 @@ describe('WinnerService', () => {
   let service: WinnerService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
 
+  const tenantId = 'tenant-1';
+
   const mockCategory = {
     id: 'category-1',
     name: 'Talent',
@@ -18,6 +20,7 @@ describe('WinnerService', () => {
     contest: {
       id: 'contest-1',
       name: 'Contest 1',
+      eventId: 'event-1',
       event: { id: 'event-1', name: 'Event 1' }
     },
     criteria: [
@@ -69,6 +72,17 @@ describe('WinnerService', () => {
     }
   ];
 
+  const mockCertification = {
+    id: 'cert-1',
+    categoryId: 'category-1',
+    userId: 'user-1',
+    role: 'BOARD',
+    signatureName: 'Board Member',
+    tenantId,
+    certifiedAt: new Date(),
+    comments: 'Certified',
+  };
+
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new WinnerService(mockPrisma as any);
@@ -119,24 +133,14 @@ describe('WinnerService', () => {
     });
 
     it('should calculate winners for a category', async () => {
-      const result = await service.getWinnersByCategory('category-1', 'ADMIN');
+      const result = await service.getWinnersByCategory('category-1', 'ADMIN', tenantId);
 
-      expect(mockPrisma.category.findUnique).toHaveBeenCalledWith({
-        where: { id: 'category-1' },
-        include: {
-          contest: {
-            include: {
-              event: true
-            }
-          },
-          criteria: {
-            select: {
-              id: true,
-              maxScore: true
-            }
-          }
-        }
-      });
+      expect(mockPrisma.category.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'category-1', tenantId },
+          select: expect.any(Object)
+        })
+      );
       expect(result.category).toEqual(mockCategory);
       expect(result.contestants).toBeDefined();
       expect(result.totalPossibleScore).toBe(100); // 50 + 50
@@ -146,7 +150,7 @@ describe('WinnerService', () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.getWinnersByCategory('nonexistent', 'ADMIN')
+        service.getWinnersByCategory('nonexistent', 'ADMIN', tenantId)
       ).rejects.toThrow();
     });
 
@@ -156,7 +160,7 @@ describe('WinnerService', () => {
       ];
       (mockPrisma.overallDeduction.findMany as jest.Mock).mockResolvedValue(deductions);
 
-      const result = await service.getWinnersByCategory('category-1', 'ADMIN');
+      const result = await service.getWinnersByCategory('category-1', 'ADMIN', tenantId);
 
       expect(result.contestants[0].totalScore).toBe(88); // 93 - 5
     });
@@ -167,7 +171,7 @@ describe('WinnerService', () => {
       ];
       (mockPrisma.overallDeduction.findMany as jest.Mock).mockResolvedValue(deductions);
 
-      const result = await service.getWinnersByCategory('category-1', 'ADMIN');
+      const result = await service.getWinnersByCategory('category-1', 'ADMIN', tenantId);
 
       expect(result.contestants[0].totalScore).toBeGreaterThanOrEqual(0);
     });
@@ -198,7 +202,7 @@ describe('WinnerService', () => {
       ];
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue(multipleScores);
 
-      const result = await service.getWinnersByCategory('category-1', 'ADMIN');
+      const result = await service.getWinnersByCategory('category-1', 'ADMIN', tenantId);
 
       expect(result.contestants.length).toBeGreaterThan(1);
       expect(result.contestants[0].totalScore).toBeGreaterThanOrEqual(
@@ -211,8 +215,9 @@ describe('WinnerService', () => {
         {
           id: 'cert-1',
           categoryId: 'category-1',
+          userId: 'user-1',
           role: 'BOARD',
-          user: { id: 'user-1', role: 'BOARD', name: 'Board Member' }
+          certifiedAt: new Date(),
         }
       ];
       (mockPrisma.categoryCertification.findMany as jest.Mock).mockResolvedValue(
@@ -222,7 +227,7 @@ describe('WinnerService', () => {
         { id: 'judge-cert-1', categoryId: 'category-1' }
       ]);
 
-      const result = await service.getWinnersByCategory('category-1', 'ADMIN');
+      const result = await service.getWinnersByCategory('category-1', 'ADMIN', tenantId);
 
       expect(result.allSigned).toBe(true);
       expect(result.boardSigned).toBe(true);
@@ -233,7 +238,7 @@ describe('WinnerService', () => {
     it('should handle categories with no scores', async () => {
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([]);
 
-      const result = await service.getWinnersByCategory('category-1', 'ADMIN');
+      const result = await service.getWinnersByCategory('category-1', 'ADMIN', tenantId);
 
       expect(result.contestants).toEqual([]);
     });
@@ -243,6 +248,9 @@ describe('WinnerService', () => {
     const mockContest = {
       id: 'contest-1',
       name: 'Contest 1',
+      winnersPublished: true,
+      publishedAt: new Date(),
+      publishedBy: 'user-1',
       event: { id: 'event-1', name: 'Event 1' },
       categories: [mockCategory]
     };
@@ -257,24 +265,14 @@ describe('WinnerService', () => {
     });
 
     it('should calculate winners for all categories in contest', async () => {
-      const result = await service.getWinnersByContest('contest-1', 'ADMIN', true);
+      const result = await service.getWinnersByContest('contest-1', 'ADMIN', true, tenantId);
 
-      expect(mockPrisma.contest.findUnique).toHaveBeenCalledWith({
-        where: { id: 'contest-1' },
-        include: {
-          event: true,
-          categories: {
-            include: {
-              criteria: {
-                select: {
-                  id: true,
-                  maxScore: true
-                }
-              }
-            }
-          }
-        }
-      });
+      expect(mockPrisma.contest.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'contest-1', tenantId },
+          select: expect.any(Object)
+        })
+      );
       expect(result.contest).toEqual(mockContest);
       expect(result.contestants).toBeDefined();
     });
@@ -283,19 +281,19 @@ describe('WinnerService', () => {
       (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.getWinnersByContest('nonexistent', 'ADMIN')
+        service.getWinnersByContest('nonexistent', 'ADMIN', true, tenantId)
       ).rejects.toThrow();
     });
 
     it('should calculate overall contest winners across categories', async () => {
-      const result = await service.getWinnersByContest('contest-1', 'ADMIN', true);
+      const result = await service.getWinnersByContest('contest-1', 'ADMIN', true, tenantId);
 
       expect(result.contestants).toBeDefined();
       expect(Array.isArray(result.contestants)).toBe(true);
     });
 
     it('should exclude category breakdown when requested', async () => {
-      const result = await service.getWinnersByContest('contest-1', 'ADMIN', false);
+      const result = await service.getWinnersByContest('contest-1', 'ADMIN', false, tenantId);
 
       expect(result.categories).toBeUndefined();
     });
@@ -306,7 +304,7 @@ describe('WinnerService', () => {
         categories: []
       });
 
-      const result = await service.getWinnersByContest('contest-1', 'ADMIN');
+      const result = await service.getWinnersByContest('contest-1', 'ADMIN', true, tenantId);
 
       expect(result.contestants).toEqual([]);
     });
@@ -315,6 +313,15 @@ describe('WinnerService', () => {
   describe('signWinners', () => {
     beforeEach(() => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(mockCategory);
+      (mockPrisma.categoryCertification.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ name: 'Board Member' });
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn: any) => {
+        return fn({
+          categoryCertification: {
+            create: jest.fn().mockResolvedValue(mockCertification),
+          },
+        });
+      });
     });
 
     it('should sign winners and generate signature', async () => {
@@ -322,6 +329,7 @@ describe('WinnerService', () => {
         'category-1',
         'user-1',
         'BOARD',
+        tenantId,
         '127.0.0.1',
         'Mozilla/5.0'
       );
@@ -335,7 +343,7 @@ describe('WinnerService', () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.signWinners('nonexistent', 'user-1', 'BOARD')
+        service.signWinners('nonexistent', 'user-1', 'BOARD', tenantId)
       ).rejects.toThrow();
     });
   });
@@ -343,10 +351,11 @@ describe('WinnerService', () => {
   describe('getSignatureStatus', () => {
     beforeEach(() => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(mockCategory);
+      (mockPrisma.categoryCertification.findFirst as jest.Mock).mockResolvedValue(null);
     });
 
     it('should return signature status for category', async () => {
-      const result = await service.getSignatureStatus('category-1', 'user-1');
+      const result = await service.getSignatureStatus('category-1', 'user-1', tenantId);
 
       expect(result.categoryId).toBe('category-1');
       expect(result.userId).toBe('user-1');
@@ -357,7 +366,7 @@ describe('WinnerService', () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.getSignatureStatus('nonexistent', 'user-1')
+        service.getSignatureStatus('nonexistent', 'user-1', tenantId)
       ).rejects.toThrow();
     });
   });
@@ -365,10 +374,12 @@ describe('WinnerService', () => {
   describe('getCertificationProgress', () => {
     beforeEach(() => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(mockCategory);
+      (mockPrisma.categoryCertification.findMany as jest.Mock).mockResolvedValue([]);
+      (mockPrisma.judgeCertification.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     it('should return certification progress for category', async () => {
-      const result = await service.getCertificationProgress('category-1');
+      const result = await service.getCertificationProgress('category-1', tenantId);
 
       expect(result.categoryId).toBe('category-1');
       expect(result.totalsCertified).toBeDefined();
@@ -381,7 +392,7 @@ describe('WinnerService', () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.getCertificationProgress('nonexistent')
+        service.getCertificationProgress('nonexistent', tenantId)
       ).rejects.toThrow();
     });
   });
@@ -389,10 +400,11 @@ describe('WinnerService', () => {
   describe('getRoleCertificationStatus', () => {
     beforeEach(() => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(mockCategory);
+      (mockPrisma.categoryCertification.findFirst as jest.Mock).mockResolvedValue(null);
     });
 
     it('should return role-specific certification status', async () => {
-      const result = await service.getRoleCertificationStatus('category-1', 'BOARD');
+      const result = await service.getRoleCertificationStatus('category-1', 'BOARD', tenantId);
 
       expect(result.categoryId).toBe('category-1');
       expect(result.role).toBe('BOARD');
@@ -403,7 +415,7 @@ describe('WinnerService', () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.getRoleCertificationStatus('nonexistent', 'BOARD')
+        service.getRoleCertificationStatus('nonexistent', 'BOARD', tenantId)
       ).rejects.toThrow();
     });
   });
@@ -411,10 +423,25 @@ describe('WinnerService', () => {
   describe('certifyScores', () => {
     beforeEach(() => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(mockCategory);
+      (mockPrisma.categoryCertification.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.categoryCertification.findMany as jest.Mock).mockResolvedValue([]);
+      (mockPrisma.judgeCertification.findMany as jest.Mock).mockResolvedValue([]);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ name: 'Board Member' });
+      (mockPrisma.score.count as jest.Mock).mockResolvedValue(5);
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn: any) => {
+        return fn({
+          categoryCertification: {
+            create: jest.fn().mockResolvedValue(mockCertification),
+          },
+          certification: {
+            findFirst: jest.fn().mockResolvedValue(null),
+          },
+        });
+      });
     });
 
     it('should certify scores for category', async () => {
-      const result = await service.certifyScores('category-1', 'user-1', 'BOARD');
+      const result = await service.certifyScores('category-1', 'user-1', 'BOARD', tenantId);
 
       expect(result.message).toContain('certified successfully');
       expect(result.categoryId).toBe('category-1');
@@ -426,7 +453,7 @@ describe('WinnerService', () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.certifyScores('nonexistent', 'user-1', 'BOARD')
+        service.certifyScores('nonexistent', 'user-1', 'BOARD', tenantId)
       ).rejects.toThrow();
     });
   });
@@ -436,6 +463,9 @@ describe('WinnerService', () => {
       (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({
         id: 'contest-1',
         name: 'Contest 1',
+        winnersPublished: true,
+        publishedAt: new Date(),
+        publishedBy: 'user-1',
         event: { id: 'event-1', name: 'Event 1' },
         categories: [mockCategory]
       });
@@ -456,14 +486,14 @@ describe('WinnerService', () => {
     });
 
     it('should get winners by contest when contestId provided', async () => {
-      const result = await service.getWinners(undefined, 'contest-1');
+      const result = await service.getWinners(undefined, 'contest-1', 'ADMIN', tenantId);
 
       expect(result.contest).toBeDefined();
       expect(result.contestants).toBeDefined();
     });
 
     it('should get winners by event when eventId provided', async () => {
-      const result = await service.getWinners('event-1');
+      const result = await service.getWinners('event-1', undefined, 'ADMIN', tenantId);
 
       expect(result.event).toBeDefined();
       expect(result.contests).toBeDefined();
@@ -483,7 +513,7 @@ describe('WinnerService', () => {
         contests: []
       });
 
-      const result = await service.getWinners('event-1');
+      const result = await service.getWinners('event-1', undefined, 'ADMIN', tenantId);
 
       expect(result.contests).toEqual([]);
     });

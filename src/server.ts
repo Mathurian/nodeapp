@@ -485,9 +485,11 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 /**
- * Start the server
+ * Start the server (only when not in test environment)
  */
-startServer();
+if (process.env['NODE_ENV'] !== 'test') {
+  startServer();
+}
 
 /**
  * Export app for testing

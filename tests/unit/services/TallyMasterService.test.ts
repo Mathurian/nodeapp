@@ -15,19 +15,24 @@
  * - Pagination and filtering
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { mock, MockProxy } from 'jest-mock-extended';
+import 'reflect-metadata';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient, UserRole } from '@prisma/client';
-import { TallyMasterService } from '../../src/services/TallyMasterService';
-import { NotFoundError } from '../../src/services/BaseService';
+import { TallyMasterService } from '../../../src/services/TallyMasterService';
+import { NotFoundError } from '../../../src/services/BaseService';
 
 describe('TallyMasterService', () => {
   let service: TallyMasterService;
-  let prismaMock: MockProxy<PrismaClient>;
+  let prismaMock: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = mock<PrismaClient>();
+    prismaMock = mockDeep<PrismaClient>();
     service = new TallyMasterService(prismaMock as any);
+  });
+
+  afterEach(() => {
+    mockReset(prismaMock);
   });
 
   describe('getStats', () => {
@@ -240,7 +245,8 @@ describe('TallyMasterService', () => {
       ];
 
       prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue({ id: 'jc1' } as any);
+      // Service uses findMany with batch query for optimization
+      prismaMock.judgeCertification.findMany.mockResolvedValue([{ id: 'jc1', categoryId: 'cat1' }] as any);
 
       const result = await service.getPendingCertifications(1, 20);
 
@@ -263,7 +269,8 @@ describe('TallyMasterService', () => {
       ];
 
       prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue({ id: 'jc1' } as any);
+      // Service uses findMany with batch query for optimization
+      prismaMock.judgeCertification.findMany.mockResolvedValue([{ id: 'jc1', categoryId: 'cat1' }] as any);
 
       const result = await service.getPendingCertifications();
 
@@ -273,6 +280,7 @@ describe('TallyMasterService', () => {
 
     it('should handle pagination', async () => {
       prismaMock.category.findMany.mockResolvedValue([]);
+      prismaMock.judgeCertification.findMany.mockResolvedValue([]);
 
       const result = await service.getPendingCertifications(2, 10);
 
@@ -292,6 +300,7 @@ describe('TallyMasterService', () => {
       const mockUpdated = {
         id: 'cat1',
         totalsCertified: true,
+        contest: { id: 'c1', event: { id: 'e1' } },
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
@@ -303,6 +312,13 @@ describe('TallyMasterService', () => {
       expect(prismaMock.category.update).toHaveBeenCalledWith({
         where: { id: 'cat1' },
         data: { totalsCertified: true },
+        include: {
+          contest: {
+            include: {
+              event: true,
+            },
+          },
+        },
       });
     });
 
@@ -440,9 +456,11 @@ describe('TallyMasterService', () => {
     it('should identify potential bias based on deviation', async () => {
       const mockCategory = {
         id: 'cat1',
+        name: 'Solo',
+        description: 'Test category',
         scores: [
-          { score: 50, judgeId: 'j1', judge: { id: 'j1', name: 'Judge One' } },
-          { score: 90, judgeId: 'j2', judge: { id: 'j2', name: 'Judge Two' } },
+          { id: 's1', score: 50, judgeId: 'j1', judge: { id: 'j1', name: 'Judge One', email: 'j1@test.com' } },
+          { id: 's2', score: 90, judgeId: 'j2', judge: { id: 'j2', name: 'Judge Two', email: 'j2@test.com' } },
         ],
       };
 
@@ -452,7 +470,7 @@ describe('TallyMasterService', () => {
 
       const biasedJudges = result.biasAnalysis.filter((j: any) => j.potentialBias);
       expect(biasedJudges.length).toBeGreaterThan(0);
-      expect(result.recommendations).toContain(expect.stringContaining('potential bias'));
+      expect(result.recommendations.some((r: string) => r.includes('potential bias'))).toBe(true);
     });
 
     it('should throw NotFoundError when category does not exist', async () => {
@@ -501,7 +519,7 @@ describe('TallyMasterService', () => {
       const mockCategories = [
         {
           id: 'cat1',
-          tallyMasterCertified: true,
+          totalsCertified: true,
           contest: { id: 'c1', event: { id: 'e1' } },
         },
       ];
@@ -519,7 +537,7 @@ describe('TallyMasterService', () => {
         pages: 1,
       });
       expect(prismaMock.category.findMany).toHaveBeenCalledWith({
-        where: { tallyMasterCertified: true },
+        where: { totalsCertified: true },
         include: expect.any(Object),
         orderBy: { updatedAt: 'desc' },
         skip: 0,

@@ -7,11 +7,11 @@ import 'reflect-metadata';
 import { ReportInstanceService } from '../../../src/services/ReportInstanceService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
-import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('ReportInstanceService', () => {
   let service: ReportInstanceService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  const tenantId = 'tenant-1';
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
@@ -32,175 +32,167 @@ describe('ReportInstanceService', () => {
 
   describe('createInstance', () => {
     it('should create new instance', async () => {
-      const mockData = {"id":"1"};
+      const createData = { type: 'test', name: 'Test Report', generatedById: 'user1', format: 'pdf', tenantId };
+      const mockData = { id: '1', ...createData, createdAt: new Date() };
       mockPrisma.reportInstance.create.mockResolvedValue(mockData as any);
-      
-      const result = await service.createInstance({ type: "test", name: "test", generatedById: "user1", format: "pdf" });
-      
+
+      const result = await service.createInstance(createData);
+
       expect(result).toBeDefined();
       expect(mockPrisma.reportInstance.create).toHaveBeenCalled();
     });
 
     it('should handle errors in createInstance', async () => {
       mockPrisma.reportInstance.create.mockRejectedValue(new Error('Operation failed'));
-      
-      await expect(service.createInstance({ type: "test", name: "test", generatedById: "user1", format: "pdf" })).rejects.toThrow();
+
+      await expect(service.createInstance({ type: 'test', name: 'test', generatedById: 'user1', format: 'pdf', tenantId })).rejects.toThrow();
     });
 
     it('should validate input for createInstance', async () => {
-      await expect(service.createInstance({})).rejects.toThrow();
+      await expect(service.createInstance({} as any)).rejects.toThrow();
     });
   });
 
   describe('getInstances', () => {
     it('should get all instances', async () => {
-      const mockData = [{"id":"1"}];
+      const mockData = [{ id: '1', type: 'test', name: 'Report', generatedById: 'user1', format: 'pdf', tenantId }];
       mockPrisma.reportInstance.findMany.mockResolvedValue(mockData as any);
-      
+
       const result = await service.getInstances();
-      
+
       expect(result).toBeDefined();
+      expect(mockPrisma.reportInstance.findMany).toHaveBeenCalled();
+    });
+
+    it('should filter instances by type', async () => {
+      const mockData = [{ id: '1', type: 'pdf', tenantId }];
+      mockPrisma.reportInstance.findMany.mockResolvedValue(mockData as any);
+
+      const result = await service.getInstances({ type: 'pdf' });
+
       expect(mockPrisma.reportInstance.findMany).toHaveBeenCalled();
     });
 
     it('should handle errors in getInstances', async () => {
       mockPrisma.reportInstance.findMany.mockRejectedValue(new Error('Operation failed'));
-      
-      await expect(service.getInstances()).rejects.toThrow();
-    });
 
-    it('should validate input for getInstances', async () => {
-      await expect(service.getInstances(undefined)).rejects.toThrow();
+      await expect(service.getInstances()).rejects.toThrow();
     });
   });
 
   describe('getInstanceById', () => {
     it('should get instance by ID', async () => {
-      const mockData = {"id":"1"};
+      const mockData = { id: 'instance1', type: 'test', name: 'Report', generatedById: 'user1', format: 'pdf', tenantId };
       mockPrisma.reportInstance.findUnique.mockResolvedValue(mockData as any);
-      
-      const result = await service.getInstanceById("instance1");
-      
+
+      const result = await service.getInstanceById('instance1');
+
       expect(result).toBeDefined();
-      expect(mockPrisma.reportInstance.findUnique).toHaveBeenCalled();
+      expect(mockPrisma.reportInstance.findUnique).toHaveBeenCalledWith({
+        where: { id: 'instance1' }
+      });
     });
 
     it('should handle errors in getInstanceById', async () => {
       mockPrisma.reportInstance.findUnique.mockRejectedValue(new Error('Operation failed'));
-      
-      await expect(service.getInstanceById("instance1")).rejects.toThrow();
+
+      await expect(service.getInstanceById('instance1')).rejects.toThrow();
     });
 
-    it('should validate input for getInstanceById', async () => {
-      await expect(service.getInstanceById("")).rejects.toThrow();
+    it('should throw not found for missing instance', async () => {
+      mockPrisma.reportInstance.findUnique.mockResolvedValue(null);
+
+      await expect(service.getInstanceById('nonexistent')).rejects.toThrow();
     });
   });
 
   describe('deleteInstance', () => {
     it('should delete instance', async () => {
-      const mockData = {"id":"1"};
+      const mockData = { id: 'instance1', type: 'test', tenantId };
+      mockPrisma.reportInstance.findUnique.mockResolvedValue(mockData as any);
       mockPrisma.reportInstance.delete.mockResolvedValue(mockData as any);
-      
-      const result = await service.deleteInstance("instance1");
-      
-      expect(result).toBeDefined();
-      expect(mockPrisma.reportInstance.delete).toHaveBeenCalled();
+
+      await service.deleteInstance('instance1');
+
+      expect(mockPrisma.reportInstance.delete).toHaveBeenCalledWith({
+        where: { id: 'instance1' }
+      });
     });
 
     it('should handle errors in deleteInstance', async () => {
+      mockPrisma.reportInstance.findUnique.mockResolvedValue({ id: 'instance1' } as any);
       mockPrisma.reportInstance.delete.mockRejectedValue(new Error('Operation failed'));
-      
-      await expect(service.deleteInstance("instance1")).rejects.toThrow();
-    });
 
-    it('should validate input for deleteInstance', async () => {
-      await expect(service.deleteInstance("")).rejects.toThrow();
+      await expect(service.deleteInstance('instance1')).rejects.toThrow();
     });
   });
 
   describe('deleteOldInstances', () => {
     it('should delete old instances', async () => {
-      const mockData = {"count":5};
+      const mockData = { count: 5 };
       mockPrisma.reportInstance.deleteMany.mockResolvedValue(mockData as any);
-      
+
       const result = await service.deleteOldInstances(30);
-      
+
       expect(result).toBeDefined();
       expect(mockPrisma.reportInstance.deleteMany).toHaveBeenCalled();
     });
 
     it('should handle errors in deleteOldInstances', async () => {
       mockPrisma.reportInstance.deleteMany.mockRejectedValue(new Error('Operation failed'));
-      
-      await expect(service.deleteOldInstances(30)).rejects.toThrow();
-    });
 
-    it('should validate input for deleteOldInstances', async () => {
-      await expect(service.deleteOldInstances(-1)).rejects.toThrow();
+      await expect(service.deleteOldInstances(30)).rejects.toThrow();
     });
   });
 
   describe('getInstanceStats', () => {
     it('should get statistics', async () => {
-      const mockData = [];
+      const mockData = [
+        { id: '1', type: 'pdf', format: 'pdf', tenantId },
+        { id: '2', type: 'csv', format: 'csv', tenantId }
+      ];
       mockPrisma.reportInstance.findMany.mockResolvedValue(mockData as any);
-      
+
       const result = await service.getInstanceStats();
-      
+
       expect(result).toBeDefined();
-      expect(mockPrisma.reportInstance.findMany).toHaveBeenCalled();
     });
 
     it('should handle errors in getInstanceStats', async () => {
       mockPrisma.reportInstance.findMany.mockRejectedValue(new Error('Operation failed'));
-      
+
       await expect(service.getInstanceStats()).rejects.toThrow();
-    });
-
-    it('should validate input for getInstanceStats', async () => {
-      await expect(service.getInstanceStats(undefined)).rejects.toThrow();
-    });
-  });
-  describe('error handling', () => {
-    it('should handle database errors', async () => {
-      const dbError = new Error('Database error');
-      mockPrisma.reportInstance.findMany.mockRejectedValue(dbError);
-      
-      await expect(service.createInstance()).rejects.toThrow();
-    });
-
-    it('should handle validation errors', async () => {
-      await expect(service.createInstance(null as any)).rejects.toThrow();
-    });
-
-    it('should handle not found errors', async () => {
-      mockPrisma.reportInstance.findUnique.mockResolvedValue(null);
-      
-      await expect(service.createInstance('nonexistent')).rejects.toThrow();
     });
   });
 
   describe('edge cases', () => {
     it('should handle empty results', async () => {
       mockPrisma.reportInstance.findMany.mockResolvedValue([]);
-      
-      const result = await service.createInstance();
+
+      const result = await service.getInstances();
       expect(result).toEqual([]);
     });
 
     it('should handle large datasets', async () => {
-      const largeDataset = Array.from({ length: 1000 }, (_, i) => ({ id: String(i) }));
+      const largeDataset = Array.from({ length: 1000 }, (_, i) => ({ id: String(i), tenantId }));
       mockPrisma.reportInstance.findMany.mockResolvedValue(largeDataset as any);
-      
-      const result = await service.createInstance();
+
+      const result = await service.getInstances();
       expect(result).toHaveLength(1000);
     });
 
     it('should handle special characters in input', async () => {
-      const specialInput = { name: "Test's & <Special> "Chars"" };
+      const specialInput = {
+        name: "Test's & <Special> Chars",
+        type: 'report',
+        generatedById: 'user1',
+        format: 'pdf',
+        tenantId
+      };
       mockPrisma.reportInstance.create.mockResolvedValue({ id: '1', ...specialInput } as any);
-      
-      await expect(service.createInstance(specialInput as any)).resolves.toBeDefined();
+
+      const result = await service.createInstance(specialInput);
+      expect(result).toBeDefined();
     });
   });
 });

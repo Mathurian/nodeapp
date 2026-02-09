@@ -15,13 +15,14 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { mock, MockProxy } from 'jest-mock-extended';
-import { TemplateService } from '../../src/services/TemplateService';
-import { TemplateRepository } from '../../src/repositories/TemplateRepository';
-import { NotFoundError, ValidationError } from '../../src/services/BaseService';
+import { TemplateService } from '../../../src/services/TemplateService';
+import { TemplateRepository } from '../../../src/repositories/TemplateRepository';
+import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('TemplateService', () => {
   let service: TemplateService;
   let templateRepoMock: MockProxy<TemplateRepository>;
+  const testTenantId = 'tenant-123';
 
   beforeEach(() => {
     templateRepoMock = mock<TemplateRepository>();
@@ -48,7 +49,7 @@ describe('TemplateService', () => {
 
       templateRepoMock.findAllWithCriteria.mockResolvedValue(mockTemplates as any);
 
-      const result = await service.getAllTemplates();
+      const result = await service.getAllTemplates(testTenantId);
 
       expect(result).toEqual(mockTemplates);
       expect(result).toHaveLength(2);
@@ -58,7 +59,7 @@ describe('TemplateService', () => {
     it('should return empty array when no templates exist', async () => {
       templateRepoMock.findAllWithCriteria.mockResolvedValue([]);
 
-      const result = await service.getAllTemplates();
+      const result = await service.getAllTemplates(testTenantId);
 
       expect(result).toEqual([]);
     });
@@ -74,7 +75,7 @@ describe('TemplateService', () => {
 
       templateRepoMock.findAllWithCriteria.mockResolvedValue(mockTemplates as any);
 
-      const result = await service.getAllTemplates();
+      const result = await service.getAllTemplates(testTenantId);
 
       expect(result[0].criteria).toBeDefined();
       expect(result[0].criteria).toHaveLength(1);
@@ -95,22 +96,22 @@ describe('TemplateService', () => {
 
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(mockTemplate as any);
 
-      const result = await service.getTemplateById('t1');
+      const result = await service.getTemplateById('t1', testTenantId);
 
       expect(result).toEqual(mockTemplate);
       expect(result.criteria).toHaveLength(2);
-      expect(templateRepoMock.findByIdWithCriteria).toHaveBeenCalledWith('t1');
+      expect(templateRepoMock.findByIdWithCriteria).toHaveBeenCalledWith('t1', testTenantId);
     });
 
     it('should throw ValidationError when id is missing', async () => {
-      await expect(service.getTemplateById('')).rejects.toThrow(ValidationError);
+      await expect(service.getTemplateById('', testTenantId)).rejects.toThrow(ValidationError);
     });
 
     it('should throw NotFoundError when template does not exist', async () => {
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(null);
 
-      await expect(service.getTemplateById('nonexistent')).rejects.toThrow(NotFoundError);
-      await expect(service.getTemplateById('nonexistent')).rejects.toThrow(
+      await expect(service.getTemplateById('nonexistent', testTenantId)).rejects.toThrow(NotFoundError);
+      await expect(service.getTemplateById('nonexistent', testTenantId)).rejects.toThrow(
         'Template with ID nonexistent not found'
       );
     });
@@ -121,6 +122,7 @@ describe('TemplateService', () => {
       const templateData = {
         name: 'New Template',
         description: 'Test template',
+        tenantId: testTenantId,
         criteria: [
           { name: 'Technique', maxScore: 10, order: 1 },
           { name: 'Creativity', maxScore: 10, order: 2 },
@@ -145,13 +147,14 @@ describe('TemplateService', () => {
 
     it('should throw ValidationError when name is missing', async () => {
       await expect(
-        service.createTemplate({ name: '' } as any)
+        service.createTemplate({ name: '', tenantId: testTenantId } as any)
       ).rejects.toThrow(ValidationError);
     });
 
     it('should create template without criteria', async () => {
       const templateData = {
         name: 'Simple Template',
+        tenantId: testTenantId,
         criteria: [],
       };
 
@@ -169,6 +172,7 @@ describe('TemplateService', () => {
       const templateData = {
         name: 'Template',
         description: null,
+        tenantId: testTenantId,
       };
 
       templateRepoMock.createWithCriteria.mockResolvedValue({
@@ -204,22 +208,22 @@ describe('TemplateService', () => {
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(mockExisting as any);
       templateRepoMock.updateWithCriteria.mockResolvedValue(mockUpdated as any);
 
-      const result = await service.updateTemplate('t1', updateData);
+      const result = await service.updateTemplate('t1', testTenantId, updateData);
 
       expect(result.name).toBe('Updated Name');
       expect(result.description).toBe('Updated description');
-      expect(templateRepoMock.updateWithCriteria).toHaveBeenCalledWith('t1', updateData);
+      expect(templateRepoMock.updateWithCriteria).toHaveBeenCalledWith('t1', testTenantId, updateData);
     });
 
     it('should throw ValidationError when id is missing', async () => {
-      await expect(service.updateTemplate('', {})).rejects.toThrow(ValidationError);
+      await expect(service.updateTemplate('', testTenantId, {})).rejects.toThrow(ValidationError);
     });
 
     it('should throw NotFoundError when template does not exist', async () => {
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(null);
 
       await expect(
-        service.updateTemplate('nonexistent', { name: 'Test' })
+        service.updateTemplate('nonexistent', testTenantId, { name: 'Test' })
       ).rejects.toThrow(NotFoundError);
     });
 
@@ -243,7 +247,7 @@ describe('TemplateService', () => {
         criteria: updateData.criteria,
       } as any);
 
-      const result = await service.updateTemplate('t1', updateData);
+      const result = await service.updateTemplate('t1', testTenantId, updateData);
 
       expect(result.criteria).toHaveLength(2);
     });
@@ -262,9 +266,9 @@ describe('TemplateService', () => {
         name: 'Updated',
       } as any);
 
-      await service.updateTemplate('t1', { name: 'Updated' });
+      await service.updateTemplate('t1', testTenantId, { name: 'Updated' });
 
-      expect(templateRepoMock.updateWithCriteria).toHaveBeenCalledWith('t1', { name: 'Updated' });
+      expect(templateRepoMock.updateWithCriteria).toHaveBeenCalledWith('t1', testTenantId, { name: 'Updated' });
     });
   });
 
@@ -275,19 +279,19 @@ describe('TemplateService', () => {
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(mockTemplate as any);
       templateRepoMock.delete.mockResolvedValue(undefined);
 
-      await service.deleteTemplate('t1');
+      await service.deleteTemplate('t1', testTenantId);
 
       expect(templateRepoMock.delete).toHaveBeenCalledWith('t1');
     });
 
     it('should throw ValidationError when id is missing', async () => {
-      await expect(service.deleteTemplate('')).rejects.toThrow(ValidationError);
+      await expect(service.deleteTemplate('', testTenantId)).rejects.toThrow(ValidationError);
     });
 
     it('should throw NotFoundError when template does not exist', async () => {
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(null);
 
-      await expect(service.deleteTemplate('nonexistent')).rejects.toThrow(NotFoundError);
+      await expect(service.deleteTemplate('nonexistent', testTenantId)).rejects.toThrow(NotFoundError);
     });
 
     it('should verify template exists before deletion', async () => {
@@ -296,9 +300,9 @@ describe('TemplateService', () => {
       templateRepoMock.findByIdWithCriteria.mockResolvedValue(mockTemplate as any);
       templateRepoMock.delete.mockResolvedValue(undefined);
 
-      await service.deleteTemplate('t1');
+      await service.deleteTemplate('t1', testTenantId);
 
-      expect(templateRepoMock.findByIdWithCriteria).toHaveBeenCalledWith('t1');
+      expect(templateRepoMock.findByIdWithCriteria).toHaveBeenCalledWith('t1', testTenantId);
       expect(templateRepoMock.delete).toHaveBeenCalledWith('t1');
     });
   });

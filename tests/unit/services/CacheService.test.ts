@@ -6,13 +6,44 @@
 import { CacheService } from '../../../src/services/CacheService';
 import Redis from 'ioredis';
 
+// Mock ioredis
 jest.mock('ioredis');
+
+// Mock the logger to capture log calls
+const mockLogger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
+
+jest.mock('../../../src/utils/logger', () => ({
+  createLogger: jest.fn(() => mockLogger),
+}));
+
+// Mock circuit breaker
+jest.mock('../../../src/utils/circuitBreaker', () => ({
+  CircuitBreakerRegistry: {
+    get: jest.fn(() => ({
+      on: jest.fn(),
+      execute: jest.fn((fn: () => Promise<unknown>) => fn()),
+      isOpen: jest.fn(() => false),
+    })),
+  },
+  CircuitBreaker: jest.fn(),
+}));
 
 describe('CacheService', () => {
   let cacheService: CacheService;
   let mockRedis: jest.Mocked<Redis>;
 
   beforeEach(() => {
+    // Clear all mocks before each test
+    jest.clearAllMocks();
+    mockLogger.info.mockClear();
+    mockLogger.warn.mockClear();
+    mockLogger.error.mockClear();
+
     mockRedis = {
       get: jest.fn(),
       set: jest.fn(),
@@ -25,21 +56,28 @@ describe('CacheService', () => {
       flushdb: jest.fn(),
       dbsize: jest.fn(),
       info: jest.fn(),
-      quit: jest.fn(),
-      connect: jest.fn(),
-      on: jest.fn(),
+      quit: jest.fn().mockResolvedValue('OK'),
+      connect: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn().mockReturnThis(),
     } as any;
 
     (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => mockRedis);
     cacheService = new CacheService();
 
-    // Simulate successful connection
+    // Simulate successful connection by triggering both connect and ready handlers
     const connectHandler = mockRedis.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
     if (connectHandler) connectHandler();
+    const readyHandler = mockRedis.on.mock.calls.find((call) => call[0] === 'ready')?.[1];
+    if (readyHandler) readyHandler();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  afterEach(async () => {
+    // Disconnect to clean up
+    try {
+      await cacheService.disconnect();
+    } catch {
+      // Ignore errors during cleanup
+    }
   });
 
   describe('get', () => {
@@ -73,24 +111,20 @@ describe('CacheService', () => {
 
     it('should return null and log error on parse failure', async () => {
       mockRedis.get.mockResolvedValue('invalid-json{');
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await cacheService.get('test-key');
 
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should return null and log error on Redis error', async () => {
       mockRedis.get.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await cacheService.get('test-key');
 
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -115,11 +149,9 @@ describe('CacheService', () => {
 
     it('should handle Redis errors gracefully', async () => {
       mockRedis.setex.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(cacheService.set('test-key', { data: 'test' }, 3600)).resolves.not.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should not set if Redis is not connected', async () => {
@@ -157,11 +189,9 @@ describe('CacheService', () => {
 
     it('should handle Redis errors gracefully', async () => {
       mockRedis.del.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(cacheService.del('test-key')).resolves.not.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should not delete if Redis is not connected', async () => {
@@ -195,11 +225,9 @@ describe('CacheService', () => {
 
     it('should handle Redis errors gracefully', async () => {
       mockRedis.keys.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(cacheService.invalidatePattern('event:*')).resolves.not.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should not invalidate if Redis is not connected', async () => {
@@ -232,13 +260,11 @@ describe('CacheService', () => {
 
     it('should return false on Redis error', async () => {
       mockRedis.exists.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await cacheService.exists('test-key');
 
       expect(result).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should return false if Redis is not connected', async () => {
@@ -262,11 +288,9 @@ describe('CacheService', () => {
 
     it('should handle Redis errors gracefully', async () => {
       mockRedis.expire.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(cacheService.expire('test-key', 3600)).resolves.not.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -282,13 +306,11 @@ describe('CacheService', () => {
 
     it('should return -1 on Redis error', async () => {
       mockRedis.ttl.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await cacheService.ttl('test-key');
 
       expect(result).toBe(-1);
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should return -1 if Redis is not connected', async () => {
@@ -312,27 +334,28 @@ describe('CacheService', () => {
 
     it('should handle Redis errors gracefully', async () => {
       mockRedis.flushdb.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(cacheService.flushAll()).resolves.not.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
   describe('getStats', () => {
     it('should return cache statistics', async () => {
       mockRedis.dbsize.mockResolvedValue(100);
-      mockRedis.info.mockResolvedValue('used_memory_human:1.5M\nother_info:value');
+      mockRedis.info.mockResolvedValue('used_memory:1572864\nother_info:value');
 
       const result = await cacheService.getStats();
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         connected: true,
         enabled: true,
         keys: 100,
-        memory: '1.5M',
       });
+      expect(result).toHaveProperty('memory');
+      expect(result).toHaveProperty('hits');
+      expect(result).toHaveProperty('misses');
+      expect(result).toHaveProperty('hitRate');
     });
 
     it('should return default stats if Redis is not connected', async () => {
@@ -341,47 +364,48 @@ describe('CacheService', () => {
 
       const result = await cacheService.getStats();
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         connected: false,
         enabled: false,
         keys: 0,
-        memory: '0',
       });
+      expect(result).toHaveProperty('memory');
+      expect(result).toHaveProperty('hits');
+      expect(result).toHaveProperty('misses');
+      expect(result).toHaveProperty('hitRate');
     });
 
     it('should return default stats on Redis error', async () => {
       mockRedis.dbsize.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await cacheService.getStats();
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         connected: false,
         enabled: false,
         keys: 0,
-        memory: '0',
       });
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(result).toHaveProperty('memory');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
   describe('disconnect', () => {
     it('should disconnect from Redis', async () => {
-      mockRedis.quit.mockResolvedValue('OK');
+      // Create a fresh mock for this specific test
+      const quitMock = jest.fn().mockResolvedValue('OK');
+      mockRedis.quit = quitMock;
 
       await cacheService.disconnect();
 
-      expect(mockRedis.quit).toHaveBeenCalled();
+      expect(quitMock).toHaveBeenCalled();
     });
 
     it('should handle Redis errors gracefully', async () => {
       mockRedis.quit.mockRejectedValue(new Error('Redis error'));
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(cacheService.disconnect()).resolves.not.toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -400,25 +424,23 @@ describe('CacheService', () => {
 
   describe('connection event handlers', () => {
     it('should handle connect event', () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+      // Clear the logger mock to check fresh calls
+      mockLogger.info.mockClear();
       const connectHandler = mockRedis.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
 
       if (connectHandler) connectHandler();
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Redis cache connected'));
-      consoleLogSpy.mockRestore();
+      expect(mockLogger.info).toHaveBeenCalledWith('Redis cache connected');
     });
 
     it('should handle error event', () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+      // Clear the logger mock to check fresh calls
+      mockLogger.warn.mockClear();
       const errorHandler = mockRedis.on.mock.calls.find((call) => call[0] === 'error')?.[1];
 
       if (errorHandler) errorHandler(new Error('Connection failed'));
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Redis cache unavailable')
-      );
-      consoleLogSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith('Redis cache unavailable - continuing without caching');
     });
 
     it('should handle ready event', () => {

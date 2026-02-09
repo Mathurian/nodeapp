@@ -3,35 +3,38 @@ import { FileBackupService } from '../../../src/services/FileBackupService';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
-// Mock fs promises
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: jest.fn(),
-    readdir: jest.fn(),
-    rm: jest.fn(),
-    access: jest.fn(),
-    stat: jest.fn(),
-    copyFile: jest.fn(),
-  },
-}));
-
 describe('FileBackupService', () => {
   let service: FileBackupService;
   const mockBackupDir = path.join(__dirname, '../../../backups');
   const mockUploadDir = path.join(__dirname, '../../../uploads');
 
+  // Spies for fs.promises methods
+  let mkdirSpy: jest.SpyInstance;
+  let readdirSpy: jest.SpyInstance;
+  let rmSpy: jest.SpyInstance;
+  let accessSpy: jest.SpyInstance;
+  let copyFileSpy: jest.SpyInstance;
+
   beforeEach(() => {
+    // Set up spies using jest.spyOn pattern
+    mkdirSpy = jest.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
+    readdirSpy = jest.spyOn(fs, 'readdir').mockResolvedValue([]);
+    rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue(undefined);
+    accessSpy = jest.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'));
+    copyFileSpy = jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+
     service = new FileBackupService();
-    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('createBackup', () => {
     it('should create backup directory if it does not exist', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-
       const result = await service.createBackup();
 
-      expect(fs.mkdir).toHaveBeenCalledWith(
+      expect(mkdirSpy).toHaveBeenCalledWith(
         expect.stringContaining('backups'),
         { recursive: true }
       );
@@ -41,9 +44,6 @@ describe('FileBackupService', () => {
     });
 
     it('should generate timestamp-based backup path', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      const beforeTime = new Date();
-
       const result = await service.createBackup();
 
       expect(result.backupPath).toMatch(/backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}/);
@@ -51,28 +51,24 @@ describe('FileBackupService', () => {
     });
 
     it('should return success true on successful backup', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-
       const result = await service.createBackup();
 
       expect(result.success).toBe(true);
     });
 
     it('should throw error if mkdir fails', async () => {
-      (fs.mkdir as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+      mkdirSpy.mockRejectedValue(new Error('Permission denied'));
 
       await expect(service.createBackup()).rejects.toThrow('Backup failed: Permission denied');
     });
 
     it('should handle filesystem errors gracefully', async () => {
-      (fs.mkdir as jest.Mock).mockRejectedValue(new Error('Disk full'));
+      mkdirSpy.mockRejectedValue(new Error('Disk full'));
 
       await expect(service.createBackup()).rejects.toThrow('Backup failed: Disk full');
     });
 
     it('should create unique backup paths for multiple backups', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-
       const result1 = await service.createBackup();
       // Wait a small amount to ensure different timestamp
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -82,8 +78,6 @@ describe('FileBackupService', () => {
     });
 
     it('should include timestamp in response', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-
       const result = await service.createBackup();
 
       expect(result.timestamp).toBeDefined();
@@ -91,19 +85,15 @@ describe('FileBackupService', () => {
     });
 
     it('should create backup directory with recursive option', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-
       await service.createBackup();
 
-      expect(fs.mkdir).toHaveBeenCalledWith(
+      expect(mkdirSpy).toHaveBeenCalledWith(
         expect.any(String),
         { recursive: true }
       );
     });
 
     it('should format timestamp without colons and periods', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-
       const result = await service.createBackup();
 
       expect(result.backupPath).not.toContain(':');
@@ -111,7 +101,7 @@ describe('FileBackupService', () => {
     });
 
     it('should handle network drive errors', async () => {
-      (fs.mkdir as jest.Mock).mockRejectedValue(new Error('Network path not found'));
+      mkdirSpy.mockRejectedValue(new Error('Network path not found'));
 
       await expect(service.createBackup()).rejects.toThrow('Backup failed: Network path not found');
     });
@@ -119,29 +109,22 @@ describe('FileBackupService', () => {
 
   describe('listBackups', () => {
     it('should create backup directory if it does not exist', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([]);
-
       await service.listBackups();
 
-      expect(fs.mkdir).toHaveBeenCalledWith(
+      expect(mkdirSpy).toHaveBeenCalledWith(
         expect.stringContaining('backups'),
         { recursive: true }
       );
     });
 
     it('should return empty array when no backups exist', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([]);
-
       const result = await service.listBackups();
 
       expect(result).toEqual([]);
     });
 
     it('should filter files that start with "backup-"', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([
+      readdirSpy.mockResolvedValue([
         'backup-2024-01-01',
         'backup-2024-01-02',
         'other-file.txt',
@@ -159,8 +142,7 @@ describe('FileBackupService', () => {
     });
 
     it('should return only backup files', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([
+      readdirSpy.mockResolvedValue([
         'backup-2024-01-01',
         'test.txt',
       ]);
@@ -172,8 +154,7 @@ describe('FileBackupService', () => {
     });
 
     it('should return empty array on readdir error', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockRejectedValue(new Error('Read error'));
+      readdirSpy.mockRejectedValue(new Error('Read error'));
 
       const result = await service.listBackups();
 
@@ -181,7 +162,7 @@ describe('FileBackupService', () => {
     });
 
     it('should handle mkdir error and still return empty array', async () => {
-      (fs.mkdir as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+      mkdirSpy.mockRejectedValue(new Error('Permission denied'));
 
       const result = await service.listBackups();
 
@@ -189,9 +170,8 @@ describe('FileBackupService', () => {
     });
 
     it('should handle multiple backup files correctly', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
       const backupFiles = Array.from({ length: 10 }, (_, i) => `backup-2024-01-${String(i + 1).padStart(2, '0')}`);
-      (fs.readdir as jest.Mock).mockResolvedValue(backupFiles);
+      readdirSpy.mockResolvedValue(backupFiles);
 
       const result = await service.listBackups();
 
@@ -200,8 +180,7 @@ describe('FileBackupService', () => {
     });
 
     it('should not include hidden files', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([
+      readdirSpy.mockResolvedValue([
         'backup-2024-01-01',
         '.hidden',
         'backup-2024-01-02',
@@ -214,8 +193,7 @@ describe('FileBackupService', () => {
     });
 
     it('should handle special backup name formats', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([
+      readdirSpy.mockResolvedValue([
         'backup-2024-01-01T10-30-00',
         'backup-2024-01-02T14-45-30',
         'backup-manual',
@@ -229,13 +207,12 @@ describe('FileBackupService', () => {
     });
 
     it('should not modify original file list', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
       const originalFiles = ['backup-1', 'other', 'backup-2'];
-      (fs.readdir as jest.Mock).mockResolvedValue([...originalFiles]);
+      readdirSpy.mockResolvedValue([...originalFiles]);
 
       await service.listBackups();
 
-      expect((fs.readdir as jest.Mock).mock.results[0].value).toEqual(originalFiles);
+      expect(readdirSpy.mock.results[0].value).resolves.toEqual(originalFiles);
     });
   });
 
@@ -342,17 +319,24 @@ describe('FileBackupService', () => {
     });
 
     it('should maintain consistent backup directory across operations', async () => {
-      (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue([]);
-      (fs.rm as jest.Mock).mockResolvedValue(undefined);
+      // Reset mocks to get clean call counts
+      mkdirSpy.mockClear();
+      readdirSpy.mockResolvedValue([]);
 
+      // createBackup first creates the base backup dir, then may create subdirs
       await service.createBackup();
-      const createCall = (fs.mkdir as jest.Mock).mock.calls[0][0];
+      // Get the first mkdir call (base backup directory)
+      const createFirstCall = mkdirSpy.mock.calls[0][0];
 
+      // Clear and call listBackups
+      mkdirSpy.mockClear();
       await service.listBackups();
-      const listCall = (fs.mkdir as jest.Mock).mock.calls[1][0];
+      const listCall = mkdirSpy.mock.calls[0][0];
 
-      expect(createCall).toBe(listCall);
+      // Both should use the same base backup directory (ending with 'backups')
+      expect(createFirstCall).toContain('backups');
+      expect(listCall).toContain('backups');
+      expect(createFirstCall).toBe(listCall);
     });
   });
 

@@ -309,7 +309,7 @@ describe('ContestsController', () => {
 
       await controller.deleteContest(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockContestService.deleteContest).toHaveBeenCalledWith('contest-1');
+      expect(mockContestService.deleteContest).toHaveBeenCalledWith('contest-1', 'user-1');
       expect(sendNoContent).toHaveBeenCalledWith(mockRes);
     });
 

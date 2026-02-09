@@ -40,10 +40,7 @@ describe('TrackerService', () => {
     const mockContest = {
       id: contestId,
       name: 'Talent Competition',
-      event: {
-        id: 'event-1',
-        name: 'Annual Pageant 2024'
-      },
+      eventId: 'event-1',
       categories: [
         {
           id: 'cat-1',
@@ -68,9 +65,15 @@ describe('TrackerService', () => {
       ]
     };
 
+    const mockEvent = {
+      id: 'event-1',
+      name: 'Annual Pageant 2024'
+    };
+
     describe('success cases', () => {
       it('should return scoring progress for contest with categories', async () => {
         mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique
           .mockResolvedValueOnce({ id: 'judge-1', name: 'Judge Smith' } as any)
           .mockResolvedValueOnce({ id: 'judge-2', name: 'Judge Jones' } as any);
@@ -94,12 +97,13 @@ describe('TrackerService', () => {
         expect(result.categories[0].completionPercentage).toBe(83);
         expect(mockPrisma.contest.findUnique).toHaveBeenCalledWith({
           where: { id: contestId },
-          select: expect.any(Object)
+          include: expect.any(Object)
         });
       });
 
       it('should calculate judge completion statistics correctly', async () => {
         mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique
           .mockResolvedValueOnce({ id: 'judge-1', name: 'Judge Smith' } as any)
           .mockResolvedValueOnce({ id: 'judge-2', name: 'Judge Jones' } as any);
@@ -152,6 +156,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(multiCategoryContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique
           .mockResolvedValueOnce({ id: 'j1', name: 'Judge 1' } as any)
           .mockResolvedValueOnce({ id: 'j2', name: 'Judge 2' } as any);
@@ -189,6 +194,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(contest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique
           .mockResolvedValueOnce({ id: 'j1', name: 'Judge 1' } as any)
           .mockResolvedValueOnce({ id: 'j2', name: 'Judge 2' } as any);
@@ -207,6 +213,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(emptyContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByContest(contestId);
 
@@ -229,7 +236,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(noContestantsContest as any);
-        mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-1', name: 'Judge' } as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByContest(contestId);
 
@@ -256,7 +263,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(noScoresContest as any);
-        mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-1', name: 'Judge' } as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByContest(contestId);
 
@@ -270,6 +277,7 @@ describe('TrackerService', () => {
 
       it('should handle judge with unknown name', async () => {
         mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique
           .mockResolvedValueOnce(null)
           .mockResolvedValueOnce({ id: 'judge-2', name: 'Judge Jones' } as any);
@@ -299,6 +307,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(duplicateJudgesContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-1', name: 'Judge' } as any);
 
         const result = await service.getScoringProgressByContest(contestId);
@@ -318,7 +327,7 @@ describe('TrackerService', () => {
 
         expect(mockPrisma.contest.findUnique).toHaveBeenCalledWith({
           where: { id: contestId },
-          select: expect.any(Object)
+          include: expect.any(Object)
         });
       });
 
@@ -332,6 +341,7 @@ describe('TrackerService', () => {
 
       it('should handle judge lookup errors', async () => {
         mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique.mockRejectedValue(new Error('Judge lookup failed'));
 
         await expect(service.getScoringProgressByContest(contestId))
@@ -354,6 +364,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(largeContest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique.mockImplementation((args: any) =>
           Promise.resolve({ id: args.where.id, name: `Judge ${args.where.id}` } as any)
         );
@@ -379,6 +390,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.contest.findUnique.mockResolvedValue(contest as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
         mockPrisma.judge.findUnique.mockResolvedValue({ id: 'j1', name: 'Judge' } as any);
 
         const result = await service.getScoringProgressByContest(contestId);
@@ -394,42 +406,36 @@ describe('TrackerService', () => {
     const mockCategory = {
       id: categoryId,
       name: 'Interview',
-      contestants: [
-        {
-          contestantId: 'contestant-1',
-          contestant: { name: 'Alice Johnson' }
-        },
-        {
-          contestantId: 'contestant-2',
-          contestant: { name: 'Bob Smith' }
-        },
-        {
-          contestantId: 'contestant-3',
-          contestant: { name: 'Carol White' }
-        }
+      categoryContestants: [
+        { contestantId: 'contestant-1' },
+        { contestantId: 'contestant-2' },
+        { contestantId: 'contestant-3' }
       ],
       scores: [
         { id: 'score-1', judgeId: 'judge-1', contestantId: 'contestant-1' },
         { id: 'score-2', judgeId: 'judge-1', contestantId: 'contestant-2' },
         { id: 'score-3', judgeId: 'judge-2', contestantId: 'contestant-1' }
       ],
-      judges: [
-        { judgeId: 'judge-1', judge: { name: 'Judge Brown' } },
-        { judgeId: 'judge-2', judge: { name: 'Judge Davis' } }
+      categoryJudges: [
+        { judgeId: 'judge-1' },
+        { judgeId: 'judge-2' }
       ],
       contest: {
         id: 'contest-1',
         name: 'Preliminary Round',
-        event: {
-          id: 'event-1',
-          name: 'State Championship 2024'
-        }
+        eventId: 'event-1'
       }
+    };
+
+    const mockEvent = {
+      id: 'event-1',
+      name: 'State Championship 2024'
     };
 
     describe('success cases', () => {
       it('should return scoring progress for category', async () => {
         mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -448,9 +454,9 @@ describe('TrackerService', () => {
         expect(mockPrisma.category.findUnique).toHaveBeenCalledWith({
           where: { id: categoryId },
           include: expect.objectContaining({
-            contestants: expect.any(Object),
+            categoryContestants: expect.any(Object),
             scores: expect.any(Object),
-            judges: expect.any(Object),
+            categoryJudges: expect.any(Object),
             contest: expect.any(Object)
           })
         });
@@ -470,6 +476,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(fullyScoredCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -483,6 +490,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(noScoresCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -496,11 +504,12 @@ describe('TrackerService', () => {
       it('should handle category with no contestants', async () => {
         const noContestantsCategory = {
           ...mockCategory,
-          contestants: [],
+          categoryContestants: [],
           scores: []
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(noContestantsCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -516,11 +525,12 @@ describe('TrackerService', () => {
       it('should handle category with no judges', async () => {
         const noJudgesCategory = {
           ...mockCategory,
-          judges: [],
+          categoryJudges: [],
           scores: []
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(noJudgesCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -536,8 +546,8 @@ describe('TrackerService', () => {
       it('should handle category with single contestant', async () => {
         const singleContestantCategory = {
           ...mockCategory,
-          contestants: [
-            { contestantId: 'contestant-1', contestant: { name: 'Alice' } }
+          categoryContestants: [
+            { contestantId: 'contestant-1' }
           ],
           scores: [
             { id: 'score-1', judgeId: 'judge-1', contestantId: 'contestant-1' }
@@ -545,6 +555,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(singleContestantCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -560,8 +571,8 @@ describe('TrackerService', () => {
       it('should handle category with single judge', async () => {
         const singleJudgeCategory = {
           ...mockCategory,
-          judges: [
-            { judgeId: 'judge-1', judge: { name: 'Judge' } }
+          categoryJudges: [
+            { judgeId: 'judge-1' }
           ],
           scores: [
             { id: 'score-1', judgeId: 'judge-1', contestantId: 'contestant-1' },
@@ -571,6 +582,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(singleJudgeCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -586,15 +598,15 @@ describe('TrackerService', () => {
       it('should calculate percentage correctly for partial scoring', async () => {
         const partialCategory = {
           ...mockCategory,
-          contestants: [
-            { contestantId: 'c1', contestant: { name: 'C1' } },
-            { contestantId: 'c2', contestant: { name: 'C2' } },
-            { contestantId: 'c3', contestant: { name: 'C3' } },
-            { contestantId: 'c4', contestant: { name: 'C4' } }
+          categoryContestants: [
+            { contestantId: 'c1' },
+            { contestantId: 'c2' },
+            { contestantId: 'c3' },
+            { contestantId: 'c4' }
           ],
-          judges: [
-            { judgeId: 'j1', judge: { name: 'J1' } },
-            { judgeId: 'j2', judge: { name: 'J2' } }
+          categoryJudges: [
+            { judgeId: 'j1' },
+            { judgeId: 'j2' }
           ],
           scores: [
             { id: 's1', judgeId: 'j1', contestantId: 'c1' },
@@ -604,6 +616,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(partialCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -655,13 +668,11 @@ describe('TrackerService', () => {
       it('should handle very large number of contestants and judges', async () => {
         const largeCategory = {
           ...mockCategory,
-          contestants: Array.from({ length: 100 }, (_, i) => ({
-            contestantId: `c-${i}`,
-            contestant: { name: `Contestant ${i}` }
+          categoryContestants: Array.from({ length: 100 }, (_, i) => ({
+            contestantId: `c-${i}`
           })),
-          judges: Array.from({ length: 10 }, (_, i) => ({
-            judgeId: `j-${i}`,
-            judge: { name: `Judge ${i}` }
+          categoryJudges: Array.from({ length: 10 }, (_, i) => ({
+            judgeId: `j-${i}`
           })),
           scores: Array.from({ length: 500 }, (_, i) => ({
             id: `s-${i}`,
@@ -671,6 +682,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(largeCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -684,14 +696,13 @@ describe('TrackerService', () => {
       it('should round percentages correctly for non-even divisions', async () => {
         const category = {
           ...mockCategory,
-          contestants: Array.from({ length: 7 }, (_, i) => ({
-            contestantId: `c-${i}`,
-            contestant: { name: `C${i}` }
+          categoryContestants: Array.from({ length: 7 }, (_, i) => ({
+            contestantId: `c-${i}`
           })),
-          judges: [
-            { judgeId: 'j1', judge: { name: 'J1' } },
-            { judgeId: 'j2', judge: { name: 'J2' } },
-            { judgeId: 'j3', judge: { name: 'J3' } }
+          categoryJudges: [
+            { judgeId: 'j1' },
+            { judgeId: 'j2' },
+            { judgeId: 'j3' }
           ],
           scores: Array.from({ length: 4 }, (_, i) => ({
             id: `s-${i}`,
@@ -701,6 +712,7 @@ describe('TrackerService', () => {
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(category as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 
@@ -712,12 +724,13 @@ describe('TrackerService', () => {
       it('should handle zero expected scores correctly', async () => {
         const emptyCategory = {
           ...mockCategory,
-          contestants: [],
-          judges: [],
+          categoryContestants: [],
+          categoryJudges: [],
           scores: []
         };
 
         mockPrisma.category.findUnique.mockResolvedValue(emptyCategory as any);
+        mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
 
         const result = await service.getScoringProgressByCategory(categoryId);
 

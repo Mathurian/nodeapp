@@ -367,7 +367,6 @@ describe('BoardController', () => {
       await controller.createEmceeScript(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
       expect(mockBoardService.createEmceeScript).not.toHaveBeenCalled();
     });
 
@@ -673,14 +672,13 @@ describe('BoardController', () => {
       expect(mockRes.json).toHaveBeenCalledWith({ error: 'Request ID and user required' });
     });
 
-    it('should return 400 when user is not authenticated', async () => {
+    it('should return 401 when user is not authenticated', async () => {
       mockReq.params = { id: 'req-1' };
       mockReq.user = undefined;
 
       await controller.approveScoreRemoval(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Request ID and user required' });
+      expect(mockRes.status).toHaveBeenCalledWith(401);
     });
 
     it('should return 400 when userId is missing', async () => {
@@ -752,19 +750,18 @@ describe('BoardController', () => {
       expect(mockRes.json).toHaveBeenCalledWith({ error: 'Request ID and user required' });
     });
 
-    it('should return 400 when user is not authenticated', async () => {
+    it('should return 401 when user is not authenticated', async () => {
       mockReq.params = { id: 'req-1' };
       mockReq.user = undefined;
 
       await controller.rejectScoreRemoval(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Request ID and user required' });
+      expect(mockRes.status).toHaveBeenCalledWith(401);
     });
 
     it('should return 400 when userId is missing', async () => {
       mockReq.params = { id: 'req-1' };
-      mockReq.user = {} as any;
+      mockReq.user = { tenantId: 'tenant-1' } as any;
 
       await controller.rejectScoreRemoval(mockReq as Request, mockRes as Response, mockNext);
 

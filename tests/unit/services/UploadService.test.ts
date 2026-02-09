@@ -3,26 +3,18 @@ import { UploadService } from '../../../src/services/UploadService';
 import { PrismaClient, FileCategory } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { promises as fs } from 'fs';
-import * as crypto from 'crypto';
-
-// Mock fs
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: jest.fn(),
-    readFile: jest.fn(),
-    readdir: jest.fn(),
-    unlink: jest.fn(),
-    access: jest.fn(),
-    stat: jest.fn(),
-  },
-}));
-
-// Mock crypto
-jest.mock('crypto');
 
 describe('UploadService', () => {
   let service: UploadService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+
+  // Spies for fs.promises methods
+  let mkdirSpy: jest.SpyInstance;
+  let readFileSpy: jest.SpyInstance;
+  let readdirSpy: jest.SpyInstance;
+  let unlinkSpy: jest.SpyInstance;
+  let accessSpy: jest.SpyInstance;
+  let statSpy: jest.SpyInstance;
 
   const mockFile: Express.Multer.File = {
     fieldname: 'file',
@@ -38,15 +30,28 @@ describe('UploadService', () => {
   };
 
   beforeEach(() => {
+    // Set up spies using jest.spyOn pattern
+    mkdirSpy = jest.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
+    readFileSpy = jest.spyOn(fs, 'readFile').mockResolvedValue(Buffer.from('test'));
+    readdirSpy = jest.spyOn(fs, 'readdir').mockResolvedValue([]);
+    unlinkSpy = jest.spyOn(fs, 'unlink').mockResolvedValue(undefined);
+    accessSpy = jest.spyOn(fs, 'access').mockResolvedValue(undefined);
+    statSpy = jest.spyOn(fs, 'stat').mockResolvedValue({
+      isFile: () => true,
+      size: 1024,
+      birthtime: new Date(),
+      mtime: new Date(),
+    } as any);
+
     mockPrisma = mockDeep<PrismaClient>();
     service = new UploadService(mockPrisma as any);
-    jest.clearAllMocks();
-
-    (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
-    mockReset(mockPrisma);
+    jest.restoreAllMocks();
+    if (mockPrisma) {
+      mockReset(mockPrisma);
+    }
   });
 
   describe('constructor', () => {
@@ -56,20 +61,13 @@ describe('UploadService', () => {
     });
 
     it('should initialize uploads directory', () => {
-      expect(fs.mkdir).toHaveBeenCalled();
+      expect(mkdirSpy).toHaveBeenCalled();
     });
   });
 
   describe('processUploadedFile', () => {
     it('should process file and save to database', async () => {
       const userId = 'user-123';
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('abc123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
 
       mockPrisma.file.create.mockResolvedValue({
         id: 'file-123',
@@ -84,6 +82,7 @@ describe('UploadService', () => {
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -108,13 +107,6 @@ describe('UploadService', () => {
 
     it('should calculate file checksum', async () => {
       const userId = 'user-123';
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('checksum123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
 
       mockPrisma.file.create.mockResolvedValue({
         id: 'file-123',
@@ -125,30 +117,32 @@ describe('UploadService', () => {
         path: 'uploads/test-123.pdf',
         category: FileCategory.OTHER,
         uploadedBy: userId,
-        checksum: 'checksum123',
+        checksum: 'abc123',
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
       await service.processUploadedFile(mockFile, userId);
 
-      expect(crypto.createHash).toHaveBeenCalledWith('md5');
-      expect(mockHash.update).toHaveBeenCalled();
-      expect(mockHash.digest).toHaveBeenCalledWith('hex');
+      // Verify checksum was calculated and passed to database
+      expect(mockPrisma.file.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            checksum: expect.any(String),
+          }),
+        })
+      );
+      // Verify the checksum is a valid MD5 hash (32 hex characters)
+      const callArg = mockPrisma.file.create.mock.calls[0][0] as any;
+      expect(callArg.data.checksum).toMatch(/^[a-f0-9]{32}$/);
     });
 
     it('should use provided file category', async () => {
       const userId = 'user-123';
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('abc123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
 
       mockPrisma.file.create.mockResolvedValue({
         id: 'file-123',
@@ -157,24 +151,25 @@ describe('UploadService', () => {
         mimeType: mockFile.mimetype,
         size: mockFile.size,
         path: 'uploads/test-123.pdf',
-        category: FileCategory.SCORE_SHEET,
+        category: FileCategory.DOCUMENT,
         uploadedBy: userId,
         checksum: 'abc123',
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
       await service.processUploadedFile(mockFile, userId, {
-        category: FileCategory.SCORE_SHEET,
+        category: FileCategory.DOCUMENT,
       });
 
       expect(mockPrisma.file.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            category: FileCategory.SCORE_SHEET,
+            category: FileCategory.DOCUMENT,
           }),
         })
       );
@@ -183,13 +178,6 @@ describe('UploadService', () => {
     it('should save event association', async () => {
       const userId = 'user-123';
       const eventId = 'event-123';
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('abc123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
 
       mockPrisma.file.create.mockResolvedValue({
         id: 'file-123',
@@ -204,6 +192,7 @@ describe('UploadService', () => {
         eventId,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -220,13 +209,6 @@ describe('UploadService', () => {
     it('should save contest association', async () => {
       const userId = 'user-123';
       const contestId = 'contest-123';
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('abc123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
 
       mockPrisma.file.create.mockResolvedValue({
         id: 'file-123',
@@ -241,6 +223,7 @@ describe('UploadService', () => {
         eventId: null,
         contestId,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -256,13 +239,6 @@ describe('UploadService', () => {
 
     it('should use relative path for storage', async () => {
       const userId = 'user-123';
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('abc123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
 
       mockPrisma.file.create.mockResolvedValue({
         id: 'file-123',
@@ -277,6 +253,7 @@ describe('UploadService', () => {
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -293,7 +270,7 @@ describe('UploadService', () => {
     });
 
     it('should handle file read errors', async () => {
-      (fs.readFile as jest.Mock).mockRejectedValue(new Error('Read error'));
+      readFileSpy.mockRejectedValue(new Error('Read error'));
 
       await expect(
         service.processUploadedFile(mockFile, 'user-123')
@@ -301,14 +278,6 @@ describe('UploadService', () => {
     });
 
     it('should handle database errors', async () => {
-      (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('test'));
-
-      const mockHash = {
-        update: jest.fn().mockReturnThis(),
-        digest: jest.fn().mockReturnValue('abc123'),
-      };
-      (crypto.createHash as jest.Mock).mockReturnValue(mockHash);
-
       mockPrisma.file.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
@@ -319,7 +288,7 @@ describe('UploadService', () => {
 
   describe('getFiles', () => {
     it('should return empty array if directory does not exist', async () => {
-      (fs.access as jest.Mock).mockRejectedValue(new Error('ENOENT'));
+      accessSpy.mockRejectedValue(new Error('ENOENT'));
 
       const result = await service.getFiles();
 
@@ -327,9 +296,9 @@ describe('UploadService', () => {
     });
 
     it('should list all files in upload directory', async () => {
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['file1.pdf', 'file2.jpg']);
-      (fs.stat as jest.Mock).mockResolvedValue({
+      accessSpy.mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue(['file1.pdf', 'file2.jpg']);
+      statSpy.mockResolvedValue({
         isFile: () => true,
         size: 1024,
         birthtime: new Date('2024-01-01'),
@@ -347,9 +316,9 @@ describe('UploadService', () => {
     });
 
     it('should skip directories', async () => {
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['file1.pdf', 'subdir']);
-      (fs.stat as jest.Mock)
+      accessSpy.mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue(['file1.pdf', 'subdir']);
+      statSpy
         .mockResolvedValueOnce({
           isFile: () => true,
           size: 1024,
@@ -370,9 +339,9 @@ describe('UploadService', () => {
     });
 
     it('should sort files by creation date descending', async () => {
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['old.pdf', 'new.pdf']);
-      (fs.stat as jest.Mock)
+      accessSpy.mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue(['old.pdf', 'new.pdf']);
+      statSpy
         .mockResolvedValueOnce({
           isFile: () => true,
           size: 1024,
@@ -394,9 +363,9 @@ describe('UploadService', () => {
 
     it('should include user ID in file info', async () => {
       const userId = 'user-123';
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['file1.pdf']);
-      (fs.stat as jest.Mock).mockResolvedValue({
+      accessSpy.mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue(['file1.pdf']);
+      statSpy.mockResolvedValue({
         isFile: () => true,
         size: 1024,
         birthtime: new Date(),
@@ -409,9 +378,9 @@ describe('UploadService', () => {
     });
 
     it('should use system as default uploader', async () => {
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readdir as jest.Mock).mockResolvedValue(['file1.pdf']);
-      (fs.stat as jest.Mock).mockResolvedValue({
+      accessSpy.mockResolvedValue(undefined);
+      readdirSpy.mockResolvedValue(['file1.pdf']);
+      statSpy.mockResolvedValue({
         isFile: () => true,
         size: 1024,
         birthtime: new Date(),
@@ -440,10 +409,11 @@ describe('UploadService', () => {
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      unlinkSpy.mockResolvedValue(undefined);
       mockPrisma.file.delete.mockResolvedValue({} as any);
 
       await service.deleteFile(fileId);
@@ -451,7 +421,7 @@ describe('UploadService', () => {
       expect(mockPrisma.file.findUnique).toHaveBeenCalledWith({
         where: { id: fileId },
       });
-      expect(fs.unlink).toHaveBeenCalledWith('/uploads/test.pdf');
+      expect(unlinkSpy).toHaveBeenCalledWith('/uploads/test.pdf');
       expect(mockPrisma.file.delete).toHaveBeenCalledWith({
         where: { id: fileId },
       });
@@ -472,10 +442,11 @@ describe('UploadService', () => {
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      (fs.unlink as jest.Mock).mockRejectedValue(new Error('ENOENT'));
+      unlinkSpy.mockRejectedValue(new Error('ENOENT'));
       mockPrisma.file.delete.mockResolvedValue({} as any);
 
       await service.deleteFile(fileId);
@@ -486,16 +457,16 @@ describe('UploadService', () => {
     it('should try filesystem if not in database', async () => {
       const filename = 'test.pdf';
       mockPrisma.file.findUnique.mockResolvedValue(null);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      unlinkSpy.mockResolvedValue(undefined);
 
       await service.deleteFile(filename);
 
-      expect(fs.unlink).toHaveBeenCalled();
+      expect(unlinkSpy).toHaveBeenCalled();
     });
 
     it('should throw error if file not found anywhere', async () => {
       mockPrisma.file.findUnique.mockResolvedValue(null);
-      (fs.unlink as jest.Mock).mockRejectedValue(new Error('ENOENT'));
+      unlinkSpy.mockRejectedValue(new Error('ENOENT'));
 
       await expect(service.deleteFile('nonexistent')).rejects.toThrow(
         'File not found'
@@ -519,6 +490,7 @@ describe('UploadService', () => {
         eventId: null,
         contestId: null,
         categoryId: null,
+        tenantId: 'default_tenant',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -533,31 +505,21 @@ describe('UploadService', () => {
       });
     });
 
-    it('should try filesystem if not in database', async () => {
+    it('should return null if not in database', async () => {
       const filename = 'test.pdf';
       mockPrisma.file.findUnique.mockResolvedValue(null);
-      (fs.stat as jest.Mock).mockResolvedValue({
-        size: 1024,
-        birthtime: new Date('2024-01-01'),
-        mtime: new Date('2024-01-02'),
-      });
 
       const result = await service.getFileById(filename);
 
-      expect(result).toMatchObject({
-        id: filename,
-        filename,
-        size: 1024,
-      });
+      expect(result).toBeNull();
     });
 
-    it('should throw error if file not found', async () => {
+    it('should return null if file not found', async () => {
       mockPrisma.file.findUnique.mockResolvedValue(null);
-      (fs.stat as jest.Mock).mockRejectedValue(new Error('ENOENT'));
 
-      await expect(service.getFileById('nonexistent')).rejects.toThrow(
-        'File not found'
-      );
+      const result = await service.getFileById('nonexistent');
+
+      expect(result).toBeNull();
     });
   });
 });

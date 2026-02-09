@@ -259,12 +259,18 @@ describe('RateLimitService', () => {
     });
 
     it('should return false when Redis is not connected', () => {
-      Object.defineProperty(mockRedis, 'status', {
-        get: () => 'disconnected',
-        configurable: true
-      });
+      // Create a mock Redis that reports disconnected status
+      const disconnectedMockRedis = {
+        ...mockRedis,
+        status: 'disconnected',
+      };
 
-      const isAvailable = rateLimitService.isRedisAvailable();
+      // Mock the Redis constructor to return the disconnected mock
+      (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => disconnectedMockRedis as any);
+
+      // Create a new service instance with the disconnected Redis
+      const disconnectedService = new RateLimitService(mockPrisma);
+      const isAvailable = disconnectedService.isRedisAvailable();
       expect(isAvailable).toBe(false);
     });
 

@@ -41,7 +41,7 @@ describe('UploadController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'ADMIN' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'default_tenant' },
       file: undefined,
     } as any;
 
@@ -71,7 +71,7 @@ describe('UploadController', () => {
       expect(mockUploadService.processUploadedFile).toHaveBeenCalledWith(
         mockReq.file,
         'user-1',
-        { category: 'DOCUMENT', eventId: 'event-1', contestId: undefined, categoryId: undefined }
+        { category: 'DOCUMENT', eventId: 'event-1', contestId: undefined, categoryId: undefined, tenantId: 'default_tenant' }
       );
       expect(successResponse).toHaveBeenCalledWith(mockRes, { file: mockFile }, 'File uploaded successfully');
     });
@@ -87,7 +87,7 @@ describe('UploadController', () => {
       expect(mockUploadService.processUploadedFile).toHaveBeenCalledWith(
         mockReq.file,
         'user-1',
-        { category: 'DOCUMENT', eventId: 'event-1', contestId: 'contest-1', categoryId: 'cat-1' }
+        { category: 'DOCUMENT', eventId: 'event-1', contestId: 'contest-1', categoryId: 'cat-1', tenantId: 'default_tenant' }
       );
     });
 
@@ -136,7 +136,7 @@ describe('UploadController', () => {
       expect(mockUploadService.processUploadedFile).toHaveBeenCalledWith(
         mockReq.file,
         'user-1',
-        { category: 'CONTESTANT_IMAGE', eventId: 'event-1', contestId: undefined, categoryId: 'cat-1' }
+        { category: 'CONTESTANT_IMAGE', eventId: 'event-1', contestId: undefined, categoryId: 'cat-1', tenantId: 'default_tenant' }
       );
       expect(successResponse).toHaveBeenCalledWith(mockRes, { image: mockImage }, 'Image uploaded successfully');
     });

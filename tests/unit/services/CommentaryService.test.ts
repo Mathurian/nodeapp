@@ -52,6 +52,7 @@ describe('CommentaryService', () => {
     };
 
     it('should create a new comment successfully', async () => {
+      mockPrisma.score.findUnique.mockResolvedValue({ id: 'score1', tenantId: 'tenant1' } as any);
       mockPrisma.scoreComment.create.mockResolvedValue(mockComment as any);
 
       const result = await service.create(validCommentData);
@@ -59,6 +60,7 @@ describe('CommentaryService', () => {
       expect(result).toEqual(mockComment);
       expect(mockPrisma.scoreComment.create).toHaveBeenCalledWith({
         data: {
+          tenantId: 'tenant1',
           scoreId: validCommentData.scoreId,
           criterionId: validCommentData.criterionId,
           contestantId: validCommentData.contestantId,
@@ -81,6 +83,7 @@ describe('CommentaryService', () => {
       const dataWithoutPrivacy = { ...validCommentData };
       delete dataWithoutPrivacy.isPrivate;
 
+      mockPrisma.score.findUnique.mockResolvedValue({ id: 'score1', tenantId: 'tenant1' } as any);
       mockPrisma.scoreComment.create.mockResolvedValue(mockComment as any);
 
       await service.create(dataWithoutPrivacy);
@@ -96,6 +99,7 @@ describe('CommentaryService', () => {
 
     it('should create private comment when isPrivate is true', async () => {
       const privateComment = { ...validCommentData, isPrivate: true };
+      mockPrisma.score.findUnique.mockResolvedValue({ id: 'score1', tenantId: 'tenant1' } as any);
       mockPrisma.scoreComment.create.mockResolvedValue({ ...mockComment, isPrivate: true } as any);
 
       const result = await service.create(privateComment);

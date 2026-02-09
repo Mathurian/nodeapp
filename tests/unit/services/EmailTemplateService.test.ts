@@ -12,8 +12,11 @@ describe('EmailTemplateService', () => {
   let service: EmailTemplateService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
 
+  const tenantId = 'test-tenant';
+
   const mockTemplate = {
     id: 'template-1',
+    tenantId,
     name: 'Welcome Email',
     subject: 'Welcome {{user_name}}!',
     body: '<p>Hello {{user_name}}, welcome to {{event_name}}!</p>',
@@ -60,6 +63,7 @@ describe('EmailTemplateService', () => {
         subject: 'Welcome!',
         body: '<p>Hello!</p>',
         createdBy: 'user-1',
+        tenantId,
       });
 
       expect(result).toEqual(mockTemplate);
@@ -70,6 +74,7 @@ describe('EmailTemplateService', () => {
           body: '<p>Hello!</p>',
           type: 'CUSTOM',
           createdBy: 'user-1',
+          tenantId,
         }),
       });
     });
@@ -101,6 +106,7 @@ describe('EmailTemplateService', () => {
         borderRadius: '4px',
         padding: '20px',
         createdBy: 'user-1',
+        tenantId,
       });
 
       expect(result).toEqual(mockTemplate);
@@ -121,6 +127,7 @@ describe('EmailTemplateService', () => {
           subject: 'Test',
           body: 'Test',
           createdBy: 'user-1',
+          tenantId,
         })
       ).rejects.toThrow('Failed to create email template');
     });
@@ -130,11 +137,11 @@ describe('EmailTemplateService', () => {
     it('should get all templates without eventId filter', async () => {
       mockPrisma.emailTemplate.findMany.mockResolvedValue([mockTemplate]);
 
-      const result = await service.getAllEmailTemplates();
+      const result = await service.getAllEmailTemplates(tenantId);
 
       expect(result).toEqual([mockTemplate]);
       expect(mockPrisma.emailTemplate.findMany).toHaveBeenCalledWith({
-        where: {},
+        where: { tenantId },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -142,12 +149,16 @@ describe('EmailTemplateService', () => {
     it('should get templates for specific event including global', async () => {
       mockPrisma.emailTemplate.findMany.mockResolvedValue([mockTemplate]);
 
-      const result = await service.getAllEmailTemplates('event-1');
+      const result = await service.getAllEmailTemplates(tenantId, 'event-1');
 
       expect(result).toEqual([mockTemplate]);
       expect(mockPrisma.emailTemplate.findMany).toHaveBeenCalledWith({
         where: {
-          OR: [{ eventId: 'event-1' }, { eventId: null }],
+          tenantId,
+          OR: [
+            { eventId: 'event-1', tenantId },
+            { eventId: null, tenantId },
+          ],
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -156,7 +167,7 @@ describe('EmailTemplateService', () => {
     it('should return empty array when no templates exist', async () => {
       mockPrisma.emailTemplate.findMany.mockResolvedValue([]);
 
-      const result = await service.getAllEmailTemplates();
+      const result = await service.getAllEmailTemplates(tenantId);
 
       expect(result).toEqual([]);
     });
@@ -164,34 +175,34 @@ describe('EmailTemplateService', () => {
     it('should handle database errors', async () => {
       mockPrisma.emailTemplate.findMany.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getAllEmailTemplates()).rejects.toThrow('Failed to fetch email templates');
+      await expect(service.getAllEmailTemplates(tenantId)).rejects.toThrow('Failed to fetch email templates');
     });
   });
 
   describe('getEmailTemplateById', () => {
     it('should get a template by id', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
 
-      const result = await service.getEmailTemplateById('template-1');
+      const result = await service.getEmailTemplateById('template-1', tenantId);
 
       expect(result).toEqual(mockTemplate);
-      expect(mockPrisma.emailTemplate.findUnique).toHaveBeenCalledWith({
-        where: { id: 'template-1' },
+      expect(mockPrisma.emailTemplate.findFirst).toHaveBeenCalledWith({
+        where: { id: 'template-1', tenantId },
       });
     });
 
     it('should return null when template not found', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
 
-      const result = await service.getEmailTemplateById('nonexistent');
+      const result = await service.getEmailTemplateById('nonexistent', tenantId);
 
       expect(result).toBeNull();
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.emailTemplate.findUnique.mockRejectedValue(new Error('Database error'));
+      mockPrisma.emailTemplate.findFirst.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getEmailTemplateById('template-1')).rejects.toThrow(
+      await expect(service.getEmailTemplateById('template-1', tenantId)).rejects.toThrow(
         'Failed to fetch email template'
       );
     });
@@ -201,11 +212,11 @@ describe('EmailTemplateService', () => {
     it('should get templates by type', async () => {
       mockPrisma.emailTemplate.findMany.mockResolvedValue([mockTemplate]);
 
-      const result = await service.getEmailTemplatesByType('WELCOME');
+      const result = await service.getEmailTemplatesByType('WELCOME', tenantId);
 
       expect(result).toEqual([mockTemplate]);
       expect(mockPrisma.emailTemplate.findMany).toHaveBeenCalledWith({
-        where: { type: 'WELCOME' },
+        where: { type: 'WELCOME', tenantId },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -213,13 +224,17 @@ describe('EmailTemplateService', () => {
     it('should get templates by type for specific event', async () => {
       mockPrisma.emailTemplate.findMany.mockResolvedValue([mockTemplate]);
 
-      const result = await service.getEmailTemplatesByType('WELCOME', 'event-1');
+      const result = await service.getEmailTemplatesByType('WELCOME', tenantId, 'event-1');
 
       expect(result).toEqual([mockTemplate]);
       expect(mockPrisma.emailTemplate.findMany).toHaveBeenCalledWith({
         where: {
           type: 'WELCOME',
-          OR: [{ eventId: 'event-1' }, { eventId: null }],
+          tenantId,
+          OR: [
+            { eventId: 'event-1', tenantId },
+            { eventId: null, tenantId },
+          ],
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -228,7 +243,7 @@ describe('EmailTemplateService', () => {
     it('should handle database errors', async () => {
       mockPrisma.emailTemplate.findMany.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getEmailTemplatesByType('WELCOME')).rejects.toThrow(
+      await expect(service.getEmailTemplatesByType('WELCOME', tenantId)).rejects.toThrow(
         'Failed to fetch email templates'
       );
     });
@@ -237,11 +252,15 @@ describe('EmailTemplateService', () => {
   describe('updateEmailTemplate', () => {
     it('should update template with partial data', async () => {
       const updated = { ...mockTemplate, name: 'Updated Name' };
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.update.mockResolvedValue(updated);
 
-      const result = await service.updateEmailTemplate('template-1', { name: 'Updated Name' });
+      const result = await service.updateEmailTemplate('template-1', tenantId, { name: 'Updated Name' });
 
       expect(result).toEqual(updated);
+      expect(mockPrisma.emailTemplate.findFirst).toHaveBeenCalledWith({
+        where: { id: 'template-1', tenantId },
+      });
       expect(mockPrisma.emailTemplate.update).toHaveBeenCalledWith({
         where: { id: 'template-1' },
         data: { name: 'Updated Name' },
@@ -249,9 +268,10 @@ describe('EmailTemplateService', () => {
     });
 
     it('should update all fields', async () => {
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.update.mockResolvedValue(mockTemplate);
 
-      const result = await service.updateEmailTemplate('template-1', {
+      const result = await service.updateEmailTemplate('template-1', tenantId, {
         name: 'New Name',
         subject: 'New Subject',
         body: 'New Body',
@@ -270,10 +290,19 @@ describe('EmailTemplateService', () => {
       });
     });
 
+    it('should throw error when template not found', async () => {
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateEmailTemplate('template-1', tenantId, { name: 'Test' })).rejects.toThrow(
+        'Failed to update email template'
+      );
+    });
+
     it('should handle database errors', async () => {
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.update.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.updateEmailTemplate('template-1', { name: 'Test' })).rejects.toThrow(
+      await expect(service.updateEmailTemplate('template-1', tenantId, { name: 'Test' })).rejects.toThrow(
         'Failed to update email template'
       );
     });
@@ -281,19 +310,32 @@ describe('EmailTemplateService', () => {
 
   describe('deleteEmailTemplate', () => {
     it('should delete a template', async () => {
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.delete.mockResolvedValue(mockTemplate);
 
-      await service.deleteEmailTemplate('template-1');
+      await service.deleteEmailTemplate('template-1', tenantId);
 
+      expect(mockPrisma.emailTemplate.findFirst).toHaveBeenCalledWith({
+        where: { id: 'template-1', tenantId },
+      });
       expect(mockPrisma.emailTemplate.delete).toHaveBeenCalledWith({
         where: { id: 'template-1' },
       });
     });
 
+    it('should throw error when template not found', async () => {
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteEmailTemplate('template-1', tenantId)).rejects.toThrow(
+        'Failed to delete email template'
+      );
+    });
+
     it('should handle database errors', async () => {
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.delete.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.deleteEmailTemplate('template-1')).rejects.toThrow(
+      await expect(service.deleteEmailTemplate('template-1', tenantId)).rejects.toThrow(
         'Failed to delete email template'
       );
     });
@@ -374,10 +416,12 @@ describe('EmailTemplateService', () => {
     });
 
     it('should handle rendering errors', () => {
-      const badTemplate = { ...mockTemplate, subject: null, body: null } as any;
+      // Cause an error by making variables.forEach fail on a non-object
+      const badTemplate = { ...mockTemplate };
+      const badVariables = null as any;
 
       expect(() =>
-        service.renderTemplate(badTemplate, { user_name: 'Test' })
+        service.renderTemplate(badTemplate, badVariables)
       ).toThrow('Failed to render email template');
     });
   });
@@ -432,31 +476,31 @@ describe('EmailTemplateService', () => {
   describe('cloneEmailTemplate', () => {
     it('should clone a template with new name', async () => {
       const cloned = { ...mockTemplate, id: 'template-2', name: 'Welcome Email (Copy)' };
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.create.mockResolvedValue(cloned);
 
-      const result = await service.cloneEmailTemplate('template-1', 'user-2');
+      const result = await service.cloneEmailTemplate('template-1', 'user-2', tenantId);
 
       expect(result.name).toBe('Welcome Email (Copy)');
-      expect(mockPrisma.emailTemplate.findUnique).toHaveBeenCalledWith({
-        where: { id: 'template-1' },
+      expect(mockPrisma.emailTemplate.findFirst).toHaveBeenCalledWith({
+        where: { id: 'template-1', tenantId },
       });
       expect(mockPrisma.emailTemplate.create).toHaveBeenCalled();
     });
 
     it('should throw error when template not found', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
 
-      await expect(service.cloneEmailTemplate('nonexistent', 'user-1')).rejects.toThrow(
-        'Template not found'
+      await expect(service.cloneEmailTemplate('nonexistent', 'user-1', tenantId)).rejects.toThrow(
+        'Failed to clone email template'
       );
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
       mockPrisma.emailTemplate.create.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.cloneEmailTemplate('template-1', 'user-1')).rejects.toThrow(
+      await expect(service.cloneEmailTemplate('template-1', 'user-1', tenantId)).rejects.toThrow(
         'Failed to clone email template'
       );
     });
@@ -464,9 +508,9 @@ describe('EmailTemplateService', () => {
 
   describe('previewEmailTemplate', () => {
     it('should preview template with sample variables', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
 
-      const result = await service.previewEmailTemplate('template-1');
+      const result = await service.previewEmailTemplate('template-1', tenantId);
 
       expect(result.subject).toContain('John Doe');
       expect(result.html).toContain('John Doe');
@@ -474,9 +518,9 @@ describe('EmailTemplateService', () => {
     });
 
     it('should preview template with custom variables', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(mockTemplate);
 
-      const result = await service.previewEmailTemplate('template-1', {
+      const result = await service.previewEmailTemplate('template-1', tenantId, {
         user_name: 'Jane Smith',
         event_name: 'Winter Festival',
       });
@@ -486,17 +530,17 @@ describe('EmailTemplateService', () => {
     });
 
     it('should throw error when template not found', async () => {
-      mockPrisma.emailTemplate.findUnique.mockResolvedValue(null);
+      mockPrisma.emailTemplate.findFirst.mockResolvedValue(null);
 
-      await expect(service.previewEmailTemplate('nonexistent')).rejects.toThrow(
-        'Template not found'
+      await expect(service.previewEmailTemplate('nonexistent', tenantId)).rejects.toThrow(
+        'Failed to preview email template'
       );
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.emailTemplate.findUnique.mockRejectedValue(new Error('Database error'));
+      mockPrisma.emailTemplate.findFirst.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.previewEmailTemplate('template-1')).rejects.toThrow(
+      await expect(service.previewEmailTemplate('template-1', tenantId)).rejects.toThrow(
         'Failed to preview email template'
       );
     });

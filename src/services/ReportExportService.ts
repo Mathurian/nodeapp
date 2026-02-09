@@ -308,7 +308,10 @@ export class ReportExportService extends BaseService {
    */
   generateFilename(reportType: string, format: ExportFormat): string {
     const timestamp = new Date().toISOString().split('T')[0];
-    const sanitizedType = reportType.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const sanitizedType = reportType
+      .replace(/[^a-z0-9]/gi, '_')
+      .replace(/_+/g, '_')
+      .toLowerCase();
     return `${sanitizedType}_${timestamp}.${this.getFileExtension(format)}`;
   }
 }

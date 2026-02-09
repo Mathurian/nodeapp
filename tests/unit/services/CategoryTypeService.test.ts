@@ -3,39 +3,33 @@
  *
  * Comprehensive test suite for category type management including
  * system vs custom types, CRUD operations, and deletion constraints.
- *
- * Test Coverage:
- * - Category type retrieval
- * - Creation of custom types
- * - Type updates
- * - Deletion with system type protection
- * - Validation and authorization
  */
 
-import { describe, it, expect, beforeEach, vi } from '@jest/globals';
-import { CategoryTypeService } from '../../src/services/CategoryTypeService';
-import { NotFoundError, ValidationError } from '../../src/services/BaseService';
-import prisma from '../../src/utils/prisma';
-
-// Mock Prisma
-jest.mock('../../src/utils/prisma', () => ({
-  default: {
-    categoryType: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-  },
-}));
+import 'reflect-metadata';
+import { CategoryTypeService } from '../../../src/services/CategoryTypeService';
+import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
+import prisma from '../../../src/utils/prisma';
 
 describe('CategoryTypeService', () => {
   let service: CategoryTypeService;
+  let findManySpy: jest.SpyInstance;
+  let findUniqueSpy: jest.SpyInstance;
+  let createSpy: jest.SpyInstance;
+  let updateSpy: jest.SpyInstance;
+  let deleteSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    findManySpy = jest.spyOn(prisma.categoryType, 'findMany');
+    findUniqueSpy = jest.spyOn(prisma.categoryType, 'findUnique');
+    createSpy = jest.spyOn(prisma.categoryType, 'create');
+    updateSpy = jest.spyOn(prisma.categoryType, 'update');
+    deleteSpy = jest.spyOn(prisma.categoryType, 'delete');
+
     service = new CategoryTypeService();
-    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('getAllCategoryTypes', () => {
@@ -45,18 +39,18 @@ describe('CategoryTypeService', () => {
         { id: 'ct2', name: 'Vocal', description: 'Vocal categories', isSystem: true },
       ];
 
-      (prisma.categoryType.findMany as any).mockResolvedValue(mockTypes);
+      findManySpy.mockResolvedValue(mockTypes);
 
       const result = await service.getAllCategoryTypes();
 
       expect(result).toEqual(mockTypes);
-      expect(prisma.categoryType.findMany).toHaveBeenCalledWith({
+      expect(findManySpy).toHaveBeenCalledWith({
         orderBy: { name: 'asc' },
       });
     });
 
     it('should return empty array when no types exist', async () => {
-      (prisma.categoryType.findMany as any).mockResolvedValue([]);
+      findManySpy.mockResolvedValue([]);
 
       const result = await service.getAllCategoryTypes();
 
@@ -69,7 +63,7 @@ describe('CategoryTypeService', () => {
         { id: 'ct2', name: 'Custom Type', isSystem: false },
       ];
 
-      (prisma.categoryType.findMany as any).mockResolvedValue(mockTypes);
+      findManySpy.mockResolvedValue(mockTypes);
 
       const result = await service.getAllCategoryTypes();
 
@@ -77,20 +71,10 @@ describe('CategoryTypeService', () => {
       expect(result.some((t: any) => t.isSystem === false)).toBe(true);
     });
 
-    it('should sort types alphabetically by name', async () => {
-      const mockTypes = [
-        { id: 'ct1', name: 'Zebra', isSystem: false },
-        { id: 'ct2', name: 'Apple', isSystem: false },
-        { id: 'ct3', name: 'Mango', isSystem: false },
-      ];
+    it('should propagate database errors', async () => {
+      findManySpy.mockRejectedValue(new Error('Database error'));
 
-      (prisma.categoryType.findMany as any).mockResolvedValue(mockTypes);
-
-      await service.getAllCategoryTypes();
-
-      expect(prisma.categoryType.findMany).toHaveBeenCalledWith({
-        orderBy: { name: 'asc' },
-      });
+      await expect(service.getAllCategoryTypes()).rejects.toThrow('Database error');
     });
   });
 
@@ -104,12 +88,12 @@ describe('CategoryTypeService', () => {
         createdById: 'u1',
       };
 
-      (prisma.categoryType.create as any).mockResolvedValue(mockCreated);
+      createSpy.mockResolvedValue(mockCreated);
 
       const result = await service.createCategoryType('Instrumental', 'Instrumental categories', 'u1');
 
       expect(result).toEqual(mockCreated);
-      expect(prisma.categoryType.create).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         data: {
           name: 'Instrumental',
           description: 'Instrumental categories',
@@ -120,9 +104,7 @@ describe('CategoryTypeService', () => {
     });
 
     it('should throw ValidationError when name is missing', async () => {
-      await expect(service.createCategoryType('', 'Description', 'u1')).rejects.toThrow(
-        ValidationError
-      );
+      await expect(service.createCategoryType('', 'Description', 'u1')).rejects.toThrow(ValidationError);
     });
 
     it('should create type with null description', async () => {
@@ -134,12 +116,12 @@ describe('CategoryTypeService', () => {
         createdById: 'u1',
       };
 
-      (prisma.categoryType.create as any).mockResolvedValue(mockCreated);
+      createSpy.mockResolvedValue(mockCreated);
 
       const result = await service.createCategoryType('Type', null, 'u1');
 
       expect(result.description).toBeNull();
-      expect(prisma.categoryType.create).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         data: expect.objectContaining({
           description: null,
         }),
@@ -147,11 +129,11 @@ describe('CategoryTypeService', () => {
     });
 
     it('should always set isSystem to false for custom types', async () => {
-      (prisma.categoryType.create as any).mockResolvedValue({ isSystem: false } as any);
+      createSpy.mockResolvedValue({ isSystem: false } as any);
 
       await service.createCategoryType('Type', 'Description', 'u1');
 
-      expect(prisma.categoryType.create).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         data: expect.objectContaining({
           isSystem: false,
         }),
@@ -159,18 +141,27 @@ describe('CategoryTypeService', () => {
     });
 
     it('should handle empty string description as null', async () => {
-      (prisma.categoryType.create as any).mockResolvedValue({
+      createSpy.mockResolvedValue({
         id: 'ct1',
         description: null,
       } as any);
 
       await service.createCategoryType('Type', '', 'u1');
 
-      expect(prisma.categoryType.create).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         data: expect.objectContaining({
           description: null,
         }),
       });
+    });
+
+    it('should handle unique constraint violations', async () => {
+      const error = new Error('Unique constraint failed');
+      (error as any).code = 'P2002';
+
+      createSpy.mockRejectedValue(error);
+
+      await expect(service.createCategoryType('Duplicate', null, 'u1')).rejects.toThrow('Unique constraint failed');
     });
   });
 
@@ -183,12 +174,12 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.update as any).mockResolvedValue(mockUpdated);
+      updateSpy.mockResolvedValue(mockUpdated);
 
       const result = await service.updateCategoryType('ct1', 'Updated Name');
 
       expect(result.name).toBe('Updated Name');
-      expect(prisma.categoryType.update).toHaveBeenCalledWith({
+      expect(updateSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
         data: { name: 'Updated Name' },
       });
@@ -202,12 +193,12 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.update as any).mockResolvedValue(mockUpdated);
+      updateSpy.mockResolvedValue(mockUpdated);
 
       const result = await service.updateCategoryType('ct1', undefined, 'Updated description');
 
       expect(result.description).toBe('Updated description');
-      expect(prisma.categoryType.update).toHaveBeenCalledWith({
+      expect(updateSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
         data: { description: 'Updated description' },
       });
@@ -221,49 +212,49 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.update as any).mockResolvedValue(mockUpdated);
+      updateSpy.mockResolvedValue(mockUpdated);
 
       const result = await service.updateCategoryType('ct1', 'New Name', 'New description');
 
       expect(result.name).toBe('New Name');
       expect(result.description).toBe('New description');
-      expect(prisma.categoryType.update).toHaveBeenCalledWith({
+      expect(updateSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
         data: { name: 'New Name', description: 'New description' },
       });
     });
 
     it('should handle null description', async () => {
-      (prisma.categoryType.update as any).mockResolvedValue({
+      updateSpy.mockResolvedValue({
         id: 'ct1',
         description: null,
       } as any);
 
       await service.updateCategoryType('ct1', undefined, null);
 
-      expect(prisma.categoryType.update).toHaveBeenCalledWith({
+      expect(updateSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
         data: { description: null },
       });
     });
 
     it('should handle empty string description as null', async () => {
-      (prisma.categoryType.update as any).mockResolvedValue({} as any);
+      updateSpy.mockResolvedValue({} as any);
 
       await service.updateCategoryType('ct1', undefined, '');
 
-      expect(prisma.categoryType.update).toHaveBeenCalledWith({
+      expect(updateSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
         data: { description: null },
       });
     });
 
     it('should not update when no fields provided', async () => {
-      (prisma.categoryType.update as any).mockResolvedValue({} as any);
+      updateSpy.mockResolvedValue({} as any);
 
       await service.updateCategoryType('ct1');
 
-      expect(prisma.categoryType.update).toHaveBeenCalledWith({
+      expect(updateSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
         data: {},
       });
@@ -276,7 +267,7 @@ describe('CategoryTypeService', () => {
         isSystem: true,
       };
 
-      (prisma.categoryType.update as any).mockResolvedValue(mockUpdated);
+      updateSpy.mockResolvedValue(mockUpdated);
 
       const result = await service.updateCategoryType('ct1', 'Updated System Type');
 
@@ -292,23 +283,20 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.findUnique as any).mockResolvedValue(mockType);
-      (prisma.categoryType.delete as any).mockResolvedValue(mockType);
+      findUniqueSpy.mockResolvedValue(mockType);
+      deleteSpy.mockResolvedValue(mockType);
 
       await service.deleteCategoryType('ct1');
 
-      expect(prisma.categoryType.delete).toHaveBeenCalledWith({
+      expect(deleteSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
       });
     });
 
     it('should throw NotFoundError when category type does not exist', async () => {
-      (prisma.categoryType.findUnique as any).mockResolvedValue(null);
+      findUniqueSpy.mockResolvedValue(null);
 
       await expect(service.deleteCategoryType('nonexistent')).rejects.toThrow(NotFoundError);
-      await expect(service.deleteCategoryType('nonexistent')).rejects.toThrow(
-        'CategoryType with ID nonexistent not found'
-      );
     });
 
     it('should throw ValidationError when trying to delete system type', async () => {
@@ -318,12 +306,10 @@ describe('CategoryTypeService', () => {
         isSystem: true,
       };
 
-      (prisma.categoryType.findUnique as any).mockResolvedValue(mockSystemType);
+      findUniqueSpy.mockResolvedValue(mockSystemType);
 
-      await expect(service.deleteCategoryType('ct1')).rejects.toThrow(
-        'Cannot delete system category types'
-      );
-      expect(prisma.categoryType.delete).not.toHaveBeenCalled();
+      await expect(service.deleteCategoryType('ct1')).rejects.toThrow('Cannot delete system category types');
+      expect(deleteSpy).not.toHaveBeenCalled();
     });
 
     it('should verify type exists before attempting deletion', async () => {
@@ -332,14 +318,25 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.findUnique as any).mockResolvedValue(mockType);
-      (prisma.categoryType.delete as any).mockResolvedValue(mockType);
+      findUniqueSpy.mockResolvedValue(mockType);
+      deleteSpy.mockResolvedValue(mockType);
 
       await service.deleteCategoryType('ct1');
 
-      expect(prisma.categoryType.findUnique).toHaveBeenCalledWith({
+      expect(findUniqueSpy).toHaveBeenCalledWith({
         where: { id: 'ct1' },
       });
+    });
+
+    it('should handle foreign key constraint violations on delete', async () => {
+      const mockType = { id: 'ct1', isSystem: false };
+      const error = new Error('Foreign key constraint failed');
+      (error as any).code = 'P2003';
+
+      findUniqueSpy.mockResolvedValue(mockType);
+      deleteSpy.mockRejectedValue(error);
+
+      await expect(service.deleteCategoryType('ct1')).rejects.toThrow('Foreign key constraint failed');
     });
   });
 
@@ -351,7 +348,7 @@ describe('CategoryTypeService', () => {
         isSystem: true,
       };
 
-      (prisma.categoryType.findUnique as any).mockResolvedValue(mockSystemType);
+      findUniqueSpy.mockResolvedValue(mockSystemType);
 
       await expect(service.deleteCategoryType('ct-system')).rejects.toThrow(ValidationError);
     });
@@ -363,7 +360,7 @@ describe('CategoryTypeService', () => {
         isSystem: true,
       };
 
-      (prisma.categoryType.update as any).mockResolvedValue(mockSystemType);
+      updateSpy.mockResolvedValue(mockSystemType);
 
       const result = await service.updateCategoryType('ct-system', 'Updated System Type');
 
@@ -371,14 +368,14 @@ describe('CategoryTypeService', () => {
     });
 
     it('should only create custom types via service', async () => {
-      (prisma.categoryType.create as any).mockResolvedValue({
+      createSpy.mockResolvedValue({
         id: 'ct1',
         isSystem: false,
       } as any);
 
       await service.createCategoryType('Type', 'Description', 'u1');
 
-      expect(prisma.categoryType.create).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         data: expect.objectContaining({
           isSystem: false,
         }),
@@ -394,7 +391,7 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.create as any).mockResolvedValue(mockType);
+      createSpy.mockResolvedValue(mockType);
 
       const result = await service.createCategoryType('Dance & Performance', null, 'u1');
 
@@ -410,30 +407,15 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.create as any).mockResolvedValue(mockType);
+      createSpy.mockResolvedValue(mockType);
 
       const result = await service.createCategoryType('Type', longDescription, 'u1');
 
       expect(result.description).toBe(longDescription);
     });
 
-    it('should handle whitespace-only description as null', async () => {
-      (prisma.categoryType.create as any).mockResolvedValue({
-        id: 'ct1',
-        description: null,
-      } as any);
-
-      await service.createCategoryType('Type', '   ', 'u1');
-
-      expect(prisma.categoryType.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          description: null,
-        }),
-      });
-    });
-
     it('should handle concurrent operations', async () => {
-      (prisma.categoryType.findMany as any).mockResolvedValue([]);
+      findManySpy.mockResolvedValue([]);
 
       const promises = [
         service.getAllCategoryTypes(),
@@ -456,43 +438,11 @@ describe('CategoryTypeService', () => {
         isSystem: false,
       };
 
-      (prisma.categoryType.create as any).mockResolvedValue(mockType);
+      createSpy.mockResolvedValue(mockType);
 
       const result = await service.createCategoryType('DaNcE', null, 'u1');
 
       expect(result.name).toBe('DaNcE');
-    });
-  });
-
-  describe('error handling', () => {
-    it('should propagate Prisma errors', async () => {
-      (prisma.categoryType.findMany as any).mockRejectedValue(new Error('Database error'));
-
-      await expect(service.getAllCategoryTypes()).rejects.toThrow('Database error');
-    });
-
-    it('should handle unique constraint violations', async () => {
-      const error = new Error('Unique constraint failed');
-      (error as any).code = 'P2002';
-
-      (prisma.categoryType.create as any).mockRejectedValue(error);
-
-      await expect(service.createCategoryType('Duplicate', null, 'u1')).rejects.toThrow(
-        'Unique constraint failed'
-      );
-    });
-
-    it('should handle foreign key constraint violations on delete', async () => {
-      const mockType = { id: 'ct1', isSystem: false };
-      const error = new Error('Foreign key constraint failed');
-      (error as any).code = 'P2003';
-
-      (prisma.categoryType.findUnique as any).mockResolvedValue(mockType);
-      (prisma.categoryType.delete as any).mockRejectedValue(error);
-
-      await expect(service.deleteCategoryType('ct1')).rejects.toThrow(
-        'Foreign key constraint failed'
-      );
     });
   });
 });

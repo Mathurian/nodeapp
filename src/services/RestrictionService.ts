@@ -150,6 +150,14 @@ export class RestrictionService extends BaseService {
         return false;
       }
 
+      // Check contest-level restriction
+      if (contest.contestantViewRestricted) {
+        if (contest.contestantViewReleaseDate) {
+          return new Date() >= contest.contestantViewReleaseDate;
+        }
+        return false;
+      }
+
       return true;
     } else if (eventId) {
       const event: EventBasic | null = await this.prisma.event.findUnique({

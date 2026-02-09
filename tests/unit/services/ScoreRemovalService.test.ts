@@ -15,19 +15,24 @@
  * - Validation and error handling
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { mock, MockProxy } from 'jest-mock-extended';
+import 'reflect-metadata';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { ScoreRemovalService } from '../../src/services/ScoreRemovalService';
-import { NotFoundError, ValidationError, ForbiddenError } from '../../src/services/BaseService';
+import { ScoreRemovalService } from '../../../src/services/ScoreRemovalService';
+import { NotFoundError, ValidationError, ForbiddenError } from '../../../src/services/BaseService';
 
 describe('ScoreRemovalService', () => {
   let service: ScoreRemovalService;
-  let prismaMock: MockProxy<PrismaClient>;
+  let prismaMock: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = mock<PrismaClient>();
+    prismaMock = mockDeep<PrismaClient>();
     service = new ScoreRemovalService(prismaMock as any);
+  });
+
+  afterEach(() => {
+    mockReset(prismaMock);
   });
 
   describe('createRequest', () => {

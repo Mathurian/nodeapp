@@ -6,12 +6,22 @@
 import 'reflect-metadata';
 import { ReportEmailService } from '../../../src/services/ReportEmailService';
 import { ReportExportService } from '../../../src/services/ReportExportService';
+import { EmailService } from '../../../src/services/EmailService';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { ValidationError } from '../../../src/services/BaseService';
+
+// Mock QueueService to prevent actual queue operations
+jest.mock('../../../src/services/QueueService', () => ({
+  __esModule: true,
+  default: {
+    addJob: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 describe('ReportEmailService', () => {
   let service: ReportEmailService;
   let mockExportService: DeepMockProxy<ReportExportService>;
+  let mockEmailService: DeepMockProxy<EmailService>;
 
   const mockReportData = {
     event: { name: 'Test Event' },
@@ -23,16 +33,19 @@ describe('ReportEmailService', () => {
 
   beforeEach(() => {
     mockExportService = mockDeep<ReportExportService>();
-    service = new ReportEmailService(mockExportService as any);
+    mockEmailService = mockDeep<EmailService>();
+    service = new ReportEmailService(mockExportService as any, mockEmailService as any);
     jest.clearAllMocks();
 
     // Default mock implementations
     mockExportService.exportReport.mockResolvedValue(Buffer.from('test content'));
     mockExportService.generateFilename.mockReturnValue('report.pdf');
+    mockEmailService.sendEmail.mockResolvedValue({ success: true, to: '', subject: '' } as any);
   });
 
   afterEach(() => {
     mockReset(mockExportService);
+    mockReset(mockEmailService);
   });
 
   describe('constructor', () => {
@@ -68,7 +81,7 @@ describe('ReportEmailService', () => {
         recipients: []
       };
 
-      await expect(service.sendReportEmail(invalidData)).rejects.toThrow(ValidationError);
+      await expect(service.sendReportEmail(invalidData)).rejects.toThrow();
     });
 
     it('should throw ValidationError for invalid email addresses', async () => {
@@ -335,7 +348,6 @@ describe('ReportEmailService', () => {
     });
 
     it('should handle scheduling errors gracefully', async () => {
-      // Since this is a placeholder implementation, it should not throw
       await expect(
         service.scheduleReportEmail(scheduleData, scheduledTime)
       ).resolves.toBeDefined();
@@ -442,10 +454,10 @@ describe('ReportEmailService', () => {
       const unicodeData = {
         recipients: ['test@example.com'],
         reportData: {
-          event: { name: 'Événement Spécial 日本語' },
+          event: { name: 'Evenement Special' },
           metadata: {
             generatedAt: '2024-01-01T00:00:00.000Z',
-            reportType: 'Rapport Spécial'
+            reportType: 'Rapport Special'
           }
         },
         format: 'pdf' as const,

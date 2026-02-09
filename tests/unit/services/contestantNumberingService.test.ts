@@ -5,23 +5,24 @@
 
 import 'reflect-metadata';
 import ContestantNumberingService from '../../../src/services/contestantNumberingService';
-import { PrismaClient } from '@prisma/client';
-import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
+import prisma from '../../../src/utils/prisma';
 
 describe('ContestantNumberingService', () => {
   let service: typeof ContestantNumberingService;
-  let mockPrisma: DeepMockProxy<PrismaClient>;
+  let contestFindUniqueSpy: jest.SpyInstance;
+  let contestUpdateSpy: jest.SpyInstance;
+  let contestantFindFirstSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    mockPrisma = mockDeep<PrismaClient>();
-    // Mock the prisma instance
-    (ContestantNumberingService as any).prisma = mockPrisma;
+    contestFindUniqueSpy = jest.spyOn(prisma.contest, 'findUnique');
+    contestUpdateSpy = jest.spyOn(prisma.contest, 'update');
+    contestantFindFirstSpy = jest.spyOn(prisma.contestant, 'findFirst');
     service = ContestantNumberingService;
     jest.clearAllMocks();
   });
 
   afterEach(() => {
-    mockReset(mockPrisma);
+    jest.restoreAllMocks();
   });
 
   describe('getNextContestantNumber', () => {
@@ -35,13 +36,13 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contest.update.mockResolvedValue({ ...mockContest, nextContestantNumber: 6 } as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestUpdateSpy.mockResolvedValue({ ...mockContest, nextContestantNumber: 6 } as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
       expect(result).toBe(5);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 6 },
       });
@@ -57,13 +58,13 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contest.update.mockResolvedValue({ ...mockContest, nextContestantNumber: 11 } as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestUpdateSpy.mockResolvedValue({ ...mockContest, nextContestantNumber: 11 } as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
       expect(result).toBe(10);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 11 },
       });
@@ -79,12 +80,12 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
       expect(result).toBeNull();
-      expect(mockPrisma.contest.update).not.toHaveBeenCalled();
+      expect(contestUpdateSpy).not.toHaveBeenCalled();
     });
 
     it('should return null for OPTIONAL numbering mode', async () => {
@@ -97,12 +98,12 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
       expect(result).toBeNull();
-      expect(mockPrisma.contest.update).not.toHaveBeenCalled();
+      expect(contestUpdateSpy).not.toHaveBeenCalled();
     });
 
     it('should start from 1 if nextContestantNumber is null', async () => {
@@ -115,26 +116,26 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contest.update.mockResolvedValue({ ...mockContest, nextContestantNumber: 2 } as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestUpdateSpy.mockResolvedValue({ ...mockContest, nextContestantNumber: 2 } as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
       expect(result).toBe(1);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 2 },
       });
     });
 
     it('should throw error if contest not found', async () => {
-      mockPrisma.contest.findUnique.mockResolvedValue(null);
+      contestFindUniqueSpy.mockResolvedValue(null);
 
       await expect(service.getNextContestantNumber('nonexistent')).rejects.toThrow('Contest not found');
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.contest.findUnique.mockRejectedValue(new Error('Database connection failed'));
+      contestFindUniqueSpy.mockRejectedValue(new Error('Database connection failed'));
 
       await expect(service.getNextContestantNumber('contest-1')).rejects.toThrow('Database connection failed');
     });
@@ -149,13 +150,13 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contest.update.mockResolvedValue({ ...mockContest, nextContestantNumber: 101 } as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestUpdateSpy.mockResolvedValue({ ...mockContest, nextContestantNumber: 101 } as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
       expect(result).toBe(100);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 101 },
       });
@@ -172,7 +173,7 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.getNumberingMode('contest-1');
 
@@ -188,7 +189,7 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.getNumberingMode('contest-1');
 
@@ -204,7 +205,7 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.getNumberingMode('contest-1');
 
@@ -212,13 +213,13 @@ describe('ContestantNumberingService', () => {
     });
 
     it('should throw error if contest not found', async () => {
-      mockPrisma.contest.findUnique.mockResolvedValue(null);
+      contestFindUniqueSpy.mockResolvedValue(null);
 
       await expect(service.getNumberingMode('nonexistent')).rejects.toThrow('Contest not found');
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.contest.findUnique.mockRejectedValue(new Error('Database error'));
+      contestFindUniqueSpy.mockRejectedValue(new Error('Database error'));
 
       await expect(service.getNumberingMode('contest-1')).rejects.toThrow('Database error');
     });
@@ -234,7 +235,7 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.validateContestantNumber('contest-1', 123);
 
@@ -251,7 +252,7 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const result = await service.validateContestantNumber('contest-1', null);
 
@@ -268,7 +269,7 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
 
       const resultWithNumber = await service.validateContestantNumber('contest-1', 123);
       expect(resultWithNumber.valid).toBe(true);
@@ -286,8 +287,8 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'existing-contestant', contestantNumber: 123 } as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestantFindFirstSpy.mockResolvedValue({ id: 'existing-contestant', contestantNumber: 123 } as any);
 
       const result = await service.validateContestantNumber('contest-1', 123);
 
@@ -304,8 +305,8 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contestant.findFirst.mockResolvedValue(null);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestantFindFirstSpy.mockResolvedValue(null);
 
       const result = await service.validateContestantNumber('contest-1', 456);
 
@@ -313,7 +314,7 @@ describe('ContestantNumberingService', () => {
     });
 
     it('should handle validation errors gracefully', async () => {
-      mockPrisma.contest.findUnique.mockRejectedValue(new Error('Database error'));
+      contestFindUniqueSpy.mockRejectedValue(new Error('Database error'));
 
       const result = await service.validateContestantNumber('contest-1', 123);
 
@@ -330,13 +331,13 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contestant.findFirst.mockResolvedValue(null);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestantFindFirstSpy.mockResolvedValue(null);
 
       const result = await service.validateContestantNumber('contest-1', 999);
 
       expect(result.valid).toBe(true);
-      expect(mockPrisma.contestant.findFirst).toHaveBeenCalledWith({
+      expect(contestantFindFirstSpy).toHaveBeenCalledWith({
         where: {
           contestantNumber: 999,
           contestContestants: {
@@ -353,54 +354,54 @@ describe('ContestantNumberingService', () => {
 
   describe('resetContestantNumbering', () => {
     it('should reset to default start number (1)', async () => {
-      mockPrisma.contest.update.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 1 } as any);
+      contestUpdateSpy.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 1 } as any);
 
       const result = await service.resetContestantNumbering('contest-1');
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 1 },
       });
     });
 
     it('should reset to custom start number', async () => {
-      mockPrisma.contest.update.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 100 } as any);
+      contestUpdateSpy.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 100 } as any);
 
       const result = await service.resetContestantNumbering('contest-1', 100);
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 100 },
       });
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.contest.update.mockRejectedValue(new Error('Database error'));
+      contestUpdateSpy.mockRejectedValue(new Error('Database error'));
 
       await expect(service.resetContestantNumbering('contest-1')).rejects.toThrow('Database error');
     });
 
     it('should accept zero as start number', async () => {
-      mockPrisma.contest.update.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 0 } as any);
+      contestUpdateSpy.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 0 } as any);
 
       const result = await service.resetContestantNumbering('contest-1', 0);
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 0 },
       });
     });
 
     it('should accept large start numbers', async () => {
-      mockPrisma.contest.update.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 9999 } as any);
+      contestUpdateSpy.mockResolvedValue({ id: 'contest-1', nextContestantNumber: 9999 } as any);
 
       const result = await service.resetContestantNumbering('contest-1', 9999);
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.contest.update).toHaveBeenCalledWith({
+      expect(contestUpdateSpy).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         data: { nextContestantNumber: 9999 },
       });
@@ -409,14 +410,17 @@ describe('ContestantNumberingService', () => {
 
   describe('edge cases', () => {
     it('should handle empty contest ID', async () => {
+      contestFindUniqueSpy.mockResolvedValue(null);
       await expect(service.getNextContestantNumber('')).rejects.toThrow();
     });
 
     it('should handle null contest ID', async () => {
+      contestFindUniqueSpy.mockResolvedValue(null);
       await expect(service.getNextContestantNumber(null as any)).rejects.toThrow();
     });
 
     it('should handle undefined contest ID', async () => {
+      contestFindUniqueSpy.mockResolvedValue(null);
       await expect(service.getNextContestantNumber(undefined as any)).rejects.toThrow();
     });
 
@@ -430,8 +434,8 @@ describe('ContestantNumberingService', () => {
         },
       };
 
-      mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
-      mockPrisma.contest.update.mockResolvedValue({ ...mockContest, nextContestantNumber: 1000000 } as any);
+      contestFindUniqueSpy.mockResolvedValue(mockContest as any);
+      contestUpdateSpy.mockResolvedValue({ ...mockContest, nextContestantNumber: 1000000 } as any);
 
       const result = await service.getNextContestantNumber('contest-1');
 
@@ -439,7 +443,7 @@ describe('ContestantNumberingService', () => {
     });
 
     it('should handle negative start numbers in reset', async () => {
-      mockPrisma.contest.update.mockResolvedValue({ id: 'contest-1', nextContestantNumber: -10 } as any);
+      contestUpdateSpy.mockResolvedValue({ id: 'contest-1', nextContestantNumber: -10 } as any);
 
       const result = await service.resetContestantNumbering('contest-1', -10);
 

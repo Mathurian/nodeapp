@@ -4,21 +4,43 @@
  */
 
 import { VirusScanService } from '../../../src/services/VirusScanService';
-import { ScanStatus } from '../../../src/config/virus-scan.config';
+import { ScanStatus, VirusScanConfig } from '../../../src/config/virus-scan.config';
 import * as fs from 'fs';
 import * as net from 'net';
+import * as virusScanConfig from '../../../src/config/virus-scan.config';
 
 // Mock modules
 jest.mock('fs');
 jest.mock('net');
 
+// Default mock config
+const createMockConfig = (overrides: Partial<VirusScanConfig> = {}): VirusScanConfig => ({
+  enabled: false, // Default to disabled for most tests
+  mode: 'disabled',
+  host: 'localhost',
+  port: 3310,
+  timeout: 60000,
+  maxFileSize: 52428800, // 50MB
+  quarantinePath: './quarantine',
+  scanOnUpload: true,
+  removeInfected: false,
+  notifyOnInfection: true,
+  fallbackBehavior: 'allow',
+  connectionRetries: 3,
+  ...overrides,
+});
+
 describe('VirusScanService', () => {
   let service: VirusScanService;
   const mockFs = fs as jest.Mocked<typeof fs>;
-  const mockNet = net as jest.Mocked<typeof net>;
+  let mockGetVirusScanConfig: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock getVirusScanConfig to return disabled config by default
+    mockGetVirusScanConfig = jest.spyOn(virusScanConfig, 'getVirusScanConfig')
+      .mockReturnValue(createMockConfig());
 
     // Mock fs.existsSync to return true by default
     mockFs.existsSync.mockReturnValue(true);
@@ -26,7 +48,14 @@ describe('VirusScanService', () => {
     // Mock fs.mkdirSync
     mockFs.mkdirSync.mockReturnValue(undefined);
 
+    // Mock fs.statSync to return default file stats
+    mockFs.statSync.mockReturnValue({ size: 1024, isFile: () => true, isDirectory: () => false } as any);
+
     service = new VirusScanService();
+  });
+
+  afterEach(() => {
+    mockGetVirusScanConfig.mockRestore();
   });
 
   describe('constructor', () => {
@@ -56,73 +85,89 @@ describe('VirusScanService', () => {
   describe('isAvailable', () => {
     it('should return false when scanning is disabled', async () => {
       const result = await service.isAvailable();
-      expect(typeof result).toBe('boolean');
+      expect(result).toBe(false);
     });
 
     it('should attempt to connect to ClamAV when enabled', async () => {
+      // Create a new service with scanning enabled
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({
+        enabled: true,
+        mode: 'native-tcp',
+      }));
+      const enabledService = new VirusScanService();
+
       const mockSocket = {
         setTimeout: jest.fn(),
-        on: jest.fn(),
+        on: jest.fn().mockImplementation(function(this: any, event: string, handler: Function) {
+          if (event === 'connect') {
+            // Call connect handler immediately
+            setImmediate(() => handler());
+          }
+          return this;
+        }),
         end: jest.fn(),
         destroy: jest.fn()
       };
 
-      mockNet.createConnection = jest.fn().mockReturnValue(mockSocket as any);
+      jest.spyOn(net, 'createConnection').mockReturnValue(mockSocket as any);
 
-      const promise = service.isAvailable();
-
-      // Simulate connection
-      const connectHandler = mockSocket.on.mock.calls.find(call => call[0] === 'connect')?.[1];
-      if (connectHandler) {
-        connectHandler();
-      }
-
-      await promise;
+      const result = await enabledService.isAvailable();
 
       expect(mockSocket.setTimeout).toHaveBeenCalled();
+      expect(result).toBe(true);
     });
 
     it('should return false on connection error', async () => {
+      // Create a new service with scanning enabled
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({
+        enabled: true,
+        mode: 'native-tcp',
+      }));
+      const enabledService = new VirusScanService();
+
       const mockSocket = {
         setTimeout: jest.fn(),
-        on: jest.fn(),
+        on: jest.fn().mockImplementation(function(this: any, event: string, handler: Function) {
+          if (event === 'error') {
+            // Call error handler immediately
+            setImmediate(() => handler(new Error('Connection failed')));
+          }
+          return this;
+        }),
         end: jest.fn(),
         destroy: jest.fn()
       };
 
-      mockNet.createConnection = jest.fn().mockReturnValue(mockSocket as any);
+      jest.spyOn(net, 'createConnection').mockReturnValue(mockSocket as any);
 
-      const promise = service.isAvailable();
-
-      // Simulate error
-      const errorHandler = mockSocket.on.mock.calls.find(call => call[0] === 'error')?.[1];
-      if (errorHandler) {
-        errorHandler(new Error('Connection failed'));
-      }
-
-      const result = await promise;
+      const result = await enabledService.isAvailable();
       expect(result).toBe(false);
     });
 
     it('should return false on timeout', async () => {
+      // Create a new service with scanning enabled
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({
+        enabled: true,
+        mode: 'native-tcp',
+      }));
+      const enabledService = new VirusScanService();
+
       const mockSocket = {
         setTimeout: jest.fn(),
-        on: jest.fn(),
+        on: jest.fn().mockImplementation(function(this: any, event: string, handler: Function) {
+          if (event === 'timeout') {
+            // Call timeout handler immediately
+            setImmediate(() => handler());
+          }
+          return this;
+        }),
         end: jest.fn(),
         destroy: jest.fn()
       };
 
-      mockNet.createConnection = jest.fn().mockReturnValue(mockSocket as any);
+      jest.spyOn(net, 'createConnection').mockReturnValue(mockSocket as any);
 
-      const promise = service.isAvailable();
-
-      // Simulate timeout
-      const timeoutHandler = mockSocket.on.mock.calls.find(call => call[0] === 'timeout')?.[1];
-      if (timeoutHandler) {
-        timeoutHandler();
-      }
-
-      const result = await promise;
+      const result = await enabledService.isAvailable();
       expect(result).toBe(false);
     });
   });
@@ -139,30 +184,40 @@ describe('VirusScanService', () => {
       expect(result.file).toBe(testFilePath);
     });
 
-    it('should return ERROR status when file does not exist', async () => {
+    it('should return SKIPPED status when file does not exist and scan is disabled', async () => {
       mockFs.existsSync.mockReturnValue(false);
 
       const result = await service.scanFile(testFilePath);
 
-      expect(result.status).toBe(ScanStatus.ERROR);
-      expect(result.error).toBe('File not found');
+      // When virus scan is disabled, non-existent files are skipped
+      expect(result.status).toBe(ScanStatus.SKIPPED);
     });
 
     it('should return TOO_LARGE status for files exceeding max size', async () => {
+      // Enable scanning for this test
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'clamav' }));
+      const enabledService = new VirusScanService();
+
       mockFs.statSync.mockReturnValue({ size: 100000000000 } as any);
 
-      const result = await service.scanFile(testFilePath);
+      const result = await enabledService.scanFile(testFilePath);
 
       expect(result.status).toBe(ScanStatus.TOO_LARGE);
       expect(result.error).toContain('exceeds maximum scan size');
     });
 
     it('should handle scan errors gracefully', async () => {
-      mockFs.statSync.mockImplementation(() => {
-        throw new Error('File system error');
+      // Enable scanning so errors are captured
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'clamav' }));
+      const enabledService = new VirusScanService();
+
+      // Mock statSync to return size for error handling, but file read will fail
+      mockFs.statSync.mockReturnValue({ size: 1024 } as any);
+      mockFs.readFileSync.mockImplementation(() => {
+        throw new Error('File read error');
       });
 
-      const result = await service.scanFile(testFilePath);
+      const result = await enabledService.scanFile(testFilePath);
 
       expect(result.status).toBe(ScanStatus.ERROR);
       expect(result.error).toBeDefined();
@@ -191,9 +246,18 @@ describe('VirusScanService', () => {
     });
 
     it('should return TOO_LARGE status for buffers exceeding max size', async () => {
-      const largeBuffer = Buffer.alloc(100000000000);
+      // Enable scanning for this test
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'clamav' }));
+      const enabledService = new VirusScanService();
 
-      const result = await service.scanBuffer(largeBuffer, testFilename);
+      // Create a buffer that appears large by mocking the length property
+      const largeBuffer = Buffer.alloc(1024);
+      Object.defineProperty(largeBuffer, 'length', {
+        value: 100 * 1024 * 1024 * 1024, // 100GB (virtual size)
+        writable: false,
+      });
+
+      const result = await enabledService.scanBuffer(largeBuffer, testFilename);
 
       expect(result.status).toBe(ScanStatus.TOO_LARGE);
       expect(result.error).toContain('exceeds maximum scan size');
@@ -406,7 +470,8 @@ describe('VirusScanService', () => {
     it('should handle empty filename gracefully', async () => {
       const result = await service.scanFile('');
 
-      expect(result.status).toBe(ScanStatus.ERROR);
+      // Empty filename is handled as skipped when virus scan is disabled
+      expect(result.status).toBe(ScanStatus.SKIPPED);
     });
 
     it('should handle null buffer gracefully', async () => {

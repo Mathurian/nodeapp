@@ -9,7 +9,7 @@ import { WinnersController } from '../../../src/controllers/winnersController';
 import { WinnerService } from '../../../src/services/WinnerService';
 import { container } from 'tsyringe';
 import { createRequestLogger } from '../../../src/utils/logger';
-import { sendSuccess } from '../../../src/utils/responseHelpers';
+import { sendSuccess, sendUnauthorized } from '../../../src/utils/responseHelpers';
 import { UserRole } from '@prisma/client';
 
 // Mock dependencies
@@ -51,6 +51,9 @@ describe('WinnersController', () => {
       getRoleCertificationStatus: jest.fn(),
       certifyScores: jest.fn(),
       getWinners: jest.fn(),
+      publishWinners: jest.fn(),
+      unpublishWinners: jest.fn(),
+      getWinnersPublicationStatus: jest.fn(),
     } as any;
 
     (container.resolve as jest.Mock) = jest.fn(() => mockWinnerService);
@@ -60,7 +63,8 @@ describe('WinnersController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: UserRole.ADMIN },
+      user: { id: 'user-1', role: UserRole.ADMIN, tenantId: 'tenant-1' },
+      tenantId: 'tenant-1',
       ip: '127.0.0.1',
       get: jest.fn((header: string) => {
         if (header === 'user-agent') return 'Mozilla/5.0 Test Agent';
@@ -97,7 +101,8 @@ describe('WinnersController', () => {
 
       expect(mockWinnerService.getWinnersByCategory).toHaveBeenCalledWith(
         'cat-1',
-        UserRole.ADMIN
+        UserRole.ADMIN,
+        'tenant-1'
       );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -137,7 +142,7 @@ describe('WinnersController', () => {
 
     it('should pass user role to service', async () => {
       mockReq.params = { categoryId: 'cat-1' };
-      mockReq.user = { id: 'judge-1', role: UserRole.JUDGE };
+      mockReq.user = { id: 'judge-1', role: UserRole.JUDGE, tenantId: 'tenant-1' };
       mockWinnerService.getWinnersByCategory.mockResolvedValue({
         winners: [],
         message: 'Success',
@@ -151,7 +156,8 @@ describe('WinnersController', () => {
 
       expect(mockWinnerService.getWinnersByCategory).toHaveBeenCalledWith(
         'cat-1',
-        UserRole.JUDGE
+        UserRole.JUDGE,
+        'tenant-1'
       );
     });
   });
@@ -180,7 +186,8 @@ describe('WinnersController', () => {
       expect(mockWinnerService.getWinnersByContest).toHaveBeenCalledWith(
         'contest-1',
         UserRole.ADMIN,
-        true
+        true,
+        'tenant-1'
       );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -206,7 +213,8 @@ describe('WinnersController', () => {
       expect(mockWinnerService.getWinnersByContest).toHaveBeenCalledWith(
         'contest-1',
         UserRole.ADMIN,
-        true
+        true,
+        'tenant-1'
       );
     });
 
@@ -228,7 +236,8 @@ describe('WinnersController', () => {
       expect(mockWinnerService.getWinnersByContest).toHaveBeenCalledWith(
         'contest-1',
         UserRole.ADMIN,
-        true
+        true,
+        'tenant-1'
       );
     });
 
@@ -264,7 +273,7 @@ describe('WinnersController', () => {
   describe('signWinners', () => {
     it('should sign winners for a category', async () => {
       mockReq.body = { categoryId: 'cat-1' };
-      mockReq.user = { id: 'tally-1', role: UserRole.TALLY_MASTER };
+      mockReq.user = { id: 'tally-1', role: UserRole.TALLY_MASTER, tenantId: 'tenant-1' };
       mockReq.ip = '192.168.1.100';
       const mockResult = {
         categoryId: 'cat-1',
@@ -280,6 +289,7 @@ describe('WinnersController', () => {
         'cat-1',
         'tally-1',
         UserRole.TALLY_MASTER,
+        'tenant-1',
         '192.168.1.100',
         'Mozilla/5.0 Test Agent'
       );
@@ -316,6 +326,7 @@ describe('WinnersController', () => {
         'cat-1',
         'user-1',
         UserRole.ADMIN,
+        'tenant-1',
         '10.0.0.5',
         'Custom/1.0 Agent'
       );
@@ -335,7 +346,7 @@ describe('WinnersController', () => {
   describe('getSignatureStatus', () => {
     it('should return signature status for a category', async () => {
       mockReq.params = { categoryId: 'cat-1' };
-      mockReq.user = { id: 'user-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'user-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       const mockResult = {
         categoryId: 'cat-1',
         signed: true,
@@ -350,7 +361,7 @@ describe('WinnersController', () => {
         mockNext
       );
 
-      expect(mockWinnerService.getSignatureStatus).toHaveBeenCalledWith('cat-1', 'user-1');
+      expect(mockWinnerService.getSignatureStatus).toHaveBeenCalledWith('cat-1', 'user-1', 'tenant-1');
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -405,7 +416,7 @@ describe('WinnersController', () => {
         mockNext
       );
 
-      expect(mockWinnerService.getCertificationProgress).toHaveBeenCalledWith('cat-1');
+      expect(mockWinnerService.getCertificationProgress).toHaveBeenCalledWith('cat-1', 'tenant-1');
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -462,7 +473,8 @@ describe('WinnersController', () => {
 
       expect(mockWinnerService.getRoleCertificationStatus).toHaveBeenCalledWith(
         'cat-1',
-        'JUDGE'
+        'JUDGE',
+        'tenant-1'
       );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -521,7 +533,7 @@ describe('WinnersController', () => {
   describe('certifyScores', () => {
     it('should certify scores for a category', async () => {
       mockReq.body = { categoryId: 'cat-1' };
-      mockReq.user = { id: 'auditor-1', role: UserRole.AUDITOR };
+      mockReq.user = { id: 'auditor-1', role: UserRole.AUDITOR, tenantId: 'tenant-1' };
       const mockResult = {
         categoryId: 'cat-1',
         certifiedBy: 'auditor-1',
@@ -535,7 +547,8 @@ describe('WinnersController', () => {
       expect(mockWinnerService.certifyScores).toHaveBeenCalledWith(
         'cat-1',
         'auditor-1',
-        UserRole.AUDITOR
+        UserRole.AUDITOR,
+        'tenant-1'
       );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -579,7 +592,12 @@ describe('WinnersController', () => {
 
       await controller.getWinners(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockWinnerService.getWinners).toHaveBeenCalledWith(undefined, undefined);
+      expect(mockWinnerService.getWinners).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+        UserRole.ADMIN,
+        'tenant-1'
+      );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -598,7 +616,12 @@ describe('WinnersController', () => {
 
       await controller.getWinners(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockWinnerService.getWinners).toHaveBeenCalledWith('event-1', undefined);
+      expect(mockWinnerService.getWinners).toHaveBeenCalledWith(
+        'event-1',
+        undefined,
+        UserRole.ADMIN,
+        'tenant-1'
+      );
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: mockResult,
@@ -616,7 +639,12 @@ describe('WinnersController', () => {
 
       await controller.getWinners(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockWinnerService.getWinners).toHaveBeenCalledWith(undefined, 'contest-1');
+      expect(mockWinnerService.getWinners).toHaveBeenCalledWith(
+        undefined,
+        'contest-1',
+        UserRole.ADMIN,
+        'tenant-1'
+      );
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: mockResult,
@@ -635,7 +663,12 @@ describe('WinnersController', () => {
 
       await controller.getWinners(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockWinnerService.getWinners).toHaveBeenCalledWith('event-1', 'contest-1');
+      expect(mockWinnerService.getWinners).toHaveBeenCalledWith(
+        'event-1',
+        'contest-1',
+        UserRole.ADMIN,
+        'tenant-1'
+      );
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: mockResult,
@@ -673,7 +706,7 @@ describe('WinnersController', () => {
 
   describe('Role-based Winner Access', () => {
     it('should allow ADMIN to access all winner methods', async () => {
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockReq.params = { categoryId: 'cat-1' };
       mockWinnerService.getWinnersByCategory.mockResolvedValue({
         winners: [],
@@ -688,13 +721,14 @@ describe('WinnersController', () => {
 
       expect(mockWinnerService.getWinnersByCategory).toHaveBeenCalledWith(
         'cat-1',
-        UserRole.ADMIN
+        UserRole.ADMIN,
+        'tenant-1'
       );
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });
 
     it('should allow TALLY_MASTER to sign winners', async () => {
-      mockReq.user = { id: 'tally-1', role: UserRole.TALLY_MASTER };
+      mockReq.user = { id: 'tally-1', role: UserRole.TALLY_MASTER, tenantId: 'tenant-1' };
       mockReq.body = { categoryId: 'cat-1' };
       mockWinnerService.signWinners.mockResolvedValue({
         message: 'Signed',
@@ -706,6 +740,7 @@ describe('WinnersController', () => {
         'cat-1',
         'tally-1',
         UserRole.TALLY_MASTER,
+        'tenant-1',
         expect.any(String),
         expect.any(String)
       );
@@ -713,7 +748,7 @@ describe('WinnersController', () => {
     });
 
     it('should allow AUDITOR to certify scores', async () => {
-      mockReq.user = { id: 'auditor-1', role: UserRole.AUDITOR };
+      mockReq.user = { id: 'auditor-1', role: UserRole.AUDITOR, tenantId: 'tenant-1' };
       mockReq.body = { categoryId: 'cat-1' };
       mockWinnerService.certifyScores.mockResolvedValue({
         message: 'Certified',
@@ -724,7 +759,8 @@ describe('WinnersController', () => {
       expect(mockWinnerService.certifyScores).toHaveBeenCalledWith(
         'cat-1',
         'auditor-1',
-        UserRole.AUDITOR
+        UserRole.AUDITOR,
+        'tenant-1'
       );
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });

@@ -6,12 +6,14 @@
 import { CategoryService } from '../../../src/services/CategoryService';
 import { CategoryRepository } from '../../../src/repositories/CategoryRepository';
 import { CacheService } from '../../../src/services/CacheService';
+import { MetricsService } from '../../../src/services/MetricsService';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('CategoryService', () => {
   let categoryService: CategoryService;
   let mockCategoryRepo: jest.Mocked<CategoryRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
+  let mockMetricsService: jest.Mocked<MetricsService>;
 
   beforeEach(() => {
     mockCategoryRepo = {
@@ -41,7 +43,12 @@ describe('CategoryService', () => {
       enabled: true,
     } as any;
 
-    categoryService = new CategoryService(mockCategoryRepo, mockCacheService);
+    mockMetricsService = {
+      recordSoftDelete: jest.fn(),
+      recordSoftDeleteRestore: jest.fn(),
+    } as any;
+
+    categoryService = new CategoryService(mockCategoryRepo, mockCacheService, mockMetricsService);
   });
 
   afterEach(() => {
@@ -265,19 +272,24 @@ describe('CategoryService', () => {
   });
 
   describe('deleteCategory', () => {
-    it('should delete category and invalidate cache', async () => {
+    it('should soft delete category and invalidate cache', async () => {
       const existingCategory = {
         id: '1',
         name: 'Category',
         contestId: 'contest-1',
+        tenantId: 'tenant-1',
       };
       mockCacheService.get.mockResolvedValue(null);
       mockCategoryRepo.findById.mockResolvedValue(existingCategory as any);
-      mockCategoryRepo.delete.mockResolvedValue(undefined);
+      mockCategoryRepo.update.mockResolvedValue(existingCategory as any);
 
       await categoryService.deleteCategory('1');
 
-      expect(mockCategoryRepo.delete).toHaveBeenCalledWith('1');
+      expect(mockCategoryRepo.update).toHaveBeenCalledWith('1', expect.objectContaining({
+        deletedAt: expect.any(Date),
+        deletedBy: null,
+      }));
+      expect(mockMetricsService.recordSoftDelete).toHaveBeenCalledWith('Category', 'tenant-1');
       expect(mockCacheService.del).toHaveBeenCalledWith('category:1');
       expect(mockCacheService.del).toHaveBeenCalledWith('categories:contest:contest-1');
     });

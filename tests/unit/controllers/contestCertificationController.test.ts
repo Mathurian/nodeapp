@@ -89,7 +89,7 @@ describe('ContestCertificationController', () => {
 
       await controller.certifyContest(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.certifyContest).toHaveBeenCalledWith('contest-1', 'user-1', 'TALLY_MASTER');
+      expect(mockService.certifyContest).toHaveBeenCalledWith('contest-1', 'user-1', 'TALLY_MASTER', undefined);
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockCertification, 'Contest certified successfully');
     });
 

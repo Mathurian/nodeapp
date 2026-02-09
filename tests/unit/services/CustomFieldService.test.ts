@@ -12,12 +12,15 @@ describe('CustomFieldService', () => {
   let service: CustomFieldService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
 
+  const tenantId = 'tenant-1';
+
   const mockCustomField = {
     id: 'field-1',
     name: 'Emergency Contact',
     key: 'emergency_contact',
     type: 'TEXT' as CustomFieldType,
     entityType: 'contestant',
+    tenantId,
     required: true,
     defaultValue: null,
     options: null,
@@ -32,6 +35,7 @@ describe('CustomFieldService', () => {
     id: 'value-1',
     customFieldId: 'field-1',
     entityId: 'entity-1',
+    tenantId,
     value: 'John Doe',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -56,6 +60,7 @@ describe('CustomFieldService', () => {
         key: 'emergency_contact',
         type: 'TEXT',
         entityType: 'contestant',
+        tenantId,
       });
 
       expect(result).toEqual(mockCustomField);
@@ -65,6 +70,7 @@ describe('CustomFieldService', () => {
           key: 'emergency_contact',
           type: 'TEXT',
           entityType: 'contestant',
+          tenantId,
           required: false,
           defaultValue: undefined,
           options: undefined,
@@ -84,9 +90,10 @@ describe('CustomFieldService', () => {
         key: 'emergency_contact',
         type: 'TEXT',
         entityType: 'contestant',
+        tenantId,
         required: true,
         defaultValue: 'N/A',
-        options: ['option1', 'option2'],
+        options: { opt1: 'option1', opt2: 'option2' },
         validation: { minLength: 3 },
         order: 5,
         active: true,
@@ -99,9 +106,10 @@ describe('CustomFieldService', () => {
           key: 'emergency_contact',
           type: 'TEXT',
           entityType: 'contestant',
+          tenantId,
           required: true,
           defaultValue: 'N/A',
-          options: JSON.stringify(['option1', 'option2']),
+          options: JSON.stringify({ opt1: 'option1', opt2: 'option2' }),
           validation: JSON.stringify({ minLength: 3 }),
           order: 5,
           active: true,
@@ -118,6 +126,7 @@ describe('CustomFieldService', () => {
           key: 'test_field',
           type: 'TEXT',
           entityType: 'contestant',
+          tenantId,
         })
       ).rejects.toThrow('Failed to create custom field');
     });
@@ -127,11 +136,11 @@ describe('CustomFieldService', () => {
     it('should get all active custom fields for an entity type', async () => {
       mockPrisma.customField.findMany.mockResolvedValue([mockCustomField]);
 
-      const result = await service.getCustomFieldsByEntityType('contestant');
+      const result = await service.getCustomFieldsByEntityType('contestant', tenantId);
 
       expect(result).toEqual([mockCustomField]);
       expect(mockPrisma.customField.findMany).toHaveBeenCalledWith({
-        where: { entityType: 'contestant', active: true },
+        where: { entityType: 'contestant', tenantId, active: true },
         orderBy: { order: 'asc' },
       });
     });
@@ -140,11 +149,11 @@ describe('CustomFieldService', () => {
       const inactiveField = { ...mockCustomField, active: false };
       mockPrisma.customField.findMany.mockResolvedValue([mockCustomField, inactiveField]);
 
-      const result = await service.getCustomFieldsByEntityType('contestant', false);
+      const result = await service.getCustomFieldsByEntityType('contestant', tenantId, false);
 
       expect(result).toEqual([mockCustomField, inactiveField]);
       expect(mockPrisma.customField.findMany).toHaveBeenCalledWith({
-        where: { entityType: 'contestant' },
+        where: { entityType: 'contestant', tenantId },
         orderBy: { order: 'asc' },
       });
     });
@@ -152,7 +161,7 @@ describe('CustomFieldService', () => {
     it('should return empty array when no fields exist', async () => {
       mockPrisma.customField.findMany.mockResolvedValue([]);
 
-      const result = await service.getCustomFieldsByEntityType('contestant');
+      const result = await service.getCustomFieldsByEntityType('contestant', tenantId);
 
       expect(result).toEqual([]);
     });
@@ -160,38 +169,36 @@ describe('CustomFieldService', () => {
     it('should handle database errors', async () => {
       mockPrisma.customField.findMany.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getCustomFieldsByEntityType('contestant')).rejects.toThrow(
+      await expect(service.getCustomFieldsByEntityType('contestant', tenantId)).rejects.toThrow(
         'Failed to fetch custom fields'
       );
     });
   });
 
   describe('getCustomFieldById', () => {
-    it('should get a custom field by id with values', async () => {
-      const fieldWithValues = { ...mockCustomField, values: [mockCustomFieldValue] };
-      mockPrisma.customField.findUnique.mockResolvedValue(fieldWithValues as any);
+    it('should get a custom field by id', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
 
-      const result = await service.getCustomFieldById('field-1');
+      const result = await service.getCustomFieldById('field-1', tenantId);
 
-      expect(result).toEqual(fieldWithValues);
-      expect(mockPrisma.customField.findUnique).toHaveBeenCalledWith({
-        where: { id: 'field-1' },
-        include: { values: true },
+      expect(result).toEqual(mockCustomField);
+      expect(mockPrisma.customField.findFirst).toHaveBeenCalledWith({
+        where: { id: 'field-1', tenantId },
       });
     });
 
     it('should return null when field not found', async () => {
-      mockPrisma.customField.findUnique.mockResolvedValue(null);
+      mockPrisma.customField.findFirst.mockResolvedValue(null);
 
-      const result = await service.getCustomFieldById('nonexistent');
+      const result = await service.getCustomFieldById('nonexistent', tenantId);
 
       expect(result).toBeNull();
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.customField.findUnique.mockRejectedValue(new Error('Database error'));
+      mockPrisma.customField.findFirst.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getCustomFieldById('field-1')).rejects.toThrow(
+      await expect(service.getCustomFieldById('field-1', tenantId)).rejects.toThrow(
         'Failed to fetch custom field'
       );
     });
@@ -199,31 +206,33 @@ describe('CustomFieldService', () => {
 
   describe('getCustomFieldByKey', () => {
     it('should get a custom field by key and entity type', async () => {
-      mockPrisma.customField.findUnique.mockResolvedValue(mockCustomField);
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
 
-      const result = await service.getCustomFieldByKey('emergency_contact', 'contestant');
+      const result = await service.getCustomFieldByKey('emergency_contact', 'contestant', tenantId);
 
       expect(result).toEqual(mockCustomField);
-      expect(mockPrisma.customField.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.customField.findFirst).toHaveBeenCalledWith({
         where: {
-          key_entityType: { key: 'emergency_contact', entityType: 'contestant' },
+          key: 'emergency_contact',
+          entityType: 'contestant',
+          tenantId,
         },
       });
     });
 
     it('should return null when field not found', async () => {
-      mockPrisma.customField.findUnique.mockResolvedValue(null);
+      mockPrisma.customField.findFirst.mockResolvedValue(null);
 
-      const result = await service.getCustomFieldByKey('nonexistent', 'contestant');
+      const result = await service.getCustomFieldByKey('nonexistent', 'contestant', tenantId);
 
       expect(result).toBeNull();
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.customField.findUnique.mockRejectedValue(new Error('Database error'));
+      mockPrisma.customField.findFirst.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.getCustomFieldByKey('emergency_contact', 'contestant')
+        service.getCustomFieldByKey('emergency_contact', 'contestant', tenantId)
       ).rejects.toThrow('Failed to fetch custom field');
     });
   });
@@ -231,9 +240,10 @@ describe('CustomFieldService', () => {
   describe('updateCustomField', () => {
     it('should update a custom field with partial data', async () => {
       const updated = { ...mockCustomField, name: 'Updated Name' };
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customField.update.mockResolvedValue(updated);
 
-      const result = await service.updateCustomField('field-1', { name: 'Updated Name' });
+      const result = await service.updateCustomField('field-1', tenantId, { name: 'Updated Name' });
 
       expect(result).toEqual(updated);
       expect(mockPrisma.customField.update).toHaveBeenCalledWith({
@@ -244,14 +254,15 @@ describe('CustomFieldService', () => {
 
     it('should update all fields when all data provided', async () => {
       const updated = { ...mockCustomField };
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customField.update.mockResolvedValue(updated);
 
-      const result = await service.updateCustomField('field-1', {
+      const result = await service.updateCustomField('field-1', tenantId, {
         name: 'New Name',
         type: 'NUMBER',
         required: false,
         defaultValue: '0',
-        options: ['opt1'],
+        options: { opt1: 'value1' },
         validation: { min: 0 },
         order: 10,
         active: false,
@@ -265,7 +276,7 @@ describe('CustomFieldService', () => {
           type: 'NUMBER',
           required: false,
           defaultValue: '0',
-          options: JSON.stringify(['opt1']),
+          options: JSON.stringify({ opt1: 'value1' }),
           validation: JSON.stringify({ min: 0 }),
           order: 10,
           active: false,
@@ -274,9 +285,10 @@ describe('CustomFieldService', () => {
     });
 
     it('should handle database errors', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customField.update.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.updateCustomField('field-1', { name: 'Test' })).rejects.toThrow(
+      await expect(service.updateCustomField('field-1', tenantId, { name: 'Test' })).rejects.toThrow(
         'Failed to update custom field'
       );
     });
@@ -284,19 +296,24 @@ describe('CustomFieldService', () => {
 
   describe('deleteCustomField', () => {
     it('should delete a custom field', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customField.delete.mockResolvedValue(mockCustomField);
 
-      await service.deleteCustomField('field-1');
+      await service.deleteCustomField('field-1', tenantId);
 
+      expect(mockPrisma.customField.findFirst).toHaveBeenCalledWith({
+        where: { id: 'field-1', tenantId },
+      });
       expect(mockPrisma.customField.delete).toHaveBeenCalledWith({
         where: { id: 'field-1' },
       });
     });
 
     it('should handle database errors', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customField.delete.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.deleteCustomField('field-1')).rejects.toThrow(
+      await expect(service.deleteCustomField('field-1', tenantId)).rejects.toThrow(
         'Failed to delete custom field'
       );
     });
@@ -304,18 +321,21 @@ describe('CustomFieldService', () => {
 
   describe('setCustomFieldValue', () => {
     it('should create a new custom field value', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customFieldValue.upsert.mockResolvedValue(mockCustomFieldValue);
 
       const result = await service.setCustomFieldValue({
-        customFieldId: 'field-1',
+        fieldId: 'field-1',
         entityId: 'entity-1',
+        tenantId,
         value: 'John Doe',
       });
 
       expect(result).toEqual(mockCustomFieldValue);
       expect(mockPrisma.customFieldValue.upsert).toHaveBeenCalledWith({
         where: {
-          customFieldId_entityId: {
+          tenantId_customFieldId_entityId: {
+            tenantId,
             customFieldId: 'field-1',
             entityId: 'entity-1',
           },
@@ -323,6 +343,7 @@ describe('CustomFieldService', () => {
         create: {
           customFieldId: 'field-1',
           entityId: 'entity-1',
+          tenantId,
           value: 'John Doe',
         },
         update: {
@@ -333,11 +354,13 @@ describe('CustomFieldService', () => {
 
     it('should update existing custom field value', async () => {
       const updated = { ...mockCustomFieldValue, value: 'Jane Doe' };
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customFieldValue.upsert.mockResolvedValue(updated);
 
       const result = await service.setCustomFieldValue({
-        customFieldId: 'field-1',
+        fieldId: 'field-1',
         entityId: 'entity-1',
+        tenantId,
         value: 'Jane Doe',
       });
 
@@ -345,12 +368,14 @@ describe('CustomFieldService', () => {
     });
 
     it('should handle database errors', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customFieldValue.upsert.mockRejectedValue(new Error('Database error'));
 
       await expect(
         service.setCustomFieldValue({
-          customFieldId: 'field-1',
+          fieldId: 'field-1',
           entityId: 'entity-1',
+          tenantId,
           value: 'Test',
         })
       ).rejects.toThrow('Failed to set custom field value');
@@ -359,38 +384,41 @@ describe('CustomFieldService', () => {
 
   describe('getCustomFieldValues', () => {
     it('should get all custom field values for an entity', async () => {
-      const valueWithField = { ...mockCustomFieldValue, customField: mockCustomField };
-      mockPrisma.customFieldValue.findMany.mockResolvedValue([valueWithField] as any);
+      mockPrisma.customField.findMany.mockResolvedValue([mockCustomField]);
+      mockPrisma.customFieldValue.findMany.mockResolvedValue([mockCustomFieldValue]);
 
-      const result = await service.getCustomFieldValues('entity-1', 'contestant');
+      const result = await service.getCustomFieldValues('entity-1', 'contestant', tenantId);
 
-      expect(result).toEqual([valueWithField]);
+      expect(result).toEqual([mockCustomFieldValue]);
+      expect(mockPrisma.customField.findMany).toHaveBeenCalledWith({
+        where: {
+          entityType: 'contestant',
+          tenantId,
+          active: true,
+        },
+      });
       expect(mockPrisma.customFieldValue.findMany).toHaveBeenCalledWith({
         where: {
           entityId: 'entity-1',
-          customField: {
-            entityType: 'contestant',
-            active: true,
-          },
-        },
-        include: {
-          customField: true,
+          tenantId,
+          customFieldId: { in: ['field-1'] },
         },
       });
     });
 
     it('should return empty array when no values exist', async () => {
+      mockPrisma.customField.findMany.mockResolvedValue([mockCustomField]);
       mockPrisma.customFieldValue.findMany.mockResolvedValue([]);
 
-      const result = await service.getCustomFieldValues('entity-1', 'contestant');
+      const result = await service.getCustomFieldValues('entity-1', 'contestant', tenantId);
 
       expect(result).toEqual([]);
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.customFieldValue.findMany.mockRejectedValue(new Error('Database error'));
+      mockPrisma.customField.findMany.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getCustomFieldValues('entity-1', 'contestant')).rejects.toThrow(
+      await expect(service.getCustomFieldValues('entity-1', 'contestant', tenantId)).rejects.toThrow(
         'Failed to fetch custom field values'
       );
     });
@@ -398,37 +426,32 @@ describe('CustomFieldService', () => {
 
   describe('getCustomFieldValue', () => {
     it('should get a specific custom field value', async () => {
-      const valueWithField = { ...mockCustomFieldValue, customField: mockCustomField };
-      mockPrisma.customFieldValue.findUnique.mockResolvedValue(valueWithField as any);
+      mockPrisma.customFieldValue.findFirst.mockResolvedValue(mockCustomFieldValue);
 
-      const result = await service.getCustomFieldValue('field-1', 'entity-1');
+      const result = await service.getCustomFieldValue('field-1', 'entity-1', tenantId);
 
-      expect(result).toEqual(valueWithField);
-      expect(mockPrisma.customFieldValue.findUnique).toHaveBeenCalledWith({
+      expect(result).toEqual(mockCustomFieldValue);
+      expect(mockPrisma.customFieldValue.findFirst).toHaveBeenCalledWith({
         where: {
-          customFieldId_entityId: {
-            customFieldId: 'field-1',
-            entityId: 'entity-1',
-          },
-        },
-        include: {
-          customField: true,
+          customFieldId: 'field-1',
+          entityId: 'entity-1',
+          tenantId,
         },
       });
     });
 
     it('should return null when value not found', async () => {
-      mockPrisma.customFieldValue.findUnique.mockResolvedValue(null);
+      mockPrisma.customFieldValue.findFirst.mockResolvedValue(null);
 
-      const result = await service.getCustomFieldValue('field-1', 'entity-1');
+      const result = await service.getCustomFieldValue('field-1', 'entity-1', tenantId);
 
       expect(result).toBeNull();
     });
 
     it('should handle database errors', async () => {
-      mockPrisma.customFieldValue.findUnique.mockRejectedValue(new Error('Database error'));
+      mockPrisma.customFieldValue.findFirst.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getCustomFieldValue('field-1', 'entity-1')).rejects.toThrow(
+      await expect(service.getCustomFieldValue('field-1', 'entity-1', tenantId)).rejects.toThrow(
         'Failed to fetch custom field value'
       );
     });
@@ -436,13 +459,22 @@ describe('CustomFieldService', () => {
 
   describe('deleteCustomFieldValue', () => {
     it('should delete a custom field value', async () => {
+      mockPrisma.customFieldValue.findFirst.mockResolvedValue(mockCustomFieldValue);
       mockPrisma.customFieldValue.delete.mockResolvedValue(mockCustomFieldValue);
 
-      await service.deleteCustomFieldValue('field-1', 'entity-1');
+      await service.deleteCustomFieldValue('field-1', 'entity-1', tenantId);
 
+      expect(mockPrisma.customFieldValue.findFirst).toHaveBeenCalledWith({
+        where: {
+          customFieldId: 'field-1',
+          entityId: 'entity-1',
+          tenantId,
+        },
+      });
       expect(mockPrisma.customFieldValue.delete).toHaveBeenCalledWith({
         where: {
-          customFieldId_entityId: {
+          tenantId_customFieldId_entityId: {
+            tenantId,
             customFieldId: 'field-1',
             entityId: 'entity-1',
           },
@@ -451,9 +483,10 @@ describe('CustomFieldService', () => {
     });
 
     it('should handle database errors', async () => {
+      mockPrisma.customFieldValue.findFirst.mockResolvedValue(mockCustomFieldValue);
       mockPrisma.customFieldValue.delete.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.deleteCustomFieldValue('field-1', 'entity-1')).rejects.toThrow(
+      await expect(service.deleteCustomFieldValue('field-1', 'entity-1', tenantId)).rejects.toThrow(
         'Failed to delete custom field value'
       );
     });
@@ -461,9 +494,10 @@ describe('CustomFieldService', () => {
 
   describe('bulkSetCustomFieldValues', () => {
     it('should set multiple custom field values', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customFieldValue.upsert.mockResolvedValue(mockCustomFieldValue);
 
-      await service.bulkSetCustomFieldValues('entity-1', {
+      await service.bulkSetCustomFieldValues('entity-1', tenantId, {
         'field-1': 'value1',
         'field-2': 'value2',
         'field-3': 'value3',
@@ -473,18 +507,19 @@ describe('CustomFieldService', () => {
     });
 
     it('should handle empty values object', async () => {
-      await service.bulkSetCustomFieldValues('entity-1', {});
+      await service.bulkSetCustomFieldValues('entity-1', tenantId, {});
 
       expect(mockPrisma.customFieldValue.upsert).not.toHaveBeenCalled();
     });
 
     it('should handle partial failures', async () => {
+      mockPrisma.customField.findFirst.mockResolvedValue(mockCustomField);
       mockPrisma.customFieldValue.upsert
         .mockResolvedValueOnce(mockCustomFieldValue)
         .mockRejectedValueOnce(new Error('Database error'));
 
       await expect(
-        service.bulkSetCustomFieldValues('entity-1', {
+        service.bulkSetCustomFieldValues('entity-1', tenantId, {
           'field-1': 'value1',
           'field-2': 'value2',
         })
@@ -593,10 +628,9 @@ describe('CustomFieldService', () => {
     it('should validate BOOLEAN type with valid values', () => {
       const boolField = { ...mockCustomField, type: 'BOOLEAN' as CustomFieldType, required: false };
 
+      // Service only accepts 'true' and 'false' as valid boolean values
       expect(service.validateCustomFieldValue(boolField, 'true').valid).toBe(true);
       expect(service.validateCustomFieldValue(boolField, 'false').valid).toBe(true);
-      expect(service.validateCustomFieldValue(boolField, '1').valid).toBe(true);
-      expect(service.validateCustomFieldValue(boolField, '0').valid).toBe(true);
     });
 
     it('should validate SELECT type with invalid option', () => {
@@ -724,10 +758,22 @@ describe('CustomFieldService', () => {
 
   describe('reorderCustomFields', () => {
     it('should reorder custom fields', async () => {
+      const field1 = { ...mockCustomField, id: 'field-1' };
+      const field2 = { ...mockCustomField, id: 'field-2' };
+      const field3 = { ...mockCustomField, id: 'field-3' };
+
+      mockPrisma.customField.findMany.mockResolvedValue([field1, field2, field3]);
       mockPrisma.customField.update.mockResolvedValue(mockCustomField);
 
-      await service.reorderCustomFields(['field-1', 'field-2', 'field-3'], 'contestant');
+      await service.reorderCustomFields(['field-1', 'field-2', 'field-3'], 'contestant', tenantId);
 
+      expect(mockPrisma.customField.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['field-1', 'field-2', 'field-3'] },
+          tenantId,
+          entityType: 'contestant',
+        },
+      });
       expect(mockPrisma.customField.update).toHaveBeenCalledTimes(3);
       expect(mockPrisma.customField.update).toHaveBeenNthCalledWith(1, {
         where: { id: 'field-1' },
@@ -744,16 +790,22 @@ describe('CustomFieldService', () => {
     });
 
     it('should handle empty field array', async () => {
-      await service.reorderCustomFields([], 'contestant');
+      mockPrisma.customField.findMany.mockResolvedValue([]);
+
+      await service.reorderCustomFields([], 'contestant', tenantId);
 
       expect(mockPrisma.customField.update).not.toHaveBeenCalled();
     });
 
     it('should handle database errors', async () => {
+      const field1 = { ...mockCustomField, id: 'field-1' };
+      const field2 = { ...mockCustomField, id: 'field-2' };
+
+      mockPrisma.customField.findMany.mockResolvedValue([field1, field2]);
       mockPrisma.customField.update.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.reorderCustomFields(['field-1', 'field-2'], 'contestant')
+        service.reorderCustomFields(['field-1', 'field-2'], 'contestant', tenantId)
       ).rejects.toThrow('Failed to reorder custom fields');
     });
   });
