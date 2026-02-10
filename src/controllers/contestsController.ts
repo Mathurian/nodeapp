@@ -5,14 +5,22 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
+import { PrismaClient } from '@prisma/client';
 import { ContestService } from '../services/ContestService';
 import { sendSuccess, sendCreated, sendNoContent, sendError } from '../utils/responseHelpers';
+import {
+  contestUsesOlympicScoring,
+  getContestJudgeCount,
+  MIN_JUDGES_OLYMPIC
+} from '../utils/olympicScoringValidation';
 
 export class ContestsController {
   private contestService: ContestService;
+  private prisma: PrismaClient;
 
   constructor() {
     this.contestService = container.resolve(ContestService);
+    this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
   /**
@@ -269,6 +277,61 @@ export class ContestsController {
       return next(error);
     }
   };
+
+  /**
+   * Get Olympic scoring validation status for a contest
+   * Returns warning if Olympic scoring is enabled but judge count is insufficient
+   *
+   * Note: Olympic scoring drops the highest and lowest scores before averaging.
+   * With only 3 judges, this leaves only 1 score, which is statistically meaningless.
+   * Therefore, we recommend at least 4 judges for Olympic scoring.
+   */
+  getOlympicScoringValidation = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Contest ID is required', 400);
+      }
+
+      // Check if contest uses Olympic scoring
+      const usesOlympic = await contestUsesOlympicScoring(id, this.prisma);
+
+      // Get judge count for this contest
+      const judgeCount = await getContestJudgeCount(id, this.prisma);
+
+      // Minimum for meaningful Olympic scoring is 4 judges
+      // (dropping high/low from 3 leaves only 1 score)
+      const RECOMMENDED_MIN_JUDGES = 4;
+
+      let warning: string | null = null;
+      let severity: 'info' | 'warning' | 'error' = 'info';
+
+      if (usesOlympic) {
+        if (judgeCount < MIN_JUDGES_OLYMPIC) {
+          // Critical: less than 3 judges - Olympic scoring cannot function
+          warning = `Olympic scoring requires at least ${MIN_JUDGES_OLYMPIC} judges to function. Currently has ${judgeCount} judge(s) assigned. Consider switching to Straight scoring.`;
+          severity = 'error';
+        } else if (judgeCount < RECOMMENDED_MIN_JUDGES) {
+          // Warning: exactly 3 judges - Olympic scoring works but leaves only 1 score
+          warning = `With only ${judgeCount} judges, Olympic scoring will drop the highest and lowest scores, leaving only ${judgeCount - 2} score(s) for averaging. This may not be statistically meaningful. Consider adding more judges or switching to Straight scoring.`;
+          severity = 'warning';
+        }
+      }
+
+      return sendSuccess(res, {
+        contestId: id,
+        usesOlympicScoring: usesOlympic,
+        judgeCount,
+        minimumJudgesRequired: MIN_JUDGES_OLYMPIC,
+        recommendedMinJudges: RECOMMENDED_MIN_JUDGES,
+        warning,
+        severity,
+        canMigrateToStraight: usesOlympic && judgeCount < RECOMMENDED_MIN_JUDGES
+      }, 'Olympic scoring validation retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and individual methods
@@ -285,3 +348,4 @@ export const reactivateContest = controller.reactivateContest;
 export const getArchivedContests = controller.getArchivedContests;
 export const getContestStats = controller.getContestStats;
 export const searchContests = controller.searchContests;
+export const getOlympicScoringValidation = controller.getOlympicScoringValidation;

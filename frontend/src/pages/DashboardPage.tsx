@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
+import { StatCardSkeleton, ActivityItemSkeleton, TableRowSkeleton } from '../components/ui/SkeletonPatterns'
 
 interface DashboardStats {
   totalUsers: number
@@ -314,21 +315,25 @@ const DashboardPage: React.FC = () => {
               {user?.role === 'SUPER_ADMIN' ? 'System-Wide Overview (All Tenants)' : 'System Overview'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {statCards.map((stat) => (
-                <div key={stat.label} className={`${getStatColor(stat.color)} p-6 rounded-lg`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${getStatTextColor(stat.color)}`}>
-                        {stat.label}
-                      </p>
-                      <p className={`text-3xl font-bold mt-2 ${getStatValueColor(stat.color)}`}>
-                        {statsLoading ? '...' : stat.value}
-                      </p>
+              {statsLoading
+                ? Array.from({ length: 8 }).map((_, index) => (
+                    <StatCardSkeleton key={index} />
+                  ))
+                : statCards.map((stat) => (
+                    <div key={stat.label} className={`${getStatColor(stat.color)} p-6 rounded-lg`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${getStatTextColor(stat.color)}`}>
+                            {stat.label}
+                          </p>
+                          <p className={`text-3xl font-bold mt-2 ${getStatValueColor(stat.color)}`}>
+                            {stat.value}
+                          </p>
+                        </div>
+                        <stat.icon className={`h-10 w-10 ${getStatIconColor(stat.color)}`} />
+                      </div>
                     </div>
-                    <stat.icon className={`h-10 w-10 ${getStatIconColor(stat.color)}`} />
-                  </div>
-                </div>
-              ))}
+                  ))}
             </div>
           </div>
         )}
@@ -341,9 +346,21 @@ const DashboardPage: React.FC = () => {
             </h2>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               {tenantsLoading ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  Loading tenants...
-                </div>
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tenant</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Slug</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Plan</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <TableRowSkeleton columns={5} rows={5} hasActions />
+                  </tbody>
+                </table>
               ) : !tenants || tenants.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   No tenants found
@@ -450,8 +467,8 @@ const DashboardPage: React.FC = () => {
             </h2>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               {activityLoading ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  Loading activity...
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <ActivityItemSkeleton count={10} />
                 </div>
               ) : !recentActivity || recentActivity.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400">

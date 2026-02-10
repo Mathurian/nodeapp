@@ -4,24 +4,17 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { sendSuccess, sendBadRequest} from '../utils/responseHelpers';
+import {
+  sendSuccess,
+  sendBadRequest,
+  sendCreated
+} from '../utils/responseHelpers';
 import { container } from 'tsyringe';
 import { EventService } from '../services/EventService';
 import { AuditLogService } from '../services/AuditLogService';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('EventsController');
-
-/**
- * Success response helper
- */
-const successResponse = (res: Response, data: unknown, message?: string, status: number = 200) => {
-  return res.status(status).json({
-    success: true,
-    message,
-    data,
-  });
-};
 
 /**
  * Events Controller Class
@@ -226,7 +219,7 @@ export class EventsController {
         logger.error('Failed to log event creation audit', { error: auditError });
       }
 
-      successResponse(res, event, 'Event created successfully', 201);
+      sendCreated(res, event, 'Event created successfully');
     } catch (error) {
       return next(error);
     }

@@ -8,7 +8,16 @@ import { container } from 'tsyringe';
 import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/ScoringService';
 import { ContestantScoreFilterService } from '../services/ContestantScoreFilterService';
 import { AuditLogService } from '../services/AuditLogService';
-import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, sendCreated, sendError, sendNoContent } from '../utils/responseHelpers';
+import {
+  sendSuccess,
+  sendNotFound,
+  sendBadRequest,
+  sendUnauthorized,
+  sendCreated,
+  sendNoContent,
+  errorResponse
+} from '../utils/responseHelpers';
+import { ErrorCode } from '../types/errors';
 import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuthAndTenant } from '../utils/requestValidation';
@@ -204,7 +213,7 @@ export class ScoringController {
 
         if (!existingScore) {
           log.warn('Score not found for update', { scoreId });
-          sendNotFound(res, 'Score not found');
+          errorResponse(res, 'Score not found', ErrorCode.NOT_FOUND, 404);
           return;
         }
 
@@ -215,7 +224,7 @@ export class ScoringController {
             lockedAt: existingScore.lockedAt,
             lockedBy: existingScore.lockedBy
           });
-          sendForbidden(res, 'Cannot modify locked score');
+          errorResponse(res, 'Cannot modify locked score', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
@@ -226,7 +235,7 @@ export class ScoringController {
             certifiedAt: existingScore.certifiedAt,
             certifiedBy: existingScore.certifiedBy
           });
-          sendForbidden(res, 'Cannot modify certified score');
+          errorResponse(res, 'Cannot modify certified score', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
@@ -237,12 +246,12 @@ export class ScoringController {
             userJudgeId: req.user?.judgeId,
             scoreJudgeId: existingScore.judgeId
           });
-          sendForbidden(res, 'Can only update your own scores');
+          errorResponse(res, 'Can only update your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
         // Shouldn't reach here, but handle gracefully
-        sendError(res, 'Score could not be updated', 500);
+        errorResponse(res, 'Score could not be updated', ErrorCode.INTERNAL_ERROR, 500);
         return;
       }
 
@@ -362,7 +371,7 @@ export class ScoringController {
 
         if (!existingScore) {
           log.warn('Score not found or already deleted', { scoreId });
-          sendNotFound(res, 'Score not found');
+          errorResponse(res, 'Score not found', ErrorCode.NOT_FOUND, 404);
           return;
         }
 
@@ -373,7 +382,7 @@ export class ScoringController {
             lockedAt: existingScore.lockedAt,
             lockedBy: existingScore.lockedBy
           });
-          sendForbidden(res, 'Cannot delete locked score');
+          errorResponse(res, 'Cannot delete locked score', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
@@ -384,7 +393,7 @@ export class ScoringController {
             certifiedAt: existingScore.certifiedAt,
             certifiedBy: existingScore.certifiedBy
           });
-          sendForbidden(res, 'Cannot delete certified score');
+          errorResponse(res, 'Cannot delete certified score', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
@@ -395,12 +404,12 @@ export class ScoringController {
             userJudgeId: req.user?.judgeId,
             scoreJudgeId: existingScore.judgeId
           });
-          sendForbidden(res, 'Can only delete your own scores');
+          errorResponse(res, 'Can only delete your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
         // Shouldn't reach here, but handle gracefully
-        sendError(res, 'Score could not be deleted', 500);
+        errorResponse(res, 'Score could not be deleted', ErrorCode.INTERNAL_ERROR, 500);
         return;
       }
 
@@ -441,7 +450,7 @@ export class ScoringController {
       const scoreId = req.params['scoreId']!;
 
       if (!req.user) {
-        sendError(res, 'User not authenticated', 401);
+        errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
         return;
       }
 
@@ -482,7 +491,7 @@ export class ScoringController {
       const categoryId = req.params['categoryId']!;
 
       if (!req.user) {
-        sendError(res, 'User not authenticated', 401);
+        errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
         return;
       }
 
@@ -582,7 +591,7 @@ export class ScoringController {
             userContestantId: user?.contestantId,
             requestedContestantId: contestantId
           });
-          sendError(res, 'You can only view your own scores', 403);
+          errorResponse(res, 'You can only view your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
       }
@@ -642,7 +651,7 @@ export class ScoringController {
             reason: releaseStatus.reason
           });
 
-          sendError(res, releaseStatus.reason, 403);
+          errorResponse(res, releaseStatus.reason, ErrorCode.AUTHORIZATION_ERROR, 403);
           return;
         }
 
@@ -781,13 +790,13 @@ export class ScoringController {
       const { signatureName, comments } = req.body;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       // SECURITY FIX: Verify user has TALLY_MASTER role
       const allowedRoles = ['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN'];
       if (!allowedRoles.includes(req.user.role)) {
-        return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can certify totals.`, 403);
+        return errorResponse(res, `Access denied. Only ${allowedRoles.join(', ')} can certify totals.`, ErrorCode.AUTHORIZATION_ERROR, 403);
       }
 
       // Check if category exists
@@ -840,13 +849,13 @@ export class ScoringController {
       const { signatureName, comments } = req.body;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       // SECURITY FIX: Verify user has AUDITOR role
       const allowedRoles = ['AUDITOR', 'ADMIN', 'SUPER_ADMIN'];
       if (!allowedRoles.includes(req.user.role)) {
-        return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can perform final certification.`, 403);
+        return errorResponse(res, `Access denied. Only ${allowedRoles.join(', ')} can perform final certification.`, ErrorCode.AUTHORIZATION_ERROR, 403);
       }
 
       // Check if category exists
@@ -913,11 +922,11 @@ export class ScoringController {
       const { contestantId, categoryId, amount, reason } = req.body;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       if (!contestantId || !categoryId || amount === undefined || !reason) {
-        return sendBadRequest(res, 'contestantId, categoryId, amount, and reason are required');
+        return errorResponse(res, 'contestantId, categoryId, amount, and reason are required', ErrorCode.VALIDATION_ERROR, 400);
       }
 
       // Verify category and contestant exist with tenant validation
@@ -967,13 +976,13 @@ export class ScoringController {
       const { isHeadJudge } = req.body;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       // SECURITY FIX: Verify user has appropriate role to approve deductions
       const allowedRoles = ['BOARD', 'JUDGE', 'ADMIN', 'SUPER_ADMIN', 'ORGANIZER'];
       if (!allowedRoles.includes(req.user.role)) {
-        return sendError(res, `Access denied. Only ${allowedRoles.join(', ')} can approve deductions.`, 403);
+        return errorResponse(res, `Access denied. Only ${allowedRoles.join(', ')} can approve deductions.`, ErrorCode.AUTHORIZATION_ERROR, 403);
       }
 
       // SECURITY FIX #12: Defense in depth - validate tenant ID
@@ -1020,7 +1029,7 @@ export class ScoringController {
       const { deductionId } = req.params;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       // SECURITY FIX #12: Defense in depth - validate tenant ID
@@ -1092,11 +1101,11 @@ export class ScoringController {
       const { judgeId, contestId } = req.body;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       if (!judgeId || !contestId) {
-        return sendBadRequest(res, 'judgeId and contestId are required');
+        return errorResponse(res, 'judgeId and contestId are required', ErrorCode.VALIDATION_ERROR, 400);
       }
 
       // Verify judge and contest exist with tenant validation
@@ -1161,7 +1170,7 @@ export class ScoringController {
       const { categoryId } = req.params;
 
       if (!req.user) {
-        return sendError(res, 'User not authenticated', 401);
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
       // Check if category exists

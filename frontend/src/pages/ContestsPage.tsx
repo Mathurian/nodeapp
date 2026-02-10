@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useQuery, useMutation, useQueryClient, UseQueryResult } from 'react-query'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
@@ -15,6 +15,7 @@ import {
   ArchiveBoxIcon,
   CalendarIcon,
   ListBulletIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 import { ConfirmModal } from '../components/ui'
@@ -49,6 +50,17 @@ interface ContestFormData {
   description: string
   eventId: string
   scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
+}
+
+interface OlympicScoringValidation {
+  contestId: string
+  usesOlympicScoring: boolean
+  judgeCount: number
+  minimumJudgesRequired: number
+  recommendedMinJudges: number
+  warning: string | null
+  severity: 'info' | 'warning' | 'error'
+  canMigrateToStraight: boolean
 }
 
 const ContestsPage: React.FC = () => {
@@ -141,6 +153,21 @@ const ContestsPage: React.FC = () => {
       refetchInterval: 30000,
       retry: 1,
       onError: (err) => console.error('Fetch contests failed:', err),
+    }
+  )
+
+  // Fetch Olympic scoring validation when editing a contest
+  const { data: olympicValidation, refetch: refetchOlympicValidation } = useQuery<OlympicScoringValidation>(
+    ['olympic-validation', editingContest?.id],
+    async () => {
+      if (!editingContest?.id) return null
+      const response = await contestsAPI.getOlympicScoringValidation(editingContest.id)
+      return response.data?.data || response.data
+    },
+    {
+      enabled: !!editingContest?.id,
+      retry: 1,
+      onError: (err) => console.error('Fetch Olympic validation failed:', err),
     }
   )
 
@@ -403,6 +430,11 @@ const ContestsPage: React.FC = () => {
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
+                    {contest.scoringType === 'OLYMPIC' && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+                        Olympic
+                      </span>
+                    )}
                     {contest.archived && (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         Archived
@@ -557,6 +589,61 @@ const ContestsPage: React.FC = () => {
                     Leave empty to inherit from event or tenant. This setting will apply to all categories in this contest.
                   </p>
                 </div>
+
+                {/* Olympic Scoring Warning - shown when editing a contest with Olympic scoring and insufficient judges */}
+                {editingContest && olympicValidation?.warning && (
+                  <div className={`p-4 rounded-lg border-l-4 ${
+                    olympicValidation.severity === 'error'
+                      ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                      : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400'
+                  }`}>
+                    <div className="flex items-start">
+                      <ExclamationTriangleIcon className={`h-5 w-5 mr-3 flex-shrink-0 ${
+                        olympicValidation.severity === 'error'
+                          ? 'text-red-500'
+                          : 'text-yellow-500'
+                      }`} />
+                      <div className="flex-1">
+                        <h4 className={`text-sm font-medium ${
+                          olympicValidation.severity === 'error'
+                            ? 'text-red-800 dark:text-red-200'
+                            : 'text-yellow-800 dark:text-yellow-200'
+                        }`}>
+                          {olympicValidation.severity === 'error' ? 'Olympic Scoring Error' : 'Olympic Scoring Warning'}
+                        </h4>
+                        <p className={`mt-1 text-sm ${
+                          olympicValidation.severity === 'error'
+                            ? 'text-red-700 dark:text-red-300'
+                            : 'text-yellow-700 dark:text-yellow-300'
+                        }`}>
+                          {olympicValidation.warning}
+                        </p>
+                        <p className={`mt-1 text-xs ${
+                          olympicValidation.severity === 'error'
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-yellow-600 dark:text-yellow-400'
+                        }`}>
+                          Currently assigned: {olympicValidation.judgeCount} judge(s) |
+                          Minimum required: {olympicValidation.minimumJudgesRequired} |
+                          Recommended: {olympicValidation.recommendedMinJudges}+
+                        </p>
+                        {olympicValidation.canMigrateToStraight && (
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, scoringType: 'STRAIGHT' })}
+                            className={`mt-3 px-3 py-1.5 text-sm font-medium rounded-md ${
+                              olympicValidation.severity === 'error'
+                                ? 'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-700'
+                                : 'bg-yellow-100 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 hover:bg-yellow-200 dark:hover:bg-yellow-700'
+                            }`}
+                          >
+                            Switch to Straight Scoring
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Form Actions */}
                 <div className="flex gap-3 pt-4">

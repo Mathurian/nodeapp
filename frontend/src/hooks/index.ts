@@ -12,3 +12,5 @@ export {
   COMMON_SHORTCUTS
 } from './useKeyboardShortcuts'
 export { useCommands } from './useCommands'
+export { useFileUpload } from './useFileUpload'
+export type { UseFileUploadOptions, UseFileUploadReturn } from './useFileUpload'

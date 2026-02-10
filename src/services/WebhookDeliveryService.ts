@@ -195,6 +195,18 @@ export class WebhookDeliveryService {
 
   /**
    * Send webhook HTTP request
+   *
+   * Security: Outgoing webhooks are signed with HMAC-SHA256 for verification.
+   * The signature format is: sha256=<hex-encoded-hmac>
+   * The signature is computed over: timestamp + '.' + JSON.stringify(payload)
+   * This binds the timestamp to the payload to prevent replay attacks.
+   *
+   * Recipients should:
+   * 1. Extract the timestamp from X-Webhook-Timestamp header
+   * 2. Verify the timestamp is within acceptable tolerance (recommended: 5 minutes)
+   * 3. Reconstruct the signed payload: timestamp + '.' + rawBody
+   * 4. Compute HMAC-SHA256 with the shared secret
+   * 5. Compare signatures using constant-time comparison
    */
   private static async sendWebhook(
     webhook: WebhookConfig,
@@ -203,17 +215,23 @@ export class WebhookDeliveryService {
     // S4-2: Get correlation context for tracing
     const context = getRequestContext();
 
+    // Use Unix timestamp in milliseconds for replay attack prevention
+    const timestamp = Date.now().toString();
+
     // Prepare payload
-    const timestamp = new Date().toISOString();
     const payload = {
       event: event.type,
-      timestamp,
+      timestamp: new Date(parseInt(timestamp)).toISOString(),
       data: event.payload,
       metadata: event.metadata
     };
 
-    // Calculate signature
-    const signature = this.calculateSignature(payload, webhook.secret || '');
+    // Serialize payload once for consistent signing
+    const payloadString = JSON.stringify(payload);
+
+    // Calculate signature with timestamp binding to prevent replay attacks
+    // Format: sha256=<hex-encoded-hmac>
+    const signature = this.calculateSignature(payloadString, timestamp, webhook.secret || '');
 
     // Prepare headers
     const headers: Record<string, string> = {
@@ -229,8 +247,8 @@ export class WebhookDeliveryService {
     };
 
     try {
-      // Send HTTP POST request
-      const response = await axios.post(webhook.url, payload, {
+      // Send HTTP POST request with pre-serialized payload
+      const response = await axios.post(webhook.url, payloadString, {
         headers,
         timeout: (webhook.timeout || 30) * 1000,
         validateStatus: (status) => status >= 200 && status < 300
@@ -264,12 +282,38 @@ export class WebhookDeliveryService {
 
   /**
    * Calculate HMAC-SHA256 signature for webhook verification
+   *
+   * The signature is computed over: timestamp + '.' + payloadString
+   * This binds the timestamp to the payload to prevent replay attacks where
+   * an attacker captures a valid webhook and resends it later.
+   *
+   * @param payloadString - The JSON-serialized payload
+   * @param timestamp - Unix timestamp in milliseconds as string
+   * @param secret - The shared secret for HMAC computation
+   * @returns Signature in format: sha256=<hex-encoded-hmac>
    */
-  private static calculateSignature(payload: any, secret: string): string {
-    const payloadString = JSON.stringify(payload);
+  private static calculateSignature(payloadString: string, timestamp: string, secret: string): string {
+    // Bind timestamp to payload to prevent replay attacks
+    const signedPayload = `${timestamp}.${payloadString}`;
     const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(payloadString);
-    return hmac.digest('hex');
+    hmac.update(signedPayload);
+    return `sha256=${hmac.digest('hex')}`;
+  }
+
+  /**
+   * Sign a webhook payload for outgoing webhooks (public utility method)
+   *
+   * This method can be used by external code that needs to sign webhook payloads
+   * using the same algorithm as the delivery service.
+   *
+   * @param payload - The payload object to sign
+   * @param timestamp - Unix timestamp in milliseconds as string
+   * @param secret - The shared secret for HMAC computation
+   * @returns Signature in format: sha256=<hex-encoded-hmac>
+   */
+  static signPayload(payload: object | string, timestamp: string, secret: string): string {
+    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    return this.calculateSignature(payloadString, timestamp, secret);
   }
 
   /**
@@ -411,14 +455,83 @@ export class WebhookDeliveryService {
   }
 
   /**
-   * Verify webhook signature (for incoming webhook verification)
+   * Verify webhook signature for incoming webhook verification
+   *
+   * Security considerations:
+   * - Uses crypto.timingSafeEqual to prevent timing attacks
+   * - Validates timestamp to prevent replay attacks
+   * - Signature format must be: sha256=<hex-encoded-hmac>
+   *
+   * @param payload - The raw payload string (must match exactly what was signed)
+   * @param signature - The signature from X-Webhook-Signature header
+   * @param timestamp - The timestamp from X-Webhook-Timestamp header
+   * @param secret - The shared secret for HMAC computation
+   * @param toleranceMs - Maximum age of timestamp in milliseconds (default: 5 minutes)
+   * @returns Object with valid flag and optional error message
    */
-  static verifySignature(payload: any, signature: string, secret: string): boolean {
-    const calculatedSignature = this.calculateSignature(payload, secret);
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(calculatedSignature)
-    );
+  static verifySignature(
+    payload: string,
+    signature: string,
+    timestamp: string,
+    secret: string,
+    toleranceMs: number = 300000 // 5 minutes default
+  ): { valid: boolean; error?: string } {
+    // Validate signature format
+    if (!signature || !signature.startsWith('sha256=')) {
+      return { valid: false, error: 'Invalid signature format: must start with sha256=' };
+    }
+
+    // Validate timestamp format
+    const timestampNum = parseInt(timestamp, 10);
+    if (isNaN(timestampNum)) {
+      return { valid: false, error: 'Invalid timestamp format' };
+    }
+
+    // Check timestamp tolerance to prevent replay attacks
+    const age = Math.abs(Date.now() - timestampNum);
+    if (age > toleranceMs) {
+      return {
+        valid: false,
+        error: `Timestamp expired: age ${Math.round(age / 1000)}s exceeds tolerance ${Math.round(toleranceMs / 1000)}s`
+      };
+    }
+
+    // Calculate expected signature
+    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const expectedSignature = this.calculateSignature(payloadString, timestamp, secret);
+
+    // Extract the hash part from the provided signature
+    const providedHash = signature.substring(7); // Remove 'sha256=' prefix
+    const expectedHash = expectedSignature.substring(7);
+
+    // Use timing-safe comparison to prevent timing attacks
+    try {
+      const providedBuffer = Buffer.from(providedHash, 'hex');
+      const expectedBuffer = Buffer.from(expectedHash, 'hex');
+
+      // Buffers must be same length for timingSafeEqual
+      if (providedBuffer.length !== expectedBuffer.length) {
+        return { valid: false, error: 'Signature length mismatch' };
+      }
+
+      const isValid = crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+      if (!isValid) {
+        return { valid: false, error: 'Signature mismatch' };
+      }
+
+      return { valid: true };
+    } catch {
+      return { valid: false, error: 'Invalid signature encoding' };
+    }
+  }
+
+  /**
+   * Simple signature verification (legacy compatibility)
+   * @deprecated Use verifySignature with timestamp for replay attack prevention
+   */
+  static verifySignatureSimple(payload: string, signature: string, secret: string): boolean {
+    const result = this.verifySignature(payload, signature, Date.now().toString(), secret, Infinity);
+    return result.valid;
   }
 }
 

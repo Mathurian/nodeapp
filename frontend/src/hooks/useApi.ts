@@ -5,7 +5,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/apiClient';
-import type { ApiResponse } from '../../../shared/types/api';
+import type { ApiResponse, isSuccessResponse as isSuccessResponseType } from '../../../shared/types/api';
+import { isSuccessResponse, isErrorResponse } from '../../../shared/types/api';
 
 interface UseApiOptions {
   immediate?: boolean;
@@ -39,11 +40,11 @@ export function useApi<T>(
       setError(null);
 
       const response = await apiClient.get<T>(endpoint, params);
-      
-      if (response.data) {
+
+      if (isSuccessResponse(response)) {
         setData(response.data);
         onSuccess?.(response.data);
-      } else if (response.error) {
+      } else if (isErrorResponse(response)) {
         throw new Error(response.error);
       }
     } catch (err) {
@@ -82,15 +83,16 @@ export function useMutation<TData = unknown, TVariables = unknown>(
       setError(null);
 
       const response = await mutationFn(variables);
-      
-      if (response.data) {
+
+      if (isSuccessResponse(response)) {
         setData(response.data);
         onSuccess?.(response.data);
-      } else if (response.error) {
+        return response.data;
+      } else if (isErrorResponse(response)) {
         throw new Error(response.error);
       }
 
-      return response.data;
+      return null;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);

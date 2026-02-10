@@ -11,6 +11,11 @@ import {
   PaginationMeta,
   ValidationError
 } from '../types/api/responses.types';
+import {
+  ApiErrorResponse,
+  ValidationErrorDetail
+} from '../types/ApiResponse';
+import { ErrorCode } from '../types/errors';
 import { env } from '../config/env';
 
 /**
@@ -81,6 +86,111 @@ export function sendError(
   }
 
   return res.status(statusCode).json(response);
+}
+
+/**
+ * Send a standardized error response with error code
+ * This is the new preferred method for error responses
+ */
+export function errorResponse(
+  res: Response,
+  error: string,
+  code?: ErrorCode,
+  status: number = 400,
+  details?: unknown
+): Response<ApiErrorResponse> {
+  const response: ApiErrorResponse = {
+    success: false,
+    error,
+    timestamp: new Date().toISOString()
+  };
+
+  if (code) {
+    response.code = code;
+  }
+
+  if (details !== undefined) {
+    response.details = details;
+  }
+
+  // Add request ID if available
+  const requestId = (res.req as any)?.id || (res.req?.headers?.['x-request-id'] as string);
+  if (requestId) {
+    response.requestId = requestId;
+  }
+
+  return res.status(status).json(response);
+}
+
+/**
+ * Send a standardized validation error response
+ */
+export function validationErrorResponse(
+  res: Response,
+  errors: ValidationErrorDetail[],
+  message: string = 'Validation failed'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.VALIDATION_ERROR, 400, errors);
+}
+
+/**
+ * Send a not found error response with error code
+ */
+export function notFoundErrorResponse(
+  res: Response,
+  message: string = 'Resource not found'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.NOT_FOUND, 404);
+}
+
+/**
+ * Send an unauthorized error response with error code
+ */
+export function unauthorizedErrorResponse(
+  res: Response,
+  message: string = 'Authentication required'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.AUTHENTICATION_ERROR, 401);
+}
+
+/**
+ * Send a forbidden error response with error code
+ */
+export function forbiddenErrorResponse(
+  res: Response,
+  message: string = 'Access denied'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.AUTHORIZATION_ERROR, 403);
+}
+
+/**
+ * Send a conflict error response with error code
+ */
+export function conflictErrorResponse(
+  res: Response,
+  message: string = 'Resource conflict'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.CONFLICT, 409);
+}
+
+/**
+ * Send a rate limit error response with error code
+ */
+export function rateLimitErrorResponse(
+  res: Response,
+  message: string = 'Too many requests'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.RATE_LIMIT_EXCEEDED, 429);
+}
+
+/**
+ * Send an internal server error response with error code
+ */
+export function internalErrorResponse(
+  res: Response,
+  message: string = 'Internal server error'
+): Response<ApiErrorResponse> {
+  return errorResponse(res, message, ErrorCode.INTERNAL_ERROR, 500);
 }
 
 /**

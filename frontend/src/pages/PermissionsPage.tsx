@@ -20,6 +20,7 @@ import {
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import { ResponsiveTable } from '../components/ui';
 
 interface PermissionMatrix {
   [role: string]: {
@@ -365,7 +366,10 @@ const PermissionsPage: React.FC = () => {
 
         {/* Permission Matrix Table */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          <ResponsiveTable
+            caption="Permission matrix showing access controls for each role"
+            minWidth="1000px"
+          >
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
@@ -439,7 +443,7 @@ const PermissionsPage: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
       </div>
 

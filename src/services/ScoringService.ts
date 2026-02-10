@@ -79,6 +79,63 @@ type UserWithJudge = Prisma.UserGetPayload<{
   };
 }>;
 
+// P2-2 OPTIMIZATION: Reusable select constants for consistent field loading
+// These constants eliminate duplicate select blocks and ensure type safety
+
+/**
+ * Base select for contestant relation
+ */
+const CONTESTANT_SELECT = {
+  id: true,
+  name: true,
+  contestantNumber: true,
+} as const satisfies Prisma.ContestantSelect;
+
+/**
+ * Base select for judge relation
+ */
+const JUDGE_SELECT = {
+  id: true,
+  name: true,
+} as const satisfies Prisma.JudgeSelect;
+
+/**
+ * Base select for category relation (includes scoreCap for validation)
+ */
+const CATEGORY_SELECT = {
+  id: true,
+  name: true,
+  scoreCap: true,
+} as const satisfies Prisma.CategorySelect;
+
+/**
+ * Full score select with all relations
+ * Used for score responses that need contestant, judge, and category data
+ */
+const SCORE_WITH_RELATIONS_SELECT = {
+  id: true,
+  categoryId: true,
+  contestantId: true,
+  judgeId: true,
+  criterionId: true,
+  score: true,
+  comment: true,
+  certifiedAt: true,
+  certifiedBy: true,
+  createdAt: true,
+  updatedAt: true,
+  tenantId: true,
+  contestant: {
+    select: CONTESTANT_SELECT,
+  },
+  judge: {
+    select: JUDGE_SELECT,
+  },
+  category: {
+    select: CATEGORY_SELECT,
+  },
+} as const satisfies Prisma.ScoreSelect;
+
 export interface SubmitScoreDTO {
   categoryId: string;
   contestantId: string;
@@ -145,39 +202,7 @@ export class ScoringService extends BaseService {
         // P2-2 OPTIMIZATION: Selective field loading instead of full includes
         return (await this.prisma.score.findMany({
           where: { categoryId, contestantId, tenantId },
-          select: {
-            id: true,
-            categoryId: true,
-            contestantId: true,
-            judgeId: true,
-            criterionId: true,
-            score: true,
-            comment: true,
-            createdAt: true,
-            updatedAt: true,
-            tenantId: true,
-            // Only select essential fields from relations
-            contestant: {
-              select: {
-                id: true,
-                name: true,
-                contestantNumber: true
-              }
-            },
-            judge: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            category: {
-              select: {
-                id: true,
-                name: true,
-                scoreCap: true
-              }
-            }
-          },
+          select: SCORE_WITH_RELATIONS_SELECT,
           orderBy: { createdAt: 'desc' }
         })) as unknown as Score[];
       }
@@ -286,40 +311,7 @@ export class ScoringService extends BaseService {
             certifiedAt: null,
             certifiedBy: null
           },
-          select: {
-            id: true,
-            categoryId: true,
-            contestantId: true,
-            judgeId: true,
-            criterionId: true,
-            score: true,
-            comment: true,
-            certifiedAt: true,
-            certifiedBy: true,
-            createdAt: true,
-            updatedAt: true,
-            tenantId: true,
-            contestant: {
-              select: {
-                id: true,
-                name: true,
-                contestantNumber: true
-              }
-            },
-            judge: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            category: {
-              select: {
-                id: true,
-                name: true,
-                scoreCap: true
-              }
-            }
-          }
+          select: SCORE_WITH_RELATIONS_SELECT,
         }) as ScoreWithRelations;
       } catch (error: any) {
         // P2002 is Prisma's unique constraint violation error
@@ -372,40 +364,7 @@ export class ScoringService extends BaseService {
         data: {
           score: data.score !== undefined ? data.score : existingScore!.score,
         },
-        select: {
-          id: true,
-          categoryId: true,
-          contestantId: true,
-          judgeId: true,
-          criterionId: true,
-          score: true,
-          comment: true,
-          certifiedAt: true,
-          certifiedBy: true,
-          createdAt: true,
-          updatedAt: true,
-          tenantId: true,
-          contestant: {
-            select: {
-              id: true,
-              name: true,
-              contestantNumber: true
-            }
-          },
-          judge: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-              scoreCap: true
-            }
-          }
-        }
+        select: SCORE_WITH_RELATIONS_SELECT,
       }) as ScoreWithRelations;
 
       this.logInfo('Score updated successfully', { scoreId });
@@ -466,40 +425,7 @@ export class ScoringService extends BaseService {
           certifiedAt: new Date(),
           certifiedBy: certifiedBy
         },
-        select: {
-          id: true,
-          categoryId: true,
-          contestantId: true,
-          judgeId: true,
-          criterionId: true,
-          score: true,
-          comment: true,
-          certifiedAt: true,
-          certifiedBy: true,
-          createdAt: true,
-          updatedAt: true,
-          tenantId: true,
-          contestant: {
-            select: {
-              id: true,
-              name: true,
-              contestantNumber: true
-            }
-          },
-          judge: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-              scoreCap: true
-            }
-          }
-        }
+        select: SCORE_WITH_RELATIONS_SELECT,
       }) as ScoreWithRelations;
 
       this.logInfo('Score certified successfully', { scoreId, certifiedBy });
@@ -569,40 +495,7 @@ export class ScoringService extends BaseService {
           certifiedAt: null,
           certifiedBy: null
         },
-        select: {
-          id: true,
-          categoryId: true,
-          contestantId: true,
-          judgeId: true,
-          criterionId: true,
-          score: true,
-          comment: true,
-          certifiedAt: true,
-          certifiedBy: true,
-          createdAt: true,
-          updatedAt: true,
-          tenantId: true,
-          contestant: {
-            select: {
-              id: true,
-              name: true,
-              contestantNumber: true
-            }
-          },
-          judge: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-              scoreCap: true
-            }
-          }
-        }
+        select: SCORE_WITH_RELATIONS_SELECT,
       }) as ScoreWithRelations;
 
       this.logInfo('Score unsigned successfully', { scoreId });

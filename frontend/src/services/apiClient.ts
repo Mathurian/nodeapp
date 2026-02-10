@@ -4,7 +4,8 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { ApiResponse, ApiErrorResponse } from '../../../shared/types/api';
+import type { ApiResponse, ApiErrorResponse, isErrorResponse } from '../../../shared/types/api';
+import { ApiError } from '../utils/errorHandler';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -121,7 +122,18 @@ class ApiClient {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errorResponse = error.response?.data as ApiErrorResponse | undefined;
-        throw new Error(errorResponse?.message || error.message || 'Request failed');
+        // Use standardized error format
+        const errorMessage = errorResponse?.error || errorResponse?.message || error.message || 'Request failed';
+        throw ApiError.fromResponse(
+          {
+            success: false,
+            error: errorMessage,
+            code: errorResponse?.code,
+            details: errorResponse?.details,
+            requestId: errorResponse?.requestId,
+          },
+          error.response?.status
+        );
       }
       throw error;
     }

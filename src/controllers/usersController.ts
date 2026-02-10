@@ -8,7 +8,16 @@ import { container } from 'tsyringe';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
 import { AuditLogService } from '../services/AuditLogService';
-import { sendSuccess, sendCreated, sendError, sendNoContent, sendNotFound, sendBadRequest } from '../utils/responseHelpers';
+import {
+  sendSuccess,
+  sendCreated,
+  sendError,
+  sendNoContent,
+  sendNotFound,
+  sendBadRequest,
+  errorResponse
+} from '../utils/responseHelpers';
+import { ErrorCode } from '../types/errors';
 import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
@@ -164,7 +173,7 @@ export class UsersController {
       // Validate required fields
       if (!data.name || !data.email || !data.password || !data.role) {
         log.warn('User creation failed: missing required fields');
-        sendError(res, 'Name, email, password, and role are required', 400);
+        errorResponse(res, 'Name, email, password, and role are required', ErrorCode.VALIDATION_ERROR, 400);
         return;
       }
 
@@ -172,7 +181,7 @@ export class UsersController {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(data.email)) {
         log.warn('User creation failed: invalid email format', { email: data.email });
-        sendError(res, 'Invalid email format', 400);
+        errorResponse(res, 'Invalid email format', ErrorCode.VALIDATION_ERROR, 400, { field: 'email' });
         return;
       }
 
@@ -180,7 +189,7 @@ export class UsersController {
       const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
       if (!validRoles.includes(data.role)) {
         log.warn('User creation failed: invalid role', { role: data.role });
-        sendError(res, 'Invalid role', 400);
+        errorResponse(res, 'Invalid role', ErrorCode.VALIDATION_ERROR, 400, { field: 'role', validRoles });
         return;
       }
 
@@ -192,7 +201,7 @@ export class UsersController {
 
       if (existingUser) {
         log.warn('User creation failed: email already exists', { email: data.email });
-        sendError(res, 'User with this email already exists', 400);
+        errorResponse(res, 'User with this email already exists', ErrorCode.DUPLICATE_ENTRY, 409);
         return;
       }
 
@@ -326,7 +335,7 @@ export class UsersController {
       log.error('Create user error', { error: (error as Error).message, email: req.body['email'] });
       const prismaError = error as Prisma.PrismaClientKnownRequestError;
       if (prismaError.code === 'P2002') {
-        sendError(res, 'User with this email already exists', 400);
+        errorResponse(res, 'User with this email already exists', ErrorCode.DUPLICATE_ENTRY, 409);
       } else {
         return next(error);
       }

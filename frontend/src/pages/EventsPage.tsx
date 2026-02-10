@@ -19,6 +19,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 import { ConfirmModal } from '../components/ui'
+import { EventCardSkeleton } from '../components/ui/SkeletonPatterns'
 
 interface Event {
   id: string
@@ -326,9 +327,10 @@ const EventsPage: React.FC = () => {
 
         {/* Events List */}
         {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading events...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <EventCardSkeleton key={index} />
+            ))}
           </div>
         ) : filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -349,16 +351,23 @@ const EventsPage: React.FC = () => {
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{event.location}</p>
                     )}
                   </div>
-                  {event.archived && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                      Archived
-                    </span>
-                  )}
-                  {event.isLocked && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300">
-                      Locked
-                    </span>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    {event.scoringType === 'OLYMPIC' && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+                        Olympic
+                      </span>
+                    )}
+                    {event.archived && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
+                        Archived
+                      </span>
+                    )}
+                    {event.isLocked && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300">
+                        Locked
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Description */}
@@ -527,11 +536,20 @@ const EventsPage: React.FC = () => {
                   >
                     <option value="">Inherit from tenant</option>
                     <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
-                    <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
+                    <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 4+ judges)</option>
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Leave empty to inherit from tenant. Can be overridden at contest level.
                   </p>
+                  {formData.scoringType === 'OLYMPIC' && (
+                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Note:</strong> Olympic scoring drops the highest and lowest scores before averaging.
+                        This requires at least 4 judges per contest for statistically meaningful results.
+                        With only 3 judges, only 1 score remains after dropping high/low.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Form Actions */}

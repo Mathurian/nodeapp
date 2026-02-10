@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
 import type { AuditLog, AuditLogFilters } from '../types/activity.types'
+import { ResponsiveTable } from '../components/ui'
 
 const ActivityLogPage: React.FC = () => {
   const { user } = useAuth()
@@ -299,7 +300,11 @@ const ActivityLogPage: React.FC = () => {
           </div>
         ) : logs.length > 0 ? (
           <>
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+              <ResponsiveTable
+                caption="Activity log entries showing user actions and system events"
+                minWidth="900px"
+              >
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-900">
                   <tr>
@@ -376,6 +381,7 @@ const ActivityLogPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </ResponsiveTable>
             </div>
 
             {/* Pagination */}

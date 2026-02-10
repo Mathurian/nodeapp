@@ -14,9 +14,12 @@ import {
   NotFoundError,
   ConflictError,
   RateLimitError,
+  ErrorCode,
 } from '../types/errors';
 // S4-2: Import correlation ID helper
 import { getRequestContext } from './correlationId';
+// Import standardized API response types
+import { ApiErrorResponse } from '../types/ApiResponse';
 
 const logger = createLogger('ErrorHandler');
 
@@ -223,135 +226,114 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     }
   });
 
-  // P3-3: Handle standardized error types with instanceof checks
-  if (isAppError(err)) {
-    // Use standardized error response format
-    const response: any = {
+  // Helper function to build standardized error response
+  const buildErrorResponse = (
+    errorMessage: string,
+    code?: ErrorCode,
+    details?: unknown
+  ): ApiErrorResponse => {
+    const response: ApiErrorResponse = {
       success: false,
-      error: err.code,
-      message: err.message,
+      error: errorMessage,
       requestId,
       correlationId,
       timestamp: new Date().toISOString(),
     };
-    if (err.details) {
-      response.details = err.details;
+    if (code) {
+      response.code = code;
     }
+    if (details !== undefined) {
+      response.details = details;
+    }
+    return response;
+  };
+
+  // P3-3: Handle standardized error types with instanceof checks
+  if (isAppError(err)) {
+    // Use standardized error response format
+    const response = buildErrorResponse(err.message, err.code, err.details);
     res.status(err.statusCode).json(response);
     return;
   }
 
   // Legacy error handling (for backward compatibility during transition)
   if (error.name === 'ValidationError' || err instanceof ValidationError) {
-    res.status(400).json({
-      success: false,
-      error: 'Validation error',
-      details: error.message,
-      requestId,
-      correlationId,
-      timestamp: new Date().toISOString(),
-    });
+    res.status(400).json(buildErrorResponse(
+      error.message || 'Validation error',
+      ErrorCode.VALIDATION_ERROR
+    ));
     return;
   }
 
   if (error.name === 'UnauthorizedError' || err instanceof AuthenticationError || error.statusCode === 401) {
-    res.status(401).json({
-      success: false,
-      error: 'Unauthorized',
-      message: error.message || 'Authentication required',
-      requestId,
-      correlationId,
-      timestamp: new Date().toISOString(),
-    });
+    res.status(401).json(buildErrorResponse(
+      error.message || 'Authentication required',
+      ErrorCode.AUTHENTICATION_ERROR
+    ));
     return;
   }
 
   if (error.name === 'ForbiddenError' || err instanceof AuthorizationError || error.statusCode === 403) {
-    res.status(403).json({
-      success: false,
-      error: 'Forbidden',
-      message: error.message || 'You do not have permission to access this resource',
-      requestId,
-      correlationId,
-      timestamp: new Date().toISOString(),
-    });
+    res.status(403).json(buildErrorResponse(
+      error.message || 'You do not have permission to access this resource',
+      ErrorCode.AUTHORIZATION_ERROR
+    ));
     return;
   }
 
   if (error.name === 'NotFoundError' || err instanceof NotFoundError || error.statusCode === 404) {
-    res.status(404).json({
-      success: false,
-      error: 'Not found',
-      message: error.message || 'Resource not found',
-      requestId,
-      correlationId,
-      timestamp: new Date().toISOString(),
-    });
+    res.status(404).json(buildErrorResponse(
+      error.message || 'Resource not found',
+      ErrorCode.NOT_FOUND
+    ));
     return;
   }
 
   if (err instanceof ConflictError || error.statusCode === 409) {
-    res.status(409).json({
-      success: false,
-      error: 'Conflict',
-      message: error.message || 'Resource conflict',
-      requestId,
-      correlationId,
-      timestamp: new Date().toISOString(),
-    });
+    res.status(409).json(buildErrorResponse(
+      error.message || 'Resource conflict',
+      ErrorCode.CONFLICT
+    ));
     return;
   }
 
   if (err instanceof RateLimitError || error.statusCode === 429) {
-    res.status(429).json({
-      success: false,
-      error: 'Rate limit exceeded',
-      message: error.message || 'Too many requests',
-      requestId,
-      correlationId,
-      timestamp: new Date().toISOString(),
-    });
+    res.status(429).json(buildErrorResponse(
+      error.message || 'Too many requests',
+      ErrorCode.RATE_LIMIT_EXCEEDED
+    ));
     return;
   }
 
   // Handle Prisma errors
   if (error.name === 'PrismaClientKnownRequestError') {
     if (error.code === 'P2002') {
-      res.status(409).json({
-        success: false,
-        error: 'Conflict',
-        message: 'A record with this value already exists',
-        requestId,
-        correlationId,
-        timestamp: new Date().toISOString(),
-      });
+      res.status(409).json(buildErrorResponse(
+        'A record with this value already exists',
+        ErrorCode.DUPLICATE_ENTRY
+      ));
       return;
     }
     if (error.code === 'P2025') {
-      res.status(404).json({
-        success: false,
-        error: 'Not found',
-        message: 'Record not found',
-        requestId,
-        correlationId,
-        timestamp: new Date().toISOString(),
-      });
+      res.status(404).json(buildErrorResponse(
+        'Record not found',
+        ErrorCode.NOT_FOUND
+      ));
       return;
     }
   }
 
   // Default internal server error
-  const statusCode = error.statusCode || 500
-  res.status(statusCode).json({
-    success: false,
-    error: 'Internal server error',
-    message: env.isProduction() ? 'An unexpected error occurred' : error.message,
-    requestId,
-    correlationId,
-    timestamp: new Date().toISOString(),
-    // Include stack trace only in development
-    ...(!env.isProduction() && { stack: error.stack }),
-  })
+  const statusCode = error.statusCode || 500;
+  const errorMessage = env.isProduction() ? 'An unexpected error occurred' : (error.message || 'Unknown error');
+  const response = buildErrorResponse(errorMessage, ErrorCode.INTERNAL_ERROR);
+
+  // Include stack trace only in development
+  if (!env.isProduction() && error.stack) {
+    (response as any).stack = error.stack;
+  }
+
+  res.status(statusCode).json(response);
 }
 
 export { 

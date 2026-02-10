@@ -9,6 +9,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { ResponsiveTable } from '../components/ui'
 
 interface Certification {
   id: string
@@ -222,9 +223,11 @@ const CertificationsPage: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <ResponsiveTable
+                caption="Category certifications with workflow progress and status"
+                minWidth="900px"
+              >
                 <table className="w-full">
-                  <caption className="sr-only">Category certifications with workflow progress and status</caption>
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
@@ -315,7 +318,7 @@ const CertificationsPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ResponsiveTable>
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (

@@ -10,6 +10,7 @@ import {
   XMarkIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
+import { ResponsiveTable } from '../components/ui'
 
 interface Judge {
   id: string
@@ -557,7 +558,11 @@ const AssignmentsPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-x-auto">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+          <ResponsiveTable
+            caption="Role assignments showing judges, contestants, tally masters, and auditors"
+            minWidth="900px"
+          >
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -667,6 +672,7 @@ const AssignmentsPage: React.FC = () => {
                 ))}
             </tbody>
           </table>
+          </ResponsiveTable>
         </div>
       )}
 

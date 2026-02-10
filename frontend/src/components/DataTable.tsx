@@ -7,6 +7,7 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline'
+import { ResponsiveTable } from './ui'
 
 interface Column {
   key: string
@@ -198,7 +199,7 @@ const DataTable: React.FC<DataTableProps> = ({
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <ResponsiveTable minWidth="600px">
           <table className="table">
             <thead>
               <tr>
@@ -246,7 +247,7 @@ const DataTable: React.FC<DataTableProps> = ({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTable>
 
         {/* Pagination */}
         {renderPagination()}
