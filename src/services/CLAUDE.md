@@ -11,4 +11,20 @@
 | #31 | 10:26 PM | 🔵 | Service Layer Architecture with 100+ Business Logic Services | ~1317 |
 | #25 | 10:25 PM | 🔵 | Authentication Service with MFA, Password Policy, and Multi-Tenant Support | ~964 |
 | #22 | 10:24 PM | 🔵 | Scoring Service with Olympic Scoring, Lock Enforcement, and Cache Invalidation | ~1209 |
+
+### Feb 9, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #403 | 1:01 PM | 🔵 | TypeScript Configuration Issues and WebhookDeliveryService Circuit Breaker | ~610 |
+| #399 | 12:58 PM | 🟣 | WebhookDeliveryService enhanced with timestamp-bound signatures to prevent replay attacks | ~725 |
+| #397 | 12:57 PM | 🔵 | WebhookDeliveryService implements resilient event delivery with circuit breakers and retry logic | ~1542 |
+| #393 | 12:55 PM | ✅ | Duplicate Select Block Eliminated in ScoringService unsignScore Method | ~693 |
+| #392 | " | 🔄 | ScoringService Duplicate Select Clause Extraction First Instance | ~500 |
+| #391 | " | 🔄 | ScoringService refactored with reusable Prisma select constants for DRY and type safety | ~887 |
+| #388 | 12:54 PM | 🔵 | ScoringService Implements Olympic Scoring with 3-Judge Minimum Validation | ~711 |
+| #309 | 12:27 PM | 🟣 | Olympic Scoring Validation Warnings Integrated in Frontend | ~469 |
+| #276 | 12:18 PM | 🔵 | ContestService Implements Comprehensive Business Logic with Multi-Level Caching | ~896 |
+| #272 | " | 🔵 | Olympic Scoring Validation with Judge Count Requirements | ~546 |
+| #262 | 12:17 PM | 🔵 | ScoringService Implementation with Olympic and Straight Scoring Logic | ~723 |
 </claude-mem-context>

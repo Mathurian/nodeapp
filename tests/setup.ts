@@ -5,6 +5,7 @@
 
 // IMPORTANT: Set environment variables FIRST before any imports
 // This ensures database and other configs can read them during initialization
+// Note: PRISMA_QUERY_ENGINE_LIBRARY is set in jest.globalMocks.ts (runs first)
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public';

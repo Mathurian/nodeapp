@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
+import { useOptimisticMutation } from '../hooks'
+import { getOptimisticRowClass } from '../components/ui'
 import {
   UserGroupIcon,
   PlusIcon,
@@ -68,6 +70,8 @@ interface JudgeAssignment {
   judge: Judge
   category: Category
   createdAt: string
+  _optimistic?: boolean
+  _deleting?: boolean
 }
 
 interface ContestantAssignment {
@@ -77,6 +81,8 @@ interface ContestantAssignment {
   contestant: Contestant
   category: Category
   createdAt: string
+  _optimistic?: boolean
+  _deleting?: boolean
 }
 
 interface TallyMasterAssignment {
@@ -295,41 +301,56 @@ const AssignmentsPage: React.FC = () => {
     }
   )
 
-  // Remove judge assignment mutation
-  const removeJudgeAssignmentMutation = useMutation(
-    async (assignmentId: string) => {
+  // Remove judge assignment mutation with optimistic updates
+  const removeJudgeAssignmentMutation = useOptimisticMutation<unknown, string>({
+    mutationFn: async (assignmentId: string) => {
       const response = await api.put(`/api/assignments/remove/${assignmentId}`)
       return response.data
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('judge-assignments')
-        toast.success('Judge assignment removed!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to remove assignment'
-        toast.error(`Error: ${errorMessage}`)
-      },
-    }
-  )
+    queryKey: ['judge-assignments'],
+    updateFn: (oldData, assignmentId) => {
+      const assignments = oldData as JudgeAssignment[] | undefined
+      if (!assignments) return []
+      return assignments.map((a) =>
+        a.id === assignmentId ? { ...a, _optimistic: true, _deleting: true } : a
+      )
+    },
+    onSuccess: () => {
+      toast.success('Judge assignment removed!')
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove assignment'
+      toast.error(`Error: ${errorMessage}`)
+    },
+    invalidateOnSettled: true,
+  })
 
-  // Remove contestant assignment mutation
-  const removeContestantAssignmentMutation = useMutation(
-    async ({ categoryId, contestantId }: { categoryId: string; contestantId: string }) => {
+  // Remove contestant assignment mutation with optimistic updates
+  const removeContestantAssignmentMutation = useOptimisticMutation<
+    unknown,
+    { categoryId: string; contestantId: string; assignmentId: string }
+  >({
+    mutationFn: async ({ categoryId, contestantId }) => {
       const response = await api.delete(`/api/assignments/category/${categoryId}/contestant/${contestantId}`)
       return response.data
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('contestant-assignments')
-        toast.success('Contestant assignment removed!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to remove assignment'
-        toast.error(`Error: ${errorMessage}`)
-      },
-    }
-  )
+    queryKey: ['contestant-assignments'],
+    updateFn: (oldData, { assignmentId }) => {
+      const assignments = oldData as ContestantAssignment[] | undefined
+      if (!assignments) return []
+      return assignments.map((a) =>
+        a.id === assignmentId ? { ...a, _optimistic: true, _deleting: true } : a
+      )
+    },
+    onSuccess: () => {
+      toast.success('Contestant assignment removed!')
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove assignment'
+      toast.error(`Error: ${errorMessage}`)
+    },
+    invalidateOnSettled: true,
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -367,9 +388,13 @@ const AssignmentsPage: React.FC = () => {
     }
   }
 
-  const handleRemoveContestantAssignment = (categoryId: string, contestantId: string) => {
+  const handleRemoveContestantAssignment = (assignment: ContestantAssignment) => {
     if (confirm('Are you sure you want to remove this assignment?')) {
-      removeContestantAssignmentMutation.mutate({ categoryId, contestantId })
+      removeContestantAssignmentMutation.mutate({
+        categoryId: assignment.categoryId,
+        contestantId: assignment.contestantId,
+        assignmentId: assignment.id,
+      })
     }
   }
 
@@ -591,8 +616,13 @@ const AssignmentsPage: React.FC = () => {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {activeTab === 'judges' &&
-                (filteredJudgeAssignments as JudgeAssignment[]).map((assignment) => (
-                  <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                (filteredJudgeAssignments as JudgeAssignment[]).map((assignment) => {
+                  const optimisticClass = getOptimisticRowClass(assignment)
+                  return (
+                  <tr
+                    key={assignment.id}
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${optimisticClass}`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -619,18 +649,29 @@ const AssignmentsPage: React.FC = () => {
                       {new Date(assignment.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleRemoveJudgeAssignment(assignment.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      {assignment._deleting ? (
+                        <span className="text-xs text-gray-500">Removing...</span>
+                      ) : (
+                        <button
+                          onClick={() => handleRemoveJudgeAssignment(assignment.id)}
+                          disabled={removeJudgeAssignmentMutation.isLoading}
+                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 disabled:opacity-50"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               {activeTab === 'contestants' &&
-                (filteredContestantAssignments as ContestantAssignment[]).map((assignment) => (
-                  <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                (filteredContestantAssignments as ContestantAssignment[]).map((assignment) => {
+                  const optimisticClass = getOptimisticRowClass(assignment)
+                  return (
+                  <tr
+                    key={assignment.id}
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${optimisticClass}`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -659,17 +700,21 @@ const AssignmentsPage: React.FC = () => {
                       {new Date(assignment.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() =>
-                          handleRemoveContestantAssignment(assignment.categoryId, assignment.contestantId)
-                        }
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      {assignment._deleting ? (
+                        <span className="text-xs text-gray-500">Removing...</span>
+                      ) : (
+                        <button
+                          onClick={() => handleRemoveContestantAssignment(assignment)}
+                          disabled={removeContestantAssignmentMutation.isLoading}
+                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 disabled:opacity-50"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
             </tbody>
           </table>
           </ResponsiveTable>

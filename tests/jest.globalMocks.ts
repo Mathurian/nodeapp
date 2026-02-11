@@ -7,6 +7,16 @@
  * allowing us to mock modules before the container imports them.
  */
 
+import * as path from 'path';
+
+// Prisma Query Engine Fix: Set the path BEFORE any Prisma imports
+// This resolves Jest module resolution issues with native .node modules
+const projectRoot = path.resolve(__dirname, '..');
+process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(
+  projectRoot,
+  'node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node'
+);
+
 // Mock bcrypt globally
 jest.mock('bcrypt', () => ({
   compare: jest.fn().mockResolvedValue(true),

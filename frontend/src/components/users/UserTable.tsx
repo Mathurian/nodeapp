@@ -8,12 +8,18 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
 import { User, getRoleInfo } from './types'
-import { ResponsiveTable } from '../ui'
+import { ResponsiveTable, getOptimisticRowClass } from '../ui'
 import { UserTableSkeleton } from '../ui/SkeletonPatterns'
 
+/** Extended User type with optimistic state flags */
+interface OptimisticUser extends User {
+  _optimistic?: boolean
+  _deleting?: boolean
+}
+
 export interface UserTableProps {
-  /** List of users to display */
-  users: User[]
+  /** List of users to display (may include optimistic state flags) */
+  users: (User | OptimisticUser)[]
   /** Whether the table is loading */
   isLoading: boolean
   /** Set of selected user IDs */
@@ -36,6 +42,8 @@ export interface UserTableProps {
   onSelectUser: (userId: string) => void
   /** Callback when select all is toggled */
   onSelectAll: () => void
+  /** Callback when user active status is toggled (optional) */
+  onToggleStatus?: (user: User) => void
 }
 
 /**
@@ -55,6 +63,7 @@ const UserTable: React.FC<UserTableProps> = ({
   onTenantReassign,
   onSelectUser,
   onSelectAll,
+  onToggleStatus,
 }) => {
   /**
    * Render role badge with appropriate color
@@ -133,8 +142,16 @@ const UserTable: React.FC<UserTableProps> = ({
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-          {users.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+          {users.map((user) => {
+            const optimisticUser = user as OptimisticUser
+            const optimisticClass = getOptimisticRowClass(optimisticUser)
+            const isDeleting = optimisticUser._deleting
+
+            return (
+            <tr
+              key={user.id}
+              className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-opacity duration-200 ${optimisticClass}`}
+            >
               <td className="px-4 py-4 whitespace-nowrap">
                 <input
                   type="checkbox"
@@ -173,13 +190,31 @@ const UserTable: React.FC<UserTableProps> = ({
                 </td>
               )}
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  user.isActive
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                }`}>
-                  {user.isActive ? 'Active' : 'Inactive'}
-                </span>
+                {onToggleStatus && user.id !== currentUserId ? (
+                  <button
+                    onClick={() => onToggleStatus(user)}
+                    disabled={isDeleting}
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer hover:opacity-80 ${
+                      user.isActive
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    } ${optimisticUser._optimistic && !isDeleting ? 'animate-pulse' : ''}`}
+                    aria-label={`Toggle ${user.name} status to ${user.isActive ? 'inactive' : 'active'}`}
+                  >
+                    {user.isActive ? 'Active' : 'Inactive'}
+                    {optimisticUser._optimistic && !isDeleting && (
+                      <span className="ml-1 h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
+                    )}
+                  </button>
+                ) : (
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    user.isActive
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {user.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                 {user.lastLoginAt
@@ -223,7 +258,8 @@ const UserTable: React.FC<UserTableProps> = ({
                 </div>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
       </ResponsiveTable>

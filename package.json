@@ -10,6 +10,7 @@
     "test": "node --max-old-space-size=4096 node_modules/.bin/jest --runInBand",
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
+    "test:contracts": "jest tests/contracts",
     "test:e2e": "jest --testPathPattern=tests/e2e",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
@@ -31,8 +32,7 @@
     "test:a11y": "cd frontend && playwright test tests/a11y",
     "migrate": "node src/database/migrate.js",
     "seed": "node src/database/seed.js",
-    "db:seed": "npx prisma db seed",
-    "db:seed:dev": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
+    "db:seed": "echo 'Use TestEventSetupPage in the UI for demo data'",
     "prisma:generate": "prisma generate",
     "load:smoke": "k6 run tests/load/smoke-test.js",
     "load:test": "k6 run tests/load/load-test.js",
@@ -120,6 +120,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "zod": "^3.25.76",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
@@ -149,10 +150,7 @@
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
-  "prisma": {
-    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  },
-  "overrides": {
+    "overrides": {
     "glob": "^10.3.10",
     "rimraf": "^5.0.5",
     "inflight": "npm:lru-cache@^10.0.0",

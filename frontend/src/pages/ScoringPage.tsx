@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
+import { useOptimisticMutation } from '../hooks'
+import { OptimisticIndicator, OptimisticStatus } from '../components/ui'
 import {
   TrophyIcon,
   UserIcon,
@@ -62,6 +64,7 @@ interface Score {
   signedAt: Date | null
   createdAt: Date
   updatedAt: Date
+  _optimistic?: boolean
 }
 
 interface ScoreFormData {
@@ -78,6 +81,7 @@ const ScoringPage: React.FC = () => {
   const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null)
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<OptimisticStatus>('idle')
 
   // Check if user can access scoring page (judges, admins, board members, and tally masters for viewing)
   const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'BOARD'].includes(user?.role || '')
@@ -163,19 +167,56 @@ const ScoringPage: React.FC = () => {
     }
   }, [criteria, selectedContestant, existingScores])
 
-  // Submit score mutation
-  const submitScoreMutation = useMutation(
-    async (data: { categoryId: string; contestantId: string; scores: ScoreFormData[] }) => {
+  // Submit score mutation with optimistic updates
+  const submitScoreMutation = useOptimisticMutation<
+    unknown,
+    { categoryId: string; contestantId: string; scores: ScoreFormData[] }
+  >({
+    mutationFn: async (data) => {
       const response = await scoringAPI.submitScore(data)
       return response.data
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['contestant-scores'])
-        queryClient.invalidateQueries(['scoring-categories'])
-      },
-    }
-  )
+    queryKey: ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
+    updateFn: (oldData, variables) => {
+      // Optimistically update scores in cache
+      const oldScores = (oldData as { scores?: Score[] })?.scores || []
+      const newScores = variables.scores.map((scoreData) => ({
+        id: `optimistic-${scoreData.criterionId}`,
+        contestantId: variables.contestantId,
+        judgeId: user?.id || '',
+        categoryId: variables.categoryId,
+        criterionId: scoreData.criterionId,
+        score: scoreData.score,
+        deduction: 0,
+        comment: scoreData.comment || null,
+        isSigned: false,
+        signedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        _optimistic: true,
+      }))
+
+      // Merge with existing scores (replace matching criterion scores)
+      const mergedScores = oldScores.filter(
+        (existing: Score) => !newScores.some((ns) => ns.criterionId === existing.criterionId)
+      )
+
+      return { scores: [...mergedScores, ...newScores] }
+    },
+    onMutate: () => {
+      setSaveStatus('saving')
+    },
+    onSuccess: () => {
+      setSaveStatus('saved')
+      queryClient.invalidateQueries(['scoring-categories'])
+    },
+    onError: (error) => {
+      setSaveStatus('error')
+      console.error('Score submission failed:', error)
+    },
+    invalidateOnSettled: true,
+    invalidateKeys: [['scoring-categories']],
+  })
 
   const handleScoreChange = (criterionId: string, field: keyof ScoreFormData, value: any) => {
     setScoreFormData(prev => ({
@@ -191,6 +232,7 @@ const ScoringPage: React.FC = () => {
     if (!selectedCategory || !selectedContestant) return
 
     setIsSubmitting(true)
+    setSaveStatus('saving')
     try {
       const scores = Object.values(scoreFormData)
       await submitScoreMutation.mutateAsync({
@@ -198,9 +240,12 @@ const ScoringPage: React.FC = () => {
         contestantId: selectedContestant.id,
         scores,
       })
+      setSaveStatus('saved')
       toast.success('Scores submitted successfully!')
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit scores'
+    } catch (error: unknown) {
+      setSaveStatus('error')
+      const err = error as { response?: { data?: { message?: string } }; message?: string }
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit scores'
       toast.error(`Error submitting scores: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
@@ -464,24 +509,36 @@ const ScoringPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Submit Button */}
-                      <button
-                        onClick={handleSubmitScores}
-                        disabled={isSubmitting}
-                        className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircleIcon className="h-5 w-5 mr-2" />
-                            Submit Scores
-                          </>
-                        )}
-                      </button>
+                      {/* Submit Button with Save Status */}
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleSubmitScores}
+                          disabled={isSubmitting}
+                          className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircleIcon className="h-5 w-5 mr-2" />
+                              Submit Scores
+                            </>
+                          )}
+                        </button>
+                        {/* Optimistic Save Status Indicator */}
+                        <div className="flex justify-center">
+                          <OptimisticIndicator
+                            status={saveStatus}
+                            size="md"
+                            savingText="Saving scores..."
+                            savedText="Scores saved"
+                            errorText="Failed to save - scores rolled back"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">

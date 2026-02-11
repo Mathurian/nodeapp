@@ -44,3 +44,11 @@ export type {
 
 export { default as UploadProgress } from './UploadProgress'
 export type { UploadProgressProps, UploadStatus } from './UploadProgress'
+
+export { default as OptimisticIndicator } from './OptimisticIndicator'
+export {
+  optimisticRowClasses,
+  optimisticValueClasses,
+  getOptimisticRowClass
+} from './OptimisticIndicator'
+export type { OptimisticIndicatorProps, OptimisticStatus } from './OptimisticIndicator'

@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
+import { useQuery, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
+import { useOptimisticMutation } from '../hooks'
+import { getOptimisticRowClass } from '../components/ui'
 import {
   MinusCircleIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 
@@ -32,56 +35,106 @@ interface Deduction {
   approvedBy?: string
   rejectionReason?: string
   createdAt: string
+  _optimistic?: boolean
 }
 
 const DeductionsPage: React.FC = () => {
   const { user } = useAuth()
-  const [deductions, setDeductions] = useState<Deduction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [filter, setFilter] = useState<string>('ALL')
   const [showApproveModal, setShowApproveModal] = useState<Deduction | null>(null)
   const [showRejectModal, setShowRejectModal] = useState<Deduction | null>(null)
   const [signature, setSignature] = useState('')
   const [rejectionReason, setRejectionReason] = useState('')
 
-  useEffect(() => {
-    fetchDeductions()
-  }, [])
-
-  const fetchDeductions = async () => {
-    try {
-      setLoading(true)
+  // Fetch deductions using react-query
+  const { data: deductions = [], isLoading, error } = useQuery<Deduction[]>(
+    'deductions',
+    async () => {
       const response = await scoringAPI.getDeductions()
       const unwrapped = response.data.data || response.data
-      setDeductions(Array.isArray(unwrapped) ? unwrapped : [])
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load deductions')
-    } finally {
-      setLoading(false)
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Failed to fetch deductions:', err),
     }
-  }
+  )
 
-  const approveDeduction = async (id: string) => {
-    try {
-      await scoringAPI.approveDeduction(id, signature)
+  // Approve mutation with optimistic updates
+  const approveMutation = useOptimisticMutation<
+    unknown,
+    { id: string; signature: string }
+  >({
+    mutationFn: async ({ id, signature }) => {
+      return await scoringAPI.approveDeduction(id, signature)
+    },
+    queryKey: ['deductions'],
+    updateFn: (oldData, { id }) => {
+      const deds = oldData as Deduction[] | undefined
+      if (!deds) return []
+      return deds.map((d) =>
+        d.id === id
+          ? { ...d, status: 'APPROVED' as const, _optimistic: true }
+          : d
+      )
+    },
+    onSuccess: () => {
       setShowApproveModal(null)
       setSignature('')
-      await fetchDeductions()
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to approve deduction')
-    }
-  }
+      toast.success('Deduction approved successfully')
+    },
+    onError: (error) => {
+      console.error('Failed to approve deduction:', error)
+      toast.error('Failed to approve deduction')
+    },
+    invalidateOnSettled: true,
+  })
 
-  const rejectDeduction = async (id: string) => {
-    try {
-      await scoringAPI.rejectDeduction(id, rejectionReason)
+  // Reject mutation with optimistic updates
+  const rejectMutation = useOptimisticMutation<
+    unknown,
+    { id: string; reason: string }
+  >({
+    mutationFn: async ({ id, reason }) => {
+      return await scoringAPI.rejectDeduction(id, reason)
+    },
+    queryKey: ['deductions'],
+    updateFn: (oldData, { id }) => {
+      const deds = oldData as Deduction[] | undefined
+      if (!deds) return []
+      return deds.map((d) =>
+        d.id === id
+          ? { ...d, status: 'REJECTED' as const, _optimistic: true }
+          : d
+      )
+    },
+    onSuccess: () => {
       setShowRejectModal(null)
       setRejectionReason('')
-      await fetchDeductions()
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to reject deduction')
+      toast.success('Deduction rejected')
+    },
+    onError: (error) => {
+      console.error('Failed to reject deduction:', error)
+      toast.error('Failed to reject deduction')
+    },
+    invalidateOnSettled: true,
+  })
+
+  const handleApprove = (id: string) => {
+    if (!signature.trim()) {
+      toast.error('Signature is required')
+      return
     }
+    approveMutation.mutate({ id, signature })
+  }
+
+  const handleReject = (id: string) => {
+    if (!rejectionReason.trim()) {
+      toast.error('Rejection reason is required')
+      return
+    }
+    rejectMutation.mutate({ id, reason: rejectionReason })
   }
 
   const getStatusIcon = (status: string) => {
@@ -110,34 +163,34 @@ const DeductionsPage: React.FC = () => {
 
   const canApprove = user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'TALLY_MASTER' || user?.role === 'BOARD'
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading deductions...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400">Loading deductions...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Score Deductions
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
             Manage and approve score deduction requests
           </p>
         </div>
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
+            <p className="text-red-800 dark:text-red-200">{String(error)}</p>
           </div>
         )}
 
         {/* Filter */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex gap-2 flex-wrap">
           <button
             onClick={() => setFilter('ALL')}
             className={`px-4 py-2 rounded-lg transition-colors ${
@@ -181,94 +234,110 @@ const DeductionsPage: React.FC = () => {
         </div>
 
         {/* Deductions List */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           {filteredDeductions.length === 0 ? (
             <div className="p-12 text-center">
               <MinusCircleIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
+              <p className="text-gray-600 dark:text-gray-400">
                 No deductions {filter !== 'ALL' && filter.toLowerCase()}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Category
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Contestant
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Points
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Reason
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Requested
                     </th>
                     {canApprove && (
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                         Actions
                       </th>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredDeductions.map((deduction) => (
-                    <tr key={deduction.id} className="hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(deduction.status)}
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(deduction.status)}`}>
-                            {deduction.status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white dark:text-white">
-                        {deduction.category.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white dark:text-white">
-                        #{deduction.contestant.contestantNumber} - {deduction.contestant.user.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">
-                        -{deduction.points}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                        {deduction.reason}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                        {format(new Date(deduction.createdAt), 'MMM d, h:mm a')}
-                      </td>
-                      {canApprove && (
+                  {filteredDeductions.map((deduction) => {
+                    const optimisticClass = getOptimisticRowClass(deduction)
+                    return (
+                      <tr
+                        key={deduction.id}
+                        className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ${optimisticClass}`}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {deduction.status === 'PENDING' && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setShowApproveModal(deduction)}
-                                className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
-                                title="Approve"
-                              >
-                                <CheckCircleIcon className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => setShowRejectModal(deduction)}
-                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
-                                title="Reject"
-                              >
-                                <XCircleIcon className="h-5 w-5" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(deduction.status)}
+                            <span className={`px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${getStatusColor(deduction.status)}`}>
+                              {deduction.status}
+                              {deduction._optimistic && (
+                                <span className="ml-1 h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
+                              )}
+                            </span>
+                          </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          {deduction.category.name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          #{deduction.contestant.contestantNumber} - {deduction.contestant.user.name}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">
+                          -{deduction.points}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                          {deduction.reason}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          {format(new Date(deduction.createdAt), 'MMM d, h:mm a')}
+                        </td>
+                        {canApprove && (
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {deduction.status === 'PENDING' && !deduction._optimistic && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => setShowApproveModal(deduction)}
+                                  disabled={approveMutation.isLoading || rejectMutation.isLoading}
+                                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Approve"
+                                >
+                                  <CheckCircleIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => setShowRejectModal(deduction)}
+                                  disabled={approveMutation.isLoading || rejectMutation.isLoading}
+                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Reject"
+                                >
+                                  <XCircleIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                            )}
+                            {deduction._optimistic && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Processing...
+                              </span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -278,20 +347,20 @@ const DeductionsPage: React.FC = () => {
         {/* Approve Modal */}
         {showApproveModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 Approve Deduction
               </h3>
               <div className="mb-4">
-                <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mb-2">
+                <p className="text-gray-600 dark:text-gray-400 mb-2">
                   Deduct <strong>{showApproveModal.points} points</strong> from contestant #{showApproveModal.contestant.contestantNumber}?
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Reason: {showApproveModal.reason}
                 </p>
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Your Signature
                 </label>
                 <input
@@ -299,23 +368,31 @@ const DeductionsPage: React.FC = () => {
                   value={signature}
                   onChange={(e) => setSignature(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => approveDeduction(showApproveModal.id)}
-                  disabled={!signature}
-                  className="flex-1 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors disabled:opacity-50"
+                  onClick={() => handleApprove(showApproveModal.id)}
+                  disabled={!signature || approveMutation.isLoading}
+                  className="flex-1 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center"
                 >
-                  Approve
+                  {approveMutation.isLoading ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Approving...
+                    </>
+                  ) : (
+                    'Approve'
+                  )}
                 </button>
                 <button
                   onClick={() => {
                     setShowApproveModal(null)
                     setSignature('')
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  disabled={approveMutation.isLoading}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -327,35 +404,43 @@ const DeductionsPage: React.FC = () => {
         {/* Reject Modal */}
         {showRejectModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 Reject Deduction
               </h3>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Reason for Rejection
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => rejectDeduction(showRejectModal.id)}
-                  disabled={!rejectionReason}
-                  className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors disabled:opacity-50"
+                  onClick={() => handleReject(showRejectModal.id)}
+                  disabled={!rejectionReason || rejectMutation.isLoading}
+                  className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center"
                 >
-                  Reject
+                  {rejectMutation.isLoading ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Rejecting...
+                    </>
+                  ) : (
+                    'Reject'
+                  )}
                 </button>
                 <button
                   onClick={() => {
                     setShowRejectModal(null)
                     setRejectionReason('')
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  disabled={rejectMutation.isLoading}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>

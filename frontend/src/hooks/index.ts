@@ -14,3 +14,13 @@ export {
 export { useCommands } from './useCommands'
 export { useFileUpload } from './useFileUpload'
 export type { UseFileUploadOptions, UseFileUploadReturn } from './useFileUpload'
+export {
+  useOptimisticMutation,
+  useOptimisticListHelpers,
+  generateOptimisticId
+} from './useOptimisticMutation'
+export type {
+  UseOptimisticMutationOptions,
+  UseOptimisticMutationResult,
+  OptimisticItem
+} from './useOptimisticMutation'

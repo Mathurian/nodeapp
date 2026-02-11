@@ -77,7 +77,10 @@ module.exports = {
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
     '^@config/(.*)$': '<rootDir>/src/config/$1',
     '^@types/(.*)$': '<rootDir>/src/types/$1',
-    '^@tests/(.*)$': '<rootDir>/tests/$1'
+    '^@tests/(.*)$': '<rootDir>/tests/$1',
+    // Prisma Query Engine Fix: Ensure Jest resolves Prisma from the correct location
+    '^@prisma/client$': '<rootDir>/node_modules/@prisma/client',
+    '^.prisma/client$': '<rootDir>/node_modules/.prisma/client',
   },
 
   moduleDirectories: ['node_modules', '<rootDir>'],
@@ -128,8 +131,12 @@ module.exports = {
     // Removed babel-jest transform to fix TypeError conflicts with ts-jest
   },
 
+  // Prisma Query Engine Fix:
+  // - Exclude .prisma/client from transforms to prevent Jest from interfering with native module loading
+  // - Exclude @prisma packages from transforms as they contain pre-built code
   transformIgnorePatterns: [
-    'node_modules/(?!(.*\\.mjs$))'
+    '/node_modules/(?!(@prisma|.prisma))',
+    '/node_modules/.prisma/client/',
   ],
 
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],

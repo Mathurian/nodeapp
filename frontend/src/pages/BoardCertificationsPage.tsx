@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useQuery, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { boardAPI } from '../services/api'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { ConfirmModal } from '../components/ui'
+import { ConfirmModal, getOptimisticRowClass } from '../components/ui'
+import { useOptimisticMutation } from '../hooks'
 
 interface Certification {
   id: string
@@ -15,6 +17,8 @@ interface Certification {
   status: string
   certifiedAt: string
   notes?: string
+  _optimistic?: boolean
+  _deleting?: boolean
 }
 
 const BoardCertificationsPage: React.FC = () => {
@@ -39,39 +43,60 @@ const BoardCertificationsPage: React.FC = () => {
     }
   )
 
-  const approveMutation = useMutation(
-    async (certificationId: string) => {
+  // Approve mutation with optimistic update
+  const approveMutation = useOptimisticMutation<unknown, string>({
+    mutationFn: async (certificationId: string) => {
       return await boardAPI.approveCertification(certificationId)
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('board-certifications')
-        alert('Certification approved successfully')
-      },
-      onError: (error) => {
-        console.error('Failed to approve certification:', error)
-        alert('Failed to approve certification')
-      },
-    }
-  )
+    queryKey: ['board-certifications'],
+    updateFn: (oldData, certificationId) => {
+      const certs = oldData as Certification[] | undefined
+      if (!certs) return []
+      return certs.map((cert) =>
+        cert.id === certificationId
+          ? { ...cert, status: 'APPROVED', _optimistic: true }
+          : cert
+      )
+    },
+    onSuccess: () => {
+      toast.success('Certification approved successfully')
+    },
+    onError: (error) => {
+      console.error('Failed to approve certification:', error)
+      toast.error('Failed to approve certification')
+    },
+    invalidateOnSettled: true,
+  })
 
-  const rejectMutation = useMutation(
-    async ({ certificationId, reason }: { certificationId: string; reason: string }) => {
+  // Reject mutation with optimistic update
+  const rejectMutation = useOptimisticMutation<
+    unknown,
+    { certificationId: string; reason: string }
+  >({
+    mutationFn: async ({ certificationId, reason }) => {
       return await boardAPI.rejectCertification(certificationId, reason)
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('board-certifications')
-        setShowRejectModal(false)
-        setRejectReason('')
-        alert('Certification rejected')
-      },
-      onError: (error) => {
-        console.error('Failed to reject certification:', error)
-        alert('Failed to reject certification')
-      },
-    }
-  )
+    queryKey: ['board-certifications'],
+    updateFn: (oldData, { certificationId }) => {
+      const certs = oldData as Certification[] | undefined
+      if (!certs) return []
+      return certs.map((cert) =>
+        cert.id === certificationId
+          ? { ...cert, status: 'REJECTED', _optimistic: true }
+          : cert
+      )
+    },
+    onSuccess: () => {
+      setShowRejectModal(false)
+      setRejectReason('')
+      toast.success('Certification rejected')
+    },
+    onError: (error) => {
+      console.error('Failed to reject certification:', error)
+      toast.error('Failed to reject certification')
+    },
+    invalidateOnSettled: true,
+  })
 
   const handleApprove = (certification: Certification) => {
     setConfirmApprove({ isOpen: true, certification })
@@ -165,8 +190,13 @@ const BoardCertificationsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {certifications.map((cert) => (
-                    <tr key={cert.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  {certifications.map((cert) => {
+                    const optimisticClass = getOptimisticRowClass(cert)
+                    return (
+                    <tr
+                      key={cert.id}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ${optimisticClass}`}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {cert.eventName}
                       </td>
@@ -180,7 +210,7 @@ const BoardCertificationsPage: React.FC = () => {
                         {cert.auditorName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
                           cert.status === 'APPROVED'
                             ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
                             : cert.status === 'REJECTED'
@@ -188,6 +218,9 @@ const BoardCertificationsPage: React.FC = () => {
                             : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
                         }`}>
                           {cert.status}
+                          {cert._optimistic && (
+                            <span className="ml-1 h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
+                          )}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -214,7 +247,8 @@ const BoardCertificationsPage: React.FC = () => {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

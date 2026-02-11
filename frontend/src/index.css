@@ -357,6 +357,52 @@
     }
   }
 
+  /* Optimistic update animations */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSlight 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulseSlight {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.85;
+    }
+  }
+
+  /* Optimistic row states */
+  .optimistic-saving {
+    @apply bg-blue-50/50 dark:bg-blue-900/20;
+  }
+
+  .optimistic-saved {
+    animation: savedFlash 1s ease-out;
+  }
+
+  @keyframes savedFlash {
+    0% {
+      @apply bg-green-100 dark:bg-green-900/40;
+    }
+    100% {
+      @apply bg-transparent;
+    }
+  }
+
+  .optimistic-error {
+    animation: errorShake 0.5s ease-in-out;
+  }
+
+  @keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
   .mobile-menu {
     @apply fixed inset-0 z-50 lg:hidden;
   }

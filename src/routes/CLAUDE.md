@@ -7,6 +7,7 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #309 | 12:27 PM | 🟣 | Olympic Scoring Validation Warnings Integrated in Frontend | ~469 |
 | #284 | 12:23 PM | 🟣 | Olympic Scoring Validation Endpoint Added to Backend | ~345 |
 | #283 | 12:19 PM | 🟣 | Add Olympic Scoring Validation Import to Contest Routes | ~425 |
 | #277 | 12:18 PM | 🔵 | Backend contests routes support full lifecycle management with soft delete and archival | ~954 |

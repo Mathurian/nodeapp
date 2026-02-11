@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useQuery, useQueryClient } from 'react-query'
+import toast from 'react-hot-toast'
 import { auditorAPI, categoriesAPI } from '../services/api'
-import { CheckCircleIcon, DocumentCheckIcon } from '@heroicons/react/24/outline'
-import { ConfirmModal } from '../components/ui'
+import { CheckCircleIcon } from '@heroicons/react/24/outline'
+import { ConfirmModal, getOptimisticRowClass } from '../components/ui'
+import { useOptimisticMutation } from '../hooks'
 
 interface CategoryCertification {
   id: string
@@ -13,6 +15,7 @@ interface CategoryCertification {
   judgesCertified: boolean
   tallyMasterCertified: boolean
   readyForFinalCertification: boolean
+  _optimistic?: boolean
 }
 
 const AuditorFinalCertificationPage: React.FC = () => {
@@ -49,23 +52,35 @@ const AuditorFinalCertificationPage: React.FC = () => {
     }
   )
 
-  const certifyMutation = useMutation(
-    async ({ categoryId, notes }: { categoryId: string; notes?: string }) => {
+  // Certify mutation with optimistic updates
+  const certifyMutation = useOptimisticMutation<
+    unknown,
+    { categoryId: string; notes?: string }
+  >({
+    mutationFn: async ({ categoryId, notes }) => {
       return await auditorAPI.finalCertification(categoryId, { notes })
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('final-certification-categories')
-        setShowNotesModal(false)
-        setCertificationNotes('')
-        alert('Category certified successfully')
-      },
-      onError: (error) => {
-        console.error('Failed to certify category:', error)
-        alert('Failed to certify category')
-      },
-    }
-  )
+    queryKey: ['final-certification-categories'],
+    updateFn: (oldData, { categoryId }) => {
+      const cats = oldData as CategoryCertification[] | undefined
+      if (!cats) return []
+      return cats.map((cat) =>
+        cat.id === categoryId
+          ? { ...cat, status: 'CERTIFIED', readyForFinalCertification: false, _optimistic: true }
+          : cat
+      )
+    },
+    onSuccess: () => {
+      setShowNotesModal(false)
+      setCertificationNotes('')
+      toast.success('Category certified successfully')
+    },
+    onError: (error) => {
+      console.error('Failed to certify category:', error)
+      toast.error('Failed to certify category')
+    },
+    invalidateOnSettled: true,
+  })
 
   const handleCertify = (category: CategoryCertification) => {
     setConfirmCertify({ isOpen: true, category })
@@ -188,8 +203,13 @@ const AuditorFinalCertificationPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {categories.map((category) => (
-                    <tr key={category.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  {categories.map((category) => {
+                    const optimisticClass = getOptimisticRowClass(category)
+                    return (
+                    <tr
+                      key={category.id}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ${optimisticClass}`}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {category.eventName}
                       </td>
@@ -214,7 +234,14 @@ const AuditorFinalCertificationPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {category.readyForFinalCertification ? (
+                        {category.status === 'CERTIFIED' ? (
+                          <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 ${category._optimistic ? 'animate-pulse' : ''}`}>
+                            Certified
+                            {category._optimistic && (
+                              <span className="ml-1 h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
+                            )}
+                          </span>
+                        ) : category.readyForFinalCertification ? (
                           <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                             Ready
                           </span>
@@ -225,25 +252,33 @@ const AuditorFinalCertificationPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        {category.readyForFinalCertification && (
+                        {category.readyForFinalCertification && !category._optimistic && (
                           <>
                             <button
                               onClick={() => handleCertify(category)}
-                              className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                              disabled={certifyMutation.isLoading}
+                              className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 disabled:opacity-50"
                             >
                               Certify
                             </button>
                             <button
                               onClick={() => handleAddNotes(category)}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
+                              disabled={certifyMutation.isLoading}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 disabled:opacity-50"
                             >
                               Add Notes
                             </button>
                           </>
                         )}
+                        {category._optimistic && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Certifying...
+                          </span>
+                        )}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

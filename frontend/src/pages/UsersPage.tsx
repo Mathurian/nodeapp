@@ -6,6 +6,7 @@ import { usersAPI, api } from '../services/api'
 import { UsersIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { DateFilters } from '../components/DateFilterControls'
 import { ConfirmModal } from '../components/ui'
+import { useOptimisticMutation } from '../hooks'
 import {
   UserTable,
   UserForm,
@@ -18,6 +19,12 @@ import {
   CustomField,
   Tenant,
 } from '../components/users'
+
+/** Extended User type with optimistic state flags */
+interface OptimisticUser extends User {
+  _optimistic?: boolean
+  _deleting?: boolean
+}
 
 /**
  * UsersPage - User management page component
@@ -244,23 +251,58 @@ const UsersPage: React.FC = () => {
     }
   )
 
-  // Delete user mutation
-  const deleteMutation = useMutation(
-    async (id: string) => {
+  // Delete user mutation with optimistic updates
+  const deleteMutation = useOptimisticMutation<unknown, string>({
+    mutationFn: async (id: string) => {
       const response = await usersAPI.delete(id)
       return response.data
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('users')
-        toast.success('User deleted successfully!')
-      },
-      onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to delete user'
-        toast.error(`Error deleting user: ${errorMessage}`)
-      },
-    }
-  )
+    queryKey: ['users', dateFilters],
+    updateFn: (oldData, userId) => {
+      // Optimistically mark user as deleting (grayed out)
+      const users = oldData as OptimisticUser[] | undefined
+      if (!users) return []
+      return users.map((user) =>
+        user.id === userId ? { ...user, _optimistic: true, _deleting: true } : user
+      )
+    },
+    onSuccess: () => {
+      toast.success('User deleted successfully!')
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete user'
+      toast.error(`Error deleting user: ${errorMessage}`)
+    },
+    invalidateOnSettled: true,
+  })
+
+  // Toggle user active status with optimistic updates
+  const toggleStatusMutation = useOptimisticMutation<
+    unknown,
+    { userId: string; isActive: boolean }
+  >({
+    mutationFn: async ({ userId, isActive }) => {
+      const response = await usersAPI.update(userId, { isActive })
+      return response.data
+    },
+    queryKey: ['users', dateFilters],
+    updateFn: (oldData, { userId, isActive }) => {
+      // Optimistically toggle the user's active status
+      const users = oldData as OptimisticUser[] | undefined
+      if (!users) return []
+      return users.map((user) =>
+        user.id === userId ? { ...user, isActive, _optimistic: true } : user
+      )
+    },
+    onSuccess: (_, { isActive }) => {
+      toast.success(`User ${isActive ? 'activated' : 'deactivated'} successfully!`)
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update user status'
+      toast.error(`Error updating user status: ${errorMessage}`)
+    },
+    invalidateOnSettled: true,
+  })
 
   // Reset password mutation
   const resetPasswordMutation = useMutation(
@@ -437,6 +479,15 @@ const UsersPage: React.FC = () => {
       deleteMutation.mutate(confirmDelete.user.id)
     }
     setConfirmDelete({ isOpen: false, user: null })
+  }
+
+  // Handle toggle user active status
+  const handleToggleStatus = (user: User) => {
+    if (user.id === currentUser?.id) {
+      toast.error('You cannot deactivate your own account!')
+      return
+    }
+    toggleStatusMutation.mutate({ userId: user.id, isActive: !user.isActive })
   }
 
   // Handle reset password
@@ -645,6 +696,7 @@ const UsersPage: React.FC = () => {
           onTenantReassign={handleTenantReassign}
           onSelectUser={handleSelectUser}
           onSelectAll={handleSelectAll}
+          onToggleStatus={handleToggleStatus}
         />
 
         {/* User Form Modal */}
