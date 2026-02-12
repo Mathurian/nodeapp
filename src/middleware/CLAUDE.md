@@ -8,4 +8,10 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #353 | 12:44 PM | 🔵 | Centralized Error Handler with Comprehensive Security and Observability Features | ~1005 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #605 | 12:10 AM | 🔴 | Auth Middleware: Added Missing success: false to Invalid JWT Payload Response | ~431 |
 </claude-mem-context>

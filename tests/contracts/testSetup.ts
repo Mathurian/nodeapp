@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken';
 import { container } from 'tsyringe';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
-const DEFAULT_TENANT_ID = 'default_tenant';
+const DEFAULT_TENANT_ID = 'default-tenant';
 
 /**
  * Get the Prisma client from the DI container

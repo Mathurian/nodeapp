@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useTenant } from '../contexts/TenantContext'
@@ -7,6 +7,7 @@ import { useSocket } from '../contexts/SocketContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
 import { settingsAPI } from '../services/api'
 import AccordionNav from './AccordionNav'
+import Breadcrumb, { BreadcrumbItem } from './Breadcrumb'
 import {
   UserIcon,
   BellIcon,
@@ -30,7 +31,65 @@ interface LayoutProps {
 
 const SIDEBAR_STORAGE_KEY = 'event-manager-sidebar-open'
 
+// Map of route segments to human-readable labels
+const ROUTE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  events: 'Events',
+  contests: 'Contests',
+  categories: 'Categories',
+  scoring: 'Scoring',
+  results: 'Results',
+  users: 'Users',
+  admin: 'Administration',
+  settings: 'Settings',
+  profile: 'Profile',
+  emcee: 'Emcee',
+  templates: 'Templates',
+  reports: 'Reports',
+  notifications: 'Notifications',
+  backups: 'Backups',
+  'disaster-recovery': 'Disaster Recovery',
+  workflows: 'Workflows',
+  search: 'Search',
+  files: 'File Management',
+  'email-templates': 'Email Templates',
+  'custom-fields': 'Custom Fields',
+  tenants: 'Tenants',
+  mfa: 'Multi-Factor Auth',
+  database: 'Database Browser',
+  cache: 'Cache Management',
+  archive: 'Archive',
+  deductions: 'Deductions',
+  certifications: 'Certifications',
+  logs: 'Logs',
+  activity: 'Activity Log',
+  performance: 'Performance',
+  'data-wipe': 'Data Wipe',
+  'event-templates': 'Event Templates',
+  'bulk-operations': 'Bulk Operations',
+  commentary: 'Commentary',
+  'category-types': 'Category Types',
+  'field-visibility': 'Field Visibility',
+  'test-event-setup': 'Test Event Setup',
+  bios: 'Bios',
+  assignments: 'Assignments',
+  'rate-limit-configs': 'Rate Limit Configs',
+  auditor: 'Auditor',
+  board: 'Board',
+  permissions: 'Permissions',
+  'pending-audits': 'Pending Audits',
+  'score-verification': 'Score Verification',
+  'final-certification': 'Final Certification',
+  'certification-status': 'Certification Status',
+  'audit-log': 'Audit Log',
+  'audit-logs': 'Audit Logs',
+  'score-removal': 'Score Removal',
+  'test-runner': 'Test Runner',
+  help: 'Help',
+}
+
 const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
+  const location = useLocation()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -113,6 +172,34 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const appName = themeSettings?.app_name || themeSettings?.appName || 'ConMGR'
   const logoPath = themeSettings?.theme_logoPath || themeSettings?.logoPath
+
+  // Generate breadcrumbs from current URL path
+  const breadcrumbs: BreadcrumbItem[] = React.useMemo(() => {
+    const parts = location.pathname.split('/').filter(Boolean)
+    if (parts.length === 0) return []
+
+    // Check if first segment is a tenant slug (not a known route)
+    const knownRoutes = new Set(Object.keys(ROUTE_LABELS))
+    let startIdx = 0
+    if (parts.length > 0 && !knownRoutes.has(parts[0]!) && parts[0] !== 'login') {
+      startIdx = 1 // Skip tenant slug
+    }
+
+    const crumbs: BreadcrumbItem[] = []
+    for (let i = startIdx; i < parts.length; i++) {
+      const segment = parts[i]!
+      const label = ROUTE_LABELS[segment] || segment
+      // Only link if not the last segment
+      const isLast = i === parts.length - 1
+      if (!isLast) {
+        const href = '/' + parts.slice(0, i + 1).join('/')
+        crumbs.push({ label, href })
+      } else {
+        crumbs.push({ label })
+      }
+    }
+    return crumbs
+  }, [location.pathname])
 
   const getRoleColor = (role: string) => {
     const colors = {
@@ -488,6 +575,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
           className="flex-1 p-4 lg:p-6 max-w-[1920px] mx-auto min-w-0"
           tabIndex={-1}
         >
+          {breadcrumbs.length > 1 && (
+            <Breadcrumb items={breadcrumbs} showHome={false} />
+          )}
           {children}
         </main>
       </div>

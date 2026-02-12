@@ -6,12 +6,14 @@ import { UserListResponseSchema, UserResponseSchema } from './schemas';
 
 describe('Users API Contract Tests', () => {
   let authToken: string;
+  const tenantHeader = { 'X-Tenant-ID': 'default-tenant' };
 
   beforeAll(async () => {
     // Get auth token for testing
     // This assumes there's a test user or you need to create one
     const loginResponse = await request(app)
       .post('/api/v1/auth/login')
+      .set(tenantHeader)
       .send({ email: 'admin@localhost', password: 'Password123!' });
 
     if (loginResponse.body.data?.token) {
@@ -23,6 +25,7 @@ describe('Users API Contract Tests', () => {
     it('should return response matching UserListResponse schema', async () => {
       const response = await request(app)
         .get('/api/v1/users')
+        .set(tenantHeader)
         .set('Authorization', `Bearer ${authToken}`)
         .set('Cookie', `token=${authToken}`);
 
@@ -38,7 +41,8 @@ describe('Users API Contract Tests', () => {
 
     it('should return error response matching ApiErrorResponse schema when unauthorized', async () => {
       const response = await request(app)
-        .get('/api/v1/users');
+        .get('/api/v1/users')
+        .set(tenantHeader);
 
       expect(response.status).toBeGreaterThanOrEqual(400);
 
@@ -54,6 +58,7 @@ describe('Users API Contract Tests', () => {
     it('should return 404 error matching ApiErrorResponse schema for non-existent user', async () => {
       const response = await request(app)
         .get('/api/v1/users/non-existent-id')
+        .set(tenantHeader)
         .set('Authorization', `Bearer ${authToken}`)
         .set('Cookie', `token=${authToken}`);
 

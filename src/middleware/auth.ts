@@ -92,7 +92,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         hasCookie: !!req.cookies?.['access_token']
       });
     }
-    res.status(401).json({ error: 'Access token required' });
+    res.status(401).json({ success: false, error: 'Access token required' });
     return;
   }
 
@@ -107,7 +107,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         method: req.method,
         receivedPayload: decoded
       });
-      res.status(401).json({ error: 'Invalid authentication token' });
+      res.status(401).json({ success: false, error: 'Invalid authentication token' });
       return;
     }
 
@@ -137,13 +137,13 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       fromCache = true;
       // SECURITY FIX: Validate tenantId for cached users to prevent cross-tenant access
       if (user.tenantId !== decoded.tenantId) {
-        res.status(401).json({ error: 'Invalid token' });
+        res.status(401).json({ success: false, error: 'Invalid token' });
         return;
       }
     }
 
     if (!user) {
-      res.status(401).json({ error: 'Invalid token' });
+      res.status(401).json({ success: false, error: 'Invalid token' });
       return;
     }
 
@@ -198,6 +198,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       });
 
       res.status(401).json({
+        success: false,
         error: 'Session expired',
         message: 'Your session has been invalidated. Please log in again.',
         code: 'SESSION_VERSION_MISMATCH'
@@ -279,6 +280,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     // Always return 401 for token errors - 403 should only be for permission issues after successful auth
     if (errorObj.name === 'TokenExpiredError' || errorObj.name === 'JsonWebTokenError') {
       res.status(401).json({
+        success: false,
         error: 'Invalid or expired token',
         code: errorObj.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
       });
@@ -286,6 +288,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     }
     // For other errors, still return 401 as it's an authentication issue
     res.status(401).json({
+      success: false,
       error: 'Authentication failed',
       code: 'AUTH_ERROR'
     });
@@ -340,7 +343,8 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
         url: req.url,
         timestamp: new Date().toISOString()
       });
-      res.status(401).json({ 
+      res.status(401).json({
+        success: false,
         error: 'Authentication required',
         code: 'NO_USER_OBJECT',
         hint: 'Please ensure authenticateToken middleware runs before requireRole'
@@ -400,13 +404,14 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
             path: req.path
           });
           res.status(403).json({
+            success: false,
             error: 'Access denied',
             message: 'You do not have permission to access this resource'
           });
         }
       } catch (error) {
         logger.error('requireRole: ORGANIZER permission check error', { error });
-        res.status(500).json({ error: 'Permission check failed' });
+        res.status(500).json({ success: false, error: 'Permission check failed' });
       }
       return;
     }
@@ -425,7 +430,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
         method: req.method,
         fullPath: req.originalUrl || req.url
       });
-      res.status(403).json({ error: 'Insufficient permissions' });
+      res.status(403).json({ success: false, error: 'Insufficient permissions' });
       return;
     }
 
@@ -452,7 +457,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
 const requirePermission = (action: string): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ success: false, error: 'Authentication required' });
       return;
     }
 
@@ -463,7 +468,8 @@ const requirePermission = (action: string): ((req: Request, res: Response, next:
     }
 
     if (!hasPermission(req.user.role, action)) {
-      res.status(403).json({ 
+      res.status(403).json({
+        success: false,
         error: 'Insufficient permissions',
         required: action,
         userRole: req.user.role

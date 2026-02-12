@@ -21,10 +21,14 @@ const LoginSuccessResponseSchema = z.object({
 });
 
 describe('Auth API Contract Tests', () => {
+  // All requests need tenant identification
+  const tenantHeader = { 'X-Tenant-ID': 'default-tenant' };
+
   describe('POST /api/v1/auth/login', () => {
     it('should return success response matching LoginSuccessResponse schema', async () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
+        .set(tenantHeader)
         .send({ email: 'admin@localhost', password: 'Password123!' });
 
       if (response.status === 200) {
@@ -39,6 +43,7 @@ describe('Auth API Contract Tests', () => {
     it('should return error response for invalid credentials', async () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
+        .set(tenantHeader)
         .send({ email: 'invalid@example.com', password: 'wrongpassword' });
 
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -53,6 +58,7 @@ describe('Auth API Contract Tests', () => {
     it('should return error response for missing fields', async () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
+        .set(tenantHeader)
         .send({ email: 'test@example.com' }); // Missing password
 
       expect(response.status).toBeGreaterThanOrEqual(400);

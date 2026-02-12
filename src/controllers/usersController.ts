@@ -681,7 +681,7 @@ export class UsersController {
       });
 
       // Check permissions: user can upload their own image, or admin/organizer/board can upload for others
-      if (requestingUserId !== id && !['ADMIN', 'ORGANIZER', 'BOARD'].includes(requestingUserRole)) {
+      if (requestingUserId !== id && !['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(requestingUserRole)) {
         log.warn('User image upload denied: insufficient permissions', { userId: id, requestingUserId, requestingUserRole });
         sendError(res, 'You do not have permission to upload images for this user', 403);
         return;

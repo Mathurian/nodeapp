@@ -35,4 +35,16 @@
 | #280 | " | 🔄 | Added PrismaClient Dependency to ContestsController | ~494 |
 | #279 | " | 🔵 | Contests controller implements comprehensive archive and restore operations | ~784 |
 | #275 | 12:18 PM | 🔵 | ContestsController implements thin controller pattern with service layer delegation and soft delete tracking | ~863 |
+
+### Feb 11, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #574 | 11:46 PM | 🔴 | SUPER_ADMIN Added to User Image Upload Permission Check | ~339 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #600 | 12:08 AM | 🔵 | Auth Uses httpOnly Cookie for JWT, Not Bearer Token in Response Body | ~455 |
 </claude-mem-context>

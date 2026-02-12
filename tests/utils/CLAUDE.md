@@ -8,4 +8,10 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #531 | 12:09 AM | 🔵 | Contract Tests Reveal API Response Format Inconsistencies | ~532 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #588 | 12:06 AM | 🔵 | Contract Test Helper: Dual-Format Error Schema Supporting Legacy and New API Responses | ~453 |
 </claude-mem-context>

@@ -88,7 +88,7 @@ const KNOWN_ROUTES = new Set([
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
   'bulk-operations', 'commentary', 'category-types', 'field-visibility',
   'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs', 'activity',
-  'auditor', 'board', 'permissions'
+  'auditor', 'board', 'permissions', 'test-runner'
 ])
 
 // Helper to check if a path segment is a known route
@@ -263,6 +263,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
+            <Route path="/:slug/activity" element={<ActivityLogPage />} />
+            <Route path="/:slug/test-runner" element={<TestRunnerPage />} />
             <Route path="/:slug" element={<Navigate to={`${basePath}/dashboard`} replace />} />
 
             {/* 404 Not Found */}
