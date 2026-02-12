@@ -2,7 +2,9 @@
 
 Comprehensive guide for deploying the Event Manager application with all Phase 1-6 features enabled.
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-02-12
+
+> **Note:** This application is managed by `systemd`, not pm2. Use `sudo systemctl start|stop|restart|status event-manager` and `journalctl -u event-manager` for logs. The `npm run deploy:prod` script handles this automatically.
 
 ---
 

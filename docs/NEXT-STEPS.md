@@ -288,29 +288,27 @@ npx tsc --noEmit
 
 **Deployment Steps:**
 ```bash
-# 1. Stop application (if running)
-pm2 stop event-manager
-
-# 2. Pull latest code
+# 1. Pull latest code
 git pull origin main
 
-# 3. Install dependencies
+# 2. Install dependencies
 npm install --production
 
-# 4. Run database migrations
+# 3. Run database migrations
 npx prisma migrate deploy
 
-# 5. Generate Prisma Client
+# 4. Generate Prisma Client
 npx prisma generate
 
-# 6. Build application
+# 5. Build application
 npm run build
 
-# 7. Start application
-pm2 start dist/server.js --name event-manager
+# 6. Restart service
+sudo systemctl restart event-manager
 
-# 8. Verify startup
-pm2 logs event-manager --lines 50
+# 7. Verify startup
+sudo systemctl status event-manager
+journalctl -u event-manager -n 50
 ```
 
 **2. Post-Deployment Verification (1 hour)**
@@ -512,25 +510,22 @@ echo "=== End Report ==="
 ### Rollback Steps
 
 ```bash
-# 1. Stop application
-pm2 stop event-manager
-
-# 2. Restore database backup
+# 1. Restore database backup
 psql event_manager < backup_pre_deployment_YYYYMMDD_HHMMSS.sql
 
-# 3. Revert code changes
+# 2. Revert code changes
 git revert HEAD  # Or specific commit
 git push origin main
 
-# 4. Rebuild
+# 3. Rebuild
 npm run build
 
-# 5. Restart application
-pm2 restart event-manager
+# 4. Restart service
+sudo systemctl restart event-manager
 
-# 6. Verify rollback successful
+# 5. Verify rollback successful
 curl http://localhost:3000/health
-pm2 logs event-manager --lines 100
+journalctl -u event-manager -n 100
 ```
 
 **Estimated Rollback Time:** 10-15 minutes

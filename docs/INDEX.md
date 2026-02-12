@@ -24,11 +24,19 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 13. **[Administrator Guide](13-ADMIN-GUIDE.md)** - System administration, monitoring, and maintenance
 14. **[Advanced Features](14-ADVANCED-FEATURES.md)** - Feature flags, webhooks, custom fields, and 14 more advanced features
 
+### Planning & Operations
+- **[Outstanding Tasks](OUTSTANDING-TASKS.md)** - Current backlog: contract tests, Phase 5 deployment, GraphQL/CQRS evaluation, A/B testing
+- **[Next Steps (Phase 5)](NEXT-STEPS.md)** - Final testing and production deployment checklist
+- **[Deployment Guide](DEPLOYMENT-GUIDE.md)** - Full production deployment procedures
+- **[Testing Guide](testing-guide.md)** - Testing infrastructure and coverage targets
+- **[Database Optimization](DATABASE-OPTIMIZATION.md)** - Query optimization and indexing
+- **[Migration Guide](MIGRATION-GUIDE.md)** - Database migration procedures
+
 ### Additional Resources
-- **[Security Policy](../SECURITY.md)** - Security features and best practices
-- **[Testing Guide](../TESTING_SUMMARY.md)** - Testing infrastructure and coverage
-- **[Production Readiness](../PRODUCTION_READY_SUMMARY.md)** - Production deployment checklist
-- **[Multi-Tenancy Guide](../MULTI_TENANCY_QUICK_START.md)** - Multi-tenant setup and usage
+- **[Accessibility Testing](ACCESSIBILITY-TESTING.md)** - WCAG 2.1 AA compliance testing
+- **[CDN Setup](CDN-SETUP.md)** - CDN configuration guide
+- **[Database Read Replicas](DATABASE-READ-REPLICAS.md)** - Read replica setup
+- **[Visual Regression Testing](VISUAL-REGRESSION-TESTING.md)** - Chromatic/screenshot testing
 
 ## About Event Manager
 
