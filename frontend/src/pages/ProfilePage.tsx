@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { useMutation, useQueryClient } from 'react-query'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
 import { usersAPI } from '../services/api'
 import {
@@ -12,6 +14,8 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import { FormProvider, FormInput, FormSubmitButton } from '../components/form'
+import { changePasswordSchema, ChangePasswordInput } from '../lib/validation'
 
 interface ProfileFormData {
   name: string
@@ -23,11 +27,6 @@ interface ProfileFormData {
   bio: string
 }
 
-interface PasswordFormData {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
-}
 
 const ProfilePage: React.FC = () => {
   const { user, refreshUser } = useAuth()
@@ -47,10 +46,9 @@ const ProfilePage: React.FC = () => {
     pronouns: user?.pronouns || '',
     bio: user?.bio || '',
   })
-  const [passwordData, setPasswordData] = useState<PasswordFormData>({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+  const passwordForm = useForm<ChangePasswordInput>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   })
 
   // Update profile mutation
@@ -85,16 +83,12 @@ const ProfilePage: React.FC = () => {
     },
     {
       onSuccess: () => {
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: '',
-        })
+        passwordForm.reset()
         setIsChangingPassword(false)
-        alert('Password changed successfully!')
+        toast.success('Password changed successfully!')
       },
       onError: (error: any) => {
-        alert(`Error changing password: ${error.message}`)
+        toast.error(`Error changing password: ${error.message}`)
       },
     }
   )
@@ -177,22 +171,10 @@ const ProfilePage: React.FC = () => {
     updateProfileMutation.mutate(formData)
   }
 
-  const handleSubmitPassword = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match!')
-      return
-    }
-
-    if (passwordData.newPassword.length < 8) {
-      alert('Password must be at least 8 characters long')
-      return
-    }
-
+  const handleSubmitPassword = (data: ChangePasswordInput) => {
     changePasswordMutation.mutate({
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword,
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
     })
   }
 
@@ -505,57 +487,35 @@ const ProfilePage: React.FC = () => {
           </div>
 
           {isChangingPassword ? (
-            <form onSubmit={handleSubmitPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Current Password <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  New Password <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Min 8 characters"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Confirm New Password <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Re-enter new password"
-                />
-              </div>
-
+            <FormProvider form={passwordForm} onSubmit={handleSubmitPassword} className="space-y-4">
+              <FormInput
+                name="currentPassword"
+                label="Current Password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+              <FormInput
+                name="newPassword"
+                label="New Password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Min 8 characters, with uppercase, number, and symbol"
+                required
+              />
+              <FormInput
+                name="confirmPassword"
+                label="Confirm New Password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Re-enter new password"
+                required
+              />
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
-                    setPasswordData({
-                      currentPassword: '',
-                      newPassword: '',
-                      confirmPassword: '',
-                    })
+                    passwordForm.reset()
                     setIsChangingPassword(false)
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900 flex items-center justify-center"
@@ -563,25 +523,15 @@ const ProfilePage: React.FC = () => {
                   <XMarkIcon className="h-5 w-5 mr-2" />
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={changePasswordMutation.isLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
+                <FormSubmitButton
+                  loading={changePasswordMutation.isLoading}
+                  className="flex-1 !w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                 >
-                  {changePasswordMutation.isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Changing...
-                    </>
-                  ) : (
-                    <>
-                      <KeyIcon className="h-5 w-5 mr-2" />
-                      Change Password
-                    </>
-                  )}
-                </button>
+                  <KeyIcon className="h-5 w-5 mr-2" aria-hidden="true" />
+                  Change Password
+                </FormSubmitButton>
               </div>
-            </form>
+            </FormProvider>
           ) : (
             <div className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               <p>Use a strong password to keep your account secure.</p>

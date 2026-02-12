@@ -8,4 +8,10 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #485 | 1:57 PM | 🟣 | API Contract Testing Infrastructure Created | ~462 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #610 | 12:11 AM | 🔴 | Contract Tests Fixed: Bearer Token Auth Replaced with Cookie Auth in Scoring and Certifications Tests | ~394 |
 </claude-mem-context>

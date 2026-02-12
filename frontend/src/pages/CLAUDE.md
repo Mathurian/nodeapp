@@ -8,4 +8,14 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #299 | 12:25 PM | 🔵 | Contests Page with Nested Routing and Breadcrumb Navigation | ~704 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #671 | 12:33 AM | 🟣 | Task #13: UsersPage handleSubmit Migrated — Removes Manual Validation, Accepts Typed Data | ~514 |
+| #667 | " | 🔴 | UsersPage: createMutation onSuccess Uses submittedData Instead of Closed-Over formData | ~385 |
+| #650 | 12:25 AM | 🟣 | Task #13: ProfilePage Password Change Form Fully Migrated to react-hook-form | ~469 |
+| #646 | 12:24 AM | 🟣 | Task #13: ProfilePage.tsx Password Form Migration Started | ~360 |
+| #642 | 12:21 AM | 🟣 | Task #13: LoginPage.tsx Migrated to react-hook-form + Zod | ~449 |
 </claude-mem-context>

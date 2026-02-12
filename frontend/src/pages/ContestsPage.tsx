@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, UseQueryResult } from 'react-query'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
 import { contestsAPI, eventsAPI } from '../services/api'
 import {
@@ -52,6 +55,15 @@ interface ContestFormData {
   scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
 }
 
+const contestFormSchema = z.object({
+  eventId: z.string().min(1, 'Please select an event'),
+  name: z.string().min(1, 'Contest name is required').max(200, 'Name must be less than 200 characters'),
+  description: z.string(),
+  scoringType: z.string(),
+})
+
+type ContestFormValues = z.infer<typeof contestFormSchema>
+
 interface OlympicScoringValidation {
   contestId: string
   usesOlympicScoring: boolean
@@ -70,17 +82,17 @@ const ContestsPage: React.FC = () => {
   const { eventId, slug } = useParams<{ eventId?: string; slug?: string }>()
   const location = useLocation()
 
+  const form = useForm<ContestFormValues>({
+    resolver: zodResolver(contestFormSchema),
+    defaultValues: { eventId: '', name: '', description: '', scoringType: '' },
+  })
+  const { register, handleSubmit: rhfHandleSubmit, reset, setValue, formState: { errors } } = form
+
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [selectedEventFilter, setSelectedEventFilter] = useState<string>('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingContest, setEditingContest] = useState<Contest | null>(null)
-  const [formData, setFormData] = useState<ContestFormData>({
-    name: '',
-    description: '',
-    eventId: '',
-    scoringType: null,
-  })
   const [dateFilters, setDateFilters] = useState<DateFilters>({
     sortDirection: 'asc',
   })
@@ -228,23 +240,18 @@ const ContestsPage: React.FC = () => {
   )
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      eventId: '',
-      scoringType: null,
-    })
+    reset({ eventId: '', name: '', description: '', scoringType: '' })
     setEditingContest(null)
     setIsFormOpen(false)
   }
 
   const handleEdit = (contest: Contest) => {
     setEditingContest(contest)
-    setFormData({
+    reset({
       name: contest.name,
       description: contest.description || '',
       eventId: contest.eventId,
-      scoringType: contest.scoringType || null,
+      scoringType: contest.scoringType || '',
     })
     setIsFormOpen(true)
   }
@@ -260,18 +267,18 @@ const ContestsPage: React.FC = () => {
     setConfirmDelete({ isOpen: false, contest: null })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.name || !formData.eventId) {
-      toast.error('Please fill in all required fields')
-      return
+  const onSubmit = (data: ContestFormValues) => {
+    const dataToSend: ContestFormData = {
+      name: data.name,
+      description: data.description,
+      eventId: data.eventId,
+      scoringType: data.scoringType ? (data.scoringType as 'STRAIGHT' | 'OLYMPIC') : null,
     }
 
     if (editingContest) {
-      updateMutation.mutate({ id: editingContest.id, data: formData })
+      updateMutation.mutate({ id: editingContest.id, data: dataToSend })
     } else {
-      createMutation.mutate(formData)
+      createMutation.mutate(dataToSend)
     }
   }
 
@@ -521,17 +528,16 @@ const ContestsPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
                 {/* Event Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Event <span className="text-red-500">*</span>
                   </label>
                   <select
-                    required
-                    value={formData.eventId}
-                    onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('eventId')}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.eventId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                    aria-invalid={errors.eventId ? 'true' : undefined}
                   >
                     <option value="">Select an event...</option>
                     {events?.map((event) => (
@@ -540,6 +546,7 @@ const ContestsPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {errors.eventId && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.eventId.message}</p>}
                 </div>
 
                 {/* Name */}
@@ -549,12 +556,12 @@ const ContestsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('name')}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     placeholder="Enter contest name"
+                    aria-invalid={errors.name ? 'true' : undefined}
                   />
+                  {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
                 </div>
 
                 {/* Description */}
@@ -563,8 +570,7 @@ const ContestsPage: React.FC = () => {
                     Description
                   </label>
                   <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter contest description"
@@ -577,13 +583,12 @@ const ContestsPage: React.FC = () => {
                     Scoring Type (Optional)
                   </label>
                   <select
-                    value={formData.scoringType || ''}
-                    onChange={(e) => setFormData({ ...formData, scoringType: e.target.value ? (e.target.value as 'STRAIGHT' | 'OLYMPIC') : null })}
+                    {...register('scoringType')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Inherit from event/tenant</option>
                     <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
-                    <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
+                    <option value="OLYMPIC">Olympic Scoring (Drop high &amp; low, requires 3+ judges)</option>
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Leave empty to inherit from event or tenant. This setting will apply to all categories in this contest.
@@ -630,7 +635,7 @@ const ContestsPage: React.FC = () => {
                         {olympicValidation.canMigrateToStraight && (
                           <button
                             type="button"
-                            onClick={() => setFormData({ ...formData, scoringType: 'STRAIGHT' })}
+                            onClick={() => setValue('scoringType', 'STRAIGHT')}
                             className={`mt-3 px-3 py-1.5 text-sm font-medium rounded-md ${
                               olympicValidation.severity === 'error'
                                 ? 'bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-700'

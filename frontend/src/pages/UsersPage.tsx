@@ -53,19 +53,7 @@ const UsersPage: React.FC = () => {
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [formData, setFormData] = useState<UserFormData>({
-    name: '',
-    preferredName: '',
-    email: '',
-    password: '',
-    role: 'CONTESTANT',
-    gender: '',
-    pronouns: '',
-    phone: '',
-    bio: '',
-    imagePath: '',
-    isActive: true,
-  })
+  const [formDefaultValues, setFormDefaultValues] = useState<Partial<UserFormData>>({})
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedBioFile, setSelectedBioFile] = useState<File | null>(null)
@@ -174,16 +162,16 @@ const UsersPage: React.FC = () => {
       return response.data
     },
     {
-      onSuccess: async (data) => {
+      onSuccess: async (data, submittedData) => {
         queryClient.invalidateQueries('users')
         const userId = data.data?.id
 
         // Save custom field values
-        if (userId && formData.customFields) {
+        if (userId && submittedData.customFields) {
           try {
             await api.post('/custom-fields/values/bulk', {
               entityId: userId,
-              values: formData.customFields,
+              values: submittedData.customFields,
             })
           } catch (error) {
             console.error('Failed to save custom field values:', error)
@@ -216,16 +204,16 @@ const UsersPage: React.FC = () => {
       return { ...response.data, userId: id }
     },
     {
-      onSuccess: async (data) => {
+      onSuccess: async (data, { data: submittedData }) => {
         queryClient.invalidateQueries('users')
         const userId = data.userId
 
         // Save custom field values
-        if (userId && formData.customFields) {
+        if (userId && submittedData.customFields) {
           try {
             await api.post('/custom-fields/values/bulk', {
               entityId: userId,
-              values: formData.customFields,
+              values: submittedData.customFields,
             })
           } catch (error) {
             console.error('Failed to save custom field values:', error)
@@ -403,25 +391,7 @@ const UsersPage: React.FC = () => {
 
   // Reset form to initial state
   const resetForm = () => {
-    const initialCustomFields: Record<string, unknown> = {}
-    customFields.forEach(field => {
-      initialCustomFields[field.key] = field.defaultValue || ''
-    })
-
-    setFormData({
-      name: '',
-      preferredName: '',
-      email: '',
-      password: '',
-      role: 'CONTESTANT',
-      gender: '',
-      pronouns: '',
-      phone: '',
-      bio: '',
-      imagePath: '',
-      isActive: true,
-      customFields: initialCustomFields,
-    })
+    setFormDefaultValues({})
     setEditingUser(null)
     setIsFormOpen(false)
     setSelectedImage(null)
@@ -448,7 +418,7 @@ const UsersPage: React.FC = () => {
       console.error('Failed to fetch custom field values:', error)
     }
 
-    setFormData({
+    setFormDefaultValues({
       name: user.name,
       preferredName: user.preferredName || '',
       email: user.email,
@@ -557,33 +527,16 @@ const UsersPage: React.FC = () => {
     setConfirmBulkDelete(false)
   }
 
-  // Handle form submit
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.name || !formData.email || !formData.role) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-
-    if (!editingUser && !formData.password) {
-      toast.error('Password is required for new users')
-      return
-    }
-
-    if (formData.password && formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters long')
-      return
-    }
-
+  // Handle form submit — receives validated data from UserForm
+  const handleSubmit = (data: UserFormData) => {
     if (editingUser) {
-      const updateData = { ...formData }
+      const updateData = { ...data }
       if (!updateData.password) {
         delete (updateData as Partial<UserFormData>).password
       }
       updateMutation.mutate({ id: editingUser.id, data: updateData })
     } else {
-      createMutation.mutate(formData)
+      createMutation.mutate(data)
     }
   }
 
@@ -703,8 +656,7 @@ const UsersPage: React.FC = () => {
         <UserForm
           isOpen={isFormOpen}
           editingUser={editingUser}
-          formData={formData}
-          onFormDataChange={setFormData}
+          defaultValues={formDefaultValues}
           customFields={customFields}
           loadingCustomFields={loadingCustomFields}
           selectedImage={selectedImage}

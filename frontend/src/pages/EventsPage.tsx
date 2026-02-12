@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
 import { eventsAPI } from '../services/api'
 import {
@@ -47,23 +50,38 @@ interface EventFormData {
   scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
 }
 
+const eventFormSchema = z.object({
+  name: z.string().min(1, 'Event name is required').max(200, 'Name must be less than 200 characters'),
+  description: z.string(),
+  startDate: z.string().min(1, 'Start date is required'),
+  endDate: z.string().min(1, 'End date is required'),
+  location: z.string(),
+  scoringType: z.string(),
+}).refine(data => {
+  if (data.startDate && data.endDate) {
+    return new Date(data.endDate) >= new Date(data.startDate)
+  }
+  return true
+}, { message: 'End date must be after start date', path: ['endDate'] })
+
+type EventFormValues = z.infer<typeof eventFormSchema>
+
 const EventsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
+  const form = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: { name: '', description: '', startDate: '', endDate: '', location: '', scoringType: '' },
+  })
+  const { register, handleSubmit: rhfHandleSubmit, reset, watch, formState: { errors } } = form
+  const watchedScoringType = watch('scoringType')
+
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
-  const [formData, setFormData] = useState<EventFormData>({
-    name: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    location: '',
-    scoringType: null,
-  })
   const [dateFilters, setDateFilters] = useState<DateFilters>({
     sortDirection: 'asc',
   })
@@ -170,27 +188,20 @@ const EventsPage: React.FC = () => {
   )
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      startDate: '',
-      endDate: '',
-      location: '',
-      scoringType: null,
-    })
+    reset({ name: '', description: '', startDate: '', endDate: '', location: '', scoringType: '' })
     setEditingEvent(null)
     setIsFormOpen(false)
   }
 
   const handleEdit = (event: Event) => {
     setEditingEvent(event)
-    setFormData({
+    reset({
       name: event.name,
       description: event.description || '',
       startDate: event.startDate.split('T')[0],
       endDate: event.endDate.split('T')[0],
       location: event.location || '',
-      scoringType: event.scoringType || null,
+      scoringType: event.scoringType || '',
     })
     setIsFormOpen(true)
   }
@@ -206,24 +217,14 @@ const EventsPage: React.FC = () => {
     setConfirmDelete({ isOpen: false, event: null })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.name || !formData.startDate || !formData.endDate) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-
-    if (new Date(formData.startDate) > new Date(formData.endDate)) {
-      toast.error('Start date must be before end date')
-      return
-    }
-
-    // Convert date strings to ISO datetime format for backend validation
-    const dataToSend = {
-      ...formData,
-      startDate: new Date(formData.startDate).toISOString(),
-      endDate: new Date(formData.endDate).toISOString(),
+  const onSubmit = (data: EventFormValues) => {
+    const dataToSend: EventFormData = {
+      name: data.name,
+      description: data.description,
+      startDate: new Date(data.startDate).toISOString(),
+      endDate: new Date(data.endDate).toISOString(),
+      location: data.location,
+      scoringType: data.scoringType ? (data.scoringType as 'STRAIGHT' | 'OLYMPIC') : null,
     }
 
     if (editingEvent) {
@@ -452,7 +453,7 @@ const EventsPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
                 {/* Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -460,12 +461,12 @@ const EventsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('name')}
+                    className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     placeholder="Enter event name"
+                    aria-invalid={errors.name ? 'true' : undefined}
                   />
+                  {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
                 </div>
 
                 {/* Description */}
@@ -474,8 +475,7 @@ const EventsPage: React.FC = () => {
                     Description
                   </label>
                   <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter event description"
@@ -490,11 +490,11 @@ const EventsPage: React.FC = () => {
                     </label>
                     <input
                       type="date"
-                      required
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      {...register('startDate')}
+                      className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.startDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                      aria-invalid={errors.startDate ? 'true' : undefined}
                     />
+                    {errors.startDate && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.startDate.message}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -502,11 +502,11 @@ const EventsPage: React.FC = () => {
                     </label>
                     <input
                       type="date"
-                      required
-                      value={formData.endDate}
-                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      {...register('endDate')}
+                      className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.endDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                      aria-invalid={errors.endDate ? 'true' : undefined}
                     />
+                    {errors.endDate && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.endDate.message}</p>}
                   </div>
                 </div>
 
@@ -517,8 +517,7 @@ const EventsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    {...register('location')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter event location"
                   />
@@ -530,18 +529,17 @@ const EventsPage: React.FC = () => {
                     Scoring Type (Optional)
                   </label>
                   <select
-                    value={formData.scoringType || ''}
-                    onChange={(e) => setFormData({ ...formData, scoringType: e.target.value ? (e.target.value as 'STRAIGHT' | 'OLYMPIC') : null })}
+                    {...register('scoringType')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Inherit from tenant</option>
                     <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
-                    <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 4+ judges)</option>
+                    <option value="OLYMPIC">Olympic Scoring (Drop high &amp; low, requires 4+ judges)</option>
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Leave empty to inherit from tenant. Can be overridden at contest level.
                   </p>
-                  {formData.scoringType === 'OLYMPIC' && (
+                  {watchedScoringType === 'OLYMPIC' && (
                     <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
                       <p className="text-sm text-blue-700 dark:text-blue-300">
                         <strong>Note:</strong> Olympic scoring drops the highest and lowest scores before averaging.

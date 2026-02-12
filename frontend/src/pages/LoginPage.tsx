@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { FormProvider, FormInput, FormField } from '../components/form'
+import { loginSchema, LoginInput } from '../lib/validation'
 
 interface TenantBranding {
   appName: string
@@ -30,12 +34,14 @@ interface PublicSettings {
 
 const LoginPage: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [isTenantLoading, setIsTenantLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [serverError, setServerError] = useState('')
+
+  const form = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  })
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
   const [settings, setSettings] = useState<PublicSettings>({
     appName: 'ConMGR',
@@ -127,32 +133,19 @@ const LoginPage: React.FC = () => {
     }
   }, [settings.appName, settings.faviconPath])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
-
+  const onSubmit = async (data: LoginInput) => {
+    setServerError('')
     try {
-      // Pass tenant slug to login for proper tenant context
-      const user = await login(email, password, slug || undefined)
-
-      // Determine where to redirect after login
-      // If user has a tenant and we know their tenant's slug, redirect to tenant-prefixed URL
-      // Otherwise redirect to default dashboard
+      const user = await login(data.email, data.password, slug || undefined)
       if (slug && slug !== 'default') {
-        // User logged in via tenant-specific URL - stay in that tenant context
         navigate(`/${slug}/dashboard`)
       } else if (user?.tenant?.slug && user.tenant.slug !== 'default') {
-        // User has a non-default tenant - redirect to their tenant URL
         navigate(`/${user.tenant.slug}/dashboard`)
       } else {
-        // Default tenant or no tenant info - use default URL
         navigate('/dashboard')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
-    } finally {
-      setIsLoading(false)
+      setServerError(err instanceof Error ? err.message : 'Login failed')
     }
   }
 
@@ -192,55 +185,32 @@ const LoginPage: React.FC = () => {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-200">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {/* Email Field */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Enter your email"
-                    aria-label="Email address"
-                    aria-required="true"
-                    aria-describedby={error ? 'login-error' : undefined}
-                  />
-                </div>
-              </div>
+            <FormProvider form={form} onSubmit={onSubmit} className="space-y-6">
+              <FormInput
+                name="email"
+                label="Email address"
+                type="email"
+                autoComplete="email"
+                placeholder="Enter your email"
+                required
+              />
 
-              {/* Password Field */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Password
-                </label>
-                <div className="mt-1 relative">
+              {/* Password with show/hide toggle */}
+              <FormField name="password" label="Password" required>
+                <div className="relative">
                   <input
                     id="password"
-                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="Enter your password"
-                    aria-label="Password"
-                    aria-required="true"
-                    aria-describedby={error ? 'login-error' : undefined}
+                    {...form.register('password')}
+                    className={
+                      'appearance-none block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-2 sm:text-sm ' +
+                      (form.formState.errors.password
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500')
+                    }
+                    aria-invalid={form.formState.errors.password ? 'true' : undefined}
                   />
                   <button
                     type="button"
@@ -255,58 +225,23 @@ const LoginPage: React.FC = () => {
                     )}
                   </button>
                 </div>
-              </div>
+              </FormField>
 
-              {/* Error Alert */}
-              {error && (
-                <div
-                  className="rounded-md bg-red-50 border border-red-200 p-4"
-                  role="alert"
-                  id="login-error"
-                >
-                  <div className="text-sm text-red-800 font-medium">
-                    {error}
-                  </div>
+              {/* Server-side error */}
+              {serverError && (
+                <div className="rounded-md bg-red-50 border border-red-200 p-4" role="alert">
+                  <div className="text-sm text-red-800 font-medium">{serverError}</div>
                 </div>
               )}
 
-              {/* Submit Button */}
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Signing in...
-                    </div>
-                  ) : (
-                    'Sign in'
-                  )}
-                </button>
-              </div>
-            </form>
+              <button
+                type="submit"
+                disabled={form.formState.isSubmitting}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
+              </button>
+            </FormProvider>
 
             {/* Support Section */}
             <div className="mt-6 border-t border-gray-200 pt-6">

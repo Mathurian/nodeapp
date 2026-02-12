@@ -117,7 +117,7 @@ describe('Certifications API Contract Tests', () => {
     it('should return response matching CertifyActionResponse schema on success', async () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/certify-totals`)
-        .set('Authorization', `Bearer ${tallyMasterToken}`)
+        .set('Cookie', `access_token=${tallyMasterToken}`)
         .send({});
 
       if (response.status === 401 || response.status === 403) {
@@ -139,7 +139,7 @@ describe('Certifications API Contract Tests', () => {
     it('should return error response when called by non-tally-master', async () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/certify-totals`)
-        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('Cookie', `access_token=${judgeToken}`)
         .send({});
 
       // Judge should not be able to certify totals
@@ -156,7 +156,7 @@ describe('Certifications API Contract Tests', () => {
     it('should return response matching CertifyActionResponse schema on success', async () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/final-certification`)
-        .set('Authorization', `Bearer ${auditorToken}`)
+        .set('Cookie', `access_token=${auditorToken}`)
         .send({});
 
       if (response.status === 401 || response.status === 403) {
@@ -188,7 +188,7 @@ describe('Certifications API Contract Tests', () => {
 
       const response = await request(app)
         .post(`/api/scoring/category/${fakeId}/final-certification`)
-        .set('Authorization', `Bearer ${auditorToken}`)
+        .set('Cookie', `access_token=${auditorToken}`)
         .send({});
 
       if (response.status === 401 || response.status === 403) {
@@ -209,7 +209,7 @@ describe('Certifications API Contract Tests', () => {
     it('should return success response structure on uncertify', async () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/uncertify`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Cookie', `access_token=${adminToken}`)
         .send({});
 
       if (response.status === 401 || response.status === 403) {
@@ -245,7 +245,7 @@ describe('Certifications API Contract Tests', () => {
     it('should return 403 when judge tries to access admin-only certification endpoint', async () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/uncertify`)
-        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('Cookie', `access_token=${judgeToken}`)
         .send({});
 
       // Uncertify is typically admin/board only
@@ -259,7 +259,7 @@ describe('Certifications API Contract Tests', () => {
 
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/certify`)
-        .set('Authorization', `Bearer ${contestantToken}`)
+        .set('Cookie', `access_token=${contestantToken}`)
         .send({});
 
       expect([401, 403]).toContain(response.status);
@@ -278,7 +278,7 @@ describe('Certifications API Contract Tests', () => {
       // Success case
       const successResponse = await request(app)
         .get('/api/scoring/categories')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (successResponse.status === 200) {
         expect(successResponse.body).toHaveProperty('success');
@@ -295,7 +295,7 @@ describe('Certifications API Contract Tests', () => {
     it('should include data field only in success responses', async () => {
       const successResponse = await request(app)
         .get('/api/scoring/categories')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (successResponse.status === 200) {
         expect(successResponse.body).toHaveProperty('data');
@@ -317,7 +317,7 @@ describe('Certifications API Contract Tests', () => {
 
       const successResponse = await request(app)
         .get('/api/scoring/categories')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (successResponse.status === 200) {
         // Success responses should not have 'error' field

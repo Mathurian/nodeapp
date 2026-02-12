@@ -1,4 +1,7 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import {
   XMarkIcon,
   CheckIcon,
@@ -8,6 +11,7 @@ import {
 import toast from 'react-hot-toast'
 import { User, UserFormData, CustomField, ROLES } from './types'
 import UploadProgress, { UploadStatus } from '../ui/UploadProgress'
+import { emailSchema, nameSchema, passwordSchema } from '../../lib/validation'
 
 export interface FileUploadState {
   /** Upload progress percentage (0-100) */
@@ -23,10 +27,8 @@ export interface UserFormProps {
   isOpen: boolean
   /** User being edited (null for create mode) */
   editingUser: User | null
-  /** Current form data */
-  formData: UserFormData
-  /** Callback when form data changes */
-  onFormDataChange: (data: UserFormData) => void
+  /** Initial values for edit mode (derived from editingUser in parent) */
+  defaultValues?: Partial<UserFormData>
   /** Available custom fields */
   customFields: CustomField[]
   /** Whether custom fields are loading */
@@ -53,11 +55,27 @@ export interface UserFormProps {
   onCancelBioUpload?: () => void
   /** Whether form is submitting */
   isSubmitting: boolean
-  /** Callback when form is submitted */
-  onSubmit: (e: React.FormEvent) => void
+  /** Callback when form is submitted with validated data */
+  onSubmit: (data: UserFormData) => void
   /** Callback when form is closed/reset */
   onClose: () => void
 }
+
+// Zod schema — password required for create, optional for edit
+const userFormSchema = z.object({
+  name: nameSchema,
+  preferredName: z.string().optional(),
+  email: emailSchema,
+  password: z.string().optional(),
+  role: z.string().min(1, 'Role is required'),
+  gender: z.string().optional(),
+  pronouns: z.string().optional(),
+  phone: z.string().optional(),
+  bio: z.string().optional(),
+  isActive: z.boolean(),
+})
+
+type UserFormFields = z.infer<typeof userFormSchema>
 
 /**
  * UserForm component provides create/edit form for users.
@@ -67,8 +85,7 @@ export interface UserFormProps {
 const UserForm: React.FC<UserFormProps> = ({
   isOpen,
   editingUser,
-  formData,
-  onFormDataChange,
+  defaultValues,
   customFields,
   loadingCustomFields,
   selectedImage,
@@ -87,6 +104,47 @@ const UserForm: React.FC<UserFormProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bioFileInputRef = useRef<HTMLInputElement>(null)
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>(
+    (defaultValues?.customFields as Record<string, unknown>) ?? {}
+  )
+
+  const {
+    register,
+    handleSubmit: rhfHandleSubmit,
+    formState: { errors },
+    setError,
+  } = useForm<UserFormFields>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: {
+      name: defaultValues?.name ?? '',
+      preferredName: defaultValues?.preferredName ?? '',
+      email: defaultValues?.email ?? '',
+      password: '',
+      role: defaultValues?.role ?? 'CONTESTANT',
+      gender: defaultValues?.gender ?? '',
+      pronouns: defaultValues?.pronouns ?? '',
+      phone: defaultValues?.phone ?? '',
+      bio: defaultValues?.bio ?? '',
+      isActive: defaultValues?.isActive ?? true,
+    },
+  })
+
+  const handleFormSubmit = (data: UserFormFields) => {
+    // Password required for new users
+    if (!editingUser && !data.password) {
+      setError('password', { message: 'Password is required for new users' })
+      return
+    }
+    // Password strength check if provided (edit mode)
+    if (data.password) {
+      const pwResult = passwordSchema.safeParse(data.password)
+      if (!pwResult.success) {
+        setError('password', { message: pwResult.error.issues[0]?.message ?? 'Invalid password' })
+        return
+      }
+    }
+    onSubmit({ ...data, customFields: customFieldValues } as UserFormData)
+  }
 
   // Check if uploads are in progress
   const isImageUploading = imageUploadState?.status === 'uploading'
@@ -159,15 +217,12 @@ const UserForm: React.FC<UserFormProps> = ({
    * Render custom field input based on field type
    */
   const renderCustomFieldInput = (field: CustomField) => {
-    const value = formData.customFields?.[field.key] || ''
+    const value = customFieldValues[field.key] || ''
     const onChange = (newValue: unknown) => {
-      onFormDataChange({
-        ...formData,
-        customFields: {
-          ...formData.customFields,
-          [field.key]: newValue,
-        },
-      })
+      setCustomFieldValues(prev => ({
+        ...prev,
+        [field.key]: newValue,
+      }))
     }
 
     const baseClassName = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -298,7 +353,7 @@ const UserForm: React.FC<UserFormProps> = ({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={rhfHandleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -306,11 +361,11 @@ const UserForm: React.FC<UserFormProps> = ({
               </label>
               <input
                 type="text"
-                required
-                value={formData.name}
-                onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {...register('name')}
+                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
+                aria-invalid={errors.name ? 'true' : undefined}
               />
+              {errors.name && <p className="mt-1 text-xs text-red-600" role="alert">{errors.name.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -318,8 +373,7 @@ const UserForm: React.FC<UserFormProps> = ({
               </label>
               <input
                 type="text"
-                value={formData.preferredName}
-                onChange={(e) => onFormDataChange({ ...formData, preferredName: e.target.value })}
+                {...register('preferredName')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -331,11 +385,11 @@ const UserForm: React.FC<UserFormProps> = ({
             </label>
             <input
               type="email"
-              required
-              value={formData.email}
-              onChange={(e) => onFormDataChange({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              {...register('email')}
+              className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
+              aria-invalid={errors.email ? 'true' : undefined}
             />
+            {errors.email && <p className="mt-1 text-xs text-red-600" role="alert">{errors.email.message}</p>}
           </div>
 
           <div>
@@ -345,12 +399,12 @@ const UserForm: React.FC<UserFormProps> = ({
             </label>
             <input
               type="password"
-              required={!editingUser}
-              value={formData.password}
-              onChange={(e) => onFormDataChange({ ...formData, password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Min 8 characters"
+              {...register('password')}
+              className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
+              placeholder={editingUser ? 'Leave blank to keep current' : 'Min 8 characters'}
+              aria-invalid={errors.password ? 'true' : undefined}
             />
+            {errors.password && <p className="mt-1 text-xs text-red-600" role="alert">{errors.password.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -359,10 +413,9 @@ const UserForm: React.FC<UserFormProps> = ({
                 Role <span className="text-red-500">*</span>
               </label>
               <select
-                required
-                value={formData.role}
-                onChange={(e) => onFormDataChange({ ...formData, role: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {...register('role')}
+                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
+                aria-invalid={errors.role ? 'true' : undefined}
               >
                 {ROLES.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -370,6 +423,7 @@ const UserForm: React.FC<UserFormProps> = ({
                   </option>
                 ))}
               </select>
+              {errors.role && <p className="mt-1 text-xs text-red-600" role="alert">{errors.role.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -377,8 +431,7 @@ const UserForm: React.FC<UserFormProps> = ({
               </label>
               <input
                 type="text"
-                value={formData.gender}
-                onChange={(e) => onFormDataChange({ ...formData, gender: e.target.value })}
+                {...register('gender')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Male, Female, Non-binary, etc."
               />
@@ -392,8 +445,7 @@ const UserForm: React.FC<UserFormProps> = ({
               </label>
               <input
                 type="text"
-                value={formData.pronouns}
-                onChange={(e) => onFormDataChange({ ...formData, pronouns: e.target.value })}
+                {...register('pronouns')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., he/him, she/her, they/them"
               />
@@ -404,8 +456,7 @@ const UserForm: React.FC<UserFormProps> = ({
               </label>
               <input
                 type="tel"
-                value={formData.phone}
-                onChange={(e) => onFormDataChange({ ...formData, phone: e.target.value })}
+                {...register('phone')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -416,8 +467,7 @@ const UserForm: React.FC<UserFormProps> = ({
               Bio
             </label>
             <textarea
-              value={formData.bio}
-              onChange={(e) => onFormDataChange({ ...formData, bio: e.target.value })}
+              {...register('bio')}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter a brief bio or description..."
@@ -577,8 +627,7 @@ const UserForm: React.FC<UserFormProps> = ({
           <div className="flex items-center">
             <input
               type="checkbox"
-              checked={formData.isActive}
-              onChange={(e) => onFormDataChange({ ...formData, isActive: e.target.checked })}
+              {...register('isActive')}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
               id="isActive"
             />

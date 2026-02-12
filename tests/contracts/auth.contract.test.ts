@@ -29,7 +29,7 @@ describe('Auth API Contract Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .set(tenantHeader)
-        .send({ email: 'admin@localhost', password: 'Password123!' });
+        .send({ email: 'admin@eventmangaer.com', password: 'Password123!' });
 
       if (response.status === 200) {
         expectResponseToMatchSchema(

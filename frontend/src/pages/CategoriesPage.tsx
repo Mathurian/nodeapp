@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
 import { categoriesAPI, contestsAPI } from '../services/api'
 import {
@@ -64,24 +67,33 @@ interface CategoryFormData {
   contestantMax: string
 }
 
+const categoryFormSchema = z.object({
+  contestId: z.string().min(1, 'Please select a contest'),
+  name: z.string().min(1, 'Category name is required').max(200, 'Name must be less than 200 characters'),
+  description: z.string(),
+  scoreCap: z.string(),
+  timeLimit: z.string(),
+  contestantMin: z.string(),
+  contestantMax: z.string(),
+})
+
+type CategoryFormValues = z.infer<typeof categoryFormSchema>
+
 const CategoriesPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const { contestId, slug } = useParams<{ contestId?: string; slug?: string }>()
 
+  const form = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: { contestId: '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' },
+  })
+  const { register, handleSubmit: rhfHandleSubmit, reset, formState: { errors } } = form
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedContestFilter, setSelectedContestFilter] = useState<string>('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [formData, setFormData] = useState<CategoryFormData>({
-    name: '',
-    description: '',
-    contestId: '',
-    scoreCap: '',
-    timeLimit: '',
-    contestantMin: '',
-    contestantMax: '',
-  })
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; category: Category | null }>({
     isOpen: false,
     category: null,
@@ -222,22 +234,14 @@ const CategoriesPage: React.FC = () => {
   )
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      contestId: '',
-      scoreCap: '',
-      timeLimit: '',
-      contestantMin: '',
-      contestantMax: '',
-    })
+    reset({ contestId: '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' })
     setEditingCategory(null)
     setIsFormOpen(false)
   }
 
   const handleEdit = (category: Category) => {
     setEditingCategory(category)
-    setFormData({
+    reset({
       name: category.name,
       description: category.description || '',
       contestId: category.contestId,
@@ -260,18 +264,11 @@ const CategoriesPage: React.FC = () => {
     setConfirmDelete({ isOpen: false, category: null })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.name || !formData.contestId) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-
+  const onSubmit = (data: CategoryFormValues) => {
     if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.id, data: formData })
+      updateMutation.mutate({ id: editingCategory.id, data })
     } else {
-      createMutation.mutate(formData)
+      createMutation.mutate(data)
     }
   }
 
@@ -494,17 +491,16 @@ const CategoriesPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
                 {/* Contest Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Contest <span className="text-red-500">*</span>
                   </label>
                   <select
-                    required
-                    value={formData.contestId}
-                    onChange={(e) => setFormData({ ...formData, contestId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('contestId')}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.contestId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                    aria-invalid={errors.contestId ? 'true' : undefined}
                   >
                     <option value="">Select a contest...</option>
                     {contests?.map((contest) => (
@@ -514,6 +510,7 @@ const CategoriesPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {errors.contestId && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.contestId.message}</p>}
                 </div>
 
                 {/* Name */}
@@ -523,12 +520,12 @@ const CategoriesPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {...register('name')}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     placeholder="Enter category name"
+                    aria-invalid={errors.name ? 'true' : undefined}
                   />
+                  {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
                 </div>
 
                 {/* Description */}
@@ -537,8 +534,7 @@ const CategoriesPage: React.FC = () => {
                     Description
                   </label>
                   <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter category description"
@@ -554,8 +550,7 @@ const CategoriesPage: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      value={formData.scoreCap}
-                      onChange={(e) => setFormData({ ...formData, scoreCap: e.target.value })}
+                      {...register('scoreCap')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Max score"
                     />
@@ -567,8 +562,7 @@ const CategoriesPage: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      value={formData.timeLimit}
-                      onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })}
+                      {...register('timeLimit')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Minutes"
                     />
@@ -584,8 +578,7 @@ const CategoriesPage: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      value={formData.contestantMin}
-                      onChange={(e) => setFormData({ ...formData, contestantMin: e.target.value })}
+                      {...register('contestantMin')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Minimum"
                     />
@@ -597,8 +590,7 @@ const CategoriesPage: React.FC = () => {
                     <input
                       type="number"
                       min="0"
-                      value={formData.contestantMax}
-                      onChange={(e) => setFormData({ ...formData, contestantMax: e.target.value })}
+                      {...register('contestantMax')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Maximum"
                     />

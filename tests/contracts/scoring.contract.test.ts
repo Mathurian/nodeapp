@@ -125,7 +125,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return response matching ScoringCategoriesResponse schema on success', async () => {
       const response = await request(app)
         .get('/api/scoring/categories')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (response.status === 401 || response.status === 403) {
         console.warn('Skipping contract test: authentication issue');
@@ -146,7 +146,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return categories with required id and name fields', async () => {
       const response = await request(app)
         .get('/api/scoring/categories')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (response.status !== 200) {
         console.warn('Skipping contract test: non-200 response');
@@ -178,7 +178,7 @@ describe('Scoring API Contract Tests', () => {
 
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/contestant/${testContestantId}`)
-        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('Cookie', `access_token=${judgeToken}`)
         .send(scoreData);
 
       if (response.status === 401 || response.status === 403) {
@@ -204,7 +204,7 @@ describe('Scoring API Contract Tests', () => {
 
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/contestant/${testContestantId}`)
-        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('Cookie', `access_token=${judgeToken}`)
         .send(invalidScoreData);
 
       if (response.status === 401 || response.status === 403) {
@@ -224,7 +224,7 @@ describe('Scoring API Contract Tests', () => {
 
       const response = await request(app)
         .post(`/api/scoring/category/${fakeId}/contestant/${testContestantId}`)
-        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('Cookie', `access_token=${judgeToken}`)
         .send(scoreData);
 
       if (response.status === 401 || response.status === 403) {
@@ -245,7 +245,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return response matching CertifyCategoryScoresResponse schema on success', async () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/certify`)
-        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('Cookie', `access_token=${judgeToken}`)
         .send({});
 
       if (response.status === 401 || response.status === 403) {
@@ -281,7 +281,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return response matching DeductionListResponse schema on success', async () => {
       const response = await request(app)
         .get('/api/scoring/deductions')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (response.status === 401 || response.status === 403) {
         console.warn('Skipping contract test: authentication issue');
@@ -302,7 +302,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return empty array when no deductions exist', async () => {
       const response = await request(app)
         .get('/api/scoring/deductions')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       if (response.status !== 200) {
         console.warn('Skipping contract test: non-200 response');
@@ -323,7 +323,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return consistent error structure for 401 Unauthorized', async () => {
       const response = await request(app)
         .get('/api/scoring/categories')
-        .set('Authorization', 'Bearer invalid-token');
+        .set('Cookie', 'access_token=invalid-token');
 
       expect(response.status).toBe(401);
       expectResponseToMatchSchema(response.body, ApiErrorResponseSchema);
@@ -341,7 +341,7 @@ describe('Scoring API Contract Tests', () => {
     it('should return consistent error structure for invalid route', async () => {
       const response = await request(app)
         .get('/api/scoring/nonexistent-endpoint')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       expect([404]).toContain(response.status);
       expectResponseToMatchSchema(response.body, ApiErrorResponseSchema);

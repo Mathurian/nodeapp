@@ -1,24 +1,37 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import { PrismaClient } from '@prisma/client';
+import { container } from 'tsyringe';
 import app from '../../src/server';
 import { expectResponseToMatchSchema, ApiErrorResponseSchema } from '../utils/apiContractHelpers';
-import { UserListResponseSchema, UserResponseSchema } from './schemas';
+import { UserListResponseSchema } from './schemas';
+import {
+  createTestUser,
+  generateTestToken,
+  cleanupAllTestData,
+} from './testSetup';
+
+const prisma = container.resolve<PrismaClient>('PrismaClient');
 
 describe('Users API Contract Tests', () => {
-  let authToken: string;
+  let adminToken: string;
   const tenantHeader = { 'X-Tenant-ID': 'default-tenant' };
+  const TEST_PATTERN = 'users-contract-test';
 
   beforeAll(async () => {
-    // Get auth token for testing
-    // This assumes there's a test user or you need to create one
-    const loginResponse = await request(app)
-      .post('/api/v1/auth/login')
-      .set(tenantHeader)
-      .send({ email: 'admin@localhost', password: 'Password123!' });
+    await cleanupAllTestData(prisma, TEST_PATTERN);
 
-    if (loginResponse.body.data?.token) {
-      authToken = loginResponse.body.data.token;
-    }
+    const adminUser = await createTestUser(prisma, {
+      email: `admin@${TEST_PATTERN}.com`,
+      name: 'Users Contract Test Admin',
+      role: 'ADMIN',
+    });
+
+    adminToken = generateTestToken(adminUser.id, 'ADMIN', adminUser.tenantId);
+  });
+
+  afterAll(async () => {
+    await cleanupAllTestData(prisma, TEST_PATTERN);
   });
 
   describe('GET /api/v1/users', () => {
@@ -26,12 +39,10 @@ describe('Users API Contract Tests', () => {
       const response = await request(app)
         .get('/api/v1/users')
         .set(tenantHeader)
-        .set('Authorization', `Bearer ${authToken}`)
-        .set('Cookie', `token=${authToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       expect(response.status).toBe(200);
 
-      // Validate response structure
       expectResponseToMatchSchema(
         response.body,
         UserListResponseSchema,
@@ -57,10 +68,9 @@ describe('Users API Contract Tests', () => {
   describe('GET /api/v1/users/:id', () => {
     it('should return 404 error matching ApiErrorResponse schema for non-existent user', async () => {
       const response = await request(app)
-        .get('/api/v1/users/non-existent-id')
+        .get('/api/v1/users/non-existent-id-00000000')
         .set(tenantHeader)
-        .set('Authorization', `Bearer ${authToken}`)
-        .set('Cookie', `token=${authToken}`);
+        .set('Cookie', `access_token=${adminToken}`);
 
       expect(response.status).toBe(404);
 
