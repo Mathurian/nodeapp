@@ -13,11 +13,12 @@ import {
 import { Link } from 'react-router-dom'
 
 interface AuditorStats {
+  totalCategories?: number
   pendingAudits: number
   completedAudits: number
-  pendingScoreVerifications: number
-  pendingFinalCertifications: number
-  flaggedScores: number
+  pendingScoreVerifications?: number
+  pendingFinalCertifications?: number
+  flaggedScores?: number
 }
 
 const AuditorPage: React.FC = () => {
@@ -49,14 +50,14 @@ const AuditorPage: React.FC = () => {
       href: '/auditor/score-verification',
       icon: DocumentCheckIcon,
       color: 'green',
-      count: stats?.pendingScoreVerifications || 0
+      count: stats?.pendingScoreVerifications || stats?.pendingAudits || 0
     },
     {
       label: 'Final Certification',
       href: '/auditor/final-certification',
       icon: ClipboardDocumentCheckIcon,
       color: 'purple',
-      count: stats?.pendingFinalCertifications || 0
+      count: stats?.pendingFinalCertifications || stats?.pendingAudits || 0
     },
     {
       label: 'Audit Log',
@@ -153,7 +154,7 @@ const AuditorPage: React.FC = () => {
                     Score Verifications
                   </p>
                   <p className="text-3xl font-bold mt-2 text-purple-900 dark:text-purple-100">
-                    {isLoading ? '...' : stats?.pendingScoreVerifications || 0}
+                    {isLoading ? '...' : stats?.pendingScoreVerifications || stats?.pendingAudits || 0}
                   </p>
                 </div>
                 <DocumentCheckIcon className="h-10 w-10 text-purple-600 dark:text-purple-400" />

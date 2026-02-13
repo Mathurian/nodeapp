@@ -250,6 +250,23 @@ registerRoutes(app);
 /**
  * Serve uploaded files statically with security options
  */
+app.get('/uploads/bios/:filename', (req: Request, res: Response, next: NextFunction) => {
+  const filename = path.basename(req.params['filename'] || '');
+  if (!filename) return next();
+
+  const legacyPath = path.join(__dirname, '../uploads/bios', filename);
+  const userBioPath = path.join(__dirname, '../uploads/users/bios', filename);
+  const targetPath = fs.existsSync(legacyPath) ? legacyPath : userBioPath;
+
+  if (fs.existsSync(targetPath)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.sendFile(targetPath);
+  }
+
+  return next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   dotfiles: 'deny', // Prevent access to dotfiles
   index: false, // Disable directory listing

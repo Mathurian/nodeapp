@@ -47,9 +47,9 @@ router.use(authenticateToken)
  *       201:
  *         description: Certification created successfully
  */
-router.get('/', getAllCertifications)
-router.get('/stats', getCertificationStats)
-router.get('/:id', validate(idParamSchema, 'params'), getCertificationById)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getAllCertifications)
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getCertificationStats)
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), validate(idParamSchema, 'params'), getCertificationById)
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createCertificationSchema, 'body'), logActivity('CREATE_CERTIFICATION', 'CERTIFICATION'), createCertification)
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(idParamSchema, 'params'), validate(updateCertificationSchema, 'body'), logActivity('UPDATE_CERTIFICATION', 'CERTIFICATION'), updateCertification)
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(idParamSchema, 'params'), logActivity('DELETE_CERTIFICATION', 'CERTIFICATION'), deleteCertification)

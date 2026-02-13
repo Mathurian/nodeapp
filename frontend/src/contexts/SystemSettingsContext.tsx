@@ -82,7 +82,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       'workflows', 'search', 'files', 'email-templates', 'custom-fields',
       'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
       'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
-      'bulk-operations', 'commentary', 'category-types', 'field-visibility',
+      'bulk-operations', 'category-types', 'field-visibility',
       'test-event-setup', 'help', 'bios', 'assignments'
     ])
 

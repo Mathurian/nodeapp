@@ -7,6 +7,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma, CategoryCertification } from '@prisma/client';
+import { applyCertificationStage } from '../utils/certificationPipeline';
 
 // Type definitions
 type CategoryWithCertifications = Prisma.CategoryGetPayload<{
@@ -201,6 +202,16 @@ export class BoardCertificationService extends BaseService {
           },
         }),
       ]);
+
+      await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId,
+        categoryId,
+        role: 'BOARD',
+        comments: comments || null,
+        userId,
+        certifiedBy: userId
+      });
 
       this.logInfo('Board certification submitted successfully', {
         categoryId,

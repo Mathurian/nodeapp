@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useQuery } from 'react-query'
 import toast from 'react-hot-toast'
 import { resultsAPI, scoreFilesAPI } from '../services/api'
@@ -69,6 +69,25 @@ interface ScoreBreakdown {
   score: number
   deduction: number
   comment: string | null
+}
+
+interface ContestScoreRow {
+  id: string
+  score: number
+  deduction?: number | null
+  categoryId: string
+  contestantId: string
+  category: {
+    id: string
+    name: string
+    scoreCap?: number | null
+  }
+  contestant: {
+    id: string
+    name: string
+    contestantNumber: number | null
+    imagePath?: string | null
+  }
 }
 
 interface CategoryResults {
@@ -179,6 +198,20 @@ const ResultsPage: React.FC = () => {
     }
   )
 
+  const { data: contestScores = [], isLoading: contestResultsLoading, error: contestResultsError } = useQuery<ContestScoreRow[]>(
+    ['contest-results', selectedContestId],
+    async () => {
+      if (!selectedContestId || selectedCategoryId) return []
+      const response = await resultsAPI.getContestResults(selectedContestId)
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      enabled: !!selectedContestId && !selectedCategoryId,
+      retry: 1,
+    }
+  )
+
   const { data: categoryAttachments = [] } = useQuery<ScoreAttachment[]>(
     ['category-score-attachments', selectedCategoryId],
     async () => {
@@ -192,6 +225,75 @@ const ResultsPage: React.FC = () => {
       retry: 1,
     }
   )
+
+  const contestLevelResults = useMemo(() => {
+    if (!selectedContestId || selectedCategoryId || contestScores.length === 0) return []
+
+    const categoryMap = new Map<string, {
+      categoryId: string
+      categoryName: string
+      scoreCap: number | null
+      winners: Array<{
+        contestantId: string
+        name: string
+        contestantNumber: number | null
+        imagePath: string | null
+        totalScore: number
+      }>
+    }>()
+
+    const totalsMap = new Map<string, {
+      categoryId: string
+      categoryName: string
+      scoreCap: number | null
+      contestantId: string
+      name: string
+      contestantNumber: number | null
+      imagePath: string | null
+      totalScore: number
+    }>()
+
+    for (const row of contestScores) {
+      const key = `${row.categoryId}:${row.contestantId}`
+      const base = totalsMap.get(key) || {
+        categoryId: row.category.id,
+        categoryName: row.category.name,
+        scoreCap: row.category.scoreCap ?? null,
+        contestantId: row.contestant.id,
+        name: row.contestant.name,
+        contestantNumber: row.contestant.contestantNumber ?? null,
+        imagePath: row.contestant.imagePath ?? null,
+        totalScore: 0,
+      }
+      const net = Number(row.score || 0) - Number(row.deduction || 0)
+      base.totalScore += net
+      totalsMap.set(key, base)
+    }
+
+    for (const total of totalsMap.values()) {
+      const byCategory = categoryMap.get(total.categoryId) || {
+        categoryId: total.categoryId,
+        categoryName: total.categoryName,
+        scoreCap: total.scoreCap,
+        winners: [],
+      }
+      byCategory.winners.push({
+        contestantId: total.contestantId,
+        name: total.name,
+        contestantNumber: total.contestantNumber,
+        imagePath: total.imagePath,
+        totalScore: total.totalScore,
+      })
+      categoryMap.set(total.categoryId, byCategory)
+    }
+
+    return Array.from(categoryMap.values())
+      .map((entry) => ({
+        ...entry,
+        winners: entry.winners.sort((a, b) => b.totalScore - a.totalScore),
+      }))
+      .sort((a, b) => a.categoryName.localeCompare(b.categoryName))
+  }, [contestScores, selectedCategoryId, selectedContestId])
 
   // Early return for error states
   if (eventsError) {
@@ -224,11 +326,11 @@ const ResultsPage: React.FC = () => {
     )
   }
 
-  if (resultsError) {
+  if (resultsError || contestResultsError) {
     return (
       <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
-        <p className="text-red-800 dark:text-red-200 mb-4">{String(resultsError)}</p>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(resultsError || contestResultsError)}</p>
         <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
       </div>
     )
@@ -448,7 +550,7 @@ const ResultsPage: React.FC = () => {
         </div>
 
         {/* Results Display */}
-        {resultsLoading ? (
+        {(resultsLoading || contestResultsLoading) ? (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
             <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading results...</p>
@@ -593,6 +695,72 @@ const ResultsPage: React.FC = () => {
                 ))}
               </div>
             </div>
+          </div>
+        ) : selectedContestId && !selectedCategoryId ? (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <div className="mb-6 pb-4 border-b">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Contest Results</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Category-level winners across the selected contest
+              </p>
+            </div>
+            {contestLevelResults.length === 0 ? (
+              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+                No results available for this contest yet.
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {contestLevelResults.map((categoryGroup) => (
+                  <div key={categoryGroup.categoryId}>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                      {categoryGroup.categoryName}
+                    </h3>
+                    <div className="space-y-3">
+                      {categoryGroup.winners.map((winner, idx) => (
+                        <div key={winner.contestantId} className={`border-2 rounded-lg p-4 ${getRankColor(idx + 1)}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="text-3xl font-bold">{getMedalIcon(idx + 1)}</div>
+                              {winner.imagePath ? (
+                                <img
+                                  src={winner.imagePath}
+                                  alt={winner.name}
+                                  className="h-12 w-12 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
+                                  <span className="text-gray-600 dark:text-gray-400 font-semibold">
+                                    {winner.name.charAt(0)}
+                                  </span>
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-semibold text-gray-900 dark:text-white">{winner.name}</div>
+                                {winner.contestantNumber && (
+                                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                                    Contestant #{winner.contestantNumber}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                                {winner.totalScore}
+                                {categoryGroup.scoreCap && (
+                                  <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
+                                    / {categoryGroup.scoreCap}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : selectedCategoryId ? (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">

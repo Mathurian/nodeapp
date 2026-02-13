@@ -96,6 +96,12 @@ const getImageUrl = (path?: string | null): string | null => {
   return `/${path}`
 }
 
+const getFileUrl = (path?: string | null): string | null => {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path
+  return `/${path}`
+}
+
 const ScoringPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -584,9 +590,9 @@ const ScoringPage: React.FC = () => {
                     <p className="mt-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                       {selectedContestant.bio?.trim() || 'No bio available for this contestant.'}
                     </p>
-                    {selectedContestant.bioFilePath && (
+                    {getFileUrl(selectedContestant.bioFilePath) && (
                       <a
-                        href={selectedContestant.bioFilePath}
+                        href={getFileUrl(selectedContestant.bioFilePath)!}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-700 underline"

@@ -55,7 +55,8 @@ export class CategoryCertificationController {
         return;
       }
 
-      const { contestantId, categoryId } = req.body;
+      const contestantId = req.params['contestantId'] || req.body?.contestantId;
+      const categoryId = req.params['categoryId'] || req.body?.categoryId;
 
       if (!contestantId || !categoryId) {
         return sendBadRequest(res, 'contestantId and categoryId are required');
@@ -85,7 +86,8 @@ export class CategoryCertificationController {
         return;
       }
 
-      const { judgeId, categoryId } = req.body;
+      const judgeId = req.params['judgeId'] || req.body?.judgeId;
+      const categoryId = req.params['categoryId'] || req.body?.categoryId;
 
       if (!judgeId || !categoryId) {
         return sendBadRequest(res, 'judgeId and categoryId are required');

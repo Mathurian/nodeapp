@@ -2,6 +2,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, UserRole, Prisma, RequestStatus } from '@prisma/client';
+import { applyCertificationStage } from '../utils/certificationPipeline';
 
 // P2-4: Comprehensive type definitions for Tally Master service
 type CategoryWithScoresAndContest = Prisma.CategoryGetPayload<{
@@ -687,6 +688,35 @@ export class TallyMasterService extends BaseService {
           },
         },
       },
+    });
+
+    await this.prisma.categoryCertification.upsert({
+      where: {
+        tenantId_categoryId_role: {
+          tenantId: category.tenantId,
+          categoryId,
+          role: 'TALLY_MASTER'
+        }
+      },
+      create: {
+        tenantId: category.tenantId,
+        categoryId,
+        role: 'TALLY_MASTER',
+        userId: _userId
+      },
+      update: {
+        userId: _userId,
+        certifiedAt: new Date()
+      }
+    });
+
+    await applyCertificationStage({
+      prisma: this.prisma,
+      tenantId: category.tenantId,
+      categoryId,
+      role: 'TALLY_MASTER',
+      userId: _userId,
+      certifiedBy: _userId
     });
 
     return updatedCategory as any;

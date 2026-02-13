@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { applyCertificationStage, ensureCertificationRecord } from '../utils/certificationPipeline';
 
 // P2-4: Proper type definitions for auditor certification responses
 type CategoryJudgeWithJudge = Prisma.CategoryJudgeGetPayload<{
@@ -23,26 +24,34 @@ export class AuditorCertificationService extends BaseService {
   }
 
   async getFinalCertificationStatus(categoryId: string) {
-    const tallyCertifications = await this.prisma.categoryCertification.findMany({
-      where: { categoryId, role: 'TALLY_MASTER' },
-      // include removed - no user relation in schema
-    });
-
-    const auditorCertification = await this.prisma.categoryCertification.findFirst({
-      where: { categoryId, role: 'AUDITOR' },
-      // include removed - no user relation in schema
-    });
-
     const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       select: {
         id: true,
+        tenantId: true,
         name: true,
         description: true,
         scoreCap: true,
         contestId: true
       }
     });
+
+    if (!category) {
+      throw this.notFoundError('Category', categoryId);
+    }
+
+    const certification = await ensureCertificationRecord({
+      prisma: this.prisma,
+      tenantId: category.tenantId,
+      categoryId
+    });
+
+    const tallyCertifications = await this.prisma.categoryCertification.findMany({
+      where: { categoryId, role: 'TALLY_MASTER' },
+      // include removed - no user relation in schema
+    });
+
+    const auditorCertification = certification.auditorCertified ? certification : null;
 
     const categoryJudges = await this.prisma.categoryJudge.findMany({
       where: { categoryId },
@@ -52,7 +61,7 @@ export class AuditorCertificationService extends BaseService {
     const requiredTallyCertifications = categoryJudges.length;
     const completedTallyCertifications = tallyCertifications.length;
 
-    const canCertify = completedTallyCertifications >= requiredTallyCertifications;
+    const canCertify = certification.tallyCertified || completedTallyCertifications >= requiredTallyCertifications;
     const alreadyCertified = !!auditorCertification;
 
     const allScores = await this.prisma.score.findMany({
@@ -87,7 +96,7 @@ export class AuditorCertificationService extends BaseService {
       auditorCertified: alreadyCertified,
       auditorCertification: auditorCertification ? {
         certifiedAt: auditorCertification.certifiedAt,
-        certifiedBy: auditorCertification.userId // Use userId instead of user relation
+        certifiedBy: auditorCertification.certifiedBy || auditorCertification.userId
       } : null
     };
   }
@@ -119,13 +128,34 @@ export class AuditorCertificationService extends BaseService {
       throw this.forbiddenError('Only AUDITOR role can submit final certification');
     }
 
-    const certification = await this.prisma.categoryCertification.create({
-      data: {
+    const certification = await this.prisma.categoryCertification.upsert({
+      where: {
+        tenantId_categoryId_role: {
+          tenantId: auditor.tenantId,
+          categoryId,
+          role: 'AUDITOR'
+        }
+      },
+      create: {
         tenantId: auditor.tenantId,
         categoryId,
         role: 'AUDITOR',
-        userId
+        userId,
+        certifiedAt: new Date()
+      },
+      update: {
+        userId,
+        certifiedAt: new Date()
       }
+    });
+
+    await applyCertificationStage({
+      prisma: this.prisma,
+      tenantId: auditor.tenantId,
+      categoryId,
+      role: 'AUDITOR',
+      userId,
+      certifiedBy: userId
     });
 
     await this.prisma.score.updateMany({
@@ -137,6 +167,21 @@ export class AuditorCertificationService extends BaseService {
   }
 
   private async getFinalCertificationStatusInternal(categoryId: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { tenantId: true }
+    });
+
+    if (!category) {
+      throw this.notFoundError('Category', categoryId);
+    }
+
+    const certification = await ensureCertificationRecord({
+      prisma: this.prisma,
+      tenantId: category.tenantId,
+      categoryId
+    });
+
     const tallyCertifications = await this.prisma.categoryCertification.findMany({
       where: { categoryId, role: 'TALLY_MASTER' }
     });
@@ -158,8 +203,8 @@ export class AuditorCertificationService extends BaseService {
     const completedTallyCertifications = tallyCertifications.length;
 
     return {
-      canCertify: completedTallyCertifications >= requiredTallyCertifications,
-      alreadyCertified: !!auditorCertification,
+      canCertify: certification.tallyCertified || completedTallyCertifications >= requiredTallyCertifications,
+      alreadyCertified: certification.auditorCertified || !!auditorCertification,
       scoresCompleted: uncertifiedScores.length === 0
     };
   }

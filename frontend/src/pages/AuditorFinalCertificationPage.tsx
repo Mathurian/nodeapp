@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
-import { auditorAPI, categoriesAPI } from '../services/api'
+import { api, auditorAPI, categoriesAPI } from '../services/api'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import { ConfirmModal, getOptimisticRowClass } from '../components/ui'
 import { useOptimisticMutation } from '../hooks'
@@ -31,20 +31,42 @@ const AuditorFinalCertificationPage: React.FC = () => {
   const { data: categories, isLoading, error } = useQuery<CategoryCertification[]>(
     'final-certification-categories',
     async () => {
-      const response = await categoriesAPI.getAll()
-      const allCategories = response.data.data || response.data || []
+      const pendingResponse = await auditorAPI.getPendingAudits()
+      const pendingUnwrapped = pendingResponse.data?.data || pendingResponse.data
+      const pendingCategories = Array.isArray(pendingUnwrapped?.categories)
+        ? pendingUnwrapped.categories
+        : Array.isArray(pendingUnwrapped)
+          ? pendingUnwrapped
+          : []
 
-      // Transform to certification format
-      return allCategories.map((cat: any) => ({
-        id: cat.id,
-        name: cat.name,
-        contestName: cat.Contest?.name || 'Unknown Contest',
-        eventName: cat.Contest?.Event?.name || 'Unknown Event',
-        status: 'PENDING',
-        judgesCertified: Math.random() > 0.5,
-        tallyMasterCertified: Math.random() > 0.5,
-        readyForFinalCertification: Math.random() > 0.3,
-      }))
+      const mapped = await Promise.all(
+        pendingCategories.map(async (cat: any) => {
+          let judgesCertified = false
+          let tallyMasterCertified = false
+
+          try {
+            const progressResponse = await api.get(`/category-certification/category/${cat.id}/progress`)
+            const progress = progressResponse.data?.data || progressResponse.data
+            judgesCertified = Boolean(progress?.judgeProgress?.isCategoryCertified)
+            tallyMasterCertified = Boolean(progress?.tallyMasterProgress?.isCategoryCertified)
+          } catch {
+            // Leave defaults if progress endpoint fails for this category.
+          }
+
+          return {
+            id: cat.id,
+            name: cat.name,
+            contestName: cat?.contest?.name || 'Unknown Contest',
+            eventName: cat?.contest?.event?.name || 'Unknown Event',
+            status: 'PENDING',
+            judgesCertified,
+            tallyMasterCertified,
+            readyForFinalCertification: tallyMasterCertified,
+          } as CategoryCertification
+        })
+      )
+
+      return mapped
     },
     {
       retry: 1,

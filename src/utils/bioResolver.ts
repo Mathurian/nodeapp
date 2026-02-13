@@ -5,6 +5,7 @@ export interface ResolvedBio {
 
 const BIO_FILE_PATH_REGEX = /(\/uploads\/(?:users\/bios|bios)\/[^\]\s)]+)/i;
 const BIO_PLACEHOLDER_REGEX = /^\s*\[Bio file(?: uploaded)?:\s*([^\]]+)\]\s*$/i;
+const GENERIC_PLACEHOLDER_REGEX = /^(?:no\s+bio(?:\s+(?:available|provided))?\.?|n\/a|none)$/i;
 
 export function extractBioFilePath(value?: string | null): string | null {
   if (!value || typeof value !== 'string') return null;
@@ -43,6 +44,7 @@ export function resolveBioFromCandidates(candidates: Array<string | null | undef
     const trimmed = candidate.trim();
     if (!trimmed) continue;
     if (isBioPlaceholder(trimmed)) continue;
+    if (GENERIC_PLACEHOLDER_REGEX.test(trimmed)) continue;
     return { bio: trimmed, bioFilePath };
   }
 

@@ -3,6 +3,7 @@ import { useQuery } from 'react-query'
 import { tallyMasterAPI } from '../services/api'
 import { Link } from 'react-router-dom'
 import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
 
 const TallyDashboardPage: React.FC = () => {
   const { data: stats, isLoading: statsLoading } = useQuery(
@@ -14,15 +15,35 @@ const TallyDashboardPage: React.FC = () => {
     { retry: 1 }
   )
 
-  const { data: queue = [], isLoading: queueLoading, error } = useQuery<any[]>(
+  const { data: queue = [], isLoading: queueLoading, error, refetch } = useQuery<any[]>(
     'tally-dashboard-queue',
     async () => {
       const response = await tallyMasterAPI.getCertificationQueue()
       const unwrapped = response.data?.data || response.data
-      return Array.isArray(unwrapped?.data) ? unwrapped.data : Array.isArray(unwrapped) ? unwrapped : []
+      return Array.isArray(unwrapped?.categories)
+        ? unwrapped.categories
+        : Array.isArray(unwrapped)
+          ? unwrapped
+          : []
     },
     { retry: 1 }
   )
+
+  const handleCertifyTotals = async (item: any) => {
+    const categoryId = item?.id || item?.categoryId
+    if (!categoryId) {
+      toast.error('Category ID is missing for this queue item')
+      return
+    }
+    try {
+      await tallyMasterAPI.certifyTotals({ categoryId })
+      toast.success('Totals certified')
+      await refetch()
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to certify totals'
+      toast.error(message)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -72,9 +93,18 @@ const TallyDashboardPage: React.FC = () => {
                     <p className="font-medium text-gray-900 dark:text-white">{item.categoryName || item.category?.name || item.categoryId}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{item.contestName || item.contest?.name || item.contestId}</p>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                    {item.status || 'PENDING'}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                      {item.status || 'PENDING'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCertifyTotals(item)}
+                      className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      Certify Totals
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

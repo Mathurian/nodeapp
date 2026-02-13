@@ -9,10 +9,14 @@ import {
 import { Link } from 'react-router-dom'
 
 interface BoardStats {
-  pendingCertifications: number
-  approvedCertifications: number
-  rejectedCertifications: number
-  pendingScoreRemovals: number
+  contests?: number
+  categories?: number
+  certified?: number
+  pending?: number
+  pendingCertifications?: number
+  approvedCertifications?: number
+  rejectedCertifications?: number
+  pendingScoreRemovals?: number
 }
 
 const BoardPage: React.FC = () => {
@@ -35,7 +39,7 @@ const BoardPage: React.FC = () => {
       href: '/board/certifications',
       icon: ClipboardDocumentCheckIcon,
       color: 'blue',
-      count: stats?.pendingCertifications || 0
+      count: stats?.pendingCertifications ?? stats?.pending ?? 0
     },
     {
       label: 'Score Removal Requests',
@@ -95,7 +99,7 @@ const BoardPage: React.FC = () => {
                     Pending Certifications
                   </p>
                   <p className="text-3xl font-bold mt-2 text-blue-900 dark:text-blue-100">
-                    {isLoading ? '...' : stats?.pendingCertifications || 0}
+                    {isLoading ? '...' : (stats?.pendingCertifications ?? stats?.pending ?? 0)}
                   </p>
                 </div>
                 <ClipboardDocumentCheckIcon className="h-10 w-10 text-blue-600 dark:text-blue-400" />
@@ -109,7 +113,7 @@ const BoardPage: React.FC = () => {
                     Approved
                   </p>
                   <p className="text-3xl font-bold mt-2 text-green-900 dark:text-green-100">
-                    {isLoading ? '...' : stats?.approvedCertifications || 0}
+                    {isLoading ? '...' : (stats?.approvedCertifications ?? stats?.certified ?? 0)}
                   </p>
                 </div>
                 <ClipboardDocumentCheckIcon className="h-10 w-10 text-green-600 dark:text-green-400" />
@@ -123,7 +127,7 @@ const BoardPage: React.FC = () => {
                     Rejected
                   </p>
                   <p className="text-3xl font-bold mt-2 text-red-900 dark:text-red-100">
-                    {isLoading ? '...' : stats?.rejectedCertifications || 0}
+                    {isLoading ? '...' : (stats?.rejectedCertifications || 0)}
                   </p>
                 </div>
                 <ExclamationTriangleIcon className="h-10 w-10 text-red-600 dark:text-red-400" />
@@ -173,7 +177,7 @@ const BoardPage: React.FC = () => {
         </div>
 
         {/* Alerts */}
-        {(stats?.pendingCertifications || 0) > 0 && (
+        {(stats?.pendingCertifications ?? stats?.pending ?? 0) > 0 && (
           <div className="mb-8">
             <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
               <div className="flex items-start">
@@ -183,7 +187,7 @@ const BoardPage: React.FC = () => {
                     Pending Certifications
                   </h3>
                   <p className="text-yellow-800 dark:text-yellow-200 mb-4">
-                    You have {stats.pendingCertifications} certification(s) requiring board approval.
+                    You have {(stats?.pendingCertifications ?? stats?.pending ?? 0)} certification(s) requiring board approval.
                   </p>
                   <Link
                     to="/board/certifications"

@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { applyCertificationStage } from '../utils/certificationPipeline';
 
 // P2-4: Proper type definitions for category certification responses
 type CategoryContestantWithContestant = Prisma.CategoryContestantGetPayload<{
@@ -36,6 +37,20 @@ export class CategoryCertificationService extends BaseService {
       where: { categoryId }
     });
 
+    const certification = await this.prisma.certification.findFirst({
+      where: { categoryId },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const judgeIds = categoryJudges.map((cj) => cj.judgeId);
+    const certifiedJudges = await this.prisma.judgeCertification.groupBy({
+      by: ['judgeId'],
+      where: {
+        categoryId,
+        ...(judgeIds.length > 0 ? { judgeId: { in: judgeIds } } : {})
+      }
+    });
+
     const tallyMasterCert = await this.prisma.categoryCertification.findFirst({
       where: { categoryId, role: 'TALLY_MASTER' }
     });
@@ -51,21 +66,26 @@ export class CategoryCertificationService extends BaseService {
     const totalContestants = categoryContestants.length;
     const totalJudges = categoryJudges.length;
 
+    const judgeStageCertified = certification?.judgeCertified || (totalJudges > 0 && certifiedJudges.length >= totalJudges);
+    const tallyStageCertified = certification?.tallyCertified || !!tallyMasterCert;
+    const auditorStageCertified = certification?.auditorCertified || !!auditorCert;
+    const boardStageCertified = certification?.boardApproved || boardCerts.length > 0;
+
     return {
       categoryId,
       judgeProgress: {
         contestantsCertified: judgeContestantCertifications.length,
         totalContestants,
-        isCategoryCertified: judgeContestantCertifications.length === totalContestants * totalJudges
+        isCategoryCertified: judgeStageCertified
       },
       tallyMasterProgress: {
-        isCategoryCertified: !!tallyMasterCert
+        isCategoryCertified: tallyStageCertified
       },
       auditorProgress: {
-        isCategoryCertified: !!auditorCert
+        isCategoryCertified: auditorStageCertified
       },
       boardProgress: {
-        isCategoryCertified: boardCerts.length > 0
+        isCategoryCertified: boardStageCertified
       }
     };
   }
@@ -79,7 +99,7 @@ export class CategoryCertificationService extends BaseService {
       throw this.badRequestError('Category already certified for this role');
     }
 
-    return await this.prisma.categoryCertification.create({
+    const created = await this.prisma.categoryCertification.create({
       data: {
         tenantId,
         categoryId,
@@ -87,5 +107,18 @@ export class CategoryCertificationService extends BaseService {
         userId
       }
     });
+
+    if (userRole === 'TALLY_MASTER' || userRole === 'AUDITOR' || userRole === 'BOARD') {
+      await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId,
+        categoryId,
+        role: userRole,
+        userId,
+        certifiedBy: userId
+      });
+    }
+
+    return created;
   }
 }

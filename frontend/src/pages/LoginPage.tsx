@@ -133,16 +133,32 @@ const LoginPage: React.FC = () => {
     }
   }, [settings.appName, settings.faviconPath])
 
+  const getDefaultRouteForRole = (role?: string) => {
+    switch (role) {
+      case 'AUDITOR':
+        return '/auditor'
+      case 'TALLY_MASTER':
+        return '/tally-master'
+      case 'EMCEE':
+        return '/emcee'
+      case 'BOARD':
+        return '/board'
+      default:
+        return '/dashboard'
+    }
+  }
+
   const onSubmit = async (data: LoginInput) => {
     setServerError('')
     try {
       const user = await login(data.email, data.password, slug || undefined)
+      const roleRoute = getDefaultRouteForRole(user?.role)
       if (slug && slug !== 'default') {
-        navigate(`/${slug}/dashboard`)
+        navigate(`/${slug}${roleRoute}`)
       } else if (user?.tenant?.slug && user.tenant.slug !== 'default') {
-        navigate(`/${user.tenant.slug}/dashboard`)
+        navigate(`/${user.tenant.slug}${roleRoute}`)
       } else {
-        navigate('/dashboard')
+        navigate(roleRoute)
       }
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Login failed')

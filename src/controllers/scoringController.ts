@@ -23,6 +23,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuthAndTenant } from '../utils/requestValidation';
 import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { resolveBioFromCandidates } from '../utils/bioResolver';
+import { applyCertificationStage, refreshJudgeStage } from '../utils/certificationPipeline';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -563,6 +564,39 @@ export class ScoringController {
         }
       );
 
+      const judgeId = req.user.judgeId || req.user.judge?.id || null;
+      if (judgeId) {
+        await this.prisma.judgeCertification.upsert({
+          where: {
+            tenantId_categoryId_judgeId: {
+              tenantId: req.user.tenantId,
+              categoryId,
+              judgeId
+            }
+          },
+          create: {
+            tenantId: req.user.tenantId,
+            categoryId,
+            judgeId,
+            signatureName: req.user.name || req.user.email || 'Judge Certification'
+          },
+          update: {
+            certifiedAt: new Date(),
+            signatureName: req.user.name || req.user.email || 'Judge Certification'
+          }
+        });
+        await refreshJudgeStage(this.prisma, req.user.tenantId, categoryId);
+      } else if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
+        await applyCertificationStage({
+          prisma: this.prisma,
+          tenantId: req.user.tenantId,
+          categoryId,
+          role: 'JUDGE',
+          userId: req.user.id,
+          certifiedBy: req.user.id
+        });
+      }
+
       log.info('Category scores certified successfully', { categoryId, certified: result.certified });
       sendSuccess(res, result);
     } catch (error) {
@@ -1004,6 +1038,16 @@ export class ScoringController {
         },
       });
 
+      await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId: req.user.tenantId,
+        categoryId: categoryId!,
+        role: 'TALLY_MASTER',
+        comments: comments || null,
+        userId: req.user.id,
+        certifiedBy: req.user.id
+      });
+
       return sendSuccess(res, certification, 'Totals certified successfully by Tally Master');
     } catch (error) {
       return next(error);
@@ -1076,6 +1120,16 @@ export class ScoringController {
           comments: comments || null,
           certifiedAt: new Date()
         },
+      });
+
+      await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId: req.user.tenantId,
+        categoryId: categoryId!,
+        role: 'AUDITOR',
+        comments: comments || null,
+        userId: req.user.id,
+        certifiedBy: req.user.id
       });
 
       return sendSuccess(res, certification, 'Final certification completed by Auditor');

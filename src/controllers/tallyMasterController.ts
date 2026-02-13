@@ -163,13 +163,20 @@ export class TallyMasterController {
       }
       // Since the original implementation was simplified, we'll just return basic info
       const category = await this.tallyMasterService.getScoreReview(categoryId);
+      const tenantId = req.user?.tenantId || null;
+      const certification = tenantId
+        ? await this.prisma.certification.findFirst({
+            where: { tenantId, categoryId },
+            orderBy: { updatedAt: 'desc' }
+          })
+        : null;
 
       const certificationStatus = {
-        totalsCertified: (category.category.scoreCap ?? 0) > 0,
-        currentStep: 1,
-        totalSteps: 2,
-        canProceed: true,
-        nextStep: 'CERTIFY_TOTALS',
+        totalsCertified: certification?.tallyCertified || false,
+        currentStep: certification?.currentStep || 1,
+        totalSteps: certification?.totalSteps || 4,
+        canProceed: certification?.judgeCertified || false,
+        nextStep: certification?.tallyCertified ? 'AUDITOR_REVIEW' : 'CERTIFY_TOTALS',
       };
 
       res.json({

@@ -1,6 +1,7 @@
 import React, { Suspense, useMemo } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { TenantProvider } from '../contexts/TenantContext'
+import { useAuth } from '../contexts/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
 import Layout from './Layout'
 import { lazyWithRetry } from '../utils/lazyWithRetry'
@@ -88,7 +89,7 @@ const KNOWN_ROUTES = new Set([
   'workflows', 'search', 'files', 'email-templates', 'custom-fields',
   'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
-  'bulk-operations', 'commentary', 'category-types', 'field-visibility',
+  'bulk-operations', 'category-types', 'field-visibility',
   'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs', 'activity',
   'auditor', 'board', 'permissions', 'test-runner', 'tally-master', 'winners'
 ])
@@ -132,6 +133,26 @@ const parseUrlPath = (pathname: string): { tenantSlug: string | null; route: str
   }
 }
 
+const getRoleHomePath = (role?: string): string => {
+  switch (role) {
+    case 'AUDITOR':
+      return '/auditor'
+    case 'TALLY_MASTER':
+      return '/tally-master'
+    case 'EMCEE':
+      return '/emcee'
+    case 'BOARD':
+      return '/board'
+    default:
+      return '/dashboard'
+  }
+}
+
+const RoleDefaultRoute: React.FC<{ basePath: string }> = ({ basePath }) => {
+  const { user } = useAuth()
+  return <Navigate to={`${basePath}${getRoleHomePath(user?.role)}`} replace />
+}
+
 // Main app routes component that handles routing based on parsed URL
 const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenCommandPalette }) => {
   const location = useLocation()
@@ -152,7 +173,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
               These routes match relative to the current location.
               Since we've already parsed the URL, we handle routing based on location.
             */}
-            <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+            <Route path="/" element={<RoleDefaultRoute basePath={basePath} />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/contests" element={<ContestsPage />} />
@@ -183,7 +204,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/cache" element={<CacheManagementPage />} />
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/deductions" element={<DeductionsPage />} />
-            <Route path="/certifications" element={<CertificationsPage />} />
+            <Route path="/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
             <Route path="/logs" element={<LogViewerPage />} />
             <Route path="/activity" element={<ActivityLogPage />} />
             <Route path="/performance" element={<PerformancePage />} />
@@ -242,7 +263,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/cache" element={<CacheManagementPage />} />
             <Route path="/:slug/archive" element={<ArchivePage />} />
             <Route path="/:slug/deductions" element={<DeductionsPage />} />
-            <Route path="/:slug/certifications" element={<CertificationsPage />} />
+            <Route path="/:slug/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
             <Route path="/:slug/logs" element={<LogViewerPage />} />
             <Route path="/:slug/performance" element={<PerformancePage />} />
             <Route path="/:slug/data-wipe" element={<DataWipePage />} />
@@ -269,7 +290,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug/activity" element={<ActivityLogPage />} />
             <Route path="/:slug/test-runner" element={<TestRunnerPage />} />
-            <Route path="/:slug" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+            <Route path="/:slug" element={<RoleDefaultRoute basePath={basePath} />} />
 
             {/* 404 Not Found */}
             <Route path="*" element={<NotFoundPage />} />

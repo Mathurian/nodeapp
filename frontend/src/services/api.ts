@@ -434,12 +434,12 @@ export const tallyMasterAPI = {
   getPendingCertifications: () => api.get('/tally-master/pending-certifications'),
   certifyTotals: (categoryIdOrData: string | any, data?: any) => {
     if (typeof categoryIdOrData === 'string') {
-      // Called with (categoryId, data)
-      return api.post(`/tally-master/category/${categoryIdOrData}/certify-totals`, data)
+      // Called with (categoryId, data) - backend expects body payload
+      return api.post('/tally-master/certify-totals', { categoryId: categoryIdOrData, ...(data || {}) })
     } else {
       // Called with (data) - extract categoryId from data
       const { categoryId, ...totalsData } = categoryIdOrData
-      return api.post(`/tally-master/category/${categoryId}/certify-totals`, totalsData)
+      return api.post('/tally-master/certify-totals', { categoryId, ...totalsData })
     }
   },
 }

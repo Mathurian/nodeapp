@@ -33,7 +33,7 @@ router.use(authenticateToken)
  *       201:
  *         description: Deduction request created successfully
  */
-router.post('/request', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), logActivity('CREATE_DEDUCTION_REQUEST', 'DEDUCTION'), createDeductionRequest)
+router.post('/request', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER', 'JUDGE']), logActivity('CREATE_DEDUCTION_REQUEST', 'DEDUCTION'), createDeductionRequest)
 
 /**
  * @swagger
@@ -49,7 +49,7 @@ router.post('/request', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), l
  */
 router.get('/pending', getPendingDeductions)
 router.post('/:id/approve', requireRole(['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN']), logActivity('APPROVE_DEDUCTION', 'DEDUCTION'), approveDeduction)
-router.post('/:id/reject', requireRole(['BOARD', 'ORGANIZER', 'ADMIN']), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
+router.post('/:id/reject', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
 router.get('/:id/approvals', getApprovalStatus)
 router.get('/history', getDeductionHistory)
 

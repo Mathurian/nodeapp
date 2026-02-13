@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { sendSuccess, sendNotFound, sendBadRequest, sendConflict } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
+import { applyCertificationStage, refreshJudgeStage } from '../utils/certificationPipeline';
 
 export class CertificationController {
   private prisma: PrismaClient;
@@ -20,12 +21,14 @@ export class CertificationController {
       const categoryId = req.query['categoryId'] as string | undefined;
 
       const skip = (page - 1) * limit;
-      const where: any = {};
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const where: any = { tenantId };
 
       if (status) where.status = status;
       if (eventId) where.eventId = eventId;
       if (contestId) where.contestId = contestId;
       if (categoryId) where.categoryId = categoryId;
+      if (req.user?.role === 'JUDGE') where.userId = req.user.id;
 
       const [certifications, total] = await Promise.all([
         this.prisma.certification.findMany({
@@ -168,12 +171,13 @@ export class CertificationController {
   getCertificationById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
 
       const certification = await this.prisma.certification.findUnique({
         where: { id },
       });
 
-      if (!certification) {
+      if (!certification || certification.tenantId !== tenantId) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -187,12 +191,16 @@ export class CertificationController {
     try {
       const { id } = req.params;
       const { comments } = req.body;
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       const certification = await this.prisma.certification.findUnique({
         where: { id }
       });
 
-      if (!certification) {
+      if (!certification || certification.tenantId !== tenantId) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -200,15 +208,17 @@ export class CertificationController {
         return sendBadRequest(res, 'Judge certification already completed');
       }
 
-      const updated = await this.prisma.certification.update({
-        where: { id },
-        data: {
-          judgeCertified: true,
-          currentStep: 2,
-          status: 'IN_PROGRESS',
-          comments: comments || certification.comments
-        },
+      const updated = await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'JUDGE',
+        comments: comments || certification.comments,
+        userId: req.user?.id || null,
+        certifiedBy: req.user?.id || null
       });
+
+      await refreshJudgeStage(this.prisma, tenantId, certification.categoryId);
 
       return sendSuccess(res, updated, 'Judge certification completed successfully');
     } catch (error) {
@@ -220,12 +230,16 @@ export class CertificationController {
     try {
       const { id } = req.params;
       const { comments } = req.body;
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       const certification = await this.prisma.certification.findUnique({
         where: { id }
       });
 
-      if (!certification) {
+      if (!certification || certification.tenantId !== tenantId) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -237,14 +251,35 @@ export class CertificationController {
         return sendBadRequest(res, 'Tally Master certification already completed');
       }
 
-      const updated = await this.prisma.certification.update({
-        where: { id },
-        data: {
-          tallyCertified: true,
-          currentStep: 3,
-          status: 'IN_PROGRESS',
-          comments: comments || certification.comments
+      await this.prisma.categoryCertification.upsert({
+        where: {
+          tenantId_categoryId_role: {
+            tenantId,
+            categoryId: certification.categoryId,
+            role: 'TALLY_MASTER'
+          }
         },
+        create: {
+          tenantId,
+          categoryId: certification.categoryId,
+          role: 'TALLY_MASTER',
+          userId: req.user?.id || ''
+        },
+        update: {
+          userId: req.user?.id || '',
+          certifiedAt: new Date(),
+          comments: comments || null
+        }
+      });
+
+      const updated = await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'TALLY_MASTER',
+        comments: comments || certification.comments,
+        userId: req.user?.id || null,
+        certifiedBy: req.user?.id || null
       });
 
       return sendSuccess(res, updated, 'Tally Master certification completed successfully');
@@ -257,12 +292,16 @@ export class CertificationController {
     try {
       const { id } = req.params;
       const { comments } = req.body;
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       const certification = await this.prisma.certification.findUnique({
         where: { id }
       });
 
-      if (!certification) {
+      if (!certification || certification.tenantId !== tenantId) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -274,14 +313,35 @@ export class CertificationController {
         return sendBadRequest(res, 'Auditor certification already completed');
       }
 
-      const updated = await this.prisma.certification.update({
-        where: { id },
-        data: {
-          auditorCertified: true,
-          currentStep: 4,
-          status: 'IN_PROGRESS',
-          comments: comments || certification.comments
+      await this.prisma.categoryCertification.upsert({
+        where: {
+          tenantId_categoryId_role: {
+            tenantId,
+            categoryId: certification.categoryId,
+            role: 'AUDITOR'
+          }
         },
+        create: {
+          tenantId,
+          categoryId: certification.categoryId,
+          role: 'AUDITOR',
+          userId: req.user?.id || ''
+        },
+        update: {
+          userId: req.user?.id || '',
+          certifiedAt: new Date(),
+          comments: comments || null
+        }
+      });
+
+      const updated = await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'AUDITOR',
+        comments: comments || certification.comments,
+        userId: req.user?.id || null,
+        certifiedBy: req.user?.id || null
       });
 
       return sendSuccess(res, updated, 'Auditor certification completed successfully');
@@ -294,12 +354,16 @@ export class CertificationController {
     try {
       const { id } = req.params;
       const { comments } = req.body;
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       const certification = await this.prisma.certification.findUnique({
         where: { id }
       });
 
-      if (!certification) {
+      if (!certification || certification.tenantId !== tenantId) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -311,15 +375,35 @@ export class CertificationController {
         return sendBadRequest(res, 'Board approval already completed');
       }
 
-      const updated = await this.prisma.certification.update({
-        where: { id },
-        data: {
-          boardApproved: true,
-          status: 'CERTIFIED',
-          certifiedAt: new Date(),
-          certifiedBy: req.user?.id || null,
-          comments: comments || certification.comments
+      await this.prisma.categoryCertification.upsert({
+        where: {
+          tenantId_categoryId_role: {
+            tenantId,
+            categoryId: certification.categoryId,
+            role: 'BOARD'
+          }
         },
+        create: {
+          tenantId,
+          categoryId: certification.categoryId,
+          role: 'BOARD',
+          userId: req.user?.id || ''
+        },
+        update: {
+          userId: req.user?.id || '',
+          certifiedAt: new Date(),
+          comments: comments || null
+        }
+      });
+
+      const updated = await applyCertificationStage({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'BOARD',
+        comments: comments || certification.comments,
+        userId: req.user?.id || null,
+        certifiedBy: req.user?.id || null
       });
 
       return sendSuccess(res, updated, 'Board approval completed - Certification finalized');
@@ -368,8 +452,9 @@ export class CertificationController {
     try {
       const eventId = req.query['eventId'] as string | undefined;
       const contestId = req.query['contestId'] as string | undefined;
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
 
-      const where: any = {};
+      const where: any = { tenantId };
       if (eventId) where.eventId = eventId;
       if (contestId) where.contestId = contestId;
 

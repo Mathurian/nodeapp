@@ -207,7 +207,16 @@ export class BioService extends BaseService {
     const normalizedRole = String(role || '').toUpperCase();
     const isJudge = normalizedRole === 'JUDGE';
     const isContestant = normalizedRole === 'CONTESTANT';
-    const canSeeJudges = normalizedRole === 'EMCEE' || isContestant;
+    const canSeeJudges = [
+      'EMCEE',
+      'CONTESTANT',
+      'ORGANIZER',
+      'BOARD',
+      'ADMIN',
+      'SUPER_ADMIN',
+      'TALLY_MASTER',
+      'AUDITOR',
+    ].includes(normalizedRole);
 
     const contestWhere: Prisma.ContestWhereInput = {
       tenantId,

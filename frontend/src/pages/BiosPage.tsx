@@ -51,15 +51,20 @@ const toImageUrl = (path?: string | null): string | null => {
   return `/${path}`
 }
 
+const toFileUrl = (path?: string | null): string | null => {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path
+  return `/${path}`
+}
+
 const allowedRoles = ['JUDGE', 'EMCEE', 'ORGANIZER', 'BOARD', 'ADMIN', 'SUPER_ADMIN', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR']
 
 const BiosPage: React.FC = () => {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedContestId, setSelectedContestId] = useState('')
-  const isEmcee = user?.role === 'EMCEE'
   const isContestant = user?.role === 'CONTESTANT'
-  const showJudgesTab = isEmcee || isContestant
+  const showJudgesTab = user?.role !== 'JUDGE'
   const [activeTab, setActiveTab] = useState<'contestants' | 'judges'>('contestants')
 
   const hasAccess = allowedRoles.includes(user?.role || '')
@@ -207,9 +212,9 @@ const BiosPage: React.FC = () => {
                   <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                     {contestant.bio?.trim() || 'No bio text provided.'}
                   </p>
-                  {contestant.bioFilePath && (
+                  {toFileUrl(contestant.bioFilePath) && (
                     <a
-                      href={contestant.bioFilePath}
+                      href={toFileUrl(contestant.bioFilePath)!}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
@@ -248,9 +253,9 @@ const BiosPage: React.FC = () => {
                   <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                     {judge.bio?.trim() || 'No bio text provided.'}
                   </p>
-                  {judge.bioFilePath && (
+                  {toFileUrl(judge.bioFilePath) && (
                     <a
-                      href={judge.bioFilePath}
+                      href={toFileUrl(judge.bioFilePath)!}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"

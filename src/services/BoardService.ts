@@ -1,40 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma, EmceeScript, RequestStatus } from '@prisma/client';
-
-// Proper type definitions for board responses
-type CategoryWithCertifications = Prisma.CategoryGetPayload<{
-  include: {
-    categoryCertifications: true;
-  };
-}>;
-
-type CategoryWithFullDetails = Prisma.CategoryGetPayload<{
-  include: {
-    contest: {
-      include: {
-        event: true;
-      };
-    };
-    scores: {
-      include: {
-        judge: true;
-        contestant: true;
-      };
-    };
-    categoryCertifications: true;
-  };
-}>;
-
-type CategoryWithContest = Prisma.CategoryGetPayload<{
-  include: {
-    contest: {
-      include: {
-        event: true;
-      };
-    };
-  };
-}>;
+import { applyCertificationStage } from '../utils/certificationPipeline';
 
 type ScoreRemovalRequestWithDetails = Prisma.JudgeScoreRemovalRequestGetPayload<{
   include: {
@@ -77,6 +44,19 @@ interface CertificationStatus {
   approved: number;
 }
 
+interface BoardCertificationRow {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  eventName: string;
+  contestName: string;
+  auditorId: string | null;
+  auditorName: string;
+  status: string;
+  certifiedAt: Date | null;
+  notes?: string;
+}
+
 interface ScoreRemovalRequestsResponse {
   requests: ScoreRemovalRequestWithDetails[];
   pagination: {
@@ -89,7 +69,8 @@ interface ScoreRemovalRequestsResponse {
 
 interface ApprovalResponse {
   message: string;
-  category: CategoryWithContest;
+  certificationId: string;
+  categoryId: string;
 }
 
 interface DeleteResponse {
@@ -108,19 +89,15 @@ export class BoardService extends BaseService {
   /**
    * Get board dashboard statistics
    */
-  async getStats(): Promise<BoardStats> {
-    const totalContests: number = await this.prisma.contest.count();
-    const totalCategories: number = await this.prisma.category.count();
-
-    const categories: CategoryWithCertifications[] = await (this.prisma.category.findMany as any)({
-      include: {
-        categoryCertifications: true,
-      },
+  async getStats(tenantId: string): Promise<BoardStats> {
+    const totalContests: number = await this.prisma.contest.count({ where: { tenantId, deletedAt: null } });
+    const totalCategories: number = await this.prisma.category.count({ where: { tenantId, deletedAt: null } });
+    const certified = await this.prisma.certification.count({
+      where: { tenantId, boardApproved: true }
     });
-
-    const certified = categories.filter((cat) => cat.categoryCertifications.some((cert) => cert.role === 'FINAL')).length;
-
-    const pending = categories.filter((cat) => !cat.categoryCertifications.some((cert) => cert.role === 'FINAL')).length;
+    const pending = await this.prisma.certification.count({
+      where: { tenantId, auditorCertified: true, boardApproved: false }
+    });
 
     return {
       contests: totalContests,
@@ -133,104 +110,131 @@ export class BoardService extends BaseService {
   /**
    * Get all certifications
    */
-  async getCertifications(): Promise<CategoryWithFullDetails[]> {
-    const categories: CategoryWithFullDetails[] = await (this.prisma.category.findMany as any)({
-      include: {
-        contest: {
-          include: {
-            event: true,
-          },
-        },
-        scores: {
-          include: {
-            judge: true,
-            contestant: true,
-          },
-        },
-        categoryCertifications: true,
+  async getCertifications(tenantId: string): Promise<BoardCertificationRow[]> {
+    const certifications = await this.prisma.certification.findMany({
+      where: {
+        tenantId,
+        auditorCertified: true,
+        boardApproved: false
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Filter for categories with FINAL certification
-    return categories.filter((cat) => cat.categoryCertifications.some((cert) => cert.role === 'FINAL'));
+    const categoryIds = Array.from(new Set(certifications.map((cert) => cert.categoryId)));
+    const contestIds = Array.from(new Set(certifications.map((cert) => cert.contestId)));
+    const userIds = Array.from(new Set(certifications.map((cert) => cert.userId).filter((id): id is string => Boolean(id))));
+
+    const [categories, contests, users] = await Promise.all([
+      this.prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, name: true }
+      }),
+      this.prisma.contest.findMany({
+        where: { id: { in: contestIds } },
+        select: {
+          id: true,
+          name: true,
+          event: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      }),
+      this.prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, email: true }
+      })
+    ]);
+
+    const categoryById = new Map(categories.map((c) => [c.id, c]));
+    const contestById = new Map(contests.map((c) => [c.id, c]));
+    const userById = new Map(users.map((u) => [u.id, u]));
+
+    return certifications.map((cert) => ({
+      id: cert.id,
+      categoryId: cert.categoryId,
+      categoryName: categoryById.get(cert.categoryId)?.name || 'Unknown Category',
+      contestName: contestById.get(cert.contestId)?.name || 'Unknown Contest',
+      eventName: contestById.get(cert.contestId)?.event?.name || 'Unknown Event',
+      auditorId: cert.userId,
+      auditorName: cert.userId ? (userById.get(cert.userId)?.name || userById.get(cert.userId)?.email || 'Unknown Auditor') : 'Unknown Auditor',
+      status: cert.status,
+      certifiedAt: cert.certifiedAt,
+      notes: cert.comments || undefined
+    }));
   }
 
   /**
-   * Approve category certification
+   * Approve certification
    */
-  async approveCertification(categoryId: string): Promise<ApprovalResponse> {
-    const category: CategoryWithContest | null = await this.prisma.category.findUnique({
-      where: { id: categoryId },
-      include: {
-        contest: {
-          include: {
-            event: true,
-          },
-        },
-      },
+  async approveCertification(certificationId: string, userId: string, tenantId: string): Promise<ApprovalResponse> {
+    const certification = await this.prisma.certification.findFirst({
+      where: {
+        id: certificationId,
+        tenantId
+      }
     });
 
-    if (!category) {
-      throw this.notFoundError('Category', categoryId);
+    if (!certification) {
+      throw this.notFoundError('Certification', certificationId);
     }
 
-    await this.prisma.category.update({
-      where: { id: categoryId },
-      data: {  },
+    await applyCertificationStage({
+      prisma: this.prisma,
+      tenantId,
+      categoryId: certification.categoryId,
+      role: 'BOARD',
+      userId,
+      certifiedBy: userId
     });
 
-    return { message: 'Certification approved', category };
+    return { message: 'Certification approved', certificationId, categoryId: certification.categoryId };
   }
 
   /**
-   * Reject category certification
+   * Reject certification
    */
-  async rejectCertification(categoryId: string, _reason?: string): Promise<ApprovalResponse> {
-    const category: CategoryWithContest | null = await this.prisma.category.findUnique({
-      where: { id: categoryId },
-      include: {
-        contest: {
-          include: {
-            event: true,
-          },
-        },
-      },
+  async rejectCertification(certificationId: string, tenantId: string, reason?: string): Promise<ApprovalResponse> {
+    const certification = await this.prisma.certification.findFirst({
+      where: {
+        id: certificationId,
+        tenantId
+      }
     });
 
-    if (!category) {
-      throw this.notFoundError('Category', categoryId);
+    if (!certification) {
+      throw this.notFoundError('Certification', certificationId);
     }
 
-    // Note: boardApproved and rejectionReason fields don't exist in schema
-    // Rejection is tracked via CategoryCertification records instead
-    await this.prisma.category.update({
-      where: { id: categoryId },
+    await this.prisma.certification.update({
+      where: { id: certificationId },
       data: {
-        // No fields to update - rejection handled via certifications
-      },
+        status: 'REJECTED',
+        rejectionReason: reason || 'Rejected by Board'
+      }
     });
 
-    return { message: 'Certification rejected', category };
+    return { message: 'Certification rejected', certificationId, categoryId: certification.categoryId };
   }
 
   /**
    * Get certification status summary
    */
-  async getCertificationStatus(): Promise<CertificationStatus> {
-    const categories: CategoryWithCertifications[] = await (this.prisma.category.findMany as any)({
-      include: {
-        categoryCertifications: true,
-      },
-    });
+  async getCertificationStatus(tenantId: string): Promise<CertificationStatus> {
+    const [total, pending, certified, approved] = await Promise.all([
+      this.prisma.certification.count({ where: { tenantId } }),
+      this.prisma.certification.count({ where: { tenantId, status: 'PENDING' } }),
+      this.prisma.certification.count({ where: { tenantId, status: 'CERTIFIED' } }),
+      this.prisma.certification.count({ where: { tenantId, boardApproved: true } })
+    ]);
 
     const status: CertificationStatus = {
-      total: categories.length,
-      pending: categories.filter(
-        (cat) => cat.categoryCertifications.length === 0
-      ).length,
-      certified: categories.filter((cat) => cat.categoryCertifications.length > 0).length,
-      approved: 0,
+      total,
+      pending,
+      certified,
+      approved
     };
 
     return status;

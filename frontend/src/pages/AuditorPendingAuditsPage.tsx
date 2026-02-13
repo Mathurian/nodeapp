@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useQuery } from 'react-query'
 import { auditorAPI, categoriesAPI, eventsAPI } from '../services/api'
-import { ClockIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon } from '@heroicons/react/24/outline'
+import { Link } from 'react-router-dom'
 
 interface PendingAudit {
   id: string
@@ -22,7 +23,21 @@ const AuditorPendingAuditsPage: React.FC = () => {
     ['auditor-pending-audits', selectedCategory, selectedEvent],
     async () => {
       const response = await auditorAPI.getPendingAudits()
-      let auditsData = response.data.data || response.data || []
+      const unwrapped = response.data.data || response.data || {}
+      let auditsData = Array.isArray(unwrapped?.categories)
+        ? unwrapped.categories.map((cat: any) => ({
+            id: cat.id,
+            categoryId: cat.id,
+            categoryName: cat.name,
+            eventId: cat?.contest?.event?.id || '',
+            eventName: cat?.contest?.event?.name || 'Unknown Event',
+            contestName: cat?.contest?.name || 'Unknown Contest',
+            status: 'PENDING',
+            createdAt: cat.createdAt || new Date().toISOString(),
+          }))
+        : Array.isArray(unwrapped)
+          ? unwrapped
+          : []
 
       // Apply filters
       if (selectedCategory) {
@@ -178,14 +193,13 @@ const AuditorPendingAuditsPage: React.FC = () => {
                         {new Date(audit.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button
-                          onClick={() => {
-                            console.log('Review audit:', audit.id)
-                          }}
+                        <Link
+                          to={`/auditor/final-certification`}
                           className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
+                          title={`Open final certification for ${audit.categoryName}`}
                         >
                           <CheckCircleIcon className="h-5 w-5 inline" />
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))}

@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { applyCertificationStage } from '../utils/certificationPipeline';
 
 // P2-4: Proper type definitions for auditor responses
 type CategoryWithCertifications = Prisma.CategoryGetPayload<{
@@ -304,13 +305,46 @@ export class AuditorService extends BaseService {
     }
 
     // Create auditor category certification
-    const certification = await this.prisma.categoryCertification.create({
-      data: {
+    const certification = await this.prisma.categoryCertification.upsert({
+      where: {
+        tenantId_categoryId_role: {
+          tenantId: category.tenantId,
+          categoryId,
+          role: 'AUDITOR'
+        }
+      },
+      create: {
         tenantId: category.tenantId,
         categoryId,
         userId,
         role: 'AUDITOR',
         comments: 'Auditor category certification (final for audit)',
+      },
+      update: {
+        userId,
+        comments: 'Auditor category certification (final for audit)',
+        certifiedAt: new Date()
+      }
+    });
+
+    await applyCertificationStage({
+      prisma: this.prisma,
+      tenantId: category.tenantId,
+      categoryId,
+      role: 'AUDITOR',
+      userId,
+      certifiedBy: userId
+    });
+
+    await this.prisma.score.updateMany({
+      where: { categoryId, isCertified: false },
+      data: {
+        isLocked: true,
+        lockedAt: new Date(),
+        lockedBy: userId,
+        isCertified: true,
+        certifiedAt: new Date(),
+        certifiedBy: userId
       },
     });
 

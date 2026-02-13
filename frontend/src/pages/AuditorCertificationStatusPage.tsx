@@ -1,6 +1,6 @@
 import React from 'react'
 import { useQuery } from 'react-query'
-import { categoriesAPI } from '../services/api'
+import { api, categoriesAPI } from '../services/api'
 import { CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
 
 interface CertificationStatus {
@@ -23,33 +23,45 @@ const AuditorCertificationStatusPage: React.FC = () => {
       const response = await categoriesAPI.getAll()
       const categories = response.data.data || response.data || []
 
-      // Transform to status format with mock data
-      return categories.map((cat: any) => {
-        const totalJudges = 3
-        const judgesCertified = Math.floor(Math.random() * (totalJudges + 1))
-        const tallyMasterCertified = Math.random() > 0.5
-        const auditorCertified = Math.random() > 0.5
+      const withProgress = await Promise.all(
+        (Array.isArray(categories) ? categories : []).map(async (cat: any) => {
+          let progress: any = null
+          try {
+            const progressResponse = await api.get(`/category-certification/category/${cat.id}/progress`)
+            progress = progressResponse.data?.data || progressResponse.data
+          } catch {
+            progress = null
+          }
 
-        let status: 'COMPLETE' | 'PENDING' | 'INCOMPLETE' = 'INCOMPLETE'
-        if (judgesCertified === totalJudges && tallyMasterCertified && auditorCertified) {
-          status = 'COMPLETE'
-        } else if (judgesCertified > 0 || tallyMasterCertified) {
-          status = 'PENDING'
-        }
+          const totalJudges = Number(progress?.judgeProgress?.totalContestants || 0)
+          const judgesCertifiedCount = Number(progress?.judgeProgress?.contestantsCertified || 0)
+          const judgesCertified = Math.min(judgesCertifiedCount, totalJudges)
+          const tallyMasterCertified = Boolean(progress?.tallyMasterProgress?.isCategoryCertified)
+          const auditorCertified = Boolean(progress?.auditorProgress?.isCategoryCertified)
 
-        return {
-          id: cat.id,
-          categoryName: cat.name,
-          eventName: cat.Contest?.Event?.name || 'Unknown Event',
-          contestName: cat.Contest?.name || 'Unknown Contest',
-          judgesCertified,
-          totalJudges,
-          tallyMasterCertified,
-          auditorCertified,
-          status,
-          lastUpdated: new Date().toISOString(),
-        }
-      })
+          let status: 'COMPLETE' | 'PENDING' | 'INCOMPLETE' = 'INCOMPLETE'
+          if (auditorCertified) {
+            status = 'COMPLETE'
+          } else if (judgesCertified > 0 || tallyMasterCertified) {
+            status = 'PENDING'
+          }
+
+          return {
+            id: cat.id,
+            categoryName: cat.name,
+            eventName: cat?.contest?.event?.name || 'Unknown Event',
+            contestName: cat?.contest?.name || 'Unknown Contest',
+            judgesCertified,
+            totalJudges,
+            tallyMasterCertified,
+            auditorCertified,
+            status,
+            lastUpdated: new Date().toISOString(),
+          } as CertificationStatus
+        })
+      )
+
+      return withProgress
     },
     {
       retry: 1,

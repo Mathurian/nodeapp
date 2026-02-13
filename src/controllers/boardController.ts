@@ -22,7 +22,11 @@ export class BoardController {
   getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'board');
     try {
-      const stats = await this.boardService.getStats();
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+      const stats = await this.boardService.getStats(req.user.tenantId);
       res.json(stats);
     } catch (error) {
       log.error('Get board stats error', error);
@@ -41,7 +45,7 @@ export class BoardController {
         return;
       }
 
-      const certifications = await this.boardService.getCertifications();
+      const certifications = await this.boardService.getCertifications(req.user.tenantId);
       res.json(certifications);
     } catch (error) {
       log.error('Get certifications error', error);
@@ -66,7 +70,7 @@ export class BoardController {
         return;
       }
 
-      const result = await this.boardService.approveCertification(id);
+      const result = await this.boardService.approveCertification(id, req.user.id, req.user.tenantId);
       res.json(result);
     } catch (error) {
       log.error('Approve certification error', error);
@@ -93,7 +97,7 @@ export class BoardController {
         return;
       }
 
-      const result = await this.boardService.rejectCertification(id, reason);
+      const result = await this.boardService.rejectCertification(id, req.user.tenantId, reason);
       res.json(result);
     } catch (error) {
       log.error('Reject certification error', error);
@@ -112,7 +116,7 @@ export class BoardController {
         return;
       }
 
-      const status = await this.boardService.getCertificationStatus();
+      const status = await this.boardService.getCertificationStatus(req.user.tenantId);
       res.json(status);
     } catch (error) {
       log.error('Get certification status error', error);

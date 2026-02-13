@@ -30,6 +30,9 @@ interface Certification {
   comments: string | null
   createdAt: string
   updatedAt: string
+  categoryName?: string
+  contestName?: string
+  eventName?: string
 }
 
 interface PaginationInfo {
@@ -91,6 +94,9 @@ const CertificationsPage: React.FC = () => {
             comments: category.name,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            categoryName: category.name,
+            contestName: category?.contest?.name || '',
+            eventName: category?.contest?.event?.name || '',
           } as Certification
         } catch (_error) {
           return null
@@ -134,8 +140,26 @@ const CertificationsPage: React.FC = () => {
         hasMore: false,
       })
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load certifications')
-      setCertifications([])
+      try {
+        const fallback = await buildFallbackCertifications()
+        const filteredFallback = filter === 'ALL' ? fallback : fallback.filter((cert) => cert.status === filter)
+        setCertifications(filteredFallback)
+        setPagination({
+          page: 1,
+          limit: filteredFallback.length || 50,
+          total: filteredFallback.length,
+          totalPages: 1,
+          hasMore: false,
+        })
+        setError(null)
+      } catch (fallbackError: any) {
+        setError(
+          err.response?.data?.error ||
+          fallbackError?.response?.data?.error ||
+          'Failed to load certifications'
+        )
+        setCertifications([])
+      }
     } finally {
       setLoading(false)
     }
@@ -332,11 +356,16 @@ const CertificationsPage: React.FC = () => {
                         <td className="px-6 py-4">
                           <div>
                             <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {cert.categoryId}
+                              {cert.categoryName || cert.categoryId}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Event: {cert.eventId}
+                              Event: {cert.eventName || cert.eventId}
                             </p>
+                            {(cert.contestName || cert.contestId) && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Contest: {cert.contestName || cert.contestId}
+                              </p>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
