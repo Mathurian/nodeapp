@@ -67,7 +67,6 @@ const ROUTE_LABELS: Record<string, string> = {
   'data-wipe': 'Data Wipe',
   'event-templates': 'Event Templates',
   'bulk-operations': 'Bulk Operations',
-  commentary: 'Commentary',
   'category-types': 'Category Types',
   'field-visibility': 'Field Visibility',
   'test-event-setup': 'Test Event Setup',

@@ -40,7 +40,6 @@ const PerformancePage = lazyWithRetry(() => import('../pages/PerformancePage'), 
 const DataWipePage = lazyWithRetry(() => import('../pages/DataWipePage'), 'DataWipePage')
 const EventTemplatesPage = lazyWithRetry(() => import('../pages/EventTemplatesPage'), 'EventTemplatesPage')
 const BulkOperationsPage = lazyWithRetry(() => import('../pages/BulkOperationsPage'), 'BulkOperationsPage')
-const CommentaryPage = lazyWithRetry(() => import('../pages/CommentaryPage'), 'CommentaryPage')
 const CategoryTypesPage = lazyWithRetry(() => import('../pages/CategoryTypesPage'), 'CategoryTypesPage')
 const HelpPage = lazyWithRetry(() => import('../pages/HelpPage'), 'HelpPage')
 const FieldVisibilityPage = lazyWithRetry(() => import('../pages/FieldVisibilityPage'), 'FieldVisibilityPage')
@@ -188,7 +187,6 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/data-wipe" element={<DataWipePage />} />
             <Route path="/event-templates" element={<EventTemplatesPage />} />
             <Route path="/bulk-operations" element={<BulkOperationsPage />} />
-            <Route path="/commentary" element={<CommentaryPage />} />
             <Route path="/category-types" element={<CategoryTypesPage />} />
             <Route path="/field-visibility" element={<FieldVisibilityPage />} />
             <Route path="/test-event-setup" element={<TestEventSetupPage />} />
@@ -245,7 +243,6 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/data-wipe" element={<DataWipePage />} />
             <Route path="/:slug/event-templates" element={<EventTemplatesPage />} />
             <Route path="/:slug/bulk-operations" element={<BulkOperationsPage />} />
-            <Route path="/:slug/commentary" element={<CommentaryPage />} />
             <Route path="/:slug/category-types" element={<CategoryTypesPage />} />
             <Route path="/:slug/field-visibility" element={<FieldVisibilityPage />} />
             <Route path="/:slug/test-event-setup" element={<TestEventSetupPage />} />

@@ -13,12 +13,13 @@ export class BioController {
   getContestantBios = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, contestId, categoryId } = req.query;
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
 
       const contestants = await this.bioService.getContestantBios({
         eventId: eventId as string,
         contestId: contestId as string,
         categoryId: categoryId as string
-      });
+      }, tenantId);
 
       return sendSuccess(res, contestants);
     } catch (error) {
@@ -29,14 +30,36 @@ export class BioController {
   getJudgeBios = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, contestId, categoryId } = req.query;
+      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
 
       const judges = await this.bioService.getJudgeBios({
         eventId: eventId as string,
         contestId: contestId as string,
         categoryId: categoryId as string
-      });
+      }, tenantId);
 
       return sendSuccess(res, judges);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  getBioDirectory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      if (!req.user) {
+        return sendSuccess(res, { contests: [], contestants: [], judges: [] });
+      }
+
+      const tenantId = req.tenantId || req.user.tenantId || 'default_tenant';
+      const { contestId } = req.query;
+      const directory = await this.bioService.getBioDirectory(
+        req.user.id,
+        req.user.role as any,
+        tenantId,
+        contestId as string | undefined
+      );
+
+      return sendSuccess(res, directory);
     } catch (error) {
       return next(error);
     }
@@ -90,5 +113,6 @@ export class BioController {
 const controller = new BioController();
 export const getContestantBios = controller.getContestantBios;
 export const getJudgeBios = controller.getJudgeBios;
+export const getBioDirectory = controller.getBioDirectory;
 export const updateContestantBio = controller.updateContestantBio;
 export const updateJudgeBio = controller.updateJudgeBio;

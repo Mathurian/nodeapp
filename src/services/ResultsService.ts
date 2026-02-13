@@ -539,7 +539,10 @@ export class ResultsService extends BaseService {
       const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
-          categoryId,
+          OR: [
+            { categoryId },
+            { contestId: category.contestId, categoryId: null }
+          ],
           status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
         },
       }) as Assignment | null;

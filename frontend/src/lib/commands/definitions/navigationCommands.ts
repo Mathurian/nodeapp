@@ -27,7 +27,6 @@ import {
   ArchiveBoxIcon,
   ChartPieIcon,
   TableCellsIcon,
-  ChatBubbleLeftRightIcon,
   BeakerIcon
 } from '@heroicons/react/24/outline';
 
@@ -142,6 +141,17 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       priority: 65,
       shortcut: 'Cmd+P'
     },
+    {
+      id: 'nav-bios',
+      name: 'Bios',
+      description: 'View contestant and judge bios',
+      icon: UserCircleIcon,
+      action: () => navigate('/bios'),
+      keywords: ['bios', 'bio', 'profiles', 'contestants', 'judges'],
+      category: 'navigation',
+      group: 'User',
+      priority: 64
+    },
 
     // Administration
     {
@@ -206,18 +216,6 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
       group: 'Content',
       priority: 40
     },
-    {
-      id: 'nav-commentary',
-      name: 'Commentary',
-      description: 'Add commentary and notes',
-      icon: ChatBubbleLeftRightIcon,
-      action: () => navigate('/commentary'),
-      keywords: ['commentary', 'notes', 'comments'],
-      category: 'navigation',
-      group: 'Content',
-      priority: 35
-    },
-
     // Tools & Utilities
     {
       id: 'nav-search',

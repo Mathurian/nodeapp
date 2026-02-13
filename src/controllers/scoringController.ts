@@ -22,6 +22,7 @@ import { createRequestLogger } from '../utils/logger';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuthAndTenant } from '../utils/requestValidation';
 import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } from '../utils/pagination';
+import { resolveBioFromCandidates } from '../utils/bioResolver';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -170,8 +171,85 @@ export class ScoringController {
       const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
       const userRole = req.user?.role;
 
+      const existingScore = await this.prisma.score.findFirst({
+        where: { id: scoreId, tenantId },
+        select: {
+          id: true,
+          score: true,
+          isLocked: true,
+          isCertified: true,
+          judgeId: true,
+          lockedAt: true,
+          lockedBy: true,
+          certifiedAt: true,
+          certifiedBy: true
+        }
+      });
+
+      if (!existingScore) {
+        log.warn('Score not found for update', { scoreId });
+        errorResponse(res, 'Score not found', ErrorCode.NOT_FOUND, 404);
+        return;
+      }
+
+      const scoreChanged = data.score !== undefined && data.score !== existingScore.score;
+      const isCommentOnlyUpdate = !scoreChanged && data.comments !== undefined;
+
+      // Non-admins can only update their own scores
+      const isAdminLike = userRole === 'SUPER_ADMIN' || userRole === 'ADMIN';
+      if (!isAdminLike && existingScore.judgeId !== req.user?.judgeId) {
+        log.warn('Attempt to update another judge\'s score', {
+          scoreId,
+          userId: req.user?.id,
+          userJudgeId: req.user?.judgeId,
+          scoreJudgeId: existingScore.judgeId
+        });
+        errorResponse(res, 'Can only update your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);
+        return;
+      }
+
+      // Comments are editable regardless of certification/lock status.
+      if (isCommentOnlyUpdate) {
+        await this.prisma.score.update({
+          where: { id: scoreId },
+          data: {
+            comment: data.comments,
+            updatedAt: new Date()
+          }
+        });
+
+        const updatedScore = await this.prisma.score.findUnique({
+          where: { id: scoreId },
+          include: {
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                contestantNumber: true
+              }
+            },
+            judge: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            category: {
+              select: {
+                id: true,
+                name: true,
+                scoreCap: true
+              }
+            }
+          }
+        });
+
+        sendSuccess(res, updatedScore);
+        return;
+      }
+
+      // Score value changes require unlocked + uncertified state.
       // RACE CONDITION FIX: Use atomic update with all conditions in WHERE clause
-      // This prevents TOCTOU (Time-of-Check to Time-of-Use) vulnerabilities
       const whereConditions: any = {
         id: scoreId,
         tenantId: tenantId,
@@ -179,8 +257,7 @@ export class ScoringController {
         isCertified: false
       };
 
-      // Non-admins can only update their own scores
-      if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+      if (!isAdminLike) {
         whereConditions.judgeId = req.user?.judgeId;
       }
 
@@ -196,27 +273,6 @@ export class ScoringController {
 
       // If no rows were updated, determine the specific reason
       if (updateResult.count === 0) {
-        // Query to determine failure reason
-        const existingScore = await this.prisma.score.findFirst({
-          where: { id: scoreId, tenantId: tenantId },
-          select: {
-            id: true,
-            isLocked: true,
-            isCertified: true,
-            judgeId: true,
-            lockedAt: true,
-            lockedBy: true,
-            certifiedAt: true,
-            certifiedBy: true
-          }
-        });
-
-        if (!existingScore) {
-          log.warn('Score not found for update', { scoreId });
-          errorResponse(res, 'Score not found', ErrorCode.NOT_FOUND, 404);
-          return;
-        }
-
         if (existingScore.isLocked) {
           log.warn('Attempt to update locked score', {
             scoreId,
@@ -497,7 +553,15 @@ export class ScoringController {
 
       log.info('Category scores certification requested', { categoryId, certifiedBy: req.user.id });
 
-      const result = await this.scoringService.certifyScores(categoryId, req.user.id, req.user.tenantId);
+      const result = await this.scoringService.certifyScores(
+        categoryId,
+        req.user.id,
+        req.user.tenantId,
+        {
+          userRole: req.user.role,
+          judgeId: req.user.judgeId ?? req.user.judge?.id ?? null
+        }
+      );
 
       log.info('Category scores certified successfully', { categoryId, certified: result.certified });
       sendSuccess(res, result);
@@ -736,6 +800,7 @@ export class ScoringController {
       // Judges should only see categories they are actively assigned to.
       if (userRole === 'JUDGE') {
         let judgeId = req.user.judgeId || req.user.judge?.id || null;
+        const scoringEligibleStatuses = ['PENDING', 'ACTIVE'] as const;
 
         if (!judgeId) {
           const userRecord = await this.prisma.user.findFirst({
@@ -754,13 +819,35 @@ export class ScoringController {
           return sendSuccess(res, []);
         }
 
-        where.assignments = {
-          some: {
-            tenantId,
-            judgeId,
-            status: 'ACTIVE'
+        where.OR = [
+          // Category-level assignment
+          {
+            assignments: {
+              some: {
+                tenantId,
+                judgeId,
+                status: {
+                  in: [...scoringEligibleStatuses]
+                }
+              }
+            }
+          },
+          // Contest-level assignment (categoryId is null) grants visibility to all categories in that contest
+          {
+            contest: {
+              assignments: {
+                some: {
+                  tenantId,
+                  judgeId,
+                  categoryId: null,
+                  status: {
+                    in: [...scoringEligibleStatuses]
+                  }
+                }
+              }
+            }
           }
-        };
+        ];
       }
 
       if (contestId) {
@@ -800,7 +887,14 @@ export class ScoringController {
                   name: true,
                   contestantNumber: true,
                   bio: true,
-                  imagePath: true
+                  imagePath: true,
+                  users: {
+                    select: {
+                      bio: true,
+                      contestantBio: true,
+                      imagePath: true
+                    }
+                  }
                 }
               }
             }
@@ -816,7 +910,27 @@ export class ScoringController {
         return true;
       }).map((cat: any) => {
         const contestants = Array.isArray(cat.categoryContestants)
-          ? cat.categoryContestants.map((cc: any) => cc.contestant).filter(Boolean)
+          ? cat.categoryContestants.map((cc: any) => {
+              const contestant = cc.contestant;
+              if (!contestant) return null;
+
+              const user = Array.isArray(contestant.users) ? contestant.users[0] : null;
+              const resolvedBio = resolveBioFromCandidates([
+                contestant.bio,
+                user?.contestantBio,
+                user?.bio,
+              ]);
+              const combinedImagePath = contestant.imagePath || user?.imagePath || null;
+
+              return {
+                id: contestant.id,
+                name: contestant.name,
+                contestantNumber: contestant.contestantNumber,
+                bio: resolvedBio.bio,
+                imagePath: combinedImagePath,
+                bioFilePath: resolvedBio.bioFilePath
+              };
+            }).filter(Boolean)
           : [];
 
         // Remove deletedAt fields from response

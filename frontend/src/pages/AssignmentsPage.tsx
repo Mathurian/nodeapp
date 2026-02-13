@@ -123,7 +123,8 @@ interface AssignmentFormData {
 
 type TabType = 'judges' | 'contestants' | 'tally-masters' | 'auditors'
 
-const getAssignmentLevel = (a: { eventId?: string; contestId?: string; categoryId?: string }): string => {
+const getAssignmentLevel = (a: { eventId?: string; contestId?: string; categoryId?: string; _derivedLevel?: string }): string => {
+  if (a._derivedLevel) return a._derivedLevel
   if (a.categoryId) return 'Category'
   if (a.contestId) return 'Contest'
   if (a.eventId) return 'Event'
@@ -137,6 +138,8 @@ const AssignmentsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('judges')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterContestId, setFilterContestId] = useState('')
+  const [filterCategoryId, setFilterCategoryId] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
@@ -479,10 +482,15 @@ const AssignmentsPage: React.FC = () => {
   // Bulk remove
   const bulkRemoveMutation = useMutation(
     async () => {
+      const selectedRows = currentAssignments.filter((a: any) => selectedIds.has(a.id))
+      const toIds = (a: any): string[] => (Array.isArray(a._groupedIds) ? a._groupedIds : [a.id])
+
       if (activeTab === 'judges') {
-        await Promise.all([...selectedIds].map(id => api.put(`/assignments/remove/${id}`)))
+        const ids = Array.from(new Set(selectedRows.flatMap(toIds)))
+        await Promise.all(ids.map(id => api.put(`/assignments/remove/${id}`)))
       } else if (activeTab === 'contestants') {
-        const selected = contestantAssignments.filter(a => selectedIds.has(a.id))
+        const selectedIdsExpanded = new Set(selectedRows.flatMap(toIds))
+        const selected = contestantAssignments.filter(a => selectedIdsExpanded.has(a.id))
         await Promise.all(
           selected.map(a => {
             const categoryId = a.categoryId || a.category?.id
@@ -491,9 +499,11 @@ const AssignmentsPage: React.FC = () => {
           })
         )
       } else if (activeTab === 'tally-masters') {
-        await Promise.all([...selectedIds].map(id => api.delete(`/assignments/tally-masters/${id}`)))
+        const ids = Array.from(new Set(selectedRows.flatMap(toIds)))
+        await Promise.all(ids.map(id => api.delete(`/assignments/tally-masters/${id}`)))
       } else if (activeTab === 'auditors') {
-        await Promise.all([...selectedIds].map(id => api.delete(`/assignments/auditors/${id}`)))
+        const ids = Array.from(new Set(selectedRows.flatMap(toIds)))
+        await Promise.all(ids.map(id => api.delete(`/assignments/auditors/${id}`)))
       }
     },
     {
@@ -623,12 +633,41 @@ const AssignmentsPage: React.FC = () => {
     }
   }
 
-  const handleRemoveSingle = (assignment: any) => {
+  const handleRemoveSingle = async (assignment: any) => {
     if (!confirm('Are you sure you want to remove this assignment?')) return
-    if (activeTab === 'judges') removeJudgeAssignmentMutation.mutate(assignment.id)
-    else if (activeTab === 'contestants') removeContestantAssignmentMutation.mutate({ assignment })
-    else if (activeTab === 'tally-masters') removeTallyMasterMutation.mutate(assignment.id)
-    else if (activeTab === 'auditors') removeAuditorMutation.mutate(assignment.id)
+    const ids: string[] = Array.isArray(assignment._groupedIds) ? assignment._groupedIds : [assignment.id]
+
+    if (ids.length === 1) {
+      if (activeTab === 'judges') removeJudgeAssignmentMutation.mutate(assignment.id)
+      else if (activeTab === 'contestants') removeContestantAssignmentMutation.mutate({ assignment })
+      else if (activeTab === 'tally-masters') removeTallyMasterMutation.mutate(assignment.id)
+      else if (activeTab === 'auditors') removeAuditorMutation.mutate(assignment.id)
+      return
+    }
+
+    try {
+      if (activeTab === 'judges') {
+        await Promise.all(ids.map(id => api.put(`/assignments/remove/${id}`)))
+        queryClient.invalidateQueries('judge-assignments')
+      } else if (activeTab === 'contestants') {
+        const selected = contestantAssignments.filter(a => ids.includes(a.id))
+        await Promise.all(selected.map(a => {
+          const categoryId = a.categoryId || a.category?.id
+          const contestantId = a.contestantId || a.contestant?.id
+          return api.delete(`/assignments/category/${categoryId}/contestant/${contestantId}`)
+        }))
+        queryClient.invalidateQueries('contestant-assignments')
+      } else if (activeTab === 'tally-masters') {
+        await Promise.all(ids.map(id => api.delete(`/assignments/tally-masters/${id}`)))
+        queryClient.invalidateQueries('tally-master-assignments')
+      } else if (activeTab === 'auditors') {
+        await Promise.all(ids.map(id => api.delete(`/assignments/auditors/${id}`)))
+        queryClient.invalidateQueries('auditor-assignments')
+      }
+      toast.success('Assignments removed!')
+    } catch (error: any) {
+      toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
+    }
   }
 
   const handleBulkRemove = () => {
@@ -692,33 +731,87 @@ const AssignmentsPage: React.FC = () => {
   useEffect(() => {
     resetForm()
     setSelectedIds(new Set())
+    setFilterContestId('')
+    setFilterCategoryId('')
   }, [activeTab])
 
   // ─── Derived data ──────────────────────────────────────────────────────────
 
-  const filteredJudgeAssignments = judgeAssignments.filter(a =>
-    a.judge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.category?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const getRawAssignmentsForTab = (): any[] => {
+    switch (activeTab) {
+      case 'judges': return judgeAssignments
+      case 'contestants': return contestantAssignments
+      case 'tally-masters': return tallyMasterAssignments
+      case 'auditors': return auditorAssignments
+      default: return []
+    }
+  }
 
-  const filteredContestantAssignments = contestantAssignments.filter(a =>
-    a.contestant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.category?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const matchesSearch = (a: any): boolean => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    const person =
+      activeTab === 'judges' ? a.judge?.name :
+      activeTab === 'contestants' ? a.contestant?.name :
+      a.user?.name
+    return (
+      String(person || '').toLowerCase().includes(q) ||
+      String(a.category?.name || '').toLowerCase().includes(q) ||
+      String(a.contest?.name || '').toLowerCase().includes(q) ||
+      String(a.event?.name || '').toLowerCase().includes(q)
+    )
+  }
 
-  const filteredTallyMasterAssignments = tallyMasterAssignments.filter(a =>
-    a.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.event?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const matchesScope = (a: any): boolean => {
+    const contestId = a.contest?.id || a.contestId
+    const categoryId = a.category?.id || a.categoryId
+    if (filterContestId && contestId !== filterContestId) return false
+    if (filterCategoryId && categoryId !== filterCategoryId) return false
+    return true
+  }
 
-  const filteredAuditorAssignments = auditorAssignments.filter(a =>
-    a.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.event?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const collapseByContest = (rows: any[]): any[] => {
+    const grouped = new Map<string, any>()
+
+    for (const row of rows) {
+      const contestId = row.contest?.id || row.contestId
+      if (!contestId) {
+        grouped.set(row.id, row)
+        continue
+      }
+
+      const personId =
+        (activeTab === 'judges' && (row.judgeId || row.judge?.id)) ||
+        (activeTab === 'contestants' && (row.contestantId || row.contestant?.id)) ||
+        row.userId ||
+        row.user?.id
+
+      const key = `${personId || 'unknown'}_${contestId}`
+      const existing = grouped.get(key)
+      if (!existing) {
+        grouped.set(key, {
+          ...row,
+          id: `group_${activeTab}_${key}`,
+          _derivedLevel: 'Contest',
+          _groupedIds: [row.id],
+          categoryId: undefined,
+          category: undefined,
+        })
+      } else {
+        existing._groupedIds.push(row.id)
+      }
+    }
+
+    return Array.from(grouped.values())
+  }
+
+  const getCurrentAssignments = (): any[] => {
+    const filtered = getRawAssignmentsForTab().filter(matchesSearch).filter(matchesScope)
+    if (filterContestId && !filterCategoryId) {
+      return collapseByContest(filtered)
+    }
+    return filtered
+  }
 
   const getIsLoading = () => {
     switch (activeTab) {
@@ -727,16 +820,6 @@ const AssignmentsPage: React.FC = () => {
       case 'tally-masters': return isLoadingTallyMasters
       case 'auditors': return isLoadingAuditors
       default: return false
-    }
-  }
-
-  const getCurrentAssignments = (): any[] => {
-    switch (activeTab) {
-      case 'judges': return filteredJudgeAssignments
-      case 'contestants': return filteredContestantAssignments
-      case 'tally-masters': return filteredTallyMasterAssignments
-      case 'auditors': return filteredAuditorAssignments
-      default: return []
     }
   }
 
@@ -758,7 +841,7 @@ const AssignmentsPage: React.FC = () => {
   // Which assignment levels the current tab supports
   const getAvailableLevels = (): Array<{ value: string; label: string }> => {
     if (activeTab === 'judges' || activeTab === 'contestants') return [
-      { value: 'contest', label: 'Contest Level (auto-assigns all categories)' },
+      { value: 'contest', label: 'Contest Level' },
       { value: 'category', label: 'Category Level' },
     ]
     // tally-masters and auditors support all three
@@ -787,6 +870,24 @@ const AssignmentsPage: React.FC = () => {
   const isLoading = getIsLoading()
   const currentAssignments = getCurrentAssignments()
   const people = getPeople()
+  const rawAssignments = getRawAssignmentsForTab()
+  const contestOptions = Array.from(
+    new Map(
+      rawAssignments
+        .map((a: any) => ({ id: a.contest?.id || a.contestId, name: a.contest?.name }))
+        .filter((c: any) => c.id && c.name)
+        .map((c: any) => [c.id, c])
+    ).values()
+  )
+  const categoryOptions = Array.from(
+    new Map(
+      rawAssignments
+        .filter((a: any) => !filterContestId || (a.contest?.id || a.contestId) === filterContestId)
+        .map((a: any) => ({ id: a.category?.id || a.categoryId, name: a.category?.name }))
+        .filter((c: any) => c.id && c.name)
+        .map((c: any) => [c.id, c])
+    ).values()
+  )
 
   return (
     <div className="p-6 space-y-6">
@@ -834,7 +935,7 @@ const AssignmentsPage: React.FC = () => {
         </nav>
       </div>
 
-      {/* Search + Bulk actions */}
+      {/* Search + Filters + Bulk actions */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -846,6 +947,33 @@ const AssignmentsPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
+        <select
+          value={filterContestId}
+          onChange={(e) => {
+            setFilterContestId(e.target.value)
+            setFilterCategoryId('')
+            setSelectedIds(new Set())
+          }}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[180px]"
+        >
+          <option value="">All contests</option>
+          {contestOptions.map((contest: any) => (
+            <option key={contest.id} value={contest.id}>{contest.name}</option>
+          ))}
+        </select>
+        <select
+          value={filterCategoryId}
+          onChange={(e) => {
+            setFilterCategoryId(e.target.value)
+            setSelectedIds(new Set())
+          }}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[180px]"
+        >
+          <option value="">All categories</option>
+          {categoryOptions.map((category: any) => (
+            <option key={category.id} value={category.id}>{category.name}</option>
+          ))}
+        </select>
         {selectedIds.size > 0 && (
           <button
             onClick={handleBulkRemove}
@@ -909,6 +1037,7 @@ const AssignmentsPage: React.FC = () => {
                     activeTab === 'judges' && assignment.judge?.isHeadJudge ? 'Head Judge' :
                     activeTab === 'contestants' && assignment.contestant?.contestantNumber
                       ? `#${assignment.contestant.contestantNumber}` : null
+                  const isGroupedContestRow = Array.isArray(assignment._groupedIds) && assignment._groupedIds.length > 1
 
                   return (
                     <tr
@@ -947,17 +1076,19 @@ const AssignmentsPage: React.FC = () => {
                           <span className="text-xs text-gray-500">Removing...</span>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleEditAssignment(assignment)}
-                              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
-                              title="Edit assignment"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                            </button>
+                            {!isGroupedContestRow && (
+                              <button
+                                onClick={() => handleEditAssignment(assignment)}
+                                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
+                                title="Edit assignment"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleRemoveSingle(assignment)}
                               className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 disabled:opacity-50"
-                              title="Remove assignment"
+                              title={isGroupedContestRow ? 'Remove all assignments for this person in this contest' : 'Remove assignment'}
                             >
                               <TrashIcon className="w-4 h-4" />
                             </button>

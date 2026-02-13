@@ -140,13 +140,16 @@ export const categoriesAPI = {
       // Called with (contestId, data)
       return api.post(`/categories/contest/${contestIdOrData}`, data)
     } else {
-      // Called with (data) - extract contestId from data
-      const { contestId, ...categoryData } = contestIdOrData
-      return api.post(`/categories/contest/${contestId}`, categoryData)
+      // Called with (data)
+      return api.post('/categories', contestIdOrData)
     }
   },
   update: (id: string, data: any) => api.put(`/categories/${id}`, data),
   delete: (id: string) => api.delete(`/categories/${id}`),
+  getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
+  createCriterion: (categoryId: string, data: { name: string; maxScore: number }) => api.post(`/categories/${categoryId}/criteria`, data),
+  updateCriterion: (criterionId: string, data: { name?: string; maxScore?: number }) => api.put(`/categories/criteria/${criterionId}`, data),
+  deleteCriterion: (criterionId: string) => api.delete(`/categories/criteria/${criterionId}`),
 }
 
 export const scoringAPI = {

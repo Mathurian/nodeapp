@@ -472,7 +472,7 @@ export class TestEventSetupService extends BaseService {
                   contestId: contest.id,
                   eventId: event.id,
                   priority: 0,
-                  status: 'PENDING',
+                  status: 'ACTIVE',
                   assignedBy: userId,
                   assignedAt: new Date()
                 }
@@ -663,5 +663,4 @@ export class TestEventSetupService extends BaseService {
     };
   }
 }
-
 

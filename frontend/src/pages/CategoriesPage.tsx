@@ -15,7 +15,6 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   CheckIcon,
-  ArchiveBoxIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline'
 import { ConfirmModal } from '../components/ui'
@@ -67,6 +66,12 @@ interface CategoryFormData {
   contestantMax: string
 }
 
+interface CriterionDraft {
+  id?: string
+  name: string
+  maxScore: string
+}
+
 const categoryFormSchema = z.object({
   contestId: z.string().min(1, 'Please select a contest'),
   name: z.string().min(1, 'Category name is required').max(200, 'Name must be less than 200 characters'),
@@ -78,6 +83,17 @@ const categoryFormSchema = z.object({
 })
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>
+
+const toOptionalNumber = (value: string): number | undefined => {
+  if (!value.trim()) return undefined
+  const parsed = parseInt(value, 10)
+  return Number.isNaN(parsed) ? undefined : parsed
+}
+
+const toOptionalString = (value: string): string | undefined => {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
 
 const CategoriesPage: React.FC = () => {
   const { user } = useAuth()
@@ -94,6 +110,10 @@ const CategoriesPage: React.FC = () => {
   const [selectedContestFilter, setSelectedContestFilter] = useState<string>('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [criterionDrafts, setCriterionDrafts] = useState<CriterionDraft[]>([])
+  const [existingCriteria, setExistingCriteria] = useState<CriterionDraft[]>([])
+  const [criteriaLoading, setCriteriaLoading] = useState(false)
+  const [formSubmitting, setFormSubmitting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; category: Category | null }>({
     isOpen: false,
     category: null,
@@ -164,26 +184,15 @@ const CategoriesPage: React.FC = () => {
     async (data: CategoryFormData) => {
       const payload = {
         name: data.name,
-        description: data.description || null,
+        description: toOptionalString(data.description),
         contestId: data.contestId,
-        scoreCap: data.scoreCap ? parseInt(data.scoreCap) : null,
-        timeLimit: data.timeLimit ? parseInt(data.timeLimit) : null,
-        contestantMin: data.contestantMin ? parseInt(data.contestantMin) : null,
-        contestantMax: data.contestantMax ? parseInt(data.contestantMax) : null,
+        scoreCap: toOptionalNumber(data.scoreCap),
+        timeLimit: toOptionalNumber(data.timeLimit),
+        contestantMin: toOptionalNumber(data.contestantMin),
+        contestantMax: toOptionalNumber(data.contestantMax),
       }
       const response = await categoriesAPI.create(payload)
       return response.data
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('categories')
-        resetForm()
-        toast.success('Category created successfully!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to create category'
-        toast.error(`Error creating category: ${errorMessage}`)
-      },
     }
   )
 
@@ -192,26 +201,14 @@ const CategoriesPage: React.FC = () => {
     async ({ id, data }: { id: string; data: CategoryFormData }) => {
       const payload = {
         name: data.name,
-        description: data.description || null,
-        contestId: data.contestId,
-        scoreCap: data.scoreCap ? parseInt(data.scoreCap) : null,
-        timeLimit: data.timeLimit ? parseInt(data.timeLimit) : null,
-        contestantMin: data.contestantMin ? parseInt(data.contestantMin) : null,
-        contestantMax: data.contestantMax ? parseInt(data.contestantMax) : null,
+        description: toOptionalString(data.description),
+        scoreCap: toOptionalNumber(data.scoreCap),
+        timeLimit: toOptionalNumber(data.timeLimit),
+        contestantMin: toOptionalNumber(data.contestantMin),
+        contestantMax: toOptionalNumber(data.contestantMax),
       }
       const response = await categoriesAPI.update(id, payload)
       return response.data
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('categories')
-        resetForm()
-        toast.success('Category updated successfully!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to update category'
-        toast.error(`Error updating category: ${errorMessage}`)
-      },
     }
   )
 
@@ -236,10 +233,20 @@ const CategoriesPage: React.FC = () => {
   const resetForm = () => {
     reset({ contestId: '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' })
     setEditingCategory(null)
+    setCriterionDrafts([])
+    setExistingCriteria([])
+    setCriteriaLoading(false)
+    setFormSubmitting(false)
     setIsFormOpen(false)
   }
 
-  const handleEdit = (category: Category) => {
+  const openCreateForm = () => {
+    resetForm()
+    setCriterionDrafts([{ name: '', maxScore: '' }])
+    setIsFormOpen(true)
+  }
+
+  const handleEdit = async (category: Category) => {
     setEditingCategory(category)
     reset({
       name: category.name,
@@ -251,6 +258,26 @@ const CategoriesPage: React.FC = () => {
       contestantMax: category.contestantMax?.toString() || '',
     })
     setIsFormOpen(true)
+    setCriteriaLoading(true)
+
+    try {
+      const response = await categoriesAPI.getCriteria(category.id)
+      const unwrapped = response.data?.data || response.data
+      const criteriaList = Array.isArray(unwrapped) ? unwrapped : []
+      const mapped = criteriaList.map((criterion: any) => ({
+        id: criterion.id,
+        name: criterion.name || '',
+        maxScore: criterion.maxScore?.toString() || '',
+      }))
+      setExistingCriteria(mapped)
+      setCriterionDrafts(mapped.length > 0 ? mapped : [{ name: '', maxScore: '' }])
+    } catch (error) {
+      toast.error('Failed to load category criteria')
+      setExistingCriteria([])
+      setCriterionDrafts([{ name: '', maxScore: '' }])
+    } finally {
+      setCriteriaLoading(false)
+    }
   }
 
   const handleDelete = (category: Category) => {
@@ -264,11 +291,78 @@ const CategoriesPage: React.FC = () => {
     setConfirmDelete({ isOpen: false, category: null })
   }
 
-  const onSubmit = (data: CategoryFormValues) => {
-    if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.id, data })
-    } else {
-      createMutation.mutate(data)
+  const addCriterionRow = () => {
+    setCriterionDrafts((prev) => [...prev, { name: '', maxScore: '' }])
+  }
+
+  const updateCriterionRow = (index: number, field: 'name' | 'maxScore', value: string) => {
+    setCriterionDrafts((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
+  }
+
+  const removeCriterionRow = (index: number) => {
+    setCriterionDrafts((prev) => {
+      if (prev.length === 1) return prev
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const onSubmit = async (data: CategoryFormValues) => {
+    setFormSubmitting(true)
+    try {
+      const cleanCriteria = criterionDrafts
+        .map((criterion) => ({
+          ...criterion,
+          name: criterion.name.trim(),
+          maxScore: criterion.maxScore.trim(),
+        }))
+        .filter((criterion) => criterion.name !== '' && criterion.maxScore !== '')
+
+      if (editingCategory) {
+        await updateMutation.mutateAsync({ id: editingCategory.id, data })
+
+        const existingById = new Map(existingCriteria.filter((criterion) => criterion.id).map((criterion) => [criterion.id as string, criterion]))
+        const keepIds = new Set(cleanCriteria.filter((criterion) => criterion.id).map((criterion) => criterion.id as string))
+        const toDelete = existingCriteria.filter((criterion) => criterion.id && !keepIds.has(criterion.id))
+
+        await Promise.all(toDelete.map((criterion) => categoriesAPI.deleteCriterion(criterion.id as string)))
+
+        for (const criterion of cleanCriteria) {
+          const maxScore = parseInt(criterion.maxScore, 10)
+          if (Number.isNaN(maxScore)) continue
+
+          if (criterion.id) {
+            const original = existingById.get(criterion.id)
+            if (!original || original.name !== criterion.name || original.maxScore !== criterion.maxScore) {
+              await categoriesAPI.updateCriterion(criterion.id, { name: criterion.name, maxScore })
+            }
+          } else {
+            await categoriesAPI.createCriterion(editingCategory.id, { name: criterion.name, maxScore })
+          }
+        }
+
+        toast.success('Category updated successfully!')
+      } else {
+        const created = await createMutation.mutateAsync(data)
+        const createdCategoryId = created?.data?.id || created?.id
+
+        if (createdCategoryId) {
+          for (const criterion of cleanCriteria) {
+            const maxScore = parseInt(criterion.maxScore, 10)
+            if (Number.isNaN(maxScore)) continue
+            await categoriesAPI.createCriterion(createdCategoryId, { name: criterion.name, maxScore })
+          }
+        }
+
+        toast.success('Category created successfully!')
+      }
+
+      queryClient.invalidateQueries('categories')
+      resetForm()
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save category'
+      toast.error(`Error saving category: ${errorMessage}`)
+    } finally {
+      setFormSubmitting(false)
     }
   }
 
@@ -322,10 +416,7 @@ const CategoriesPage: React.FC = () => {
           </div>
           {canManageCategories && (
             <button
-              onClick={() => {
-                resetForm()
-                setIsFormOpen(true)
-              }}
+              onClick={openCreateForm}
               className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
@@ -499,6 +590,7 @@ const CategoriesPage: React.FC = () => {
                   </label>
                   <select
                     {...register('contestId')}
+                    disabled={Boolean(editingCategory)}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.contestId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     aria-invalid={errors.contestId ? 'true' : undefined}
                   >
@@ -597,6 +689,54 @@ const CategoriesPage: React.FC = () => {
                   </div>
                 </div>
 
+                <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Criteria
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addCriterionRow}
+                      className="px-2 py-1 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600"
+                    >
+                      Add Criterion
+                    </button>
+                  </div>
+                  {criteriaLoading ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading criteria...</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {criterionDrafts.map((criterion, index) => (
+                        <div key={`${criterion.id || 'new'}-${index}`} className="grid grid-cols-12 gap-2">
+                          <input
+                            type="text"
+                            value={criterion.name}
+                            onChange={(e) => updateCriterionRow(index, 'name', e.target.value)}
+                            placeholder="Criterion name"
+                            className="col-span-7 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={criterion.maxScore}
+                            onChange={(e) => updateCriterionRow(index, 'maxScore', e.target.value)}
+                            placeholder="Max score"
+                            className="col-span-3 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeCriterionRow(index)}
+                            className="col-span-2 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600"
+                            disabled={criterionDrafts.length === 1}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Form Actions */}
                 <div className="flex gap-3 pt-4">
                   <button
@@ -608,10 +748,10 @@ const CategoriesPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={createMutation.isLoading || updateMutation.isLoading}
+                    disabled={formSubmitting}
                     className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
                   >
-                    {createMutation.isLoading || updateMutation.isLoading ? (
+                    {formSubmitting ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                         Saving...

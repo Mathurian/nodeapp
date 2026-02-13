@@ -422,6 +422,10 @@ export class ScoringService extends BaseService {
       const certifiedScore = await this.prisma.score.update({
         where: { id: scoreId },
         data: {
+          isCertified: true,
+          isLocked: true,
+          lockedAt: new Date(),
+          lockedBy: certifiedBy,
           certifiedAt: new Date(),
           certifiedBy: certifiedBy
         },
@@ -446,15 +450,31 @@ export class ScoringService extends BaseService {
   /**
    * Certify all scores for a category
    */
-  async certifyScores(categoryId: string, certifiedBy: string, tenantId: string): Promise<CertifyScoresResult> {
+  async certifyScores(
+    categoryId: string,
+    certifiedBy: string,
+    tenantId: string,
+    options?: { userRole?: string; judgeId?: string | null }
+  ): Promise<CertifyScoresResult> {
     try {
+      const where: Prisma.ScoreWhereInput = {
+        categoryId,
+        tenantId,
+        certifiedAt: null // Only certify uncertified scores
+      };
+
+      const userRole = String(options?.userRole || '').toUpperCase();
+      if (userRole === 'JUDGE' && options?.judgeId) {
+        where.judgeId = options.judgeId;
+      }
+
       const result = await this.prisma.score.updateMany({
-        where: {
-          categoryId,
-          tenantId,
-          certifiedAt: null // Only certify uncertified scores
-        },
+        where,
         data: {
+          isCertified: true,
+          isLocked: true,
+          lockedAt: new Date(),
+          lockedBy: certifiedBy,
           certifiedAt: new Date(),
           certifiedBy: certifiedBy
         }

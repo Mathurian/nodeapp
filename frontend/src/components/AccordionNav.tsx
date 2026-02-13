@@ -72,6 +72,12 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           icon: HomeIcon,
           roles: allRoles,
         },
+        {
+          name: 'Bios',
+          href: '/bios',
+          icon: UserIcon,
+          roles: allRoles,
+        },
       ],
     },
     {
@@ -275,12 +281,6 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           href: '/emcee',
           icon: MicrophoneIcon,
           roles: ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'BOARD', 'ORGANIZER'],
-        },
-        {
-          name: 'Commentary',
-          href: '/commentary',
-          icon: MicrophoneIcon,
-          roles: ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD'],
         },
       ],
     },

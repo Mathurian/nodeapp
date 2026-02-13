@@ -440,6 +440,38 @@ export class UsersController {
         });
       }
 
+      // Keep linked role records in sync so role-specific views (scoring/results/bios) show updates.
+      if (currentUser.role === 'JUDGE' && currentUser.judgeId) {
+        const judgeUpdateData: Prisma.JudgeUpdateInput = {};
+        if (data.name !== undefined) judgeUpdateData.name = data.name;
+        if (data.email !== undefined) judgeUpdateData.email = data.email;
+        if (data.bio !== undefined) judgeUpdateData.bio = data.bio ?? null;
+        if (data.gender !== undefined) judgeUpdateData.gender = data.gender ?? null;
+        if (data.pronouns !== undefined) judgeUpdateData.pronouns = data.pronouns ?? null;
+        if (Object.keys(judgeUpdateData).length > 0) {
+          await this.prisma.judge.update({
+            where: { id: currentUser.judgeId },
+            data: judgeUpdateData,
+          });
+        }
+      } else if (currentUser.role === 'CONTESTANT' && currentUser.contestantId) {
+        const contestantUpdateData: Prisma.ContestantUpdateInput = {};
+        if (data.name !== undefined) contestantUpdateData.name = data.name;
+        if (data.email !== undefined) contestantUpdateData.email = data.email;
+        if (data.bio !== undefined) contestantUpdateData.bio = data.bio ?? null;
+        if (data.gender !== undefined) contestantUpdateData.gender = data.gender ?? null;
+        if (data.pronouns !== undefined) contestantUpdateData.pronouns = data.pronouns ?? null;
+        if (data.contestantNumber !== undefined) {
+          contestantUpdateData.contestantNumber = data.contestantNumber ? parseInt(String(data.contestantNumber), 10) : null;
+        }
+        if (Object.keys(contestantUpdateData).length > 0) {
+          await this.prisma.contestant.update({
+            where: { id: currentUser.contestantId },
+            data: contestantUpdateData,
+          });
+        }
+      }
+
       log.info('User updated successfully', { userId: id, email: user.email });
       sendSuccess(res, user);
     } catch (error) {
@@ -712,6 +744,23 @@ export class UsersController {
       // Update user with image path
       const user = await this.userService.updateUserImage(id, imagePath);
 
+      // Sync linked role record image path so role-specific screens display uploaded images.
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id },
+        select: { role: true, judgeId: true, contestantId: true }
+      });
+      if (currentUser?.role === 'JUDGE' && currentUser.judgeId) {
+        await this.prisma.judge.update({
+          where: { id: currentUser.judgeId },
+          data: { imagePath }
+        });
+      } else if (currentUser?.role === 'CONTESTANT' && currentUser.contestantId) {
+        await this.prisma.contestant.update({
+          where: { id: currentUser.contestantId },
+          data: { imagePath }
+        });
+      }
+
       log.info('User image uploaded successfully', { userId: id, imagePath });
       sendSuccess(res, {
         message: 'Image uploaded successfully',
@@ -882,7 +931,7 @@ export class UsersController {
         return sendError(res, 'Invalid file type. Only TXT, PDF, and DOCX files are allowed.', 400);
       }
 
-      const bioFilePath = `/uploads/bios/${authReq.file.filename}`;
+      const bioFilePath = `/uploads/users/bios/${authReq.file.filename}`;
       log.debug('Updating user with bio file path', { userId: id, bioFilePath });
 
       // Get current user
@@ -917,6 +966,19 @@ export class UsersController {
           contestant: true
         }
       }) as UserWithRelations;
+
+      // Sync linked role record bio for role-specific views.
+      if (currentUser.role === 'JUDGE' && currentUser.judgeId) {
+        await this.prisma.judge.update({
+          where: { id: currentUser.judgeId },
+          data: { bio: `[Bio file: ${bioFilePath}]` }
+        });
+      } else if (currentUser.role === 'CONTESTANT' && currentUser.contestantId) {
+        await this.prisma.contestant.update({
+          where: { id: currentUser.contestantId },
+          data: { bio: `[Bio file: ${bioFilePath}]` }
+        });
+      }
 
       // Invalidate cache
       userCache.invalidate(id);

@@ -387,7 +387,12 @@ export class UserService extends BaseService {
         password: hashedPassword,
         preferredName: data.preferredName,
         role: data.role,
-        isActive: true
+        isActive: true,
+        gender: data.gender,
+        pronouns: data.pronouns,
+        phone: data.phone,
+        address: data.address,
+        bio: data.bio
       });
 
       this.logInfo('User created', { userId: user.id, name: user.name });

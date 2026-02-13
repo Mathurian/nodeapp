@@ -830,5 +830,269 @@
       "message": "User with identifier 'csv-template' not found",
       "code": "RESOURCE_NOT_FOUND"
     }
+  },
+  {
+    "id": "err_1770958737394_gxwxk8yuu",
+    "timestamp": "2026-02-13T04:58:57.394Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0036ob68yadc79kx",
+        "score": 30,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770958737405_med3h5ab0",
+    "timestamp": "2026-02-13T04:58:57.405Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvq0035ob68kwn6vf3i",
+        "score": 20,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770958737420_8fc5xw060",
+    "timestamp": "2026-02-13T04:58:57.420Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0037ob68wwmdcu1b",
+        "score": 15,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770959738677_lh5ha2k35",
+    "timestamp": "2026-02-13T05:15:38.677Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0037ob68wwmdcu1b",
+        "score": 15,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770959738693_yt0edyt7r",
+    "timestamp": "2026-02-13T05:15:38.693Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvq0035ob68kwn6vf3i",
+        "score": 20,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770959738711_568pi6j9m",
+    "timestamp": "2026-02-13T05:15:38.711Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0036ob68yadc79kx",
+        "score": 30,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770960384068_ms3v0r73m",
+    "timestamp": "2026-02-13T05:26:24.068Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvq0035ob68kwn6vf3i",
+        "score": 20,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770960384088_9h5mxlyd0",
+    "timestamp": "2026-02-13T05:26:24.088Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0037ob68wwmdcu1b",
+        "score": 15,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770960384118_7l40zthjn",
+    "timestamp": "2026-02-13T05:26:24.118Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0036ob68yadc79kx",
+        "score": 30,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770960462780_b0kcdsymd",
+    "timestamp": "2026-02-13T05:27:42.780Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0037ob68wwmdcu1b",
+        "score": 15,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770960462788_ju0l5if8q",
+    "timestamp": "2026-02-13T05:27:42.788Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvr0036ob68yadc79kx",
+        "score": 30,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
+  },
+  {
+    "id": "err_1770960462808_edswr2jra",
+    "timestamp": "2026-02-13T05:27:42.808Z",
+    "severity": "medium",
+    "message": "Score already exists for this judge and contestant",
+    "stack": "ConflictError: Score already exists for this judge and contestant\n    at ScoringService.submitScore (/var/www/event-manager/dist/services/ScoringService.js:187:27)\n    at async submitScore (/var/www/event-manager/dist/controllers/scoringController.js:78:30)",
+    "context": {
+      "method": "submitScore",
+      "data": {
+        "categoryId": "cmljlirvn0034ob68j0fq4d2t",
+        "contestantId": "cmljlirxu0044ob68fxovv5kp",
+        "criteriaId": "cmljlirvq0035ob68kwn6vf3i",
+        "score": 20,
+        "comments": ""
+      }
+    },
+    "error": {
+      "name": "ConflictError",
+      "message": "Score already exists for this judge and contestant",
+      "code": "CONFLICT"
+    }
   }
 ]

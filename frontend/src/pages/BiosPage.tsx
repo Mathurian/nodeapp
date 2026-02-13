@@ -1,220 +1,110 @@
-import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from 'react-query'
-import toast from 'react-hot-toast'
+import React, { useMemo, useState } from 'react'
+import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import {
   UserCircleIcon,
-  PencilIcon,
   MagnifyingGlassIcon,
-  PhotoIcon,
-  XMarkIcon,
+  UsersIcon,
+  MicrophoneIcon,
 } from '@heroicons/react/24/outline'
 
-interface Contestant {
+interface DirectoryContest {
   id: string
   name: string
-  bio: string | null
-  imagePath: string | null
-  gender: string | null
-  pronouns: string | null
-  contestantNumber: number | null
+  eventName: string | null
 }
 
-interface Judge {
+interface DirectoryContestant {
   id: string
   name: string
-  bio: string | null
+  contestantNumber: number | null
+  gender: string | null
+  pronouns: string | null
   imagePath: string | null
+  bio: string | null
+  bioFilePath: string | null
+  contests: Array<{ id: string; name: string }>
+}
+
+interface DirectoryJudge {
+  id: string
+  name: string
   gender: string | null
   pronouns: string | null
   isHeadJudge: boolean
+  imagePath: string | null
+  bio: string | null
+  bioFilePath: string | null
+  contests: Array<{ id: string; name: string }>
 }
 
-interface BioFormData {
-  bio: string
-  image: File | null
+interface BioDirectoryResponse {
+  contests: DirectoryContest[]
+  contestants: DirectoryContestant[]
+  judges: DirectoryJudge[]
 }
+
+const toImageUrl = (path?: string | null): string | null => {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path
+  return `/${path}`
+}
+
+const allowedRoles = ['JUDGE', 'EMCEE', 'ORGANIZER', 'BOARD', 'ADMIN', 'SUPER_ADMIN', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR']
 
 const BiosPage: React.FC = () => {
-  const { user: currentUser } = useAuth()
-  const queryClient = useQueryClient()
-
-  const [activeTab, setActiveTab] = useState<'contestants' | 'judges'>('contestants')
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingContestant, setEditingContestant] = useState<Contestant | null>(null)
-  const [editingJudge, setEditingJudge] = useState<Judge | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [formData, setFormData] = useState<BioFormData>({
-    bio: '',
-    image: null,
-  })
+  const [selectedContestId, setSelectedContestId] = useState('')
+  const isEmcee = user?.role === 'EMCEE'
+  const isContestant = user?.role === 'CONTESTANT'
+  const showJudgesTab = isEmcee || isContestant
+  const [activeTab, setActiveTab] = useState<'contestants' | 'judges'>('contestants')
 
-  // Check permissions
-  const canManageBios = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(currentUser?.role || '')
+  const hasAccess = allowedRoles.includes(user?.role || '')
 
-  // Fetch contestants
-  const { data: contestants = [], isLoading: isLoadingContestants } = useQuery<Contestant[]>(
-    'contestants-bios',
+  const { data, isLoading, error } = useQuery<BioDirectoryResponse>(
+    ['bio-directory', selectedContestId, user?.id, user?.role],
     async () => {
-      const response = await api.get('/api/bios/contestants')
-      const unwrapped = response.data.data || response.data
-      return Array.isArray(unwrapped) ? unwrapped : []
+      const response = await api.get('/bios/directory', {
+        params: selectedContestId ? { contestId: selectedContestId } : undefined,
+      })
+      return response.data?.data || response.data
     },
     {
+      enabled: hasAccess,
       refetchInterval: 30000,
     }
   )
 
-  // Fetch judges
-  const { data: judges = [], isLoading: isLoadingJudges } = useQuery<Judge[]>(
-    'judges-bios',
-    async () => {
-      const response = await api.get('/api/bios/judges')
-      const unwrapped = response.data.data || response.data
-      return Array.isArray(unwrapped) ? unwrapped : []
-    },
-    {
-      refetchInterval: 30000,
-    }
-  )
+  const filteredContestants = useMemo(() => {
+    const contestants = data?.contestants || []
+    if (!searchQuery.trim()) return contestants
+    const q = searchQuery.toLowerCase()
+    return contestants.filter((contestant) =>
+      contestant.name.toLowerCase().includes(q) ||
+      String(contestant.contestantNumber || '').includes(q) ||
+      (contestant.bio || '').toLowerCase().includes(q)
+    )
+  }, [data?.contestants, searchQuery])
 
-  // Update contestant bio mutation
-  const updateContestantMutation = useMutation(
-    async ({ id, data }: { id: string; data: FormData }) => {
-      const response = await api.put(`/api/bios/contestants/${id}`, data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
-      return response.data
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('contestants-bios')
-        resetForm()
-        toast.success('Contestant bio updated successfully!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to update bio'
-        toast.error(`Error updating bio: ${errorMessage}`)
-      },
-    }
-  )
+  const filteredJudges = useMemo(() => {
+    const judges = data?.judges || []
+    if (!searchQuery.trim()) return judges
+    const q = searchQuery.toLowerCase()
+    return judges.filter((judge) =>
+      judge.name.toLowerCase().includes(q) ||
+      (judge.bio || '').toLowerCase().includes(q)
+    )
+  }, [data?.judges, searchQuery])
 
-  // Update judge bio mutation
-  const updateJudgeMutation = useMutation(
-    async ({ id, data }: { id: string; data: FormData }) => {
-      const response = await api.put(`/api/bios/judges/${id}`, data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
-      return response.data
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('judges-bios')
-        resetForm()
-        toast.success('Judge bio updated successfully!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to update bio'
-        toast.error(`Error updating bio: ${errorMessage}`)
-      },
-    }
-  )
-
-  const handleEdit = (item: Contestant | Judge) => {
-    if (activeTab === 'contestants') {
-      setEditingContestant(item as Contestant)
-      setEditingJudge(null)
-    } else {
-      setEditingJudge(item as Judge)
-      setEditingContestant(null)
-    }
-    setFormData({
-      bio: item.bio || '',
-      image: null,
-    })
-    setImagePreview(item.imagePath || null)
-    setIsFormOpen(true)
-  }
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file')
-        return
-      }
-      // Validate file size (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image size must be less than 10MB')
-        return
-      }
-      setFormData({ ...formData, image: file })
-      // Create preview
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleRemoveImage = () => {
-    setFormData({ ...formData, image: null })
-    setImagePreview(null)
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const formDataToSend = new FormData()
-    formDataToSend.append('bio', formData.bio)
-    if (formData.image) {
-      formDataToSend.append('image', formData.image)
-    }
-
-    if (editingContestant) {
-      updateContestantMutation.mutate({ id: editingContestant.id, data: formDataToSend })
-    } else if (editingJudge) {
-      updateJudgeMutation.mutate({ id: editingJudge.id, data: formDataToSend })
-    }
-  }
-
-  const resetForm = () => {
-    setFormData({
-      bio: '',
-      image: null,
-    })
-    setImagePreview(null)
-    setEditingContestant(null)
-    setEditingJudge(null)
-    setIsFormOpen(false)
-  }
-
-  // Filter data based on search
-  const filteredContestants = contestants.filter((contestant) =>
-    contestant.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const filteredJudges = judges.filter((judge) =>
-    judge.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const isLoading = activeTab === 'contestants' ? isLoadingContestants : isLoadingJudges
-  const currentData = activeTab === 'contestants' ? filteredContestants : filteredJudges
-
-  if (!canManageBios) {
+  if (!hasAccess) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <p className="text-yellow-800 dark:text-yellow-200">
-            You don't have permission to manage bios. Contact your administrator.
+            You do not have access to the bio directory.
           </p>
         </div>
       </div>
@@ -223,250 +113,161 @@ const BiosPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <UserCircleIcon className="w-8 h-8" />
-            Bios Management
+            Bio Directory
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage contestant and judge bios and photos
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            View scoped contestant bios and photos{showJudgesTab ? ', plus judge profiles' : ''}.
           </p>
+        </div>
+        <div className="w-full sm:w-80">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Filter by Contest
+          </label>
+          <select
+            value={selectedContestId}
+            onChange={(e) => setSelectedContestId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+          >
+            <option value="">All Contests</option>
+            {(data?.contests || []).map((contest) => (
+              <option key={contest.id} value={contest.id}>
+                {contest.name}{contest.eventName ? ` (${contest.eventName})` : ''}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('contestants')}
-            className={`${
-              activeTab === 'contestants'
-                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-          >
-            Contestants ({contestants.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('judges')}
-            className={`${
-              activeTab === 'judges'
-                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-          >
-            Judges ({judges.length})
-          </button>
-        </nav>
-      </div>
-
-      {/* Search */}
       <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
-          type="text"
-          placeholder={`Search ${activeTab}...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          placeholder="Search names, numbers, or bio text..."
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
         />
       </div>
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading {activeTab}...</p>
-        </div>
-      ) : currentData.length === 0 ? (
-        <div className="text-center py-12">
-          <UserCircleIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No {activeTab} found</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {searchQuery ? 'Try adjusting your search' : `No ${activeTab} available`}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentData.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow"
+      {showJudgesTab && (
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('contestants')}
+              className={`py-3 px-1 border-b-2 text-sm font-medium ${
+                activeTab === 'contestants'
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400'
+              }`}
             >
-              {/* Image */}
-              <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative">
-                {item.imagePath ? (
-                  <img
-                    src={item.imagePath}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <UserCircleIcon className="w-24 h-24 text-gray-400" />
-                  </div>
-                )}
-              </div>
-
-              {/* Content */}
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {item.name}
-                    </h3>
-                    {activeTab === 'contestants' && (item as Contestant).contestantNumber && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        #{(item as Contestant).contestantNumber}
-                      </p>
-                    )}
-                    {activeTab === 'judges' && (item as Judge).isHeadJudge && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                        Head Judge
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                    title="Edit bio"
-                  >
-                    <PencilIcon className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {item.gender && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    {item.gender}
-                    {item.pronouns && ` (${item.pronouns})`}
-                  </p>
-                )}
-
-                {item.bio ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">
-                    {item.bio}
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">No bio added</p>
-                )}
-              </div>
-            </div>
-          ))}
+              Contestants ({data?.contestants?.length || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('judges')}
+              className={`py-3 px-1 border-b-2 text-sm font-medium ${
+                activeTab === 'judges'
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              Judges ({data?.judges?.length || 0})
+            </button>
+          </nav>
         </div>
       )}
 
-      {/* Edit Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Edit {activeTab === 'contestants' ? 'Contestant' : 'Judge'} Bio
-                </h2>
-                <button
-                  onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                >
-                  <XMarkIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Name (read-only) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editingContestant?.name || editingJudge?.name || ''}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                  />
-                </div>
-
-                {/* Photo Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Photo
-                  </label>
-                  <div className="space-y-4">
-                    {imagePreview ? (
-                      <div className="relative inline-block">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-48 h-48 object-cover rounded-lg border-2 border-gray-300 dark:border-gray-600"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                        >
-                          <XMarkIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-48 h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
-                        <PhotoIcon className="w-16 h-16 text-gray-400" />
-                      </div>
-                    )}
-                    <label className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
-                      <PhotoIcon className="w-5 h-5 mr-2" />
-                      Choose Photo
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="sr-only"
-                      />
-                    </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      JPG, PNG, GIF, or WebP (max 10MB)
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bio */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Bio
-                  </label>
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    rows={6}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Enter bio..."
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updateContestantMutation.isLoading || updateJudgeMutation.isLoading}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {updateContestantMutation.isLoading || updateJudgeMutation.isLoading
-                      ? 'Saving...'
-                      : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+      {isLoading ? (
+        <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading profiles...</div>
+      ) : error ? (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
+          Failed to load bio directory.
         </div>
+      ) : (
+        <>
+          {(activeTab === 'contestants' || !showJudgesTab) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredContestants.map((contestant) => (
+                <div key={contestant.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {toImageUrl(contestant.imagePath) ? (
+                      <img src={toImageUrl(contestant.imagePath)!} alt={contestant.name} className="h-14 w-14 rounded-full object-cover" />
+                    ) : (
+                      <UserCircleIcon className="h-14 w-14 text-gray-400" />
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{contestant.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {contestant.contestantNumber ? `#${contestant.contestantNumber}` : 'No contestant number'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {contestant.bio?.trim() || 'No bio text provided.'}
+                  </p>
+                  {contestant.bioFilePath && (
+                    <a
+                      href={contestant.bioFilePath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      View bio file
+                    </a>
+                  )}
+                </div>
+              ))}
+              {filteredContestants.length === 0 && (
+                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
+                  No contestants match the current filters.
+                </div>
+              )}
+            </div>
+          )}
+
+          {showJudgesTab && activeTab === 'judges' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredJudges.map((judge) => (
+                <div key={judge.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {toImageUrl(judge.imagePath) ? (
+                      <img src={toImageUrl(judge.imagePath)!} alt={judge.name} className="h-14 w-14 rounded-full object-cover" />
+                    ) : (
+                      <UsersIcon className="h-14 w-14 text-gray-400" />
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{judge.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {judge.isHeadJudge ? 'Head Judge' : 'Judge'}
+                      </p>
+                    </div>
+                    <MicrophoneIcon className="h-5 w-5 text-gray-300 ml-auto" />
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {judge.bio?.trim() || 'No bio text provided.'}
+                  </p>
+                  {judge.bioFilePath && (
+                    <a
+                      href={judge.bioFilePath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      View bio file
+                    </a>
+                  )}
+                </div>
+              ))}
+              {filteredJudges.length === 0 && (
+                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
+                  No judges match the current filters.
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -6,6 +6,7 @@ import { authenticateToken, requireRole } from '../middleware/auth';
 import {
   getContestantBios,
   getJudgeBios,
+  getBioDirectory,
   updateContestantBio,
   updateJudgeBio
 } from '../controllers/bioController';
@@ -53,6 +54,7 @@ router.use(authenticateToken)
  *         description: Contestant bios retrieved successfully
  */
 router.get('/contestants', getContestantBios)
+router.get('/directory', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'JUDGE', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR']), getBioDirectory)
 
 /**
  * @swagger

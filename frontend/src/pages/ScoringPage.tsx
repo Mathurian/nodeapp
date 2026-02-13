@@ -41,6 +41,7 @@ interface Contestant {
   contestantNumber: number | null
   bio: string | null
   imagePath: string | null
+  bioFilePath?: string | null
 }
 
 interface Criterion {
@@ -73,6 +74,12 @@ interface ScoreFormData {
   comment: string
 }
 
+const getImageUrl = (path?: string | null): string | null => {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path
+  return `/${path}`
+}
+
 const ScoringPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -81,7 +88,9 @@ const ScoringPage: React.FC = () => {
   const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null)
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSignOffChecked, setIsSignOffChecked] = useState(false)
   const [saveStatus, setSaveStatus] = useState<OptimisticStatus>('idle')
+  const requiresSignOff = user?.role === 'JUDGE'
 
   // Check if user can access scoring page (judges, admins, board members, and tally masters for viewing)
   const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'BOARD'].includes(user?.role || '')
@@ -155,12 +164,16 @@ const ScoringPage: React.FC = () => {
     }
   )
 
+  const normalizedExistingScores: Score[] = Array.isArray(existingScores)
+    ? existingScores
+    : ((existingScores as unknown as { scores?: Score[] })?.scores || [])
+
   // Initialize form data when contestant or scores change
   useEffect(() => {
     if (criteria && selectedContestant) {
       const initialFormData: Record<string, ScoreFormData> = {}
       criteria.forEach(criterion => {
-        const existingScore = existingScores?.find(s => s.criterionId === criterion.id)
+        const existingScore = normalizedExistingScores.find(s => s.criterionId === criterion.id)
         initialFormData[criterion.id] = {
           criterionId: criterion.id,
           score: existingScore?.score || 0,
@@ -169,7 +182,11 @@ const ScoringPage: React.FC = () => {
       })
       setScoreFormData(initialFormData)
     }
-  }, [criteria, selectedContestant, existingScores])
+  }, [criteria, selectedContestant, normalizedExistingScores])
+
+  useEffect(() => {
+    setIsSignOffChecked(false)
+  }, [selectedCategory?.id, selectedContestant?.id])
 
   // Submit score mutation with optimistic updates
   const submitScoreMutation = useOptimisticMutation<
@@ -177,21 +194,34 @@ const ScoringPage: React.FC = () => {
     { categoryId: string; contestantId: string; scores: ScoreFormData[] }
   >({
     mutationFn: async (data) => {
-      await Promise.all(
-        data.scores.map(scoreData =>
-          scoringAPI.submitScore(data.categoryId, data.contestantId, {
+      const latestResponse = await scoringAPI.getScores(data.categoryId, data.contestantId)
+      const latestRaw = latestResponse.data?.data ?? latestResponse.data
+      const latestScores: Score[] = Array.isArray(latestRaw) ? latestRaw : []
+
+      await Promise.all(data.scores.map(async (scoreData) => {
+        const existing = latestScores.find((s) => s.criterionId === scoreData.criterionId)
+        const payload = {
+          score: Number(scoreData.score) || 0,
+          comments: scoreData.comment || '',
+        }
+
+        if (existing?.id) {
+          await scoringAPI.updateScore(existing.id, payload)
+        } else {
+          await scoringAPI.submitScore(data.categoryId, data.contestantId, {
             criteriaId: scoreData.criterionId,
-            score: Number(scoreData.score) || 0,
-            comments: scoreData.comment || '',
+            ...payload,
           })
-        )
-      )
+        }
+      }))
       return { success: true }
     },
     queryKey: ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
     updateFn: (oldData, variables) => {
       // Optimistically update scores in cache
-      const oldScores = (oldData as { scores?: Score[] })?.scores || []
+      const oldScores = Array.isArray(oldData)
+        ? (oldData as Score[])
+        : ((oldData as { scores?: Score[] })?.scores || [])
       const newScores = variables.scores.map((scoreData) => ({
         id: `optimistic-${scoreData.criterionId}`,
         contestantId: variables.contestantId,
@@ -213,7 +243,7 @@ const ScoringPage: React.FC = () => {
         (existing: Score) => !newScores.some((ns) => ns.criterionId === existing.criterionId)
       )
 
-      return { scores: [...mergedScores, ...newScores] }
+      return [...mergedScores, ...newScores]
     },
     onMutate: () => {
       setSaveStatus('saving')
@@ -242,6 +272,10 @@ const ScoringPage: React.FC = () => {
 
   const handleSubmitScores = async () => {
     if (!selectedCategory || !selectedContestant) return
+    if (requiresSignOff && !isSignOffChecked) {
+      toast.error('You must certify/sign off before submitting scores')
+      return
+    }
 
     setIsSubmitting(true)
     setSaveStatus('saving')
@@ -252,6 +286,9 @@ const ScoringPage: React.FC = () => {
         contestantId: selectedContestant.id,
         scores,
       })
+      if (requiresSignOff) {
+        await scoringAPI.certifyScores(selectedCategory.id)
+      }
       setSaveStatus('saved')
       toast.success('Scores submitted successfully!')
     } catch (error: unknown) {
@@ -415,9 +452,9 @@ const ScoringPage: React.FC = () => {
                         }`}
                       >
                         <div className="flex items-center">
-                          {contestant.imagePath ? (
+                          {getImageUrl(contestant.imagePath) ? (
                             <img
-                              src={contestant.imagePath}
+                              src={getImageUrl(contestant.imagePath)!}
                               alt={contestant.name}
                               className="h-10 w-10 rounded-full mr-3"
                             />
@@ -464,8 +501,37 @@ const ScoringPage: React.FC = () => {
                 <div>
                   {/* Contestant Info */}
                   <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                    <div className="font-medium text-gray-900 dark:text-white">{selectedContestant.name}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{selectedCategory.name}</div>
+                    <div className="flex items-start gap-3">
+                      {getImageUrl(selectedContestant.imagePath) ? (
+                        <img
+                          src={getImageUrl(selectedContestant.imagePath)!}
+                          alt={selectedContestant.name}
+                          className="h-14 w-14 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                        />
+                      ) : (
+                        <UserIcon className="h-14 w-14 text-gray-400 dark:text-gray-500" />
+                      )}
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">{selectedContestant.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                          {selectedCategory.name}
+                          {selectedContestant.contestantNumber ? ` • #${selectedContestant.contestantNumber}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                      {selectedContestant.bio?.trim() || 'No bio available for this contestant.'}
+                    </p>
+                    {selectedContestant.bioFilePath && (
+                      <a
+                        href={selectedContestant.bioFilePath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-700 underline"
+                      >
+                        View uploaded bio file
+                      </a>
+                    )}
                   </div>
 
                   {/* Scoring Criteria */}
@@ -523,9 +589,19 @@ const ScoringPage: React.FC = () => {
 
                       {/* Submit Button with Save Status */}
                       <div className="space-y-2">
+                        {requiresSignOff && (
+                          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={isSignOffChecked}
+                              onChange={(e) => setIsSignOffChecked(e.target.checked)}
+                            />
+                            I certify these scores are final and accurate.
+                          </label>
+                        )}
                         <button
                           onClick={handleSubmitScores}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || (requiresSignOff && !isSignOffChecked)}
                           className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center"
                         >
                           {isSubmitting ? (

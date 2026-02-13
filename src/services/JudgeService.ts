@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient, Prisma, AssignmentStatus } from '@prisma/client';
 import { BaseService } from './BaseService';
+import { resolveBioFromCandidates } from '../utils/bioResolver';
 
 // Prisma payload types for proper type safety
 type UserWithJudge = Prisma.UserGetPayload<{
@@ -60,6 +61,8 @@ type ContestantWithBioUsers = Prisma.ContestantGetPayload<{
         preferredName: true;
         email: true;
         bio: true;
+        contestantBio: true;
+        imagePath: true;
       };
     };
   };
@@ -131,13 +134,6 @@ interface CertificationWorkflow {
   category: CategoryWithContestAndEvent;
   assignment: Assignment;
   certifications: any[];
-}
-
-interface ContestantBioWithCategory extends ContestantWithBioUsers {
-  category: {
-    id: string;
-    name: string;
-  };
 }
 
 interface JudgeHistoryQueryParams {
@@ -535,7 +531,7 @@ export class JudgeService extends BaseService {
   /**
    * Get contestant bios for a category
    */
-  async getContestantBios(categoryId: string, userId: string, tenantId: string): Promise<ContestantWithBioUsers[]> {
+  async getContestantBios(categoryId: string, userId: string, tenantId: string): Promise<any[]> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
@@ -543,11 +539,23 @@ export class JudgeService extends BaseService {
     }
 
     // Check if judge is assigned to this category
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, tenantId },
+      select: { contestId: true }
+    });
+    if (!category) {
+      throw this.notFoundError('Category', categoryId);
+    }
+
     const assignment = await this.prisma.assignment.findFirst({
       where: {
         judgeId,
-        categoryId,
         tenantId,
+        OR: [
+          { categoryId },
+          { contestId: category.contestId, categoryId: null }
+        ],
+        status: { in: [AssignmentStatus.ACTIVE, AssignmentStatus.PENDING, AssignmentStatus.COMPLETED] },
       },
     });
 
@@ -567,6 +575,8 @@ export class JudgeService extends BaseService {
                 preferredName: true,
                 email: true,
                 bio: true,
+                contestantBio: true,
+                imagePath: true,
               },
             },
           },
@@ -574,14 +584,27 @@ export class JudgeService extends BaseService {
       },
     }) as Array<{ contestant: ContestantWithBioUsers }>;
 
-    const contestants = categoryContestants.map((cc) => cc.contestant);
-    return contestants;
+    return categoryContestants.map((cc) => {
+      const contestant = cc.contestant;
+      const firstUser = Array.isArray(contestant.users) ? contestant.users[0] : null;
+      const resolved = resolveBioFromCandidates([
+        contestant.bio,
+        firstUser?.contestantBio,
+        firstUser?.bio,
+      ]);
+      return {
+        ...contestant,
+        bio: resolved.bio,
+        bioFilePath: resolved.bioFilePath,
+        imagePath: contestant.imagePath || firstUser?.imagePath || null,
+      };
+    });
   }
 
   /**
    * Get a single contestant bio
    */
-  async getContestantBio(contestantIdentifier: string, userId: string, tenantId: string): Promise<ContestantBioWithCategory> {
+  async getContestantBio(contestantIdentifier: string, userId: string, tenantId: string): Promise<any> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
@@ -605,6 +628,8 @@ export class JudgeService extends BaseService {
             preferredName: true,
             email: true,
             bio: true,
+            contestantBio: true,
+            imagePath: true,
           },
         },
       },
@@ -620,12 +645,29 @@ export class JudgeService extends BaseService {
         contestantId: contestant.id,
         tenantId,
         category: {
-          assignments: {
-            some: {
-              judgeId,
-              tenantId,
+          OR: [
+            {
+              assignments: {
+                some: {
+                  judgeId,
+                  tenantId,
+                  status: { in: [AssignmentStatus.ACTIVE, AssignmentStatus.PENDING, AssignmentStatus.COMPLETED] }
+                },
+              },
             },
-          },
+            {
+              contest: {
+                assignments: {
+                  some: {
+                    judgeId,
+                    tenantId,
+                    categoryId: null,
+                    status: { in: [AssignmentStatus.ACTIVE, AssignmentStatus.PENDING, AssignmentStatus.COMPLETED] }
+                  },
+                },
+              },
+            },
+          ],
         },
       },
       include: {
@@ -642,8 +684,18 @@ export class JudgeService extends BaseService {
       throw this.forbiddenError('Not assigned to a category containing this contestant');
     }
 
+    const firstUser = Array.isArray(contestant.users) ? contestant.users[0] : null;
+    const resolved = resolveBioFromCandidates([
+      contestant.bio,
+      firstUser?.contestantBio,
+      firstUser?.bio,
+    ]);
+
     return {
       ...contestant,
+      bio: resolved.bio,
+      bioFilePath: resolved.bioFilePath,
+      imagePath: contestant.imagePath || firstUser?.imagePath || null,
       category: categoryContestant.category,
     };
   }
