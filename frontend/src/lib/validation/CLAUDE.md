@@ -7,6 +7,7 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #634 | 12:19 AM | 🟣 | Event Validation Schemas Created with Cross-Field Date Validation | ~353 |
+| #636 | 12:19 AM | 🟣 | Task #13: Score Submission Validation Schema Created | ~240 |
+| #634 | " | 🟣 | Event Validation Schemas Created with Cross-Field Date Validation | ~353 |
 | #633 | " | 🟣 | Task #13: User Validation Schemas Created with Zod | ~393 |
 </claude-mem-context>

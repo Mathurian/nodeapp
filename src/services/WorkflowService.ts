@@ -42,8 +42,12 @@ export class WorkflowService {
 
       const template = await prisma.workflowTemplate.create({
         data: {
-          ...templateData,
-          tenantId: templateData.tenantId || ''
+          tenantId: templateData.tenantId || '',
+          name: templateData.name,
+          description: templateData.description,
+          type: templateData.type || 'custom',
+          isDefault: templateData.isDefault ?? false,
+          isActive: templateData.isActive ?? true,
         }
       });
 

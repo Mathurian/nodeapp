@@ -31,7 +31,7 @@ interface Category {
   }
   _count: {
     scores: number
-    contestants: number
+    categoryContestants: number
   }
 }
 
@@ -91,7 +91,9 @@ const ScoringPage: React.FC = () => {
     ['scoring-categories', user?.id],
     async () => {
       const response = await scoringAPI.getCategories()
-      return response.data
+      // API wraps in { success, data: [...] }
+      const unwrapped = response.data?.data ?? response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
       enabled: isJudge,
@@ -108,8 +110,8 @@ const ScoringPage: React.FC = () => {
       if (!selectedCategory) return []
       // Get contestants from the category API
       const response = await scoringAPI.getCategories()
-      // Backend returns { data: [...] }, ensure it's an array before calling .find()
-      const categories = Array.isArray(response.data) ? response.data : []
+      const outer = response.data?.data ?? response.data
+      const categories = Array.isArray(outer) ? outer : []
       const category = categories.find((cat: any) => cat.id === selectedCategory.id)
       return category?.contestants || []
     },
@@ -363,7 +365,7 @@ const ScoringPage: React.FC = () => {
                       <div className="font-medium text-gray-900 dark:text-white">{category.name}</div>
                       <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{category.contest.name}</div>
                       <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {category._count.scores} scores • {category._count.contestants} contestants
+                        {category._count.scores} scores • {category._count.categoryContestants ?? 0} contestants
                       </div>
                     </button>
                   ))}

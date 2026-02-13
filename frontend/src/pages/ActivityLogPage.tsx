@@ -53,9 +53,11 @@ const ActivityLogPage: React.FC = () => {
     }
   )
 
-  const logs: AuditLog[] = logsData?.data || []
-  const pagination = logsData?.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
-  const statistics = logsData?.statistics
+  // logsData = response.data = {success:true, data:{data:[...], pagination:{}, statistics:{}}}
+  const innerData = logsData?.data
+  const logs: AuditLog[] = Array.isArray(innerData) ? innerData : (innerData?.data || [])
+  const pagination = innerData?.pagination || logsData?.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+  const statistics = innerData?.statistics || logsData?.statistics
 
   // Export audit logs
   const handleExport = async (format: 'csv' | 'json') => {

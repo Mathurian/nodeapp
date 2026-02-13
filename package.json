@@ -46,7 +46,7 @@
     "db:optimize": "npx prisma migrate deploy && node scripts/analyze-queries.js",
     "db:indexes": "psql $DATABASE_URL -f scripts/verify-indexes.sql",
     "db:stats": "psql $DATABASE_URL -c 'SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||''.''||tablename)) AS size FROM pg_tables WHERE schemaname = ''public'' ORDER BY pg_total_relation_size(schemaname||''.''||tablename) DESC;'",
-    "deploy:check": "npm run test && npm run load:smoke && npm run build",
+    "deploy:check": "npm run test && npm run load:smoke && npm run build && cd frontend && npm run build",
     "deploy:prod": "npm run deploy:check && sudo systemctl restart event-manager",
     "health:check": "curl http://localhost:3000/health",
     "health:db": "psql $DATABASE_URL -c 'SELECT 1;'",

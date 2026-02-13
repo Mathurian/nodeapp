@@ -167,7 +167,7 @@ export const scoringAPI = {
   certifyTotals: (categoryId: string) => api.post(`/scoring/category/${categoryId}/certify-totals`),
   finalCertification: (categoryId: string) => api.post(`/scoring/category/${categoryId}/final-certification`),
   getCategories: () => api.get('/scoring/categories'),
-  getCriteria: (categoryId: string) => api.get(`/scoring/category/${categoryId}/criteria`),
+  getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
   requestDeduction: (data: any) => api.post('/scoring/deductions', data),
   getDeductions: (categoryId?: string) => api.get(`/scoring/deductions${categoryId ? `?categoryId=${categoryId}` : ''}`),
   approveDeduction: (deductionId: string, signature: string) => api.post(`/scoring/deductions/${deductionId}/approve`, { signature }),

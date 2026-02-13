@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import { optionalString, dateSchema } from './commonSchemas';
 
-export const createEventSchema = z.object({
+const createEventBaseSchema = z.object({
   name: z.string().min(1, 'Event name is required').max(200, 'Name must be less than 200 characters'),
   description: optionalString,
   startDate: dateSchema,
   endDate: dateSchema,
   location: optionalString,
-}).refine(data => {
+});
+
+export const createEventSchema = createEventBaseSchema.refine(data => {
   if (data.startDate && data.endDate) {
     return new Date(data.endDate) >= new Date(data.startDate);
   }
@@ -17,7 +19,7 @@ export const createEventSchema = z.object({
   path: ['endDate'],
 });
 
-export const updateEventSchema = createEventSchema.partial();
+export const updateEventSchema = createEventBaseSchema.partial();
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;

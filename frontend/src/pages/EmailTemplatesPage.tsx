@@ -49,7 +49,9 @@ const EmailTemplatesPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await emailAPI.getTemplates()
-      setTemplates(response.data)
+      const payload = response.data?.data
+      const templateList = Array.isArray(payload) ? payload : (payload?.templates || payload?.data || [])
+      setTemplates(Array.isArray(templateList) ? templateList : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load templates')
     } finally {

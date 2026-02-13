@@ -208,9 +208,12 @@ export class AssignmentsController {
     }
   };
 
-  getJudges = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getJudges = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const judges = await this.assignmentService.getJudges();
+      const tenantId = req.user?.role === 'SUPER_ADMIN'
+        ? (req.query['tenantId'] as string | undefined)
+        : (req as any).tenantId || req.user?.tenantId;
+      const judges = await this.assignmentService.getJudges(undefined, tenantId);
       return sendSuccess(res, judges, 'Judges retrieved successfully');
     } catch (error) {
       return next(error);
@@ -237,16 +240,22 @@ export class AssignmentsController {
 
   removeAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      // This is an alias for deleteAssignment - delegate to that method
-      return this.deleteAssignment(req, res, next);
+      // Route uses :assignmentId param (not :id), so extract directly
+      const id = req.params['assignmentId'] || req.params['id'];
+      if (!id) throw new Error("Required route parameter 'assignmentId' is missing");
+      await this.assignmentService.deleteAssignment(id);
+      successResponse(res, null, 'Assignment deleted successfully');
     } catch (error) {
       return next(error);
     }
   };
 
-  getContestants = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const contestants = await this.assignmentService.getContestants();
+      const tenantId = req.user?.role === 'SUPER_ADMIN'
+        ? (req.query['tenantId'] as string | undefined)
+        : (req as any).tenantId || req.user?.tenantId;
+      const contestants = await this.assignmentService.getContestants(tenantId);
       return sendSuccess(res, contestants, 'Contestants retrieved successfully');
     } catch (error) {
       return next(error);
@@ -348,7 +357,20 @@ export class AssignmentsController {
         categoryId: req.query['categoryId'] as string | undefined,
         contestId: req.query['contestId'] as string | undefined,
       };
-      const assignments = await this.assignmentService.getAllContestantAssignments(filters);
+      const raw = await this.assignmentService.getAllContestantAssignments(filters);
+      // CategoryContestant has composite PK (no id field) and nested contest/event.
+      // Flatten to a shape consistent with other assignment types.
+      const assignments = raw.map((a) => ({
+        id: `contestant_${a.categoryId}_${a.contestantId}`,
+        contestantId: a.contestantId,
+        contestant: a.contestant,
+        categoryId: a.categoryId,
+        category: a.category,
+        contest: a.category?.contest ?? null,
+        event: a.category?.contest?.event ?? null,
+        assignedAt: (a as any).assignedAt ?? null,
+        createdAt: (a as any).assignedAt ?? null,
+      }));
       return sendSuccess(res, assignments, 'Contestant assignments retrieved successfully');
     } catch (error) {
       return next(error);

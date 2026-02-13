@@ -185,7 +185,18 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       startIdx = 1 // Skip tenant slug
     }
 
-    const crumbs: BreadcrumbItem[] = []
+    // Build dashboard path (tenant-aware)
+    const dashboardPath = startIdx > 0 ? `/${parts[0]}/dashboard` : '/dashboard'
+    const onDashboard = parts.length === startIdx + 1 && parts[startIdx] === 'dashboard'
+
+    // If the URL contains dynamic ID segments (not in ROUTE_LABELS), the page
+    // renders its own context-aware breadcrumb — suppress the Layout's version
+    const hasIdSegment = parts.slice(startIdx).some(seg => !knownRoutes.has(seg))
+    if (hasIdSegment) return []
+
+    // Always prepend a Dashboard crumb unless we're already on the dashboard
+    const crumbs: BreadcrumbItem[] = onDashboard ? [] : [{ label: 'Dashboard', href: dashboardPath }]
+
     for (let i = startIdx; i < parts.length; i++) {
       const segment = parts[i]!
       const label = ROUTE_LABELS[segment] || segment
@@ -575,7 +586,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
           className="flex-1 p-4 lg:p-6 max-w-[1920px] mx-auto min-w-0"
           tabIndex={-1}
         >
-          {breadcrumbs.length > 1 && (
+          {breadcrumbs.length > 0 && (
             <Breadcrumb items={breadcrumbs} showHome={false} />
           )}
           {children}

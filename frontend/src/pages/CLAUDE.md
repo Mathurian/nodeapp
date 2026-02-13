@@ -13,6 +13,8 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #726 | 9:06 AM | 🔴 | SettingsPage: Fixed Incorrect API Route /tenant/current → /tenants/current | ~348 |
+| #721 | 8:31 AM | 🔴 | FileManagementPage: Null Safety Fix for originalName Search Filter | ~322 |
 | #671 | 12:33 AM | 🟣 | Task #13: UsersPage handleSubmit Migrated — Removes Manual Validation, Accepts Typed Data | ~514 |
 | #667 | " | 🔴 | UsersPage: createMutation onSuccess Uses submittedData Instead of Closed-Over formData | ~385 |
 | #650 | 12:25 AM | 🟣 | Task #13: ProfilePage Password Change Form Fully Migrated to react-hook-form | ~469 |

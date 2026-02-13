@@ -46,5 +46,8 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #806 | 4:47 PM | 🔵 | TallyMaster Assignment API: Flexible Scope with eventId/contestId/categoryId Filters | ~350 |
+| #793 | 4:31 PM | 🔵 | AssignmentsController: Class-Based with Singleton Export Pattern | ~471 |
+| #716 | 8:28 AM | 🔵 | Audit Log System Spans 16 Backend Files | ~259 |
 | #600 | 12:08 AM | 🔵 | Auth Uses httpOnly Cookie for JWT, Not Bearer Token in Response Body | ~455 |
 </claude-mem-context>

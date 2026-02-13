@@ -13,5 +13,6 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #605 | 12:10 AM | 🔴 | Auth Middleware: Added Missing success: false to Invalid JWT Payload Response | ~431 |
+| #607 | 12:10 AM | 🔴 | Auth Middleware: Added success: false to TokenExpiredError/JsonWebTokenError Response | ~326 |
+| #605 | " | 🔴 | Auth Middleware: Added Missing success: false to Invalid JWT Payload Response | ~431 |
 </claude-mem-context>

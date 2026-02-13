@@ -41,9 +41,11 @@ const CommentaryPage: React.FC = () => {
   const fetchEvents = async () => {
     try {
       const response = await api.get('/events')
-      setEvents(response.data)
-      if (response.data.length > 0) {
-        setSelectedEventId(response.data[0].id)
+      const eventsArray = Array.isArray(response.data?.data) ? response.data.data :
+                          Array.isArray(response.data) ? response.data : []
+      setEvents(eventsArray)
+      if (eventsArray.length > 0) {
+        setSelectedEventId(eventsArray[0].id)
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load events')
@@ -55,7 +57,9 @@ const CommentaryPage: React.FC = () => {
   const fetchCommentary = async () => {
     try {
       const response = await api.get(`/commentary/${selectedEventId}`)
-      setEntries(response.data)
+      const entriesArray = Array.isArray(response.data?.data) ? response.data.data :
+                           Array.isArray(response.data) ? response.data : []
+      setEntries(entriesArray)
     } catch (err: any) {
       console.error('Failed to load commentary:', err)
     }

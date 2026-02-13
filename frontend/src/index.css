@@ -386,10 +386,10 @@
 
   @keyframes savedFlash {
     0% {
-      @apply bg-green-100 dark:bg-green-900/40;
+      background-color: rgb(220 252 231);
     }
     100% {
-      @apply bg-transparent;
+      background-color: transparent;
     }
   }
 

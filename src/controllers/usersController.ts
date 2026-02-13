@@ -549,13 +549,18 @@ export class UsersController {
         return;
       }
 
-      // Add tenant filtering
-      const tenantId = authReq.tenantId || authReq.user?.tenantId || 'default_tenant';
+      // SUPER_ADMIN can filter by any tenant or see all; others are scoped to their own tenant
+      const requestedTenantId = req.query['tenantId'] as string | undefined;
+      let tenantId: string | undefined;
+      if (authReq.user?.role === 'SUPER_ADMIN') {
+        tenantId = requestedTenantId; // undefined = all tenants; a value = filter to that tenant
+      } else {
+        tenantId = authReq.tenantId || authReq.user?.tenantId;
+      }
+      const where: Prisma.UserWhereInput = { role: role as Prisma.EnumUserRoleFilter };
+      if (tenantId) where.tenantId = tenantId;
       const users = await this.prisma.user.findMany({
-        where: {
-          role: role as Prisma.EnumUserRoleFilter,
-          tenantId: tenantId
-        },
+        where,
         include: {
           judge: true,
           contestant: true

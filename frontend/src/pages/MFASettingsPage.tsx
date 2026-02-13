@@ -37,8 +37,14 @@ const MFASettingsPage: React.FC = () => {
   const fetchMFASettings = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/mfa/settings')
-      setSettings(response.data)
+      const response = await api.get('/mfa/status')
+      const data = response.data?.data || response.data
+      setSettings({
+        enabled: data?.mfaEnabled ?? false,
+        method: 'TOTP',
+        backupCodes: [],
+        lastVerified: data?.lastVerified,
+      })
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load MFA settings')
     } finally {

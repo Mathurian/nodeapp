@@ -755,7 +755,8 @@ export class ScoringController {
           },
           _count: {
             select: {
-              scores: true
+              scores: true,
+              categoryContestants: true
             }
           }
         } as any,

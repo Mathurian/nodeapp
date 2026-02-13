@@ -116,6 +116,10 @@ router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), get
 router.get('/bulk-template', getBulkUploadTemplate)
 router.get('/bulk-template/:userType', getBulkUploadTemplate)
 
+// Role-based user lookup — must be before /:id to prevent route shadowing
+router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
+
 /**
  * @swagger
  * /api/users/{id}:
@@ -227,9 +231,7 @@ router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'B
 router.put('/:id/last-login', updateLastLogin)
 router.post('/bulk-remove', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_REMOVE_USERS', 'USER'), bulkRemoveUsers)
 router.post('/remove-all/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_ALL_USERS_BY_ROLE', 'USER'), removeAllUsersByRole)
-router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
 router.put('/:id/role-fields', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_USER_ROLE_FIELDS', 'USER'), updateUserRoleFields)
-router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
 
 // User image upload route (with activity logging, auth, and file validation)
 // Allow users to upload their own image, or admins/organizers/board to upload for others

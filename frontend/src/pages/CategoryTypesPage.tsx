@@ -51,7 +51,7 @@ const CategoryTypesPage: React.FC = () => {
   const fetchTypes = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/category-type')
+      const response = await api.get('/category-types')
       setTypes(response.data)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load category types')
@@ -62,7 +62,7 @@ const CategoryTypesPage: React.FC = () => {
 
   const createType = async () => {
     try {
-      await api.post('/category-type', formData)
+      await api.post('/category-types', formData)
       setShowModal(false)
       resetForm()
       await fetchTypes()
@@ -74,7 +74,7 @@ const CategoryTypesPage: React.FC = () => {
   const updateType = async () => {
     if (!editingType) return
     try {
-      await api.put(`/category-type/${editingType.id}`, formData)
+      await api.put(`/category-types/${editingType.id}`, formData)
       setEditingType(null)
       resetForm()
       await fetchTypes()
@@ -86,7 +86,7 @@ const CategoryTypesPage: React.FC = () => {
   const deleteType = async (id: string) => {
     if (!confirm('Are you sure you want to delete this category type?')) return
     try {
-      await api.delete(`/category-type/${id}`)
+      await api.delete(`/category-types/${id}`)
       await fetchTypes()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete category type')

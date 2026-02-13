@@ -60,8 +60,9 @@ const DisasterRecoveryPage: React.FC = () => {
   const fetchPlans = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/dr/plans')
-      setPlans(response.data)
+      const response = await api.get('/dr/schedules')
+      const data = response.data?.data || response.data
+      setPlans(Array.isArray(data) ? data : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load DR plans')
     } finally {
@@ -71,8 +72,9 @@ const DisasterRecoveryPage: React.FC = () => {
 
   const fetchTests = async () => {
     try {
-      const response = await api.get('/dr/tests')
-      setTests(response.data)
+      const response = await api.get('/dr/metrics')
+      const data = response.data?.data || response.data
+      setTests(Array.isArray(data) ? data : [])
     } catch (err: any) {
       console.error('Failed to load DR tests:', err)
     }
@@ -80,7 +82,7 @@ const DisasterRecoveryPage: React.FC = () => {
 
   const createPlan = async () => {
     try {
-      await api.post('/dr/plans', newPlan)
+      await api.post('/dr/schedules', newPlan)
       setShowCreateModal(false)
       setNewPlan({
         name: '',
@@ -102,7 +104,7 @@ const DisasterRecoveryPage: React.FC = () => {
     }
     try {
       setTestingPlan(planId)
-      await api.post(`/dr/plans/${planId}/test`)
+      await api.post('/dr/test/execute', { planId })
       await fetchTests()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to test DR plan')
@@ -116,7 +118,7 @@ const DisasterRecoveryPage: React.FC = () => {
       return
     }
     try {
-      await api.post(`/dr/plans/${planId}/failover`)
+      await api.post('/dr/backup/execute', { planId })
       alert('Failover initiated successfully')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to execute failover')

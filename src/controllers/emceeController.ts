@@ -216,6 +216,7 @@ export class EmceeController {
         contestId,
         categoryId,
         order: order ? parseInt(order) : 0,
+        tenantId: req.user?.tenantId,
       });
 
       res.status(201).json(script);

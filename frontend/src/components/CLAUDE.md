@@ -50,4 +50,10 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #552 | 1:05 PM | 🔵 | Accessible Breadcrumb Component Exists in Frontend | ~402 |
+
+### Feb 12, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #738 | 11:47 AM | 🔵 | TenantRouter Uses Suspense with LoadingFallback but No Auth isLoading Guard | ~298 |
 </claude-mem-context>

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { emailSchema, passwordSchema, nameSchema, optionalString } from './commonSchemas';
 
-export const createUserSchema = z.object({
+const createUserBaseSchema = z.object({
   email: emailSchema,
   name: nameSchema,
   password: passwordSchema,
@@ -13,12 +13,14 @@ export const createUserSchema = z.object({
   city: optionalString,
   state: optionalString,
   country: optionalString,
-}).refine(data => data.password === data.confirmPassword, {
+});
+
+export const createUserSchema = createUserBaseSchema.refine(data => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
 });
 
-export const updateUserSchema = createUserSchema
+export const updateUserSchema = createUserBaseSchema
   .omit({ password: true, confirmPassword: true })
   .partial();
 

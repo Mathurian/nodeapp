@@ -728,8 +728,36 @@ export class AssignmentService extends BaseService {
 
   /**
    * Delete assignment
+   * Handles both Assignment records (UUID ids) and synthetic CategoryJudge ids
+   * (format: "categoryJudge_{categoryId}_{judgeId}") that are returned by getAllAssignments.
    */
   async deleteAssignment(id: string): Promise<void> {
+    // CategoryJudge synthetic IDs are built as "categoryJudge_{categoryId}_{judgeId}".
+    // CUIDs have no underscores, so splitting on "_" gives exactly 3 parts.
+    if (id.startsWith('categoryJudge_')) {
+      const rest = id.slice('categoryJudge_'.length);
+      const underscoreIndex = rest.indexOf('_');
+      if (underscoreIndex === -1) {
+        throw this.createBadRequestError('Invalid assignment ID format');
+      }
+      const categoryId = rest.slice(0, underscoreIndex);
+      const judgeId = rest.slice(underscoreIndex + 1);
+
+      const existing = await this.prisma.categoryJudge.findUnique({
+        where: { categoryId_judgeId: { categoryId, judgeId } },
+      });
+      if (!existing) {
+        throw this.createNotFoundError('Assignment not found');
+      }
+
+      await this.prisma.categoryJudge.delete({
+        where: { categoryId_judgeId: { categoryId, judgeId } },
+      });
+
+      await this.invalidateAssignmentCaches(judgeId, categoryId);
+      return;
+    }
+
     const assignment = await this.prisma.assignment.findUnique({
       where: { id },
     });
@@ -867,11 +895,13 @@ export class AssignmentService extends BaseService {
   /**
    * Get all judges (P2-1: Add pagination, P2-4: Proper typing)
    */
-  async getJudges(options?: PaginationOptions): Promise<PaginatedResponse<JudgeWithPagination>> {
+  async getJudges(options?: PaginationOptions, tenantId?: string): Promise<PaginatedResponse<JudgeWithPagination>> {
     const { skip, take } = this.getPaginationParams(options);
+    const where = tenantId ? { tenantId } : {};
 
     const [judges, total] = await Promise.all([
       this.prisma.judge.findMany({
+        where,
         select: {
           id: true,
           name: true,
@@ -885,7 +915,7 @@ export class AssignmentService extends BaseService {
         skip,
         take,
       }),
-      this.prisma.judge.count(),
+      this.prisma.judge.count({ where }),
     ]);
 
     return this.createPaginatedResponse(judges, total, options);
@@ -895,14 +925,16 @@ export class AssignmentService extends BaseService {
    * Get all contestants
    * Returns contestants from Contestant table, joined with User table to get user email if different
    */
-  async getContestants(): Promise<Array<{
+  async getContestants(tenantId?: string): Promise<Array<{
     id: string;
     name: string;
     email: string | null;
     contestantNumber: string | null;
     bio: string | null;
   }>> {
+    const where = tenantId ? { tenantId } : {};
     const contestants = await this.prisma.contestant.findMany({
+      where,
       include: {
         users: {
           select: {

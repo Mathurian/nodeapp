@@ -124,7 +124,7 @@ const EmceePage: React.FC = () => {
   const { data: scripts = [], isLoading: isLoadingScripts } = useQuery<Script[]>(
     'emcee-scripts',
     async () => {
-      const response = await api.get('/api/emcee/scripts')
+      const response = await api.get('/emcee/scripts')
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     }
@@ -136,7 +136,7 @@ const EmceePage: React.FC = () => {
   // Upload script mutation
   const uploadScriptMutation = useMutation(
     async (data: FormData) => {
-      const response = await api.post('/api/emcee/scripts', data, {
+      const response = await api.post('/emcee/scripts', data, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -159,7 +159,7 @@ const EmceePage: React.FC = () => {
   // Update script mutation
   const updateScriptMutation = useMutation(
     async ({ id, data }: { id: string; data: { title: string; description: string } }) => {
-      const response = await api.put(`/api/emcee/scripts/${id}`, data)
+      const response = await api.put(`/emcee/scripts/${id}`, data)
       return response.data
     },
     {
@@ -178,7 +178,7 @@ const EmceePage: React.FC = () => {
   // Delete script mutation
   const deleteScriptMutation = useMutation(
     async (id: string) => {
-      const response = await api.delete(`/api/emcee/scripts/${id}`)
+      const response = await api.delete(`/emcee/scripts/${id}`)
       return response.data
     },
     {
@@ -196,7 +196,7 @@ const EmceePage: React.FC = () => {
   // Toggle script mutation
   const toggleScriptMutation = useMutation(
     async (id: string) => {
-      const response = await api.patch(`/api/emcee/scripts/${id}/toggle`)
+      const response = await api.patch(`/emcee/scripts/${id}/toggle`)
       return response.data
     },
     {
@@ -282,8 +282,8 @@ const EmceePage: React.FC = () => {
 
   const handleViewScript = async (scriptId: string) => {
     try {
-      const response = await api.get(`/api/emcee/scripts/${scriptId}/view-url`)
-      const viewUrl = response.data?.data?.url || response.data?.url
+      const response = await api.get(`/emcee/scripts/${scriptId}/view-url`)
+      const viewUrl = response.data?.data?.viewUrl || response.data?.viewUrl || response.data?.data?.url || response.data?.url
       if (viewUrl) {
         window.open(viewUrl, '_blank')
       } else {

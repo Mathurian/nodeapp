@@ -18,6 +18,10 @@ export interface User {
   updatedAt: string
   judgeId: string | null
   contestantId: string | null
+  contestant?: {
+    id: string
+    contestantNumber: number | null
+  } | null
   tenant?: {
     id: string
     name: string
@@ -37,6 +41,7 @@ export interface UserFormData {
   bio: string
   imagePath: string
   isActive: boolean
+  contestantNumber?: string
   customFields?: Record<string, unknown>
 }
 

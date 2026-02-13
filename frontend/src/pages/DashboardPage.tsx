@@ -55,6 +55,12 @@ interface RecentActivity {
 const DashboardPage: React.FC = () => {
   const { user } = useAuth()
 
+  // Admin endpoints only allow SUPER_ADMIN, ADMIN, ORGANIZER, BOARD
+  const canViewAdminData = !!user && (
+    user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ||
+    user.role === 'ORGANIZER' || user.role === 'BOARD'
+  )
+
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>(
     'dashboard-stats',
     async () => {
@@ -64,6 +70,7 @@ const DashboardPage: React.FC = () => {
       return response.data.data || response.data
     },
     {
+      enabled: canViewAdminData,
       refetchInterval: 30000, // Refresh every 30 seconds
       retry: 1,
       onError: (err) => console.error('Dashboard stats fetch failed:', err),
@@ -80,6 +87,7 @@ const DashboardPage: React.FC = () => {
       return unwrapped.data || unwrapped || []
     },
     {
+      enabled: canViewAdminData,
       refetchInterval: 30000,
       retry: 1,
       onError: (err) => console.error('Recent activity fetch failed:', err),
@@ -231,8 +239,8 @@ const DashboardPage: React.FC = () => {
     return colors[color as keyof typeof colors] || colors.blue
   }
 
-  // Handle errors
-  if (statsError || activityError) {
+  // Handle errors — only show error state for roles that should have access
+  if (canViewAdminData && (statsError || activityError)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

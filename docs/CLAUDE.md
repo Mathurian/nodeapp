@@ -7,5 +7,5 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #762 | 3:40 PM | 🔵 | Assignments Routes: Full API Surface with Legacy Compatibility Endpoints | ~409 |
+| #684 | 1:07 AM | 🔵 | docs/README.md — Comprehensive 15-File Documentation Index Exists | ~508 |
 </claude-mem-context>

@@ -430,6 +430,9 @@ const UsersPage: React.FC = () => {
       bio: user.bio || '',
       imagePath: '',
       isActive: user.isActive,
+      contestantNumber: user.contestant?.contestantNumber != null
+        ? String(user.contestant.contestantNumber)
+        : '',
       customFields: userCustomFields,
     })
     setIsFormOpen(true)

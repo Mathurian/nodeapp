@@ -88,7 +88,8 @@ const FileManagementPage: React.FC = () => {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
   }
 
-  const getFileIcon = (mimetype: string) => {
+  const getFileIcon = (mimetype: string | undefined | null) => {
+    if (!mimetype) return '📄'
     if (mimetype.startsWith('image/')) return '🖼️'
     if (mimetype.startsWith('video/')) return '🎥'
     if (mimetype.startsWith('audio/')) return '🎵'
@@ -99,7 +100,7 @@ const FileManagementPage: React.FC = () => {
   }
 
   const filteredFiles = files.filter(file => {
-    const matchesSearch = file.originalName.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = (file.originalName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = typeFilter === 'ALL' || file.type === typeFilter
     return matchesSearch && matchesType
   })

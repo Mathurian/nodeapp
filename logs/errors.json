@@ -814,5 +814,21 @@
       "message": "Password does not meet complexity requirements: Password must contain at least one uppercase letter, Password must contain at least one special character (!@#$%^&*()_+-=[]{};':\"|,.<>/?)",
       "code": "VALIDATION_ERROR"
     }
+  },
+  {
+    "id": "err_1770937092469_ezd59y3bo",
+    "timestamp": "2026-02-12T22:58:12.469Z",
+    "severity": "low",
+    "message": "User with identifier 'csv-template' not found",
+    "stack": "NotFoundError: User with identifier 'csv-template' not found\n    at UserService.assertExists (/var/www/event-manager/dist/services/BaseService.js:59:19)\n    at UserService.getUserByIdWithRelations (/var/www/event-manager/dist/services/UserService.js:595:18)\n    at async getUserById (/var/www/event-manager/dist/controllers/usersController.js:88:26)",
+    "context": {
+      "method": "getUserByIdWithRelations",
+      "userId": "csv-template"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "User with identifier 'csv-template' not found",
+      "code": "RESOURCE_NOT_FOUND"
+    }
   }
 ]

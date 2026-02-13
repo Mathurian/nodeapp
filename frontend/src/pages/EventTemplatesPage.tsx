@@ -47,7 +47,7 @@ const EventTemplatesPage: React.FC = () => {
   const fetchTemplates = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/event-template')
+      const response = await api.get('/event-templates')
       setTemplates(response.data)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load templates')
@@ -59,7 +59,7 @@ const EventTemplatesPage: React.FC = () => {
   const createEventFromTemplate = async (templateId: string) => {
     if (!confirm('Create a new event from this template?')) return
     try {
-      const response = await api.post(`/event-template/${templateId}/create-event`)
+      const response = await api.post(`/event-templates/${templateId}/create-event`)
       alert(`Event created successfully! ID: ${response.data.eventId}`)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create event from template')
@@ -69,7 +69,7 @@ const EventTemplatesPage: React.FC = () => {
   const deleteTemplate = async (id: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return
     try {
-      await api.delete(`/event-template/${id}`)
+      await api.delete(`/event-templates/${id}`)
       await fetchTemplates()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete template')

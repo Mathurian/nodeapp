@@ -300,7 +300,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
  * SECURITY FIX: Prevents cross-resource access by organizers
  */
 const checkOrganizerPermission = async (
-  userId: string,
+  _userId: string,
   tenantId: string,
   eventId?: string,
   contestId?: string,
@@ -312,19 +312,31 @@ const checkOrganizerPermission = async (
       return true;
     }
 
-    // Check if organizer has created any assignments for this resource
-    // This indicates they have been involved in managing this event/contest
-    const assignmentExists = await prisma.assignment.findFirst({
-      where: {
-        assignedBy: userId,
-        tenantId: tenantId,
-        ...(eventId && { eventId }),
-        ...(contestId && { contestId }),
-        ...(categoryId && { categoryId })
-      }
-    });
+    // Check that the most specific resource provided belongs to this tenant.
+    // Organizers can manage any resource within their tenant; tenant isolation
+    // is already enforced by authenticateToken.
+    if (categoryId) {
+      const category = await prisma.category.findFirst({
+        where: { id: categoryId, tenantId }
+      });
+      return !!category;
+    }
 
-    return !!assignmentExists;
+    if (contestId) {
+      const contest = await prisma.contest.findFirst({
+        where: { id: contestId, tenantId }
+      });
+      return !!contest;
+    }
+
+    if (eventId) {
+      const event = await prisma.event.findFirst({
+        where: { id: eventId, tenantId }
+      });
+      return !!event;
+    }
+
+    return false;
   } catch (error) {
     logger.error('checkOrganizerPermission error', { error });
     return false; // Fail closed on errors

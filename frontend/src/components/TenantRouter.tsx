@@ -192,7 +192,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/field-visibility" element={<FieldVisibilityPage />} />
             <Route path="/test-event-setup" element={<TestEventSetupPage />} />
             <Route path="/bios" element={<BiosPage />} />
-            <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'EMCEE']}><AssignmentsPage /></ProtectedRoute>} />
+            <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/rate-limit-configs" element={<RateLimitConfigPage />} />
             <Route path="/test-runner" element={<TestRunnerPage />} />
             <Route path="/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
@@ -249,7 +249,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/field-visibility" element={<FieldVisibilityPage />} />
             <Route path="/:slug/test-event-setup" element={<TestEventSetupPage />} />
             <Route path="/:slug/bios" element={<BiosPage />} />
-            <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'EMCEE']}><AssignmentsPage /></ProtectedRoute>} />
+            <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/:slug/rate-limit-configs" element={<RateLimitConfigPage />} />
             <Route path="/:slug/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
             <Route path="/:slug/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />

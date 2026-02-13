@@ -374,7 +374,7 @@ const SettingsPage: React.FC = () => {
   const { data: tenantScoringType, isLoading: scoringTypeLoading } = useQuery<any>(
     ['tenant-scoring-type', selectedTenantId],
     async () => {
-      const response = await api.get('/tenant/current')
+      const response = await api.get('/tenants/current')
       return response.data
     },
     {
@@ -499,7 +499,7 @@ const SettingsPage: React.FC = () => {
 
   const updateScoringTypeMutation = useMutation(
     async (newScoringType: 'STRAIGHT' | 'OLYMPIC') => {
-      const response = await api.put('/tenant/current', { scoringType: newScoringType })
+      const response = await api.put('/tenants/current', { scoringType: newScoringType })
       return response.data
     },
     {

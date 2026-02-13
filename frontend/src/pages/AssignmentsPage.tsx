@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
-import { api } from '../services/api'
+import { api, tenantsAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
 import {
@@ -11,6 +11,7 @@ import {
   TrashIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline'
 import { ResponsiveTable } from '../components/ui'
 
@@ -23,26 +24,13 @@ interface Judge {
 interface Category {
   id: string
   name: string
-  contestId: string
-  contest: {
-    id: string
-    name: string
-    eventId: string
-    event: {
-      id: string
-      name: string
-    }
-  }
+  contestId?: string
 }
 
 interface Contest {
   id: string
   name: string
-  eventId: string
-  event: {
-    id: string
-    name: string
-  }
+  eventId?: string
 }
 
 interface Event {
@@ -63,12 +51,20 @@ interface User {
   role: string
 }
 
+interface Tenant {
+  id: string
+  name: string
+}
+
 interface JudgeAssignment {
   id: string
-  judgeId: string
-  categoryId: string
+  judgeId?: string
+  categoryId?: string
+  contestId?: string
   judge: Judge
-  category: Category
+  category?: Category
+  contest?: { id: string; name: string }
+  event?: { id: string; name: string }
   createdAt: string
   _optimistic?: boolean
   _deleting?: boolean
@@ -76,10 +72,12 @@ interface JudgeAssignment {
 
 interface ContestantAssignment {
   id: string
-  contestantId: string
-  categoryId: string
+  contestantId?: string
+  categoryId?: string
   contestant: Contestant
-  category: Category
+  category?: Category
+  contest?: { id: string; name: string }
+  event?: { id: string; name: string }
   createdAt: string
   _optimistic?: boolean
   _deleting?: boolean
@@ -87,7 +85,7 @@ interface ContestantAssignment {
 
 interface TallyMasterAssignment {
   id: string
-  userId: string
+  userId?: string
   eventId?: string
   contestId?: string
   categoryId?: string
@@ -96,11 +94,13 @@ interface TallyMasterAssignment {
   contest?: Contest
   category?: Category
   createdAt: string
+  _optimistic?: boolean
+  _deleting?: boolean
 }
 
 interface AuditorAssignment {
   id: string
-  userId: string
+  userId?: string
   eventId?: string
   contestId?: string
   categoryId?: string
@@ -109,10 +109,12 @@ interface AuditorAssignment {
   contest?: Contest
   category?: Category
   createdAt: string
+  _optimistic?: boolean
+  _deleting?: boolean
 }
 
 interface AssignmentFormData {
-  personId: string
+  personIds: string[]
   assignmentLevel: 'event' | 'contest' | 'category'
   eventId: string
   contestId: string
@@ -121,378 +123,654 @@ interface AssignmentFormData {
 
 type TabType = 'judges' | 'contestants' | 'tally-masters' | 'auditors'
 
+const getAssignmentLevel = (a: { eventId?: string; contestId?: string; categoryId?: string }): string => {
+  if (a.categoryId) return 'Category'
+  if (a.contestId) return 'Contest'
+  if (a.eventId) return 'Event'
+  return 'Category'
+}
+
 const AssignmentsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
 
   const [activeTab, setActiveTab] = useState<TabType>('judges')
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  const [editingAssignment, setEditingAssignment] = useState<JudgeAssignment | ContestantAssignment | TallyMasterAssignment | AuditorAssignment | null>(null)
+  const [editEventId, setEditEventId] = useState('')
+  const [editContestId, setEditContestId] = useState('')
+  const [editCategoryId, setEditCategoryId] = useState('')
+
   const [formData, setFormData] = useState<AssignmentFormData>({
-    personId: '',
-    assignmentLevel: 'category',
+    personIds: [],
+    assignmentLevel: 'contest',
     eventId: '',
     contestId: '',
     categoryId: '',
   })
 
-  // Check permissions
   const canManageAssignments = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
 
-  // Fetch judge assignments
+  // ─── Queries ───────────────────────────────────────────────────────────────
+
+  const { data: tenants = [] } = useQuery<Tenant[]>(
+    'tenants-list',
+    async () => {
+      const response = await tenantsAPI.getAll()
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    { enabled: isSuperAdmin }
+  )
+
   const { data: judgeAssignments = [], isLoading: isLoadingJudges } = useQuery<JudgeAssignment[]>(
     'judge-assignments',
     async () => {
-      const response = await api.get('/api/assignments', {
-        params: { type: 'judge' },
-      })
+      const response = await api.get('/assignments', { params: { type: 'judge' } })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     }
   )
 
-  // Fetch contestant assignments
   const { data: contestantAssignments = [], isLoading: isLoadingContestants } = useQuery<ContestantAssignment[]>(
     'contestant-assignments',
     async () => {
-      const response = await api.get('/api/assignments/contestants/assignments')
+      const response = await api.get('/assignments/contestants/assignments')
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     }
   )
 
-  // Fetch tally master assignments (placeholder - implement backend endpoint)
   const { data: tallyMasterAssignments = [], isLoading: isLoadingTallyMasters } = useQuery<TallyMasterAssignment[]>(
     'tally-master-assignments',
     async () => {
-      // TODO: Implement backend endpoint
-      return []
+      const response = await api.get('/assignments/tally-masters')
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: activeTab === 'tally-masters' }
   )
 
-  // Fetch auditor assignments (placeholder - implement backend endpoint)
   const { data: auditorAssignments = [], isLoading: isLoadingAuditors } = useQuery<AuditorAssignment[]>(
     'auditor-assignments',
     async () => {
-      // TODO: Implement backend endpoint
-      return []
+      const response = await api.get('/assignments/auditors')
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: activeTab === 'auditors' }
   )
 
-  // Fetch judges for dropdown
   const { data: judges = [] } = useQuery<Judge[]>(
-    'judges-list',
+    ['judges-list', selectedTenantId],
     async () => {
-      const response = await api.get('/api/assignments/judges')
-      const unwrapped = response.data?.data || response.data
+      const params = selectedTenantId ? { tenantId: selectedTenantId } : {}
+      const response = await api.get('/assignments/judges', { params })
+      // /assignments/judges returns a paginated response: { data: [...], pagination: {...} }
+      // wrapped in sendSuccess: { success: true, data: { data: [...], pagination: {...} } }
+      const outer = response.data?.data
+      const unwrapped = Array.isArray(outer) ? outer : (outer?.data ?? [])
       return Array.isArray(unwrapped) ? unwrapped : []
     }
   )
 
-  // Fetch contestants for dropdown
   const { data: contestants = [] } = useQuery<Contestant[]>(
-    'contestants-list',
+    ['contestants-list', selectedTenantId],
     async () => {
-      const response = await api.get('/api/assignments/contestants')
+      const params = selectedTenantId ? { tenantId: selectedTenantId } : {}
+      const response = await api.get('/assignments/contestants', { params })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     }
   )
 
-  // Fetch tally masters for dropdown
   const { data: tallyMasters = [] } = useQuery<User[]>(
-    'tally-masters-list',
+    ['tally-masters-list', selectedTenantId],
     async () => {
-      const response = await api.get('/api/users/role/TALLY_MASTER')
+      const params = selectedTenantId ? { tenantId: selectedTenantId } : {}
+      const response = await api.get('/users/role/TALLY_MASTER', { params })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: activeTab === 'tally-masters' }
   )
 
-  // Fetch auditors for dropdown
   const { data: auditors = [] } = useQuery<User[]>(
-    'auditors-list',
+    ['auditors-list', selectedTenantId],
     async () => {
-      const response = await api.get('/api/users/role/AUDITOR')
+      const params = selectedTenantId ? { tenantId: selectedTenantId } : {}
+      const response = await api.get('/users/role/AUDITOR', { params })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: activeTab === 'auditors' }
   )
 
-  // Fetch events for dropdown
   const { data: events = [], isLoading: isLoadingEvents } = useQuery<Event[]>(
     'events-list',
     async () => {
-      const response = await api.get('/api/events')
+      const response = await api.get('/events')
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
-    },
-    {
-      onError: (error) => {
-        console.error('Failed to load events:', error)
-        toast.error('Failed to load events')
-      }
     }
   )
 
-  // Fetch contests for dropdown (filtered by selected event)
   const { data: contests = [] } = useQuery<Contest[]>(
     ['contests-list', formData.eventId],
     async () => {
       if (!formData.eventId) return []
-      const response = await api.get(`/api/events/${formData.eventId}/contests`)
+      const response = await api.get(`/contests/event/${formData.eventId}`)
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: !!formData.eventId && (formData.assignmentLevel === 'contest' || formData.assignmentLevel === 'category') }
   )
 
-  // Fetch categories for dropdown (filtered by selected contest)
   const { data: categories = [] } = useQuery<Category[]>(
     ['categories-list', formData.contestId],
     async () => {
       if (!formData.contestId) return []
-      const response = await api.get(`/api/contests/${formData.contestId}/categories`)
+      const response = await api.get(`/categories/contest/${formData.contestId}`)
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: !!formData.contestId && formData.assignmentLevel === 'category' }
   )
 
-  // Assign judge mutation
+  const { data: editContests = [] } = useQuery<Contest[]>(
+    ['edit-contests-list', editEventId],
+    async () => {
+      if (!editEventId) return []
+      const response = await api.get(`/contests/event/${editEventId}`)
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    { enabled: !!editEventId && !!editingAssignment }
+  )
+
+  const { data: editCategories = [] } = useQuery<Category[]>(
+    ['edit-categories-list', editContestId],
+    async () => {
+      if (!editContestId) return []
+      const response = await api.get(`/categories/contest/${editContestId}`)
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    { enabled: !!editContestId && !!editingAssignment }
+  )
+
+  // ─── Mutations ─────────────────────────────────────────────────────────────
+
+  // Judge assignment — supports category-level and contest-level
   const assignJudgeMutation = useMutation(
-    async (data: { judgeId: string; categoryId: string }) => {
-      const response = await api.post('/api/assignments/judge', data)
-      return response.data
+    async (data: { judgeIds: string[]; categoryId?: string; contestId?: string }) => {
+      await Promise.all(
+        data.judgeIds.map(judgeId => {
+          const body: Record<string, string> = { judgeId }
+          if (data.categoryId) body.categoryId = data.categoryId
+          if (data.contestId) body.contestId = data.contestId
+          return api.post('/assignments/judge', body)
+        })
+      )
     },
     {
       onSuccess: () => {
         queryClient.invalidateQueries('judge-assignments')
         resetForm()
-        toast.success('Judge assigned successfully!')
+        toast.success('Judge(s) assigned successfully!')
       },
       onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to assign judge'
-        toast.error(`Error: ${errorMessage}`)
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to assign judge'}`)
       },
     }
   )
 
-  // Assign contestant mutation
+  // Contestant assignment — category-level only
   const assignContestantMutation = useMutation(
-    async (data: { contestantId: string; categoryId: string }) => {
-      const response = await api.post('/api/assignments/contestants', data)
-      return response.data
+    async (data: { contestantIds: string[]; categoryId: string }) => {
+      await Promise.all(
+        data.contestantIds.map(contestantId =>
+          api.post('/assignments/contestants', { contestantId, categoryId: data.categoryId })
+        )
+      )
     },
     {
       onSuccess: () => {
         queryClient.invalidateQueries('contestant-assignments')
         resetForm()
-        toast.success('Contestant assigned successfully!')
+        toast.success('Contestant(s) assigned successfully!')
       },
       onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to assign contestant'
-        toast.error(`Error: ${errorMessage}`)
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to assign contestant'}`)
       },
     }
   )
 
-  // Remove judge assignment mutation with optimistic updates
+  // Tally master assignment — supports event/contest/category levels
+  const assignTallyMasterMutation = useMutation(
+    async (data: { userIds: string[]; eventId?: string; contestId?: string; categoryId?: string }) => {
+      await Promise.all(
+        data.userIds.map(userId => {
+          const body: Record<string, string> = { userId }
+          if (data.eventId) body.eventId = data.eventId
+          if (data.contestId) body.contestId = data.contestId
+          if (data.categoryId) body.categoryId = data.categoryId
+          return api.post('/assignments/tally-masters', body)
+        })
+      )
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('tally-master-assignments')
+        resetForm()
+        toast.success('Tally Master(s) assigned successfully!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to assign tally master'}`)
+      },
+    }
+  )
+
+  // Auditor assignment — supports event/contest/category levels
+  const assignAuditorMutation = useMutation(
+    async (data: { userIds: string[]; eventId?: string; contestId?: string; categoryId?: string }) => {
+      await Promise.all(
+        data.userIds.map(userId => {
+          const body: Record<string, string> = { userId }
+          if (data.eventId) body.eventId = data.eventId
+          if (data.contestId) body.contestId = data.contestId
+          if (data.categoryId) body.categoryId = data.categoryId
+          return api.post('/assignments/auditors', body)
+        })
+      )
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('auditor-assignments')
+        resetForm()
+        toast.success('Auditor(s) assigned successfully!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to assign auditor'}`)
+      },
+    }
+  )
+
+  // Remove judge (single, optimistic)
   const removeJudgeAssignmentMutation = useOptimisticMutation<unknown, string>({
     mutationFn: async (assignmentId: string) => {
-      const response = await api.put(`/api/assignments/remove/${assignmentId}`)
+      const response = await api.put(`/assignments/remove/${assignmentId}`)
       return response.data
     },
     queryKey: ['judge-assignments'],
     updateFn: (oldData, assignmentId) => {
       const assignments = oldData as JudgeAssignment[] | undefined
       if (!assignments) return []
-      return assignments.map((a) =>
-        a.id === assignmentId ? { ...a, _optimistic: true, _deleting: true } : a
-      )
+      return assignments.map(a => a.id === assignmentId ? { ...a, _optimistic: true, _deleting: true } : a)
     },
-    onSuccess: () => {
-      toast.success('Judge assignment removed!')
-    },
+    onSuccess: () => toast.success('Judge assignment removed!'),
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove assignment'
-      toast.error(`Error: ${errorMessage}`)
+      toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
     },
     invalidateOnSettled: true,
   })
 
-  // Remove contestant assignment mutation with optimistic updates
+  // Remove contestant (single, optimistic) — use nested IDs as fallback
   const removeContestantAssignmentMutation = useOptimisticMutation<
     unknown,
-    { categoryId: string; contestantId: string; assignmentId: string }
+    { assignment: ContestantAssignment }
   >({
-    mutationFn: async ({ categoryId, contestantId }) => {
-      const response = await api.delete(`/api/assignments/category/${categoryId}/contestant/${contestantId}`)
+    mutationFn: async ({ assignment }) => {
+      const categoryId = assignment.categoryId || assignment.category?.id
+      const contestantId = assignment.contestantId || assignment.contestant?.id
+      const response = await api.delete(`/assignments/category/${categoryId}/contestant/${contestantId}`)
       return response.data
     },
     queryKey: ['contestant-assignments'],
-    updateFn: (oldData, { assignmentId }) => {
+    updateFn: (oldData, { assignment }) => {
       const assignments = oldData as ContestantAssignment[] | undefined
       if (!assignments) return []
-      return assignments.map((a) =>
-        a.id === assignmentId ? { ...a, _optimistic: true, _deleting: true } : a
-      )
+      return assignments.map(a => a.id === assignment.id ? { ...a, _optimistic: true, _deleting: true } : a)
     },
-    onSuccess: () => {
-      toast.success('Contestant assignment removed!')
-    },
+    onSuccess: () => toast.success('Contestant assignment removed!'),
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove assignment'
-      toast.error(`Error: ${errorMessage}`)
+      toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
     },
     invalidateOnSettled: true,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Remove tally master (single)
+  const removeTallyMasterMutation = useMutation(
+    async (id: string) => {
+      await api.delete(`/assignments/tally-masters/${id}`)
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('tally-master-assignments')
+        toast.success('Tally master assignment removed!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
+      },
+    }
+  )
+
+  // Remove auditor (single)
+  const removeAuditorMutation = useMutation(
+    async (id: string) => {
+      await api.delete(`/assignments/auditors/${id}`)
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('auditor-assignments')
+        toast.success('Auditor assignment removed!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
+      },
+    }
+  )
+
+  // Bulk remove
+  const bulkRemoveMutation = useMutation(
+    async () => {
+      if (activeTab === 'judges') {
+        await Promise.all([...selectedIds].map(id => api.put(`/assignments/remove/${id}`)))
+      } else if (activeTab === 'contestants') {
+        const selected = contestantAssignments.filter(a => selectedIds.has(a.id))
+        await Promise.all(
+          selected.map(a => {
+            const categoryId = a.categoryId || a.category?.id
+            const contestantId = a.contestantId || a.contestant?.id
+            return api.delete(`/assignments/category/${categoryId}/contestant/${contestantId}`)
+          })
+        )
+      } else if (activeTab === 'tally-masters') {
+        await Promise.all([...selectedIds].map(id => api.delete(`/assignments/tally-masters/${id}`)))
+      } else if (activeTab === 'auditors') {
+        await Promise.all([...selectedIds].map(id => api.delete(`/assignments/auditors/${id}`)))
+      }
+    },
+    {
+      onSuccess: () => {
+        const count = selectedIds.size
+        queryClient.invalidateQueries(`${activeTab.replace('-', '-')}assignments`)
+        if (activeTab === 'judges') queryClient.invalidateQueries('judge-assignments')
+        else if (activeTab === 'contestants') queryClient.invalidateQueries('contestant-assignments')
+        else if (activeTab === 'tally-masters') queryClient.invalidateQueries('tally-master-assignments')
+        else if (activeTab === 'auditors') queryClient.invalidateQueries('auditor-assignments')
+        setSelectedIds(new Set())
+        toast.success(`Removed ${count} assignment(s)`)
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignments'}`)
+      },
+    }
+  )
+
+  // Edit save — remove old + create new
+  const editSaveMutation = useMutation(
+    async () => {
+      if (!editingAssignment) return
+      if (activeTab === 'judges') {
+        const a = editingAssignment as JudgeAssignment
+        await api.put(`/assignments/remove/${a.id}`)
+        const body: Record<string, string> = { judgeId: a.judgeId || a.judge.id }
+        if (editCategoryId) body.categoryId = editCategoryId
+        else if (editContestId) body.contestId = editContestId
+        await api.post('/assignments/judge', body)
+      } else if (activeTab === 'contestants') {
+        const a = editingAssignment as ContestantAssignment
+        const oldCategoryId = a.categoryId || a.category?.id
+        const contestantId = a.contestantId || a.contestant?.id
+        await api.delete(`/assignments/category/${oldCategoryId}/contestant/${contestantId}`)
+        await api.post('/assignments/contestants', { contestantId, categoryId: editCategoryId })
+      } else if (activeTab === 'tally-masters') {
+        const a = editingAssignment as TallyMasterAssignment
+        await api.delete(`/assignments/tally-masters/${a.id}`)
+        const body: Record<string, string> = { userId: a.userId || a.user.id }
+        if (editEventId) body.eventId = editEventId
+        if (editContestId) body.contestId = editContestId
+        if (editCategoryId) body.categoryId = editCategoryId
+        await api.post('/assignments/tally-masters', body)
+      } else if (activeTab === 'auditors') {
+        const a = editingAssignment as AuditorAssignment
+        await api.delete(`/assignments/auditors/${a.id}`)
+        const body: Record<string, string> = { userId: a.userId || a.user.id }
+        if (editEventId) body.eventId = editEventId
+        if (editContestId) body.contestId = editContestId
+        if (editCategoryId) body.categoryId = editCategoryId
+        await api.post('/assignments/auditors', body)
+      }
+    },
+    {
+      onSuccess: () => {
+        if (activeTab === 'judges') queryClient.invalidateQueries('judge-assignments')
+        else if (activeTab === 'contestants') queryClient.invalidateQueries('contestant-assignments')
+        else if (activeTab === 'tally-masters') queryClient.invalidateQueries('tally-master-assignments')
+        else if (activeTab === 'auditors') queryClient.invalidateQueries('auditor-assignments')
+        closeEditModal()
+        toast.success('Assignment updated!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to update assignment'}`)
+      },
+    }
+  )
+
+  // ─── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const { personIds, assignmentLevel, eventId, contestId, categoryId } = formData
+
+    if (personIds.length === 0) {
+      toast.error(`Please select at least one ${getTabLabel(activeTab).toLowerCase()}`)
+      return
+    }
 
     if (activeTab === 'judges') {
-      if (!formData.personId || !formData.categoryId) {
-        toast.error('Please select both a judge and a category')
-        return
-      }
+      if (assignmentLevel === 'category' && !categoryId) { toast.error('Please select a category'); return }
+      if (assignmentLevel === 'contest' && !contestId) { toast.error('Please select a contest'); return }
       assignJudgeMutation.mutate({
-        judgeId: formData.personId,
-        categoryId: formData.categoryId,
+        judgeIds: personIds,
+        categoryId: assignmentLevel === 'category' ? categoryId : undefined,
+        contestId: assignmentLevel === 'contest' ? contestId : undefined,
       })
     } else if (activeTab === 'contestants') {
-      if (!formData.personId || !formData.categoryId) {
-        toast.error('Please select both a contestant and a category')
-        return
+      if (assignmentLevel === 'contest') {
+        if (!contestId) { toast.error('Please select a contest'); return }
+        try {
+          const catRes = await api.get(`/categories/contest/${contestId}`)
+          const cats: any[] = catRes.data?.data || catRes.data || []
+          if (cats.length === 0) { toast.error('No categories found in this contest'); return }
+          await Promise.all(
+            personIds.flatMap(contestantId =>
+              cats.map((cat: any) => api.post('/assignments/contestants', { contestantId, categoryId: cat.id }))
+            )
+          )
+          queryClient.invalidateQueries('contestant-assignments')
+          resetForm()
+          toast.success(`Contestant(s) assigned to all ${cats.length} categories!`)
+        } catch (error: any) {
+          toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to assign'}`)
+        }
+      } else {
+        if (!categoryId) { toast.error('Please select a category'); return }
+        assignContestantMutation.mutate({ contestantIds: personIds, categoryId })
       }
-      assignContestantMutation.mutate({
-        contestantId: formData.personId,
-        categoryId: formData.categoryId,
-      })
     } else if (activeTab === 'tally-masters') {
-      toast('Tally Master assignment feature coming soon')
-      // TODO: Implement tally master assignment
+      if (!eventId) { toast.error('Please select an event'); return }
+      assignTallyMasterMutation.mutate({
+        userIds: personIds,
+        eventId,
+        contestId: (assignmentLevel === 'contest' || assignmentLevel === 'category') ? contestId : undefined,
+        categoryId: assignmentLevel === 'category' ? categoryId : undefined,
+      })
     } else if (activeTab === 'auditors') {
-      toast('Auditor assignment feature coming soon')
-      // TODO: Implement auditor assignment
-    }
-  }
-
-  const handleRemoveJudgeAssignment = (assignmentId: string) => {
-    if (confirm('Are you sure you want to remove this assignment?')) {
-      removeJudgeAssignmentMutation.mutate(assignmentId)
-    }
-  }
-
-  const handleRemoveContestantAssignment = (assignment: ContestantAssignment) => {
-    if (confirm('Are you sure you want to remove this assignment?')) {
-      removeContestantAssignmentMutation.mutate({
-        categoryId: assignment.categoryId,
-        contestantId: assignment.contestantId,
-        assignmentId: assignment.id,
+      if (!eventId) { toast.error('Please select an event'); return }
+      assignAuditorMutation.mutate({
+        userIds: personIds,
+        eventId,
+        contestId: (assignmentLevel === 'contest' || assignmentLevel === 'category') ? contestId : undefined,
+        categoryId: assignmentLevel === 'category' ? categoryId : undefined,
       })
     }
+  }
+
+  const handleRemoveSingle = (assignment: any) => {
+    if (!confirm('Are you sure you want to remove this assignment?')) return
+    if (activeTab === 'judges') removeJudgeAssignmentMutation.mutate(assignment.id)
+    else if (activeTab === 'contestants') removeContestantAssignmentMutation.mutate({ assignment })
+    else if (activeTab === 'tally-masters') removeTallyMasterMutation.mutate(assignment.id)
+    else if (activeTab === 'auditors') removeAuditorMutation.mutate(assignment.id)
+  }
+
+  const handleBulkRemove = () => {
+    if (selectedIds.size === 0) return
+    if (confirm(`Are you sure you want to remove ${selectedIds.size} assignment(s)?`)) {
+      bulkRemoveMutation.mutate()
+    }
+  }
+
+  const handleSelectRow = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleSelectAll = (assignments: Array<{ id: string }>) => {
+    const visibleIds = assignments.map(a => a.id)
+    const allSelected = visibleIds.every(id => selectedIds.has(id))
+    setSelectedIds(allSelected ? new Set() : new Set(visibleIds))
+  }
+
+  const handleEditAssignment = (assignment: any) => {
+    setEditingAssignment(assignment)
+    setEditEventId(assignment.event?.id || assignment.eventId || '')
+    setEditContestId(assignment.contest?.id || assignment.contestId || '')
+    setEditCategoryId(assignment.category?.id || assignment.categoryId || '')
+  }
+
+  const closeEditModal = () => {
+    setEditingAssignment(null)
+    setEditEventId('')
+    setEditContestId('')
+    setEditCategoryId('')
   }
 
   const resetForm = () => {
-    setFormData({
-      personId: '',
-      assignmentLevel: 'category',
-      eventId: '',
-      contestId: '',
-      categoryId: '',
-    })
+    const defaultLevel = (activeTab === 'tally-masters' || activeTab === 'auditors') ? 'event' : 'contest'
+    setFormData({ personIds: [], assignmentLevel: defaultLevel, eventId: '', contestId: '', categoryId: '' })
     setIsFormOpen(false)
   }
 
-  // Reset form when tab changes
+  const togglePersonId = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      personIds: prev.personIds.includes(id)
+        ? prev.personIds.filter(p => p !== id)
+        : [...prev.personIds, id],
+    }))
+  }
+
+  const selectAllPeople = () => {
+    const people = getPeople()
+    const allIds = people.map((p: any) => p.id)
+    const allSelected = allIds.every(id => formData.personIds.includes(id))
+    setFormData(prev => ({ ...prev, personIds: allSelected ? [] : allIds }))
+  }
+
   useEffect(() => {
     resetForm()
+    setSelectedIds(new Set())
   }, [activeTab])
 
-  // Filter assignments based on search
-  const filteredJudgeAssignments = judgeAssignments.filter(
-    (assignment) =>
-      assignment.judge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assignment.category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assignment.category.contest.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // ─── Derived data ──────────────────────────────────────────────────────────
+
+  const filteredJudgeAssignments = judgeAssignments.filter(a =>
+    a.judge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.category?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredContestantAssignments = contestantAssignments.filter(
-    (assignment) =>
-      assignment.contestant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assignment.category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assignment.category.contest.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredContestantAssignments = contestantAssignments.filter(a =>
+    a.contestant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.category?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredTallyMasterAssignments = tallyMasterAssignments.filter(
-    (assignment) =>
-      assignment.user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTallyMasterAssignments = tallyMasterAssignments.filter(a =>
+    a.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.event?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredAuditorAssignments = auditorAssignments.filter(
-    (assignment) =>
-      assignment.user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAuditorAssignments = auditorAssignments.filter(a =>
+    a.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.event?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.contest?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const getIsLoading = () => {
     switch (activeTab) {
-      case 'judges':
-        return isLoadingJudges
-      case 'contestants':
-        return isLoadingContestants
-      case 'tally-masters':
-        return isLoadingTallyMasters
-      case 'auditors':
-        return isLoadingAuditors
-      default:
-        return false
+      case 'judges': return isLoadingJudges
+      case 'contestants': return isLoadingContestants
+      case 'tally-masters': return isLoadingTallyMasters
+      case 'auditors': return isLoadingAuditors
+      default: return false
     }
   }
 
   const getCurrentAssignments = (): any[] => {
     switch (activeTab) {
-      case 'judges':
-        return filteredJudgeAssignments
-      case 'contestants':
-        return filteredContestantAssignments
-      case 'tally-masters':
-        return filteredTallyMasterAssignments
-      case 'auditors':
-        return filteredAuditorAssignments
-      default:
-        return []
+      case 'judges': return filteredJudgeAssignments
+      case 'contestants': return filteredContestantAssignments
+      case 'tally-masters': return filteredTallyMasterAssignments
+      case 'auditors': return filteredAuditorAssignments
+      default: return []
     }
   }
 
   const getTabLabel = (tab: TabType): string => {
-    const labels = {
-      judges: 'Judge',
-      contestants: 'Contestant',
-      'tally-masters': 'Tally Master',
-      auditors: 'Auditor',
-    }
+    const labels = { judges: 'Judge', contestants: 'Contestant', 'tally-masters': 'Tally Master', auditors: 'Auditor' }
     return labels[tab]
   }
 
   const getPeople = () => {
     switch (activeTab) {
-      case 'judges':
-        return judges
-      case 'contestants':
-        return contestants
-      case 'tally-masters':
-        return tallyMasters
-      case 'auditors':
-        return auditors
-      default:
-        return []
+      case 'judges': return judges
+      case 'contestants': return contestants
+      case 'tally-masters': return tallyMasters
+      case 'auditors': return auditors
+      default: return []
     }
   }
+
+  // Which assignment levels the current tab supports
+  const getAvailableLevels = (): Array<{ value: string; label: string }> => {
+    if (activeTab === 'judges' || activeTab === 'contestants') return [
+      { value: 'contest', label: 'Contest Level (auto-assigns all categories)' },
+      { value: 'category', label: 'Category Level' },
+    ]
+    // tally-masters and auditors support all three
+    return [
+      { value: 'event', label: 'Event Level' },
+      { value: 'contest', label: 'Contest Level' },
+      { value: 'category', label: 'Category Level' },
+    ]
+  }
+
+  const isAnyMutationLoading = assignJudgeMutation.isLoading || assignContestantMutation.isLoading ||
+    assignTallyMasterMutation.isLoading || assignAuditorMutation.isLoading
 
   if (!canManageAssignments) {
     return (
@@ -556,19 +834,31 @@ const AssignmentsPage: React.FC = () => {
         </nav>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder={`Search ${getTabLabel(activeTab).toLowerCase()}s...`}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+      {/* Search + Bulk actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder={`Search ${getTabLabel(activeTab).toLowerCase()}s...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={handleBulkRemove}
+            disabled={bulkRemoveMutation.isLoading}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            <TrashIcon className="w-4 h-4 mr-2" />
+            Remove {selectedIds.size} selected
+          </button>
+        )}
       </div>
 
-      {/* Content */}
+      {/* Table */}
       {isLoading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -584,147 +874,109 @@ const AssignmentsPage: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-          <ResponsiveTable
-            caption="Role assignments showing judges, contestants, tally masters, and auditors"
-            minWidth="900px"
-          >
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {getTabLabel(activeTab)}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Assignment Level
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Assignment
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Contest
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Event
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Assigned
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {activeTab === 'judges' &&
-                (filteredJudgeAssignments as JudgeAssignment[]).map((assignment) => {
+          <ResponsiveTable caption="Role assignments" minWidth="900px">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                      checked={currentAssignments.length > 0 && currentAssignments.every(a => selectedIds.has(a.id))}
+                      onChange={() => handleSelectAll(currentAssignments)}
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {getTabLabel(activeTab)}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Level</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contest</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Event</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Assigned</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {currentAssignments.map((assignment: any) => {
                   const optimisticClass = getOptimisticRowClass(assignment)
+                  const isSelected = selectedIds.has(assignment.id)
+                  const personName =
+                    activeTab === 'judges' ? assignment.judge?.name :
+                    activeTab === 'contestants' ? assignment.contestant?.name :
+                    assignment.user?.name
+                  const personSub =
+                    activeTab === 'judges' && assignment.judge?.isHeadJudge ? 'Head Judge' :
+                    activeTab === 'contestants' && assignment.contestant?.contestantNumber
+                      ? `#${assignment.contestant.contestantNumber}` : null
+
                   return (
-                  <tr
-                    key={assignment.id}
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${optimisticClass}`}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {assignment.judge.name}
-                        </div>
-                        {assignment.judge.isHeadJudge && (
-                          <div className="text-xs text-indigo-600 dark:text-indigo-400">Head Judge</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      Category
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {assignment.category.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {assignment.category.contest.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {assignment.category.contest.event.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(assignment.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {assignment._deleting ? (
-                        <span className="text-xs text-gray-500">Removing...</span>
-                      ) : (
-                        <button
-                          onClick={() => handleRemoveJudgeAssignment(assignment.id)}
-                          disabled={removeJudgeAssignmentMutation.isLoading}
-                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 disabled:opacity-50"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  )
-                })}
-              {activeTab === 'contestants' &&
-                (filteredContestantAssignments as ContestantAssignment[]).map((assignment) => {
-                  const optimisticClass = getOptimisticRowClass(assignment)
-                  return (
-                  <tr
-                    key={assignment.id}
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${optimisticClass}`}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {assignment.contestant.name}
-                        </div>
-                        {assignment.contestant.contestantNumber && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            #{assignment.contestant.contestantNumber}
+                    <tr
+                      key={assignment.id}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${optimisticClass} ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                    >
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                          checked={isSelected}
+                          onChange={() => handleSelectRow(assignment.id)}
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{personName}</div>
+                        {personSub && <div className="text-xs text-indigo-600 dark:text-indigo-400">{personSub}</div>}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {getAssignmentLevel(assignment)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {assignment.category?.name ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {assignment.contest?.name ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {assignment.event?.name ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(assignment.assignedAt || assignment.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        {assignment._deleting ? (
+                          <span className="text-xs text-gray-500">Removing...</span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleEditAssignment(assignment)}
+                              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
+                              title="Edit assignment"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveSingle(assignment)}
+                              className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 disabled:opacity-50"
+                              title="Remove assignment"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
                           </div>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      Category
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {assignment.category.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {assignment.category.contest.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {assignment.category.contest.event.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(assignment.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {assignment._deleting ? (
-                        <span className="text-xs text-gray-500">Removing...</span>
-                      ) : (
-                        <button
-                          onClick={() => handleRemoveContestantAssignment(assignment)}
-                          disabled={removeContestantAssignmentMutation.isLoading}
-                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 disabled:opacity-50"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
                   )
                 })}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
           </ResponsiveTable>
         </div>
       )}
 
-      {/* Assignment Form Modal */}
+      {/* New Assignment Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -736,29 +988,65 @@ const AssignmentsPage: React.FC = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Person Selection */}
+                {/* Tenant Selector (SUPER_ADMIN only) */}
+                {isSuperAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Filter by Tenant
+                    </label>
+                    <select
+                      value={selectedTenantId}
+                      onChange={(e) => {
+                        setSelectedTenantId(e.target.value)
+                        setFormData(prev => ({ ...prev, personIds: [] }))
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="">All tenants</option>
+                      {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {/* Person Multi-Select */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {getTabLabel(activeTab)} *
-                  </label>
-                  <select
-                    value={formData.personId}
-                    onChange={(e) => setFormData({ ...formData, personId: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">{people.length === 0 ? `No ${getTabLabel(activeTab).toLowerCase()}s available - create users with ${getTabLabel(activeTab)} role first` : `Select ${getTabLabel(activeTab).toLowerCase()}...`}</option>
-                    {people.map((person: any) => (
-                      <option key={person.id} value={person.id}>
-                        {person.name}
-                        {activeTab === 'judges' && person.isHeadJudge ? ' (Head Judge)' : ''}
-                        {activeTab === 'contestants' && person.contestantNumber ? ` (#${person.contestantNumber})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {getTabLabel(activeTab)}(s) *{' '}
+                      <span className="text-xs font-normal text-gray-500">({formData.personIds.length} selected)</span>
+                    </label>
+                    {people.length > 0 && (
+                      <button type="button" onClick={selectAllPeople} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                        {people.every((p: any) => formData.personIds.includes(p.id)) ? 'Deselect all' : 'Select all'}
+                      </button>
+                    )}
+                  </div>
+                  {people.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                      No {getTabLabel(activeTab).toLowerCase()}s available — create users with the {getTabLabel(activeTab)} role first
+                    </p>
+                  ) : (
+                    <div className="border border-gray-300 dark:border-gray-600 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                      {people.map((person: any) => (
+                        <label key={person.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                            checked={formData.personIds.includes(person.id)}
+                            onChange={() => togglePersonId(person.id)}
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">
+                            {person.name}
+                            {activeTab === 'judges' && person.isHeadJudge ? ' (Head Judge)' : ''}
+                            {activeTab === 'contestants' && person.contestantNumber ? ` (#${person.contestantNumber})` : ''}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Assignment Level Selection */}
+                {/* Assignment Level */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Assignment Level *
@@ -766,56 +1054,41 @@ const AssignmentsPage: React.FC = () => {
                   <select
                     value={formData.assignmentLevel}
                     onChange={(e) => setFormData({ ...formData, assignmentLevel: e.target.value as any, contestId: '', categoryId: '' })}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
-                    <option value="event">Event Level</option>
-                    <option value="contest">Contest Level</option>
-                    <option value="category">Category Level</option>
+                    {getAvailableLevels().map(level => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Event Selection */}
-                {(formData.assignmentLevel === 'event' || formData.assignmentLevel === 'contest' || formData.assignmentLevel === 'category') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Event *
-                    </label>
-                    <select
-                      value={formData.eventId}
-                      onChange={(e) => setFormData({ ...formData, eventId: e.target.value, contestId: '', categoryId: '' })}
-                      required
-                      disabled={isLoadingEvents}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
-                    >
-                      <option value="">{isLoadingEvents ? 'Loading events...' : events.length === 0 ? 'No events available - create one first' : 'Select an event...'}</option>
-                      {events.map((event) => (
-                        <option key={event.id} value={event.id}>
-                          {event.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event *</label>
+                  <select
+                    value={formData.eventId}
+                    onChange={(e) => setFormData({ ...formData, eventId: e.target.value, contestId: '', categoryId: '' })}
+                    required
+                    disabled={isLoadingEvents}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+                  >
+                    <option value="">{isLoadingEvents ? 'Loading...' : events.length === 0 ? 'No events available' : 'Select an event...'}</option>
+                    {events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+                  </select>
+                </div>
 
                 {/* Contest Selection */}
                 {(formData.assignmentLevel === 'contest' || formData.assignmentLevel === 'category') && formData.eventId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Contest *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest *</label>
                     <select
                       value={formData.contestId}
                       onChange={(e) => setFormData({ ...formData, contestId: e.target.value, categoryId: '' })}
                       required
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
-                      <option value="">{contests.length === 0 ? 'No contests in this event - create one first' : 'Select a contest...'}</option>
-                      {contests.map((contest) => (
-                        <option key={contest.id} value={contest.id}>
-                          {contest.name}
-                        </option>
-                      ))}
+                      <option value="">{contests.length === 0 ? 'No contests in this event' : 'Select a contest...'}</option>
+                      {contests.map(contest => <option key={contest.id} value={contest.id}>{contest.name}</option>)}
                     </select>
                   </div>
                 )}
@@ -823,45 +1096,128 @@ const AssignmentsPage: React.FC = () => {
                 {/* Category Selection */}
                 {formData.assignmentLevel === 'category' && formData.contestId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Category *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category *</label>
                     <select
                       value={formData.categoryId}
                       onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                       required
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
-                      <option value="">{categories.length === 0 ? 'No categories in this contest - create one first' : 'Select a category...'}</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
+                      <option value="">{categories.length === 0 ? 'No categories in this contest' : 'Select a category...'}</option>
+                      {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                     </select>
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
+                  <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={assignJudgeMutation.isLoading || assignContestantMutation.isLoading}
+                    disabled={isAnyMutationLoading || formData.personIds.length === 0}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {assignJudgeMutation.isLoading || assignContestantMutation.isLoading
+                    {isAnyMutationLoading
                       ? 'Assigning...'
-                      : 'Create Assignment'}
+                      : `Assign ${formData.personIds.length > 1 ? `${formData.personIds.length} people` : getTabLabel(activeTab)}`}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Assignment Modal */}
+      {editingAssignment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Assignment</h2>
+                <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{getTabLabel(activeTab)}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {activeTab === 'judges' ? (editingAssignment as JudgeAssignment).judge?.name :
+                   activeTab === 'contestants' ? (editingAssignment as ContestantAssignment).contestant?.name :
+                   (editingAssignment as TallyMasterAssignment).user?.name}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {activeTab === 'judges' || activeTab === 'contestants'
+                    ? 'Select a new category to reassign to:'
+                    : 'Select the new assignment scope:'}
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
+                  <select
+                    value={editEventId}
+                    onChange={(e) => { setEditEventId(e.target.value); setEditContestId(''); setEditCategoryId('') }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">{events.length === 0 ? 'No events' : 'Select an event...'}</option>
+                    {events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+                  </select>
+                </div>
+
+                {editEventId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Contest {(activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for event-level)' : '*'}
+                    </label>
+                    <select
+                      value={editContestId}
+                      onChange={(e) => { setEditContestId(e.target.value); setEditCategoryId('') }}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="">{editContests.length === 0 ? 'No contests in this event' : (activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Event level —' : 'Select a contest...'}</option>
+                      {editContests.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {editContestId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Category {(activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for contest-level)' : '*'}
+                    </label>
+                    <select
+                      value={editCategoryId}
+                      onChange={(e) => setEditCategoryId(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="">{editCategories.length === 0 ? 'No categories' : (activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Contest level —' : 'Select a category...'}</option>
+                      {editCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={closeEditModal} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => editSaveMutation.mutate()}
+                    disabled={
+                      editSaveMutation.isLoading ||
+                      !editEventId ||
+                      ((activeTab === 'judges' || activeTab === 'contestants') && !editCategoryId)
+                    }
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {editSaveMutation.isLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

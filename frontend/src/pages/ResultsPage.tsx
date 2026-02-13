@@ -91,7 +91,8 @@ const ResultsPage: React.FC = () => {
     'results-events',
     async () => {
       const response = await adminAPI.getEvents()
-      return response.data
+      const payload = response.data?.data
+      return Array.isArray(payload?.events) ? payload.events : Array.isArray(payload) ? payload : []
     },
     {
       retry: 1,
@@ -105,7 +106,8 @@ const ResultsPage: React.FC = () => {
     async () => {
       if (!selectedEventId) return []
       const response = await adminAPI.getContests()
-      const allContests = response.data
+      const payload = response.data?.data
+      const allContests = Array.isArray(payload?.contests) ? payload.contests : Array.isArray(payload) ? payload : []
       return allContests.filter((c: Contest) => c.eventId === selectedEventId)
     },
     {
@@ -121,7 +123,8 @@ const ResultsPage: React.FC = () => {
     async () => {
       if (!selectedContestId) return []
       const response = await adminAPI.getCategories()
-      const allCategories = response.data
+      const payload = response.data?.data
+      const allCategories = Array.isArray(payload?.categories) ? payload.categories : Array.isArray(payload) ? payload : []
       return allCategories.filter((c: Category) => c.contestId === selectedContestId)
     },
     {
