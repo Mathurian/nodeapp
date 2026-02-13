@@ -40,6 +40,12 @@ export interface ScoreFileInfo {
   uploadedById: string;
   status: string;
   notes: string | null;
+  metadata?: {
+    contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY';
+    criterionId?: string | null;
+    noteText?: string | null;
+  } | null;
+  publicUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +54,44 @@ export interface ScoreFileInfo {
 export class ScoreFileService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
+  }
+
+  private normalizeScoreFile(file: ScoreFile): ScoreFileInfo {
+    let metadata: ScoreFileInfo['metadata'] = null;
+    if (file.notes) {
+      try {
+        const parsed = JSON.parse(file.notes);
+        if (parsed && typeof parsed === 'object') {
+          metadata = {
+            contextType: parsed.contextType,
+            criterionId: parsed.criterionId ?? null,
+            noteText: parsed.noteText ?? null
+          };
+        }
+      } catch {
+        metadata = null;
+      }
+    }
+
+    const normalizedPath = file.filePath.startsWith('/') ? file.filePath : `/${file.filePath}`;
+
+    return {
+      id: file.id,
+      categoryId: file.categoryId,
+      judgeId: file.judgeId,
+      contestantId: file.contestantId,
+      fileName: file.fileName,
+      fileType: file.fileType,
+      filePath: file.filePath,
+      fileSize: file.fileSize,
+      uploadedById: file.uploadedById,
+      status: file.status,
+      notes: file.notes,
+      metadata,
+      publicUrl: normalizedPath,
+      createdAt: file.createdAt,
+      updatedAt: file.updatedAt
+    };
   }
 
   /**
@@ -110,40 +154,44 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score file by ID
    */
-  async getScoreFileById(id: string, tenantId: string): Promise<ScoreFile | null> {
-    return await this.prisma.scoreFile.findFirst({
+  async getScoreFileById(id: string, tenantId: string): Promise<ScoreFileInfo | null> {
+    const file = await this.prisma.scoreFile.findFirst({
       where: { id, tenantId }
     });
+    return file ? this.normalizeScoreFile(file) : null;
   }
 
   /**
    * Get score files for a category
    */
-  async getScoreFilesByCategory(categoryId: string, tenantId: string): Promise<ScoreFile[]> {
-    return await this.prisma.scoreFile.findMany({
+  async getScoreFilesByCategory(categoryId: string, tenantId: string): Promise<ScoreFileInfo[]> {
+    const files = await this.prisma.scoreFile.findMany({
       where: { categoryId, tenantId },
       orderBy: { createdAt: 'desc' }
     });
+    return files.map((f) => this.normalizeScoreFile(f));
   }
 
   /**
    * Get score files for a judge
    */
-  async getScoreFilesByJudge(judgeId: string, tenantId: string): Promise<ScoreFile[]> {
-    return await this.prisma.scoreFile.findMany({
+  async getScoreFilesByJudge(judgeId: string, tenantId: string): Promise<ScoreFileInfo[]> {
+    const files = await this.prisma.scoreFile.findMany({
       where: { judgeId, tenantId },
       orderBy: { createdAt: 'desc' }
     });
+    return files.map((f) => this.normalizeScoreFile(f));
   }
 
   /**
    * Get score files for a contestant
    */
-  async getScoreFilesByContestant(contestantId: string, tenantId: string): Promise<ScoreFile[]> {
-    return await this.prisma.scoreFile.findMany({
+  async getScoreFilesByContestant(contestantId: string, tenantId: string): Promise<ScoreFileInfo[]> {
+    const files = await this.prisma.scoreFile.findMany({
       where: { contestantId, tenantId },
       orderBy: { createdAt: 'desc' }
     });
+    return files.map((f) => this.normalizeScoreFile(f));
   }
 
   /**
@@ -210,7 +258,10 @@ export class ScoreFileService extends BaseService {
 
     // Delete the physical file
     try {
-      await fs.unlink(scoreFile.filePath);
+      const resolvedPath = scoreFile.filePath.startsWith('/')
+        ? scoreFile.filePath
+        : `${process.cwd()}/${scoreFile.filePath}`;
+      await fs.unlink(resolvedPath);
     } catch (error) {
       logger.error('Failed to delete physical file', { error });
       // Continue with database deletion even if file deletion fails
@@ -230,8 +281,8 @@ export class ScoreFileService extends BaseService {
     judgeId?: string;
     contestantId?: string;
     status?: string;
-  }): Promise<ScoreFile[]> {
-    return await this.prisma.scoreFile.findMany({
+  }): Promise<ScoreFileInfo[]> {
+    const files = await this.prisma.scoreFile.findMany({
       where: {
         tenantId,
         categoryId: filters?.categoryId,
@@ -241,5 +292,6 @@ export class ScoreFileService extends BaseService {
       },
       orderBy: { createdAt: 'desc' }
     });
+    return files.map((f) => this.normalizeScoreFile(f));
   }
 }

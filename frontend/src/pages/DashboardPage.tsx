@@ -1,7 +1,7 @@
 import React from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
-import { adminAPI, tenantsAPI } from '../services/api'
+import { adminAPI, tenantsAPI, eventsAPI, contestsAPI } from '../services/api'
 import {
   ChartBarIcon,
   UsersIcon,
@@ -50,6 +50,19 @@ interface RecentActivity {
     role: string
   }
   createdAt: string
+}
+
+interface ScopedEvent {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+}
+
+interface ScopedContest {
+  id: string
+  name: string
+  eventId: string
 }
 
 const DashboardPage: React.FC = () => {
@@ -109,6 +122,32 @@ const DashboardPage: React.FC = () => {
     }
   )
 
+  const { data: contestantEvents = [] } = useQuery<ScopedEvent[]>(
+    ['contestant-events', user?.id],
+    async () => {
+      const response = await eventsAPI.getAll()
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      enabled: user?.role === 'CONTESTANT',
+      retry: 1,
+    }
+  )
+
+  const { data: contestantContests = [] } = useQuery<ScopedContest[]>(
+    ['contestant-contests', user?.id],
+    async () => {
+      const response = await contestsAPI.getAll()
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      enabled: user?.role === 'CONTESTANT',
+      retry: 1,
+    }
+  )
+
   const getRoleGreeting = (role: string) => {
     const greetings = {
       ORGANIZER: 'Welcome to your Event Organizer Dashboard',
@@ -155,13 +194,15 @@ const DashboardPage: React.FC = () => {
       ],
       EMCEE: [
         { label: 'Emcee Console', href: '/emcee', icon: UsersIcon, color: 'blue' },
-        { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
+        { label: 'Bios Directory', href: '/bios', icon: UsersIcon, color: 'green' },
       ],
       TALLY_MASTER: [
-        { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'blue' },
+        { label: 'Tally Dashboard', href: '/tally-master', icon: ChartBarIcon, color: 'blue' },
+        { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'green' },
       ],
       AUDITOR: [
-        { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'blue' },
+        { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'blue' },
+        { label: 'Audit Queue', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green' },
       ],
       BOARD: [
         { label: 'Events', href: '/events', icon: CalendarIcon, color: 'blue' },
@@ -296,6 +337,35 @@ const DashboardPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {user?.role === 'CONTESTANT' && (
+          <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+              My Scoped Participation
+            </h2>
+            {contestantEvents.length === 0 ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                No event access is currently released for your contestant account.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Events: {contestantEvents.length} • Contests: {contestantContests.length}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {contestantEvents.slice(0, 6).map((event) => (
+                    <div key={event.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
+                      <p className="font-medium text-gray-900 dark:text-white">{event.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {event.startDate ? format(new Date(event.startDate), 'PP') : 'N/A'} - {event.endDate ? format(new Date(event.endDate), 'PP') : 'N/A'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mb-8">

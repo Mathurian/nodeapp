@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery } from 'react-query'
 import toast from 'react-hot-toast'
-import { useAuth } from '../contexts/AuthContext'
-import { resultsAPI, adminAPI } from '../services/api'
+import { resultsAPI, scoreFilesAPI } from '../services/api'
 import {
   TrophyIcon,
   ChartBarIcon,
@@ -78,9 +77,15 @@ interface CategoryResults {
   scoreBreakdowns: Record<string, ScoreBreakdown[]>
 }
 
-const ResultsPage: React.FC = () => {
-  const { user } = useAuth()
+interface ScoreAttachment {
+  id: string
+  contestantId: string | null
+  fileName: string
+  publicUrl?: string
+  filePath: string
+}
 
+const ResultsPage: React.FC = () => {
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
@@ -90,9 +95,22 @@ const ResultsPage: React.FC = () => {
   const { data: events, isLoading: eventsLoading, error: eventsError } = useQuery<Event[]>(
     'results-events',
     async () => {
-      const response = await adminAPI.getEvents()
-      const payload = response.data?.data
-      return Array.isArray(payload?.events) ? payload.events : Array.isArray(payload) ? payload : []
+      const response = await resultsAPI.getCategories()
+      const payload = response.data?.data || response.data
+      const categories = Array.isArray(payload) ? payload : []
+      const eventMap = new Map<string, Event>()
+      for (const category of categories) {
+        const event = category?.contest?.event
+        if (event?.id && !eventMap.has(event.id)) {
+          eventMap.set(event.id, {
+            id: event.id,
+            name: event.name,
+            startDate: event.startDate || '',
+            endDate: event.endDate || '',
+          })
+        }
+      }
+      return Array.from(eventMap.values())
     },
     {
       retry: 1,
@@ -105,10 +123,22 @@ const ResultsPage: React.FC = () => {
     ['results-contests', selectedEventId],
     async () => {
       if (!selectedEventId) return []
-      const response = await adminAPI.getContests()
-      const payload = response.data?.data
-      const allContests = Array.isArray(payload?.contests) ? payload.contests : Array.isArray(payload) ? payload : []
-      return allContests.filter((c: Contest) => c.eventId === selectedEventId)
+      const response = await resultsAPI.getCategories()
+      const payload = response.data?.data || response.data
+      const categories = Array.isArray(payload) ? payload : []
+      const contestMap = new Map<string, Contest>()
+      for (const category of categories) {
+        const contest = category?.contest
+        if (contest?.id && contest.eventId === selectedEventId && !contestMap.has(contest.id)) {
+          contestMap.set(contest.id, {
+            id: contest.id,
+            name: contest.name,
+            eventId: contest.eventId,
+            event: contest.event ? { name: contest.event.name } : undefined,
+          })
+        }
+      }
+      return Array.from(contestMap.values())
     },
     {
       enabled: !!selectedEventId,
@@ -122,10 +152,10 @@ const ResultsPage: React.FC = () => {
     ['results-categories', selectedContestId],
     async () => {
       if (!selectedContestId) return []
-      const response = await adminAPI.getCategories()
-      const payload = response.data?.data
-      const allCategories = Array.isArray(payload?.categories) ? payload.categories : Array.isArray(payload) ? payload : []
-      return allCategories.filter((c: Category) => c.contestId === selectedContestId)
+      const response = await resultsAPI.getCategories()
+      const payload = response.data?.data || response.data
+      const categories = Array.isArray(payload) ? payload : []
+      return categories.filter((c: Category) => c.contestId === selectedContestId)
     },
     {
       enabled: !!selectedContestId,
@@ -140,12 +170,26 @@ const ResultsPage: React.FC = () => {
     async () => {
       if (!selectedCategoryId) return null
       const response = await resultsAPI.getCategoryResults(selectedCategoryId)
-      return response.data
+      return response.data?.data || response.data
     },
     {
       enabled: !!selectedCategoryId,
       retry: 1,
       onError: (err) => console.error('Fetch category results failed:', err),
+    }
+  )
+
+  const { data: categoryAttachments = [] } = useQuery<ScoreAttachment[]>(
+    ['category-score-attachments', selectedCategoryId],
+    async () => {
+      if (!selectedCategoryId) return []
+      const response = await scoreFilesAPI.getAll({ categoryId: selectedCategoryId })
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      enabled: !!selectedCategoryId,
+      retry: 1,
     }
   )
 
@@ -520,6 +564,28 @@ const ResultsPage: React.FC = () => {
                               </span>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+                    {(categoryAttachments.filter((file) => file.contestantId === winner.contestantId).length > 0) && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Commentary Attachments
+                        </div>
+                        <div className="space-y-1">
+                          {categoryAttachments
+                            .filter((file) => file.contestantId === winner.contestantId)
+                            .map((file) => (
+                              <a
+                                key={file.id}
+                                href={file.publicUrl || file.filePath}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block text-sm text-blue-600 hover:text-blue-700 underline"
+                              >
+                                {file.fileName}
+                              </a>
+                            ))}
                         </div>
                       </div>
                     )}

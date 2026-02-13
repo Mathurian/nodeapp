@@ -180,7 +180,9 @@ export const createEventSchema = z.object({
   startDate: z.string().datetime().or(z.date()),
   endDate: z.string().datetime().or(z.date()),
   location: z.string().optional(),
-  maxContestants: z.number().int().positive().optional()
+  maxContestants: z.number().int().positive().optional(),
+  contestantViewRestricted: z.boolean().optional(),
+  contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional()
 }).refine(data => {
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
@@ -200,7 +202,9 @@ export const updateEventSchema = z.object({
   endDate: z.string().datetime().or(z.date()).optional(),
   location: z.string().optional(),
   maxContestants: z.number().int().positive().optional(),
-  archived: z.boolean().optional()
+  archived: z.boolean().optional(),
+  contestantViewRestricted: z.boolean().optional(),
+  contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional()
 });
 
 /**

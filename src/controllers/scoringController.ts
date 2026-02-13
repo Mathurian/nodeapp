@@ -1119,16 +1119,31 @@ export class ScoringController {
         return sendNotFound(res, 'Contestant not found');
       }
 
-      const deductionRequest = await this.prisma.deductionRequest.create({
-        data: {
-          contestantId,
-          categoryId,
-          amount,
-          reason,
-          requestedById: req.user.id,
-          status: 'PENDING',
-          tenantId: req.user.tenantId
-        },
+      // Initiator must certify the deduction when submitting it.
+      const deductionRequest = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.deductionRequest.create({
+          data: {
+            contestantId,
+            categoryId,
+            amount,
+            reason,
+            requestedById: req.user!.id,
+            status: 'PENDING',
+            tenantId: req.user!.tenantId
+          },
+        });
+
+        await tx.deductionApproval.create({
+          data: {
+            requestId: created.id,
+            approvedById: req.user!.id,
+            role: req.user!.role,
+            isHeadJudge: false,
+            tenantId: req.user!.tenantId
+          }
+        });
+
+        return created;
       });
 
       return sendSuccess(res, deductionRequest, 'Deduction request created successfully', 201);
@@ -1146,8 +1161,8 @@ export class ScoringController {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
-      // SECURITY FIX: Verify user has appropriate role to approve deductions
-      const allowedRoles = ['BOARD', 'JUDGE', 'ADMIN', 'SUPER_ADMIN', 'ORGANIZER'];
+      // Additional certifiers must be high-trust roles only.
+      const allowedRoles = ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'];
       if (!allowedRoles.includes(req.user.role)) {
         return errorResponse(res, `Access denied. Only ${allowedRoles.join(', ')} can approve deductions.`, ErrorCode.AUTHORIZATION_ERROR, 403);
       }
@@ -1168,24 +1183,71 @@ export class ScoringController {
         return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
       }
 
-      // Create approval record
-      await this.prisma.deductionApproval.create({
-        data: {
-          requestId: deductionId!,
-          approvedById: req.user.id,
-          role: req.user.role,
-          isHeadJudge: isHeadJudge || false,
-          tenantId: req.user.tenantId
-        }
+      // Initiator certifies at creation; this endpoint is for the 2 additional approvers.
+      if (deduction.requestedById === req.user.id) {
+        return sendBadRequest(res, 'Request initiator is already certified; additional approvers must be different users');
+      }
+
+      const updated = await this.prisma.$transaction(async (tx) => {
+        await tx.deductionApproval.upsert({
+          where: {
+            tenantId_requestId_approvedById: {
+              tenantId: req.user!.tenantId,
+              requestId: deductionId!,
+              approvedById: req.user!.id
+            }
+          },
+          create: {
+            requestId: deductionId!,
+            approvedById: req.user!.id,
+            role: req.user!.role,
+            isHeadJudge: !!isHeadJudge,
+            tenantId: req.user!.tenantId
+          },
+          update: {
+            role: req.user!.role,
+            isHeadJudge: !!isHeadJudge,
+            approvedAt: new Date()
+          }
+        });
+
+        const approvals = await tx.deductionApproval.findMany({
+          where: {
+            requestId: deductionId!,
+            tenantId: req.user!.tenantId
+          },
+          select: {
+            approvedById: true
+          }
+        });
+
+        const approverIds = new Set(approvals.map((a) => a.approvedById));
+        const hasInitiator = approverIds.has(deduction.requestedById);
+        const additionalApprovals = Array.from(approverIds).filter((id) => id !== deduction.requestedById).length;
+
+        return tx.deductionRequest.update({
+          where: { id: deductionId! },
+          data: {
+            status: hasInitiator && additionalApprovals >= 2 ? 'APPROVED' : 'PENDING'
+          },
+          include: {
+            approvals: {
+              select: {
+                id: true,
+                approvedById: true,
+                role: true,
+                approvedAt: true
+              },
+              orderBy: { approvedAt: 'asc' }
+            }
+          }
+        });
       });
 
-      // Update deduction request status to APPROVED
-      const updated = await this.prisma.deductionRequest.update({
-        where: { id: deductionId! },
-        data: { status: 'APPROVED' },
-      });
-
-      return sendSuccess(res, updated, 'Deduction request approved successfully');
+      const message = updated.status === 'APPROVED'
+        ? 'Deduction request approved successfully'
+        : 'Certification recorded. Additional approvals are still required';
+      return sendSuccess(res, updated, message);
     } catch (error) {
       return next(error);
     }
@@ -1251,13 +1313,62 @@ export class ScoringController {
       const [deductions, total] = await Promise.all([
         this.prisma.deductionRequest.findMany({
           where,
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+              }
+            },
+            contestant: {
+              select: {
+                id: true,
+                name: true,
+                contestantNumber: true
+              }
+            },
+            requestedBy: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            approvals: {
+              select: {
+                id: true,
+                approvedById: true,
+                role: true,
+                approvedAt: true
+              },
+              orderBy: {
+                approvedAt: 'asc'
+              }
+            }
+          },
           ...paginationParams,
           orderBy: { createdAt: 'desc' }
         }),
         this.prisma.deductionRequest.count({ where })
       ]);
 
-      return sendSuccess(res, createPaginatedResponse(deductions, total, paginationOptions));
+      const withApprovalState = deductions.map((deduction: any) => {
+        const uniqueApproverIds = new Set<string>((deduction.approvals || []).map((a: any) => a.approvedById));
+        const hasInitiatorCertification = uniqueApproverIds.has(deduction.requestedById);
+        const additionalApprovals = Array.from(uniqueApproverIds).filter((id) => id !== deduction.requestedById).length;
+
+        return {
+          ...deduction,
+          approvalState: {
+            hasInitiatorCertification,
+            additionalApprovals,
+            requiredAdditionalApprovals: 2,
+            approvalsTotal: uniqueApproverIds.size,
+            readyForApproval: hasInitiatorCertification && additionalApprovals >= 2
+          }
+        };
+      });
+
+      return sendSuccess(res, createPaginatedResponse(withApprovalState, total, paginationOptions));
     } catch (error) {
       return next(error);
     }

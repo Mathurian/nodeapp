@@ -383,7 +383,58 @@ export class TallyMasterController {
   getContestantScores = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      res.status(501).json({ error: 'Get contestant scores to be implemented' });
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const tenantId = req.user.tenantId;
+      const contestantId = req.query['contestantId'] as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
+
+      const where: any = { tenantId };
+      if (contestantId) where.contestantId = contestantId;
+      if (categoryId) where.categoryId = categoryId;
+      if (contestId) {
+        where.category = { contestId };
+      }
+
+      const scores = await this.prisma.score.findMany({
+        where,
+        include: {
+          contestant: {
+            select: {
+              id: true,
+              name: true,
+              contestantNumber: true
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              contestId: true
+            }
+          },
+          criterion: {
+            select: {
+              id: true,
+              name: true,
+              maxScore: true
+            }
+          }
+        },
+        orderBy: [{ categoryId: 'asc' }, { contestantId: 'asc' }, { createdAt: 'asc' }]
+      });
+
+      res.json({ success: true, data: scores });
     } catch (error) {
       log.error('Get contestant scores error', error);
       return next(error);
@@ -396,7 +447,58 @@ export class TallyMasterController {
   getJudgeScores = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      res.status(501).json({ error: 'Get judge scores to be implemented' });
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const tenantId = req.user.tenantId;
+      const judgeId = req.query['judgeId'] as string | undefined;
+      const categoryId = req.query['categoryId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
+
+      const where: any = { tenantId };
+      if (judgeId) where.judgeId = judgeId;
+      if (categoryId) where.categoryId = categoryId;
+      if (contestId) {
+        where.category = { contestId };
+      }
+
+      const scores = await this.prisma.score.findMany({
+        where,
+        include: {
+          contestant: {
+            select: {
+              id: true,
+              name: true,
+              contestantNumber: true
+            }
+          },
+          judge: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              contestId: true
+            }
+          },
+          criterion: {
+            select: {
+              id: true,
+              name: true,
+              maxScore: true
+            }
+          }
+        },
+        orderBy: [{ categoryId: 'asc' }, { judgeId: 'asc' }, { createdAt: 'asc' }]
+      });
+
+      res.json({ success: true, data: scores });
     } catch (error) {
       log.error('Get judge scores error', error);
       return next(error);

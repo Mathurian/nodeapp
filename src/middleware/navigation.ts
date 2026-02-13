@@ -204,6 +204,13 @@ const getNavigationItems = (userRole: string): any[] => {
     ],
     EMCEE: [
       {
+        id: 'winners',
+        label: 'Winners',
+        path: '/winners',
+        icon: 'TrophyIcon',
+        roles: ['EMCEE', 'ORGANIZER', 'BOARD']
+      },
+      {
         id: 'emcee',
         label: 'Emcee Dashboard',
         path: '/emcee',
@@ -245,6 +252,13 @@ const getNavigationItems = (userRole: string): any[] => {
         label: 'Results',
         path: '/results',
         icon: 'TrophyIcon',
+        roles: ['CONTESTANT', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'bios',
+        label: 'Bios',
+        path: '/bios',
+        icon: 'UserGroupIcon',
         roles: ['CONTESTANT', 'ORGANIZER', 'BOARD']
       },
       {

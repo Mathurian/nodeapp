@@ -13,6 +13,7 @@ import { container } from 'tsyringe';
 import { EventService } from '../services/EventService';
 import { AuditLogService } from '../services/AuditLogService';
 import { createLogger } from '../utils/logger';
+import { PrismaClient } from '@prisma/client';
 
 const logger = createLogger('EventsController');
 
@@ -21,9 +22,11 @@ const logger = createLogger('EventsController');
  */
 export class EventsController {
   private eventService: EventService;
+  private prisma: PrismaClient;
 
   constructor() {
     this.eventService = container.resolve(EventService);
+    this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
   /**
@@ -123,7 +126,32 @@ export class EventsController {
         };
       });
 
-      sendSuccess(res, eventsWithStatus);
+      let filteredEvents = eventsWithStatus;
+      // Contestants should only see their assigned/released events.
+      if (req.user?.role === 'CONTESTANT' && req.user.contestantId) {
+        const contestantId = req.user.contestantId;
+        const contestRows = await this.prisma.contestContestant.findMany({
+          where: { contestantId },
+          select: { contest: { select: { eventId: true } } }
+        });
+        const categoryRows = await this.prisma.categoryContestant.findMany({
+          where: { contestantId },
+          select: { category: { select: { contest: { select: { eventId: true } } } } }
+        });
+
+        const visibleEventIds = new Set<string>();
+        contestRows.forEach((row: any) => row?.contest?.eventId && visibleEventIds.add(row.contest.eventId));
+        categoryRows.forEach((row: any) => row?.category?.contest?.eventId && visibleEventIds.add(row.category.contest.eventId));
+
+        filteredEvents = filteredEvents.filter((event: any) => {
+          if (!visibleEventIds.has(event.id)) return false;
+          if (!event.contestantViewRestricted) return true;
+          if (!event.contestantViewReleaseDate) return false;
+          return new Date(event.contestantViewReleaseDate) <= now;
+        });
+      }
+
+      sendSuccess(res, filteredEvents);
     } catch (error) {
       return next(error);
     }

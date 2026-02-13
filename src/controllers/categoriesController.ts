@@ -18,11 +18,92 @@ export class CategoriesController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private isContestVisibleToContestant(contest: {
+    contestantViewRestricted?: boolean | null;
+    contestantViewReleaseDate?: Date | null;
+    event?: {
+      contestantViewRestricted?: boolean | null;
+      contestantViewReleaseDate?: Date | null;
+    } | null;
+  }): boolean {
+    const now = new Date();
+    if (contest.event?.contestantViewRestricted) {
+      if (!contest.event.contestantViewReleaseDate || contest.event.contestantViewReleaseDate > now) {
+        return false;
+      }
+    }
+    if (contest.contestantViewRestricted) {
+      if (!contest.contestantViewReleaseDate || contest.contestantViewReleaseDate > now) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /**
    * Get all categories for the tenant with pagination
    */
-  getAllCategories = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      const user = req.user;
+      if (!user) {
+        return sendError(res, 'User not authenticated', 401);
+      }
+
+      if (user.role === 'CONTESTANT' && user.contestantId) {
+        const categories = await this.prisma.category.findMany({
+          where: {
+            tenantId: user.tenantId,
+            OR: [
+              { categoryContestants: { some: { contestantId: user.contestantId } } },
+              { contest: { contestContestants: { some: { contestantId: user.contestantId } } } }
+            ]
+          },
+          include: {
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          },
+          orderBy: { name: 'asc' }
+        });
+
+        const visible = categories.filter((category) => this.isContestVisibleToContestant(category.contest as any));
+        return sendSuccess(res, visible, 'Categories retrieved successfully');
+      }
+
+      if (user.role === 'JUDGE' && user.judgeId) {
+        const categories = await this.prisma.category.findMany({
+          where: {
+            tenantId: user.tenantId,
+            OR: [
+              {
+                assignments: {
+                  some: {
+                    judgeId: user.judgeId,
+                    status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] }
+                  }
+                }
+              },
+              {
+                contest: {
+                  assignments: {
+                    some: {
+                      judgeId: user.judgeId,
+                      categoryId: null,
+                      status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          orderBy: { name: 'asc' }
+        });
+        return sendSuccess(res, categories, 'Categories retrieved successfully');
+      }
+
       // Get all categories for tenant with high limit for UI compatibility
       const result = await this.categoryService.getAllCategoriesPaginated({
         page: 1,
@@ -61,6 +142,66 @@ export class CategoriesController {
       if (!contestId) {
         return sendError(res, 'Contest ID is required', 400);
       }
+      const user = req.user;
+      if (!user) {
+        return sendError(res, 'User not authenticated', 401);
+      }
+
+      if (user.role === 'CONTESTANT' && user.contestantId) {
+        const contest = await this.prisma.contest.findUnique({
+          where: { id: contestId },
+          include: { event: true }
+        });
+        if (!contest || !this.isContestVisibleToContestant(contest as any)) {
+          return sendSuccess(res, [], 'Categories retrieved successfully');
+        }
+
+        const categories = await this.prisma.category.findMany({
+          where: {
+            contestId,
+            tenantId: user.tenantId,
+            OR: [
+              { categoryContestants: { some: { contestantId: user.contestantId } } },
+              { contest: { contestContestants: { some: { contestantId: user.contestantId } } } }
+            ]
+          },
+          orderBy: { name: 'asc' }
+        });
+        return sendSuccess(res, categories, 'Categories retrieved successfully');
+      }
+
+      if (user.role === 'JUDGE' && user.judgeId) {
+        const categories = await this.prisma.category.findMany({
+          where: {
+            contestId,
+            tenantId: user.tenantId,
+            OR: [
+              {
+                assignments: {
+                  some: {
+                    judgeId: user.judgeId,
+                    status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] }
+                  }
+                }
+              },
+              {
+                contest: {
+                  assignments: {
+                    some: {
+                      judgeId: user.judgeId,
+                      categoryId: null,
+                      status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          orderBy: { name: 'asc' }
+        });
+        return sendSuccess(res, categories, 'Categories retrieved successfully');
+      }
+
       const categories = await this.categoryService.getCategoriesByContestId(contestId);
       return sendSuccess(res, categories, 'Categories retrieved successfully');
     } catch (error) {

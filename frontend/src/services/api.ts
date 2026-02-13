@@ -177,6 +177,17 @@ export const scoringAPI = {
   rejectDeduction: (deductionId: string, reason: string) => api.post(`/scoring/deductions/${deductionId}/reject`, { reason }),
 }
 
+export const scoreFilesAPI = {
+  upload: (formData: FormData) => api.post('/score-files', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getAll: (params?: { categoryId?: string; judgeId?: string; contestantId?: string; status?: string; criterionId?: string; contextType?: string }) =>
+    api.get('/score-files', { params }),
+  getByCategory: (categoryId: string) => api.get(`/score-files/category/${categoryId}`),
+  getByContestant: (contestantId: string) => api.get(`/score-files/contestant/${contestantId}`),
+  download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' })
+}
+
 export const resultsAPI = {
   getAll: () => api.get('/results'),
   getCategories: () => api.get('/results/categories'),
@@ -184,6 +195,14 @@ export const resultsAPI = {
   getCategoryResults: (categoryId: string) => api.get(`/results/category/${categoryId}`),
   getContestResults: (contestId: string) => api.get(`/results/contest/${contestId}`),
   getEventResults: (eventId: string) => api.get(`/results/event/${eventId}`),
+}
+
+export const winnersAPI = {
+  getAll: (params?: { eventId?: string; contestId?: string }) => api.get('/winners', { params }),
+  getByContest: (contestId: string) => api.get(`/winners/contest/${contestId}`),
+  getPublicationStatus: (contestId: string) => api.get(`/winners/contest/${contestId}/publication-status`),
+  publish: (contestId: string) => api.post(`/winners/contest/${contestId}/publish`),
+  unpublish: (contestId: string, reason: string) => api.post(`/winners/contest/${contestId}/unpublish`, { reason }),
 }
 
 export const usersAPI = {
@@ -411,8 +430,8 @@ export const boardAPI = {
 export const tallyMasterAPI = {
   getStats: () => api.get('/tally-master/stats'),
   getCertifications: () => api.get('/tally-master/certifications'),
-  getCertificationQueue: () => api.get('/tally-master/queue'),
-  getPendingCertifications: () => api.get('/tally-master/pending'),
+  getCertificationQueue: () => api.get('/tally-master/certification-queue'),
+  getPendingCertifications: () => api.get('/tally-master/pending-certifications'),
   certifyTotals: (categoryIdOrData: string | any, data?: any) => {
     if (typeof categoryIdOrData === 'string') {
       // Called with (categoryId, data)

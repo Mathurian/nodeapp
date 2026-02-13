@@ -20,6 +20,7 @@ interface ScoreCSVRow {
   'Max Score': number | string;
   'Score': number;
   'Deduction': number;
+  'Attachments': string;
   'Scored At': string;
 }
 
@@ -222,6 +223,30 @@ export class ExportService extends BaseService {
       ],
     });
 
+    const categoryIds = Array.from(new Set(scores.map((score) => score.categoryId).filter(Boolean)));
+    const scoreFiles = categoryIds.length > 0
+      ? await this.prisma.scoreFile.findMany({
+          where: {
+            categoryId: { in: categoryIds }
+          },
+          select: {
+            categoryId: true,
+            contestantId: true,
+            fileName: true,
+            filePath: true
+          }
+        })
+      : [];
+
+    const attachmentsByCategoryContestant = new Map<string, string[]>();
+    scoreFiles.forEach((file) => {
+      const key = `${file.categoryId}_${file.contestantId || 'none'}`;
+      const existing = attachmentsByCategoryContestant.get(key) || [];
+      const pathValue = file.filePath.startsWith('/') ? file.filePath : `/${file.filePath}`;
+      existing.push(pathValue);
+      attachmentsByCategoryContestant.set(key, existing);
+    });
+
     // Prepare CSV data
     const csvData: ScoreCSVRow[] = scores.map((score) => ({
       'Contest Name': contest.name,
@@ -233,6 +258,7 @@ export class ExportService extends BaseService {
       'Max Score': score.criterion?.maxScore || 'N/A',
       'Score': score.score ?? 0,
       'Deduction': score.deduction || 0,
+      'Attachments': attachmentsByCategoryContestant.get(`${score.categoryId}_${score.contestantId}`)?.join(' | ') || '',
       'Scored At': score.createdAt ? new Date(score.createdAt).toISOString() : 'N/A',
     }));
 
@@ -249,6 +275,7 @@ export class ExportService extends BaseService {
         'Max Score',
         'Score',
         'Deduction',
+        'Attachments',
         'Scored At',
       ],
     });

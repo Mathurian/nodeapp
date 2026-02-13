@@ -42,9 +42,10 @@ interface NavSection {
 
 interface AccordionNavProps {
   className?: string
+  onNavigate?: () => void
 }
 
-const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
+const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate }) => {
   const { user } = useAuth()
   const { buildPath } = useTenant()
   const location = useLocation()
@@ -130,7 +131,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
         },
         {
           name: 'Tally Dashboard',
-          href: '/certifications',
+          href: '/tally-master',
           icon: CalculatorIcon,
           roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'],
         },
@@ -150,7 +151,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           name: 'Deductions',
           href: '/deductions',
           icon: DocumentTextIcon,
-          roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD'],
+          roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'],
         },
       ],
     },
@@ -164,6 +165,12 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
           href: '/results',
           icon: ChartBarIcon,
           roles: allRoles,
+        },
+        {
+          name: 'Winners',
+          href: '/winners',
+          icon: TrophyIcon,
+          roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'],
         },
         {
           name: 'Reports',
@@ -394,6 +401,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '' }) => {
                       <Link
                         key={item.href}
                         to={fullPath}
+                        onClick={onNavigate}
                         className={`flex items-center space-x-3 px-4 py-2 pl-12 text-sm transition-colors ${
                           isActive
                             ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-l-4 border-indigo-600 dark:border-indigo-500'

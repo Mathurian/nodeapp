@@ -46,6 +46,8 @@ interface CreateEventDto {
   description?: string;
   maxContestants?: number;
   contestantNumberingMode?: 'MANUAL' | 'AUTO';
+  contestantViewRestricted?: boolean;
+  contestantViewReleaseDate?: Date | string | null;
 }
 
 interface UpdateEventDto extends Partial<CreateEventDto> {}
@@ -128,6 +130,9 @@ export class EventService extends BaseService {
         ...data,
         startDate,
         endDate,
+        contestantViewReleaseDate: data.contestantViewReleaseDate
+          ? new Date(data.contestantViewReleaseDate)
+          : null,
       });
 
       // Invalidate list caches
@@ -416,7 +421,18 @@ export class EventService extends BaseService {
       }
 
       // Update event
-      const event = await this.eventRepo.update(id, data);
+      const event = await this.eventRepo.update(id, {
+        ...data,
+        ...(data.startDate ? { startDate: new Date(data.startDate) } : {}),
+        ...(data.endDate ? { endDate: new Date(data.endDate) } : {}),
+        ...(data.contestantViewReleaseDate !== undefined
+          ? {
+              contestantViewReleaseDate: data.contestantViewReleaseDate
+                ? new Date(data.contestantViewReleaseDate)
+                : null
+            }
+          : {}),
+      });
 
       // Invalidate caches
       await this.invalidateEventCache(id);

@@ -39,6 +39,7 @@ const ROUTE_LABELS: Record<string, string> = {
   categories: 'Categories',
   scoring: 'Scoring',
   results: 'Results',
+  winners: 'Winners',
   users: 'Users',
   admin: 'Administration',
   settings: 'Settings',
@@ -267,54 +268,56 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
       {/* Minimal Top Bar - Command Palette First */}
       <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="flex items-center justify-between px-4 lg:px-6 py-3">
-          {/* Hamburger Menu for Mobile */}
-          <button
-            onClick={toggleMobileMenu}
-            className="lg:hidden p-2 -ml-2 mr-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label="Open navigation menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            <Bars3Icon className="h-6 w-6" />
-          </button>
+        <div className="flex items-center justify-between px-4 lg:px-6 py-3 gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger Menu for Mobile */}
+            <button
+              onClick={toggleMobileMenu}
+              className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              aria-label="Open navigation menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <Bars3Icon className="h-6 w-6" />
+            </button>
 
-          {/* Sidebar Toggle for Desktop */}
-          <button
-            onClick={toggleSidebar}
-            className="hidden lg:flex p-2 -ml-2 mr-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-            aria-expanded={sidebarOpen}
-          >
-            <Bars3Icon className="h-5 w-5" />
-          </button>
+            {/* Sidebar Toggle for Desktop */}
+            <button
+              onClick={toggleSidebar}
+              className="hidden lg:flex p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              aria-expanded={sidebarOpen}
+            >
+              <Bars3Icon className="h-5 w-5" />
+            </button>
 
-          {/* Logo - links to dashboard */}
-          <Link
-            to={user?.tenant?.slug ? `/${user.tenant.slug}/dashboard` : '/dashboard'}
-            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
-            title="Go to Dashboard"
-          >
-            {logoPath ? (
-              <img
-                src={logoPath}
-                alt={appName}
-                className="h-8 w-8 object-contain"
-                onError={(e) => {
-                  // Fallback to icon if image fails to load
-                  e.currentTarget.style.display = 'none'
-                  const icon = e.currentTarget.nextElementSibling as HTMLElement
-                  if (icon) icon.style.display = 'block'
-                }}
+            {/* Logo - links to dashboard */}
+            <Link
+              to={user?.tenant?.slug ? `/${user.tenant.slug}/dashboard` : '/dashboard'}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer min-w-0"
+              title="Go to Dashboard"
+            >
+              {logoPath ? (
+                <img
+                  src={logoPath}
+                  alt={appName}
+                  className="h-8 w-8 object-contain"
+                  onError={(e) => {
+                    // Fallback to icon if image fails to load
+                    e.currentTarget.style.display = 'none'
+                    const icon = e.currentTarget.nextElementSibling as HTMLElement
+                    if (icon) icon.style.display = 'block'
+                  }}
+                />
+              ) : null}
+              <CommandLineIcon
+                className="h-7 w-7 text-indigo-600 dark:text-indigo-400"
+                style={{ display: logoPath ? 'none' : 'block' }}
               />
-            ) : null}
-            <CommandLineIcon
-              className="h-7 w-7 text-indigo-600 dark:text-indigo-400"
-              style={{ display: logoPath ? 'none' : 'block' }}
-            />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
-              {appName}
-            </h1>
-          </Link>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent truncate">
+                {appName}
+              </h1>
+            </Link>
+          </div>
 
           {/* Center: Command Palette Trigger - Prominent */}
           <button
@@ -562,7 +565,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             </div>
 
             {/* Navigation Content */}
-            <AccordionNav className="py-2" />
+            <AccordionNav className="py-2" onNavigate={() => setMobileMenuOpen(false)} />
           </div>
         </div>
       )}

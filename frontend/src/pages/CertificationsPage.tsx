@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import api from '../services/api'
+import api, { scoringAPI } from '../services/api'
 import {
   AcademicCapIcon,
   CheckCircleIcon,
@@ -49,6 +49,58 @@ const CertificationsPage: React.FC = () => {
   const [filter, setFilter] = useState<string>('ALL')
   const [page, setPage] = useState(1)
 
+  const buildFallbackCertifications = async (): Promise<Certification[]> => {
+    const categoriesResponse = await scoringAPI.getCategories()
+    const categoriesUnwrapped = categoriesResponse.data?.data || categoriesResponse.data
+    const categories = Array.isArray(categoriesUnwrapped) ? categoriesUnwrapped : []
+
+    const progressResults = await Promise.all(
+      categories.map(async (category: any) => {
+        try {
+          const progressResponse = await api.get(`/category-certification/category/${category.id}/progress`)
+          const progress = progressResponse.data?.data || progressResponse.data
+
+          let status: Certification['status'] = 'PENDING'
+          if (progress?.boardProgress?.isCategoryCertified) status = 'CERTIFIED'
+          else if (
+            progress?.judgeProgress?.isCategoryCertified ||
+            progress?.tallyMasterProgress?.isCategoryCertified ||
+            progress?.auditorProgress?.isCategoryCertified
+          ) status = 'IN_PROGRESS'
+
+          return {
+            id: `fallback-${category.id}`,
+            categoryId: category.id,
+            contestId: category.contestId || '',
+            eventId: category?.contest?.event?.id || '',
+            userId: null,
+            status,
+            currentStep:
+              (progress?.judgeProgress?.isCategoryCertified ? 1 : 0) +
+              (progress?.tallyMasterProgress?.isCategoryCertified ? 1 : 0) +
+              (progress?.auditorProgress?.isCategoryCertified ? 1 : 0) +
+              (progress?.boardProgress?.isCategoryCertified ? 1 : 0),
+            totalSteps: 4,
+            judgeCertified: Boolean(progress?.judgeProgress?.isCategoryCertified),
+            tallyCertified: Boolean(progress?.tallyMasterProgress?.isCategoryCertified),
+            auditorCertified: Boolean(progress?.auditorProgress?.isCategoryCertified),
+            boardApproved: Boolean(progress?.boardProgress?.isCategoryCertified),
+            certifiedAt: null,
+            certifiedBy: null,
+            rejectionReason: null,
+            comments: category.name,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as Certification
+        } catch (_error) {
+          return null
+        }
+      })
+    )
+
+    return progressResults.filter(Boolean) as Certification[]
+  }
+
   useEffect(() => {
     fetchCertifications()
   }, [page, filter])
@@ -63,8 +115,24 @@ const CertificationsPage: React.FC = () => {
       }
       const response = await api.get('/certifications', { params })
       const unwrapped = response.data.data || response.data
-      setCertifications(unwrapped.certifications || [])
-      setPagination(unwrapped.pagination || null)
+      const rows = unwrapped.certifications || []
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        setCertifications(rows)
+        setPagination(unwrapped.pagination || null)
+        return
+      }
+
+      const fallback = await buildFallbackCertifications()
+      const filteredFallback = filter === 'ALL' ? fallback : fallback.filter((cert) => cert.status === filter)
+      setCertifications(filteredFallback)
+      setPagination({
+        page: 1,
+        limit: filteredFallback.length || 50,
+        total: filteredFallback.length,
+        totalPages: 1,
+        hasMore: false,
+      })
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load certifications')
       setCertifications([])

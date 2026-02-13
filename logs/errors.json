@@ -1094,5 +1094,21 @@
       "message": "Score already exists for this judge and contestant",
       "code": "CONFLICT"
     }
+  },
+  {
+    "id": "err_1770966281790_d91orc4wu",
+    "timestamp": "2026-02-13T07:04:41.790Z",
+    "severity": "low",
+    "message": "User with identifier 'csv-template' not found",
+    "stack": "NotFoundError: User with identifier 'csv-template' not found\n    at UserService.assertExists (/var/www/event-manager/dist/services/BaseService.js:59:19)\n    at UserService.getUserByIdWithRelations (/var/www/event-manager/dist/services/UserService.js:600:18)\n    at async getUserById (/var/www/event-manager/dist/controllers/usersController.js:88:26)",
+    "context": {
+      "method": "getUserByIdWithRelations",
+      "userId": "csv-template"
+    },
+    "error": {
+      "name": "NotFoundError",
+      "message": "User with identifier 'csv-template' not found",
+      "code": "RESOURCE_NOT_FOUND"
+    }
   }
 ]

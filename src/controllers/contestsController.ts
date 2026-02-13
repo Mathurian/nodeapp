@@ -68,7 +68,55 @@ export class ContestsController {
       }
 
       const contests = await this.contestService.getAllContests(filters);
-      return sendSuccess(res, contests, 'Contests retrieved successfully');
+
+      let filteredContests = contests;
+      if (req.user?.role === 'CONTESTANT' && req.user.contestantId) {
+        const contestantId = req.user.contestantId;
+        const now = new Date();
+
+        const contestRows = await this.prisma.contestContestant.findMany({
+          where: { contestantId },
+          select: { contestId: true }
+        });
+        const categoryRows = await this.prisma.categoryContestant.findMany({
+          where: { contestantId },
+          select: { category: { select: { contestId: true } } }
+        });
+
+        const allowedContestIds = new Set<string>();
+        contestRows.forEach((row) => allowedContestIds.add(row.contestId));
+        categoryRows.forEach((row: any) => row?.category?.contestId && allowedContestIds.add(row.category.contestId));
+
+        const visibilityRows = await this.prisma.contest.findMany({
+          where: { id: { in: Array.from(allowedContestIds) } },
+          select: {
+            id: true,
+            contestantViewRestricted: true,
+            contestantViewReleaseDate: true,
+            event: {
+              select: {
+                contestantViewRestricted: true,
+                contestantViewReleaseDate: true
+              }
+            }
+          }
+        });
+
+        const visibleContestIds = new Set<string>();
+        visibilityRows.forEach((contest) => {
+          const blockedByEvent = contest.event.contestantViewRestricted &&
+            (!contest.event.contestantViewReleaseDate || contest.event.contestantViewReleaseDate > now);
+          const blockedByContest = contest.contestantViewRestricted &&
+            (!contest.contestantViewReleaseDate || contest.contestantViewReleaseDate > now);
+          if (!blockedByEvent && !blockedByContest) {
+            visibleContestIds.add(contest.id);
+          }
+        });
+
+        filteredContests = contests.filter((contest) => visibleContestIds.has(contest.id));
+      }
+
+      return sendSuccess(res, filteredContests, 'Contests retrieved successfully');
     } catch (error) {
       return next(error);
     }

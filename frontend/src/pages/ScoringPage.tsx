@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
+import { scoreFilesAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { OptimisticIndicator, OptimisticStatus } from '../components/ui'
 import {
@@ -13,6 +14,7 @@ import {
   ClockIcon,
   PencilIcon,
   ArrowPathIcon,
+  PaperClipIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 
@@ -74,6 +76,20 @@ interface ScoreFormData {
   comment: string
 }
 
+interface ScoreAttachment {
+  id: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  filePath: string
+  publicUrl?: string
+  metadata?: {
+    contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY'
+    criterionId?: string | null
+    noteText?: string | null
+  } | null
+}
+
 const getImageUrl = (path?: string | null): string | null => {
   if (!path) return null
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path
@@ -90,6 +106,7 @@ const ScoringPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSignOffChecked, setIsSignOffChecked] = useState(false)
   const [saveStatus, setSaveStatus] = useState<OptimisticStatus>('idle')
+  const [uploadingContext, setUploadingContext] = useState<string | null>(null)
   const requiresSignOff = user?.role === 'JUDGE'
 
   // Check if user can access scoring page (judges, admins, board members, and tally masters for viewing)
@@ -161,6 +178,23 @@ const ScoringPage: React.FC = () => {
       enabled: !!selectedCategory && !!selectedContestant,
       retry: 1,
       onError: (err) => console.error('Fetch existing scores failed:', err),
+    }
+  )
+
+  const { data: scoreAttachments = [] } = useQuery<ScoreAttachment[]>(
+    ['score-attachments', selectedCategory?.id, selectedContestant?.id],
+    async () => {
+      if (!selectedCategory || !selectedContestant) return []
+      const response = await scoreFilesAPI.getAll({
+        categoryId: selectedCategory.id,
+        contestantId: selectedContestant.id,
+      })
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    {
+      enabled: !!selectedCategory && !!selectedContestant,
+      retry: 1,
     }
   )
 
@@ -301,9 +335,37 @@ const ScoringPage: React.FC = () => {
     }
   }
 
+  const handleUploadAttachment = async (file: File, criterionId?: string) => {
+    if (!selectedCategory || !selectedContestant || !file) return
+
+    const contextKey = criterionId ? `criterion-${criterionId}` : 'contestant'
+    setUploadingContext(contextKey)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('categoryId', selectedCategory.id)
+      formData.append('contestantId', selectedContestant.id)
+      if (criterionId) {
+        formData.append('criterionId', criterionId)
+      }
+      await scoreFilesAPI.upload(formData)
+      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
+      toast.success('Attachment uploaded')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to upload attachment')
+    } finally {
+      setUploadingContext(null)
+    }
+  }
+
   const getTotalScore = () => {
     return Object.values(scoreFormData).reduce((sum, data) => sum + (Number(data.score) || 0), 0)
   }
+
+  const contestantLevelAttachments = scoreAttachments.filter((file) => file?.metadata?.contextType !== 'CRITERION_COMMENT')
+  const criterionAttachments = (criterionId: string) => scoreAttachments.filter(
+    (file) => file?.metadata?.contextType === 'CRITERION_COMMENT' && file?.metadata?.criterionId === criterionId
+  )
 
   // Authorization check
   if (!isJudge) {
@@ -532,6 +594,39 @@ const ScoringPage: React.FC = () => {
                         View uploaded bio file
                       </a>
                     )}
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Contestant Commentary Attachment
+                      </label>
+                      <input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) void handleUploadAttachment(file)
+                          e.currentTarget.value = ''
+                        }}
+                        className="block w-full text-sm text-gray-600 dark:text-gray-300"
+                      />
+                      {uploadingContext === 'contestant' && (
+                        <p className="mt-1 text-xs text-blue-600">Uploading...</p>
+                      )}
+                      {contestantLevelAttachments.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {contestantLevelAttachments.map((file) => (
+                            <a
+                              key={file.id}
+                              href={file.publicUrl || file.filePath}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                            >
+                              <PaperClipIcon className="h-4 w-4" />
+                              {file.fileName}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Scoring Criteria */}
@@ -569,6 +664,39 @@ const ScoringPage: React.FC = () => {
                             rows={2}
                             className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
+                          <div className="mt-2">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Criterion Attachment
+                            </label>
+                            <input
+                              type="file"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) void handleUploadAttachment(file, criterion.id)
+                                e.currentTarget.value = ''
+                              }}
+                              className="block w-full text-xs text-gray-600 dark:text-gray-300"
+                            />
+                            {uploadingContext === `criterion-${criterion.id}` && (
+                              <p className="mt-1 text-xs text-blue-600">Uploading...</p>
+                            )}
+                            {criterionAttachments(criterion.id).length > 0 && (
+                              <div className="mt-1 space-y-1">
+                                {criterionAttachments(criterion.id).map((file) => (
+                                  <a
+                                    key={file.id}
+                                    href={file.publicUrl || file.filePath}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 underline"
+                                  >
+                                    <PaperClipIcon className="h-3.5 w-3.5" />
+                                    {file.fileName}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
 

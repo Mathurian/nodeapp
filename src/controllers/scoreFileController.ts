@@ -9,6 +9,7 @@ import { ScoreFileService } from '../services/ScoreFileService';
 import { sendSuccess, sendError, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { getRequiredParam } from '../utils/routeHelpers';
 
 export class ScoreFileController {
@@ -24,22 +25,44 @@ export class ScoreFileController {
   uploadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { categoryId, judgeId, contestantId, fileName, fileType, filePath, fileSize, notes } = req.body;
+      const { categoryId, contestantId, criterionId, notes } = req.body;
 
       if (!req.user) {
         throw new Error('User not authenticated');
       }
+      if (!req.file) {
+        sendError(res, 'File is required', 400);
+        return;
+      }
+      if (!categoryId) {
+        sendError(res, 'categoryId is required', 400);
+        return;
+      }
+
+      const userJudgeId = req.user.judgeId || req.user.judge?.id || null;
+      const judgeId = userJudgeId || req.body.judgeId;
+      if (!judgeId) {
+        sendError(res, 'Judge context is required for score file uploads', 400);
+        return;
+      }
+
+      const relativeFilePath = path.relative(process.cwd(), req.file.path);
+      const contextMetadata = {
+        contextType: criterionId ? 'CRITERION_COMMENT' : (contestantId ? 'CONTESTANT' : 'CATEGORY'),
+        criterionId: criterionId || null,
+        noteText: notes || null
+      };
 
       const scoreFile = await this.scoreFileService.uploadScoreFile(
         {
           categoryId,
           judgeId,
           contestantId,
-          fileName,
-          fileType,
-          filePath,
-          fileSize,
-          notes,
+          fileName: req.file.originalname,
+          fileType: req.file.mimetype,
+          filePath: relativeFilePath,
+          fileSize: req.file.size,
+          notes: JSON.stringify(contextMetadata),
           tenantId: req.user.tenantId
         },
         req.user.id
@@ -161,7 +184,7 @@ export class ScoreFileController {
         return;
       }
 
-      const { categoryId, judgeId, contestantId, status } = req.query;
+      const { categoryId, judgeId, contestantId, status, criterionId, contextType } = req.query;
 
       const files = await this.scoreFileService.getAllScoreFiles(req.user.tenantId, {
         categoryId: categoryId as string | undefined,
@@ -170,8 +193,14 @@ export class ScoreFileController {
         status: status as string | undefined
       });
 
-      log.info('All score files retrieved', { count: files.length });
-      sendSuccess(res, files);
+      const filteredFiles = files.filter((file: any) => {
+        if (criterionId && file?.metadata?.criterionId !== criterionId) return false;
+        if (contextType && file?.metadata?.contextType !== contextType) return false;
+        return true;
+      });
+
+      log.info('All score files retrieved', { count: filteredFiles.length });
+      sendSuccess(res, filteredFiles);
     } catch (error) {
       log.error('Get all score files error', { error: (error as Error).message });
       return next(error);
@@ -258,7 +287,10 @@ export class ScoreFileController {
       res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
 
       // Stream the file
-      const fileStream = await fs.readFile(fileInfo.filePath);
+      const resolvedPath = path.isAbsolute(fileInfo.filePath)
+        ? fileInfo.filePath
+        : path.join(process.cwd(), fileInfo.filePath.replace(/^\/+/, ''));
+      const fileStream = await fs.readFile(resolvedPath);
       res.send(fileStream);
 
       log.info('Score file downloaded', { id });

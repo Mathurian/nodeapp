@@ -61,7 +61,15 @@ export class ResultsController {
   getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'results');
     try {
-      const categories = await this.resultsService.getCategories();
+      const userRole = req.user?.role as UserRole;
+      const userId = req.user?.id;
+
+      if (!userRole || !userId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const categories = await this.resultsService.getCategories({ userRole, userId });
       res.json(categories);
     } catch (error) {
       log.error('Get categories error:', error);

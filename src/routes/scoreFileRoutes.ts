@@ -1,4 +1,8 @@
 import express, { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 import {
   uploadScoreFile,
   getScoreFileById,
@@ -15,6 +19,49 @@ import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
 
+const ALLOWED_SCORE_FILE_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'text/plain'
+];
+
+const SCORE_FILE_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+
+const scoreFileStorage = multer.diskStorage({
+  destination: (req, _file, cb) => {
+    const tenantId = req.user?.tenantId || req.tenantId || 'default_tenant';
+    const dir = path.join(process.cwd(), 'uploads', tenantId, 'score-files');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+
+const scoreFileUpload = multer({
+  storage: scoreFileStorage,
+  limits: { fileSize: SCORE_FILE_MAX_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_SCORE_FILE_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Unsupported file type for score commentary attachments'));
+  }
+});
+
 // Apply authentication to all routes
 router.use(authenticateToken);
 
@@ -27,7 +74,13 @@ router.use(authenticateToken);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), logActivity('UPLOAD_SCORE_FILE', 'SCORE'), uploadScoreFile);
+router.post(
+  '/',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  scoreFileUpload.single('file'),
+  logActivity('UPLOAD_SCORE_FILE', 'SCORE'),
+  uploadScoreFile
+);
 
 /**
  * @swagger
@@ -38,7 +91,7 @@ router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOA
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getAllScoreFiles);
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE']), getAllScoreFiles);
 
 /**
  * @swagger

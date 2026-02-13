@@ -115,6 +115,7 @@ router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), get
 // Bulk template routes - must be before /:id route to avoid route conflict
 router.get('/bulk-template', getBulkUploadTemplate)
 router.get('/bulk-template/:userType', getBulkUploadTemplate)
+router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getCSVTemplate)
 
 // Role-based user lookup — must be before /:id to prevent route shadowing
 router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
@@ -225,7 +226,6 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
 
 // CSV Import routes
 router.post('/import-csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
-router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getCSVTemplate)
 
 // User management routes
 router.put('/:id/last-login', updateLastLogin)

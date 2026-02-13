@@ -34,6 +34,8 @@ interface Event {
   archived: boolean
   isLocked: boolean
   scoringType: 'STRAIGHT' | 'OLYMPIC' | null
+  contestantViewRestricted?: boolean
+  contestantViewReleaseDate?: string | null
   createdAt: string
   updatedAt: string
   _count?: {
@@ -48,6 +50,8 @@ interface EventFormData {
   endDate: string
   location: string
   scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
+  contestantViewRestricted?: boolean
+  contestantViewReleaseDate?: string | null
 }
 
 const eventFormSchema = z.object({
@@ -57,6 +61,8 @@ const eventFormSchema = z.object({
   endDate: z.string().min(1, 'End date is required'),
   location: z.string(),
   scoringType: z.string(),
+  contestantViewRestricted: z.boolean().optional(),
+  contestantViewReleaseDate: z.string().optional(),
 }).refine(data => {
   if (data.startDate && data.endDate) {
     return new Date(data.endDate) >= new Date(data.startDate)
@@ -73,7 +79,16 @@ const EventsPage: React.FC = () => {
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
-    defaultValues: { name: '', description: '', startDate: '', endDate: '', location: '', scoringType: '' },
+    defaultValues: {
+      name: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      location: '',
+      scoringType: '',
+      contestantViewRestricted: false,
+      contestantViewReleaseDate: '',
+    },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, watch, formState: { errors } } = form
   const watchedScoringType = watch('scoringType')
@@ -188,7 +203,16 @@ const EventsPage: React.FC = () => {
   )
 
   const resetForm = () => {
-    reset({ name: '', description: '', startDate: '', endDate: '', location: '', scoringType: '' })
+    reset({
+      name: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      location: '',
+      scoringType: '',
+      contestantViewRestricted: false,
+      contestantViewReleaseDate: '',
+    })
     setEditingEvent(null)
     setIsFormOpen(false)
   }
@@ -202,6 +226,8 @@ const EventsPage: React.FC = () => {
       endDate: event.endDate.split('T')[0],
       location: event.location || '',
       scoringType: event.scoringType || '',
+      contestantViewRestricted: !!event.contestantViewRestricted,
+      contestantViewReleaseDate: event.contestantViewReleaseDate ? event.contestantViewReleaseDate.split('T')[0] : '',
     })
     setIsFormOpen(true)
   }
@@ -225,6 +251,8 @@ const EventsPage: React.FC = () => {
       endDate: new Date(data.endDate).toISOString(),
       location: data.location,
       scoringType: data.scoringType ? (data.scoringType as 'STRAIGHT' | 'OLYMPIC') : null,
+      contestantViewRestricted: !!data.contestantViewRestricted,
+      contestantViewReleaseDate: data.contestantViewReleaseDate ? new Date(data.contestantViewReleaseDate).toISOString() : null,
     }
 
     if (editingEvent) {
@@ -521,6 +549,26 @@ const EventsPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter event location"
                   />
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" {...register('contestantViewRestricted')} />
+                    Restrict contestant access to this event
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Contestants only see this event once release date/time is reached.
+                  </p>
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Contestant Access Release Date
+                    </label>
+                    <input
+                      type="date"
+                      {...register('contestantViewReleaseDate')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
                 </div>
 
                 {/* Scoring Type */}

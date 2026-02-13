@@ -23,19 +23,41 @@ interface Deduction {
   contestantId: string
   contestant: {
     id: string
-    contestantNumber: string
-    user: {
-      name: string
-    }
+    contestantNumber: number | null
+    name: string
   }
   points: number
+  amount?: number
   reason: string
   requestedBy: string
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approvals?: Array<{
+    id: string
+    approvedById: string
+    role: string
+    approvedAt: string
+  }>
+  approvalState?: {
+    hasInitiatorCertification: boolean
+    additionalApprovals: number
+    requiredAdditionalApprovals: number
+    approvalsTotal: number
+    readyForApproval: boolean
+  }
   approvedBy?: string
   rejectionReason?: string
   createdAt: string
   _optimistic?: boolean
+}
+
+interface ScoringCategory {
+  id: string
+  name: string
+  contestants?: Array<{
+    id: string
+    name: string
+    contestantNumber: number | null
+  }>
 }
 
 const DeductionsPage: React.FC = () => {
@@ -46,20 +68,96 @@ const DeductionsPage: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState<Deduction | null>(null)
   const [signature, setSignature] = useState('')
   const [rejectionReason, setRejectionReason] = useState('')
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [selectedContestantId, setSelectedContestantId] = useState('')
+  const [requestAmount, setRequestAmount] = useState('')
+  const [requestReason, setRequestReason] = useState('')
 
   // Fetch deductions using react-query
   const { data: deductions = [], isLoading, error } = useQuery<Deduction[]>(
     'deductions',
     async () => {
       const response = await scoringAPI.getDeductions()
-      const unwrapped = response.data.data || response.data
-      return Array.isArray(unwrapped) ? unwrapped : []
+      const unwrapped = response.data?.data || response.data
+      const rows = Array.isArray(unwrapped?.data)
+        ? unwrapped.data
+        : Array.isArray(unwrapped)
+          ? unwrapped
+          : []
+      return rows.map((row: any) => ({
+        ...row,
+        points: row.points ?? row.amount ?? 0,
+      }))
     },
     {
       retry: 1,
       onError: (err) => console.error('Failed to fetch deductions:', err),
     }
   )
+
+  const { data: scoringCategories = [] } = useQuery<ScoringCategory[]>(
+    ['deduction-categories', user?.id],
+    async () => {
+      const response = await scoringAPI.getCategories()
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    { retry: 1 }
+  )
+
+  const createRequestMutation = useOptimisticMutation<
+    unknown,
+    { categoryId: string; contestantId: string; amount: number; reason: string }
+  >({
+    mutationFn: async (data) => scoringAPI.requestDeduction(data),
+    queryKey: ['deductions'],
+    updateFn: (oldData, vars) => {
+      const deds = oldData as Deduction[] | undefined
+      if (!deds) return deds as any
+      return [
+        {
+          id: `optimistic-${Date.now()}`,
+          categoryId: vars.categoryId,
+          category: {
+            id: vars.categoryId,
+            name: scoringCategories.find((c) => c.id === vars.categoryId)?.name || 'Category',
+          },
+          contestantId: vars.contestantId,
+          contestant: {
+            id: vars.contestantId,
+            name: (
+              scoringCategories
+                .find((c) => c.id === vars.categoryId)
+                ?.contestants?.find((contestant) => contestant.id === vars.contestantId)?.name
+            ) || 'Contestant',
+            contestantNumber: (
+              scoringCategories
+                .find((c) => c.id === vars.categoryId)
+                ?.contestants?.find((contestant) => contestant.id === vars.contestantId)?.contestantNumber ?? null
+            ),
+          },
+          points: vars.amount,
+          reason: vars.reason,
+          requestedBy: user?.id || '',
+          status: 'PENDING' as const,
+          createdAt: new Date().toISOString(),
+          _optimistic: true,
+        },
+        ...deds,
+      ]
+    },
+    onSuccess: () => {
+      toast.success('Deduction request submitted')
+      setSelectedCategoryId('')
+      setSelectedContestantId('')
+      setRequestAmount('')
+      setRequestReason('')
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to submit deduction request')
+    },
+    invalidateOnSettled: true,
+  })
 
   // Approve mutation with optimistic updates
   const approveMutation = useOptimisticMutation<
@@ -161,7 +259,23 @@ const DeductionsPage: React.FC = () => {
 
   const filteredDeductions = deductions.filter(d => filter === 'ALL' || d.status === filter)
 
-  const canApprove = user?.role === 'SUPER_ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'TALLY_MASTER' || user?.role === 'BOARD'
+  const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'BOARD'].includes(user?.role || '')
+  const canInitiate = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'JUDGE'].includes(user?.role || '')
+  const selectedCategory = scoringCategories.find((c) => c.id === selectedCategoryId)
+
+  const submitRequest = () => {
+    const amount = Number(requestAmount)
+    if (!selectedCategoryId || !selectedContestantId || !amount || amount <= 0 || !requestReason.trim()) {
+      toast.error('Category, contestant, amount, and reason are required')
+      return
+    }
+    createRequestMutation.mutate({
+      categoryId: selectedCategoryId,
+      contestantId: selectedContestantId,
+      amount,
+      reason: requestReason.trim(),
+    })
+  }
 
   if (isLoading) {
     return (
@@ -186,6 +300,62 @@ const DeductionsPage: React.FC = () => {
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{String(error)}</p>
+          </div>
+        )}
+
+        {canInitiate && (
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Request Deduction</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <select
+                value={selectedCategoryId}
+                onChange={(e) => {
+                  setSelectedCategoryId(e.target.value)
+                  setSelectedContestantId('')
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="">Select category</option>
+                {scoringCategories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+              <select
+                value={selectedContestantId}
+                onChange={(e) => setSelectedContestantId(e.target.value)}
+                disabled={!selectedCategoryId}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="">Select contestant</option>
+                {selectedCategory?.contestants?.map((contestant) => (
+                  <option key={contestant.id} value={contestant.id}>
+                    #{contestant.contestantNumber ?? 'N/A'} - {contestant.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min="1"
+                value={requestAmount}
+                onChange={(e) => setRequestAmount(e.target.value)}
+                placeholder="Points"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              />
+              <button
+                onClick={submitRequest}
+                disabled={createRequestMutation.isLoading}
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {createRequestMutation.isLoading ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
+            <textarea
+              value={requestReason}
+              onChange={(e) => setRequestReason(e.target.value)}
+              rows={2}
+              placeholder="Reason for deduction"
+              className="mt-3 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+            />
           </div>
         )}
 
@@ -265,6 +435,9 @@ const DeductionsPage: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Requested
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Certifications
+                    </th>
                     {canApprove && (
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                         Actions
@@ -295,7 +468,7 @@ const DeductionsPage: React.FC = () => {
                           {deduction.category.name}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                          #{deduction.contestant.contestantNumber} - {deduction.contestant.user.name}
+                          #{deduction.contestant.contestantNumber ?? 'N/A'} - {deduction.contestant.name}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">
                           -{deduction.points}
@@ -305,6 +478,11 @@ const DeductionsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                           {format(new Date(deduction.createdAt), 'MMM d, h:mm a')}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          {deduction.approvalState
+                            ? `${deduction.approvalState.additionalApprovals}/${deduction.approvalState.requiredAdditionalApprovals} additional`
+                            : '0/2 additional'}
                         </td>
                         {canApprove && (
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -349,14 +527,17 @@ const DeductionsPage: React.FC = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                Approve Deduction
+                Certify Deduction
               </h3>
               <div className="mb-4">
                 <p className="text-gray-600 dark:text-gray-400 mb-2">
-                  Deduct <strong>{showApproveModal.points} points</strong> from contestant #{showApproveModal.contestant.contestantNumber}?
+                  Deduct <strong>{showApproveModal.points}</strong> point(s) from contestant #{showApproveModal.contestant.contestantNumber}?
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Reason: {showApproveModal.reason}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Progress: {showApproveModal.approvalState?.additionalApprovals ?? 0}/2 additional certifications
                 </p>
               </div>
               <div className="mb-4">
@@ -383,7 +564,7 @@ const DeductionsPage: React.FC = () => {
                       Approving...
                     </>
                   ) : (
-                    'Approve'
+                    'Certify'
                   )}
                 </button>
                 <button
