@@ -194,16 +194,16 @@ export class JudgeController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { contestantId } = req.params;
+      const { contestantNumber } = req.params;
       const user = req.user!; // Authentication middleware ensures user is defined
 
-      if (!contestantId) {
-        res.status(400).json({ error: 'Contestant ID is required' });
+      if (!contestantNumber) {
+        res.status(400).json({ error: 'Contestant number is required' });
         return;
       }
 
       const contestant = await this.judgeService.getContestantBio(
-        contestantId,
+        contestantNumber,
         user.id,
         user.tenantId
       );

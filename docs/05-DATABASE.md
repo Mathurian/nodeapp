@@ -28,7 +28,7 @@ Event Manager uses PostgreSQL 12+ as its primary database with Prisma as the ORM
 - **Flexibility**: JSONB fields for extensible data
 
 **Database Statistics**:
-- 60+ Tables
+- 80+ Tables
 - 80+ Indexes
 - 10 Enums
 - Multi-tenant architecture

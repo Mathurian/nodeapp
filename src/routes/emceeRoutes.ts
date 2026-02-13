@@ -88,9 +88,7 @@ router.get('/stats', getStats)
  *         description: Scripts retrieved successfully
  */
 router.get('/scripts', getScripts)
-
 // Script access
-router.get('/scripts', getScripts)
 router.get('/scripts/:scriptId', getScript)
 router.get('/scripts/:scriptId/view-url', getFileViewUrl) // Get signed URL (requires auth)
 

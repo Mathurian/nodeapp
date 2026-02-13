@@ -491,7 +491,7 @@ const { isOnline } = useOnlineStatus();
 ### Schema Design
 
 **Multi-Tenancy**:
-- All tables include `tenantId` foreign key
+- Tenant-scoped tables include `tenantId`
 - Tenant isolation enforced at query level
 - Indexes on `tenantId` for performance
 

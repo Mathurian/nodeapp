@@ -129,7 +129,8 @@ const ScoringPage: React.FC = () => {
       if (!selectedCategory) return []
       // Use the dedicated getCriteria endpoint
       const response = await scoringAPI.getCriteria(selectedCategory.id)
-      return response.data || []
+      const unwrapped = response.data?.data ?? response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
       enabled: !!selectedCategory,
@@ -144,7 +145,8 @@ const ScoringPage: React.FC = () => {
     async () => {
       if (!selectedCategory || !selectedContestant) return []
       const response = await scoringAPI.getScores(selectedCategory.id, selectedContestant.id)
-      return response.data.scores || []
+      const unwrapped = response.data?.data ?? response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
       enabled: !!selectedCategory && !!selectedContestant,
@@ -175,8 +177,16 @@ const ScoringPage: React.FC = () => {
     { categoryId: string; contestantId: string; scores: ScoreFormData[] }
   >({
     mutationFn: async (data) => {
-      const response = await scoringAPI.submitScore(data)
-      return response.data
+      await Promise.all(
+        data.scores.map(scoreData =>
+          scoringAPI.submitScore(data.categoryId, data.contestantId, {
+            criteriaId: scoreData.criterionId,
+            score: Number(scoreData.score) || 0,
+            comments: scoreData.comment || '',
+          })
+        )
+      )
+      return { success: true }
     },
     queryKey: ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
     updateFn: (oldData, variables) => {

@@ -290,8 +290,8 @@ RATE_LIMIT_MAX_REQUESTS="200"  # More permissive
 # Backend tests
 npm run test
 
-# Frontend tests
-cd frontend && npm run test
+# Frontend checks
+cd frontend && npm run lint && npm run type-check
 
 # E2E tests (optional)
 npm run test:e2e

@@ -72,8 +72,14 @@ function isValidJWTPayload(obj: unknown): obj is JWTPayload {
 }
 
 const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  // Read token from httpOnly cookie instead of Authorization header
-  const token = req.cookies?.['access_token'];
+  // Prefer httpOnly cookie but support Authorization: Bearer for API clients
+  const cookieToken = req.cookies?.['access_token'];
+  const authHeader = req.headers['authorization'];
+  const bearerToken =
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7).trim()
+      : undefined;
+  const token = cookieToken || bearerToken;
 
   if (!token) {
     // Enhanced logging for sensitive endpoints that frequently have issues

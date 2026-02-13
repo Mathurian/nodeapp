@@ -3,6 +3,8 @@ import { container } from 'tsyringe';
 import { EmceeService } from '../services/EmceeService';
 import { createRequestLogger } from '../utils/logger';
 import { sendSuccess } from '../utils/responseHelpers';
+import path from 'path';
+import fs from 'fs';
 
 /**
  * Controller for Emcee functionality
@@ -311,11 +313,29 @@ export class EmceeController {
         return;
       }
 
-      const path = require('path');
-      const fs = require('fs');
-      const filePath = path.join(__dirname, '../../', script.filePath);
+      const relativePath = script.filePath.replace(/^\/+/, '');
+      const filePath = path.resolve(process.cwd(), relativePath);
+      const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 
-      // Stream file
+      // Ensure resolved file stays inside uploads directory
+      if (!filePath.startsWith(uploadsRoot)) {
+        res.status(400).json({ error: 'Invalid script file path' });
+        return;
+      }
+
+      if (!fs.existsSync(filePath)) {
+        res.status(404).json({ error: 'Script file not found on disk' });
+        return;
+      }
+
+      const extension = path.extname(filePath).toLowerCase();
+      if (extension === '.pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+      } else if (extension === '.txt') {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      }
+
+      res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {

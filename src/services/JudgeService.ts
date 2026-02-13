@@ -581,15 +581,22 @@ export class JudgeService extends BaseService {
   /**
    * Get a single contestant bio
    */
-  async getContestantBio(contestantId: string, userId: string, tenantId: string): Promise<ContestantBioWithCategory> {
+  async getContestantBio(contestantIdentifier: string, userId: string, tenantId: string): Promise<ContestantBioWithCategory> {
     const judgeId = await this.getJudgeIdFromUser(userId, tenantId);
 
     if (!judgeId) {
       throw this.forbiddenError('User is not linked to a Judge record');
     }
 
+    const contestantNumber = Number.parseInt(contestantIdentifier, 10);
     const contestant = await this.prisma.contestant.findFirst({
-      where: { id: contestantId, tenantId },
+      where: {
+        tenantId,
+        OR: [
+          { id: contestantIdentifier },
+          ...(Number.isNaN(contestantNumber) ? [] : [{ contestantNumber }]),
+        ],
+      },
       include: {
         users: {
           select: {
@@ -604,14 +611,22 @@ export class JudgeService extends BaseService {
     }) as ContestantWithBioUsers | null;
 
     if (!contestant) {
-      throw this.notFoundError('Contestant', contestantId);
+      throw this.notFoundError('Contestant', contestantIdentifier);
     }
 
-    // Find which category this contestant is in via CategoryContestant join table
+    // Find an assigned category for this contestant that the current judge can access.
     const categoryContestant = await this.prisma.categoryContestant.findFirst({
       where: {
-        contestantId,
+        contestantId: contestant.id,
         tenantId,
+        category: {
+          assignments: {
+            some: {
+              judgeId,
+              tenantId,
+            },
+          },
+        },
       },
       include: {
         category: {
@@ -624,20 +639,7 @@ export class JudgeService extends BaseService {
     }) as CategoryContestantWithCategory | null;
 
     if (!categoryContestant) {
-      throw this.notFoundError('Category assignment for contestant', contestantId);
-    }
-
-    // Verify judge is assigned to this category
-    const assignment = await this.prisma.assignment.findFirst({
-      where: {
-        judgeId,
-        categoryId: categoryContestant.categoryId,
-        tenantId,
-      },
-    });
-
-    if (!assignment) {
-      throw this.forbiddenError('Not assigned to this category');
+      throw this.forbiddenError('Not assigned to a category containing this contestant');
     }
 
     return {

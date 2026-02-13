@@ -39,16 +39,47 @@ export class WorkflowService {
   static async createTemplate(input: WorkflowTemplateInput): Promise<Prisma.WorkflowTemplateGetPayload<{}>> {
     try {
       const { steps, ...templateData } = input;
+      const normalizedTenantId = templateData.tenantId?.trim();
+      if (!normalizedTenantId) {
+        throw new Error('Tenant context is required for workflow templates');
+      }
 
-      const template = await prisma.workflowTemplate.create({
-        data: {
-          tenantId: templateData.tenantId || '',
-          name: templateData.name,
-          description: templateData.description,
-          type: templateData.type || 'custom',
-          isDefault: templateData.isDefault ?? false,
-          isActive: templateData.isActive ?? true,
+      if (!templateData.name?.trim()) {
+        throw new Error('Workflow template name is required');
+      }
+
+      const template = await prisma.$transaction(async (tx) => {
+        const createdTemplate = await tx.workflowTemplate.create({
+          data: {
+            tenantId: normalizedTenantId || null,
+            name: templateData.name,
+            description: templateData.description,
+            type: templateData.type || 'custom',
+            isDefault: templateData.isDefault ?? false,
+            isActive: templateData.isActive ?? true,
+            config: ({ steps: steps || [] } as unknown as Prisma.InputJsonValue),
+          }
+        });
+
+        if (Array.isArray(steps) && steps.length > 0) {
+          await tx.workflowStep.createMany({
+            data: steps.map((step, index) => ({
+              templateId: createdTemplate.id,
+              name: step.name,
+              description: step.description,
+              stepOrder: Number.isFinite(step.stepOrder) ? step.stepOrder : index + 1,
+              requiredRole: step.requiredRole,
+              autoAdvance: step.autoAdvance ?? false,
+              requireApproval: step.requireApproval ?? true,
+              conditions: step.conditions as Prisma.InputJsonValue | undefined,
+              actions: step.actions as Prisma.InputJsonValue | undefined,
+              notifyRoles: (step.notifyRoles || []) as Prisma.InputJsonValue,
+              tenantId: normalizedTenantId,
+            })),
+          });
         }
+
+        return createdTemplate;
       });
 
       logger.info(`Created workflow template: ${template.name}`);
@@ -142,23 +173,48 @@ export class WorkflowService {
     entityId: string
   ): Promise<WorkflowInstance> {
     try {
+      const template = await prisma.workflowTemplate.findFirst({
+        where: {
+          id: workflowId,
+          tenantId,
+          isActive: true,
+        },
+      });
+
+      if (!template) {
+        throw new Error(`Workflow template ${workflowId} not found or inactive`);
+      }
+
+      const firstStep = await prisma.workflowStep.findFirst({
+        where: { templateId: workflowId, tenantId },
+        orderBy: { stepOrder: 'asc' }
+      });
+
       const instance = await prisma.workflowInstance.create({
         data: {
           templateId: workflowId,
           tenantId,
           entityType,
           entityId,
+          currentStepId: firstStep?.id || null,
           status: 'active'
         }
       });
 
       logger.info(`Started workflow instance for ${entityType} ${entityId}`);
 
-      await EventBusService.publish(
-        AppEventType.USER_CREATED,
-        { workflowId: instance.id, entityType, entityId },
-        { source: 'WorkflowService' }
-      );
+      try {
+        await EventBusService.publish(
+          AppEventType.USER_CREATED,
+          { workflowId: instance.id, entityType, entityId },
+          { source: 'WorkflowService' }
+        );
+      } catch (publishError) {
+        logger.warn('Workflow started but event publish failed', {
+          workflowInstanceId: instance.id,
+          error: publishError instanceof Error ? publishError.message : String(publishError),
+        });
+      }
 
       return instance;
     } catch (error) {

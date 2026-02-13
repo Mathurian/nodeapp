@@ -724,12 +724,45 @@ export class ScoringController {
         return;
       }
 
+      const tenantId = req.user.tenantId;
+      const userRole = String(req.user.role || '').toUpperCase();
       const contestId = req.query['contestId'] as string | undefined;
 
       const where: Prisma.CategoryWhereInput = {
-        tenantId: req.user.tenantId,
+        tenantId,
         deletedAt: null // Manual soft-delete filter (middleware skipped due to nested includes)
       };
+
+      // Judges should only see categories they are actively assigned to.
+      if (userRole === 'JUDGE') {
+        let judgeId = req.user.judgeId || req.user.judge?.id || null;
+
+        if (!judgeId) {
+          const userRecord = await this.prisma.user.findFirst({
+            where: {
+              id: req.user.id,
+              tenantId
+            },
+            select: {
+              judgeId: true
+            }
+          });
+          judgeId = userRecord?.judgeId || null;
+        }
+
+        if (!judgeId) {
+          return sendSuccess(res, []);
+        }
+
+        where.assignments = {
+          some: {
+            tenantId,
+            judgeId,
+            status: 'ACTIVE'
+          }
+        };
+      }
+
       if (contestId) {
         where.contestId = contestId;
       }
@@ -758,6 +791,19 @@ export class ScoringController {
               scores: true,
               categoryContestants: true
             }
+          },
+          categoryContestants: {
+            select: {
+              contestant: {
+                select: {
+                  id: true,
+                  name: true,
+                  contestantNumber: true,
+                  bio: true,
+                  imagePath: true
+                }
+              }
+            }
           }
         } as any,
         orderBy: { name: 'asc' }
@@ -769,6 +815,10 @@ export class ScoringController {
         if (cat.contest?.event?.deletedAt) return false; // Exclude if event is deleted
         return true;
       }).map((cat: any) => {
+        const contestants = Array.isArray(cat.categoryContestants)
+          ? cat.categoryContestants.map((cc: any) => cc.contestant).filter(Boolean)
+          : [];
+
         // Remove deletedAt fields from response
         if (cat.contest) {
           delete cat.contest.deletedAt;
@@ -776,6 +826,8 @@ export class ScoringController {
             delete cat.contest.event.deletedAt;
           }
         }
+        delete cat.categoryContestants;
+        cat.contestants = contestants;
         return cat;
       });
 

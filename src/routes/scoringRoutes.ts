@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getCategories, submitScore, updateScore, deleteScore, certifyScore, certifyScores, certifyTotals, finalCertification, requestDeduction, approveDeduction, rejectDeduction, getDeductions, unsignScore, uncertifyCategory } from '../controllers/scoringController';
+import { getCategories, getScores, submitScore, updateScore, deleteScore, certifyScore, certifyScores, certifyTotals, finalCertification, requestDeduction, approveDeduction, rejectDeduction, getDeductions, unsignScore, uncertifyCategory } from '../controllers/scoringController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { validate, createScoreSchema, updateScoreSchema } from '../middleware/validation';
@@ -22,6 +22,16 @@ router.use(authenticateToken)
  *         description: List of categories available for scoring
  */
 router.get('/categories', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getCategories)
+
+// Keep backward-compatible GET endpoint used by frontend scoring flow
+router.get('/category/:categoryId/contestant/:contestantId',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
+  (req, _res, next) => {
+    req.query['contestantId'] = req.params['contestantId'];
+    next();
+  },
+  getScores
+)
 
 /**
  * @swagger

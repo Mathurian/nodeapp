@@ -147,52 +147,6 @@ router.get('/', eventsLogController.listEventLogs);
  *       404:
  *         description: Event log not found
  */
-router.get('/:id', eventsLogController.getEventLog);
-
-/**
- * @swagger
- * /api/events-log/webhooks:
- *   get:
- *     summary: List configured webhooks
- *     tags: [Event Logs]
- *     security:
- *       - bearerAuth: []
- *     description: Retrieve all configured webhooks for event notifications (Admin only)
- *     responses:
- *       200:
- *         description: List of webhooks
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       name:
- *                         type: string
- *                         example: "Slack Notifications"
- *                       url:
- *                         type: string
- *                         example: "https://hooks.slack.com/services/..."
- *                       events:
- *                         type: array
- *                         items:
- *                           type: string
- *                         example: ["USER_CREATED", "CONTEST_COMPLETED"]
- *                       isActive:
- *                         type: boolean
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - requires ADMIN role
- */
 router.get('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.listWebhooks);
 
 /**
@@ -256,6 +210,8 @@ router.get('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogControll
  *         description: Forbidden - requires ADMIN role
  */
 router.post('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.createWebhook);
+
+router.get('/:id', eventsLogController.getEventLog);
 
 /**
  * @swagger

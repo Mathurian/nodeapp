@@ -125,7 +125,7 @@ router.get('/templates', workflowController.listTemplates);
  *       403:
  *         description: Forbidden - requires ADMIN role
  */
-router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN']), workflowController.createTemplate);
+router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.createTemplate);
 
 /**
  * @swagger
@@ -208,7 +208,7 @@ router.get('/templates/:id', workflowController.getTemplate);
  *       404:
  *         description: Template not found
  */
-router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), workflowController.updateTemplate);
+router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.updateTemplate);
 
 /**
  * @swagger
@@ -234,7 +234,7 @@ router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']),
  *       404:
  *         description: Template not found
  */
-router.delete('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), workflowController.deleteTemplate);
+router.delete('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.deleteTemplate);
 
 /**
  * Workflow Instances

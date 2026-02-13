@@ -88,8 +88,8 @@ const FileManagementPage: React.FC = () => {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
   }
 
-  const getFileIcon = (mimetype: string | undefined | null) => {
-    if (!mimetype) return '📄'
+  const getFileIcon = (mimetype: unknown) => {
+    if (typeof mimetype !== 'string' || mimetype.length === 0) return '📄'
     if (mimetype.startsWith('image/')) return '🖼️'
     if (mimetype.startsWith('video/')) return '🎥'
     if (mimetype.startsWith('audio/')) return '🎵'

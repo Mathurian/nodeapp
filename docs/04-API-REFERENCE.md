@@ -71,6 +71,8 @@ X-CSRF-Token: <CSRF_TOKEN>
 
 All protected endpoints require JWT authentication.
 
+Primary auth mode is an `access_token` httpOnly cookie. API clients may also send a bearer token.
+
 **Header Format**:
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

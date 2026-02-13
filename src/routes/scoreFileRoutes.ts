@@ -42,17 +42,6 @@ router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALL
 
 /**
  * @swagger
- * /api/score-files/{id}:
- *   get:
- *     summary: Get score file by ID
- *     tags: [Score Files]
- *     security:
- *       - bearerAuth: []
- */
-router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFileById);
-
-/**
- * @swagger
  * /api/score-files/category/{categoryId}:
  *   get:
  *     summary: Get files for a category
@@ -86,6 +75,17 @@ router.get('/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JU
 
 /**
  * @swagger
+ * /api/score-files/download/{id}:
+ *   get:
+ *     summary: Download a score file
+ *     tags: [Score Files]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), downloadScoreFile);
+
+/**
+ * @swagger
  * /api/score-files/{id}:
  *   patch:
  *     summary: Update score file status/notes
@@ -108,14 +108,14 @@ router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER']
 
 /**
  * @swagger
- * /api/score-files/download/{id}:
+ * /api/score-files/{id}:
  *   get:
- *     summary: Download a score file
+ *     summary: Get score file by ID
  *     tags: [Score Files]
  *     security:
  *       - bearerAuth: []
  */
-router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), downloadScoreFile);
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getScoreFileById);
 
 export default router;
 
