@@ -71,49 +71,98 @@ export async function refreshJudgeStage(
   categoryId: string
 ): Promise<Certification> {
   const certification = await ensureCertificationRecord({ prisma, tenantId, categoryId });
+  const category = await prisma.category.findFirst({
+    where: {
+      id: categoryId,
+      tenantId,
+      deletedAt: null
+    },
+    select: {
+      contestId: true,
+      contest: {
+        select: {
+          eventId: true
+        }
+      }
+    }
+  });
 
-  const [requiredJudgeCountFromCategory, requiredJudgeCountFromAssignments, certifiedJudgeCount] = await Promise.all([
-    prisma.categoryJudge.count({
+  if (!category || !category.contest?.eventId) {
+    throw new Error('Category not found');
+  }
+
+  const [requiredJudgesFromCategory, requiredJudgesFromAssignments] = await Promise.all([
+    prisma.categoryJudge.findMany({
       where: {
         categoryId,
         category: {
           tenantId,
           deletedAt: null
         }
+      },
+      select: {
+        judgeId: true
       }
     }),
     prisma.assignment.groupBy({
       by: ['judgeId'],
       where: {
         tenantId,
-        categoryId,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        OR: [
+          { categoryId },
+          { categoryId: null, contestId: category.contestId },
+          { categoryId: null, eventId: category.contest.eventId }
+        ]
       }
-    }).then((rows) => rows.length),
-    prisma.judgeCertification.groupBy({
-      by: ['judgeId'],
-      where: {
-        categoryId,
-        tenantId
-      }
-    }).then((rows) => rows.length)
+    }).then((rows) => rows.map((row) => row.judgeId))
   ]);
 
-  const effectiveJudgeCount = requiredJudgeCountFromCategory > 0
-    ? requiredJudgeCountFromCategory
-    : requiredJudgeCountFromAssignments;
-  const judgeCertified = effectiveJudgeCount > 0
-    ? certifiedJudgeCount >= effectiveJudgeCount
-    : certifiedJudgeCount > 0;
+  const requiredJudgeIds = new Set<string>(
+    (requiredJudgesFromCategory.length > 0
+      ? requiredJudgesFromCategory.map((row) => row.judgeId)
+      : requiredJudgesFromAssignments
+    ).filter(Boolean)
+  );
+
+  const certifiedJudgeIds = new Set<string>(
+    await prisma.judgeCertification.findMany({
+      where: {
+        categoryId,
+        tenantId,
+        ...(requiredJudgeIds.size > 0 ? { judgeId: { in: Array.from(requiredJudgeIds) } } : {})
+      },
+      select: {
+        judgeId: true
+      }
+    }).then((rows) => rows.map((row) => row.judgeId))
+  );
+
+  const judgeCertified = requiredJudgeIds.size > 0
+    ? Array.from(requiredJudgeIds).every((judgeId) => certifiedJudgeIds.has(judgeId))
+    : certifiedJudgeIds.size > 0;
+
+  const currentStep = certification.boardApproved
+    ? 4
+    : certification.auditorCertified
+      ? 4
+      : certification.tallyCertified
+        ? 3
+        : judgeCertified
+          ? 2
+          : 1;
+  const status = certification.boardApproved
+    ? 'CERTIFIED'
+    : (judgeCertified || certification.tallyCertified || certification.auditorCertified)
+      ? 'IN_PROGRESS'
+      : 'PENDING';
 
   return prisma.certification.update({
     where: { id: certification.id },
     data: {
       judgeCertified,
-      currentStep: judgeCertified ? Math.max(certification.currentStep, 2) : certification.currentStep,
-      status: certification.boardApproved
-        ? 'CERTIFIED'
-        : (judgeCertified ? 'IN_PROGRESS' : certification.status)
+      currentStep,
+      status
     }
   });
 }

@@ -66,6 +66,7 @@ model Event {
   tallyMasterAssignments TallyMasterAssignment[]
   auditorAssignments     AuditorAssignment[]
   roleAssignments        RoleAssignment[]
+  scoreGovernanceRequests ScoreGovernanceRequest[]
 
   @@index([tenantId])
   @@index([tenantId, archived])
@@ -110,6 +111,7 @@ model Contest {
   auditorAssignments     AuditorAssignment[]
   contestCertifications  ContestCertification[]
   roleAssignments        RoleAssignment[]
+  scoreGovernanceRequests ScoreGovernanceRequest[]
 
   @@index([tenantId])
   @@index([eventId])
@@ -165,6 +167,7 @@ model Category {
   reviewJudgeScoreCertifications ReviewJudgeScoreCertification[]
   deductionRequests            DeductionRequest[]
   roleAssignments              RoleAssignment[]
+  scoreGovernanceRequests      ScoreGovernanceRequest[]
   scoreFiles                   ScoreFile[]
 
   @@index([tenantId])
@@ -199,6 +202,7 @@ model Contestant {
   reviewContestantCertifications ReviewContestantCertification[]
   deductionRequests            DeductionRequest[]
   scoreFiles                   ScoreFile[]
+  scoreGovernanceRequests      ScoreGovernanceRequest[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -234,6 +238,7 @@ model Judge {
   judgeContestantCertifications JudgeContestantCertification[]
   reviewJudgeScoreCertifications ReviewJudgeScoreCertification[]
   scoreFiles                   ScoreFile[]
+  scoreGovernanceRequests      ScoreGovernanceRequest[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -371,6 +376,8 @@ model User {
   scoreFiles                            ScoreFile[]
   deductionRequests                     DeductionRequest[]
   rateLimitConfigs                      RateLimitConfig[]
+  scoreGovernanceRequestsCreated        ScoreGovernanceRequest[]      @relation("ScoreGovernanceRequestedBy")
+  scoreGovernanceApprovals              ScoreGovernanceApproval[]     @relation("ScoreGovernanceApprovedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1622,6 +1629,71 @@ model ScoreRemovalRequest {
   @@index([categoryId])
   @@index([status])
   @@map("score_removal_requests")
+}
+
+model ScoreGovernanceRequest {
+  id                          String        @id @default(cuid())
+  actionType                  String
+  scopeType                   String
+  targetCertificationLevel    String?
+  eventId                     String?
+  contestId                   String?
+  categoryId                  String?
+  contestantId                String?
+  judgeId                     String?
+  scoreId                     String?
+  reason                      String
+  status                      RequestStatus @default(PENDING)
+  requestedById               String
+  requesterRole               String
+  initiatorTypedSignature     String?
+  initiatorDrawnSignatureData String?
+  initiatorSignatureFilePath  String?
+  requiredAdditionalApprovals Int           @default(2)
+  executedAt                  DateTime?
+  executedById                String?
+  executionSummary            String?
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
+  tenantId                    String
+
+  requestedBy User      @relation("ScoreGovernanceRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  event       Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  contest     Contest?  @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  contestant  Contestant? @relation(fields: [contestantId], references: [id], onDelete: SetNull)
+  judge       Judge?    @relation(fields: [judgeId], references: [id], onDelete: SetNull)
+  approvals   ScoreGovernanceApproval[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, actionType])
+  @@index([tenantId, scopeType])
+  @@index([tenantId, contestId])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, contestantId])
+  @@index([tenantId, judgeId])
+  @@map("score_governance_requests")
+}
+
+model ScoreGovernanceApproval {
+  id                  String   @id @default(cuid())
+  requestId           String
+  approvedById        String
+  approverRole        String
+  typedSignature      String?
+  drawnSignatureData  String?
+  signatureFilePath   String?
+  approvedAt          DateTime @default(now())
+  tenantId            String
+
+  request    ScoreGovernanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approvedBy User                   @relation("ScoreGovernanceApprovedBy", fields: [approvedById], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, requestId, approvedById])
+  @@index([tenantId])
+  @@index([tenantId, requestId])
+  @@map("score_governance_approvals")
 }
 
 model SearchAnalytic {

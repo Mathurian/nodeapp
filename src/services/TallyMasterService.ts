@@ -382,15 +382,24 @@ export class TallyMasterService extends BaseService {
   /**
    * Get tally master dashboard statistics
    */
-  async getStats(): Promise<TallyMasterStats> {
+  async getStats(tenantId: string): Promise<TallyMasterStats & { pendingCertifications: number }> {
+    const [totalCategories, pendingCertifications, certifiedTotals] = await Promise.all([
+      this.prisma.category.count({
+        where: { tenantId, deletedAt: null },
+      }),
+      this.prisma.certification.count({
+        where: { tenantId, judgeCertified: true, tallyCertified: false },
+      }),
+      this.prisma.certification.count({
+        where: { tenantId, tallyCertified: true },
+      }),
+    ]);
+
     const stats = {
-      totalCategories: await this.prisma.category.count(),
-      pendingTotals: await this.prisma.category.count({
-        where: { totalsCertified: false },
-      }),
-      certifiedTotals: await this.prisma.category.count({
-        where: { totalsCertified: true },
-      }),
+      totalCategories,
+      pendingTotals: pendingCertifications,
+      pendingCertifications,
+      certifiedTotals,
     };
 
     return stats;
@@ -443,61 +452,55 @@ export class TallyMasterService extends BaseService {
   /**
    * Get certification queue (categories ready for tally master review)
    */
-  async getCertificationQueue(page: number = 1, limit: number = 20): Promise<{
-    categories: CategoryWithCertifications[];
+  async getCertificationQueue(page: number = 1, limit: number = 20, tenantId?: string): Promise<{
+    categories: any[];
     pagination: PaginationMeta;
   }> {
     const offset = (page - 1) * limit;
 
-    const allCategories = await this.prisma.category.findMany({
-      where: { totalsCertified: false },
-      include: {
-        contest: {
-          select: {
-            id: true,
-            eventId: true,
-            name: true,
-            description: true,
-            createdAt: true,
-            updatedAt: true,
-            contestantNumberingMode: true,
-            nextContestantNumber: true,
-            event: true,
-          },
-        },
-        scores: {
+    const certWhere: any = {
+      judgeCertified: true,
+      tallyCertified: false
+    };
+    if (tenantId) certWhere.tenantId = tenantId;
+
+    const certs = await this.prisma.certification.findMany({
+      where: certWhere,
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const categoryIds = certs.map((c) => c.categoryId);
+    const categoryRows = categoryIds.length > 0
+      ? await this.prisma.category.findMany({
+          where: { id: { in: categoryIds } },
           include: {
-            judge: true,
-            contestant: true,
-          },
-        },
-        categoryCertifications: {
-          where: {
-            role: 'TALLY_MASTER',
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    }) as CategoryWithCertifications[];
+            contest: {
+              include: {
+                event: true
+              }
+            }
+          }
+        })
+      : [];
 
-    // Filter categories where all judges have certified but tally master hasn't
-    const pendingItems = await Promise.all(
-      allCategories.map(async (category) => {
-        const hasJudgeCategoryCert = await this.prisma.judgeCertification.findFirst({
-          where: { categoryId: category.id },
-        });
-        const hasTallyCert = category.categoryCertifications.length > 0;
-        const allJudgesCertified =
-          category.scores.length === 0 || category.scores.every((s) => s.isCertified === true);
-        return hasJudgeCategoryCert && !hasTallyCert && allJudgesCertified && category.scores.length > 0
-          ? category
-          : null;
-      })
-    );
+    const certByCategory = new Map(certs.map((c) => [c.categoryId, c]));
+    const categories = categoryRows.map((category: any) => {
+      const cert = certByCategory.get(category.id);
+      return {
+        id: category.id,
+        categoryId: category.id,
+        categoryName: category.name,
+        contestId: category.contestId,
+        contestName: category.contest?.name || '',
+        eventId: category.contest?.event?.id || '',
+        eventName: category.contest?.event?.name || '',
+        status: cert?.status || 'PENDING',
+        currentStep: cert?.currentStep || 1,
+        updatedAt: cert?.updatedAt || category.updatedAt
+      };
+    });
 
-    const categories = pendingItems.filter(Boolean) as CategoryWithCertifications[];
     const total = categories.length;
-
     const paginatedCategories = categories.slice(offset, offset + limit);
 
     return {
@@ -650,7 +653,12 @@ export class TallyMasterService extends BaseService {
   /**
    * Certify category totals
    */
-  async certifyTotals(categoryId: string, _userId: string, _userRole: UserRole): Promise<Prisma.CategoryGetPayload<{
+  async certifyTotals(
+    categoryId: string,
+    _userId: string,
+    _userRole: UserRole,
+    signature?: { typedSignature?: string; drawnSignatureData?: string; signatureFilePath?: string; comments?: string }
+  ): Promise<Prisma.CategoryGetPayload<{
     include: {
       contest: {
         include: {
@@ -702,10 +710,14 @@ export class TallyMasterService extends BaseService {
         tenantId: category.tenantId,
         categoryId,
         role: 'TALLY_MASTER',
-        userId: _userId
+        userId: _userId,
+        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: signature?.comments || null
       },
       update: {
         userId: _userId,
+        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: signature?.comments || null,
         certifiedAt: new Date()
       }
     });
@@ -715,6 +727,7 @@ export class TallyMasterService extends BaseService {
       tenantId: category.tenantId,
       categoryId,
       role: 'TALLY_MASTER',
+      comments: signature?.comments || null,
       userId: _userId,
       certifiedBy: _userId
     });

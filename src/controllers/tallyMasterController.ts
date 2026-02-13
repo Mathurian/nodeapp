@@ -29,7 +29,7 @@ export class TallyMasterController {
         return;
       }
 
-      const stats = await this.tallyMasterService.getStats();
+      const stats = await this.tallyMasterService.getStats(req.user.tenantId);
       res.json(stats);
     } catch (error) {
       log.error('Get tally master stats error', error);
@@ -73,7 +73,7 @@ export class TallyMasterController {
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 20;
 
-      const result = await this.tallyMasterService.getCertificationQueue(page, limit);
+      const result = await this.tallyMasterService.getCertificationQueue(page, limit, req.user.tenantId);
       res.json(result);
     } catch (error) {
       log.error('Get certification queue error', error);
@@ -114,7 +114,7 @@ export class TallyMasterController {
         return;
       }
 
-      const { categoryId } = req.body;
+      const { categoryId, typedSignature, drawnSignatureData, signatureFilePath, signatureName, comments } = req.body;
       const userId = req.user?.id;
       const userRole = req.user?.role as UserRole;
 
@@ -123,7 +123,17 @@ export class TallyMasterController {
         return;
       }
 
-      const result = await this.tallyMasterService.certifyTotals(categoryId, userId, userRole);
+      if (!typedSignature && !drawnSignatureData && !signatureFilePath && !signatureName) {
+        res.status(400).json({ error: 'A typed, drawn, or file signature is required to certify totals' });
+        return;
+      }
+
+      const result = await this.tallyMasterService.certifyTotals(categoryId, userId, userRole, {
+        typedSignature: typedSignature || signatureName,
+        drawnSignatureData,
+        signatureFilePath,
+        comments
+      });
       res.json(result);
     } catch (error) {
       log.error('Certify totals error', error);

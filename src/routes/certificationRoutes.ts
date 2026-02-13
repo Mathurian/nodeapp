@@ -10,7 +10,8 @@ import {
   certifyAuditor,
   approveBoard,
   rejectCertification,
-  getCertificationStats
+  getCertificationStats,
+  getCertificationOverview
 } from '../controllers/certificationController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
@@ -49,6 +50,7 @@ router.use(authenticateToken)
  */
 router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getAllCertifications)
 router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getCertificationStats)
+router.get('/overview', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getCertificationOverview)
 router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), validate(idParamSchema, 'params'), getCertificationById)
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createCertificationSchema, 'body'), logActivity('CREATE_CERTIFICATION', 'CERTIFICATION'), createCertification)
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(idParamSchema, 'params'), validate(updateCertificationSchema, 'body'), logActivity('UPDATE_CERTIFICATION', 'CERTIFICATION'), updateCertification)

@@ -64,6 +64,7 @@ const BoardCertificationsPage = lazyWithRetry(() => import('../pages/BoardCertif
 const BoardScoreRemovalPage = lazyWithRetry(() => import('../pages/BoardScoreRemovalPage'), 'BoardScoreRemovalPage')
 const PermissionsPage = lazyWithRetry(() => import('../pages/PermissionsPage'), 'PermissionsPage')
 const PermissionAuditLogPage = lazyWithRetry(() => import('../pages/PermissionAuditLogPage'), 'PermissionAuditLogPage')
+const ScoreGovernancePage = lazyWithRetry(() => import('../pages/ScoreGovernancePage'), 'ScoreGovernancePage')
 const NotFoundPage = lazyWithRetry(() => import('../pages/NotFoundPage'), 'NotFoundPage')
 
 // Loading fallback
@@ -92,6 +93,7 @@ const KNOWN_ROUTES = new Set([
   'bulk-operations', 'category-types', 'field-visibility',
   'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs', 'activity',
   'auditor', 'board', 'permissions', 'test-runner', 'tally-master', 'winners'
+  , 'score-governance'
 ])
 
 // Helper to check if a path segment is a known route
@@ -153,6 +155,12 @@ const RoleDefaultRoute: React.FC<{ basePath: string }> = ({ basePath }) => {
   return <Navigate to={`${basePath}${getRoleHomePath(user?.role)}`} replace />
 }
 
+const ADMIN_STANDARD_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
+const ADMIN_STRICT_ROLES = ['SUPER_ADMIN', 'ADMIN']
+const SCORING_ROLES = ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
+const EMCEE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']
+const DEDUCTION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']
+
 // Main app routes component that handles routing based on parsed URL
 const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenCommandPalette }) => {
   const location = useLocation()
@@ -175,50 +183,51 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             */}
             <Route path="/" element={<RoleDefaultRoute basePath={basePath} />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/contests" element={<ContestsPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/events/:eventId/contests" element={<ContestsPage />} />
-            <Route path="/contests/:contestId/categories" element={<CategoriesPage />} />
-            <Route path="/scoring" element={<ProtectedRoute requiredRole={['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']}><ScoringPage /></ProtectedRoute>} />
+            <Route path="/events" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventsPage /></ProtectedRoute>} />
+            <Route path="/contests" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ContestsPage /></ProtectedRoute>} />
+            <Route path="/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
+            <Route path="/events/:eventId/contests" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ContestsPage /></ProtectedRoute>} />
+            <Route path="/contests/:contestId/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
+            <Route path="/scoring" element={<ProtectedRoute requiredRole={SCORING_ROLES}><ScoringPage /></ProtectedRoute>} />
             <Route path="/results" element={<ResultsPage />} />
             <Route path="/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']}><WinnersPage /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AdminPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/admin" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><AdminPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/emcee" element={<EmceePage />} />
-            <Route path="/templates" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><TemplatesPage /></ProtectedRoute>} />
+            <Route path="/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
+            <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/backups" element={<BackupManagementPage />} />
-            <Route path="/disaster-recovery" element={<DisasterRecoveryPage />} />
-            <Route path="/workflows" element={<WorkflowManagementPage />} />
+            <Route path="/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
+            <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
+            <Route path="/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/files" element={<FileManagementPage />} />
-            <Route path="/email-templates" element={<EmailTemplatesPage />} />
-            <Route path="/custom-fields" element={<CustomFieldsPage />} />
-            <Route path="/tenants" element={<TenantManagementPage />} />
-            <Route path="/mfa" element={<MFASettingsPage />} />
-            <Route path="/database" element={<DatabaseBrowserPage />} />
-            <Route path="/cache" element={<CacheManagementPage />} />
-            <Route path="/archive" element={<ArchivePage />} />
-            <Route path="/deductions" element={<DeductionsPage />} />
+            <Route path="/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
+            <Route path="/email-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EmailTemplatesPage /></ProtectedRoute>} />
+            <Route path="/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
+            <Route path="/tenants" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TenantManagementPage /></ProtectedRoute>} />
+            <Route path="/mfa" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><MFASettingsPage /></ProtectedRoute>} />
+            <Route path="/database" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
+            <Route path="/cache" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CacheManagementPage /></ProtectedRoute>} />
+            <Route path="/archive" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ArchivePage /></ProtectedRoute>} />
+            <Route path="/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
             <Route path="/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
-            <Route path="/logs" element={<LogViewerPage />} />
-            <Route path="/activity" element={<ActivityLogPage />} />
-            <Route path="/performance" element={<PerformancePage />} />
-            <Route path="/data-wipe" element={<DataWipePage />} />
-            <Route path="/event-templates" element={<EventTemplatesPage />} />
-            <Route path="/bulk-operations" element={<BulkOperationsPage />} />
-            <Route path="/category-types" element={<CategoryTypesPage />} />
-            <Route path="/field-visibility" element={<FieldVisibilityPage />} />
-            <Route path="/test-event-setup" element={<TestEventSetupPage />} />
+            <Route path="/logs" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><LogViewerPage /></ProtectedRoute>} />
+            <Route path="/activity" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ActivityLogPage /></ProtectedRoute>} />
+            <Route path="/performance" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><PerformancePage /></ProtectedRoute>} />
+            <Route path="/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DataWipePage /></ProtectedRoute>} />
+            <Route path="/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
+            <Route path="/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
+            <Route path="/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
+            <Route path="/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
+            <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
-            <Route path="/rate-limit-configs" element={<RateLimitConfigPage />} />
-            <Route path="/test-runner" element={<TestRunnerPage />} />
+            <Route path="/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
+            <Route path="/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
+            <Route path="/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
             <Route path="/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
             <Route path="/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
@@ -234,48 +243,49 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
 
             {/* Tenant-prefixed routes - these match the same pages under /:slug prefix */}
             <Route path="/:slug/dashboard" element={<DashboardPage />} />
-            <Route path="/:slug/events" element={<EventsPage />} />
-            <Route path="/:slug/contests" element={<ContestsPage />} />
-            <Route path="/:slug/categories" element={<CategoriesPage />} />
-            <Route path="/:slug/events/:eventId/contests" element={<ContestsPage />} />
-            <Route path="/:slug/contests/:contestId/categories" element={<CategoriesPage />} />
-            <Route path="/:slug/scoring" element={<ProtectedRoute requiredRole={['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']}><ScoringPage /></ProtectedRoute>} />
+            <Route path="/:slug/events" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventsPage /></ProtectedRoute>} />
+            <Route path="/:slug/contests" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ContestsPage /></ProtectedRoute>} />
+            <Route path="/:slug/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
+            <Route path="/:slug/events/:eventId/contests" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ContestsPage /></ProtectedRoute>} />
+            <Route path="/:slug/contests/:contestId/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
+            <Route path="/:slug/scoring" element={<ProtectedRoute requiredRole={SCORING_ROLES}><ScoringPage /></ProtectedRoute>} />
             <Route path="/:slug/results" element={<ResultsPage />} />
             <Route path="/:slug/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']}><WinnersPage /></ProtectedRoute>} />
             <Route path="/:slug/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
-            <Route path="/:slug/admin" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AdminPage /></ProtectedRoute>} />
-            <Route path="/:slug/settings" element={<SettingsPage />} />
+            <Route path="/:slug/admin" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><AdminPage /></ProtectedRoute>} />
+            <Route path="/:slug/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
             <Route path="/:slug/profile" element={<ProfilePage />} />
-            <Route path="/:slug/emcee" element={<EmceePage />} />
-            <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']}><TemplatesPage /></ProtectedRoute>} />
+            <Route path="/:slug/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
+            <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
-            <Route path="/:slug/backups" element={<BackupManagementPage />} />
-            <Route path="/:slug/disaster-recovery" element={<DisasterRecoveryPage />} />
-            <Route path="/:slug/workflows" element={<WorkflowManagementPage />} />
+            <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
+            <Route path="/:slug/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/search" element={<SearchPage />} />
-            <Route path="/:slug/files" element={<FileManagementPage />} />
-            <Route path="/:slug/email-templates" element={<EmailTemplatesPage />} />
-            <Route path="/:slug/custom-fields" element={<CustomFieldsPage />} />
-            <Route path="/:slug/tenants" element={<TenantManagementPage />} />
-            <Route path="/:slug/mfa" element={<MFASettingsPage />} />
-            <Route path="/:slug/database" element={<DatabaseBrowserPage />} />
-            <Route path="/:slug/cache" element={<CacheManagementPage />} />
-            <Route path="/:slug/archive" element={<ArchivePage />} />
-            <Route path="/:slug/deductions" element={<DeductionsPage />} />
+            <Route path="/:slug/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/email-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EmailTemplatesPage /></ProtectedRoute>} />
+            <Route path="/:slug/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
+            <Route path="/:slug/tenants" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TenantManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/mfa" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><MFASettingsPage /></ProtectedRoute>} />
+            <Route path="/:slug/database" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
+            <Route path="/:slug/cache" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CacheManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/archive" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ArchivePage /></ProtectedRoute>} />
+            <Route path="/:slug/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
             <Route path="/:slug/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
-            <Route path="/:slug/logs" element={<LogViewerPage />} />
-            <Route path="/:slug/performance" element={<PerformancePage />} />
-            <Route path="/:slug/data-wipe" element={<DataWipePage />} />
-            <Route path="/:slug/event-templates" element={<EventTemplatesPage />} />
-            <Route path="/:slug/bulk-operations" element={<BulkOperationsPage />} />
-            <Route path="/:slug/category-types" element={<CategoryTypesPage />} />
-            <Route path="/:slug/field-visibility" element={<FieldVisibilityPage />} />
-            <Route path="/:slug/test-event-setup" element={<TestEventSetupPage />} />
+            <Route path="/:slug/logs" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><LogViewerPage /></ProtectedRoute>} />
+            <Route path="/:slug/performance" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><PerformancePage /></ProtectedRoute>} />
+            <Route path="/:slug/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DataWipePage /></ProtectedRoute>} />
+            <Route path="/:slug/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
+            <Route path="/:slug/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
+            <Route path="/:slug/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
+            <Route path="/:slug/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
+            <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/:slug/bios" element={<BiosPage />} />
             <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
-            <Route path="/:slug/rate-limit-configs" element={<RateLimitConfigPage />} />
+            <Route path="/:slug/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
             <Route path="/:slug/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
+            <Route path="/:slug/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/:slug/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
             <Route path="/:slug/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
             <Route path="/:slug/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
@@ -288,8 +298,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
-            <Route path="/:slug/activity" element={<ActivityLogPage />} />
-            <Route path="/:slug/test-runner" element={<TestRunnerPage />} />
+            <Route path="/:slug/activity" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ActivityLogPage /></ProtectedRoute>} />
+            <Route path="/:slug/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<RoleDefaultRoute basePath={basePath} />} />
 
             {/* 404 Not Found */}

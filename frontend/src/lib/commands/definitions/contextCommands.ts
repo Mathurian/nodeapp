@@ -162,11 +162,12 @@ export const createContextCommands = (options: {
         description: 'View scoring summary',
         icon: PresentationChartLineIcon,
         action: () => navigate!('/scoring?view=summary'),
-        keywords: ['summary', 'overview', 'scores'],
-        category: 'action',
-        group: 'Scoring Actions',
-        priority: 85,
-        context: ['scoring']
+      keywords: ['summary', 'overview', 'scores'],
+      category: 'action',
+      group: 'Scoring Actions',
+      priority: 85,
+      context: ['scoring'],
+      roles: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
       },
       {
         id: 'ctx-recalculate-scores',

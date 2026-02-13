@@ -288,7 +288,11 @@ export class AuditorService extends BaseService {
   /**
    * Final certification for a category
    */
-  async finalCertification(categoryId: string, userId: string) {
+  async finalCertification(
+    categoryId: string,
+    userId: string,
+    signature?: { typedSignature?: string; drawnSignatureData?: string; signatureFilePath?: string; comments?: string }
+  ) {
     const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
       include: {
@@ -318,11 +322,13 @@ export class AuditorService extends BaseService {
         categoryId,
         userId,
         role: 'AUDITOR',
-        comments: 'Auditor category certification (final for audit)',
+        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: signature?.comments || 'Auditor category certification (final for audit)',
       },
       update: {
         userId,
-        comments: 'Auditor category certification (final for audit)',
+        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: signature?.comments || 'Auditor category certification (final for audit)',
         certifiedAt: new Date()
       }
     });
@@ -333,6 +339,7 @@ export class AuditorService extends BaseService {
       categoryId,
       role: 'AUDITOR',
       userId,
+      comments: signature?.comments || null,
       certifiedBy: userId
     });
 

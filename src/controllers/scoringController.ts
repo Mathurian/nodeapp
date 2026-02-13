@@ -546,9 +546,15 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const categoryId = req.params['categoryId']!;
+      const { typedSignature, drawnSignatureData, signatureFilePath } = req.body || {};
 
       if (!req.user) {
         errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
+        return;
+      }
+
+      if (!typedSignature && !drawnSignatureData && !signatureFilePath) {
+        errorResponse(res, 'A typed, drawn, or file signature is required to certify scores', ErrorCode.VALIDATION_ERROR, 400);
         return;
       }
 
@@ -578,11 +584,11 @@ export class ScoringController {
             tenantId: req.user.tenantId,
             categoryId,
             judgeId,
-            signatureName: req.user.name || req.user.email || 'Judge Certification'
+            signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
           },
           update: {
             certifiedAt: new Date(),
-            signatureName: req.user.name || req.user.email || 'Judge Certification'
+            signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
           }
         });
         await refreshJudgeStage(this.prisma, req.user.tenantId, categoryId);
@@ -988,10 +994,14 @@ export class ScoringController {
   certifyTotals = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
-      const { signatureName, comments } = req.body;
+      const { signatureName, typedSignature, drawnSignatureData, signatureFilePath, comments } = req.body;
 
       if (!req.user) {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
+      }
+
+      if (!signatureName && !typedSignature && !drawnSignatureData && !signatureFilePath) {
+        return errorResponse(res, 'A typed, drawn, or file signature is required to certify totals', ErrorCode.VALIDATION_ERROR, 400);
       }
 
       // SECURITY FIX: Verify user has TALLY_MASTER role
@@ -1026,13 +1036,13 @@ export class ScoringController {
           categoryId: categoryId!,
           role: 'TALLY_MASTER',
           userId: req.user.id,
-          signatureName: signatureName || null,
+          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           tenantId: req.user.tenantId
         },
         update: {
           userId: req.user.id,
-          signatureName: signatureName || null,
+          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           certifiedAt: new Date()
         },
@@ -1057,10 +1067,14 @@ export class ScoringController {
   finalCertification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId } = req.params;
-      const { signatureName, comments } = req.body;
+      const { signatureName, typedSignature, drawnSignatureData, signatureFilePath, comments } = req.body;
 
       if (!req.user) {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
+      }
+
+      if (!signatureName && !typedSignature && !drawnSignatureData && !signatureFilePath) {
+        return errorResponse(res, 'A typed, drawn, or file signature is required for final certification', ErrorCode.VALIDATION_ERROR, 400);
       }
 
       // SECURITY FIX: Verify user has AUDITOR role
@@ -1110,13 +1124,13 @@ export class ScoringController {
           categoryId: categoryId!,
           role: 'AUDITOR',
           userId: req.user.id,
-          signatureName: signatureName || null,
+          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           tenantId: req.user.tenantId
         },
         update: {
           userId: req.user.id,
-          signatureName: signatureName || null,
+          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           certifiedAt: new Date()
         },

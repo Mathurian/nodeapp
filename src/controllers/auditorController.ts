@@ -76,7 +76,19 @@ export class AuditorController {
         return;
       }
 
-      const result = await this.auditorService.finalCertification(categoryId, userId);
+      const { typedSignature, drawnSignatureData, signatureFilePath, signatureName, comments } = req.body || {};
+
+      if (!typedSignature && !drawnSignatureData && !signatureFilePath && !signatureName) {
+        res.status(400).json({ error: 'A typed, drawn, or file signature is required for final certification' });
+        return;
+      }
+
+      const result = await this.auditorService.finalCertification(categoryId, userId, {
+        typedSignature: typedSignature || signatureName,
+        drawnSignatureData,
+        signatureFilePath,
+        comments
+      });
       res.json(result);
     } catch (error) {
       log.error('Final certification error', error);

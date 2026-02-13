@@ -70,7 +70,19 @@ export class BoardController {
         return;
       }
 
-      const result = await this.boardService.approveCertification(id, req.user.id, req.user.tenantId);
+      const { typedSignature, drawnSignatureData, signatureFilePath, signatureName, comments } = req.body || {};
+
+      if (!typedSignature && !drawnSignatureData && !signatureFilePath && !signatureName) {
+        res.status(400).json({ error: 'A typed, drawn, or file signature is required for board approval' });
+        return;
+      }
+
+      const result = await this.boardService.approveCertification(id, req.user.id, req.user.tenantId, {
+        typedSignature: typedSignature || signatureName,
+        drawnSignatureData,
+        signatureFilePath,
+        comments
+      });
       res.json(result);
     } catch (error) {
       log.error('Approve certification error', error);

@@ -166,9 +166,9 @@ export const scoringAPI = {
   },
   updateScore: (scoreId: string, data: any) => api.put(`/scoring/${scoreId}`, data),
   deleteScore: (scoreId: string) => api.delete(`/scoring/${scoreId}`),
-  certifyScores: (categoryId: string) => api.post(`/scoring/category/${categoryId}/certify`),
-  certifyTotals: (categoryId: string) => api.post(`/scoring/category/${categoryId}/certify-totals`),
-  finalCertification: (categoryId: string) => api.post(`/scoring/category/${categoryId}/final-certification`),
+  certifyScores: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify`, signature || {}),
+  certifyTotals: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify-totals`, signature || {}),
+  finalCertification: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/final-certification`, signature || {}),
   getCategories: () => api.get('/scoring/categories'),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
   requestDeduction: (data: any) => api.post('/scoring/deductions', data),
@@ -421,7 +421,7 @@ export const auditorAPI = {
 export const boardAPI = {
   getStats: () => api.get('/board/stats'),
   getCertifications: () => api.get('/board/certifications'),
-  approveCertification: (id: string) => api.post(`/board/certifications/${id}/approve`),
+  approveCertification: (id: string, signature?: any) => api.post(`/board/certifications/${id}/approve`, signature || {}),
   rejectCertification: (id: string, reason: string) => api.post(`/board/certifications/${id}/reject`, { reason }),
   getCertificationStatus: () => api.get('/board/certification-status'),
   getEmceeScripts: () => api.get('/board/emcee-scripts'),
@@ -442,6 +442,19 @@ export const tallyMasterAPI = {
       return api.post('/tally-master/certify-totals', { categoryId, ...totalsData })
     }
   },
+}
+
+export const scoreGovernanceAPI = {
+  getScoreReview: (params?: { contestId?: string; categoryId?: string; contestantId?: string }) =>
+    api.get('/score-governance/review', { params }),
+  getSettings: () => api.get('/score-governance/settings'),
+  updateSettings: (data: { requiredAdditionalApprovals: number; approverRoles: string[] }) =>
+    api.put('/score-governance/settings', data),
+  createRequest: (data: any) => api.post('/score-governance/requests', data),
+  getRequests: (params?: { contestId?: string; categoryId?: string; contestantId?: string; status?: string; actionType?: string }) =>
+    api.get('/score-governance/requests', { params }),
+  approveRequest: (id: string, signature: any) => api.post(`/score-governance/requests/${id}/approve`, signature),
+  rejectRequest: (id: string, reason: string) => api.post(`/score-governance/requests/${id}/reject`, { reason }),
 }
 
 export const emailAPI = {

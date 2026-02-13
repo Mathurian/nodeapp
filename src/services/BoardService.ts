@@ -169,7 +169,12 @@ export class BoardService extends BaseService {
   /**
    * Approve certification
    */
-  async approveCertification(certificationId: string, userId: string, tenantId: string): Promise<ApprovalResponse> {
+  async approveCertification(
+    certificationId: string,
+    userId: string,
+    tenantId: string,
+    signature?: { typedSignature?: string; drawnSignatureData?: string; signatureFilePath?: string; comments?: string }
+  ): Promise<ApprovalResponse> {
     const certification = await this.prisma.certification.findFirst({
       where: {
         id: certificationId,
@@ -186,8 +191,33 @@ export class BoardService extends BaseService {
       tenantId,
       categoryId: certification.categoryId,
       role: 'BOARD',
+      comments: signature?.comments || null,
       userId,
       certifiedBy: userId
+    });
+
+    await this.prisma.categoryCertification.upsert({
+      where: {
+        tenantId_categoryId_role: {
+          tenantId,
+          categoryId: certification.categoryId,
+          role: 'BOARD'
+        }
+      },
+      create: {
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'BOARD',
+        userId,
+        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: signature?.comments || null
+      },
+      update: {
+        userId,
+        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: signature?.comments || null,
+        certifiedAt: new Date()
+      }
     });
 
     return { message: 'Certification approved', certificationId, categoryId: certification.categoryId };

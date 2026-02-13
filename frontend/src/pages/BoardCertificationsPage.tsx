@@ -30,6 +30,11 @@ const BoardCertificationsPage: React.FC = () => {
     isOpen: false,
     certification: null,
   })
+  const [showSignatureModal, setShowSignatureModal] = useState(false)
+  const [typedSignature, setTypedSignature] = useState('')
+  const [drawnSignatureData, setDrawnSignatureData] = useState('')
+  const [isDrawing, setIsDrawing] = useState(false)
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
 
   const { data: certifications, isLoading, error } = useQuery<Certification[]>(
     'board-certifications',
@@ -44,12 +49,12 @@ const BoardCertificationsPage: React.FC = () => {
   )
 
   // Approve mutation with optimistic update
-  const approveMutation = useOptimisticMutation<unknown, string>({
-    mutationFn: async (certificationId: string) => {
-      return await boardAPI.approveCertification(certificationId)
+  const approveMutation = useOptimisticMutation<unknown, { certificationId: string; signature: { typedSignature?: string; drawnSignatureData?: string } }>({
+    mutationFn: async ({ certificationId, signature }) => {
+      return await boardAPI.approveCertification(certificationId, signature)
     },
     queryKey: ['board-certifications'],
-    updateFn: (oldData, certificationId) => {
+    updateFn: (oldData, { certificationId }) => {
       const certs = oldData as Certification[] | undefined
       if (!certs) return []
       return certs.map((cert) =>
@@ -102,11 +107,72 @@ const BoardCertificationsPage: React.FC = () => {
     setConfirmApprove({ isOpen: true, certification })
   }
 
+  const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const rect = canvas.getBoundingClientRect()
+    ctx.beginPath()
+    ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top)
+    setIsDrawing(true)
+  }
+
+  const draw = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const rect = canvas.getBoundingClientRect()
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#1f2937'
+    ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top)
+    ctx.stroke()
+  }
+
+  const stopDrawing = () => {
+    const canvas = canvasRef.current
+    if (canvas) {
+      setDrawnSignatureData(canvas.toDataURL('image/png'))
+    }
+    setIsDrawing(false)
+  }
+
+  const clearDrawing = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    setDrawnSignatureData('')
+  }
+
   const executeApprove = () => {
     if (confirmApprove.certification) {
-      approveMutation.mutate(confirmApprove.certification.id)
+      setShowSignatureModal(true)
+      setConfirmApprove({ isOpen: false, certification: confirmApprove.certification })
     }
+  }
+
+  const submitApprovalWithSignature = () => {
+    if (!confirmApprove.certification) return
+    if (!typedSignature.trim() && !drawnSignatureData.trim()) {
+      toast.error('A typed or drawn signature is required')
+      return
+    }
+    approveMutation.mutate({
+      certificationId: confirmApprove.certification.id,
+      signature: {
+        typedSignature: typedSignature.trim() || undefined,
+        drawnSignatureData: drawnSignatureData || undefined
+      }
+    })
+    setShowSignatureModal(false)
     setConfirmApprove({ isOpen: false, certification: null })
+    setTypedSignature('')
+    setDrawnSignatureData('')
   }
 
   const handleReject = (certification: Certification) => {
@@ -304,6 +370,54 @@ const BoardCertificationsPage: React.FC = () => {
           variant="info"
           loading={approveMutation.isLoading}
         />
+
+        {showSignatureModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-xl rounded-lg bg-white dark:bg-gray-800 p-5 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Board Approval Signature</h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Provide typed and/or drawn signature to approve.</p>
+              <div className="mt-4">
+                <input
+                  value={typedSignature}
+                  onChange={(e) => setTypedSignature(e.target.value)}
+                  placeholder="Typed signature"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="mt-3">
+                <canvas
+                  ref={canvasRef}
+                  width={560}
+                  height={140}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white"
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                />
+                <button type="button" onClick={clearDrawing} className="mt-2 text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                  Clear Drawn Signature
+                </button>
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSignatureModal(false)}
+                  className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitApprovalWithSignature}
+                  className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Approve and Sign
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

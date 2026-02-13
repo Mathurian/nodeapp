@@ -54,7 +54,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Scoring',
       priority: 100,
-      roles: ['JUDGE', 'ADMIN', 'ORGANIZER']
+      roles: ['JUDGE', 'ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
     },
     {
       id: 'quick-view-scores',
@@ -66,7 +66,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Scoring',
       priority: 95,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'TALLY_MASTER']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR', 'TALLY_MASTER', 'JUDGE', 'BOARD']
     },
     {
       id: 'quick-certify-scores',
@@ -89,7 +89,8 @@ export const createQuickActionCommands = (options: {
       keywords: ['statistics', 'stats', 'analytics', 'score'],
       category: 'quick',
       group: 'Scoring',
-      priority: 85
+      priority: 85,
+      roles: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
     }
   );
 
@@ -208,7 +209,8 @@ export const createQuickActionCommands = (options: {
       keywords: ['scoresheet', 'generate', 'print', 'judge'],
       category: 'quick',
       group: 'Reports',
-      priority: 40
+      priority: 40,
+      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'quick-generate-placements',
@@ -219,7 +221,8 @@ export const createQuickActionCommands = (options: {
       keywords: ['placement', 'winner', 'report', 'standings'],
       category: 'quick',
       group: 'Reports',
-      priority: 35
+      priority: 35,
+      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'quick-generate-certificates',
@@ -230,7 +233,8 @@ export const createQuickActionCommands = (options: {
       keywords: ['certificate', 'award', 'winner', 'print'],
       category: 'quick',
       group: 'Reports',
-      priority: 30
+      priority: 30,
+      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'quick-judge-assignments',
@@ -241,7 +245,8 @@ export const createQuickActionCommands = (options: {
       keywords: ['assignment', 'judge', 'schedule'],
       category: 'quick',
       group: 'Reports',
-      priority: 25
+      priority: 25,
+      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
     }
   );
 

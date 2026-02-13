@@ -182,14 +182,14 @@ const DashboardPage: React.FC = () => {
         { label: 'Create Event', href: '/events', icon: CalendarIcon, color: 'blue' },
         { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'green' },
         { label: 'View Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
-        { label: 'Templates', href: '/templates', icon: TrophyIcon, color: 'orange' },
+        { label: 'Event Templates', href: '/event-templates', icon: TrophyIcon, color: 'orange' },
       ],
       JUDGE: [
         { label: 'Score Categories', href: '/scoring', icon: TrophyIcon, color: 'blue' },
         { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
       ],
       CONTESTANT: [
-        { label: 'My Events', href: '/events', icon: CalendarIcon, color: 'blue' },
+        { label: 'Bios Directory', href: '/bios', icon: CalendarIcon, color: 'blue' },
         { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
       ],
       EMCEE: [
