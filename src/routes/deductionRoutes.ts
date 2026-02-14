@@ -47,11 +47,11 @@ router.post('/request', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD
  *       200:
  *         description: Pending deductions retrieved successfully
  */
-router.get('/pending', getPendingDeductions)
+router.get('/pending', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER', 'JUDGE']), getPendingDeductions)
 router.post('/:id/approve', requireRole(['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN']), logActivity('APPROVE_DEDUCTION', 'DEDUCTION'), approveDeduction)
 router.post('/:id/reject', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
-router.get('/:id/approvals', getApprovalStatus)
-router.get('/history', getDeductionHistory)
+router.get('/:id/approvals', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER', 'JUDGE']), getApprovalStatus)
+router.get('/history', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER', 'JUDGE']), getDeductionHistory)
 
 export default router;
 

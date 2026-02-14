@@ -89,7 +89,10 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
                       <Link
                         key={item.href}
                         to={fullPath}
-                        onClick={onNavigate}
+                        onClick={() => {
+                          setExpandedSections(new Set(['Navigation']))
+                          onNavigate?.()
+                        }}
                         className={`flex items-center space-x-3 px-4 py-2 pl-12 text-sm transition-colors ${
                           isActive
                             ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-l-4 border-indigo-600 dark:border-indigo-500'

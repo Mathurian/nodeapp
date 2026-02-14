@@ -72,7 +72,7 @@ const getNavigationItems = (userRole: string): any[] => {
         label: 'Admin',
         path: '/admin',
         icon: 'CogIcon',
-        roles: ['ADMIN', 'ORGANIZER', 'BOARD']
+        roles: ['ADMIN']
       },
       {
         id: 'settings',
@@ -280,11 +280,7 @@ const getNavigationItems = (userRole: string): any[] => {
   }
 
   // Filter items based on user role
-  return allItems.filter(item => 
-    item.roles.includes(userRole) || 
-    item.roles.includes('ORGANIZER') || 
-    item.roles.includes('BOARD')
-  )
+  return allItems.filter((item) => item.roles.includes(userRole))
 }
 
 // Get navigation permissions for a specific route

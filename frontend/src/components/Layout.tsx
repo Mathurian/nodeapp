@@ -124,6 +124,26 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [mobileMenuOpen])
 
+  // Close desktop sidebar when clicking outside of it
+  useEffect(() => {
+    if (!sidebarOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      const clickedInSidebar = !!desktopSidebarRef.current?.contains(target)
+      const clickedToggle = !!desktopToggleRef.current?.contains(target)
+
+      if (!clickedInSidebar && !clickedToggle) {
+        setSidebarOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [sidebarOpen])
+
   // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (mobileMenuOpen) {
