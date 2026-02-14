@@ -15,6 +15,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
+import { Card, PageHeader, StatsCard } from '../components/ui'
 
 interface DashboardStats {
   totalEvents: number
@@ -153,121 +154,29 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <ShieldCheckIcon className="h-8 w-8 mr-3 text-blue-600 dark:text-blue-400" />
-            Admin Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            System overview and administrative controls
-          </p>
-        </div>
+      <div className="cgr-page-container">
+        <PageHeader
+          title="Admin Dashboard"
+          subtitle="System overview and administrative controls"
+          icon={ShieldCheckIcon}
+        />
 
         {/* Statistics Grid */}
         {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center mb-8">
+          <Card className="p-12 text-center mb-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading statistics...</p>
-          </div>
+          </Card>
         ) : stats ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Events</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalEvents || 0}</p>
-                </div>
-                <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-3">
-                  <CalendarIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Contests</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalContests || 0}</p>
-                </div>
-                <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
-                  <TrophyIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Categories</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalCategories || 0}</p>
-                </div>
-                <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
-                  <ChartBarIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalUsers || 0}</p>
-                </div>
-                <div className="bg-yellow-100 dark:bg-yellow-900 rounded-full p-3">
-                  <UsersIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Users</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.activeUsers || 0}</p>
-                </div>
-                <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
-                  <ClockIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Scores</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.totalScores || 0}</p>
-                </div>
-                <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-3">
-                  <CheckCircleIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">System Uptime</p>
-                  <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{stats.uptime || 'N/A'}</p>
-                </div>
-                <div className="bg-green-100 dark:bg-green-900 rounded-full p-3">
-                  <ClockIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Certifications</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingCertifications || 0}</p>
-                </div>
-                <div className="bg-orange-100 dark:bg-orange-900 rounded-full p-3">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-            </div>
+            <StatsCard icon={CalendarIcon} value={stats.totalEvents || 0} label="Total Events" color="blue" />
+            <StatsCard icon={TrophyIcon} value={stats.totalContests || 0} label="Total Contests" color="indigo" />
+            <StatsCard icon={ChartBarIcon} value={stats.totalCategories || 0} label="Total Categories" color="green" />
+            <StatsCard icon={UsersIcon} value={stats.totalUsers || 0} label="Total Users" color="amber" />
+            <StatsCard icon={ClockIcon} value={stats.activeUsers || 0} label="Active Users" color="teal" />
+            <StatsCard icon={CheckCircleIcon} value={stats.totalScores || 0} label="Total Scores" color="indigo" />
+            <StatsCard icon={ClockIcon} value={stats.uptime || 'N/A'} label="System Uptime" color="green" compactText />
+            <StatsCard icon={ExclamationTriangleIcon} value={stats.pendingCertifications || 0} label="Pending Certifications" color="orange" />
           </div>
         ) : null}
 
@@ -279,17 +188,19 @@ const AdminPage: React.FC = () => {
               <Link
                 key={index}
                 to={card.link}
-                className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 hover:shadow-lg transition-shadow"
+                className="block"
               >
-                <div className={`rounded-full p-3 inline-flex ${getColorClasses(card.color)} mb-4`}>
-                  <card.icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {card.title}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {card.description}
-                </p>
+                <Card hover>
+                  <div className={`rounded-full p-3 inline-flex ${getColorClasses(card.color)} mb-4`}>
+                    <card.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    {card.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {card.description}
+                  </p>
+                </Card>
               </Link>
             ))}
           </div>

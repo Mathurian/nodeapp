@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
-import { ConfirmModal } from '../components/ui'
+import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import { EventCardSkeleton } from '../components/ui/SkeletonPatterns'
 
 interface Event {
@@ -275,46 +275,41 @@ const EventsPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
-        <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
-          Reload Page
-        </button>
+      <div className="cgr-page-container">
+        <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700">
+          <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+          <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
+          <Button variant="danger" onClick={() => window.location.reload()}>
+            Reload Page
+          </Button>
+        </Card>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="cgr-page-container">
         {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-              <CalendarIcon className="h-8 w-8 mr-3 text-blue-600 dark:text-blue-400" />
-              Events
-            </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Manage competition events and schedules
-            </p>
-          </div>
-          {canManageEvents && (
-            <button
+        <PageHeader
+          title="Events"
+          subtitle="Manage competition events and schedules"
+          icon={CalendarIcon}
+          actions={canManageEvents ? (
+            <Button
               onClick={() => {
                 resetForm()
                 setIsFormOpen(true)
               }}
-              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Event
-            </button>
-          )}
-        </div>
+            </Button>
+          ) : undefined}
+        />
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6 space-y-4">
+        <Card className="mb-6 p-4 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
@@ -352,7 +347,7 @@ const EventsPage: React.FC = () => {
               onClear={() => setDateFilters({ sortDirection: 'asc' })}
             />
           </div>
-        </div>
+        </Card>
 
         {/* Events List */}
         {isLoading ? (
@@ -364,9 +359,10 @@ const EventsPage: React.FC = () => {
         ) : filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event) => (
-              <div
+              <Card
                 key={event.id}
-                className={`bg-white dark:bg-gray-800 shadow rounded-lg p-6 ${
+                hover
+                className={`${
                   event.archived ? 'opacity-60' : ''
                 }`}
               >
@@ -450,18 +446,18 @@ const EventsPage: React.FC = () => {
                     </>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="p-12 text-center">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               {searchQuery
                 ? 'No events found matching your search'
                 : 'No events yet. Create your first event to get started.'}
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Create/Edit Form Modal */}

@@ -18,6 +18,7 @@ import {
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { StatCardSkeleton, ActivityItemSkeleton, TableRowSkeleton } from '../components/ui/SkeletonPatterns'
+import { Card, PageHeader, StatsCard } from '../components/ui'
 
 interface DashboardStats {
   totalUsers: number
@@ -226,11 +227,11 @@ const DashboardPage: React.FC = () => {
   const statCards = [
     { label: 'Total Events', value: stats?.totalEvents || 0, icon: CalendarIcon, color: 'blue' },
     { label: 'Total Contests', value: stats?.totalContests || 0, icon: TrophyIcon, color: 'green' },
-    { label: 'Total Categories', value: stats?.totalCategories || 0, icon: ChartBarIcon, color: 'purple' },
+    { label: 'Total Categories', value: stats?.totalCategories || 0, icon: ChartBarIcon, color: 'indigo' },
     { label: 'Total Users', value: stats?.totalUsers || 0, icon: UsersIcon, color: 'orange' },
     { label: 'Total Scores', value: stats?.totalScores || 0, icon: ArrowTrendingUpIcon, color: 'blue' },
     { label: 'Recently Active (24h)', value: stats?.activeUsers || 0, icon: UsersIcon, color: 'green' },
-    { label: 'System Uptime', value: stats?.uptime || 'N/A', icon: ClockIcon, color: 'purple', isText: true },
+    { label: 'System Uptime', value: stats?.uptime || 'N/A', icon: ClockIcon, color: 'indigo', isText: true },
     { label: 'Database Size', value: stats?.databaseSize || 'N/A', icon: ChartBarIcon, color: 'orange', isText: true },
   ]
 
@@ -240,46 +241,6 @@ const DashboardPage: React.FC = () => {
       green: 'bg-green-50 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-800',
       purple: 'bg-purple-50 dark:bg-purple-900 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-800',
       orange: 'bg-orange-50 dark:bg-orange-900 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-800',
-    }
-    return colors[color as keyof typeof colors] || colors.blue
-  }
-
-  const getStatColor = (color: string) => {
-    const colors = {
-      blue: 'bg-blue-50 dark:bg-blue-900',
-      green: 'bg-green-50 dark:bg-green-900',
-      purple: 'bg-purple-50 dark:bg-purple-900',
-      orange: 'bg-orange-50 dark:bg-orange-900',
-    }
-    return colors[color as keyof typeof colors] || colors.blue
-  }
-
-  const getStatIconColor = (color: string) => {
-    const colors = {
-      blue: 'text-blue-600 dark:text-blue-400',
-      green: 'text-green-600 dark:text-green-400',
-      purple: 'text-purple-600 dark:text-purple-400',
-      orange: 'text-orange-600 dark:text-orange-400',
-    }
-    return colors[color as keyof typeof colors] || colors.blue
-  }
-
-  const getStatTextColor = (color: string) => {
-    const colors = {
-      blue: 'text-blue-600 dark:text-blue-400',
-      green: 'text-green-600 dark:text-green-400',
-      purple: 'text-purple-600 dark:text-purple-400',
-      orange: 'text-orange-600 dark:text-orange-400',
-    }
-    return colors[color as keyof typeof colors] || colors.blue
-  }
-
-  const getStatValueColor = (color: string) => {
-    const colors = {
-      blue: 'text-blue-900 dark:text-blue-100',
-      green: 'text-green-900 dark:text-green-100',
-      purple: 'text-purple-900 dark:text-purple-100',
-      orange: 'text-orange-900 dark:text-orange-100',
     }
     return colors[color as keyof typeof colors] || colors.blue
   }
@@ -310,40 +271,37 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="cgr-page-container">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {getRoleGreeting(user?.role || '')}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {getRoleDescription(user?.role || '')}
-          </p>
+        <PageHeader
+          title={getRoleGreeting(user?.role || '')}
+          subtitle={getRoleDescription(user?.role || '')}
+          icon={ChartBarIcon}
+        />
 
-          {/* Super Admin Cross-Tenant Indicator */}
-          {user?.role === 'SUPER_ADMIN' && (
-            <div className="mt-4 bg-purple-50 dark:bg-purple-900 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-purple-900 dark:text-purple-100">
-                    Cross-Tenant View Active
-                  </h3>
-                  <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
-                    You are viewing aggregated data across all tenants in the system.
-                  </p>
-                </div>
+        {/* Super Admin Cross-Tenant Indicator */}
+        {user?.role === 'SUPER_ADMIN' && (
+          <Card className="mb-8 bg-indigo-50 dark:bg-indigo-900 border-indigo-200 dark:border-indigo-700">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-indigo-900 dark:text-indigo-100">
+                  Cross-Tenant View Active
+                </h3>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
+                  You are viewing aggregated data across all tenants in the system.
+                </p>
               </div>
             </div>
-          )}
-        </div>
+          </Card>
+        )}
 
         {user?.role === 'CONTESTANT' && (
-          <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <Card className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
               My Scoped Participation
             </h2>
@@ -368,7 +326,7 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Quick Actions */}
@@ -381,10 +339,12 @@ const DashboardPage: React.FC = () => {
               <Link
                 key={action.label}
                 to={action.href}
-                className={`p-6 rounded-lg transition-colors ${getActionColor(action.color)}`}
+                className="block"
               >
-                <action.icon className="h-8 w-8 mb-3" />
-                <p className="font-semibold">{action.label}</p>
+                <Card hover className={getActionColor(action.color)}>
+                  <action.icon className="h-8 w-8 mb-3" />
+                  <p className="font-semibold">{action.label}</p>
+                </Card>
               </Link>
             ))}
           </div>
@@ -402,19 +362,14 @@ const DashboardPage: React.FC = () => {
                     <StatCardSkeleton key={index} />
                   ))
                 : statCards.map((stat) => (
-                    <div key={stat.label} className={`${getStatColor(stat.color)} p-6 rounded-lg`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${getStatTextColor(stat.color)}`}>
-                            {stat.label}
-                          </p>
-                          <p className={`text-3xl font-bold mt-2 ${getStatValueColor(stat.color)}`}>
-                            {stat.value}
-                          </p>
-                        </div>
-                        <stat.icon className={`h-10 w-10 ${getStatIconColor(stat.color)}`} />
-                      </div>
-                    </div>
+                    <StatsCard
+                      key={stat.label}
+                      icon={stat.icon}
+                      value={stat.value}
+                      label={stat.label}
+                      color={stat.color as 'blue' | 'green' | 'amber' | 'red' | 'indigo' | 'teal' | 'orange'}
+                      compactText={Boolean(stat.isText)}
+                    />
                   ))}
             </div>
           </div>
@@ -426,7 +381,7 @@ const DashboardPage: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Tenant Breakdown
             </h2>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <Card className="overflow-hidden p-0">
               {tenantsLoading ? (
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -512,14 +467,14 @@ const DashboardPage: React.FC = () => {
                   </table>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
         )}
 
         {/* Pending Actions */}
         {(stats?.pendingCertifications || 0) > 0 && (
           <div className="mb-8">
-            <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
+            <Card className="bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700">
               <div className="flex items-start">
                 <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" />
                 <div className="flex-1">
@@ -537,7 +492,7 @@ const DashboardPage: React.FC = () => {
                   </Link>
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
@@ -547,7 +502,7 @@ const DashboardPage: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Recent Activity
             </h2>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <Card className="overflow-hidden p-0">
               {activityLoading ? (
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   <ActivityItemSkeleton count={10} />
@@ -579,13 +534,13 @@ const DashboardPage: React.FC = () => {
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           </div>
         )}
 
         {/* Help Section */}
         <div className="mt-8">
-          <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
+          <Card className="bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700">
             <div className="flex items-start">
               <BellIcon className="h-6 w-6 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" />
               <div className="flex-1">
@@ -613,7 +568,7 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

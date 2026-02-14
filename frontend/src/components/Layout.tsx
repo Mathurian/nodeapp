@@ -359,10 +359,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                 />
               ) : null}
               <CommandLineIcon
-                className="h-7 w-7 text-indigo-600 dark:text-indigo-400"
+                className="h-7 w-7 text-blue-600 dark:text-blue-400"
                 style={{ display: logoPath ? 'none' : 'block' }}
               />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent truncate">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent truncate">
                 {appName}
               </h1>
             </Link>
@@ -448,7 +448,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                     className="w-8 h-8 rounded-full object-cover shadow-md"
                   />
                 ) : (
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-md">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-md">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
                 )}

@@ -7,6 +7,7 @@ import {
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
+import { Card, PageHeader } from '../components/ui'
 
 interface TemplateCard {
   id: string
@@ -89,37 +90,35 @@ const TemplatesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <DocumentDuplicateIcon className="h-8 w-8 mr-3 text-blue-600" />
-            Templates
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Manage reusable assets for event setup, communication, and workflow automation.
-          </p>
-        </div>
+      <div className="cgr-page-container">
+        <PageHeader
+          title="Templates"
+          subtitle="Manage reusable assets for event setup, communication, and workflow automation."
+          icon={DocumentDuplicateIcon}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {cards.map((card) => (
             <Link
               key={card.id}
               to={card.link}
-              className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 hover:shadow-lg transition-shadow border border-gray-100 dark:border-gray-700"
+              className="block"
             >
-              <div className={`rounded-full p-3 inline-flex ${getColorClasses(card.color)} mb-4`}>
-                <card.icon className="h-8 w-8" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{card.title}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{card.description}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {card.count === null ? 'Loading...' : `${card.count} template${card.count === 1 ? '' : 's'}`}
-                </span>
-                <span className="text-blue-600 text-sm font-medium inline-flex items-center gap-1">
-                  Manage <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                </span>
-              </div>
+              <Card hover className="border-gray-100 dark:border-gray-700">
+                <div className={`rounded-full p-3 inline-flex ${getColorClasses(card.color)} mb-4`}>
+                  <card.icon className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{card.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{card.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {card.count === null ? 'Loading...' : `${card.count} template${card.count === 1 ? '' : 's'}`}
+                  </span>
+                  <span className="text-blue-600 text-sm font-medium inline-flex items-center gap-1">
+                    Manage <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                  </span>
+                </div>
+              </Card>
             </Link>
           ))}
         </div>

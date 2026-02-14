@@ -4,6 +4,15 @@
 export { default as Button } from './Button'
 export type { ButtonProps } from './Button'
 
+export { default as Card } from './Card'
+export type { CardProps } from './Card'
+
+export { default as PageHeader } from './PageHeader'
+export type { PageHeaderProps } from './PageHeader'
+
+export { default as StatsCard } from './StatsCard'
+export type { StatsCardProps } from './StatsCard'
+
 export { default as Loading } from './Loading'
 export type { LoadingProps } from './Loading'
 
