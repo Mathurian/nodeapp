@@ -9,6 +9,7 @@ import { AuditLogHandler } from './AuditLogHandler';
 import { NotificationHandler } from './NotificationHandler';
 import { CacheInvalidationHandler } from './CacheInvalidationHandler';
 import { StatisticsHandler } from './StatisticsHandler';
+import { WorkflowAutomationHandler } from './WorkflowAutomationHandler';
 import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('EventHandlers');
@@ -108,6 +109,23 @@ export function initializeEventHandlers(): void {
   });
 
   logger.info('Statistics handler registered', { eventCount: statisticsEvents.length });
+
+  // Register Workflow Automation Handler for configurable workflow triggers
+  const workflowAutomationEvents = [
+    AppEventType.USER_CREATED,
+    AppEventType.EVENT_CREATED,
+    AppEventType.CONTEST_CREATED,
+    AppEventType.CATEGORY_CREATED,
+    AppEventType.SCORE_SUBMITTED,
+    AppEventType.SCORES_FINALIZED,
+    AppEventType.CERTIFICATION_APPROVED,
+    AppEventType.CERTIFICATION_REJECTED,
+    AppEventType.ASSIGNMENT_CREATED,
+  ];
+  workflowAutomationEvents.forEach((eventType) => {
+    eventBus.subscribe(eventType, WorkflowAutomationHandler.handler);
+  });
+  logger.info('Workflow automation handler registered', { eventCount: workflowAutomationEvents.length });
 
   logger.info('All event handlers initialized successfully');
 }

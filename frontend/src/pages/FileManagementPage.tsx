@@ -42,8 +42,24 @@ const FileManagementPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await uploadAPI.getFiles()
-      const unwrapped = response.data.data || response.data
-      setFiles(Array.isArray(unwrapped) ? unwrapped : [])
+      const unwrapped = response.data?.data || response.data
+      const rows = Array.isArray(unwrapped)
+        ? unwrapped
+        : Array.isArray(unwrapped?.files)
+          ? unwrapped.files
+          : []
+      const normalized: FileItem[] = rows.map((file: any) => ({
+        id: file.id,
+        filename: file.filename || file.originalName || file.id,
+        originalName: file.originalName || file.filename || 'Unnamed file',
+        mimetype: file.mimetype || file.mimeType || 'application/octet-stream',
+        size: Number(file.size || 0),
+        type: file.type || file.category || 'OTHER',
+        uploadedBy: file.uploadedBy || '',
+        createdAt: file.createdAt || file.uploadedAt || new Date().toISOString(),
+        url: file.url || file.publicUrl || file.path || '',
+      }))
+      setFiles(normalized)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load files')
     } finally {

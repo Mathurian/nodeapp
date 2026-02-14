@@ -54,6 +54,8 @@ interface Deduction {
 interface ScoringCategory {
   id: string
   name: string
+  contestId?: string
+  contest?: { id: string; name: string }
   contestants?: Array<{
     id: string
     name: string
@@ -70,9 +72,11 @@ const DeductionsPage: React.FC = () => {
   const [signature, setSignature] = useState('')
   const [rejectionReason, setRejectionReason] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [selectedContestId, setSelectedContestId] = useState('')
   const [selectedContestantId, setSelectedContestantId] = useState('')
   const [requestAmount, setRequestAmount] = useState('')
   const [requestReason, setRequestReason] = useState('')
+  const [requestScope, setRequestScope] = useState<'CATEGORY' | 'GENERAL'>('CATEGORY')
 
   // Fetch deductions using react-query
   const { data: deductions = [], isLoading, error } = useQuery<Deduction[]>(
@@ -108,7 +112,7 @@ const DeductionsPage: React.FC = () => {
 
   const createRequestMutation = useOptimisticMutation<
     unknown,
-    { categoryId: string; contestantId: string; amount: number; reason: string }
+    { categoryId?: string; contestId?: string; contestantId: string; amount: number; reason: string; scope?: 'GENERAL' | 'CATEGORY' }
   >({
     mutationFn: async (data) => scoringAPI.requestDeduction(data),
     queryKey: ['deductions'],
@@ -118,22 +122,24 @@ const DeductionsPage: React.FC = () => {
       return [
         {
           id: `optimistic-${Date.now()}`,
-          categoryId: vars.categoryId,
+          categoryId: vars.categoryId || 'general',
           category: {
-            id: vars.categoryId,
-            name: scoringCategories.find((c) => c.id === vars.categoryId)?.name || 'Category',
+            id: vars.categoryId || 'general',
+            name: vars.scope === 'GENERAL'
+              ? `General (${contestOptions.find((c) => c.id === vars.contestId)?.name || 'Contest'})`
+              : (scoringCategories.find((c) => c.id === vars.categoryId)?.name || 'Category'),
           },
           contestantId: vars.contestantId,
           contestant: {
             id: vars.contestantId,
             name: (
               scoringCategories
-                .find((c) => c.id === vars.categoryId)
+                .find((c) => c.id === vars.categoryId || c.contestId === vars.contestId)
                 ?.contestants?.find((contestant) => contestant.id === vars.contestantId)?.name
             ) || 'Contestant',
             contestantNumber: (
               scoringCategories
-                .find((c) => c.id === vars.categoryId)
+                .find((c) => c.id === vars.categoryId || c.contestId === vars.contestId)
                 ?.contestants?.find((contestant) => contestant.id === vars.contestantId)?.contestantNumber ?? null
             ),
           },
@@ -150,6 +156,7 @@ const DeductionsPage: React.FC = () => {
     onSuccess: () => {
       toast.success('Deduction request submitted')
       setSelectedCategoryId('')
+      setSelectedContestId('')
       setSelectedContestantId('')
       setRequestAmount('')
       setRequestReason('')
@@ -263,18 +270,30 @@ const DeductionsPage: React.FC = () => {
   const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'BOARD'].includes(user?.role || '')
   const canInitiate = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'JUDGE'].includes(user?.role || '')
   const selectedCategory = scoringCategories.find((c) => c.id === selectedCategoryId)
+  const contestOptions = Array.from(
+    new Map(
+      scoringCategories
+        .filter((c) => c.contestId)
+        .map((c) => [c.contestId!, { id: c.contestId!, name: c.contest?.name || `Contest ${c.contestId}` }])
+    ).values()
+  )
+  const availableContestants = requestScope === 'GENERAL'
+    ? scoringCategories.find((c) => c.contestId === selectedContestId)?.contestants || []
+    : selectedCategory?.contestants || []
 
   const submitRequest = () => {
     const amount = Number(requestAmount)
-    if (!selectedCategoryId || !selectedContestantId || !amount || amount <= 0 || !requestReason.trim()) {
-      toast.error('Category, contestant, amount, and reason are required')
+    if ((!selectedCategoryId && requestScope === 'CATEGORY') || (!selectedContestId && requestScope === 'GENERAL') || !selectedContestantId || !amount || amount <= 0 || !requestReason.trim()) {
+      toast.error('Scope, target, contestant, amount, and reason are required')
       return
     }
     createRequestMutation.mutate({
-      categoryId: selectedCategoryId,
+      categoryId: requestScope === 'CATEGORY' ? selectedCategoryId : undefined,
+      contestId: requestScope === 'GENERAL' ? selectedContestId : undefined,
       contestantId: selectedContestantId,
       amount,
       reason: requestReason.trim(),
+      scope: requestScope,
     })
   }
 
@@ -302,7 +321,35 @@ const DeductionsPage: React.FC = () => {
         {canInitiate && (
           <Card className="mb-6 rounded-lg p-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Request Deduction</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <select
+                value={requestScope}
+                onChange={(e) => {
+                  setRequestScope(e.target.value as 'CATEGORY' | 'GENERAL')
+                  setSelectedContestId('')
+                  setSelectedCategoryId('')
+                  setSelectedContestantId('')
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="CATEGORY">Category deduction</option>
+                <option value="GENERAL">General (contest-level)</option>
+              </select>
+              {requestScope === 'GENERAL' ? (
+                <select
+                  value={selectedContestId}
+                  onChange={(e) => {
+                    setSelectedContestId(e.target.value)
+                    setSelectedContestantId('')
+                  }}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                >
+                  <option value="">Select contest</option>
+                  {contestOptions.map((contest) => (
+                    <option key={contest.id} value={contest.id}>{contest.name}</option>
+                  ))}
+                </select>
+              ) : (
               <select
                 value={selectedCategoryId}
                 onChange={(e) => {
@@ -316,14 +363,15 @@ const DeductionsPage: React.FC = () => {
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
+              )}
               <select
                 value={selectedContestantId}
                 onChange={(e) => setSelectedContestantId(e.target.value)}
-                disabled={!selectedCategoryId}
+                disabled={requestScope === 'GENERAL' ? !selectedContestId : !selectedCategoryId}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               >
                 <option value="">Select contestant</option>
-                {selectedCategory?.contestants?.map((contestant) => (
+                {availableContestants?.map((contestant) => (
                   <option key={contestant.id} value={contestant.id}>
                     #{contestant.contestantNumber ?? 'N/A'} - {contestant.name}
                   </option>

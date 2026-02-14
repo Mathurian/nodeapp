@@ -211,7 +211,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
-            <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
+            <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
@@ -219,24 +219,24 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
             <Route path="/tenants" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TenantManagementPage /></ProtectedRoute>} />
             <Route path="/mfa" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><MFASettingsPage /></ProtectedRoute>} />
-            <Route path="/database" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
-            <Route path="/cache" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CacheManagementPage /></ProtectedRoute>} />
+            <Route path="/database" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
+            <Route path="/cache" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><CacheManagementPage /></ProtectedRoute>} />
             <Route path="/archive" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ArchivePage /></ProtectedRoute>} />
             <Route path="/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
             <Route path="/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
-            <Route path="/logs" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><LogViewerPage /></ProtectedRoute>} />
-            <Route path="/activity" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ActivityLogPage /></ProtectedRoute>} />
-            <Route path="/performance" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><PerformancePage /></ProtectedRoute>} />
-            <Route path="/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DataWipePage /></ProtectedRoute>} />
+            <Route path="/logs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><LogViewerPage /></ProtectedRoute>} />
+            <Route path="/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />
+            <Route path="/performance" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><PerformancePage /></ProtectedRoute>} />
+            <Route path="/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
             <Route path="/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
             <Route path="/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
-            <Route path="/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
+            <Route path="/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
             <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
-            <Route path="/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestRunnerPage /></ProtectedRoute>} />
+            <Route path="/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
             <Route path="/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
@@ -271,7 +271,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
             <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
-            <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
+            <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/:slug/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/search" element={<SearchPage />} />
             <Route path="/:slug/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
@@ -279,18 +279,18 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
             <Route path="/:slug/tenants" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TenantManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/mfa" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><MFASettingsPage /></ProtectedRoute>} />
-            <Route path="/:slug/database" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
-            <Route path="/:slug/cache" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CacheManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/database" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
+            <Route path="/:slug/cache" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><CacheManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/archive" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ArchivePage /></ProtectedRoute>} />
             <Route path="/:slug/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
             <Route path="/:slug/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
-            <Route path="/:slug/logs" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><LogViewerPage /></ProtectedRoute>} />
-            <Route path="/:slug/performance" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><PerformancePage /></ProtectedRoute>} />
-            <Route path="/:slug/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><DataWipePage /></ProtectedRoute>} />
+            <Route path="/:slug/logs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><LogViewerPage /></ProtectedRoute>} />
+            <Route path="/:slug/performance" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><PerformancePage /></ProtectedRoute>} />
+            <Route path="/:slug/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/:slug/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
             <Route path="/:slug/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
-            <Route path="/:slug/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
+            <Route path="/:slug/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
             <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/:slug/bios" element={<BiosPage />} />
             <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
@@ -309,8 +309,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
-            <Route path="/:slug/activity" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ActivityLogPage /></ProtectedRoute>} />
-            <Route path="/:slug/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestRunnerPage /></ProtectedRoute>} />
+            <Route path="/:slug/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />
+            <Route path="/:slug/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<RoleDefaultRoute basePath={basePath} />} />
 
             {/* 404 Not Found */}

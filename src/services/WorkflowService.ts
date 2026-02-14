@@ -422,6 +422,73 @@ export class WorkflowService {
   }
 
   /**
+   * Auto-start active workflow templates that are configured for a given event type.
+   */
+  static async autoStartForEvent(
+    eventType: string,
+    tenantId: string,
+    payload: Record<string, unknown>
+  ): Promise<number> {
+    try {
+      const templates = await prisma.workflowTemplate.findMany({
+        where: {
+          tenantId,
+          isActive: true,
+          type: eventType,
+        },
+        select: { id: true },
+      });
+
+      if (templates.length === 0) return 0;
+
+      const entityId =
+        String(
+          payload['entityId'] ||
+          payload['categoryId'] ||
+          payload['contestId'] ||
+          payload['eventId'] ||
+          payload['scoreId'] ||
+          payload['assignmentId'] ||
+          payload['userId'] ||
+          payload['id'] ||
+          `${eventType}-${Date.now()}`
+        );
+
+      const lowerType = eventType.toLowerCase();
+      const entityType =
+        lowerType.startsWith('event.') ? 'EVENT'
+        : lowerType.startsWith('contest.') ? 'CONTEST'
+        : lowerType.startsWith('category.') ? 'CATEGORY'
+        : lowerType.startsWith('score.') ? 'SCORE'
+        : lowerType.startsWith('assignment.') ? 'ASSIGNMENT'
+        : lowerType.startsWith('certification.') ? 'CERTIFICATION'
+        : lowerType.startsWith('user.') ? 'USER'
+        : 'SYSTEM';
+
+      let started = 0;
+      for (const template of templates) {
+        const existing = await prisma.workflowInstance.findFirst({
+          where: {
+            tenantId,
+            templateId: template.id,
+            entityId,
+            entityType,
+            status: STATUS_ACTIVE,
+          },
+          select: { id: true },
+        });
+        if (existing) continue;
+        await this.startWorkflow(template.id, tenantId, entityType, entityId);
+        started += 1;
+      }
+      return started;
+    } catch (error) {
+      logger.error('Error auto-starting workflow for event', { eventType, tenantId, error });
+      return 0;
+    }
+  }
+
+  /**
    * Advance workflow to next step
    */
   static async advanceWorkflow(

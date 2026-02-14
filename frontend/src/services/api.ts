@@ -488,9 +488,9 @@ export const reportsAPI = {
   getAll: () => api.get('/reports'),
   getById: (id: string) => api.get(`/reports/${id}/download`),
   delete: (id: string) => api.delete(`/reports/instances/${id}`),
-  exportPdf: (id: string) => api.post(`/reports/${id}/export/pdf`, {}),
-  exportExcel: (id: string) => api.post(`/reports/${id}/export/excel`, {}),
-  exportCsv: (id: string) => api.post(`/reports/${id}/export/csv`, {}),
+  exportPdf: (id: string) => api.post(`/reports/${id}/export/pdf`, {}, { responseType: 'blob' }),
+  exportExcel: (id: string) => api.post(`/reports/${id}/export/excel`, {}, { responseType: 'blob' }),
+  exportCsv: (id: string) => api.post(`/reports/${id}/export/csv`, {}, { responseType: 'blob' }),
   sendEmail: (data: { reportId: string; recipients: string[]; subject?: string; message?: string }) =>
     api.post('/reports/send-email', data),
 }

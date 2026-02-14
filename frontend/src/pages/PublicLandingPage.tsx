@@ -59,6 +59,8 @@ const PublicLandingPage: React.FC = () => {
   const [appName, setAppName] = React.useState(DEFAULT_APP_BASELINE.appName)
   const [appSubtitle, setAppSubtitle] = React.useState(DEFAULT_APP_BASELINE.appSubtitle)
   const [appDescription, setAppDescription] = React.useState(DEFAULT_APP_BASELINE.appDescription)
+  const [logoPath, setLogoPath] = React.useState<string | null>(null)
+  const [faviconPath, setFaviconPath] = React.useState<string | null>(null)
 
   const basePath = useMemo(() => (slug ? `/${slug}` : ''), [slug])
 
@@ -71,18 +73,39 @@ const PublicLandingPage: React.FC = () => {
   useEffect(() => {
     ;(async () => {
       try {
-        const response = await settingsAPI.getPublicSettings(slug)
+        const response = await settingsAPI.getPublicSettings(slug || 'default')
         const data = response.data?.data || response.data || {}
         setAppName(data.appName || DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(data.appDescription || DEFAULT_APP_BASELINE.appDescription)
+        const themeResponse = await settingsAPI.getThemeSettings(undefined, 'default')
+        const themeData = themeResponse.data?.data || themeResponse.data || {}
+        setAppName(themeData.app_name || themeData.appName || data.appName || DEFAULT_APP_BASELINE.appName)
+        setLogoPath(themeData.theme_logoPath || themeData.logoPath || null)
+        setFaviconPath(themeData.theme_faviconPath || themeData.faviconPath || null)
       } catch {
         setAppName(DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(DEFAULT_APP_BASELINE.appDescription)
+        setLogoPath(null)
+        setFaviconPath(null)
       }
     })()
   }, [slug])
+
+  useEffect(() => {
+    document.title = appName
+    if (!faviconPath) return
+    const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
+    if (favicon) {
+      favicon.href = faviconPath
+      return
+    }
+    const icon = document.createElement('link')
+    icon.rel = 'icon'
+    icon.href = faviconPath
+    document.head.appendChild(icon)
+  }, [appName, faviconPath])
 
   const features: FeatureProps[] = [
     {
@@ -146,15 +169,23 @@ const PublicLandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <SparklesIcon className="w-5 h-5 text-white" />
-              </div>
+              {logoPath || faviconPath ? (
+                <img
+                  src={logoPath || faviconPath || ''}
+                  alt={appName}
+                  className="w-8 h-8 rounded-lg object-cover border border-blue-100 dark:border-gray-700"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <SparklesIcon className="w-5 h-5 text-white" />
+                </div>
+              )}
               <span className="text-xl font-bold text-gray-900 dark:text-white">{appName}</span>
             </div>
             <div className="flex items-center gap-4">
               <Link
                 to={`${basePath}/login`}
-                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
+                className="inline-flex h-9 items-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 Sign In
               </Link>
@@ -299,9 +330,17 @@ const PublicLandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <SparklesIcon className="w-5 h-5 text-white" />
-              </div>
+              {logoPath || faviconPath ? (
+                <img
+                  src={logoPath || faviconPath || ''}
+                  alt={appName}
+                  className="w-8 h-8 rounded-lg object-cover border border-blue-100 dark:border-gray-700"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <SparklesIcon className="w-5 h-5 text-white" />
+                </div>
+              )}
               <span className="text-lg font-bold text-gray-900 dark:text-white">{appName}</span>
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
@@ -310,7 +349,7 @@ const PublicLandingPage: React.FC = () => {
             <div className="flex items-center gap-6">
               <Link
                 to={`${basePath}/login`}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm transition-colors"
+                className="inline-flex h-9 items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 Sign In
               </Link>

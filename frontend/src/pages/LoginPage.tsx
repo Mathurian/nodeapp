@@ -295,6 +295,12 @@ const LoginPage: React.FC = () => {
                     Forgot password?
                   </a>
                 ) : <span />}
+                <a
+                  href={`${slug ? `/${slug}` : ''}/`}
+                  className="text-gray-600 hover:text-gray-900 hover:underline"
+                >
+                  Back to Home
+                </a>
               </div>
             </FormProvider>
 

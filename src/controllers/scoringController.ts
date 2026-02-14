@@ -1154,37 +1154,63 @@ export class ScoringController {
 
   requestDeduction = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { contestantId, categoryId, amount, reason } = req.body;
+      const { contestantId, categoryId, contestId, amount, reason, scope } = req.body;
 
       if (!req.user) {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
 
-      if (!contestantId || !categoryId || amount === undefined || !reason) {
-        return errorResponse(res, 'contestantId, categoryId, amount, and reason are required', ErrorCode.VALIDATION_ERROR, 400);
+      if (!contestantId || amount === undefined || !reason) {
+        return errorResponse(res, 'contestantId, amount, and reason are required', ErrorCode.VALIDATION_ERROR, 400);
+      }
+
+      // Support contest-level "general" deductions by resolving a deterministic carrier category.
+      let resolvedCategoryId = categoryId as string | undefined;
+      let normalizedReason = String(reason || '').trim();
+      const isGeneralScope = scope === 'GENERAL' || (!resolvedCategoryId && !!contestId);
+      if (!resolvedCategoryId && !contestId) {
+        return errorResponse(res, 'categoryId is required unless contestId is provided for GENERAL scope', ErrorCode.VALIDATION_ERROR, 400);
       }
 
       // Verify category and contestant exist with tenant validation
-      const [category, contestant] = await Promise.all([
-        this.prisma.category.findFirst({
+      const contestant = await this.prisma.contestant.findFirst({
+        where: {
+          id: contestantId,
+          tenantId: req.user.tenantId
+        }
+      });
+
+      if (!contestant) {
+        return sendNotFound(res, 'Contestant not found');
+      }
+
+      if (!resolvedCategoryId && contestId) {
+        const contestCategories = await this.prisma.category.findMany({
           where: {
-            id: categoryId,
+            contestId,
             tenantId: req.user.tenantId
-          }
-        }),
-        this.prisma.contestant.findFirst({
-          where: {
-            id: contestantId,
-            tenantId: req.user.tenantId
-          }
-        })
-      ]);
+          },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true }
+        });
+        if (contestCategories.length === 0) {
+          return sendNotFound(res, 'No categories found for contest');
+        }
+        resolvedCategoryId = contestCategories[0]!.id;
+      }
+
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: resolvedCategoryId,
+          tenantId: req.user.tenantId
+        }
+      });
 
       if (!category) {
         return sendNotFound(res, 'Category not found');
       }
-      if (!contestant) {
-        return sendNotFound(res, 'Contestant not found');
+      if (isGeneralScope && !normalizedReason.startsWith('[GENERAL]')) {
+        normalizedReason = `[GENERAL] ${normalizedReason}`;
       }
 
       // Initiator must certify the deduction when submitting it.
@@ -1192,9 +1218,9 @@ export class ScoringController {
         const created = await tx.deductionRequest.create({
           data: {
             contestantId,
-            categoryId,
+            categoryId: resolvedCategoryId!,
             amount,
-            reason,
+            reason: normalizedReason,
             requestedById: req.user!.id,
             status: 'PENDING',
             tenantId: req.user!.tenantId

@@ -576,6 +576,12 @@ You now have access to all documentation for your role (${user.role}).
 
           {user ? (
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/')}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Home
+              </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 Signed in as <span className="font-medium text-gray-900 dark:text-white">{user.email}</span>
               </span>
@@ -587,12 +593,20 @@ You now have access to all documentation for your role (${user.role}).
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setShowLoginModal(true)}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-colors"
-            >
-              Sign In
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/')}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Home
+              </button>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-colors"
+              >
+                Sign In
+              </button>
+            </div>
           )}
         </div>
 

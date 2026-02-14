@@ -46,7 +46,8 @@ const SearchPage: React.FC = () => {
           includeArchived: filters.includeArchived,
         },
       })
-      setResults(response.data)
+      const payload = response.data?.data || response.data?.results || response.data || []
+      setResults(Array.isArray(payload) ? payload : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Search failed')
     } finally {

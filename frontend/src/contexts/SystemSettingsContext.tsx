@@ -112,6 +112,19 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
     // Apply CSS custom properties
     if (themeSettings.theme_primaryColor) {
       root.style.setProperty('--color-primary', themeSettings.theme_primaryColor)
+      const primary = themeSettings.theme_primaryColor
+      let dynamicStyle = document.getElementById('dynamic-primary-theme') as HTMLStyleElement | null
+      if (!dynamicStyle) {
+        dynamicStyle = document.createElement('style')
+        dynamicStyle.id = 'dynamic-primary-theme'
+        document.head.appendChild(dynamicStyle)
+      }
+      dynamicStyle.textContent = `
+        .bg-blue-600, .bg-indigo-600, .dark\\:bg-blue-500, .dark\\:bg-indigo-500 { background-color: ${primary} !important; }
+        .hover\\:bg-blue-700:hover, .hover\\:bg-indigo-700:hover, .dark\\:hover\\:bg-blue-600:hover, .dark\\:hover\\:bg-indigo-600:hover { filter: brightness(0.9); }
+        .text-blue-600, .text-indigo-600, .dark\\:text-blue-400, .dark\\:text-indigo-400 { color: ${primary} !important; }
+        .border-blue-600, .border-indigo-600, .ring-blue-500 { border-color: ${primary} !important; --tw-ring-color: ${primary} !important; }
+      `
     }
     if (themeSettings.theme_secondaryColor) {
       root.style.setProperty('--color-secondary', themeSettings.theme_secondaryColor)

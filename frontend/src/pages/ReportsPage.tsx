@@ -35,6 +35,9 @@ interface ReportDetail {
   data?: Record<string, any> | null
 }
 
+const looksLikeHtml = (value: unknown): value is string =>
+  typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)
+
 const ReportsPage: React.FC = () => {
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
@@ -45,6 +48,8 @@ const ReportsPage: React.FC = () => {
   const [sendingReportId, setSendingReportId] = useState<string | null>(null)
   const [viewingReport, setViewingReport] = useState<ReportDetail | null>(null)
   const [isLoadingView, setIsLoadingView] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewText, setPreviewText] = useState<string | null>(null)
   const [emailRecipients, setEmailRecipients] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -165,9 +170,24 @@ const ReportsPage: React.FC = () => {
     try {
       setError(null)
       setIsLoadingView(true)
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+        setPreviewUrl(null)
+      }
+      setPreviewText(null)
       const response = await reportsAPI.getById(id)
       const payload = response.data?.data || response.data || null
       setViewingReport(payload)
+      const reportFormat = String(payload?.format || '').toLowerCase()
+      if (reportFormat.includes('pdf')) {
+        const blobResponse = await reportsAPI.exportPdf(id)
+        const url = URL.createObjectURL(new Blob([blobResponse.data], { type: 'application/pdf' }))
+        setPreviewUrl(url)
+      } else if (reportFormat.includes('csv')) {
+        const blobResponse = await reportsAPI.exportCsv(id)
+        const text = await new Blob([blobResponse.data], { type: 'text/csv' }).text()
+        setPreviewText(text)
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load report preview')
     } finally {
@@ -325,15 +345,59 @@ const ReportsPage: React.FC = () => {
                     {viewingReport.type} • {new Date(viewingReport.generatedAt).toLocaleString()}
                   </p>
                 </div>
-                <button onClick={() => setViewingReport(null)} className="px-3 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300">Close</button>
+                <button
+                  onClick={() => {
+                    if (previewUrl) {
+                      URL.revokeObjectURL(previewUrl)
+                      setPreviewUrl(null)
+                    }
+                    setPreviewText(null)
+                    setViewingReport(null)
+                  }}
+                  className="px-3 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300"
+                >
+                  Close
+                </button>
               </div>
 
               {isLoadingView ? (
                 <div className="text-sm text-gray-600 dark:text-gray-400">Loading preview...</div>
               ) : (
-                <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 overflow-x-auto whitespace-pre-wrap">
-                  {JSON.stringify(viewingReport.data ?? {}, null, 2)}
-                </pre>
+                <div className="space-y-3">
+                  {previewUrl ? (
+                    <iframe
+                      title="Report Preview"
+                      className="w-full h-[60vh] border border-gray-200 dark:border-gray-700 rounded"
+                      src={previewUrl}
+                    />
+                  ) : previewText ? (
+                    <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 overflow-x-auto whitespace-pre-wrap">
+                      {previewText}
+                    </pre>
+                  ) : looksLikeHtml(viewingReport.data?.['html']) ? (
+                    <iframe
+                      title="Report Preview"
+                      className="w-full h-[60vh] border border-gray-200 dark:border-gray-700 rounded"
+                      sandbox="allow-same-origin"
+                      srcDoc={String(viewingReport.data?.['html'])}
+                    />
+                  ) : (
+                    <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4">
+                      <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div><dt className="text-gray-500">Type</dt><dd className="font-medium">{viewingReport.type}</dd></div>
+                        <div><dt className="text-gray-500">Generated</dt><dd className="font-medium">{new Date(viewingReport.generatedAt).toLocaleString()}</dd></div>
+                        <div><dt className="text-gray-500">Format</dt><dd className="font-medium">{viewingReport.format || 'N/A'}</dd></div>
+                        <div><dt className="text-gray-500">Name</dt><dd className="font-medium">{viewingReport.name}</dd></div>
+                      </dl>
+                    </div>
+                  )}
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-gray-600 dark:text-gray-400">Show raw data</summary>
+                    <pre className="mt-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 overflow-x-auto whitespace-pre-wrap">
+                      {JSON.stringify(viewingReport.data ?? {}, null, 2)}
+                    </pre>
+                  </details>
+                </div>
               )}
             </div>
           </div>

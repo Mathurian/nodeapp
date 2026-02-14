@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import {
   ShieldCheckIcon,
-  QrCodeIcon,
   KeyIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -27,6 +26,7 @@ const MFASettingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
+  const [pendingBackupCodes, setPendingBackupCodes] = useState<string[]>([])
   const [verificationCode, setVerificationCode] = useState('')
   const [showBackupCodes, setShowBackupCodes] = useState(false)
 
@@ -40,10 +40,10 @@ const MFASettingsPage: React.FC = () => {
       const response = await api.get('/mfa/status')
       const data = response.data?.data || response.data
       setSettings({
-        enabled: data?.mfaEnabled ?? false,
+        enabled: data?.enabled ?? data?.mfaEnabled ?? false,
         method: 'TOTP',
         backupCodes: [],
-        lastVerified: data?.lastVerified,
+        lastVerified: data?.enrolledAt || data?.lastVerified,
       })
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load MFA settings')
@@ -55,28 +55,40 @@ const MFASettingsPage: React.FC = () => {
   const enableMFA = async () => {
     try {
       setError(null)
-      const response = await api.post('/mfa/enable')
-      setQrCode(response.data.qrCode)
-      setSecret(response.data.secret)
+      const response = await api.post('/mfa/setup')
+      const payload = response.data?.data || response.data
+      setQrCode(payload?.qrCode || null)
+      setSecret(payload?.secret || payload?.manualEntryKey || null)
+      setPendingBackupCodes(Array.isArray(payload?.backupCodes) ? payload.backupCodes : [])
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to enable MFA')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to initialize MFA setup')
     }
   }
 
   const verifyAndActivate = async () => {
     try {
       setError(null)
-      const response = await api.post('/mfa/verify', {
-        code: verificationCode,
+      const response = await api.post('/mfa/enable', {
         secret,
+        token: verificationCode,
+        backupCodes: pendingBackupCodes,
       })
-      setSettings(response.data.settings)
+      const payload = response.data?.data || response.data
+      if (payload?.success === false) {
+        throw new Error(payload?.message || 'Invalid verification code')
+      }
+      setSettings((prev) => ({
+        ...prev,
+        enabled: true,
+        backupCodes: pendingBackupCodes,
+      }))
       setShowBackupCodes(true)
       setQrCode(null)
       setSecret(null)
+      setPendingBackupCodes([])
       setVerificationCode('')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid verification code')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Invalid verification code')
     }
   }
 
@@ -84,9 +96,11 @@ const MFASettingsPage: React.FC = () => {
     if (!confirm('Are you sure you want to disable MFA? This will make your account less secure.')) {
       return
     }
+    const password = window.prompt('Enter your password to disable MFA')
+    if (!password) return
     try {
       setError(null)
-      await api.post('/mfa/disable')
+      await api.post('/mfa/disable', { password })
       await fetchMFASettings()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to disable MFA')
@@ -96,8 +110,10 @@ const MFASettingsPage: React.FC = () => {
   const regenerateBackupCodes = async () => {
     try {
       setError(null)
-      const response = await api.post('/mfa/regenerate-backup-codes')
-      setSettings({ ...settings, backupCodes: response.data.backupCodes })
+      const response = await api.post('/mfa/backup-codes/regenerate')
+      const payload = response.data?.data || response.data
+      const backupCodes = Array.isArray(payload?.backupCodes) ? payload.backupCodes : []
+      setSettings({ ...settings, backupCodes })
       setShowBackupCodes(true)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to regenerate backup codes')

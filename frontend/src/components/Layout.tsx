@@ -156,6 +156,14 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     }
   }, [mobileMenuOpen])
 
+  // Close open menus after navigation so the new page content is immediately visible.
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setQuickActionsOpen(false)
+    setProfileMenuOpen(false)
+    setSidebarOpen(false)
+  }, [location.pathname])
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(prev => !prev)
   }, [])

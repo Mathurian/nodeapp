@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTenant } from '../contexts/TenantContext'
@@ -41,6 +41,10 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
   const filteredSections = navigationSections.filter((section) =>
     hasRoleAccess(section.roles)
   )
+
+  useEffect(() => {
+    setExpandedSections(new Set(['Navigation']))
+  }, [location.pathname])
 
   return (
     <nav className={`accordion-nav ${className}`} aria-label="Main navigation">

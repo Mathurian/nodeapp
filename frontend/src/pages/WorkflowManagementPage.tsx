@@ -70,6 +70,18 @@ const EMPTY_FORM: WorkflowForm = {
 }
 
 const ROLE_OPTIONS: WorkflowRole[] = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT']
+const WORKFLOW_TRIGGER_TYPES = [
+  { value: 'custom', label: 'Manual (custom)' },
+  { value: 'user.created', label: 'User Created' },
+  { value: 'event.created', label: 'Event Created' },
+  { value: 'contest.created', label: 'Contest Created' },
+  { value: 'category.created', label: 'Category Created' },
+  { value: 'score.submitted', label: 'Score Submitted' },
+  { value: 'scores.finalized', label: 'Scores Finalized' },
+  { value: 'certification.approved', label: 'Certification Approved' },
+  { value: 'certification.rejected', label: 'Certification Rejected' },
+  { value: 'assignment.created', label: 'Assignment Created' },
+]
 
 const parseTemplate = (raw: any): WorkflowTemplate => {
   const parsedSteps: WorkflowStep[] = Array.isArray(raw?.steps)
@@ -504,13 +516,18 @@ const WorkflowManagementPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                  <input
-                    type="text"
+                  <select
                     value={form.type}
                     onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}
-                    placeholder="custom"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
+                  >
+                    {WORKFLOW_TRIGGER_TYPES.map((trigger) => (
+                      <option key={trigger.value} value={trigger.value}>{trigger.label}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Non-custom types auto-start when the matching application event occurs.
+                  </p>
                 </div>
               </div>
 

@@ -466,9 +466,12 @@ const EmailTemplatesPage: React.FC = () => {
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Body:
                   </p>
-                  <div className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700 p-4 rounded-lg whitespace-pre-wrap text-gray-900 dark:text-white dark:text-white">
-                    {previewContent?.html || showPreview.body}
-                  </div>
+                  <iframe
+                    title="Email template preview"
+                    className="w-full h-80 border border-gray-200 dark:border-gray-700 rounded-lg bg-white"
+                    sandbox="allow-same-origin"
+                    srcDoc={previewContent?.html || showPreview.body}
+                  />
                 </div>
               </div>
               <button

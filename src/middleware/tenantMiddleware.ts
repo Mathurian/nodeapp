@@ -68,6 +68,18 @@ function isTenantScopedModel(model: string): boolean {
  * Tenant identification strategies
  */
 export class TenantIdentifier {
+  private static isIpOrLocalHost(hostname: string): boolean {
+    if (!hostname) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return true;
+    }
+    // Basic IPv4 detector
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Identify tenant from subdomain
    * Example: tenant-slug.example.com -> tenant-slug
@@ -79,6 +91,7 @@ export class TenantIdentifier {
     // Remove port if present
     const hostname = host.split(':')[0] || '';
     if (!hostname) return null;
+    if (TenantIdentifier.isIpOrLocalHost(hostname)) return null;
 
     // Check if it's a subdomain (must have at least 3 parts)
     const parts = hostname.split('.');
@@ -102,6 +115,7 @@ export class TenantIdentifier {
     // Remove port
     const hostname = host.split(':')[0] || '';
     if (!hostname) return null;
+    if (TenantIdentifier.isIpOrLocalHost(hostname)) return null;
 
     // Return hostname as potential custom domain
     // Will be validated against tenant domains in database
