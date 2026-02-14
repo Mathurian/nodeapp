@@ -149,6 +149,7 @@ describe('DeductionController', () => {
         'ded-1',
         'user-1',
         'BOARD_MEMBER',
+        'tenant-1',
         'John Doe',
         'Approved by board'
       );
@@ -166,6 +167,7 @@ describe('DeductionController', () => {
         'ded-2',
         'user-1',
         'JUDGE',
+        'tenant-1',
         'Jane Smith',
         undefined
       );

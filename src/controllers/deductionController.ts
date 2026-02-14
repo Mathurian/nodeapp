@@ -99,6 +99,7 @@ export class DeductionController {
         id,
         approvedBy,
         userRole,
+        req.user.tenantId,
         signature,
         notes
       );

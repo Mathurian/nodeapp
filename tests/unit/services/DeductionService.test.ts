@@ -21,29 +21,29 @@ import { mock, MockProxy } from 'jest-mock-extended';
 import { DeductionService } from '../../../src/services/DeductionService';
 import { DeductionRepository } from '../../../src/repositories/DeductionRepository';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
-
-// Mock the global prisma import used by DeductionService
-const mockPrismaGlobal = {
-  contestant: { findFirst: jest.fn() },
-  category: { findFirst: jest.fn() },
-  user: { findFirst: jest.fn() },
-};
-
-jest.mock('../../../src/config/database', () => ({
-  __esModule: true,
-  prisma: mockPrismaGlobal,
-}));
+import { prisma } from '../../../src/config/database';
 
 describe('DeductionService', () => {
   let service: DeductionService;
   let deductionRepoMock: MockProxy<DeductionRepository>;
+  let contestantFindFirstSpy: jest.SpiedFunction<typeof prisma.contestant.findFirst>;
+  let categoryFindFirstSpy: jest.SpiedFunction<typeof prisma.category.findFirst>;
+  let userFindFirstSpy: jest.SpiedFunction<typeof prisma.user.findFirst>;
 
   const tenantId = 'tenant-1';
 
   beforeEach(() => {
+    jest.restoreAllMocks();
     deductionRepoMock = mock<DeductionRepository>();
     service = new DeductionService(deductionRepoMock as any);
-    jest.clearAllMocks();
+
+    contestantFindFirstSpy = jest.spyOn(prisma.contestant, 'findFirst');
+    categoryFindFirstSpy = jest.spyOn(prisma.category, 'findFirst');
+    userFindFirstSpy = jest.spyOn(prisma.user, 'findFirst');
+
+    contestantFindFirstSpy.mockResolvedValue({ id: 'cont1' } as any);
+    categoryFindFirstSpy.mockResolvedValue({ id: 'cat1' } as any);
+    userFindFirstSpy.mockResolvedValue({ id: 'u1', judge: null } as any);
   });
 
   describe('createDeductionRequest', () => {
@@ -61,8 +61,8 @@ describe('DeductionService', () => {
         tenantId,
       };
 
-      mockPrismaGlobal.contestant.findFirst.mockResolvedValue(contestantMock);
-      mockPrismaGlobal.category.findFirst.mockResolvedValue(categoryMock);
+      contestantFindFirstSpy.mockResolvedValueOnce(contestantMock as any);
+      categoryFindFirstSpy.mockResolvedValueOnce(categoryMock as any);
       deductionRepoMock.createDeduction.mockResolvedValue(mockDeduction as any);
 
       const result = await service.createDeductionRequest({
@@ -123,8 +123,8 @@ describe('DeductionService', () => {
     });
 
     it('should throw NotFoundError when contestant does not exist', async () => {
-      mockPrismaGlobal.contestant.findFirst.mockResolvedValue(null);
-      mockPrismaGlobal.category.findFirst.mockResolvedValue({ id: 'cat1' });
+      contestantFindFirstSpy.mockResolvedValue(null);
+      categoryFindFirstSpy.mockResolvedValue({ id: 'cat1' } as any);
 
       await expect(
         service.createDeductionRequest({
@@ -139,8 +139,8 @@ describe('DeductionService', () => {
     });
 
     it('should throw NotFoundError when category does not exist', async () => {
-      mockPrismaGlobal.contestant.findFirst.mockResolvedValue({ id: 'cont1' });
-      mockPrismaGlobal.category.findFirst.mockResolvedValue(null);
+      contestantFindFirstSpy.mockResolvedValue({ id: 'cont1' } as any);
+      categoryFindFirstSpy.mockResolvedValue(null);
 
       await expect(
         service.createDeductionRequest({
@@ -188,7 +188,7 @@ describe('DeductionService', () => {
         },
       };
 
-      mockPrismaGlobal.user.findFirst.mockResolvedValue(mockUser);
+      userFindFirstSpy.mockResolvedValueOnce(mockUser as any);
       deductionRepoMock.findPendingWithRelations.mockResolvedValue([]);
 
       await service.getPendingDeductions('JUDGE', 'u1', tenantId);
@@ -202,7 +202,7 @@ describe('DeductionService', () => {
         judge: { id: 'j1', categoryJudges: [] },
       };
 
-      mockPrismaGlobal.user.findFirst.mockResolvedValue(mockUser);
+      userFindFirstSpy.mockResolvedValueOnce(mockUser as any);
       deductionRepoMock.findPendingWithRelations.mockResolvedValue([]);
 
       await service.getPendingDeductions('JUDGE', 'u1', tenantId);
@@ -213,7 +213,7 @@ describe('DeductionService', () => {
     it('should handle user without judge profile', async () => {
       const mockUser = { id: 'u1', judge: null };
 
-      mockPrismaGlobal.user.findFirst.mockResolvedValue(mockUser);
+      userFindFirstSpy.mockResolvedValueOnce(mockUser as any);
       deductionRepoMock.findPendingWithRelations.mockResolvedValue([]);
 
       await service.getPendingDeductions('JUDGE', 'u1', tenantId);
@@ -340,7 +340,7 @@ describe('DeductionService', () => {
 
       const mockDeduction = { id: 'ded1', status: 'PENDING' };
 
-      mockPrismaGlobal.user.findFirst.mockResolvedValue(mockUser);
+      userFindFirstSpy.mockResolvedValueOnce(mockUser as any);
       deductionRepoMock.findByIdWithRelations.mockResolvedValue(mockDeduction as any);
       deductionRepoMock.hasUserApproved.mockResolvedValue(false);
       deductionRepoMock.createApproval.mockResolvedValue({} as any);

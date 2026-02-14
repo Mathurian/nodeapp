@@ -25,16 +25,7 @@ export interface DeductionWithRelations extends DeductionRequest {
     email: string;
     role: string;
   };
-  approvals: Array<
-    DeductionApproval & {
-      approver: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-      };
-    }
-  >;
+  approvals: DeductionApproval[];
 }
 
 export interface CreateDeductionData {
@@ -89,10 +80,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           select: { id: true, name: true, email: true, role: true }
         },
         approvals: {
-          include: {
-            approver: {
-              select: { id: true, name: true, email: true, role: true }
-            }
+          select: {
+            id: true,
+            requestId: true,
+            approvedById: true,
+            role: true,
+            isHeadJudge: true,
+            approvedAt: true,
+            tenantId: true
           }
         }
       },
@@ -121,10 +116,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           select: { id: true, name: true, email: true, role: true }
         },
         approvals: {
-          include: {
-            approver: {
-              select: { id: true, name: true, email: true, role: true }
-            }
+          select: {
+            id: true,
+            requestId: true,
+            approvedById: true,
+            role: true,
+            isHeadJudge: true,
+            approvedAt: true,
+            tenantId: true
           },
           orderBy: { createdAt: 'asc' }
         }
@@ -157,10 +156,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           select: { id: true, name: true, email: true, role: true }
         },
         approvals: {
-          include: {
-            approver: {
-              select: { id: true, name: true, email: true, role: true }
-            }
+          select: {
+            id: true,
+            requestId: true,
+            approvedById: true,
+            role: true,
+            isHeadJudge: true,
+            approvedAt: true,
+            tenantId: true
           }
         }
       }
@@ -201,10 +204,14 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
             select: { id: true, name: true, email: true, role: true }
           },
           approvals: {
-            include: {
-              approver: {
-                select: { id: true, name: true, email: true, role: true }
-              }
+            select: {
+              id: true,
+              requestId: true,
+              approvedById: true,
+              role: true,
+              isHeadJudge: true,
+              approvedAt: true,
+              tenantId: true
             }
           }
         },

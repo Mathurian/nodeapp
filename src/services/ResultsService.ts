@@ -319,6 +319,7 @@ export class ResultsService extends BaseService {
       case 'BOARD':
       case 'TALLY_MASTER':
       case 'AUDITOR':
+      case 'EMCEE':
         // Full access to all results
         break;
 

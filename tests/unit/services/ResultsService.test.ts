@@ -250,16 +250,21 @@ describe('ResultsService', () => {
       ];
       (mockPrisma.category.findMany as jest.Mock).mockResolvedValue(mockCategories);
 
-      const result = await service.getCategories();
+      const result = await service.getCategories({
+        userRole: 'ADMIN' as UserRole,
+        userId: 'admin-1'
+      });
 
       expect(mockPrisma.category.findMany).toHaveBeenCalledWith({
+        where: {},
         include: {
           contest: {
             include: {
               event: true
             }
           }
-        }
+        },
+        orderBy: { name: 'asc' }
       });
       expect(result).toEqual(mockCategories);
     });
@@ -363,7 +368,18 @@ describe('ResultsService', () => {
     });
 
     it('should filter by contestant for CONTESTANT role', async () => {
-      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1' });
+      (mockPrisma.category.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: 'category-1', contestId: 'contest-1' })
+        .mockResolvedValueOnce({
+          contest: {
+            contestantViewRestricted: false,
+            contestantViewReleaseDate: null,
+            event: {
+              contestantViewRestricted: false,
+              contestantViewReleaseDate: null
+            }
+          }
+        });
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
         contestantId: 'contestant-1'
