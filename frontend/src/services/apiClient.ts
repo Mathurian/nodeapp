@@ -7,6 +7,12 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import type { ApiResponse, ApiErrorResponse, isErrorResponse } from '../../../shared/types/api';
 import { ApiError } from '../utils/errorHandler';
 
+const isPublicPath = (pathname: string): boolean => {
+  if (pathname === '/') return true;
+  if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true;
+  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname);
+};
+
 class ApiClient {
   private client: AxiosInstance;
   private publicClient: AxiosInstance;
@@ -68,7 +74,9 @@ class ApiClient {
 
         // Handle 401 - redirect to login
         if (error.response?.status === 401) {
-          if (!window.location.pathname.includes('/login')) {
+          const requestUrl = String(originalRequest?.url || '');
+          const isProfileProbe = requestUrl.includes('/auth/profile');
+          if (!isPublicPath(window.location.pathname) && !isProfileProbe) {
             window.location.href = '/login';
           }
           return Promise.reject(error);
@@ -176,4 +184,3 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
-

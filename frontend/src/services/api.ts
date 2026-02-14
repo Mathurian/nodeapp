@@ -30,6 +30,12 @@ const publicApi = axios.create({
   withCredentials: true, // Enable cookies for public API as well
 })
 
+const isPublicPath = (pathname: string): boolean => {
+  if (pathname === '/') return true
+  if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true
+  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
+}
+
 // Request interceptor to add CSRF token for state-changing requests
 api.interceptors.request.use(
   (config) => {
@@ -60,11 +66,10 @@ api.interceptors.response.use(
 
     // Handle 401 - redirect to login
     if (error.response?.status === 401) {
-      // Cookie expired or invalid - redirect to login
-      // But ONLY if we're not already on the login page or help page (prevent redirect loop)
-      const isPublicPage = window.location.pathname.includes('/login') ||
-                           window.location.pathname.includes('/help')
-      if (!isPublicPage) {
+      const requestUrl = String(originalRequest?.url || '')
+      const isProfileProbe = requestUrl.includes('/auth/profile')
+      // On public pages and auth profile probing, unauthenticated 401 is expected
+      if (!isPublicPath(window.location.pathname) && !isProfileProbe) {
         window.location.href = '/login'
       }
       return Promise.reject(error)

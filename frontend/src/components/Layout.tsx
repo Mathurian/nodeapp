@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
@@ -103,6 +103,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     return true
   })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const desktopSidebarRef = useRef<HTMLElement | null>(null)
+  const desktopToggleRef = useRef<HTMLButtonElement | null>(null)
   const { user, logout } = useAuth()
 
   // Persist sidebar state to localStorage
@@ -139,6 +141,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const toggleMobileMenu = useCallback(() => {
     setMobileMenuOpen(prev => !prev)
+  }, [])
+
+  const handleDesktopNavigate = useCallback(() => {
+    setSidebarOpen(false)
   }, [])
   const { buildPath } = useTenant()
   const { isConnected } = useSocket()
@@ -256,6 +262,27 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
 
+  // Close desktop sidebar when clicking outside of it
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!sidebarOpen) return
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) return
+
+      const target = event.target as Node
+      const sidebarEl = desktopSidebarRef.current
+      const toggleEl = desktopToggleRef.current
+
+      if (sidebarEl?.contains(target) || toggleEl?.contains(target)) {
+        return
+      }
+
+      setSidebarOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [sidebarOpen])
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Skip Navigation Link - Accessibility */}
@@ -283,6 +310,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             {/* Sidebar Toggle for Desktop */}
             <button
               onClick={toggleSidebar}
+              ref={desktopToggleRef}
               className="hidden lg:flex p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
               aria-expanded={sidebarOpen}
@@ -574,12 +602,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       <div className="flex">
         {/* Desktop Sidebar */}
         <aside
+          ref={desktopSidebarRef}
           className={`hidden lg:block ${sidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden`}
           aria-label="Main navigation"
         >
-          <div className="w-64 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <AccordionNav className="py-2" />
-          </div>
+          {sidebarOpen && (
+            <div className="w-64 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <AccordionNav key={`desktop-${location.pathname}`} className="py-2" onNavigate={handleDesktopNavigate} />
+            </div>
+          )}
         </aside>
 
         {/* Main Content */}
