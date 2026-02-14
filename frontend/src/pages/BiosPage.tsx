@@ -43,6 +43,19 @@ interface BioDirectoryResponse {
   contests: DirectoryContest[]
   contestants: DirectoryContestant[]
   judges: DirectoryJudge[]
+  allUsers: DirectoryUser[]
+}
+
+interface DirectoryUser {
+  id: string
+  name: string
+  role: string
+  gender: string | null
+  pronouns: string | null
+  imagePath: string | null
+  bio: string | null
+  bioFilePath: string | null
+  contests: Array<{ id: string; name: string }>
 }
 
 const toImageUrl = (path?: string | null): string | null => {
@@ -53,7 +66,10 @@ const toImageUrl = (path?: string | null): string | null => {
     : path
   const match = normalized.match(/\/uploads\/(?:users\/bios|users|bios)\/([^/?#]+)/i)
   if (match?.[1]) {
-    return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+    // Serve directly from uploads to avoid API/auth/service-worker edge cases in new tabs.
+    if (normalized.includes('/uploads/users/bios/')) return normalized
+    if (normalized.includes('/uploads/users/')) return normalized
+    return `/uploads/users/bios/${encodeURIComponent(match[1])}`
   }
   if (normalized.startsWith('/')) return normalized
   return `/${normalized}`
@@ -67,21 +83,65 @@ const toFileUrl = (path?: string | null): string | null => {
     : path
   const match = normalized.match(/\/uploads\/(?:users\/bios|bios)\/([^/?#]+)/i)
   if (match?.[1]) {
-    return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+    if (normalized.includes('/uploads/users/bios/')) return normalized
+    return `/uploads/users/bios/${encodeURIComponent(match[1])}`
   }
   if (normalized.startsWith('/')) return normalized
   return `/${normalized}`
 }
 
+const toBioApiFileUrl = (path?: string | null): string | null => {
+  if (!path) return null
+  const normalized = path.startsWith('/uploads/bios/')
+    ? path.replace('/uploads/bios/', '/uploads/users/bios/')
+    : path
+  const match = normalized.match(/\/uploads\/(?:users\/bios|bios)\/([^/?#]+)/i)
+  if (!match?.[1]) return null
+  return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+}
+
+const openBioFile = async (path?: string | null) => {
+  const apiUrl = toBioApiFileUrl(path)
+  const fallbackUrl = toFileUrl(path)
+  const targetUrl = apiUrl || fallbackUrl
+  if (!targetUrl) return
+
+  try {
+    const response = await fetch(targetUrl, { credentials: 'include' })
+    if (!response.ok) {
+      throw new Error(`Failed (${response.status})`)
+    }
+    const blob = await response.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    window.open(blobUrl, '_blank', 'noopener,noreferrer')
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+  } catch {
+    if (fallbackUrl) {
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+    }
+  }
+}
+
 const allowedRoles = ['JUDGE', 'EMCEE', 'ORGANIZER', 'BOARD', 'ADMIN', 'SUPER_ADMIN', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR']
+const roleLabelMap: Record<string, string> = {
+  CONTESTANT: 'Contestants',
+  JUDGE: 'Judges',
+  EMCEE: 'Emcees',
+  TALLY_MASTER: 'Tally Masters',
+  AUDITOR: 'Auditors',
+  BOARD: 'Board',
+  ORGANIZER: 'Organizers',
+  ADMIN: 'Admins',
+  SUPER_ADMIN: 'Super Admins',
+}
 
 const BiosPage: React.FC = () => {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedContestId, setSelectedContestId] = useState('')
-  const isContestant = user?.role === 'CONTESTANT'
   const showJudgesTab = user?.role !== 'JUDGE'
-  const [activeTab, setActiveTab] = useState<'contestants' | 'judges'>('contestants')
+  const canSeeAllRoles = ['EMCEE', 'ORGANIZER', 'BOARD', 'ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'AUDITOR'].includes(user?.role || '')
+  const [activeTab, setActiveTab] = useState<string>('contestants')
 
   const hasAccess = allowedRoles.includes(user?.role || '')
 
@@ -119,6 +179,45 @@ const BiosPage: React.FC = () => {
       (judge.bio || '').toLowerCase().includes(q)
     )
   }, [data?.judges, searchQuery])
+
+  const filteredUsersByRole = useMemo(() => {
+    const byRole: Record<string, DirectoryUser[]> = {}
+    const users = data?.allUsers || []
+    const q = searchQuery.trim().toLowerCase()
+    for (const userEntry of users) {
+      const role = String(userEntry.role || '').toUpperCase()
+      if (!byRole[role]) byRole[role] = []
+      if (!q) {
+        byRole[role].push(userEntry)
+        continue
+      }
+      if (
+        userEntry.name.toLowerCase().includes(q) ||
+        (userEntry.bio || '').toLowerCase().includes(q)
+      ) {
+        byRole[role].push(userEntry)
+      }
+    }
+    return byRole
+  }, [data?.allUsers, searchQuery])
+
+  const roleTabs = useMemo(() => {
+    const tabs: Array<{ id: string; label: string; count: number }> = [{ id: 'contestants', label: 'Contestants', count: data?.contestants?.length || 0 }]
+    if (showJudgesTab) {
+      tabs.push({ id: 'judges', label: 'Judges', count: data?.judges?.length || 0 })
+    }
+    if (canSeeAllRoles) {
+      const supportedRoles = ['EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
+      for (const role of supportedRoles) {
+        tabs.push({
+          id: role,
+          label: roleLabelMap[role] || role,
+          count: filteredUsersByRole[role]?.length || 0,
+        })
+      }
+    }
+    return tabs
+  }, [canSeeAllRoles, data?.contestants?.length, data?.judges?.length, filteredUsersByRole, showJudgesTab])
 
   if (!hasAccess) {
     return (
@@ -176,26 +275,19 @@ const BiosPage: React.FC = () => {
       {showJudgesTab && (
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('contestants')}
-              className={`py-3 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'contestants'
-                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              Contestants ({data?.contestants?.length || 0})
-            </button>
-            <button
-              onClick={() => setActiveTab('judges')}
-              className={`py-3 px-1 border-b-2 text-sm font-medium ${
-                activeTab === 'judges'
-                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              Judges ({data?.judges?.length || 0})
-            </button>
+            {roleTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-3 px-1 border-b-2 text-sm font-medium ${
+                  activeTab === tab.id
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
           </nav>
         </div>
       )}
@@ -229,14 +321,13 @@ const BiosPage: React.FC = () => {
                     {contestant.bio?.trim() || 'No bio text provided.'}
                   </p>
                   {toFileUrl(contestant.bioFilePath) && (
-                    <a
-                      href={toFileUrl(contestant.bioFilePath)!}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => void openBioFile(contestant.bioFilePath)}
                       className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
                     >
                       View bio file
-                    </a>
+                    </button>
                   )}
                 </div>
               ))}
@@ -270,20 +361,58 @@ const BiosPage: React.FC = () => {
                     {judge.bio?.trim() || 'No bio text provided.'}
                   </p>
                   {toFileUrl(judge.bioFilePath) && (
-                    <a
-                      href={toFileUrl(judge.bioFilePath)!}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => void openBioFile(judge.bioFilePath)}
                       className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
                     >
                       View bio file
-                    </a>
+                    </button>
                   )}
                 </div>
               ))}
               {filteredJudges.length === 0 && (
                 <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
                   No judges match the current filters.
+                </div>
+              )}
+            </div>
+          )}
+
+          {canSeeAllRoles && ['EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'].includes(activeTab) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {(filteredUsersByRole[activeTab] || []).map((entry) => (
+                <div key={entry.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {toImageUrl(entry.imagePath) ? (
+                      <img src={toImageUrl(entry.imagePath)!} alt={entry.name} className="h-14 w-14 rounded-full object-cover" />
+                    ) : (
+                      <UserCircleIcon className="h-14 w-14 text-gray-400" />
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{entry.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {roleLabelMap[entry.role] || entry.role}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {entry.bio?.trim() || 'No bio text provided.'}
+                  </p>
+                  {toFileUrl(entry.bioFilePath) && (
+                    <button
+                      type="button"
+                      onClick={() => void openBioFile(entry.bioFilePath)}
+                      className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      View bio file
+                    </button>
+                  )}
+                </div>
+              ))}
+              {(filteredUsersByRole[activeTab] || []).length === 0 && (
+                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
+                  No users match the current filters.
                 </div>
               )}
             </div>

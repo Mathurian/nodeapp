@@ -44,10 +44,23 @@ interface DirectoryJudge {
   contests: Array<{ id: string; name: string }>;
 }
 
+interface DirectoryUser {
+  id: string;
+  name: string;
+  role: string;
+  gender: string | null;
+  pronouns: string | null;
+  imagePath: string | null;
+  bio: string | null;
+  bioFilePath: string | null;
+  contests: Array<{ id: string; name: string }>;
+}
+
 interface BioDirectoryResponse {
   contests: DirectoryContest[];
   contestants: DirectoryContestant[];
   judges: DirectoryJudge[];
+  allUsers: DirectoryUser[];
 }
 
 @injectable()
@@ -59,9 +72,9 @@ export class BioService extends BaseService {
   private normalizeContestant(row: any): DirectoryContestant {
     const firstUser = Array.isArray(row.users) ? row.users[0] : null;
     const resolved = resolveBioFromCandidates([
-      row.bio,
       firstUser?.contestantBio,
       firstUser?.bio,
+      row.bio,
     ]);
 
     return {
@@ -85,9 +98,9 @@ export class BioService extends BaseService {
   private normalizeJudge(row: any): DirectoryJudge {
     const firstUser = Array.isArray(row.users) ? row.users[0] : null;
     const resolved = resolveBioFromCandidates([
-      row.bio,
       firstUser?.judgeBio,
       firstUser?.bio,
+      row.bio,
     ]);
 
     return {
@@ -105,6 +118,56 @@ export class BioService extends BaseService {
             .filter(Boolean)
             .map((contest: any) => ({ id: contest.id, name: contest.name }))
         : [],
+    };
+  }
+
+  private normalizeDirectoryUser(row: any): DirectoryUser {
+    const role = String(row.role || '').toUpperCase();
+    const linkedJudge = row.judge || null;
+    const linkedContestant = row.contestant || null;
+    const resolved =
+      role === 'CONTESTANT'
+        ? resolveBioFromCandidates([
+            row.contestantBio,
+            row.bio,
+            linkedContestant?.bio,
+          ])
+        : role === 'JUDGE'
+          ? resolveBioFromCandidates([
+              row.judgeBio,
+              row.bio,
+              linkedJudge?.bio,
+            ])
+          : resolveBioFromCandidates([row.bio]);
+
+    const contestMap = new Map<string, { id: string; name: string }>();
+    if (Array.isArray(linkedJudge?.assignments)) {
+      for (const assignment of linkedJudge.assignments) {
+        const contest = assignment?.contest;
+        if (contest?.id && !contestMap.has(contest.id)) {
+          contestMap.set(contest.id, { id: contest.id, name: contest.name });
+        }
+      }
+    }
+    if (Array.isArray(linkedContestant?.contestContestants)) {
+      for (const cc of linkedContestant.contestContestants) {
+        const contest = cc?.contest;
+        if (contest?.id && !contestMap.has(contest.id)) {
+          contestMap.set(contest.id, { id: contest.id, name: contest.name });
+        }
+      }
+    }
+
+    return {
+      id: row.id,
+      name: row.name,
+      role,
+      gender: row.gender ?? null,
+      pronouns: row.pronouns ?? null,
+      imagePath: row.imagePath || linkedJudge?.imagePath || linkedContestant?.imagePath || null,
+      bio: resolved.bio,
+      bioFilePath: resolved.bioFilePath,
+      contests: [...contestMap.values()],
     };
   }
 
@@ -217,6 +280,15 @@ export class BioService extends BaseService {
       'TALLY_MASTER',
       'AUDITOR',
     ].includes(normalizedRole);
+    const canSeeAllUsers = [
+      'EMCEE',
+      'ORGANIZER',
+      'BOARD',
+      'ADMIN',
+      'SUPER_ADMIN',
+      'TALLY_MASTER',
+      'AUDITOR',
+    ].includes(normalizedRole);
 
     const contestWhere: Prisma.ContestWhereInput = {
       tenantId,
@@ -234,7 +306,7 @@ export class BioService extends BaseService {
     if (isJudge) {
       const scope = await this.getJudgeScope(userId, tenantId);
       if (!scope.judgeId) {
-        return { contests: [], contestants: [], judges: [] };
+        return { contests: [], contestants: [], judges: [], allUsers: [] };
       }
 
       const requestedContestIds = contestId ? [contestId] : null;
@@ -301,7 +373,7 @@ export class BioService extends BaseService {
       }
 
       if (!contestantWhere.OR || contestantWhere.OR.length === 0) {
-        return { contests: [], contestants: [], judges: [] };
+        return { contests: [], contestants: [], judges: [], allUsers: [] };
       }
 
       contestWhere.id = { in: scope.contestIds };
@@ -311,7 +383,7 @@ export class BioService extends BaseService {
     } else if (isContestant) {
       const scope = await this.getContestantScope(userId, tenantId);
       if (!scope.contestantId) {
-        return { contests: [], contestants: [], judges: [] };
+        return { contests: [], contestants: [], judges: [], allUsers: [] };
       }
 
       const requestedContestIds = contestId ? [contestId] : null;
@@ -357,7 +429,7 @@ export class BioService extends BaseService {
       }
 
       if (!contestantWhere.OR || contestantWhere.OR.length === 0) {
-        return { contests: [], contestants: [], judges: [] };
+        return { contests: [], contestants: [], judges: [], allUsers: [] };
       }
 
       judgeWhere.OR = [];
@@ -402,7 +474,7 @@ export class BioService extends BaseService {
       contestWhere.id = contestId;
     }
 
-    const [contests, contestants, judges] = await Promise.all([
+    const [contests, contestants, judges, allUsers] = await Promise.all([
       this.prisma.contest.findMany({
         where: contestWhere,
         select: {
@@ -484,6 +556,88 @@ export class BioService extends BaseService {
             orderBy: { name: 'asc' },
           })
         : Promise.resolve([] as any[]),
+      canSeeAllUsers
+        ? this.prisma.user.findMany({
+            where: {
+              tenantId,
+              isActive: true,
+              ...(contestId
+                ? {
+                    OR: [
+                      {
+                        contestant: {
+                          contestContestants: {
+                            some: { tenantId, contestId },
+                          },
+                        },
+                      },
+                      {
+                        judge: {
+                          assignments: {
+                            some: {
+                              tenantId,
+                              contestId,
+                              status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
+                            },
+                          },
+                        },
+                      },
+                      {
+                        role: { in: ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'] },
+                      },
+                    ],
+                  }
+                : {}),
+            },
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              gender: true,
+              pronouns: true,
+              imagePath: true,
+              bio: true,
+              judgeBio: true,
+              contestantBio: true,
+              judge: {
+                select: {
+                  bio: true,
+                  imagePath: true,
+                  assignments: {
+                    where: {
+                      tenantId,
+                      ...(contestId ? { contestId } : {}),
+                      status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
+                    },
+                    select: {
+                      contest: {
+                        select: { id: true, name: true },
+                      },
+                    },
+                  },
+                },
+              },
+              contestant: {
+                select: {
+                  bio: true,
+                  imagePath: true,
+                  contestContestants: {
+                    where: {
+                      tenantId,
+                      ...(contestId ? { contestId } : {}),
+                    },
+                    select: {
+                      contest: {
+                        select: { id: true, name: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: [{ role: 'asc' }, { name: 'asc' }],
+          })
+        : Promise.resolve([] as any[]),
     ]);
 
     return {
@@ -494,6 +648,7 @@ export class BioService extends BaseService {
       })),
       contestants: contestants.map((contestant) => this.normalizeContestant(contestant)),
       judges: judges.map((judge) => this.normalizeJudge(judge)),
+      allUsers: allUsers.map((entry) => this.normalizeDirectoryUser(entry)),
     };
   }
 
@@ -639,13 +794,17 @@ export class BioService extends BaseService {
    */
   async updateContestantBio(contestantId: string, data: UpdateBioDto) {
     const updateData: Prisma.ContestantUpdateInput = {};
+    const userUpdateData: Prisma.UserUpdateManyMutationInput = {};
 
     if (data.bio !== undefined) {
       updateData.bio = data.bio;
+      userUpdateData.contestantBio = data.bio;
+      userUpdateData.bio = data.bio;
     }
 
     if (data.imagePath !== undefined) {
       updateData.imagePath = data.imagePath;
+      userUpdateData.imagePath = data.imagePath;
     }
 
     const contestant = await this.prisma.contestant.findUnique({
@@ -656,15 +815,29 @@ export class BioService extends BaseService {
       throw this.notFoundError('Contestant', contestantId);
     }
 
-    return this.prisma.contestant.update({
-      where: { id: contestantId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        bio: true,
-        imagePath: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updatedContestant = await tx.contestant.update({
+        where: { id: contestantId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          bio: true,
+          imagePath: true,
+        },
+      });
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await tx.user.updateMany({
+          where: {
+            contestantId,
+            tenantId: contestant.tenantId,
+          },
+          data: userUpdateData,
+        });
+      }
+
+      return updatedContestant;
     });
   }
 
@@ -673,13 +846,17 @@ export class BioService extends BaseService {
    */
   async updateJudgeBio(judgeId: string, data: UpdateBioDto) {
     const updateData: Prisma.JudgeUpdateInput = {};
+    const userUpdateData: Prisma.UserUpdateManyMutationInput = {};
 
     if (data.bio !== undefined) {
       updateData.bio = data.bio;
+      userUpdateData.judgeBio = data.bio;
+      userUpdateData.bio = data.bio;
     }
 
     if (data.imagePath !== undefined) {
       updateData.imagePath = data.imagePath;
+      userUpdateData.imagePath = data.imagePath;
     }
 
     const judge = await this.prisma.judge.findUnique({
@@ -690,15 +867,29 @@ export class BioService extends BaseService {
       throw this.notFoundError('Judge', judgeId);
     }
 
-    return this.prisma.judge.update({
-      where: { id: judgeId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        bio: true,
-        imagePath: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updatedJudge = await tx.judge.update({
+        where: { id: judgeId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          bio: true,
+          imagePath: true,
+        },
+      });
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await tx.user.updateMany({
+          where: {
+            judgeId,
+            tenantId: judge.tenantId,
+          },
+          data: userUpdateData,
+        });
+      }
+
+      return updatedJudge;
     });
   }
 }

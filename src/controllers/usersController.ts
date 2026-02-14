@@ -249,7 +249,6 @@ export class UsersController {
                 email: data.email,
                 gender: data.gender || null,
                 pronouns: data.pronouns || null,
-                bio: data.bio || null,
                 isHeadJudge: data.isHeadJudge || false
               }
             });
@@ -273,7 +272,6 @@ export class UsersController {
                 name: data.name,
                 email: data.email,
                 contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
-                bio: data.bio || null,
                 gender: data.gender || null,
                 pronouns: data.pronouns || null
               }
@@ -445,7 +443,6 @@ export class UsersController {
         const judgeUpdateData: Prisma.JudgeUpdateInput = {};
         if (data.name !== undefined) judgeUpdateData.name = data.name;
         if (data.email !== undefined) judgeUpdateData.email = data.email;
-        if (data.bio !== undefined) judgeUpdateData.bio = data.bio ?? null;
         if (data.gender !== undefined) judgeUpdateData.gender = data.gender ?? null;
         if (data.pronouns !== undefined) judgeUpdateData.pronouns = data.pronouns ?? null;
         if (Object.keys(judgeUpdateData).length > 0) {
@@ -458,7 +455,6 @@ export class UsersController {
         const contestantUpdateData: Prisma.ContestantUpdateInput = {};
         if (data.name !== undefined) contestantUpdateData.name = data.name;
         if (data.email !== undefined) contestantUpdateData.email = data.email;
-        if (data.bio !== undefined) contestantUpdateData.bio = data.bio ?? null;
         if (data.gender !== undefined) contestantUpdateData.gender = data.gender ?? null;
         if (data.pronouns !== undefined) contestantUpdateData.pronouns = data.pronouns ?? null;
         if (data.contestantNumber !== undefined) {
@@ -967,19 +963,6 @@ export class UsersController {
         }
       }) as UserWithRelations;
 
-      // Sync linked role record bio for role-specific views.
-      if (currentUser.role === 'JUDGE' && currentUser.judgeId) {
-        await this.prisma.judge.update({
-          where: { id: currentUser.judgeId },
-          data: { bio: `[Bio file: ${bioFilePath}]` }
-        });
-      } else if (currentUser.role === 'CONTESTANT' && currentUser.contestantId) {
-        await this.prisma.contestant.update({
-          where: { id: currentUser.contestantId },
-          data: { bio: `[Bio file: ${bioFilePath}]` }
-        });
-      }
-
       // Invalidate cache
       userCache.invalidate(id);
 
@@ -1205,7 +1188,6 @@ export class UsersController {
                 email: String(userData['email']),
                 gender: userData['gender'] ? String(userData['gender']) : null,
                 pronouns: userData['pronouns'] ? String(userData['pronouns']) : null,
-                bio: userData['bio'] ? String(userData['bio']) : null,
                 isHeadJudge: Boolean(userData['isHeadJudge'])
               }
             });
@@ -1222,7 +1204,6 @@ export class UsersController {
                 name: String(userData['name']),
                 email: String(userData['email']),
                 contestantNumber: userData['contestantNumber'] ? parseInt(String(userData['contestantNumber'])) : null,
-                bio: userData['bio'] ? String(userData['bio']) : null,
                 gender: userData['gender'] ? String(userData['gender']) : null,
                 pronouns: userData['pronouns'] ? String(userData['pronouns']) : null
               }

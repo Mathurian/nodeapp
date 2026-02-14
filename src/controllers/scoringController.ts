@@ -956,9 +956,9 @@ export class ScoringController {
 
               const user = Array.isArray(contestant.users) ? contestant.users[0] : null;
               const resolvedBio = resolveBioFromCandidates([
-                contestant.bio,
                 user?.contestantBio,
                 user?.bio,
+                contestant.bio,
               ]);
               const combinedImagePath = contestant.imagePath || user?.imagePath || null;
 

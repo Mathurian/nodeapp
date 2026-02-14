@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import api, { settingsAPI } from '../services/api'
+import { extractTenantSlugFromPath } from '../utils/routeSegments'
 
 interface SystemSettings {
   // App settings
@@ -71,27 +72,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
   // Extract tenant slug from URL (same logic as TenantContext)
   const getTenantSlug = (): string => {
-    const pathParts = location.pathname.split('/').filter(Boolean)
-    const firstSegment = pathParts[0]
-
-    // Known routes that are not tenant slugs
-    const knownRoutes = new Set([
-      'login', 'register', 'forgot-password', 'dashboard', 'events', 'contests', 'categories',
-      'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
-      'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
-      'workflows', 'search', 'files', 'email-templates', 'custom-fields',
-      'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
-      'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
-      'bulk-operations', 'category-types', 'field-visibility',
-      'test-event-setup', 'help', 'bios', 'assignments'
-    ])
-
-    // If first segment is a known route, use default tenant
-    if (!firstSegment || knownRoutes.has(firstSegment)) {
-      return 'default'
-    }
-
-    return firstSegment
+    return extractTenantSlugFromPath(location.pathname) || 'default'
   }
 
   const fetchSettings = async () => {

@@ -247,12 +247,17 @@ export const registerRoutes = (app: Application): void => {
     })
   })
 
-  // 404 handler
-  app.use((_req, res) => {
-    res.status(404).json({
+  // API 404 handler only.
+  // Important: do NOT catch non-API paths here, otherwise static assets
+  // like /uploads/* and frontend routes cannot be served later in server.ts.
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/api/')) {
+      return next()
+    }
+    return res.status(404).json({
       success: false,
       error: 'Not found',
-      message: `Cannot ${_req.method} ${_req.path}`,
+      message: `Cannot ${req.method} ${req.path}`,
       timestamp: new Date().toISOString(),
     })
   })

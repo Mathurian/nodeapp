@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
 import Layout from './Layout'
 import { lazyWithRetry } from '../utils/lazyWithRetry'
+import { isKnownRoute } from '../utils/routeSegments'
 
 // Lazy load pages
 const LoginPage = lazyWithRetry(() => import('../pages/LoginPage'), 'LoginPage')
@@ -84,24 +85,6 @@ interface TenantRouterProps {
   onOpenCommandPalette: () => void
 }
 
-// List of known application routes that should NOT be treated as tenant slugs
-// This must be kept in sync with the routes defined below
-const KNOWN_ROUTES = new Set([
-  'login', 'register', 'forgot-password', 'dashboard', 'events', 'contests', 'categories',
-  'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
-  'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
-  'workflows', 'search', 'files', 'email-templates', 'custom-fields',
-  'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
-  'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
-  'bulk-operations', 'category-types', 'field-visibility',
-  'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs', 'activity',
-  'auditor', 'board', 'permissions', 'test-runner', 'tally-master', 'winners'
-  , 'score-governance'
-])
-
-// Helper to check if a path segment is a known route
-export const isKnownRoute = (segment: string): boolean => KNOWN_ROUTES.has(segment)
-
 /**
  * Extracts the application route from the URL path.
  * Handles both tenant-prefixed URLs (/:slug/route) and direct URLs (/route).
@@ -138,6 +121,15 @@ const parseUrlPath = (pathname: string): { tenantSlug: string | null; route: str
   }
 }
 
+const TenantPublicOrAppRoute: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenCommandPalette }) => {
+  const location = useLocation()
+  const slug = location.pathname.split('/').filter(Boolean)[0] || ''
+  if (isKnownRoute(slug)) {
+    return <AppRoutes onOpenCommandPalette={onOpenCommandPalette} />
+  }
+  return <PublicLandingPage />
+}
+
 const getRoleHomePath = (role?: string): string => {
   switch (role) {
     case 'AUDITOR':
@@ -167,10 +159,26 @@ const DEDUCTION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 
 // Main app routes component that handles routing based on parsed URL
 const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenCommandPalette }) => {
   const location = useLocation()
+  const { user } = useAuth()
   const { tenantSlug, route, restPath } = useMemo(
     () => parseUrlPath(location.pathname),
     [location.pathname]
   )
+
+  const userTenantSlug = user?.tenant?.slug
+  const shouldCanonicalizeToTenantPath =
+    !tenantSlug &&
+    Boolean(userTenantSlug) &&
+    userTenantSlug !== 'default'
+
+  if (shouldCanonicalizeToTenantPath) {
+    return (
+      <Navigate
+        to={`/${userTenantSlug}${location.pathname}${location.search}${location.hash}`}
+        replace
+      />
+    )
+  }
 
   // Build base path for navigation (with or without tenant prefix)
   const basePath = tenantSlug ? `/${tenantSlug}` : ''
@@ -322,7 +330,7 @@ const TenantRouter: React.FC<TenantRouterProps> = ({ onOpenCommandPalette }) => 
           <Routes>
             {/* Public routes - no authentication required */}
             <Route path="/" element={<PublicLandingPage />} />
-            <Route path="/:slug" element={<PublicLandingPage />} />
+            <Route path="/:slug" element={<TenantPublicOrAppRoute onOpenCommandPalette={onOpenCommandPalette} />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/:slug/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />

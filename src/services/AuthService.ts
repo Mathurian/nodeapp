@@ -463,8 +463,29 @@ export class AuthService {
    * Get user profile by ID
    */
   async getProfile(userId: string): Promise<UserProfile> {
-    const user: UserBasic | null = await this.prisma.user.findUnique({
-      where: { id: userId }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        preferredName: true,
+        email: true,
+        role: true,
+        sessionVersion: true,
+        judgeId: true,
+        contestantId: true,
+        gender: true,
+        pronouns: true,
+        imagePath: true,
+        tenantId: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
+      }
     });
 
     if (!user) {
@@ -487,7 +508,13 @@ export class AuthService {
       contestantId: user.contestantId,
       gender: user.gender,
       pronouns: user.pronouns,
-      imagePath: user.imagePath
+      imagePath: user.imagePath,
+      tenantId: user.tenantId,
+      tenant: user.tenant ? {
+        id: user.tenant.id,
+        name: user.tenant.name,
+        slug: user.tenant.slug
+      } : null
     };
   }
 

@@ -359,9 +359,15 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      await this.emceeService.getScriptFileInfo(scriptId);
+      const script = await this.emceeService.getScriptFileInfo(scriptId);
+      if (!script.filePath) {
+        res.status(404).json({ error: 'Script file not found' });
+        return;
+      }
 
-      const viewUrl = `/api/emcee/scripts/${scriptId}/view`;
+      // Prefer direct uploads URL to avoid API/auth/proxy edge cases when opening in a new tab.
+      const normalized = script.filePath.startsWith('/') ? script.filePath : `/${script.filePath}`;
+      const viewUrl = normalized;
       res.json({ viewUrl, expiresIn: 300 });
     } catch (error) {
       log.error('Get file view URL error:', error);

@@ -49,7 +49,7 @@ export class BioController {
   getBioDirectory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
-        return sendSuccess(res, { contests: [], contestants: [], judges: [] });
+        return sendSuccess(res, { contests: [], contestants: [], judges: [], allUsers: [] });
       }
 
       const tenantId = req.tenantId || req.user.tenantId || 'default_tenant';

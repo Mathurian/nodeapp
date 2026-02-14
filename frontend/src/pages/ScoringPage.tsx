@@ -98,7 +98,9 @@ const getImageUrl = (path?: string | null): string | null => {
     : path
   const match = normalized.match(/\/uploads\/(?:users\/bios|users|bios)\/([^/?#]+)/i)
   if (match?.[1]) {
-    return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+    if (normalized.includes('/uploads/users/bios/')) return normalized
+    if (normalized.includes('/uploads/users/')) return normalized
+    return `/uploads/users/bios/${encodeURIComponent(match[1])}`
   }
   if (normalized.startsWith('/')) return normalized
   return `/${normalized}`
@@ -112,10 +114,41 @@ const getFileUrl = (path?: string | null): string | null => {
     : path
   const match = normalized.match(/\/uploads\/(?:users\/bios|bios)\/([^/?#]+)/i)
   if (match?.[1]) {
-    return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+    if (normalized.includes('/uploads/users/bios/')) return normalized
+    return `/uploads/users/bios/${encodeURIComponent(match[1])}`
   }
   if (normalized.startsWith('/')) return normalized
   return `/${normalized}`
+}
+
+const getBioApiFileUrl = (path?: string | null): string | null => {
+  if (!path) return null
+  const normalized = path.startsWith('/uploads/bios/')
+    ? path.replace('/uploads/bios/', '/uploads/users/bios/')
+    : path
+  const match = normalized.match(/\/uploads\/(?:users\/bios|bios)\/([^/?#]+)/i)
+  if (!match?.[1]) return null
+  return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+}
+
+const openBioFile = async (path?: string | null) => {
+  const apiUrl = getBioApiFileUrl(path)
+  const fallbackUrl = getFileUrl(path)
+  const targetUrl = apiUrl || fallbackUrl
+  if (!targetUrl) return
+
+  try {
+    const response = await fetch(targetUrl, { credentials: 'include' })
+    if (!response.ok) throw new Error(`Failed (${response.status})`)
+    const blob = await response.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    window.open(blobUrl, '_blank', 'noopener,noreferrer')
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+  } catch {
+    if (fallbackUrl) {
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+    }
+  }
 }
 
 const ScoringPage: React.FC = () => {
@@ -679,14 +712,13 @@ const ScoringPage: React.FC = () => {
                       {selectedContestant.bio?.trim() || 'No bio available for this contestant.'}
                     </p>
                     {getFileUrl(selectedContestant.bioFilePath) && (
-                      <a
-                        href={getFileUrl(selectedContestant.bioFilePath)!}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => void openBioFile(selectedContestant.bioFilePath)}
                         className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-700 underline"
                       >
                         View uploaded bio file
-                      </a>
+                      </button>
                     )}
                     <div className="mt-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

@@ -258,13 +258,10 @@ const EmceePage: React.FC = () => {
 
   const handleViewScript = async (scriptId: string) => {
     try {
-      const response = await api.get(`/emcee/scripts/${scriptId}/view-url`)
-      const viewUrl = response.data?.data?.viewUrl || response.data?.viewUrl || response.data?.data?.url || response.data?.url
-      if (viewUrl) {
-        window.open(viewUrl, '_blank')
-      } else {
-        toast.error('Unable to get script view URL')
-      }
+      const response = await api.get(`/emcee/scripts/${scriptId}/view`, { responseType: 'blob' })
+      const blobUrl = URL.createObjectURL(response.data)
+      window.open(blobUrl, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to get view URL'
       toast.error(`Error: ${errorMessage}`)

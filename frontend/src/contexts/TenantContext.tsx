@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import { isKnownRoute } from '../components/TenantRouter'
+import { extractTenantSlugFromPath } from '../utils/routeSegments'
 
 const DEFAULT_TENANT_SLUG = 'default'
 
@@ -45,15 +45,10 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
 
   // Extract slug from URL path (first segment after /)
   useEffect(() => {
-    const pathParts = location.pathname.split('/').filter(Boolean)
-    const urlSlug = pathParts[0]
-
-    // Check if first segment looks like a tenant slug (not a known route)
-    // Uses isKnownRoute from TenantRouter to ensure consistency
-    if (urlSlug && !isKnownRoute(urlSlug)) {
+    const urlSlug = extractTenantSlugFromPath(location.pathname)
+    if (urlSlug) {
       setSlugState(urlSlug)
-    } else if (!urlSlug || isKnownRoute(urlSlug)) {
-      // No slug in URL or it's a known route - use default
+    } else {
       setSlugState(DEFAULT_TENANT_SLUG)
     }
   }, [location.pathname])

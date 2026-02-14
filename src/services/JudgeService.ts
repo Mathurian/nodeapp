@@ -588,9 +588,9 @@ export class JudgeService extends BaseService {
       const contestant = cc.contestant;
       const firstUser = Array.isArray(contestant.users) ? contestant.users[0] : null;
       const resolved = resolveBioFromCandidates([
-        contestant.bio,
         firstUser?.contestantBio,
         firstUser?.bio,
+        contestant.bio,
       ]);
       return {
         ...contestant,
@@ -686,9 +686,9 @@ export class JudgeService extends BaseService {
 
     const firstUser = Array.isArray(contestant.users) ? contestant.users[0] : null;
     const resolved = resolveBioFromCandidates([
-      contestant.bio,
       firstUser?.contestantBio,
       firstUser?.bio,
+      contestant.bio,
     ]);
 
     return {
