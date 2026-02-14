@@ -344,6 +344,16 @@ const WorkflowManagementPage: React.FC = () => {
           </Card>
         )}
 
+        <Card className="rounded-lg p-5 mb-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-2">How Workflow Automation Works</h2>
+          <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
+            <li>`Type` controls the trigger. Non-custom types can auto-start from matching app events.</li>
+            <li>Templates must be `Active` to auto-start.</li>
+            <li>Manual execution is available from the execution console below.</li>
+            <li>Each step can require role-specific approval and optional auto-advance.</li>
+          </ul>
+        </Card>
+
         <Card className="rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Execution Console</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">

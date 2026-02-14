@@ -325,6 +325,10 @@ const ResultsPage: React.FC = () => {
     return Array.from(totalsMap.values()).sort((a, b) => b.totalScore - a.totalScore)
   }, [contestScores, selectedCategoryId, selectedContestId])
 
+  const hasCategoryResults = Boolean(selectedCategoryId && categoryResults && (categoryResults.winners?.length || 0) > 0)
+  const hasContestResults = Boolean(selectedContestId && !selectedCategoryId && contestLevelResults.length > 0)
+  const selectedContestName = contests?.find((c) => c.id === selectedContestId)?.name || ''
+
   // Early return for error states
   if (eventsError) {
     return (
@@ -565,7 +569,7 @@ const ResultsPage: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          {(selectedCategoryId || (selectedContestId && !selectedCategoryId)) && (
+          {(hasCategoryResults || hasContestResults) && (
             <div className="mt-4 flex gap-2">
               <button
                 onClick={handleExportResults}
@@ -581,7 +585,7 @@ const ResultsPage: React.FC = () => {
                 <PrinterIcon className="h-5 w-5 mr-2" />
                 Print
               </button>
-              {selectedCategoryId && (
+              {hasCategoryResults && (
                 <button
                   onClick={() => setShowScoreBreakdowns(!showScoreBreakdowns)}
                   className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
@@ -608,7 +612,7 @@ const ResultsPage: React.FC = () => {
                 {categoryResults.category.name}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                {categoryResults.category.contest?.name}
+                {categoryResults.category.contest?.name || selectedContestName}
               </p>
               <div className="mt-2 flex items-center">
                 {categoryResults.category.totalsCertified ? (

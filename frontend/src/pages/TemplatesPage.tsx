@@ -97,6 +97,24 @@ const TemplatesPage: React.FC = () => {
           icon={DocumentDuplicateIcon}
         />
 
+        <Card className="mb-6 rounded-lg p-5">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Template Purpose Guide</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
+            <div>
+              <p className="font-medium text-gray-800 dark:text-gray-200 mb-1">Event Templates</p>
+              <p>Define reusable event/contest/category structures to create events consistently.</p>
+            </div>
+            <div>
+              <p className="font-medium text-gray-800 dark:text-gray-200 mb-1">Email Templates</p>
+              <p>Define reusable message bodies and placeholders for notifications and report distribution.</p>
+            </div>
+            <div>
+              <p className="font-medium text-gray-800 dark:text-gray-200 mb-1">Workflow Templates</p>
+              <p>Define step-based review/certification flows with role gates and event-driven trigger types.</p>
+            </div>
+          </div>
+        </Card>
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {cards.map((card) => (
             <Link

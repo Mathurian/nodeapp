@@ -38,6 +38,15 @@ interface ReportDetail {
 const looksLikeHtml = (value: unknown): value is string =>
   typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)
 
+const parseCsvRows = (value: string): string[][] => {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 26) // header + 25 rows
+    .map((line) => line.split(',').map((cell) => cell.trim()))
+}
+
 const ReportsPage: React.FC = () => {
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
@@ -55,6 +64,7 @@ const ReportsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const csvRows = previewText ? parseCsvRows(previewText) : []
 
   const loadOptions = async () => {
     const [eventResponse, contestResponse] = await Promise.all([
@@ -371,9 +381,41 @@ const ReportsPage: React.FC = () => {
                       src={previewUrl}
                     />
                   ) : previewText ? (
-                    <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 overflow-x-auto whitespace-pre-wrap">
-                      {previewText}
-                    </pre>
+                    csvRows.length > 0 ? (
+                      <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded">
+                        <table className="min-w-full text-xs">
+                          <thead className="bg-gray-50 dark:bg-gray-900">
+                            <tr>
+                              {csvRows[0]?.map((header, index) => (
+                                <th key={`h-${index}`} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                                  {header || `Column ${index + 1}`}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {csvRows.slice(1).map((row, rowIndex) => (
+                              <tr key={`r-${rowIndex}`} className="border-t border-gray-200 dark:border-gray-700">
+                                {row.map((cell, cellIndex) => (
+                                  <td key={`c-${rowIndex}-${cellIndex}`} className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                                    {cell}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {previewText.split(/\r?\n/).filter(Boolean).length > 26 && (
+                          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+                            Showing first 25 rows. Use CSV export for full data.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 overflow-x-auto whitespace-pre-wrap">
+                        {previewText}
+                      </pre>
+                    )
                   ) : looksLikeHtml(viewingReport.data?.['html']) ? (
                     <iframe
                       title="Report Preview"
@@ -381,6 +423,28 @@ const ReportsPage: React.FC = () => {
                       sandbox="allow-same-origin"
                       srcDoc={String(viewingReport.data?.['html'])}
                     />
+                  ) : viewingReport.data && Object.keys(viewingReport.data).length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {Object.entries(viewingReport.data).slice(0, 6).map(([key, value]) => (
+                          <div key={key} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3">
+                            <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{key}</dt>
+                            <dd className="mt-1 font-medium text-gray-900 dark:text-white">
+                              {typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean'
+                                ? String(value)
+                                : Array.isArray(value)
+                                  ? `${value.length} items`
+                                  : value && typeof value === 'object'
+                                    ? `${Object.keys(value as Record<string, unknown>).length} fields`
+                                    : 'N/A'}
+                            </dd>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Structured preview shown. Expand raw data below for complete payload details.
+                      </p>
+                    </div>
                   ) : (
                     <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4">
                       <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
