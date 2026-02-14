@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTenant } from '../contexts/TenantContext'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
 import { NAV_SECTIONS } from '../config/navigationConfig'
+import { useAllowedNavigationIds } from '../hooks/useAllowedNavigationIds'
 
 interface AccordionNavProps {
   className?: string
@@ -14,6 +15,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
   const { user } = useAuth()
   const { buildPath } = useTenant()
   const location = useLocation()
+  const allowedNavigationIds = useAllowedNavigationIds()
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Navigation']))
 
   const navigationSections = NAV_SECTIONS
@@ -52,9 +54,11 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
         {filteredSections.map((section) => {
           const isExpanded = expandedSections.has(section.name)
           const hasItems = section.items && section.items.length > 0
-          const filteredItems = section.items?.filter((item) =>
-            hasRoleAccess(item.roles)
-          )
+          const filteredItems = section.items?.filter((item) => {
+            if (!hasRoleAccess(item.roles)) return false
+            if (!allowedNavigationIds || allowedNavigationIds.size === 0) return true
+            return allowedNavigationIds.has(item.id)
+          })
 
           if (!hasItems || !filteredItems || filteredItems.length === 0) {
             return null

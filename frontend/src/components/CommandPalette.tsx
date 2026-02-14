@@ -15,6 +15,7 @@ import { createActionCommands } from '../lib/commands/definitions/actionCommands
 import { createQuickActionCommands } from '../lib/commands/definitions/quickActionCommands'
 import { createContextCommands } from '../lib/commands/definitions/contextCommands'
 import type { Command } from '../lib/commands/CommandRegistry'
+import { useAllowedNavigationIds } from '../hooks/useAllowedNavigationIds'
 
 interface CommandPaletteProps {
   isOpen: boolean
@@ -32,6 +33,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const allowedNavigationIds = useAllowedNavigationIds()
   const inputRef = useRef<HTMLInputElement>(null)
   const isHoveringRef = useRef(false)
 
@@ -40,6 +42,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
     // Create navigation commands
     const navigationCommands = createNavigationCommands((path: string) => {
       navigate(path)
+    }).filter((cmd) => {
+      if (!allowedNavigationIds || allowedNavigationIds.size === 0) return true
+      const navId = cmd.id.replace(/^nav-/, '')
+      return allowedNavigationIds.has(navId)
     })
 
     // Create action commands with handlers
@@ -97,7 +103,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       ...quickActionCommands,
       ...contextCommands
     ])
-  }, [navigate, logout, registry, location.pathname])
+  }, [navigate, logout, registry, location.pathname, allowedNavigationIds])
 
   // Update displayed commands based on query
   useEffect(() => {

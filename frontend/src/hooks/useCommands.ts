@@ -9,6 +9,7 @@ import { CommandRegistry } from '../lib/commands/CommandRegistry'
 import { createNavigationCommands } from '../lib/commands/definitions/navigationCommands'
 import { createActionCommands } from '../lib/commands/definitions/actionCommands'
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts'
+import { useAllowedNavigationIds } from './useAllowedNavigationIds'
 
 /**
  * Main hook for command system
@@ -22,6 +23,7 @@ export const useCommands = (options: {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const allowedNavigationIds = useAllowedNavigationIds()
 
   // Create command registry (memoized)
   const registry = useMemo(() => new CommandRegistry(), [])
@@ -31,6 +33,10 @@ export const useCommands = (options: {
     // Create navigation commands
     const navigationCommands = createNavigationCommands((path: string) => {
       navigate(path)
+    }).filter((cmd) => {
+      if (!allowedNavigationIds || allowedNavigationIds.size === 0) return true
+      const navId = cmd.id.replace(/^nav-/, '')
+      return allowedNavigationIds.has(navId)
     })
 
     // Create action commands with handlers
@@ -59,7 +65,7 @@ export const useCommands = (options: {
 
     // Register all commands
     registry.registerCommands([...navigationCommands, ...actionCommands])
-  }, [navigate, logout, registry])
+  }, [navigate, logout, registry, allowedNavigationIds])
 
   // Execute command with callback
   const executeCommand = useCallback(async (commandId: string) => {
