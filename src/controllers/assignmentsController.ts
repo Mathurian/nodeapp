@@ -25,6 +25,10 @@ export class AssignmentsController {
     next: NextFunction
   ): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        return sendError(res, 'Authentication required', 401);
+      }
+
       const filters: AssignmentFilters = {
         status: req.query['status'] as string,
         judgeId: req.query['judgeId'] as string,
@@ -32,6 +36,15 @@ export class AssignmentsController {
         contestId: req.query['contestId'] as string,
         eventId: req.query['eventId'] as string,
       };
+
+      // Judges can only view their own assignments even when no query filter is provided.
+      if (req.user.role === 'JUDGE') {
+        const judgeId = req.user.judgeId || req.user.judge?.id;
+        if (!judgeId) {
+          return sendSuccess(res, [], 'No judge profile linked for current user');
+        }
+        filters.judgeId = judgeId;
+      }
 
       const assignments = await this.assignmentService.getAllAssignments(filters);
       return sendSuccess(res, assignments, 'Assignments retrieved successfully');

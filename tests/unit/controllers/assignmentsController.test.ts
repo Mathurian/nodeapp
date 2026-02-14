@@ -837,7 +837,19 @@ describe('AssignmentsController', () => {
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
-        mockAssignments,
+        [
+          {
+            id: 'contestant_cat-1_cont-1',
+            contestantId: 'cont-1',
+            contestant: undefined,
+            categoryId: 'cat-1',
+            category: undefined,
+            contest: null,
+            event: null,
+            assignedAt: null,
+            createdAt: null,
+          },
+        ],
         'Contestant assignments retrieved successfully'
       );
     });

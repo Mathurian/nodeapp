@@ -53,7 +53,12 @@ router.use(authenticateToken)
  *       201:
  *         description: Assignment created successfully
  */
-router.get('/', validateAssignmentQuery, getAllAssignments)
+router.get(
+  '/',
+  validateAssignmentQuery,
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'TALLY_MASTER', 'AUDITOR']),
+  getAllAssignments
+)
 router.post('/', validateAssignmentCreation, requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_ASSIGNMENT', 'ASSIGNMENT'), createAssignment)
 
 /**
