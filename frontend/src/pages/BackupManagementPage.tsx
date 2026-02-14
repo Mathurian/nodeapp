@@ -12,6 +12,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { Card, PageHeader } from '../components/ui'
 
 interface Backup {
   id: string
@@ -134,50 +135,43 @@ const BackupManagementPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to access backup management.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading backups...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading backups...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Backup Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Create, manage, and restore database backups
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Backup Management"
+          subtitle="Create, manage, and restore database backups"
+        />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {/* Create Backup Section */}
-        <div className="mb-8 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+        <Card className="mb-8 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Create New Backup
           </h2>
@@ -216,10 +210,10 @@ const BackupManagementPage: React.FC = () => {
               </div>
             </button>
           </div>
-        </div>
+        </Card>
 
         {/* Restore from File */}
-        <div className="mb-8 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+        <Card className="mb-8 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Restore from File
           </h2>
@@ -242,10 +236,10 @@ const BackupManagementPage: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Warning: Restoring will overwrite current database data
           </p>
-        </div>
+        </Card>
 
         {/* Backup History */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+        <Card className="rounded-lg p-0 overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
               Backup History
@@ -337,7 +331,7 @@ const BackupManagementPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* Restore Confirmation Modal */}
         {showRestoreModal && (
@@ -366,7 +360,6 @@ const BackupManagementPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

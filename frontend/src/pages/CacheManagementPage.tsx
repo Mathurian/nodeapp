@@ -8,6 +8,7 @@ import {
   ChartBarIcon,
   KeyIcon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader, StatsCard } from '../components/ui'
 
 interface CacheStats {
   keys: number
@@ -98,31 +99,26 @@ const CacheManagementPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only administrators can access cache management.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Cache Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Monitor and manage application cache
-            </p>
-          </div>
+          <PageHeader
+            title="Cache Management"
+            subtitle="Monitor and manage application cache"
+          />
           <button
             onClick={clearCache}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
@@ -133,66 +129,23 @@ const CacheManagementPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center gap-3">
-                <KeyIcon className="h-10 w-10 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Total Keys</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
-                    {stats.keys.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center gap-3">
-                <ServerStackIcon className="h-10 w-10 text-green-600 dark:text-green-400" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Memory Used</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
-                    {formatSize(stats.memory)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center gap-3">
-                <ChartBarIcon className="h-10 w-10 text-purple-600 dark:text-purple-400" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Hit Rate</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
-                    {(stats.hitRate ?? 0).toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center gap-3">
-                <ArrowPathIcon className="h-10 w-10 text-orange-600 dark:text-orange-400" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Hits / Misses</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
-                    {stats.hits} / {stats.misses}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <StatsCard icon={KeyIcon} value={stats.keys.toLocaleString()} label="Total Keys" color="blue" />
+            <StatsCard icon={ServerStackIcon} value={formatSize(stats.memory)} label="Memory Used" color="green" />
+            <StatsCard icon={ChartBarIcon} value={`${(stats.hitRate ?? 0).toFixed(1)}%`} label="Hit Rate" color="indigo" />
+            <StatsCard icon={ArrowPathIcon} value={`${stats.hits} / ${stats.misses}`} label="Hits / Misses" color="orange" />
           </div>
         )}
 
         {/* Cache Keys */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+        <Card className="rounded-lg p-0 overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
@@ -274,8 +227,7 @@ const CacheManagementPage: React.FC = () => {
               </table>
             )}
           </div>
-        </div>
-      </div>
+        </Card>
     </div>
   )
 }

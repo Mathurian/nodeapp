@@ -18,6 +18,7 @@ import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { Button, Card, PageHeader } from '../components/ui';
 
 const ROLES: UserRole[] = [
   'SUPER_ADMIN',
@@ -137,43 +138,39 @@ const PermissionAuditLogPage: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <ShieldCheckIcon className="mx-auto h-12 w-12 text-red-500" />
           <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             You must be an administrator to access this page.
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
 
   if (isLoading && auditLogs.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading audit logs...</p>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="cgr-page-container">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Permission Audit Logs
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                View history of all permission changes
-              </p>
-            </div>
+            <PageHeader
+              title="Permission Audit Logs"
+              subtitle="View history of all permission changes"
+              icon={ClockIcon}
+            />
             <Link
               to="/permissions"
               className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -185,18 +182,19 @@ const PermissionAuditLogPage: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <FunnelIcon className="h-5 w-5 mr-2" />
               Filters
             </h2>
-            <button
+            <Button
               onClick={clearFilters}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              variant="ghost"
+              size="sm"
             >
               Clear All
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -326,7 +324,7 @@ const PermissionAuditLogPage: React.FC = () => {
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Results Summary */}
         <div className="flex items-center justify-between mb-4">
@@ -494,7 +492,6 @@ const PermissionAuditLogPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

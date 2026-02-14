@@ -6,6 +6,7 @@ import {
   TrashIcon,
   ShieldExclamationIcon,
 } from '@heroicons/react/24/outline'
+import { Button, Card, PageHeader } from '../components/ui'
 
 const DataWipePage: React.FC = () => {
   const { user } = useAuth()
@@ -43,36 +44,31 @@ const DataWipePage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only system administrators can access data wipe functions.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <ShieldExclamationIcon className="h-10 w-10 text-red-600" />
-            <h1 className="text-3xl font-bold text-red-600 dark:text-red-400">
-              DANGER ZONE - Data Wipe
-            </h1>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-            Permanently delete data from the system. THIS ACTION CANNOT BE UNDONE.
-          </p>
+          <PageHeader
+            title="DANGER ZONE - Data Wipe"
+            subtitle="Permanently delete data from the system. THIS ACTION CANNOT BE UNDONE."
+            icon={ShieldExclamationIcon}
+          />
         </div>
 
         {/* Warning Banner */}
-        <div className="mb-8 p-6 bg-red-50 dark:bg-red-900 border-2 border-red-200 dark:border-red-700 rounded-lg">
+        <Card className="mb-8 p-6 bg-red-50 dark:bg-red-900 border-2 border-red-200 dark:border-red-700 rounded-lg">
           <div className="flex items-start gap-4">
             <ExclamationTriangleIcon className="h-8 w-8 text-red-600 dark:text-red-400 flex-shrink-0" />
             <div>
@@ -88,24 +84,24 @@ const DataWipePage: React.FC = () => {
               </ul>
             </div>
           </div>
-        </div>
+        </Card>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700 rounded-lg">
             <p className="text-green-800 dark:text-green-200">
               Data wipe completed successfully
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Wipe Options */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Select Data Scope
           </h2>
@@ -180,10 +176,10 @@ const DataWipePage: React.FC = () => {
               </div>
             </label>
           </div>
-        </div>
+        </Card>
 
         {/* Confirmation */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+        <Card className="rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Confirmation Required
           </h2>
@@ -197,24 +193,24 @@ const DataWipePage: React.FC = () => {
             placeholder={`WIPE ${selectedScope} DATA`}
             className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white font-mono mb-4"
           />
-          <button
+          <Button
             onClick={wipeData}
             disabled={loading || confirmText !== `WIPE ${selectedScope} DATA`}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            variant="danger"
+            className="w-full justify-center font-semibold"
           >
             <TrashIcon className="h-5 w-5" />
             {loading ? 'Wiping Data...' : `Wipe ${selectedScope} Data`}
-          </button>
-        </div>
+          </Button>
+        </Card>
 
         {/* Additional Warning */}
-        <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+        <Card className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700 rounded-lg">
           <p className="text-sm text-yellow-800 dark:text-yellow-200">
             <strong>Recommendation:</strong> Before wiping data, create a backup using the Backup Management page.
             This action is logged and can be audited for compliance purposes.
           </p>
-        </div>
-      </div>
+        </Card>
     </div>
   )
 }

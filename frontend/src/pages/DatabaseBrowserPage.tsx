@@ -11,6 +11,7 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader } from '../components/ui'
 
 interface Table {
   name: string
@@ -356,45 +357,39 @@ const DatabaseBrowserPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only administrators can access the database browser.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading database schema...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading database schema...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-            Database Browser
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-            {isSuperAdmin
-              ? 'View and edit database tables and data'
-              : 'View database tables and data (READ ONLY)'}
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Database Browser"
+          subtitle={isSuperAdmin ? 'View and edit database tables and data' : 'View database tables and data (READ ONLY)'}
+          icon={CircleStackIcon}
+        />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -613,7 +608,6 @@ const DatabaseBrowserPage: React.FC = () => {
             )}
           </p>
         </div>
-      </div>
 
       {/* Edit Modal */}
       {isSuperAdmin && (

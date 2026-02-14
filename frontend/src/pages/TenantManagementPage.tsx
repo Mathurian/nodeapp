@@ -10,6 +10,7 @@ import {
   XCircleIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader } from '../components/ui'
 
 interface Tenant {
   id: string
@@ -187,39 +188,35 @@ const TenantManagementPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only system administrators can manage tenants.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading tenants...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading tenants...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Tenant Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Manage multi-tenant configurations and settings
-            </p>
-          </div>
+          <PageHeader
+            title="Tenant Management"
+            subtitle="Manage multi-tenant configurations and settings"
+            icon={BuildingOfficeIcon}
+          />
           <button
             onClick={() => {
               resetForm()
@@ -234,7 +231,7 @@ const TenantManagementPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg flex justify-between items-start">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg flex justify-between items-start">
             <p className="text-red-800 dark:text-red-200">{error}</p>
             <button
               onClick={() => setError(null)}
@@ -243,11 +240,11 @@ const TenantManagementPage: React.FC = () => {
             >
               <XCircleIcon className="h-5 w-5" />
             </button>
-          </div>
+          </Card>
         )}
 
         {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg flex justify-between items-start">
+          <Card className="mb-6 p-4 bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700 rounded-lg flex justify-between items-start">
             <div className="flex items-start gap-3">
               <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
               <p className="text-green-800 dark:text-green-200">{successMessage}</p>
@@ -259,7 +256,7 @@ const TenantManagementPage: React.FC = () => {
             >
               <XCircleIcon className="h-5 w-5" />
             </button>
-          </div>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -584,7 +581,6 @@ const TenantManagementPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

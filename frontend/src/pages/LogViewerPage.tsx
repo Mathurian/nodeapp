@@ -8,6 +8,7 @@ import {
   MagnifyingGlassIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader } from '../components/ui'
 
 interface LogFile {
   name: string
@@ -154,31 +155,27 @@ const LogViewerPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             Only administrators can view system logs.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Log Viewer
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              View and download application log files
-            </p>
-          </div>
+          <PageHeader
+            title="Log Viewer"
+            subtitle="View and download application log files"
+            icon={DocumentTextIcon}
+          />
           <div className="flex gap-2">
             <button
               onClick={fetchLogFiles}
@@ -200,15 +197,15 @@ const LogViewerPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* File List Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <Card className="rounded-lg p-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Log Files ({logFiles.length})
@@ -293,12 +290,12 @@ const LogViewerPage: React.FC = () => {
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Log Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <Card className="rounded-lg p-0 overflow-hidden">
               {/* Controls */}
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -358,10 +355,9 @@ const LogViewerPage: React.FC = () => {
                   </pre>
                 )}
               </div>
-            </div>
+            </Card>
           </div>
         </div>
-      </div>
     </div>
   )
 }
