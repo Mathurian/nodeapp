@@ -7,6 +7,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
+import { Button, Card, PageHeader } from '../components/ui'
 
 interface CategoryType {
   id: string
@@ -117,69 +118,64 @@ const CategoryTypesPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to manage category types.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading category types...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading category types...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Category Types
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Define reusable category type templates with scoring methods
-            </p>
-          </div>
-          <button
+          <PageHeader
+            title="Category Types"
+            subtitle="Define reusable category type templates with scoring methods"
+            icon={Square3Stack3DIcon}
+          />
+          <Button
             onClick={() => {
               resetForm()
               setEditingType(null)
               setShowModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             Create Type
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {types.length === 0 ? (
-            <div className="col-span-3 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+            <Card className="col-span-3 rounded-lg p-12 text-center">
               <Square3Stack3DIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                 No category types defined. Create your first type to standardize scoring.
               </p>
-            </div>
+            </Card>
           ) : (
             types.map((type) => (
-              <div key={type.id} className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+              <Card key={type.id} className="rounded-lg p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white dark:text-white mb-1">
@@ -229,7 +225,7 @@ const CategoryTypesPage: React.FC = () => {
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
+              </Card>
             ))
           )}
         </div>
@@ -327,7 +323,6 @@ const CategoryTypesPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

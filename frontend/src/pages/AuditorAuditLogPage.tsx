@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from 'react-query'
 import { adminAPI } from '../services/api'
 import { format } from 'date-fns'
+import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface AuditLogEntry {
   id: string
@@ -50,14 +51,13 @@ const AuditorAuditLogPage: React.FC = () => {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Auditor Audit Log</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Certification-related activity trail for review and traceability.</p>
-        </div>
+    <div className="cgr-page-container space-y-6">
+        <PageHeader
+          title="Auditor Audit Log"
+          subtitle="Certification-related activity trail for review and traceability."
+        />
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <Card className="rounded-lg p-4">
           <label htmlFor="action-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Action Filter</label>
           <select
             id="action-filter"
@@ -70,9 +70,9 @@ const AuditorAuditLogPage: React.FC = () => {
               <option key={action} value={action}>{action}</option>
             ))}
           </select>
-        </div>
+        </Card>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <Card className="rounded-lg overflow-hidden p-0">
           {error ? (
             <div className="p-6 text-red-700 dark:text-red-300">Failed to load audit logs.</div>
           ) : isLoading ? (
@@ -80,7 +80,7 @@ const AuditorAuditLogPage: React.FC = () => {
           ) : logs.length === 0 ? (
             <div className="p-6 text-gray-500 dark:text-gray-400">No logs found for current filter.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <ResponsiveTable caption="Auditor audit log entries" minWidth="980px">
               <table className="w-full min-w-[980px]">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -105,10 +105,9 @@ const AuditorAuditLogPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
-        </div>
-      </div>
+        </Card>
     </div>
   )
 }

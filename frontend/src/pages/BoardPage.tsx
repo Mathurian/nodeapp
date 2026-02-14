@@ -7,6 +7,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
+import { Card, PageHeader, StatsCard } from '../components/ui'
 
 interface BoardStats {
   contests?: number
@@ -60,31 +61,24 @@ const BoardPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+      <div className="cgr-page-container">
+          <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
               Error Loading Board Dashboard
             </h2>
             <p className="text-red-800 dark:text-red-200">{String(error)}</p>
-          </div>
-        </div>
+          </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" data-testid="board">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container" data-testid="board">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Board Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Review and approve final certifications
-          </p>
-        </div>
+        <PageHeader
+          title="Board Dashboard"
+          subtitle="Review and approve final certifications"
+        />
 
         {/* Statistics Overview */}
         <div className="mb-8">
@@ -92,61 +86,10 @@ const BoardPage: React.FC = () => {
             Overview
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-blue-50 dark:bg-blue-900 p-6 rounded-lg">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                    Pending Certifications
-                  </p>
-                  <p className="text-3xl font-bold mt-2 text-blue-900 dark:text-blue-100">
-                    {isLoading ? '...' : (stats?.pendingCertifications ?? stats?.pending ?? 0)}
-                  </p>
-                </div>
-                <ClipboardDocumentCheckIcon className="h-10 w-10 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-
-            <div className="bg-green-50 dark:bg-green-900 p-6 rounded-lg">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                    Approved
-                  </p>
-                  <p className="text-3xl font-bold mt-2 text-green-900 dark:text-green-100">
-                    {isLoading ? '...' : (stats?.approvedCertifications ?? stats?.certified ?? 0)}
-                  </p>
-                </div>
-                <ClipboardDocumentCheckIcon className="h-10 w-10 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-
-            <div className="bg-red-50 dark:bg-red-900 p-6 rounded-lg">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                    Rejected
-                  </p>
-                  <p className="text-3xl font-bold mt-2 text-red-900 dark:text-red-100">
-                    {isLoading ? '...' : (stats?.rejectedCertifications || 0)}
-                  </p>
-                </div>
-                <ExclamationTriangleIcon className="h-10 w-10 text-red-600 dark:text-red-400" />
-              </div>
-            </div>
-
-            <div className="bg-orange-50 dark:bg-orange-900 p-6 rounded-lg">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                    Score Removal Requests
-                  </p>
-                  <p className="text-3xl font-bold mt-2 text-orange-900 dark:text-orange-100">
-                    {isLoading ? '...' : stats?.pendingScoreRemovals || 0}
-                  </p>
-                </div>
-                <DocumentTextIcon className="h-10 w-10 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
+            <StatsCard icon={ClipboardDocumentCheckIcon} value={isLoading ? '...' : (stats?.pendingCertifications ?? stats?.pending ?? 0)} label="Pending Certifications" color="blue" />
+            <StatsCard icon={ClipboardDocumentCheckIcon} value={isLoading ? '...' : (stats?.approvedCertifications ?? stats?.certified ?? 0)} label="Approved" color="green" />
+            <StatsCard icon={ExclamationTriangleIcon} value={isLoading ? '...' : (stats?.rejectedCertifications || 0)} label="Rejected" color="red" />
+            <StatsCard icon={DocumentTextIcon} value={isLoading ? '...' : (stats?.pendingScoreRemovals || 0)} label="Score Removal Requests" color="orange" />
           </div>
         </div>
 
@@ -179,7 +122,7 @@ const BoardPage: React.FC = () => {
         {/* Alerts */}
         {(stats?.pendingCertifications ?? stats?.pending ?? 0) > 0 && (
           <div className="mb-8">
-            <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
+            <Card className="bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
               <div className="flex items-start">
                 <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" />
                 <div className="flex-1">
@@ -197,10 +140,9 @@ const BoardPage: React.FC = () => {
                   </Link>
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
         )}
-      </div>
     </div>
   )
 }

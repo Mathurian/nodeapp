@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { contestsAPI, winnersAPI } from '../services/api'
 import { TrophyIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/react/24/outline'
+import { Button, Card, PageHeader } from '../components/ui'
 
 interface Contest {
   id: string
@@ -89,19 +90,14 @@ const WinnersPage: React.FC = () => {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <TrophyIcon className="h-8 w-8 text-yellow-500" />
-            Winners
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Contest-level winners publication and visibility
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Winners"
+          subtitle="Contest-level winners publication and visibility"
+          icon={TrophyIcon}
+        />
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+        <Card className="rounded-lg p-4 mb-6">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Contest
           </label>
@@ -128,26 +124,25 @@ const WinnersPage: React.FC = () => {
                 </span>
               )}
               {canManagePublish && !publicationStatus.winnersPublished && (
-                <button
+                <Button
                   onClick={() => publishMutation.mutate()}
                   disabled={!publicationStatus.canPublish || publishMutation.isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50"
                 >
                   {publishMutation.isLoading ? 'Publishing...' : 'Publish Winners'}
-                </button>
+                </Button>
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {selectedContestId && winnersError && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-yellow-800">
+          <Card className="bg-yellow-50 border-yellow-200 rounded-lg p-6 text-yellow-800">
             Results not finalized
-          </div>
+          </Card>
         )}
 
         {selectedContestId && !winnersError && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <Card className="rounded-lg p-6">
             {winners.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-400">No winners available yet.</p>
             ) : (
@@ -163,9 +158,8 @@ const WinnersPage: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         )}
-      </div>
     </div>
   )
 }

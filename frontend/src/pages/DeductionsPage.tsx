@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
+import { Button, Card, PageHeader } from '../components/ui'
 import {
   MinusCircleIcon,
   CheckCircleIcon,
@@ -279,32 +280,27 @@ const DeductionsPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading deductions...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading deductions...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Score Deductions
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Manage and approve score deduction requests
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Score Deductions"
+          subtitle="Manage and approve score deduction requests"
+        />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{String(error)}</p>
-          </div>
+          </Card>
         )}
 
         {canInitiate && (
-          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <Card className="mb-6 rounded-lg p-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Request Deduction</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <select
@@ -341,13 +337,12 @@ const DeductionsPage: React.FC = () => {
                 placeholder="Points"
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               />
-              <button
+              <Button
                 onClick={submitRequest}
                 disabled={createRequestMutation.isLoading}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {createRequestMutation.isLoading ? 'Submitting...' : 'Submit Request'}
-              </button>
+              </Button>
             </div>
             <textarea
               value={requestReason}
@@ -356,7 +351,7 @@ const DeductionsPage: React.FC = () => {
               placeholder="Reason for deduction"
               className="mt-3 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
             />
-          </div>
+          </Card>
         )}
 
         {/* Filter */}
@@ -404,7 +399,7 @@ const DeductionsPage: React.FC = () => {
         </div>
 
         {/* Deductions List */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <Card className="rounded-lg overflow-hidden p-0">
           {filteredDeductions.length === 0 ? (
             <div className="p-12 text-center">
               <MinusCircleIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
@@ -520,7 +515,7 @@ const DeductionsPage: React.FC = () => {
               </table>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Approve Modal */}
         {showApproveModal && (
@@ -629,7 +624,6 @@ const DeductionsPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

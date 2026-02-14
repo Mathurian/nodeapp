@@ -10,6 +10,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
+import { Button, Card, PageHeader } from '../components/ui'
 
 interface SearchResult {
   id: string
@@ -89,16 +90,12 @@ const SearchPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
-            Search
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-            Search across events, contests, categories, users, and more
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Search"
+          subtitle="Search across events, contests, categories, users, and more"
+          icon={MagnifyingGlassIcon}
+        />
 
         {/* Search Bar */}
         <div className="mb-6">
@@ -114,28 +111,23 @@ const SearchPage: React.FC = () => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-800 text-gray-900 dark:text-white dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button
+            <Button
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-3 rounded-lg transition-colors ${
-                showFilters
-                  ? 'bg-blue-600 dark:bg-blue-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
+              variant={showFilters ? 'primary' : 'secondary'}
             >
               <FunnelIcon className="h-5 w-5" />
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={search}
               disabled={loading}
-              className="px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
             >
               {loading ? 'Searching...' : 'Search'}
-            </button>
+            </Button>
           </div>
 
           {/* Filters */}
           {showFilters && (
-            <div className="mt-4 p-4 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+            <Card className="mt-4 p-4 rounded-lg">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white dark:text-white mb-3">
                 Filters
               </h3>
@@ -171,19 +163,19 @@ const SearchPage: React.FC = () => {
                   </label>
                 </div>
               </div>
-            </div>
+            </Card>
           )}
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {/* Results */}
         {query && !loading && (
-          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+          <Card className="rounded-lg p-0">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white">
                 {results.length} {results.length === 1 ? 'Result' : 'Results'}
@@ -259,12 +251,12 @@ const SearchPage: React.FC = () => {
                 })
               )}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Empty State */}
         {!query && !loading && (
-          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <MagnifyingGlassIcon className="h-20 w-20 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-2">
               Start Searching
@@ -289,9 +281,8 @@ const SearchPage: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
         )}
-      </div>
     </div>
   )
 }

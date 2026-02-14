@@ -1,6 +1,7 @@
 import React from 'react'
 import { auditorAPI } from '../services/api'
 import CertificationOverviewWorkspace from '../components/certifications/CertificationOverviewWorkspace'
+import { PageHeader } from '../components/ui'
 
 const AuditorPendingAuditsPage: React.FC = () => {
   const certifyCategory = async (categoryId: string, signature: { typedSignature?: string; drawnSignatureData?: string }) => {
@@ -11,14 +12,20 @@ const AuditorPendingAuditsPage: React.FC = () => {
   }
 
   return (
-    <CertificationOverviewWorkspace
-      title="Pending Auditor Certifications"
-      subtitle="Audit-ready categories where tally is complete and auditor certification is pending"
-      mode="auditor-queue"
-      allowCertify
-      certifyLabel="Certify Audit"
-      onCertifyCategory={certifyCategory}
-    />
+    <div className="cgr-page-container space-y-6">
+      <PageHeader
+        title="Pending Auditor Certifications"
+        subtitle="Audit-ready categories where tally is complete and auditor certification is pending"
+      />
+      <CertificationOverviewWorkspace
+        title=""
+        subtitle=""
+        mode="auditor-queue"
+        allowCertify
+        certifyLabel="Certify Audit"
+        onCertifyCategory={certifyCategory}
+      />
+    </div>
   )
 }
 

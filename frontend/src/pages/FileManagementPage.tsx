@@ -11,6 +11,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { Card, PageHeader } from '../components/ui'
 
 interface FileItem {
   id: string
@@ -107,49 +108,44 @@ const FileManagementPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to manage files.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading files...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading files...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              File Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Upload, manage, and organize files
-            </p>
-          </div>
+          <PageHeader
+            title="File Management"
+            subtitle="Upload, manage, and organize files"
+          />
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {/* Upload Section */}
-        <div className="mb-6 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+        <Card className="mb-6 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
             Upload File
           </h2>
@@ -164,10 +160,10 @@ const FileManagementPage: React.FC = () => {
               <span className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Uploading...</span>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Search and Filter */}
-        <div className="mb-6 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-4">
+        <Card className="mb-6 rounded-lg p-4">
           <div className="flex gap-4">
             <div className="flex-1 relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -191,10 +187,10 @@ const FileManagementPage: React.FC = () => {
               <option value="OTHER">Other</option>
             </select>
           </div>
-        </div>
+        </Card>
 
         {/* Files List */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <Card className="rounded-lg overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
@@ -281,8 +277,7 @@ const FileManagementPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+        </Card>
     </div>
   )
 }
