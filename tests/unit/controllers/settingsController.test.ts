@@ -156,7 +156,7 @@ describe('SettingsController', () => {
       await controller.getAppName(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.json).toHaveBeenCalledWith({
-        data: { appName: 'Event Manager', appSubtitle: '' },
+        data: { appName: 'ConMGR', appSubtitle: '' },
       });
     });
   });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { format } from 'date-fns'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 
 export interface PrintLayoutProps {
   children: React.ReactNode
@@ -177,7 +178,7 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
             <div className="border-t border-gray-300 pt-4 text-xs md:text-sm text-gray-500">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <div>
-                  ConMGR System
+                  {DEFAULT_APP_BASELINE.appName} System
                 </div>
                 <div>
                   Page <span className="page-number"></span>

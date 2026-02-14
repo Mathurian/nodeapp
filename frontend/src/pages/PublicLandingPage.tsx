@@ -279,7 +279,7 @@ const PublicLandingPage: React.FC = () => {
               Ready to Streamline Your Events?
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-              ConMGR provides practical tools for scoring, certifications, and event administration.
+              {appName} provides practical tools for scoring, certifications, and event administration.
               Sign in or contact your administrator for access.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -305,7 +305,7 @@ const PublicLandingPage: React.FC = () => {
               <span className="text-lg font-bold text-gray-900 dark:text-white">{appName}</span>
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
-              © {new Date().getFullYear()} ConMGR. All rights reserved.
+              © {new Date().getFullYear()} {appName}. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <Link

@@ -131,20 +131,22 @@ describe('SettingsService', () => {
 
   describe('getPublicSettings', () => {
     it('should return public settings', async () => {
-      // getPublicSettings calls getSettingWithFallback for each of 6 keys.
+      // getPublicSettings calls getSettingWithFallback for each of 7 keys.
       // Without tenantId, each call queries findFirst with { key, tenantId: null }.
       mockPrisma.systemSetting.findFirst
         .mockResolvedValueOnce({ id: '1', key: 'app_name', value: 'Public App', category: 'general' } as any)
         .mockResolvedValueOnce({ id: '2', key: 'app_subtitle', value: 'Event Management', category: 'general' } as any)
-        .mockResolvedValueOnce({ id: '3', key: 'show_forgot_password', value: 'true', category: 'security' } as any)
-        .mockResolvedValueOnce({ id: '4', key: 'theme_logoPath', value: '/logo.png', category: 'theme' } as any)
-        .mockResolvedValueOnce({ id: '5', key: 'theme_faviconPath', value: '/favicon.ico', category: 'theme' } as any)
-        .mockResolvedValueOnce({ id: '6', key: 'footer_contactEmail', value: 'contact@test.com', category: 'footer' } as any);
+        .mockResolvedValueOnce({ id: '3', key: 'app_description', value: 'Tenant custom description', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '4', key: 'show_forgot_password', value: 'true', category: 'security' } as any)
+        .mockResolvedValueOnce({ id: '5', key: 'theme_logoPath', value: '/logo.png', category: 'theme' } as any)
+        .mockResolvedValueOnce({ id: '6', key: 'theme_faviconPath', value: '/favicon.ico', category: 'theme' } as any)
+        .mockResolvedValueOnce({ id: '7', key: 'footer_contactEmail', value: 'contact@test.com', category: 'footer' } as any);
 
       const result = await service.getPublicSettings();
 
       expect(result.appName).toBe('Public App');
       expect(result.appSubtitle).toBe('Event Management');
+      expect(result.appDescription).toBe('Tenant custom description');
       expect(result.showForgotPassword).toBe(true);
       expect(result.logoPath).toBe('/logo.png');
       expect(result.faviconPath).toBe('/favicon.ico');
@@ -152,13 +154,14 @@ describe('SettingsService', () => {
     });
 
     it('should return defaults when settings not found', async () => {
-      // 6 keys, all return null
+      // 7 keys, all return null
       mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
 
       const result = await service.getPublicSettings();
 
       expect(result.appName).toBe('ConMGR');
       expect(result.appSubtitle).toBe('');
+      expect(result.appDescription).toBe('Manage events, scoring, certifications, and reporting from one secure platform.');
       expect(result.showForgotPassword).toBe(true);
       expect(result.logoPath).toBeNull();
       expect(result.faviconPath).toBeNull();
@@ -166,10 +169,11 @@ describe('SettingsService', () => {
     });
 
     it('should parse boolean values correctly', async () => {
-      // getPublicSettings calls getSettingWithFallback for each of 6 keys
+      // getPublicSettings calls getSettingWithFallback for each of 7 keys
       mockPrisma.systemSetting.findFirst
         .mockResolvedValueOnce(null) // app_name
         .mockResolvedValueOnce(null) // app_subtitle
+        .mockResolvedValueOnce(null) // app_description
         .mockResolvedValueOnce({ id: '1', key: 'show_forgot_password', value: 'false', category: 'security' } as any)
         .mockResolvedValueOnce(null) // theme_logoPath
         .mockResolvedValueOnce(null) // theme_faviconPath
@@ -185,13 +189,16 @@ describe('SettingsService', () => {
 
       await service.getPublicSettings();
 
-      // Should call findFirst for each of the 6 public setting keys
-      expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledTimes(6);
+      // Should call findFirst for each of the 7 public setting keys
+      expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledTimes(7);
       expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledWith({
         where: { key: 'app_name', tenantId: null }
       });
       expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledWith({
         where: { key: 'app_subtitle', tenantId: null }
+      });
+      expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledWith({
+        where: { key: 'app_description', tenantId: null }
       });
     });
   });

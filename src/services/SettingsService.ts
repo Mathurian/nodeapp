@@ -27,6 +27,9 @@ export interface SystemSettingWithSource extends SystemSettingFull {
   isInherited?: boolean;  // true if this is a global setting being used as fallback
 }
 
+const DEFAULT_APP_NAME = 'ConMGR';
+const DEFAULT_APP_DESCRIPTION = 'Manage events, scoring, certifications, and reporting from one secure platform.';
+
 @injectable()
 export class SettingsService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
@@ -299,7 +302,7 @@ export class SettingsService extends BaseService {
     ]);
 
     return {
-      appName: appName || 'ConMGR',
+      appName: appName || DEFAULT_APP_NAME,
       appSubtitle: appSubtitle || '',
     };
   }
@@ -326,9 +329,9 @@ export class SettingsService extends BaseService {
     }
 
     return {
-      appName: map['app_name'] || 'ConMGR',
+      appName: map['app_name'] || DEFAULT_APP_NAME,
       appSubtitle: map['app_subtitle'] || '',
-      appDescription: map['app_description'] || 'Manage events, scoring, certifications, and reporting from one secure platform.',
+      appDescription: map['app_description'] || DEFAULT_APP_DESCRIPTION,
       showForgotPassword: (map['show_forgot_password'] || 'true') === 'true',
       logoPath: map['theme_logoPath'] || null,
       faviconPath: map['theme_faviconPath'] || null,
@@ -488,7 +491,7 @@ export class SettingsService extends BaseService {
       email_smtp_user: keyMap['email_smtp_user'] || keyMap['email_smtpUser'] || keyMap['smtp_user'] || '',
       email_smtp_pass: keyMap['email_smtp_pass'] || keyMap['email_smtpPassword'] || keyMap['smtp_password'] || '',
       email_from_address: keyMap['email_from_address'] || keyMap['email_fromEmail'] || keyMap['smtp_from'] || '',
-      email_from_name: keyMap['email_from_name'] || keyMap['email_fromName'] || 'ConMGR',
+      email_from_name: keyMap['email_from_name'] || keyMap['email_fromName'] || DEFAULT_APP_NAME,
     };
   }
 
@@ -542,7 +545,7 @@ export class SettingsService extends BaseService {
     await transporter.sendMail({
       from: emailSettings['email_from_address'] || emailSettings['email_from'] || 'noreply@example.com',
       to: testEmail,
-      subject: 'Test Email from ConMGR',
+      subject: `Test Email from ${DEFAULT_APP_NAME}`,
       text: 'This is a test email to verify your SMTP settings are working correctly.',
     });
 
@@ -633,7 +636,7 @@ export class SettingsService extends BaseService {
       theme_secondaryColor: keyMap['theme_secondaryColor'] || '#8b5cf6',
       theme_logoPath: keyMap['theme_logoPath'] || '',
       theme_faviconPath: keyMap['theme_faviconPath'] || '',
-      app_name: keyMap['app_name'] || 'ConMGR',
+      app_name: keyMap['app_name'] || DEFAULT_APP_NAME,
       app_subtitle: keyMap['app_subtitle'] || '',
     };
   }
@@ -698,7 +701,7 @@ export class SettingsService extends BaseService {
 
     // Transform database keys to frontend expected keys
     return {
-      siteName: keyMap['app_name'] || 'ConMGR',
+      siteName: keyMap['app_name'] || DEFAULT_APP_NAME,
       siteDescription: keyMap['app_description'] || '',
       contactEmail: keyMap['footer_contactEmail'] || '',
       allowRegistration: (keyMap['allow_registration'] || 'true') === 'true',
