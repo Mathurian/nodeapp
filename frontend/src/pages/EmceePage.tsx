@@ -17,6 +17,7 @@ import {
   XMarkIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
+import { Button, Card, PageHeader } from '../components/ui'
 
 interface Event {
   id: string
@@ -297,17 +298,12 @@ const EmceePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <MicrophoneIcon className="h-8 w-8 mr-3 text-blue-600" />
-            Emcee Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Competition overview and script management
-          </p>
-        </div>
+      <div className="cgr-page-container">
+        <PageHeader
+          title="Emcee Dashboard"
+          subtitle="Competition overview and script management"
+          icon={MicrophoneIcon}
+        />
 
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
@@ -316,7 +312,7 @@ const EmceePage: React.FC = () => {
               onClick={() => setActiveTab('overview')}
               className={`${
                 activeTab === 'overview'
-                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
@@ -326,7 +322,7 @@ const EmceePage: React.FC = () => {
               onClick={() => setActiveTab('scripts')}
               className={`${
                 activeTab === 'scripts'
-                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
@@ -340,7 +336,7 @@ const EmceePage: React.FC = () => {
           <div className="space-y-6">
 
         {/* Event Selection */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Event</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -383,11 +379,11 @@ const EmceePage: React.FC = () => {
               </select>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Event Information */}
         {selectedEvent && (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+          <Card className="rounded-lg p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <DocumentTextIcon className="h-6 w-6 mr-2 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
               Event Information
@@ -418,12 +414,12 @@ const EmceePage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Contest Information */}
         {selectedContest && (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+          <Card className="rounded-lg p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <TrophyIcon className="h-6 w-6 mr-2 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
               Contest Information
@@ -440,12 +436,12 @@ const EmceePage: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Categories Overview */}
         {selectedContestId && categories && categories.length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <Card className="rounded-lg p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <UserGroupIcon className="h-6 w-6 mr-2 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
               Categories
@@ -498,28 +494,28 @@ const EmceePage: React.FC = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         ) : selectedContestId ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No categories in this contest yet
             </p>
-          </div>
+          </Card>
         ) : selectedEventId ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <TrophyIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Select a contest to view categories
             </p>
-          </div>
+          </Card>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <MicrophoneIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Select an event to begin
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Quick Tips */}
@@ -555,13 +551,12 @@ const EmceePage: React.FC = () => {
                 </p>
               </div>
               {canManageScripts && (
-                <button
+                <Button
                   onClick={() => setIsScriptFormOpen(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                 >
                   <PlusIcon className="h-5 w-5 mr-2" />
                   Upload Script
-                </button>
+                </Button>
               )}
             </div>
 
@@ -572,15 +567,15 @@ const EmceePage: React.FC = () => {
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading scripts...</p>
               </div>
             ) : scripts.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+              <Card className="rounded-lg p-12 text-center">
                 <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No scripts</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {canManageScripts ? 'Get started by uploading a script' : 'No scripts available'}
                 </p>
-              </div>
+              </Card>
             ) : (
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+              <Card className="rounded-lg overflow-hidden p-0">
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                   {scripts.map((script) => (
                     <li key={script.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
@@ -631,7 +626,7 @@ const EmceePage: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </Card>
             )}
           </div>
         )}

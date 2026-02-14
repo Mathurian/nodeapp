@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { boardAPI } from '../services/api'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { ConfirmModal, getOptimisticRowClass } from '../components/ui'
+import { Button, Card, ConfirmModal, PageHeader, ResponsiveTable, getOptimisticRowClass } from '../components/ui'
 import { useOptimisticMutation } from '../hooks'
 
 interface Certification {
@@ -191,34 +191,26 @@ const BoardCertificationsPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+      <div className="cgr-page-container">
+          <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
               Error Loading Certifications
             </h2>
             <p className="text-red-800 dark:text-red-200">{String(error)}</p>
-          </div>
-        </div>
+          </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Certifications
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Review and approve final certifications
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Certifications"
+          subtitle="Review and approve final certifications"
+        />
 
         {/* Certifications Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden" data-testid="certifications">
+        <Card className="rounded-lg overflow-hidden p-0" data-testid="certifications">
           {isLoading ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               Loading certifications...
@@ -228,7 +220,7 @@ const BoardCertificationsPage: React.FC = () => {
               No certifications pending approval
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <ResponsiveTable caption="Board certification queue" minWidth="900px">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 certification-list">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -319,9 +311,9 @@ const BoardCertificationsPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           )}
-        </div>
+        </Card>
 
         {/* Reject Modal */}
         {showRejectModal && (
@@ -338,22 +330,22 @@ const BoardCertificationsPage: React.FC = () => {
                 rows={4}
               />
               <div className="flex justify-end space-x-3">
-                <button
+                <Button
                   onClick={() => {
                     setShowRejectModal(false)
                     setRejectReason('')
                   }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  variant="secondary"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={submitReject}
                   disabled={!rejectReason.trim() || rejectMutation.isLoading}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="danger"
                 >
                   {rejectMutation.isLoading ? 'Rejecting...' : 'Reject'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -400,25 +392,23 @@ const BoardCertificationsPage: React.FC = () => {
                 </button>
               </div>
               <div className="mt-5 flex justify-end gap-2">
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowSignatureModal(false)}
-                  className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+                  variant="secondary"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={submitApprovalWithSignature}
-                  className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
                 >
                   Approve and Sign
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

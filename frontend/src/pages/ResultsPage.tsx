@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
+import { Card, PageHeader } from '../components/ui'
 
 interface Event {
   id: string
@@ -432,20 +433,15 @@ const ResultsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <TrophyIcon className="h-8 w-8 mr-3 text-yellow-600" />
-            Competition Results
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-            View winners, rankings, and score breakdowns
-          </p>
-        </div>
+      <div className="cgr-page-container">
+        <PageHeader
+          title="Competition Results"
+          subtitle="View winners, rankings, and score breakdowns"
+          icon={TrophyIcon}
+        />
 
         {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <div className="flex items-center mb-4">
             <FunnelIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Results</h2>
@@ -547,16 +543,16 @@ const ResultsPage: React.FC = () => {
               </button>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Results Display */}
         {(resultsLoading || contestResultsLoading) ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading results...</p>
-          </div>
+          </Card>
         ) : categoryResults && categoryResults.winners?.length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <Card className="rounded-lg p-6">
             {/* Category Header */}
             <div className="mb-6 pb-4 border-b">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -695,9 +691,9 @@ const ResultsPage: React.FC = () => {
                 ))}
               </div>
             </div>
-          </div>
+          </Card>
         ) : selectedContestId && !selectedCategoryId ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <Card className="rounded-lg p-6">
             <div className="mb-6 pb-4 border-b">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Contest Results</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -761,21 +757,21 @@ const ResultsPage: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         ) : selectedCategoryId ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <TrophyIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No results available for this category yet
             </p>
-          </div>
+          </Card>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Select an event, contest, and category to view results
             </p>
-          </div>
+          </Card>
         )}
       </div>
     </div>

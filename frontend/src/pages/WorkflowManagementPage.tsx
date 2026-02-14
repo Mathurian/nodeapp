@@ -10,6 +10,7 @@ import {
   PauseIcon,
   BoltIcon,
 } from '@heroicons/react/24/outline'
+import { Button, Card, PageHeader } from '../components/ui'
 
 type WorkflowRole = 'SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'BOARD' | 'TALLY_MASTER' | 'AUDITOR' | 'JUDGE' | 'EMCEE' | 'CONTESTANT'
 
@@ -292,49 +293,46 @@ const WorkflowManagementPage: React.FC = () => {
 
   if (!canManage) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h2>
           <p className="text-gray-600 dark:text-gray-400">You don't have permission to manage workflows.</p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading workflows...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading workflows...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex flex-col sm:flex-row justify-between gap-4 sm:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Workflow Management</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Configure step-based automation templates and execute manual workflows.
-            </p>
-          </div>
-          <button
+          <PageHeader
+            title="Workflow Management"
+            subtitle="Configure step-based automation templates and execute manual workflows."
+            icon={Square3Stack3DIcon}
+          />
+          <Button
             onClick={openCreate}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             Create Workflow
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Execution Console</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Workflows execute against a target entity. Use this console to run and track workflow progression.
@@ -401,7 +399,7 @@ const WorkflowManagementPage: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {workflows.length === 0 ? (
@@ -486,7 +484,6 @@ const WorkflowManagementPage: React.FC = () => {
             ))
           )}
         </div>
-      </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

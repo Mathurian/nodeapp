@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast'
 import { FormProvider, FormInput, FormSubmitButton } from '../components/form'
 import { changePasswordSchema, ChangePasswordInput } from '../lib/validation'
+import { Button, Card, PageHeader } from '../components/ui'
 
 interface ProfileFormData {
   name: string
@@ -198,21 +199,16 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="cgr-page-container">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <UserCircleIcon className="h-8 w-8 mr-3 text-blue-600" />
-            My Profile
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-            Manage your personal information and account settings
-          </p>
-        </div>
+        <PageHeader
+          title="My Profile"
+          subtitle="Manage your personal information and account settings"
+          icon={UserCircleIcon}
+        />
 
         {/* Profile Image */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Profile Image</h2>
           <div className="flex flex-col md:flex-row items-center gap-6">
             {/* Current Image Display */}
@@ -242,10 +238,9 @@ const ProfilePage: React.FC = () => {
                     Selected: {selectedImage.name}
                   </p>
                   <div className="flex gap-3">
-                    <button
+                    <Button
                       onClick={handleUploadImage}
                       disabled={uploadImageMutation.isLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
                     >
                       {uploadImageMutation.isLoading ? (
                         <>
@@ -258,15 +253,15 @@ const ProfilePage: React.FC = () => {
                           Upload Image
                         </>
                       )}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={handleCancelImage}
                       disabled={uploadImageMutation.isLoading}
-                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center"
+                      variant="secondary"
                     >
                       <XMarkIcon className="h-5 w-5 mr-2" />
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -278,31 +273,30 @@ const ProfilePage: React.FC = () => {
                     onChange={handleImageSelect}
                     className="hidden"
                   />
-                  <button
+                  <Button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center"
+                    variant="secondary"
                   >
                     <PhotoIcon className="h-5 w-5 mr-2" />
                     Choose Image
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Profile Information */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <Card className="rounded-lg p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Information</h2>
             {!isEditing && (
-              <button
+              <Button
                 onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
               >
                 <PencilIcon className="h-5 w-5 mr-2" />
                 Edit Profile
-              </button>
+              </Button>
             )}
           </div>
 
@@ -400,18 +394,19 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button
+                <Button
                   type="button"
                   onClick={handleCancel}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900 flex items-center justify-center"
+                  variant="secondary"
+                  className="flex-1 justify-center"
                 >
                   <XMarkIcon className="h-5 w-5 mr-2" />
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={updateProfileMutation.isLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
+                  className="flex-1 justify-center"
                 >
                   {updateProfileMutation.isLoading ? (
                     <>
@@ -424,7 +419,7 @@ const ProfilePage: React.FC = () => {
                       Save Changes
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
@@ -469,20 +464,20 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Change Password */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <Card className="rounded-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Security</h2>
             {!isChangingPassword && (
-              <button
+              <Button
                 onClick={() => setIsChangingPassword(true)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center"
+                variant="secondary"
               >
                 <KeyIcon className="h-5 w-5 mr-2" />
                 Change Password
-              </button>
+              </Button>
             )}
           </div>
 
@@ -512,17 +507,18 @@ const ProfilePage: React.FC = () => {
                 required
               />
               <div className="flex gap-3 pt-4">
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     passwordForm.reset()
                     setIsChangingPassword(false)
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900 flex items-center justify-center"
+                  variant="secondary"
+                  className="flex-1 justify-center"
                 >
                   <XMarkIcon className="h-5 w-5 mr-2" />
                   Cancel
-                </button>
+                </Button>
                 <FormSubmitButton
                   loading={changePasswordMutation.isLoading}
                   className="flex-1 !w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
@@ -538,8 +534,7 @@ const ProfilePage: React.FC = () => {
               <p className="mt-2">Password must be at least 8 characters long.</p>
             </div>
           )}
-        </div>
-      </div>
+        </Card>
     </div>
   )
 }

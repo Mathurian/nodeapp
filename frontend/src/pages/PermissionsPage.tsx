@@ -20,7 +20,7 @@ import {
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
-import { ResponsiveTable } from '../components/ui';
+import { Button, Card, PageHeader, ResponsiveTable, StatsCard } from '../components/ui';
 
 interface PermissionMatrix {
   [role: string]: {
@@ -227,25 +227,25 @@ const PermissionsPage: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <ShieldCheckIcon className="mx-auto h-12 w-12 text-red-500" />
           <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             You must be an administrator to access this page.
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading permissions...</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -253,80 +253,31 @@ const PermissionsPage: React.FC = () => {
   const rolesToDisplay = (selectedRole === 'ALL' ? visibleRoles : [selectedRole]).filter((role) => visibleRoles.includes(role));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="cgr-page-container">
       {/* Header */}
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Permission Management
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Manage role-based permissions for your organization
-              </p>
-            </div>
-            <Link
-              to="/permissions/audit-logs"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              View Audit Logs
-            </Link>
-          </div>
-        </div>
+      <PageHeader
+        title="Permission Management"
+        subtitle="Manage role-based permissions for your organization"
+        icon={ShieldCheckIcon}
+        actions={(
+          <Link to="/permissions/audit-logs">
+            <Button variant="secondary">View Audit Logs</Button>
+          </Link>
+        )}
+      />
 
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <ShieldCheckIcon className="h-8 w-8 text-blue-500" />
-                <div className="ml-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Permissions</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats.totalPermissions}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <CheckCircleIcon className="h-8 w-8 text-green-500" />
-                <div className="ml-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Allowed</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats.allowedCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <XCircleIcon className="h-8 w-8 text-red-500" />
-                <div className="ml-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Denied</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats.deniedCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <FunnelIcon className="h-8 w-8 text-purple-500" />
-                <div className="ml-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Roles</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {Object.keys(stats.permissionsByRole).length}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <StatsCard icon={ShieldCheckIcon} value={stats.totalPermissions} label="Total Permissions" color="blue" />
+            <StatsCard icon={CheckCircleIcon} value={stats.allowedCount} label="Allowed" color="green" />
+            <StatsCard icon={XCircleIcon} value={stats.deniedCount} label="Denied" color="red" />
+            <StatsCard icon={FunnelIcon} value={Object.keys(stats.permissionsByRole).length} label="Roles" color="indigo" />
           </div>
         )}
 
         {/* Toolbar */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+        <Card className="rounded-lg p-4 mb-6">
           <div className="flex flex-wrap gap-4 items-center justify-between">
             <div className="flex gap-4 items-center flex-1">
               {/* Role Filter */}
@@ -363,29 +314,27 @@ const PermissionsPage: React.FC = () => {
 
             {/* Actions */}
             <div className="flex gap-2">
-              <button
+              <Button
                 onClick={handleExport}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                variant="secondary"
               >
                 <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
                 Export
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => warmCacheMutation.mutate()}
                 disabled={warmCacheMutation.isLoading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                variant="secondary"
               >
-                <ArrowPathIcon
-                  className={`h-5 w-5 mr-2 ${warmCacheMutation.isLoading ? 'animate-spin' : ''}`}
-                />
+                <ArrowPathIcon className={`h-5 w-5 mr-2 ${warmCacheMutation.isLoading ? 'animate-spin' : ''}`} />
                 Warm Cache
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Warning Banner */}
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6">
+        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6">
           <div className="flex">
             <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
             <div className="ml-3">
@@ -395,10 +344,10 @@ const PermissionsPage: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Permission Matrix Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <Card className="rounded-lg overflow-hidden p-0">
           <ResponsiveTable
             caption="Permission matrix showing access controls for each role"
             minWidth="1000px"
@@ -482,8 +431,7 @@ const PermissionsPage: React.FC = () => {
               </tbody>
             </table>
           </ResponsiveTable>
-        </div>
-      </div>
+        </Card>
 
       {/* Reason Modal */}
       {showReasonModal && (

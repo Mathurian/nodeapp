@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, parseISO } from 'date-fns'
 import type { AuditLog, AuditLogFilters } from '../types/activity.types'
-import { ResponsiveTable } from '../components/ui'
+import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 const ActivityLogPage: React.FC = () => {
   const { user } = useAuth()
@@ -142,64 +142,59 @@ const ActivityLogPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="cgr-page-container">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-                <ClockIcon className="h-8 w-8 mr-3 text-blue-600 dark:text-blue-400" />
-                Activity Log
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                View and monitor all system activities and user actions
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExport('csv')}
-                disabled={isExporting || logs.length === 0}
-                className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg font-medium hover:bg-green-700 dark:hover:bg-green-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
-              >
-                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                {isExporting ? 'Exporting...' : 'Export CSV'}
-              </button>
-              <button
-                onClick={() => handleExport('json')}
-                disabled={isExporting || logs.length === 0}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
-              >
-                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                {isExporting ? 'Exporting...' : 'Export JSON'}
-              </button>
-            </div>
-          </div>
+          <PageHeader
+            title="Activity Log"
+            subtitle="View and monitor all system activities and user actions"
+            icon={ClockIcon}
+            actions={(
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleExport('csv')}
+                  disabled={isExporting || logs.length === 0}
+                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                >
+                  <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                  {isExporting ? 'Exporting...' : 'Export CSV'}
+                </Button>
+                <Button
+                  onClick={() => handleExport('json')}
+                  disabled={isExporting || logs.length === 0}
+                >
+                  <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                  {isExporting ? 'Exporting...' : 'Export JSON'}
+                </Button>
+              </div>
+            )}
+          />
 
           {/* Statistics */}
           {statistics && (
             <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+              <Card className="rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Logs</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{statistics.totalLogs.toLocaleString()}</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+              </Card>
+              <Card className="rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Unique Users</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{statistics.uniqueUsers.toLocaleString()}</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+              </Card>
+              <Card className="rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Actions Tracked</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{Object.keys(statistics.actionBreakdown).length}</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+              </Card>
+              <Card className="rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Resources</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{Object.keys(statistics.resourceBreakdown).length}</p>
-              </div>
+              </Card>
             </div>
           )}
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
+        <Card className="rounded-lg p-4 mb-6">
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
@@ -292,17 +287,17 @@ const ActivityLogPage: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Activity Logs Table */}
         {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading activity logs...</p>
-          </div>
+          </Card>
         ) : logs.length > 0 ? (
           <>
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <Card className="rounded-lg overflow-hidden p-0">
               <ResponsiveTable
                 caption="Activity log entries showing user actions and system events"
                 minWidth="900px"
@@ -384,7 +379,7 @@ const ActivityLogPage: React.FC = () => {
                 </tbody>
               </table>
               </ResponsiveTable>
-            </div>
+            </Card>
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
@@ -461,14 +456,14 @@ const ActivityLogPage: React.FC = () => {
             )}
           </>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="rounded-lg p-12 text-center">
             <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               {searchQuery || actionFilter || resourceFilter || startDate || endDate
                 ? 'No activity logs found matching your filters'
                 : 'No activity logs yet.'}
             </p>
-          </div>
+          </Card>
         )}
       </div>
     </div>

@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import { SendNotificationModal } from '../components/SendNotificationModal'
+import { Button, Card, PageHeader } from '../components/ui'
 
 interface Notification {
   id: string
@@ -193,42 +194,43 @@ const NotificationsPage: React.FC = () => {
   // Handle errors with early return
   if (notificationsError) {
     return (
-      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+      <div className="cgr-page-container">
+      <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Notifications</h2>
         <p className="text-red-800 dark:text-red-200 mb-4">{String(notificationsError)}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+        <Button onClick={() => window.location.reload()} variant="danger">Reload Page</Button>
+      </Card>
       </div>
     )
   }
 
   if (preferencesError) {
     return (
-      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+      <div className="cgr-page-container">
+      <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Preferences</h2>
         <p className="text-red-800 dark:text-red-200 mb-4">{String(preferencesError)}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+        <Button onClick={() => window.location.reload()} variant="danger">Reload Page</Button>
+      </Card>
       </div>
     )
   }
 
   if (notificationsLoading || preferencesLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading notifications...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading notifications...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Notifications
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
+            <PageHeader title="Notifications" />
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
               {filter === 'sent'
                 ? `${sentNotificationsData?.total || 0} sent notifications`
                 : filter === 'deleted'
@@ -239,36 +241,35 @@ const NotificationsPage: React.FC = () => {
           </div>
           <div className="flex gap-3">
             {canSendNotifications && (
-              <button
+              <Button
                 onClick={() => setIsSendModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 <PaperAirplaneIcon className="h-5 w-5" />
                 Send Notification
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               onClick={() => setShowPreferences(!showPreferences)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              variant="secondary"
             >
               <Cog6ToothIcon className="h-5 w-5" />
               Preferences
-            </button>
+            </Button>
             {filter !== 'sent' && notifications.some(n => !n.read) && (
-              <button
+              <Button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors"
+                variant="primary"
               >
                 <CheckCircleIcon className="h-5 w-5" />
                 Mark All as Read
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Preferences Panel */}
         {showPreferences && (
-          <div className="mb-6 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+          <Card className="mb-6 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Notification Preferences
             </h2>
@@ -320,20 +321,10 @@ const NotificationsPage: React.FC = () => {
               </label>
             </div>
             <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => updatePreferences(localPreferences)}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-              >
-                Save Preferences
-              </button>
-              <button
-                onClick={() => setShowPreferences(false)}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
+              <Button onClick={() => updatePreferences(localPreferences)}>Save Preferences</Button>
+              <Button onClick={() => setShowPreferences(false)} variant="secondary">Cancel</Button>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Filter */}
@@ -395,21 +386,23 @@ const NotificationsPage: React.FC = () => {
         {/* Notifications List */}
         <div className="space-y-4">
           {filteredNotifications.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+            <Card className="rounded-lg p-12 text-center">
               <BellIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">No notifications to display</p>
-            </div>
+            </Card>
           ) : (
             filteredNotifications.map((notification) => {
               const Icon = getNotificationIcon(notification.type)
               return (
                 <div
                   key={notification.id}
+                  title={filter !== 'sent' && filter !== 'deleted' && !notification.read ? 'Click to mark as read' : ''}
+                >
+                <Card
                   onClick={() => filter !== 'sent' && filter !== 'deleted' && !notification.read && markAsRead(notification.id)}
-                  className={`bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors ${
+                  className={`rounded-lg p-6 transition-colors ${
                     filter !== 'sent' && filter !== 'deleted' && !notification.read ? 'border-l-4 border-blue-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750' : ''
                   }`}
-                  title={filter !== 'sent' && filter !== 'deleted' && !notification.read ? 'Click to mark as read' : ''}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex gap-4 flex-1">
@@ -462,12 +455,12 @@ const NotificationsPage: React.FC = () => {
                       )}
                     </div>
                   </div>
+                </Card>
                 </div>
               )
             })
           )}
         </div>
-      </div>
 
       {/* Send Notification Modal */}
       <SendNotificationModal

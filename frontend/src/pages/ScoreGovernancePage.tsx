@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { categoriesAPI, contestsAPI, scoreGovernanceAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { Button, Card, PageHeader } from '../components/ui'
 
 type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY'
 type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL'
@@ -220,13 +221,13 @@ const ScoreGovernancePage: React.FC = () => {
   const allApproverRoles = ['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Score Review & Governance</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">View judge-level scores and manage throw-out/uncertify requests with safeguards.</p>
-        </div>
+    <div className="cgr-page-container space-y-6">
+      <PageHeader
+        title="Score Review & Governance"
+        subtitle="View judge-level scores and manage throw-out/uncertify requests with safeguards."
+      />
 
+        <Card className="rounded-lg p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <select value={contestId} onChange={(e) => setContestId(e.target.value)} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
             <option value="">All Contests</option>
@@ -241,9 +242,10 @@ const ScoreGovernancePage: React.FC = () => {
             {contestants.map((contestant) => <option key={contestant.id} value={contestant.id}>#{contestant.contestantNumber ?? 'N/A'} {contestant.name}</option>)}
           </select>
         </div>
+        </Card>
 
         {canConfigure && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
+          <Card className="rounded-lg p-4 space-y-3">
             <h2 className="font-semibold text-gray-900 dark:text-white">Governance Safeguards</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -275,11 +277,11 @@ const ScoreGovernancePage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button onClick={() => saveSettingsMutation.mutate()} className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm">Save Safeguards</button>
-          </div>
+            <Button onClick={() => saveSettingsMutation.mutate()}>Save Safeguards</Button>
+          </Card>
         )}
 
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3">
+        <Card className="rounded-lg p-4 space-y-3">
           <h2 className="font-semibold text-gray-900 dark:text-white">Create Governance Request</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <select value={actionType} onChange={(e) => setActionType(e.target.value as GovernanceAction)} disabled={isJudge} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60">
@@ -348,13 +350,13 @@ const ScoreGovernancePage: React.FC = () => {
               onMouseUp={stopDrawing}
               onMouseLeave={stopDrawing}
             />
-            <button type="button" onClick={clearDrawing} className="mt-2 text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">Clear Drawn Signature</button>
+            <Button type="button" onClick={clearDrawing} variant="secondary" size="sm" className="mt-2">Clear Drawn Signature</Button>
           </div>
 
-          <button onClick={submitRequest} className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm">Submit Request</button>
-        </div>
+          <Button onClick={submitRequest}>Submit Request</Button>
+        </Card>
 
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
+        <Card className="rounded-lg p-0 overflow-x-auto">
           <table className="w-full min-w-[1100px]">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -381,9 +383,9 @@ const ScoreGovernancePage: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
 
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-x-auto">
+        <Card className="rounded-lg p-0 overflow-x-auto">
           <table className="w-full min-w-[1050px]">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -435,8 +437,7 @@ const ScoreGovernancePage: React.FC = () => {
               })}
             </tbody>
           </table>
-        </div>
-      </div>
+        </Card>
     </div>
   )
 }

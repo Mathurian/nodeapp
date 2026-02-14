@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
 import { scoreFilesAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
-import { OptimisticIndicator, OptimisticStatus } from '../components/ui'
+import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
 import {
   TrophyIcon,
   UserIcon,
@@ -542,10 +542,12 @@ const ScoringPage: React.FC = () => {
 
   if (existingScoresError) {
     return (
-      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
-        <p className="text-red-800 dark:text-red-200 mb-4">{String(existingScoresError)}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+      <div className="cgr-page-container">
+        <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700">
+          <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
+          <p className="text-red-800 dark:text-red-200 mb-4">{String(existingScoresError)}</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
+        </Card>
       </div>
     )
   }
@@ -564,22 +566,17 @@ const ScoringPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <TrophyIcon className="h-8 w-8 mr-3 text-blue-600" />
-            Scoring Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-            Select a category and contestant to begin scoring
-          </p>
-        </div>
+      <div className="cgr-page-container">
+        <PageHeader
+          title="Scoring Dashboard"
+          subtitle="Select a category and contestant to begin scoring"
+          icon={TrophyIcon}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Categories */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Your Categories
               </h2>
@@ -614,12 +611,12 @@ const ScoringPage: React.FC = () => {
                   </p>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Middle Column: Contestants */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Contestants
               </h2>
@@ -677,12 +674,12 @@ const ScoringPage: React.FC = () => {
                   </p>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Right Column: Scoring Form */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Score Sheet
               </h2>
@@ -898,7 +895,7 @@ const ScoringPage: React.FC = () => {
                   </p>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
         </div>
       </div>

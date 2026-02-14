@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
+import { Card, PageHeader } from '../components/ui'
 import {
   UserCircleIcon,
   MagnifyingGlassIcon,
@@ -221,28 +222,24 @@ const BiosPage: React.FC = () => {
 
   if (!hasAccess) {
     return (
-      <div className="p-6">
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+      <div className="cgr-page-container">
+        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
           <p className="text-yellow-800 dark:text-yellow-200">
             You do not have access to the bio directory.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="cgr-page-container space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <UserCircleIcon className="w-8 h-8" />
-            Bio Directory
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            View scoped contestant bios and photos{showJudgesTab ? ', plus judge profiles' : ''}.
-          </p>
-        </div>
+        <PageHeader
+          title="Bio Directory"
+          subtitle={`View scoped contestant bios and photos${showJudgesTab ? ', plus judge profiles' : ''}.`}
+          icon={UserCircleIcon}
+        />
         <div className="w-full sm:w-80">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Filter by Contest
@@ -262,15 +259,17 @@ const BiosPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="relative">
-        <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search names, numbers, or bio text..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
-        />
-      </div>
+      <Card className="rounded-lg p-4">
+        <div className="relative">
+          <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search names, numbers, or bio text..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+          />
+        </div>
+      </Card>
 
       {showJudgesTab && (
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -293,11 +292,11 @@ const BiosPage: React.FC = () => {
       )}
 
       {isLoading ? (
-        <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading profiles...</div>
+        <Card className="rounded-lg p-12 text-center text-gray-500 dark:text-gray-400">Loading profiles...</Card>
       ) : error ? (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
+        <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
           Failed to load bio directory.
-        </div>
+        </Card>
       ) : (
         <>
           {(activeTab === 'contestants' || !showJudgesTab) && (

@@ -13,7 +13,7 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
 } from '@heroicons/react/24/outline'
-import { ResponsiveTable } from '../components/ui'
+import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface Judge {
   id: string
@@ -857,12 +857,12 @@ const AssignmentsPage: React.FC = () => {
 
   if (!canManageAssignments) {
     return (
-      <div className="p-6">
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+      <div className="cgr-page-container">
+        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
           <p className="text-yellow-800 dark:text-yellow-200">
             You don't have permission to manage assignments. Contact your administrator.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
@@ -890,29 +890,23 @@ const AssignmentsPage: React.FC = () => {
   )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="cgr-page-container space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <UserGroupIcon className="w-8 h-8" />
-            Assignments Management
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage judge, contestant, tally master, and auditor assignments
-          </p>
-        </div>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
-        >
+        <PageHeader
+          title="Assignments Management"
+          subtitle="Manage judge, contestant, tally master, and auditor assignments"
+          icon={UserGroupIcon}
+        />
+        <Button onClick={() => setIsFormOpen(true)}>
           <PlusIcon className="w-5 h-5 mr-2" />
           New Assignment
-        </button>
+        </Button>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <Card className="rounded-lg p-0 border-0 shadow-none">
+      <div className="border-b border-gray-200 dark:border-gray-700 px-4">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {(['judges', 'contestants', 'tally-masters', 'auditors'] as TabType[]).map((tab) => (
             <button
@@ -934,8 +928,10 @@ const AssignmentsPage: React.FC = () => {
           ))}
         </nav>
       </div>
+      </Card>
 
       {/* Search + Filters + Bulk actions */}
+      <Card className="rounded-lg p-4">
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -975,33 +971,34 @@ const AssignmentsPage: React.FC = () => {
           ))}
         </select>
         {selectedIds.size > 0 && (
-          <button
+          <Button
             onClick={handleBulkRemove}
             disabled={bulkRemoveMutation.isLoading}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
+            variant="danger"
           >
             <TrashIcon className="w-4 h-4 mr-2" />
             Remove {selectedIds.size} selected
-          </button>
+          </Button>
         )}
       </div>
+      </Card>
 
       {/* Table */}
       {isLoading ? (
-        <div className="text-center py-12">
+        <Card className="rounded-lg p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading assignments...</p>
-        </div>
+        </Card>
       ) : currentAssignments.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+        <Card className="rounded-lg p-12 text-center">
           <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No assignments found</h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {searchQuery ? 'Try adjusting your search' : 'Get started by creating a new assignment'}
           </p>
-        </div>
+        </Card>
       ) : (
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        <Card className="rounded-lg overflow-hidden p-0">
           <ResponsiveTable caption="Role assignments" minWidth="900px">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
@@ -1101,7 +1098,7 @@ const AssignmentsPage: React.FC = () => {
               </tbody>
             </table>
           </ResponsiveTable>
-        </div>
+        </Card>
       )}
 
       {/* New Assignment Modal */}
