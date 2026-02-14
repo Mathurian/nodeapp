@@ -8,6 +8,7 @@ import {
   CheckCircleIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
+import { Button, Card, PageHeader } from '../components/ui'
 
 type ReportType = 'event' | 'contest' | 'system'
 type ExportFormat = 'pdf' | 'excel' | 'csv'
@@ -184,21 +185,17 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <ChartBarIcon className="h-8 w-8 mr-3 text-blue-600" />
-            Reports & Analytics
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Generate reports and export/download generated artifacts.
-          </p>
-        </div>
+      <div className="cgr-page-container space-y-6">
+        <PageHeader
+          title="Reports & Analytics"
+          subtitle="Generate reports and export/download generated artifacts."
+          icon={ChartBarIcon}
+        />
 
         {error && <div className="p-3 rounded bg-red-50 text-red-700 border border-red-200">{error}</div>}
         {message && <div className="p-3 rounded bg-green-50 text-green-700 border border-green-200">{message}</div>}
 
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-4">
+        <Card className="rounded-lg p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generate Report</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -247,17 +244,16 @@ const ReportsPage: React.FC = () => {
             )}
           </div>
 
-          <button
+          <Button
             onClick={handleGenerateReport}
             disabled={isGenerating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center"
           >
             <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
             {isGenerating ? 'Generating...' : 'Generate Report'}
-          </button>
-        </div>
+          </Button>
+        </Card>
 
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <Card className="rounded-lg p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Generated Reports</h2>
           {instances.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">No reports generated yet.</p>
@@ -294,7 +290,7 @@ const ReportsPage: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {sendingReportId && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

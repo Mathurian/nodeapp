@@ -17,7 +17,7 @@ import {
   CheckIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline'
-import { ConfirmModal } from '../components/ui'
+import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 
 interface Contest {
@@ -382,14 +382,14 @@ const CategoriesPage: React.FC = () => {
     const error = contestsError || categoriesError
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <div className="cgr-page-container">
+          <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700">
             <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
             <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
-            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+            <Button variant="danger" onClick={() => window.location.reload()}>
               Reload Page
-            </button>
-          </div>
+            </Button>
+          </Card>
         </div>
       </div>
     )
@@ -397,36 +397,27 @@ const CategoriesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="cgr-page-container">
         {/* Breadcrumb - only show when accessed via contest context */}
         {contestId && (
           <Breadcrumb items={buildBreadcrumbItems()} />
         )}
 
         {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-              <ListBulletIcon className="h-8 w-8 mr-3 text-blue-600" />
-              {parentContest ? `${parentContest.name} - Categories` : 'Categories'}
-            </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-              Manage competition categories and judging criteria
-            </p>
-          </div>
-          {canManageCategories && (
-            <button
-              onClick={openCreateForm}
-              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
-            >
+        <PageHeader
+          title={parentContest ? `${parentContest.name} - Categories` : 'Categories'}
+          subtitle="Manage competition categories and judging criteria"
+          icon={ListBulletIcon}
+          actions={canManageCategories ? (
+            <Button onClick={openCreateForm}>
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Category
-            </button>
-          )}
-        </div>
+            </Button>
+          ) : undefined}
+        />
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
+        <Card className="p-4 mb-6 rounded-lg">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
@@ -456,18 +447,18 @@ const CategoriesPage: React.FC = () => {
               ))}
             </select>
           </div>
-        </div>
+        </Card>
 
         {/* Categories List */}
         {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="p-12 text-center rounded-lg">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading categories...</p>
-          </div>
+          </Card>
         ) : filteredCategories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCategories.map((category) => (
-              <div key={category.id} className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+              <Card key={category.id} hover className="rounded-lg">
                 {/* Category Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -551,18 +542,18 @@ const CategoriesPage: React.FC = () => {
                     </button>
                   </div>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="p-12 text-center rounded-lg">
             <ListBulletIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               {searchQuery || selectedContestFilter
                 ? 'No categories found matching your filters'
                 : 'No categories yet. Create your first category to get started.'}
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Create/Edit Form Modal */}

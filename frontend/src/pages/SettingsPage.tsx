@@ -24,6 +24,7 @@ import {
   BuildingOfficeIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader } from '../components/ui'
 
 interface GeneralSettings {
   siteName: string
@@ -620,21 +621,16 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <Cog6ToothIcon className="h-8 w-8 mr-3 text-blue-600 dark:text-blue-400" />
-            System Settings
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Configure application-wide settings and preferences
-          </p>
-        </div>
+      <div className="cgr-page-container">
+        <PageHeader
+          title="System Settings"
+          subtitle="Configure application-wide settings and preferences"
+          icon={Cog6ToothIcon}
+        />
 
         {/* SUPER_ADMIN Tenant/Global Settings Selector */}
         {isSuperAdmin && (
-          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+          <Card className="mb-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 p-4 rounded-lg">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex items-center gap-3">
                 {editingGlobal ? (
@@ -703,7 +699,7 @@ const SettingsPage: React.FC = () => {
                   ? 'Changes will only affect the selected tenant. These settings override the global defaults.'
                   : 'Changes will only affect your current tenant. Select a different tenant from the dropdown to edit their settings.'}
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Success/Error Message */}
@@ -725,14 +721,14 @@ const SettingsPage: React.FC = () => {
         )}
 
         {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Loading settings...</p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-4">
             {/* General Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('general')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -879,7 +875,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Scoring Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('scoring')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -946,7 +942,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Theme Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('theme')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1143,7 +1139,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Email/SMTP Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('email')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1293,7 +1289,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Security Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('security')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1408,7 +1404,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Contestant Visibility Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('contestant-visibility')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1478,7 +1474,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Password Policy */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('password-policy')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1589,7 +1585,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Database Settings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <div className="cgr-surface overflow-hidden rounded-lg">
               <button
                 onClick={() => toggleSection('database')}
                 className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"

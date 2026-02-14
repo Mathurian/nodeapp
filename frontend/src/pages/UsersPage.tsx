@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { usersAPI, api } from '../services/api'
 import { UsersIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { DateFilters } from '../components/DateFilterControls'
-import { ConfirmModal } from '../components/ui'
+import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import { useOptimisticMutation } from '../hooks'
 import {
   UserTable,
@@ -587,14 +587,14 @@ const UsersPage: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
+        <div className="cgr-page-container">
+          <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700">
             <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
             <p className="text-red-800 dark:text-red-200 mb-4">{String(error)}</p>
-            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+            <Button variant="danger" onClick={() => window.location.reload()}>
               Reload Page
-            </button>
-          </div>
+            </Button>
+          </Card>
         </div>
       </div>
     )
@@ -602,25 +602,21 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="cgr-page-container">
         {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-              <UsersIcon className="h-8 w-8 mr-3 text-blue-600" />
-              Users
-            </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Manage user accounts and permissions
-            </p>
-          </div>
-          <UserBulkActions
-            selectedCount={selectedUsers.size}
-            isDeleting={bulkDeleteMutation.isLoading}
-            onBulkDelete={handleBulkDelete}
-            onCreateUser={handleCreateUser}
-          />
-        </div>
+        <PageHeader
+          title="Users"
+          subtitle="Manage user accounts and permissions"
+          icon={UsersIcon}
+          actions={(
+            <UserBulkActions
+              selectedCount={selectedUsers.size}
+              isDeleting={bulkDeleteMutation.isLoading}
+              onBulkDelete={handleBulkDelete}
+              onCreateUser={handleCreateUser}
+            />
+          )}
+        />
 
         {/* Filters */}
         <UserFilters

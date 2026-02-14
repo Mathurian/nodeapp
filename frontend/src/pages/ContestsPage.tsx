@@ -21,7 +21,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
-import { ConfirmModal } from '../components/ui'
+import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 
 interface Event {
@@ -322,39 +322,32 @@ const ContestsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="cgr-page-container">
         {/* Breadcrumb - only show when accessed via event context */}
         {eventId && (
           <Breadcrumb items={buildBreadcrumbItems()} />
         )}
 
         {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-              <TrophyIcon className="h-8 w-8 mr-3 text-blue-600" />
-              {parentEvent ? `${parentEvent.name} - Contests` : 'Contests'}
-            </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-              Manage competition contests and categories
-            </p>
-          </div>
-          {canManageContests && (
-            <button
+        <PageHeader
+          title={parentEvent ? `${parentEvent.name} - Contests` : 'Contests'}
+          subtitle="Manage competition contests and categories"
+          icon={TrophyIcon}
+          actions={canManageContests ? (
+            <Button
               onClick={() => {
                 resetForm()
                 setIsFormOpen(true)
               }}
-              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Contest
-            </button>
-          )}
-        </div>
+            </Button>
+          ) : undefined}
+        />
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6 space-y-4">
+        <Card className="p-4 mb-6 space-y-4 rounded-lg">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
@@ -406,20 +399,21 @@ const ContestsPage: React.FC = () => {
               onClear={() => setDateFilters({ sortDirection: 'asc' })}
             />
           </div>
-        </div>
+        </Card>
 
         {/* Contests List */}
         {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="p-12 text-center rounded-lg">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading contests...</p>
-          </div>
+          </Card>
         ) : filteredContests.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredContests.map((contest) => (
-              <div
+              <Card
                 key={contest.id}
-                className={`bg-white shadow rounded-lg p-6 ${
+                hover
+                className={`rounded-lg ${
                   contest.archived ? 'opacity-60' : ''
                 }`}
               >
@@ -497,18 +491,18 @@ const ContestsPage: React.FC = () => {
                     </>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-12 text-center">
+          <Card className="p-12 text-center rounded-lg">
             <TrophyIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               {searchQuery || selectedEventFilter
                 ? 'No contests found matching your filters'
                 : 'No contests yet. Create your first contest to get started.'}
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Create/Edit Form Modal */}

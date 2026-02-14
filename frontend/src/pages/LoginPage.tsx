@@ -252,7 +252,7 @@ const LoginPage: React.FC = () => {
                       'appearance-none block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-2 sm:text-sm ' +
                       (form.formState.errors.password
                         ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500')
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500')
                     }
                     aria-invalid={form.formState.errors.password ? 'true' : undefined}
                   />
@@ -281,7 +281,7 @@ const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={form.formState.isSubmitting}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
               </button>
@@ -290,7 +290,7 @@ const LoginPage: React.FC = () => {
                 {settings.showForgotPassword ? (
                   <a
                     href={`${slug ? `/${slug}` : ''}/forgot-password`}
-                    className="text-indigo-600 hover:text-indigo-800 hover:underline"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
                   >
                     Forgot password?
                   </a>
@@ -307,7 +307,7 @@ const LoginPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-2 justify-center items-center text-sm">
                   <a
                     href="/help"
-                    className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
                     aria-label="View help documentation"
                   >
                     Help Documentation
@@ -315,7 +315,7 @@ const LoginPage: React.FC = () => {
                   <span className="hidden sm:inline text-gray-400">|</span>
                   <a
                     href={`mailto:${settings.contactEmail || DEFAULT_APP_BASELINE.contactEmail}`}
-                    className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
                     aria-label="Contact support via email"
                   >
                     Contact Support
