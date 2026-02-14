@@ -5,6 +5,7 @@ import { createRequestLogger } from '../utils/logger';
 import { sendSuccess } from '../utils/responseHelpers';
 import path from 'path';
 import fs from 'fs';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Controller for Emcee functionality
@@ -12,9 +13,11 @@ import fs from 'fs';
  */
 export class EmceeController {
   private emceeService: EmceeService;
+  private prisma: PrismaClient;
 
   constructor() {
     this.emceeService = container.resolve(EmceeService);
+    this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
   /**
@@ -220,6 +223,36 @@ export class EmceeController {
         order: order ? parseInt(order) : 0,
         tenantId: req.user?.tenantId,
       });
+
+      if (req.file && req.user) {
+        try {
+          await this.prisma.file.create({
+            data: {
+              tenantId: req.user.tenantId,
+              filename: req.file.filename,
+              originalName: req.file.originalname,
+              mimeType: req.file.mimetype,
+              size: req.file.size,
+              path: req.file.path || `uploads/emcee/${req.file.filename}`,
+              category: 'DOCUMENT',
+              uploadedBy: req.user.id,
+              isPublic: true,
+              eventId: eventId || undefined,
+              contestId: contestId || undefined,
+              categoryId: categoryId || undefined,
+              metadata: JSON.stringify({
+                source: 'emcee_script_upload',
+                scriptId: script.id
+              })
+            }
+          });
+        } catch (fileIndexError) {
+          log.warn('Unable to index emcee script upload in files table', {
+            filename: req.file.filename,
+            error: (fileIndexError as Error).message
+          });
+        }
+      }
 
       res.status(201).json(script);
     } catch (error) {

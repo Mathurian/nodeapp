@@ -18,7 +18,7 @@ import {
   errorResponse
 } from '../utils/responseHelpers';
 import { ErrorCode } from '../types/errors';
-import { PrismaClient, Prisma, User, Judge, Contestant } from '@prisma/client';
+import { PrismaClient, Prisma, User, Judge, Contestant, FileCategory } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 import { FILE_SIZE } from '../config/constants';
@@ -757,6 +757,38 @@ export class UsersController {
         });
       }
 
+      // Mirror uploads into files table so File Management has a complete index.
+      try {
+        const fileCategory: FileCategory =
+          currentUser?.role === 'JUDGE'
+            ? 'JUDGE_IMAGE'
+            : currentUser?.role === 'CONTESTANT'
+              ? 'CONTESTANT_IMAGE'
+              : 'OTHER';
+        await this.prisma.file.create({
+          data: {
+            tenantId: authReq.user?.tenantId || 'default_tenant',
+            filename: authReq.file.filename,
+            originalName: authReq.file.originalname,
+            mimeType: authReq.file.mimetype,
+            size: authReq.file.size,
+            path: authReq.file.path || `uploads/users/${authReq.file.filename}`,
+            category: fileCategory,
+            uploadedBy: requestingUserId || id,
+            isPublic: true,
+            metadata: JSON.stringify({
+              source: 'user_image_upload',
+              userId: id
+            })
+          }
+        });
+      } catch (fileIndexError) {
+        log.warn('Unable to index user image in files table', {
+          userId: id,
+          error: (fileIndexError as Error).message
+        });
+      }
+
       log.info('User image uploaded successfully', { userId: id, imagePath });
       sendSuccess(res, {
         message: 'Image uploaded successfully',
@@ -962,6 +994,32 @@ export class UsersController {
           contestant: true
         }
       }) as UserWithRelations;
+
+      // Mirror bio uploads into files table for File Management and reporting discoverability.
+      try {
+        await this.prisma.file.create({
+          data: {
+            tenantId: authReq.user?.tenantId || 'default_tenant',
+            filename: authReq.file.filename,
+            originalName: authReq.file.originalname,
+            mimeType: authReq.file.mimetype,
+            size: authReq.file.size,
+            path: authReq.file.path || `uploads/users/bios/${authReq.file.filename}`,
+            category: 'DOCUMENT',
+            uploadedBy: requestingUserId || id,
+            isPublic: true,
+            metadata: JSON.stringify({
+              source: 'user_bio_upload',
+              userId: id
+            })
+          }
+        });
+      } catch (fileIndexError) {
+        log.warn('Unable to index user bio file in files table', {
+          userId: id,
+          error: (fileIndexError as Error).message
+        });
+      }
 
       // Invalidate cache
       userCache.invalidate(id);

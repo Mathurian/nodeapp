@@ -28,20 +28,33 @@ export class SearchController {
       const userId = req.user.id;
       const {
         query,
+        q,
         entityTypes,
+        type,
         filters,
         limit = 20,
         offset = 0,
         facets,
       } = req.query;
 
-      if (!query || typeof query !== 'string') {
+      const resolvedQuery = (typeof query === 'string' ? query : undefined)
+        || (typeof q === 'string' ? q : undefined);
+
+      if (!resolvedQuery) {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
 
+      // Accept legacy/simple "type" filter used by frontend and map to entityTypes.
+      const resolvedEntityTypes =
+        typeof entityTypes === 'string' && entityTypes.trim().length > 0
+          ? entityTypes.split(',')
+          : typeof type === 'string' && type !== 'ALL'
+            ? [type]
+            : undefined;
+
       const options = {
-        query,
-        entityTypes: entityTypes ? (entityTypes as string).split(',') : undefined,
+        query: resolvedQuery,
+        entityTypes: resolvedEntityTypes,
         filters: filters ? JSON.parse(filters as string) : undefined,
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
@@ -69,14 +82,17 @@ export class SearchController {
 
       const userId = req.user.id;
       const { type } = req.params;
-      const { query, filters, limit = 20, offset = 0 } = req.query;
+      const { query, q, filters, limit = 20, offset = 0 } = req.query;
 
-      if (!query || typeof query !== 'string') {
+      const resolvedQuery = (typeof query === 'string' ? query : undefined)
+        || (typeof q === 'string' ? q : undefined);
+
+      if (!resolvedQuery) {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
 
       const options = {
-        query,
+        query: resolvedQuery,
         filters: filters ? JSON.parse(filters as string) : undefined,
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
@@ -101,13 +117,16 @@ export class SearchController {
         return;
       }
 
-      const { query, limit = 5 } = req.query;
+      const { query, q, limit = 5 } = req.query;
 
-      if (!query || typeof query !== 'string') {
+      const resolvedQuery = (typeof query === 'string' ? query : undefined)
+        || (typeof q === 'string' ? q : undefined);
+
+      if (!resolvedQuery) {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
 
-      const suggestions = await this.searchService.getSearchSuggestions(query, parseInt(limit as string));
+      const suggestions = await this.searchService.getSearchSuggestions(resolvedQuery, parseInt(limit as string));
 
       return sendSuccess(res, suggestions);
     } catch (error) {

@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { uploadAPI } from '../services/api'
+import { uploadAPI, api } from '../services/api'
 import {
-  FolderIcon,
-  DocumentIcon,
-  CloudArrowUpIcon,
   CloudArrowDownIcon,
   TrashIcon,
   EyeIcon,
@@ -23,6 +20,7 @@ interface FileItem {
   uploadedBy: string
   createdAt: string
   url: string
+  source?: 'managed' | 'derived'
 }
 
 const FileManagementPage: React.FC = () => {
@@ -41,14 +39,23 @@ const FileManagementPage: React.FC = () => {
   const fetchFiles = async () => {
     try {
       setLoading(true)
-      const response = await uploadAPI.getFiles()
+      const [response, biosResponse, emceeResponse] = await Promise.all([
+        uploadAPI.getFiles(),
+        api.get('/bios/directory').catch(() => ({ data: { data: {} } })),
+        api.get('/emcee/scripts').catch(() => ({ data: [] }))
+      ])
       const unwrapped = response.data?.data || response.data
       const rows = Array.isArray(unwrapped)
         ? unwrapped
         : Array.isArray(unwrapped?.files)
           ? unwrapped.files
           : []
-      const normalized: FileItem[] = rows.map((file: any) => ({
+      const normalized: FileItem[] = rows.map((file: any) => {
+        const rawUrl = file.url || file.publicUrl || file.path || ''
+        const url = typeof rawUrl === 'string' && rawUrl.startsWith('uploads/')
+          ? `/${rawUrl}`
+          : rawUrl
+        return {
         id: file.id,
         filename: file.filename || file.originalName || file.id,
         originalName: file.originalName || file.filename || 'Unnamed file',
@@ -57,9 +64,88 @@ const FileManagementPage: React.FC = () => {
         type: file.type || file.category || 'OTHER',
         uploadedBy: file.uploadedBy || '',
         createdAt: file.createdAt || file.uploadedAt || new Date().toISOString(),
-        url: file.url || file.publicUrl || file.path || '',
-      }))
-      setFiles(normalized)
+        url,
+        source: 'managed' as const,
+      }})
+
+      const biosPayload = biosResponse.data?.data || biosResponse.data || {}
+      const contestantRows = Array.isArray(biosPayload?.contestants) ? biosPayload.contestants : []
+      const judgeRows = Array.isArray(biosPayload?.judges) ? biosPayload.judges : []
+      const emceeRows = Array.isArray(emceeResponse.data?.data)
+        ? emceeResponse.data.data
+        : Array.isArray(emceeResponse.data)
+          ? emceeResponse.data
+          : []
+
+      const derivedFromBios: FileItem[] = []
+      const inferMime = (pathValue: string): string => {
+        const lower = pathValue.toLowerCase()
+        if (/\.(png|jpg|jpeg|gif|webp)$/i.test(lower)) return 'image/*'
+        if (lower.endsWith('.pdf')) return 'application/pdf'
+        if (/\.(doc|docx)$/i.test(lower)) return 'application/msword'
+        if (lower.endsWith('.txt')) return 'text/plain'
+        return 'application/octet-stream'
+      }
+      const toName = (pathValue: string): string => pathValue.split('/').filter(Boolean).pop() || pathValue
+
+      ;[...contestantRows, ...judgeRows].forEach((person: any) => {
+        const personType = person?.contestantNumber !== undefined ? 'CONTESTANT_IMAGE' : 'JUDGE_IMAGE'
+        if (person?.imagePath) {
+          derivedFromBios.push({
+            id: `derived-image-${person.id}`,
+            filename: toName(person.imagePath),
+            originalName: toName(person.imagePath),
+            mimetype: inferMime(person.imagePath),
+            size: 0,
+            type: personType,
+            uploadedBy: person?.name || '',
+            createdAt: new Date().toISOString(),
+            url: person.imagePath,
+            source: 'derived'
+          })
+        }
+        if (person?.bioFilePath) {
+          derivedFromBios.push({
+            id: `derived-bio-${person.id}`,
+            filename: toName(person.bioFilePath),
+            originalName: toName(person.bioFilePath),
+            mimetype: inferMime(person.bioFilePath),
+            size: 0,
+            type: 'DOCUMENT',
+            uploadedBy: person?.name || '',
+            createdAt: new Date().toISOString(),
+            url: person.bioFilePath,
+            source: 'derived'
+          })
+        }
+      })
+
+      const derivedScripts: FileItem[] = emceeRows
+        .filter((script: any) => !!script?.filePath)
+        .map((script: any) => ({
+          id: `derived-script-${script.id}`,
+          filename: toName(script.filePath),
+          originalName: toName(script.filePath),
+          mimetype: inferMime(script.filePath),
+          size: 0,
+          type: 'DOCUMENT',
+          uploadedBy: script.title || 'Emcee Script',
+          createdAt: script.createdAt || new Date().toISOString(),
+          url: script.filePath,
+          source: 'derived' as const
+        }))
+
+      const allFiles = [...normalized, ...derivedFromBios, ...derivedScripts]
+      const deduped: FileItem[] = []
+      const seen = new Set<string>()
+      allFiles.forEach((file) => {
+        const key = `${file.url}|${file.originalName}`
+        if (seen.has(key)) return
+        seen.add(key)
+        deduped.push(file)
+      })
+
+      setFiles(deduped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load files')
     } finally {
@@ -85,6 +171,10 @@ const FileManagementPage: React.FC = () => {
   }
 
   const deleteFile = async (id: string) => {
+    if (id.startsWith('derived-')) {
+      setError('This file is indexed from related modules and must be deleted from its source page.')
+      return
+    }
     if (!confirm('Are you sure you want to delete this file?')) return
     try {
       await uploadAPI.deleteFile(id)
@@ -280,6 +370,7 @@ const FileManagementPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => deleteFile(file.id)}
+                            disabled={file.source === 'derived'}
                             className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
                             title="Delete"
                           >

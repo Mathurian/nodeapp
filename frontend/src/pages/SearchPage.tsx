@@ -47,7 +47,23 @@ const SearchPage: React.FC = () => {
         },
       })
       const payload = response.data?.data || response.data?.results || response.data || []
-      setResults(Array.isArray(payload) ? payload : [])
+      const rawResults = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.results)
+          ? payload.results
+          : []
+
+      const normalized: SearchResult[] = rawResults.map((item: any, index: number) => ({
+        id: String(item?.id || item?.entityId || `${item?.type || item?.entityType || 'result'}-${index}`),
+        type: String(item?.type || item?.entityType || 'USER').toUpperCase() as SearchResult['type'],
+        title: item?.title || item?.name || item?.label || 'Untitled',
+        subtitle: item?.subtitle || item?.email || item?.role,
+        description: item?.description || item?.summary,
+        url: item?.url || item?.path,
+        metadata: item?.metadata,
+      }))
+
+      setResults(normalized)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Search failed')
     } finally {
