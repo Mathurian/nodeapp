@@ -21,6 +21,11 @@ interface EmailTemplate {
   updatedAt: string
 }
 
+interface TemplatePreview {
+  subject: string
+  html?: string
+}
+
 const EmailTemplatesPage: React.FC = () => {
   const { user } = useAuth()
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
@@ -28,6 +33,11 @@ const EmailTemplatesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [showPreview, setShowPreview] = useState<EmailTemplate | null>(null)
+  const [previewContent, setPreviewContent] = useState<TemplatePreview | null>(null)
+  const [showSendModal, setShowSendModal] = useState<EmailTemplate | null>(null)
+  const [sendRecipients, setSendRecipients] = useState('')
+  const [sendRoles, setSendRoles] = useState<string[]>([])
+  const [sendVariables, setSendVariables] = useState('{}')
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null)
   const [formData, setFormData] = useState<{
     name: string
@@ -106,6 +116,57 @@ const EmailTemplatesPage: React.FC = () => {
       await fetchTemplates()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete template')
+    }
+  }
+
+  const openPreview = async (template: EmailTemplate) => {
+    setShowPreview(template)
+    setPreviewContent({ subject: template.subject, html: template.body })
+    try {
+      const response = await emailAPI.previewTemplate(template.id, {})
+      const payload = response.data?.data || response.data
+      setPreviewContent({
+        subject: payload?.subject || template.subject,
+        html: payload?.html || template.body,
+      })
+    } catch {
+      setPreviewContent({ subject: template.subject, html: template.body })
+    }
+  }
+
+  const submitSendTemplate = async () => {
+    if (!showSendModal) return
+
+    const recipients = sendRecipients
+      .split(/[,\n]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+
+    let parsedVariables: Record<string, string> = {}
+    if (sendVariables.trim()) {
+      try {
+        parsedVariables = JSON.parse(sendVariables)
+      } catch {
+        setError('Variables must be valid JSON object')
+        return
+      }
+    }
+
+    try {
+      const response = await emailAPI.sendTemplate(showSendModal.id, {
+        recipients,
+        roles: sendRoles,
+        variables: parsedVariables,
+      })
+      const payload = response.data?.data || response.data
+      setError(null)
+      alert(`Template send completed. Sent: ${payload?.sent ?? 0}, Failed: ${payload?.failed ?? 0}`)
+      setShowSendModal(null)
+      setSendRecipients('')
+      setSendRoles([])
+      setSendVariables('{}')
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to send template email')
     }
   }
 
@@ -259,11 +320,17 @@ const EmailTemplatesPage: React.FC = () => {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowPreview(template)}
+                    onClick={() => openPreview(template)}
                     className="flex-1 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-sm"
                   >
                     <EyeIcon className="h-4 w-4 inline mr-1" />
                     Preview
+                  </button>
+                  <button
+                    onClick={() => setShowSendModal(template)}
+                    className="flex-1 px-3 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors text-sm"
+                  >
+                    Send
                   </button>
                   <button
                     onClick={() => openEditModal(template)}
@@ -397,14 +464,14 @@ const EmailTemplatesPage: React.FC = () => {
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Subject:
                   </p>
-                  <p className="text-gray-900 dark:text-white dark:text-white">{showPreview.subject}</p>
+                  <p className="text-gray-900 dark:text-white dark:text-white">{previewContent?.subject || showPreview.subject}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Body:
                   </p>
                   <div className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700 p-4 rounded-lg whitespace-pre-wrap text-gray-900 dark:text-white dark:text-white">
-                    {showPreview.body}
+                    {previewContent?.html || showPreview.body}
                   </div>
                 </div>
               </div>
@@ -414,6 +481,74 @@ const EmailTemplatesPage: React.FC = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Send Modal */}
+        {showSendModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6 space-y-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Send Template: {showSendModal.name}
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Recipients (comma or newline separated)
+                </label>
+                <textarea
+                  rows={3}
+                  value={sendRecipients}
+                  onChange={(e) => setSendRecipients(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="user1@example.com, user2@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Add Recipients by Role
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT'].map((role) => (
+                    <label key={role} className="text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        className="mr-2"
+                        checked={sendRoles.includes(role)}
+                        onChange={(e) => {
+                          setSendRoles((prev) => e.target.checked ? [...prev, role] : prev.filter((r) => r !== role))
+                        }}
+                      />
+                      {role.replace('_', ' ')}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Template Variables (JSON)
+                </label>
+                <textarea
+                  rows={4}
+                  value={sendVariables}
+                  onChange={(e) => setSendVariables(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={submitSendTemplate}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                >
+                  Send Template
+                </button>
+                <button
+                  onClick={() => setShowSendModal(null)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}

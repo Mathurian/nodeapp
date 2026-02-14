@@ -15,8 +15,6 @@ import {
   PencilIcon,
   TrashIcon,
   XMarkIcon,
-  EyeIcon,
-  EyeSlashIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 
@@ -53,7 +51,6 @@ interface Script {
   title: string
   description: string | null
   filePath: string
-  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -193,23 +190,6 @@ const EmceePage: React.FC = () => {
     }
   )
 
-  // Toggle script mutation
-  const toggleScriptMutation = useMutation(
-    async (id: string) => {
-      const response = await api.patch(`/emcee/scripts/${id}/toggle`)
-      return response.data
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('emcee-scripts')
-        toast.success('Script status updated!')
-      },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to toggle script'
-        toast.error(`Error toggling script: ${errorMessage}`)
-      },
-    }
-  )
 
   const handleEditScript = (script: Script) => {
     setEditingScript(script)
@@ -274,10 +254,6 @@ const EmceePage: React.FC = () => {
     if (confirm('Are you sure you want to delete this script?')) {
       deleteScriptMutation.mutate(id)
     }
-  }
-
-  const handleToggleScript = (id: string) => {
-    toggleScriptMutation.mutate(id)
   }
 
   const handleViewScript = async (scriptId: string) => {
@@ -578,7 +554,7 @@ const EmceePage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Emcee Scripts</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Manage scripts and speaking notes
+                  Manage scripts and speaking notes. Uploaded scripts are immediately available to emcee viewers.
                 </p>
               </div>
               {canManageScripts && (
@@ -617,15 +593,6 @@ const EmceePage: React.FC = () => {
                             <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {script.title}
                             </h3>
-                            {script.isActive ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                                Inactive
-                              </span>
-                            )}
                           </div>
                           {script.description && (
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
@@ -646,17 +613,6 @@ const EmceePage: React.FC = () => {
                           </button>
                           {canManageScripts && (
                             <>
-                              <button
-                                onClick={() => handleToggleScript(script.id)}
-                                className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                title={script.isActive ? 'Deactivate' : 'Activate'}
-                              >
-                                {script.isActive ? (
-                                  <EyeSlashIcon className="h-5 w-5" />
-                                ) : (
-                                  <EyeIcon className="h-5 w-5" />
-                                )}
-                              </button>
                               <button
                                 onClick={() => handleEditScript(script)}
                                 className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"

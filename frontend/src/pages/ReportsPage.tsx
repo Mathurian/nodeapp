@@ -1,204 +1,297 @@
-import React, { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import React, { useEffect, useState } from 'react'
+import { reportsAPI, api } from '../services/api'
 import {
   ChartBarIcon,
   DocumentArrowDownIcon,
   CalendarIcon,
   TrophyIcon,
-  UsersIcon,
-  ClockIcon,
   CheckCircleIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 
+type ReportType = 'event' | 'contest' | 'system'
+type ExportFormat = 'pdf' | 'excel' | 'csv'
+
+interface BasicOption {
+  id: string
+  name: string
+}
+
+interface ReportInstance {
+  id: string
+  name: string
+  type: string
+  format?: string | null
+  generatedAt: string
+}
+
 const ReportsPage: React.FC = () => {
-  const { user } = useAuth()
-  const [selectedReport, setSelectedReport] = useState<string>('')
-  const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [type, setType] = useState<ReportType>('event')
+  const [eventId, setEventId] = useState('')
+  const [contestId, setContestId] = useState('')
+  const [events, setEvents] = useState<BasicOption[]>([])
+  const [contests, setContests] = useState<BasicOption[]>([])
+  const [instances, setInstances] = useState<ReportInstance[]>([])
+  const [sendingReportId, setSendingReportId] = useState<string | null>(null)
+  const [emailRecipients, setEmailRecipients] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
-  const reportTypes = [
-    {
-      id: 'event-summary',
-      name: 'Event Summary Report',
-      description: 'Overview of event statistics and participation',
-      icon: CalendarIcon,
-      color: 'blue',
-    },
-    {
-      id: 'contest-results',
-      name: 'Contest Results Report',
-      description: 'Detailed results for contests and categories',
-      icon: TrophyIcon,
-      color: 'purple',
-    },
-    {
-      id: 'judge-activity',
-      name: 'Judge Activity Report',
-      description: 'Judging statistics and completion rates',
-      icon: UsersIcon,
-      color: 'green',
-    },
-    {
-      id: 'scoring-analytics',
-      name: 'Scoring Analytics',
-      description: 'Score distributions and trends',
-      icon: ChartBarIcon,
-      color: 'indigo',
-    },
-    {
-      id: 'certification-status',
-      name: 'Certification Status Report',
-      description: 'Certification progress across all categories',
-      icon: CheckCircleIcon,
-      color: 'green',
-    },
-    {
-      id: 'timeline-report',
-      name: 'Event Timeline Report',
-      description: 'Chronological view of event activities',
-      icon: ClockIcon,
-      color: 'yellow',
-    },
-  ]
+  const loadOptions = async () => {
+    const [eventResponse, contestResponse] = await Promise.all([
+      api.get('/events').catch(() => ({ data: { data: [] } })),
+      api.get('/contests').catch(() => ({ data: { data: [] } })),
+    ])
 
-  const handleGenerateReport = () => {
-    if (!selectedReport) {
-      alert('Please select a report type')
-      return
-    }
-    alert(`Generating ${reportTypes.find(r => r.id === selectedReport)?.name}...`)
+    const eventData = eventResponse.data?.data || eventResponse.data || []
+    const contestData = contestResponse.data?.data || contestResponse.data || []
+
+    setEvents(Array.isArray(eventData) ? eventData.map((e: any) => ({ id: e.id, name: e.name })) : [])
+    setContests(Array.isArray(contestData) ? contestData.map((c: any) => ({ id: c.id, name: c.name })) : [])
   }
 
-  const getColorClasses = (color: string) => {
-    const colors: Record<string, string> = {
-      blue: 'bg-blue-100 text-blue-600',
-      purple: 'bg-purple-100 text-purple-600',
-      green: 'bg-green-100 text-green-600',
-      indigo: 'bg-indigo-100 text-indigo-600',
-      yellow: 'bg-yellow-100 text-yellow-600',
-      orange: 'bg-orange-100 text-orange-600',
+  const loadInstances = async () => {
+    const response = await reportsAPI.getAll()
+    const payload = response.data?.data || response.data || []
+    setInstances(Array.isArray(payload) ? payload : [])
+  }
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        setIsLoading(true)
+        await Promise.all([loadOptions(), loadInstances()])
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to load reports data')
+      } finally {
+        setIsLoading(false)
+      }
+    })()
+  }, [])
+
+  const handleGenerateReport = async () => {
+    try {
+      if (type === 'event' && !eventId) {
+        setError('Select an event for event report generation')
+        return
+      }
+      if (type === 'contest' && !contestId) {
+        setError('Select a contest for contest report generation')
+        return
+      }
+
+      setIsGenerating(true)
+      setError(null)
+      setMessage(null)
+      await reportsAPI.generate({
+        type,
+        ...(type === 'event' ? { eventId } : {}),
+        ...(type === 'contest' ? { contestId } : {}),
+      })
+      setMessage('Report generated successfully')
+      await loadInstances()
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Report generation failed')
+    } finally {
+      setIsGenerating(false)
     }
-    return colors[color] || colors.blue
+  }
+
+  const handleExport = async (id: string, format: ExportFormat) => {
+    try {
+      const response =
+        format === 'pdf'
+          ? await reportsAPI.exportPdf(id)
+          : format === 'excel'
+            ? await reportsAPI.exportExcel(id)
+            : await reportsAPI.exportCsv(id)
+      const blob = new Blob([response.data], {
+        type:
+          format === 'pdf'
+            ? 'application/pdf'
+            : format === 'excel'
+              ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              : 'text/csv',
+      })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `report-${id}.${format === 'excel' ? 'xlsx' : format}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setError(err.response?.data?.error || `Failed to export ${format.toUpperCase()}`)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!sendingReportId) return
+    const recipients = emailRecipients
+      .split(/[,\n]/)
+      .map((v) => v.trim())
+      .filter(Boolean)
+    if (recipients.length === 0) {
+      setError('Enter at least one email recipient')
+      return
+    }
+    try {
+      setError(null)
+      await reportsAPI.sendEmail({ reportId: sendingReportId, recipients })
+      setMessage('Report email request completed')
+      setSendingReportId(null)
+      setEmailRecipients('')
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to send report email')
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400">Loading reports...</div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
             <ChartBarIcon className="h-8 w-8 mr-3 text-blue-600" />
             Reports & Analytics
           </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-            Generate comprehensive reports and view analytics
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Generate reports and export/download generated artifacts.
           </p>
         </div>
 
-        {/* Report Generator */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Generate Report</h2>
+        {error && <div className="p-3 rounded bg-red-50 text-red-700 border border-red-200">{error}</div>}
+        {message && <div className="p-3 rounded bg-green-50 text-green-700 border border-green-200">{message}</div>}
 
-          <div className="space-y-4">
-            {/* Report Type Selection */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generate Report</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Report Type
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
               <select
-                value={selectedReport}
-                onChange={(e) => setSelectedReport(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={type}
+                onChange={(e) => setType(e.target.value as ReportType)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
               >
-                <option value="">Select a report type...</option>
-                {reportTypes.map((report) => (
-                  <option key={report.id} value={report.id}>
-                    {report.name}
-                  </option>
-                ))}
+                <option value="event">Event</option>
+                <option value="contest">Contest</option>
+                <option value="system">System</option>
               </select>
             </div>
 
-            {/* Date Range */}
-            <div className="grid grid-cols-2 gap-4">
+            {type === 'event' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
+                <select
+                  value={eventId}
+                  onChange={(e) => setEventId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                >
+                  <option value="">Select event...</option>
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>{event.name}</option>
+                  ))}
+                </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
+            )}
 
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerateReport}
-              className="w-full px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center"
-            >
-              <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-              Generate Report
-            </button>
+            {type === 'contest' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest</label>
+                <select
+                  value={contestId}
+                  onChange={(e) => setContestId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                >
+                  <option value="">Select contest...</option>
+                  {contests.map((contest) => (
+                    <option key={contest.id} value={contest.id}>{contest.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
+
+          <button
+            onClick={handleGenerateReport}
+            disabled={isGenerating}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center"
+          >
+            <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+            {isGenerating ? 'Generating...' : 'Generate Report'}
+          </button>
         </div>
 
-        {/* Available Reports */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Available Reports</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {reportTypes.map((report) => (
-              <button
-                key={report.id}
-                onClick={() => setSelectedReport(report.id)}
-                className={`bg-white shadow rounded-lg p-6 text-left hover:shadow-lg transition-shadow ${
-                  selectedReport === report.id ? 'ring-2 ring-blue-500' : ''
-                }`}
-              >
-                <div className={`rounded-full p-3 inline-flex ${getColorClasses(report.color)} mb-4`}>
-                  <report.icon className="h-6 w-6" />
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Generated Reports</h2>
+          {instances.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No reports generated yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {instances.map((instance) => (
+                <div key={instance.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {instance.name || `${instance.type} report`}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3">
+                        <span className="flex items-center"><CalendarIcon className="h-4 w-4 mr-1" />{new Date(instance.generatedAt).toLocaleString()}</span>
+                        <span className="flex items-center"><TrophyIcon className="h-4 w-4 mr-1" />{instance.type}</span>
+                        <span className="flex items-center"><CheckCircleIcon className="h-4 w-4 mr-1" />{instance.format || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => handleExport(instance.id, 'pdf')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">PDF</button>
+                      <button onClick={() => handleExport(instance.id, 'excel')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">Excel</button>
+                      <button onClick={() => handleExport(instance.id, 'csv')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">CSV</button>
+                      <button
+                        onClick={() => setSendingReportId(instance.id)}
+                        className="px-3 py-1 text-xs rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center"
+                      >
+                        <EnvelopeIcon className="h-4 w-4 mr-1" />
+                        Email
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {report.name}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
-                  {report.description}
-                </p>
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Report Formats Info */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">Export Formats</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-            <div>
-              <p className="font-medium">PDF</p>
-              <p className="text-xs">Professional formatted documents</p>
-            </div>
-            <div>
-              <p className="font-medium">Excel</p>
-              <p className="text-xs">Data analysis and manipulation</p>
-            </div>
-            <div>
-              <p className="font-medium">CSV</p>
-              <p className="text-xs">Import into other systems</p>
+        {sendingReportId && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Report</h3>
+              <textarea
+                rows={4}
+                value={emailRecipients}
+                onChange={(e) => setEmailRecipients(e.target.value)}
+                placeholder="recipient1@example.com, recipient2@example.com"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              />
+              <div className="flex gap-3">
+                <button onClick={handleSend} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                  Send
+                </button>
+                <button onClick={() => setSendingReportId(null)} className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

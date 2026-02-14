@@ -49,6 +49,46 @@ const EXECUTION_IN_PROGRESS = 'in_progress';
 const EXECUTION_COMPLETED = 'completed';
 
 export class WorkflowService {
+  private static async initializeDefaultsForTenant(tenantId: string): Promise<void> {
+    const existingCount = await prisma.workflowTemplate.count({ where: { tenantId } });
+    if (existingCount > 0) return;
+
+    const defaults: WorkflowTemplateInput[] = [
+      {
+        tenantId,
+        name: 'Score Certification Pipeline',
+        description: 'Judge -> Tally -> Auditor -> Board/Organizer multi-step certification workflow',
+        type: 'certification',
+        isDefault: true,
+        isActive: true,
+        steps: [
+          { name: 'Judge Certification', stepOrder: 1, requiredRole: 'JUDGE', requireApproval: true },
+          { name: 'Tally Review', stepOrder: 2, requiredRole: 'TALLY_MASTER', requireApproval: true },
+          { name: 'Auditor Review', stepOrder: 3, requiredRole: 'AUDITOR', requireApproval: true },
+          { name: 'Board/Organizer Final', stepOrder: 4, requiredRole: 'ORGANIZER', requireApproval: true },
+        ],
+      },
+      {
+        tenantId,
+        name: 'Score Governance Request Flow',
+        description: 'Governed request/approval flow for score removals or uncertifications',
+        type: 'governance',
+        isDefault: true,
+        isActive: true,
+        steps: [
+          { name: 'Request Submitted', stepOrder: 1, requiredRole: 'JUDGE', requireApproval: true },
+          { name: 'Primary Review', stepOrder: 2, requiredRole: 'TALLY_MASTER', requireApproval: true },
+          { name: 'Secondary Approval', stepOrder: 3, requiredRole: 'AUDITOR', requireApproval: true },
+          { name: 'Final Authorization', stepOrder: 4, requiredRole: 'ADMIN', requireApproval: true },
+        ],
+      },
+    ];
+
+    for (const template of defaults) {
+      await this.createTemplate(template);
+    }
+  }
+
   private static normalizeStepInput(steps: WorkflowStepInput[]): WorkflowStepInput[] {
     return steps
       .filter((step) => step?.name?.trim())
@@ -169,13 +209,24 @@ export class WorkflowService {
    */
   static async listTemplates(tenantId: string, type?: string): Promise<WorkflowTemplateView[]> {
     try {
-      const templates = await prisma.workflowTemplate.findMany({
+      let templates = await prisma.workflowTemplate.findMany({
         where: {
           tenantId,
           ...(type ? { type } : {})
         },
         orderBy: { createdAt: 'desc' }
       });
+
+      if (templates.length === 0) {
+        await this.initializeDefaultsForTenant(tenantId);
+        templates = await prisma.workflowTemplate.findMany({
+          where: {
+            tenantId,
+            ...(type ? { type } : {})
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+      }
 
       const steps = await prisma.workflowStep.findMany({
         where: {

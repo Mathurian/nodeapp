@@ -40,6 +40,25 @@ const ROLES: UserRole[] = [
   'CONTESTANT',
 ];
 
+const RESOURCE_DESCRIPTIONS: Record<string, string> = {
+  events: 'Event lifecycle and configuration',
+  contests: 'Contest setup and visibility',
+  categories: 'Category structure and criteria',
+  users: 'Tenant user account management',
+  assignments: 'Judge/tally/auditor assignment mapping',
+  scores: 'Score entry and score visibility',
+  results: 'Results and standings access',
+  reports: 'Report generation/export/email',
+  settings: 'Tenant-level system settings',
+  permissions: 'Role permission matrix controls',
+  notifications: 'Notification and messaging controls',
+  templates: 'Template authoring and usage',
+  workflows: 'Workflow templates and execution',
+  deductions: 'Score deduction governance',
+  certifications: 'Certification pipeline actions',
+  '*': 'Global wildcard permission',
+}
+
 const PermissionsPage: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -51,6 +70,11 @@ const PermissionsPage: React.FC = () => {
 
   // Check if user is admin
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER';
+  const canEditRole = (role: UserRole): boolean => {
+    if (user?.role === 'SUPER_ADMIN') return true;
+    return role !== 'SUPER_ADMIN';
+  };
+  const visibleRoles = ROLES.filter((role) => user?.role === 'SUPER_ADMIN' || role !== 'SUPER_ADMIN');
 
   // Fetch all permissions
   const { data: permissions, isLoading } = useQuery<RolePermission[]>(
@@ -217,7 +241,7 @@ const PermissionsPage: React.FC = () => {
     );
   }
 
-  const rolesToDisplay = selectedRole === 'ALL' ? ROLES : [selectedRole];
+  const rolesToDisplay = (selectedRole === 'ALL' ? visibleRoles : [selectedRole]).filter((role) => visibleRoles.includes(role));
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
@@ -305,7 +329,7 @@ const PermissionsPage: React.FC = () => {
                   className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="ALL">All Roles</option>
-                  {ROLES.map((role) => (
+                  {visibleRoles.map((role) => (
                     <option key={role} value={role}>
                       {role.replace('_', ' ')}
                     </option>
@@ -405,23 +429,28 @@ const PermissionsPage: React.FC = () => {
                         <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                           {resource}:{operation}
                         </code>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-sm whitespace-normal">
+                          {RESOURCE_DESCRIPTIONS[resource] || 'Permission scope for this resource'}
+                        </p>
                       </td>
                       {rolesToDisplay.map((role) => {
                         const key = `${resource}:${operation}`;
                         const permission = permissionMatrix[role]?.[key];
                         const isAllowed = permission?.allowed ?? false;
 
+                        const editable = canEditRole(role);
                         return (
                           <td key={role} className="px-6 py-4 whitespace-nowrap text-center">
                             <button
                               onClick={() =>
-                                handleTogglePermission(role, resource, operation, isAllowed)
+                                editable && handleTogglePermission(role, resource, operation, isAllowed)
                               }
+                              disabled={!editable}
                               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                                 isAllowed
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50'
                                   : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50'
-                              }`}
+                              } ${editable ? '' : 'opacity-60 cursor-not-allowed'}`}
                             >
                               {isAllowed ? (
                                 <>

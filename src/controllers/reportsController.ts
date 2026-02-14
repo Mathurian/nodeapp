@@ -132,6 +132,7 @@ export class ReportsController {
       const prisma = require('../config/database').default;
 
       let reportData;
+      let reportName = 'Generated Report';
       if (type === 'event' && eventId) {
         // SECURITY: Verify user has access to this event
         const event = await prisma.event.findFirst({
@@ -151,6 +152,7 @@ export class ReportsController {
         }
 
         reportData = await this.generationService.generateEventReportData(eventId, userId);
+        reportName = 'Event Summary Report';
       } else if (type === 'contest' && contestId) {
         // SECURITY: Verify user has access to this contest
         const contest = await prisma.contest.findFirst({
@@ -170,15 +172,31 @@ export class ReportsController {
         }
 
         reportData = await this.generationService.generateContestResultsData(contestId, userId);
+        reportName = 'Contest Results Report';
       } else if (type === 'system') {
         // SECURITY: Pass tenantId and userRole for proper tenant scoping
         reportData = await this.generationService.generateSystemAnalyticsData(userId, tenantId, userRole);
+        reportName = 'System Analytics Report';
       } else {
         res.status(400).json({ error: 'Invalid report type or missing parameters' });
         return;
       }
 
-      res.status(201).json(reportData);
+      const instance = await this.instanceService.createInstance({
+        type,
+        name: reportName,
+        generatedById: userId,
+        format: 'PDF',
+        tenantId,
+        data: JSON.stringify(reportData ?? {}),
+      });
+
+      res.status(201).json({
+        data: {
+          instance,
+          preview: reportData,
+        }
+      });
     } catch (error) {
       return next(error);
     }

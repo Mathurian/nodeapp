@@ -7,6 +7,7 @@ import {
   getContestantBios,
   getJudgeBios,
   getBioDirectory,
+  getBioFile,
   updateContestantBio,
   updateJudgeBio
 } from '../controllers/bioController';
@@ -55,6 +56,7 @@ router.use(authenticateToken)
  */
 router.get('/contestants', getContestantBios)
 router.get('/directory', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'JUDGE', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR']), getBioDirectory)
+router.get('/files/:filename', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'JUDGE', 'CONTESTANT', 'TALLY_MASTER', 'AUDITOR']), getBioFile)
 
 /**
  * @swagger

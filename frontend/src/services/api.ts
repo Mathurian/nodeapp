@@ -464,6 +464,8 @@ export const emailAPI = {
   updateTemplate: (id: string, data: any) => api.put(`/email-templates/${id}`, data),
   deleteTemplate: (id: string) => api.delete(`/email-templates/${id}`),
   previewTemplate: (id: string, variables: Record<string, string>) => api.post(`/email-templates/${id}/preview`, { variables }),
+  sendTemplate: (id: string, data: { recipients?: string[]; roles?: string[]; variables?: Record<string, string> }) =>
+    api.post(`/email-templates/${id}/send`, data),
   getCampaigns: () => api.get('/email/campaigns'),
   createCampaign: (data: any) => api.post('/email/campaigns', data),
   sendCampaign: (id: string) => api.post(`/email/campaigns/${id}/send`),
@@ -474,14 +476,16 @@ export const emailAPI = {
 }
 
 export const reportsAPI = {
-  generatePDF: (data: any) => api.post('/reports/generate-pdf', data),
-  generateImage: (data: any) => api.post('/reports/generate-image', data),
-  generateCertificate: (data: any) => api.post('/reports/generate-certificate', data),
+  generate: (data: { type: 'event' | 'contest' | 'system'; eventId?: string; contestId?: string }) =>
+    api.post('/reports/generate', data),
   getAll: () => api.get('/reports'),
-  getById: (id: string) => api.get(`/reports/${id}`),
-  create: (data: any) => api.post('/reports', data),
-  update: (id: string, data: any) => api.put(`/reports/${id}`, data),
-  delete: (id: string) => api.delete(`/reports/${id}`),
+  getById: (id: string) => api.get(`/reports/${id}/download`),
+  delete: (id: string) => api.delete(`/reports/instances/${id}`),
+  exportPdf: (id: string) => api.post(`/reports/${id}/export/pdf`, {}),
+  exportExcel: (id: string) => api.post(`/reports/${id}/export/excel`, {}),
+  exportCsv: (id: string) => api.post(`/reports/${id}/export/csv`, {}),
+  sendEmail: (data: { reportId: string; recipients: string[]; subject?: string; message?: string }) =>
+    api.post('/reports/send-email', data),
 }
 
 export const fieldConfigurationAPI = {

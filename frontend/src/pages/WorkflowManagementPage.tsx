@@ -33,6 +33,16 @@ interface WorkflowTemplate {
   steps: WorkflowStep[]
 }
 
+interface WorkflowInstance {
+  id: string
+  entityType: string
+  entityId: string
+  status: string
+  currentStepId?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 interface WorkflowForm {
   name: string
   description: string
@@ -118,6 +128,9 @@ const WorkflowManagementPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null)
   const [form, setForm] = useState<WorkflowForm>(EMPTY_FORM)
+  const [executionTarget, setExecutionTarget] = useState({ entityType: 'CONTEST', entityId: '' })
+  const [instances, setInstances] = useState<WorkflowInstance[]>([])
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
 
   const canManage = useMemo(
     () => ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || ''),
@@ -216,14 +229,41 @@ const WorkflowManagementPage: React.FC = () => {
 
   const executeWorkflow = async (id: string) => {
     try {
+      const resolvedEntityId = executionTarget.entityId || `manual-${Date.now()}`
       await api.post('/workflows/instances', {
         templateId: id,
-        entityType: 'MANUAL_EXECUTION',
-        entityId: `manual-${Date.now()}`,
+        entityType: executionTarget.entityType,
+        entityId: resolvedEntityId,
       })
-      alert('Workflow executed successfully')
+      if (!executionTarget.entityId) {
+        setExecutionTarget((prev) => ({ ...prev, entityId: resolvedEntityId }))
+      }
+      await loadInstancesForEntity()
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to execute workflow')
+    }
+  }
+
+  const loadInstancesForEntity = async () => {
+    if (!executionTarget.entityType || !executionTarget.entityId) return
+    try {
+      const response = await api.get(`/workflows/instances/${executionTarget.entityType}/${executionTarget.entityId}`)
+      const payload = response.data?.data || response.data || []
+      setInstances(Array.isArray(payload) ? payload : [])
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load workflow instances')
+    }
+  }
+
+  const advanceInstance = async (instanceId: string, approvalStatus: 'approved' | 'rejected') => {
+    try {
+      await api.post(`/workflows/instances/${instanceId}/advance`, { approvalStatus })
+      await loadInstancesForEntity()
+      if (selectedInstanceId === instanceId) {
+        setSelectedInstanceId(null)
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to advance workflow')
     }
   }
 
@@ -293,6 +333,75 @@ const WorkflowManagementPage: React.FC = () => {
             <p className="text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Execution Console</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Workflows execute against a target entity. Use this console to run and track workflow progression.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={executionTarget.entityType}
+              onChange={(e) => setExecutionTarget((prev) => ({ ...prev, entityType: e.target.value }))}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              {['CONTEST', 'CATEGORY', 'EVENT', 'CERTIFICATION', 'MANUAL_EXECUTION'].map((typeOption) => (
+                <option key={typeOption} value={typeOption}>{typeOption}</option>
+              ))}
+            </select>
+            <input
+              value={executionTarget.entityId}
+              onChange={(e) => setExecutionTarget((prev) => ({ ...prev, entityId: e.target.value }))}
+              placeholder="Entity ID (required to list existing instances)"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <button
+              onClick={loadInstancesForEntity}
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
+            >
+              Load Instances
+            </button>
+          </div>
+
+          {instances.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {instances.map((instance) => (
+                <div key={instance.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {instance.id}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {instance.entityType}:{instance.entityId} | Status: {instance.status}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => advanceInstance(instance.id, 'approved')}
+                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        Approve / Advance
+                      </button>
+                      <button
+                        onClick={() => advanceInstance(instance.id, 'rejected')}
+                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => setSelectedInstanceId((prev) => (prev === instance.id ? null : instance.id))}
+                        className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded"
+                      >
+                        {selectedInstanceId === instance.id ? 'Hide Details' : 'Details'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {workflows.length === 0 ? (

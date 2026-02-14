@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { BioService } from '../services/BioService';
 import { sendSuccess } from '../utils/responseHelpers';
+import fs from 'fs';
+import path from 'path';
 
 export class BioController {
   private bioService: BioService;
@@ -65,6 +67,33 @@ export class BioController {
     }
   };
 
+  getBioFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const filename = path.basename(req.params['filename'] || '');
+      if (!filename) {
+        return res.status(404).json({ success: false, message: 'Bio file not found' });
+      }
+
+      const legacyPath = path.resolve(process.cwd(), 'uploads/bios', filename);
+      const userBioPath = path.resolve(process.cwd(), 'uploads/users/bios', filename);
+      const targetPath = fs.existsSync(userBioPath)
+        ? userBioPath
+        : fs.existsSync(legacyPath)
+          ? legacyPath
+          : null;
+
+      if (!targetPath) {
+        return res.status(404).json({ success: false, message: 'Bio file not found' });
+      }
+
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      return res.sendFile(targetPath);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   updateContestantBio = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { contestantId } = req.params;
@@ -114,5 +143,6 @@ const controller = new BioController();
 export const getContestantBios = controller.getContestantBios;
 export const getJudgeBios = controller.getJudgeBios;
 export const getBioDirectory = controller.getBioDirectory;
+export const getBioFile = controller.getBioFile;
 export const updateContestantBio = controller.updateContestantBio;
 export const updateJudgeBio = controller.updateJudgeBio;

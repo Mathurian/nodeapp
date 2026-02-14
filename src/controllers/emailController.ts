@@ -280,15 +280,18 @@ export class EmailController {
 
   sendMultipleEmails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { emails } = req.body;
+      const { recipients, subject, body } = req.body;
 
-      if (!emails || !Array.isArray(emails) || emails.length === 0) {
-        return sendBadRequest(res, 'Emails array is required');
+      if (!Array.isArray(recipients) || recipients.length === 0) {
+        return sendBadRequest(res, 'Recipients array is required');
+      }
+      if (!subject || !body) {
+        return sendBadRequest(res, 'Subject and body are required');
       }
 
       const results = await Promise.allSettled(
-        emails.map(async (email: { to: string; subject: string; body: string }) => {
-          return this.emailService.sendEmail(email.to, email.subject, email.body);
+        recipients.map(async (to: string) => {
+          return this.emailService.sendEmail(to, subject, body);
         })
       );
 
@@ -298,7 +301,7 @@ export class EmailController {
       return sendSuccess(res, {
         sent: successful,
         failed: failed,
-        total: emails.length
+        total: recipients.length
       }, 'Multiple emails sent');
     } catch (error) {
       return next(error);
@@ -307,20 +310,20 @@ export class EmailController {
 
   sendEmailByRole = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { role, subject, body } = req.body;
+      const { roles, subject, body } = req.body;
 
-      if (!role) {
-        return sendBadRequest(res, 'Role is required');
+      if (!Array.isArray(roles) || roles.length === 0) {
+        return sendBadRequest(res, 'At least one role is required');
       }
 
       // Get all users with the specified role
       const users = await this.prisma.user.findMany({
-        where: { role },
+        where: { role: { in: roles } as any },
         select: { email: true }
       });
 
       if (users.length === 0) {
-        return sendSuccess(res, { sent: 0 }, 'No users found with that role');
+        return sendSuccess(res, { sent: 0 }, 'No users found with those roles');
       }
 
       // Send email to all users
@@ -335,8 +338,8 @@ export class EmailController {
         sent: successful,
         failed: failed,
         total: users.length,
-        role
-      }, `Emails sent to users with role: ${role}`);
+        roles
+      }, `Emails sent to users with roles: ${roles.join(', ')}`);
     } catch (error) {
       return next(error);
     }

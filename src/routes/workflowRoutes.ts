@@ -59,7 +59,7 @@ router.use(authenticateToken);
  *       401:
  *         description: Unauthorized
  */
-router.get('/templates', workflowController.listTemplates);
+router.get('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.listTemplates);
 
 /**
  * @swagger
@@ -176,7 +176,7 @@ router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOA
  *       404:
  *         description: Template not found
  */
-router.get('/templates/:id', workflowController.getTemplate);
+router.get('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.getTemplate);
 
 /**
  * @swagger

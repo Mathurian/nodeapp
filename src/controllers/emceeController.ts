@@ -277,7 +277,7 @@ export class EmceeController {
   };
 
   /**
-   * Toggle script (legacy endpoint - just returns script)
+   * Toggle script (legacy endpoint kept for backward compatibility)
    */
   toggleScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'emcee');
@@ -288,7 +288,11 @@ export class EmceeController {
         return;
       }
       const script = await this.emceeService.getScript(id);
-      res.json(script);
+      res.status(409).json({
+        success: false,
+        error: 'Script active/inactive state is not supported in the current data model',
+        data: script
+      });
     } catch (error) {
       log.error('Toggle script error:', error);
       return next(error);

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import { EmailTemplateService } from '../services/EmailTemplateService';
+import { EmailService } from '../services/EmailService';
+import { container } from 'tsyringe';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError , sendUnauthorized} from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
@@ -9,6 +11,12 @@ const logger = loggerFactory('EmailTemplateController');
 const emailTemplateService = new EmailTemplateService(prisma);
 
 export class EmailTemplateController {
+  private emailService: EmailService;
+
+  constructor() {
+    this.emailService = container.resolve(EmailService);
+  }
+
   /**
    * GET /api/email-templates
    * Get all email templates
@@ -247,6 +255,79 @@ export class EmailTemplateController {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve available variables';
       logger.error('Error in getAvailableVariables', { error });
+      sendError(res, errorMessage, 500);
+    }
+  }
+
+  /**
+   * POST /api/email-templates/:id/send
+   * Send rendered template to recipients and/or roles within current tenant.
+   */
+  async sendTemplate(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const id = getRequiredParam(req, 'id');
+      const { recipients, roles, variables } = req.body as {
+        recipients?: string[];
+        roles?: string[];
+        variables?: Record<string, string>;
+      };
+
+      const template = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
+      if (!template) {
+        sendError(res, 'Email template not found', 404);
+        return;
+      }
+
+      const recipientSet = new Set<string>();
+
+      if (Array.isArray(recipients)) {
+        for (const email of recipients) {
+          const normalized = String(email || '').trim().toLowerCase();
+          if (normalized) recipientSet.add(normalized);
+        }
+      }
+
+      if (Array.isArray(roles) && roles.length > 0) {
+        const usersByRole = await prisma.user.findMany({
+          where: {
+            tenantId: req.user.tenantId,
+            role: { in: roles as any[] },
+            isActive: true,
+          },
+          select: { email: true },
+        });
+        for (const user of usersByRole) {
+          if (user.email) recipientSet.add(user.email.toLowerCase());
+        }
+      }
+
+      const finalRecipients = [...recipientSet];
+      if (finalRecipients.length === 0) {
+        sendError(res, 'At least one recipient (email or role) is required', 400);
+        return;
+      }
+
+      const rendered = emailTemplateService.renderTemplate(template, variables || {});
+      const results = await Promise.allSettled(
+        finalRecipients.map((to) => this.emailService.sendEmail(to, rendered.subject, template.body || '', { html: rendered.html }))
+      );
+
+      const sent = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - sent;
+
+      sendSuccess(
+        res,
+        { templateId: id, totalRecipients: finalRecipients.length, sent, failed },
+        'Template send completed'
+      );
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send template';
+      logger.error('Error in sendTemplate', { error });
       sendError(res, errorMessage, 500);
     }
   }

@@ -10,6 +10,7 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
+import { PERMISSIONS } from '../middleware/permissions';
 
 export interface UpdatePermissionDTO {
   role: UserRole;
@@ -119,8 +120,8 @@ export class DynamicPermissionService extends BaseService {
     }
 
     // SECURITY: Cannot grant SUPER_ADMIN permissions unless you are one
-    if (dto.allowed && dto.role === 'SUPER_ADMIN' && dto.userRole !== 'SUPER_ADMIN') {
-      throw this.forbiddenError('Only SUPER_ADMIN can grant SUPER_ADMIN permissions');
+    if (dto.role === 'SUPER_ADMIN' && dto.userRole !== 'SUPER_ADMIN') {
+      throw this.forbiddenError('Only SUPER_ADMIN can view or modify SUPER_ADMIN permissions');
     }
 
     // Get existing permission (if any)
@@ -519,5 +520,64 @@ export class DynamicPermissionService extends BaseService {
     for (const role of roles) {
       await this.getPermissions(role, tenantId);
     }
+  }
+
+  /**
+   * Seed a tenant with default permission rows when no dynamic records exist.
+   * This enables GUI permission management without requiring manual bootstrap.
+   */
+  async initializeDefaultsForTenant(tenantId: string, createdBy: string): Promise<number> {
+    const existingCount = await this.prisma.rolePermission.count({ where: { tenantId } });
+    if (existingCount > 0) {
+      return 0;
+    }
+
+    const records: Array<{
+      tenantId: string;
+      role: UserRole;
+      resource: string;
+      operation: string;
+      allowed: boolean;
+      createdBy: string;
+    }> = [];
+
+    for (const [role, permissions] of Object.entries(PERMISSIONS)) {
+      const roleKey = role as UserRole;
+      for (const permission of permissions) {
+        const token = (permission || '').trim();
+        if (!token) continue;
+
+        let resource = '';
+        let operation = '';
+        if (token === '*') {
+          resource = '*';
+          operation = '*';
+        } else {
+          const [parsedResource, parsedOperation] = token.split(':');
+          if (!parsedResource || !parsedOperation) continue;
+          resource = parsedResource;
+          operation = parsedOperation;
+        }
+
+        records.push({
+          tenantId,
+          role: roleKey,
+          resource,
+          operation,
+          allowed: true,
+          createdBy,
+        });
+      }
+    }
+
+    if (records.length === 0) return 0;
+
+    const created = await this.prisma.rolePermission.createMany({
+      data: records,
+      skipDuplicates: true,
+    });
+
+    await this.invalidateAllCaches(tenantId);
+    return created.count;
   }
 }

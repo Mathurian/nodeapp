@@ -45,6 +45,7 @@ export interface AppNavSection {
 
 export const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
+export const ADMIN_ONLY_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
 export const NAV_SECTIONS: AppNavSection[] = [
   {
@@ -117,17 +118,17 @@ export const NAV_SECTIONS: AppNavSection[] = [
     icon: CogIcon,
     roles: ADMIN_ROLES,
     items: [
-      { id: 'admin', name: 'Admin Dashboard', href: '/admin', icon: CogIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { id: 'admin', name: 'Admin Dashboard', href: '/admin', icon: CogIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'settings', name: 'Settings', href: '/settings', icon: CogIcon, roles: ADMIN_ROLES, shortcut: 'Cmd+,', priority: 55 },
       { id: 'permissions', name: 'Permissions', href: '/permissions', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'] },
-      { id: 'database', name: 'Database Browser', href: '/database', icon: ServerIcon, roles: ADMIN_ROLES },
-      { id: 'cache', name: 'Cache Management', href: '/cache', icon: ServerIcon, roles: ADMIN_ROLES },
-      { id: 'logs', name: 'Log Viewer', href: '/logs', icon: DocumentTextIcon, roles: ADMIN_ROLES },
-      { id: 'activity', name: 'Activity Log', href: '/activity', icon: ClockIcon, roles: ADMIN_ROLES },
-      { id: 'performance', name: 'Performance', href: '/performance', icon: ChartBarIcon, roles: ADMIN_ROLES },
+      { id: 'database', name: 'Database Browser', href: '/database', icon: ServerIcon, roles: ADMIN_ONLY_ROLES },
+      { id: 'cache', name: 'Cache Management', href: '/cache', icon: ServerIcon, roles: ADMIN_ONLY_ROLES },
+      { id: 'logs', name: 'Log Viewer', href: '/logs', icon: DocumentTextIcon, roles: ADMIN_ONLY_ROLES },
+      { id: 'activity', name: 'Activity Log', href: '/activity', icon: ClockIcon, roles: ADMIN_ONLY_ROLES },
+      { id: 'performance', name: 'Performance', href: '/performance', icon: ChartBarIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'backups', name: 'Backups', href: '/backups', icon: CloudArrowDownIcon, roles: ADMIN_ROLES },
-      { id: 'disaster-recovery', name: 'Disaster Recovery', href: '/disaster-recovery', icon: CloudArrowDownIcon, roles: ADMIN_ROLES },
-      { id: 'data-wipe', name: 'Data Wipe', href: '/data-wipe', icon: DocumentTextIcon, roles: ADMIN_ROLES },
+      { id: 'disaster-recovery', name: 'Disaster Recovery', href: '/disaster-recovery', icon: CloudArrowDownIcon, roles: ADMIN_ONLY_ROLES },
+      { id: 'data-wipe', name: 'Data Wipe', href: '/data-wipe', icon: DocumentTextIcon, roles: ADMIN_ONLY_ROLES },
     ],
   },
   {

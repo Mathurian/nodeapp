@@ -41,8 +41,8 @@ router.use(authenticateToken)
  *       201:
  *         description: Event template created successfully
  */
-router.get('/', getTemplates)
-router.get('/:id', getTemplate)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getTemplates)
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getTemplate)
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), updateTemplate)
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), deleteTemplate)

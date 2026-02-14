@@ -39,6 +39,7 @@ export const getAllPermissions = async (
     // Non-SUPER_ADMIN users can only see their tenant's permissions
     if (!isSuperAdmin) {
       whereClause.tenantId = tenantId;
+      whereClause.role = { not: 'SUPER_ADMIN' };
     }
 
     // Optional role filter
@@ -47,7 +48,8 @@ export const getAllPermissions = async (
       whereClause.role = roleFilter;
     }
 
-    const permissions = await prisma.rolePermission.findMany({
+    const service = container.resolve(DynamicPermissionService);
+    let permissions = await prisma.rolePermission.findMany({
       where: whereClause,
       select: {
         id: true,
@@ -66,6 +68,30 @@ export const getAllPermissions = async (
         { operation: 'asc' }
       ]
     });
+
+    // Bootstrap defaults for tenant-scoped admins/organizers if table is empty.
+    if (!isSuperAdmin && permissions.length === 0 && tenantId && req.user?.id) {
+      await service.initializeDefaultsForTenant(tenantId, req.user.id);
+      permissions = await prisma.rolePermission.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          role: true,
+          resource: true,
+          operation: true,
+          allowed: true,
+          createdAt: true,
+          updatedAt: true,
+          createdBy: true,
+          tenantId: true
+        },
+        orderBy: [
+          { role: 'asc' },
+          { resource: 'asc' },
+          { operation: 'asc' }
+        ]
+      });
+    }
 
     logger.info('Fetched all permissions', {
       userId: req.user.id,
@@ -101,6 +127,11 @@ export const getPermissionStats = async (
     }
 
     const service = container.resolve(DynamicPermissionService);
+
+    // Ensure tenant has initial permission rows for GUI stats.
+    if (!isSuperAdmin && tenantId && req.user?.id) {
+      await service.initializeDefaultsForTenant(tenantId, req.user.id);
+    }
 
     // For SUPER_ADMIN, we need to aggregate stats across all tenants
     if (isSuperAdmin) {
