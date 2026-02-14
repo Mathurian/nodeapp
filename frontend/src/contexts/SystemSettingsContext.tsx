@@ -76,7 +76,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
     // Known routes that are not tenant slugs
     const knownRoutes = new Set([
-      'login', 'dashboard', 'events', 'contests', 'categories',
+      'login', 'register', 'forgot-password', 'dashboard', 'events', 'contests', 'categories',
       'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
       'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
       'workflows', 'search', 'files', 'email-templates', 'custom-fields',

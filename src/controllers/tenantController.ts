@@ -272,7 +272,7 @@ export class TenantController {
         return;
       }
 
-      const { user, tempPassword } = await TenantService.inviteUser(id, email, name, role);
+      const { user, invitationUrl } = await TenantService.inviteUser(id, email, name, role);
 
       res.status(201).json({
         message: 'User invited successfully',
@@ -282,7 +282,7 @@ export class TenantController {
           email: user.email,
           role: user.role,
         },
-        tempPassword, // In production, this should be sent via email only
+        invitationUrl,
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);

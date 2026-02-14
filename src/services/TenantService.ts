@@ -8,6 +8,7 @@
 import prisma from '../config/database';
 import { Prisma, UserRole, Tenant } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 import { container } from 'tsyringe';
 import { EmailService } from './EmailService';
@@ -55,6 +56,19 @@ export interface TenantUsageStats {
 }
 
 export class TenantService {
+  private static buildInviteRegistrationToken(payload: { userId: string; tenantId: string; email: string }): string {
+    return jwt.sign(
+      {
+        type: 'INVITE_REGISTRATION',
+        userId: payload.userId,
+        tenantId: payload.tenantId,
+        email: payload.email
+      },
+      env.get('JWT_SECRET'),
+      { expiresIn: '7d' }
+    );
+  }
+
   /**
    * Create a new tenant with default admin user
    */
@@ -391,7 +405,7 @@ export class TenantService {
     email: string,
     name: string,
     role: string
-  ): Promise<{ user: { id: string; name: string; email: string; role: UserRole }; tempPassword: string }> {
+  ): Promise<{ user: { id: string; name: string; email: string; role: UserRole }; invitationUrl: string }> {
     try {
       // Check if user already exists in this tenant
       const existingUser = await prisma.user.findFirst({
@@ -414,9 +428,9 @@ export class TenantService {
         }
       }
 
-      // Generate temporary password
-      const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      // Create an unusable placeholder password until registration is completed
+      const placeholderPassword = `${Math.random().toString(36).slice(-10)}${Math.random().toString(36).slice(-10)}`;
+      const hashedPassword = await bcrypt.hash(placeholderPassword, 10);
 
       // Create user
       const user = await prisma.user.create({
@@ -432,31 +446,29 @@ export class TenantService {
 
       logger.info(`User invited to tenant ${tenantId}: ${email}`);
 
-      // Send invitation email with temporary password
+      const tenantWithSlug = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { name: true, slug: true },
+      });
+      const token = this.buildInviteRegistrationToken({ userId: user.id, tenantId, email: user.email });
+      const appUrl = env.get('APP_URL') || env.get('FRONTEND_URL') || 'http://localhost:3000';
+      const registrationUrl = `${appUrl}${tenantWithSlug?.slug ? `/${tenantWithSlug.slug}` : ''}/register?invite=${encodeURIComponent(token)}`;
+      const loginUrl = `${appUrl}${tenantWithSlug?.slug ? `/${tenantWithSlug.slug}` : ''}/login`;
+
+      // Send invitation email with registration completion URL
       try {
         const emailService = container.resolve(EmailService);
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: tenantId },
-          select: { name: true },
-        });
-
-        const emailSubject = `Invitation to join ${tenant?.name || 'Event Manager'}`;
-        const emailBody = `
-          <h2>You've been invited!</h2>
-          <p>Hello ${name},</p>
-          <p>You've been invited to join <strong>${tenant?.name || 'Event Manager'}</strong> as a <strong>${role}</strong>.</p>
-          <p>Your temporary password is: <strong>${tempPassword}</strong></p>
-          <p><strong>Important:</strong> Please change your password after logging in.</p>
-          <p>This password will expire in 7 days for security reasons.</p>
-          <p>You can log in at: <a href="${env.get('APP_URL') || 'http://localhost:3000'}/login">Login Page</a></p>
-          <p>Best regards,<br>The Event Manager Team</p>
-        `;
-
-        await emailService.sendEmail(
+        await emailService.sendInvitationEmail(
           email,
-          emailSubject,
-          emailBody,
-          { html: emailBody }
+          name,
+          tenantWithSlug?.name || 'Event Manager',
+          role,
+          registrationUrl,
+          loginUrl,
+          {
+            registrationUrl,
+            loginUrl
+          }
         );
 
         logger.info(`Invitation email sent to ${email}`);
@@ -466,7 +478,7 @@ export class TenantService {
         // User is still created, they just won't receive the email
       }
 
-      return { user, tempPassword };
+      return { user, invitationUrl: registrationUrl };
     } catch (error) {
       logger.error('Error inviting user:', error);
       throw error;

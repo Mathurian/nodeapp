@@ -1,13 +1,10 @@
 import express, { Router } from 'express';
-import { login, getProfile, getPermissions, forgotPassword, resetPasswordWithToken, logout } from '../controllers/authController';
+import { login, getProfile, getPermissions, forgotPassword, resetPasswordWithToken, logout, completeInvitationRegistration } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
-import { authLimiter, perEmailAuthLimiter, passwordResetLimiter } from '../middleware/rateLimiting';
-import { validate, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validation';
+import { perEmailAuthLimiter, passwordResetLimiter } from '../middleware/rateLimiting';
+import { validate, loginSchema, forgotPasswordSchema, resetPasswordSchema, completeInvitationRegistrationSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
-
-// Apply rate limiting to auth routes
-router.use(authLimiter);
 
 /**
  * @swagger
@@ -124,6 +121,9 @@ router.post('/forgot-password', passwordResetLimiter, validate(forgotPasswordSch
  */
 // SECURITY FIX: Added rate limiting to prevent brute-force token attacks
 router.post('/reset-password', passwordResetLimiter, validate(resetPasswordSchema, 'body'), resetPasswordWithToken);
+
+// Invite-only registration completion
+router.post('/complete-invitation-registration', passwordResetLimiter, validate(completeInvitationRegistrationSchema, 'body'), completeInvitationRegistration);
 
 /**
  * @swagger

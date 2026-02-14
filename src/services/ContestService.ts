@@ -212,8 +212,10 @@ export class ContestService extends BaseService {
           ? await this.contestRepo.findArchivedContests()
           : await this.contestRepo.findAllActive();
       } else {
-        contests = await this.contestRepo.findAll();
+        contests = await this.contestRepo.findAllActive();
       }
+
+      contests = contests.filter((contest) => !contest.deletedAt);
 
       // Filter by event ID
       if (filters?.eventId) {

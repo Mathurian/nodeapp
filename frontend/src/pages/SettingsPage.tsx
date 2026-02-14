@@ -463,7 +463,7 @@ const SettingsPage: React.FC = () => {
 
   const updateContestantVisibilityMutation = useMutation(
     async (data: ContestantVisibilitySettings) => {
-      const response = await api.put(`/settings/contestant-visibility${getGlobalParam()}`, data)
+      const response = await api.put(`/settings/contestant-visibility${getGlobalParam()}`, data, { timeout: 30000 })
       return response.data
     },
     {
@@ -820,17 +820,11 @@ const SettingsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Allow Registration</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow new users to register accounts</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={generalFormData.allowRegistration}
-                        onChange={(e) => setGeneralFormData({ ...generalFormData, allowRegistration: e.target.checked })}
-                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-                      />
+                    <div className="py-3">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">Registration Model</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Registration is invite-only. Users are onboarded via organizer/admin invitations and complete setup from emailed links.
+                      </p>
                     </div>
 
                     <div className="flex items-center justify-between py-3">

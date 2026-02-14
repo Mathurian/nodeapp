@@ -74,7 +74,7 @@ export class EventsController {
       if (isSuperAdmin && (req as any).prisma) {
         // Use request-specific Prisma client that bypasses tenant filtering for SUPER_ADMIN
         const prisma = (req as any).prisma;
-        const whereClause: any = {};
+        const whereClause: any = { deletedAt: null };
 
         if (filters.archived !== undefined) {
           whereClause.archived = filters.archived;

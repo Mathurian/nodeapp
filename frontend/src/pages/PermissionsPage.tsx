@@ -59,6 +59,15 @@ const RESOURCE_DESCRIPTIONS: Record<string, string> = {
   '*': 'Global wildcard permission',
 }
 
+const describePermission = (resource: string, operation: string): string => {
+  const mapped = RESOURCE_DESCRIPTIONS[resource]
+  if (mapped) return mapped
+
+  const normalizedResource = resource.replace(/[_-]/g, ' ').trim()
+  const normalizedOperation = operation.replace(/[_-]/g, ' ').trim()
+  return `Controls ${normalizedOperation} access for ${normalizedResource}.`
+}
+
 const PermissionsPage: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -430,7 +439,7 @@ const PermissionsPage: React.FC = () => {
                           {resource}:{operation}
                         </code>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-sm whitespace-normal">
-                          {RESOURCE_DESCRIPTIONS[resource] || 'Permission scope for this resource'}
+                          {describePermission(resource, operation)}
                         </p>
                       </td>
                       {rolesToDisplay.map((role) => {

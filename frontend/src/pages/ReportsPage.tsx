@@ -25,6 +25,15 @@ interface ReportInstance {
   generatedAt: string
 }
 
+interface ReportDetail {
+  id: string
+  name: string
+  type: string
+  format?: string | null
+  generatedAt: string
+  data?: Record<string, any> | null
+}
+
 const ReportsPage: React.FC = () => {
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
@@ -33,6 +42,8 @@ const ReportsPage: React.FC = () => {
   const [contests, setContests] = useState<BasicOption[]>([])
   const [instances, setInstances] = useState<ReportInstance[]>([])
   const [sendingReportId, setSendingReportId] = useState<string | null>(null)
+  const [viewingReport, setViewingReport] = useState<ReportDetail | null>(null)
+  const [isLoadingView, setIsLoadingView] = useState(false)
   const [emailRecipients, setEmailRecipients] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -149,6 +160,20 @@ const ReportsPage: React.FC = () => {
     }
   }
 
+  const handleView = async (id: string) => {
+    try {
+      setError(null)
+      setIsLoadingView(true)
+      const response = await reportsAPI.getById(id)
+      const payload = response.data?.data || response.data || null
+      setViewingReport(payload)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load report preview')
+    } finally {
+      setIsLoadingView(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -252,6 +277,7 @@ const ReportsPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <button onClick={() => handleView(instance.id)} className="px-3 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200">View</button>
                       <button onClick={() => handleExport(instance.id, 'pdf')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">PDF</button>
                       <button onClick={() => handleExport(instance.id, 'excel')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">Excel</button>
                       <button onClick={() => handleExport(instance.id, 'csv')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">CSV</button>
@@ -289,6 +315,30 @@ const ReportsPage: React.FC = () => {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {viewingReport && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{viewingReport.name || 'Report Preview'}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {viewingReport.type} • {new Date(viewingReport.generatedAt).toLocaleString()}
+                  </p>
+                </div>
+                <button onClick={() => setViewingReport(null)} className="px-3 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300">Close</button>
+              </div>
+
+              {isLoadingView ? (
+                <div className="text-sm text-gray-600 dark:text-gray-400">Loading preview...</div>
+              ) : (
+                <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(viewingReport.data ?? {}, null, 2)}
+                </pre>
+              )}
             </div>
           </div>
         )}

@@ -30,7 +30,7 @@ export class EventRepository extends BaseRepository<Event> {
    */
   async findActiveEvents(): Promise<Event[]> {
     return this.findMany(
-      { archived: false },
+      { archived: false, deletedAt: null },
       { orderBy: { startDate: 'desc' } }
     );
   }
@@ -40,7 +40,7 @@ export class EventRepository extends BaseRepository<Event> {
    */
   async findArchivedEvents(): Promise<Event[]> {
     return this.findMany(
-      { archived: true },
+      { archived: true, deletedAt: null },
       { orderBy: { startDate: 'desc' } }
     );
   }
@@ -53,6 +53,7 @@ export class EventRepository extends BaseRepository<Event> {
     return this.findMany(
       {
         archived: false,
+        deletedAt: null,
         startDate: { gte: now }
       },
       { orderBy: { startDate: 'asc' } }
@@ -66,6 +67,7 @@ export class EventRepository extends BaseRepository<Event> {
     const now = new Date();
     return this.findMany({
       archived: false,
+      deletedAt: null,
       startDate: { lte: now },
       endDate: { gte: now }
     });
@@ -79,6 +81,7 @@ export class EventRepository extends BaseRepository<Event> {
     return this.findMany(
       {
         archived: false,
+        deletedAt: null,
         endDate: { lt: now }
       },
       { orderBy: { endDate: 'desc' } }
@@ -147,6 +150,7 @@ export class EventRepository extends BaseRepository<Event> {
    */
   async findEventsByDateRange(startDate: Date, endDate: Date): Promise<Event[]> {
     return this.findMany({
+      deletedAt: null,
       OR: [
         {
           startDate: {
@@ -175,6 +179,7 @@ export class EventRepository extends BaseRepository<Event> {
    */
   async searchEvents(query: string): Promise<Event[]> {
     return this.findMany({
+      deletedAt: null,
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },

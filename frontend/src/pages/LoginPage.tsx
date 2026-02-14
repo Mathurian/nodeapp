@@ -46,7 +46,7 @@ const LoginPage: React.FC = () => {
   const [settings, setSettings] = useState<PublicSettings>({
     appName: 'ConMGR',
     appSubtitle: '',
-    showForgotPassword: false,
+    showForgotPassword: true,
     logoPath: null,
     faviconPath: null,
     contactEmail: 'support@conmgr.com'
@@ -113,6 +113,28 @@ const LoginPage: React.FC = () => {
       }
     }
     loadSettings()
+  }, [slug])
+
+  useEffect(() => {
+    const loadPublicSettings = async () => {
+      try {
+        const response = await fetch('/api/v1/settings/public', {
+          headers: slug ? { 'X-Tenant-Slug': slug } : undefined,
+          credentials: 'include',
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        const payload = data.data || data
+        setSettings((prev) => ({
+          ...prev,
+          showForgotPassword: payload.showForgotPassword !== false,
+          contactEmail: payload.contactEmail || prev.contactEmail,
+        }))
+      } catch (err) {
+        console.error('Failed to load public settings:', err)
+      }
+    }
+    loadPublicSettings()
   }, [slug])
 
   // Update document title and favicon
@@ -257,6 +279,17 @@ const LoginPage: React.FC = () => {
               >
                 {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
               </button>
+
+              <div className="flex items-center justify-between text-sm">
+                {settings.showForgotPassword ? (
+                  <a
+                    href={`${slug ? `/${slug}` : ''}/forgot-password`}
+                    className="text-indigo-600 hover:text-indigo-800 hover:underline"
+                  >
+                    Forgot password?
+                  </a>
+                ) : <span />}
+              </div>
             </FormProvider>
 
             {/* Support Section */}

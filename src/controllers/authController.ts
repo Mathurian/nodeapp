@@ -337,6 +337,38 @@ export class AuthController {
   };
 
   /**
+   * Complete invitation-based registration
+   */
+  completeInvitationRegistration = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    const log = createRequestLogger(req, 'auth');
+
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return sendBadRequest(res, 'Invitation token and password are required');
+      }
+
+      await this.authService.completeInvitationRegistration(token, password);
+      return sendSuccess(res, {}, 'Registration completed successfully');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Complete invitation registration error', { error: errorMessage });
+
+      if (
+        errorMessage === 'Invalid or expired invitation token' ||
+        errorMessage === 'Invalid invitation token' ||
+        errorMessage === 'Invitation user not found' ||
+        errorMessage === 'Invitation has already been completed'
+      ) {
+        return sendBadRequest(res, errorMessage);
+      }
+
+      return next(error);
+    }
+  };
+
+  /**
    * Change password (authenticated user)
    */
   changePassword = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
@@ -483,6 +515,7 @@ export const requestPasswordReset = controller.requestPasswordReset;
 export const resetPassword = controller.resetPassword;
 export const changePassword = controller.changePassword;
 export const logout = controller.logout;
+export const completeInvitationRegistration = controller.completeInvitationRegistration;
 
 // Aliases for backward compatibility with routes
 export const forgotPassword = controller.requestPasswordReset;

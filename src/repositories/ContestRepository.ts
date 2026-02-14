@@ -27,11 +27,12 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Excludes contests from archived events unless explicitly requested
    */
   async findByEventId(eventId: string, includeArchivedEvents: boolean = false): Promise<Contest[]> {
-    const where: Record<string, unknown> = { eventId };
+    const where: Record<string, unknown> = { eventId, deletedAt: null };
     
     if (!includeArchivedEvents) {
       where['event'] = {
-        archived: false
+        archived: false,
+        deletedAt: null
       };
     }
     
@@ -46,7 +47,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    * Used when viewing contests for a specific event (allows archived contests even if event is archived)
    */
   async findByEventIdWithArchived(eventId: string, includeArchivedContests: boolean = false): Promise<Contest[]> {
-    const where: Record<string, unknown> = { eventId };
+    const where: Record<string, unknown> = { eventId, deletedAt: null };
     
     if (!includeArchivedContests) {
       where['archived'] = false;
@@ -67,8 +68,10 @@ export class ContestRepository extends BaseRepository<Contest> {
       {
         eventId,
         archived: false,
+        deletedAt: null,
         event: {
-          archived: false
+          archived: false,
+          deletedAt: null
         }
       },
       { orderBy: { createdAt: 'asc' } }
@@ -80,7 +83,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    */
   async findArchivedContests(): Promise<Contest[]> {
     return this.findMany(
-      { archived: true },
+      { archived: true, deletedAt: null },
       { orderBy: { createdAt: 'desc' } }
     );
   }
@@ -92,8 +95,10 @@ export class ContestRepository extends BaseRepository<Contest> {
     return this.findMany(
       {
         archived: false,
+        deletedAt: null,
         event: {
-          archived: false
+          archived: false,
+          deletedAt: null
         }
       },
       { orderBy: { createdAt: 'desc' } }
@@ -219,6 +224,7 @@ export class ContestRepository extends BaseRepository<Contest> {
    */
   async searchContests(query: string): Promise<Contest[]> {
     return this.findMany({
+      deletedAt: null,
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },

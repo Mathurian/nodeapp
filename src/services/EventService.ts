@@ -224,8 +224,10 @@ export class EventService extends BaseService {
       } else if (filters?.search) {
         events = await this.eventRepo.searchEvents(filters.search);
       } else {
-        events = await this.eventRepo.findAll();
+        events = await this.eventRepo.findActiveEvents();
       }
+
+      events = events.filter((event) => !event.deletedAt);
 
       // CRITICAL: Filter by tenantId if provided (tenant isolation)
       if (filters?.tenantId) {

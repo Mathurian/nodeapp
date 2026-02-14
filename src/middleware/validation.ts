@@ -160,6 +160,14 @@ export const resetPasswordSchema = z.object({
 });
 
 /**
+ * Invitation registration completion schema
+ */
+export const completeInvitationRegistrationSchema = z.object({
+  token: z.string().min(1, 'Invitation token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters')
+});
+
+/**
  * Change password schema
  */
 export const changePasswordSchema = z.object({

@@ -96,6 +96,13 @@ interface TokenPayload {
   tenantId: string;
 }
 
+interface InvitationRegistrationTokenPayload {
+  type: 'INVITE_REGISTRATION';
+  userId: string;
+  tenantId: string;
+  email: string;
+}
+
 @injectable()
 export class AuthService {
   private resetTokenCache: NodeCache;
@@ -624,6 +631,65 @@ export class AuthService {
     // Invalidate the token after use
     this.resetTokenCache.del(token);
     userCache.invalidate(userId);
+  }
+
+  /**
+   * Complete invitation-based registration (invite-only)
+   */
+  async completeInvitationRegistration(token: string, password: string): Promise<void> {
+    let payload: InvitationRegistrationTokenPayload;
+
+    try {
+      payload = jwt.verify(token, JWT_SECRET) as InvitationRegistrationTokenPayload;
+    } catch (_error) {
+      throw new Error('Invalid or expired invitation token');
+    }
+
+    if (!payload || payload.type !== 'INVITE_REGISTRATION' || !payload.userId || !payload.tenantId) {
+      throw new Error('Invalid invitation token');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId }
+    });
+
+    if (!user || user.tenantId !== payload.tenantId || user.email !== payload.email) {
+      throw new Error('Invitation user not found');
+    }
+
+    if (user.isActive) {
+      throw new Error('Invitation has already been completed');
+    }
+
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      throw new Error(`Password does not meet complexity requirements: ${validation.errors.join(', ')}`);
+    }
+
+    if (isPasswordSimilarToUserInfo(password, {
+      name: user.name,
+      email: user.email
+    })) {
+      throw new Error('Password is too similar to your personal information');
+    }
+
+    if (await this.isPasswordInHistory(user.id, password, 5)) {
+      throw new Error('Password has been used recently. Please choose a different password');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        isActive: true,
+        sessionVersion: { increment: 1 }
+      }
+    });
+
+    await this.savePasswordToHistory(user.id, hashedPassword);
+    userCache.invalidate(user.id);
   }
 
   /**

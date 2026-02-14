@@ -8,6 +8,9 @@ import { lazyWithRetry } from '../utils/lazyWithRetry'
 
 // Lazy load pages
 const LoginPage = lazyWithRetry(() => import('../pages/LoginPage'), 'LoginPage')
+const PublicLandingPage = lazyWithRetry(() => import('../pages/PublicLandingPage'), 'PublicLandingPage')
+const ForgotPasswordPage = lazyWithRetry(() => import('../pages/ForgotPasswordPage'), 'ForgotPasswordPage')
+const RegisterPage = lazyWithRetry(() => import('../pages/RegisterPage'), 'RegisterPage')
 const DashboardPage = lazyWithRetry(() => import('../pages/DashboardPage'), 'DashboardPage')
 const EventsPage = lazyWithRetry(() => import('../pages/EventsPage'), 'EventsPage')
 const ContestsPage = lazyWithRetry(() => import('../pages/ContestsPage'), 'ContestsPage')
@@ -84,7 +87,7 @@ interface TenantRouterProps {
 // List of known application routes that should NOT be treated as tenant slugs
 // This must be kept in sync with the routes defined below
 const KNOWN_ROUTES = new Set([
-  'login', 'dashboard', 'events', 'contests', 'categories',
+  'login', 'register', 'forgot-password', 'dashboard', 'events', 'contests', 'categories',
   'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
   'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
   'workflows', 'search', 'files', 'email-templates', 'custom-fields',
@@ -318,8 +321,14 @@ const TenantRouter: React.FC<TenantRouterProps> = ({ onOpenCommandPalette }) => 
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             {/* Public routes - no authentication required */}
+            <Route path="/" element={<PublicLandingPage />} />
+            <Route path="/:slug" element={<PublicLandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/:slug/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/:slug/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/:slug/register" element={<RegisterPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/help/*" element={<HelpPage />} />
             <Route path="/:slug/help" element={<HelpPage />} />
