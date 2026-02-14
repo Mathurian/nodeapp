@@ -3,11 +3,13 @@ import CertificationOverviewWorkspace from '../components/certifications/Certifi
 
 const AuditorScoreVerificationPage: React.FC = () => {
   return (
-    <CertificationOverviewWorkspace
-      title="Auditor Score Verification"
-      subtitle="Review score-certification progress and judge completion by category"
-      mode="all"
-    />
+    <div className="cgr-page-container">
+      <CertificationOverviewWorkspace
+        title="Auditor Score Verification"
+        subtitle="Review score-certification progress and judge completion by category"
+        mode="all"
+      />
+    </div>
   )
 }
 

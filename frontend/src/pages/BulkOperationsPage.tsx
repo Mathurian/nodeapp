@@ -7,6 +7,7 @@ import {
   DocumentTextIcon,
   CloudArrowUpIcon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader } from '../components/ui'
 
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
@@ -107,41 +108,36 @@ const BulkOperationsPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to perform bulk operations.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-            Bulk Operations
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-            Import users, send bulk emails, and perform batch operations
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Bulk Operations"
+          subtitle="Import users, send bulk emails, and perform batch operations"
+        />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700 rounded-lg">
             <p className="text-green-800 dark:text-green-200">{success}</p>
-          </div>
+          </Card>
         )}
 
         {/* Tabs */}
@@ -172,7 +168,7 @@ const BulkOperationsPage: React.FC = () => {
 
         {/* User Import Tab */}
         {activeTab === 'import' && (
-          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+          <Card className="rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Import Users from CSV
             </h2>
@@ -229,12 +225,12 @@ const BulkOperationsPage: React.FC = () => {
                 </p>
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Bulk Email Tab */}
         {activeTab === 'email' && (
-          <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+          <Card className="rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
               Send Bulk Email
             </h2>
@@ -291,9 +287,8 @@ const BulkOperationsPage: React.FC = () => {
                 {loading ? 'Sending...' : 'Send Bulk Email'}
               </button>
             </div>
-          </div>
+          </Card>
         )}
-      </div>
     </div>
   )
 }

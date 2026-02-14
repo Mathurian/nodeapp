@@ -8,6 +8,7 @@ import {
   TrashIcon,
   Squares2X2Icon,
 } from '@heroicons/react/24/outline'
+import { Card, PageHeader } from '../components/ui'
 
 interface CustomField {
   id: string
@@ -172,39 +173,35 @@ const CustomFieldsPage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to manage custom fields.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading custom fields...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading custom fields...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="cgr-page-container">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Custom Fields
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Define custom fields for events, contests, categories, and users
-            </p>
-          </div>
+          <PageHeader
+            title="Custom Fields"
+            subtitle="Define custom fields for events, contests, categories, and users"
+            icon={Squares2X2Icon}
+          />
           <button
             onClick={() => {
               resetForm()
@@ -219,9 +216,9 @@ const CustomFieldsPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {/* Fields by Entity Type */}
@@ -229,7 +226,7 @@ const CustomFieldsPage: React.FC = () => {
           {['EVENT', 'CONTEST', 'CATEGORY', 'USER', 'CONTESTANT'].map((entityType) => {
             const entityFields = getFieldsByEntity(entityType)
             return (
-              <div key={entityType} className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow">
+              <Card key={entityType} className="rounded-lg p-0">
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white flex items-center gap-2">
                     <Squares2X2Icon className="h-6 w-6" />
@@ -308,7 +305,7 @@ const CustomFieldsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-              </div>
+              </Card>
             )
           })}
         </div>
@@ -464,7 +461,6 @@ const CustomFieldsPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 const AuditorReportsPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="cgr-page-container min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Auditor Reports</h1>

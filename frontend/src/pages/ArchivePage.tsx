@@ -11,6 +11,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { Card, PageHeader } from '../components/ui'
 
 interface ArchivedItem {
   id: string
@@ -71,43 +72,39 @@ const ArchivePage: React.FC = () => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
             You don't have permission to access the archive.
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading archive...</div>
+      <div className="cgr-page-container">
+        <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading archive...</Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-            Archive
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-            View and restore archived events, contests, and categories
-          </p>
-        </div>
+    <div className="cgr-page-container">
+        <PageHeader
+          title="Archive"
+          subtitle="View and restore archived events, contests, and categories"
+          icon={ArchiveBoxIcon}
+        />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+          <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          </Card>
         )}
 
         {/* Filter */}
@@ -155,7 +152,7 @@ const ArchivePage: React.FC = () => {
         </div>
 
         {/* Archived Items */}
-        <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <Card className="rounded-lg overflow-hidden p-0">
           {filteredItems.length === 0 ? (
             <div className="p-12 text-center">
               <ArchiveBoxIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
@@ -242,7 +239,7 @@ const ArchivePage: React.FC = () => {
               </table>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* View Details Modal */}
         {viewingItem && (
@@ -420,7 +417,6 @@ const ArchivePage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

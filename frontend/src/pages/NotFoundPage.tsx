@@ -47,7 +47,7 @@ const NotFoundPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-4 py-16">
+    <div className="cgr-page-container min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-4 py-16">
       {/* 404 Text */}
       <div className="text-center">
         <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">

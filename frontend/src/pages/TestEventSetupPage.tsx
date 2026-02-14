@@ -154,7 +154,7 @@ const TestEventSetupPage: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="cgr-page-container min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-500" />
           <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
@@ -167,7 +167,7 @@ const TestEventSetupPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="cgr-page-container min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

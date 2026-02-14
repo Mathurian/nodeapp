@@ -67,7 +67,7 @@ const RegisterPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="cgr-page-container min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="max-w-lg w-full bg-white rounded-xl shadow border border-gray-200 p-6">
         <h1 className="text-2xl font-bold text-gray-900">Registration</h1>
         {isLoading ? (
