@@ -6,6 +6,7 @@ import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
 import { settingsAPI } from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import AccordionNav from './AccordionNav'
 import Breadcrumb, { BreadcrumbItem } from './Breadcrumb'
 import {
@@ -167,7 +168,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         return unwrapped
       } catch (error) {
         // Return defaults if settings not available
-        return { app_name: 'ConMGR', theme_logoPath: null }
+        return { app_name: DEFAULT_APP_BASELINE.appName, theme_logoPath: null }
       }
     },
     {
@@ -176,7 +177,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     }
   )
 
-  const appName = themeSettings?.app_name || themeSettings?.appName || 'ConMGR'
+  const appName = themeSettings?.app_name || themeSettings?.appName || DEFAULT_APP_BASELINE.appName
   const logoPath = themeSettings?.theme_logoPath || themeSettings?.logoPath
 
   // Generate breadcrumbs from current URL path

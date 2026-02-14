@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import {
@@ -50,7 +51,7 @@ const HelpPage: React.FC = () => {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [attemptedDoc, setAttemptedDoc] = useState<DocItem | null>(null)
-  const [appName, setAppName] = useState<string>('ConMGR')
+  const [appName, setAppName] = useState<string>(DEFAULT_APP_BASELINE.appName)
 
   // Documentation structure - ALL docs always visible
   const docSections: DocSection[] = [
@@ -255,7 +256,7 @@ const HelpPage: React.FC = () => {
         }
       } catch (err) {
         console.error('Failed to load app name:', err)
-        // Keep default 'ConMGR' on error
+        // Keep default baseline app name on error
       }
     }
     loadAppName()

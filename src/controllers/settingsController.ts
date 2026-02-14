@@ -133,7 +133,7 @@ export class SettingsController {
       res.json({ data: appNameSettings });
     } catch (error) {
       // Return defaults on error
-      res.json({ data: { appName: 'Event Manager', appSubtitle: '' } });
+      res.json({ data: { appName: 'ConMGR', appSubtitle: '' } });
     }
   };
 

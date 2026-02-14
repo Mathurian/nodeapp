@@ -1,7 +1,9 @@
 import React from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
+import { useSystemSettings } from '../contexts/SystemSettingsContext'
 import { adminAPI, tenantsAPI, eventsAPI, contestsAPI } from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import {
   ChartBarIcon,
   UsersIcon,
@@ -67,6 +69,8 @@ interface ScopedContest {
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth()
+  const { settings } = useSystemSettings()
+  const appName = settings.app_name || DEFAULT_APP_BASELINE.appName
 
   // Admin endpoints only allow SUPER_ADMIN, ADMIN, ORGANIZER, BOARD
   const canViewAdminData = !!user && (
@@ -159,7 +163,7 @@ const DashboardPage: React.FC = () => {
       BOARD: 'Welcome to your Board Dashboard',
       ADMIN: 'Welcome to your Admin Dashboard',
     }
-    return greetings[role as keyof typeof greetings] || 'Welcome to ConMGR'
+    return greetings[role as keyof typeof greetings] || DEFAULT_APP_BASELINE.dashboardWelcome
   }
 
   const getRoleDescription = (role: string) => {
@@ -589,7 +593,7 @@ const DashboardPage: React.FC = () => {
                   Need Help?
                 </h3>
                 <p className="text-blue-800 dark:text-blue-200 mb-4">
-                  Access documentation, tutorials, and support resources to get the most out of ConMGR.
+                  {DEFAULT_APP_BASELINE.dashboardHelp.replace('platform', appName)}
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <a

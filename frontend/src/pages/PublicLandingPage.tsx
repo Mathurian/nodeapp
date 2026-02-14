@@ -2,6 +2,8 @@ import React, { useEffect, useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
+import { settingsAPI } from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import {
   CalendarIcon,
   TrophyIcon,
@@ -54,6 +56,9 @@ const PublicLandingPage: React.FC = () => {
   const { user } = useAuth()
   const { slug } = useParams<{ slug?: string }>()
   const navigate = useNavigate()
+  const [appName, setAppName] = React.useState(DEFAULT_APP_BASELINE.appName)
+  const [appSubtitle, setAppSubtitle] = React.useState(DEFAULT_APP_BASELINE.appSubtitle)
+  const [appDescription, setAppDescription] = React.useState(DEFAULT_APP_BASELINE.appDescription)
 
   const basePath = useMemo(() => (slug ? `/${slug}` : ''), [slug])
 
@@ -62,6 +67,22 @@ const PublicLandingPage: React.FC = () => {
       navigate(`${basePath}${getRoleHomePath(user.role)}`, { replace: true })
     }
   }, [basePath, navigate, user])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const response = await settingsAPI.getPublicSettings(slug)
+        const data = response.data?.data || response.data || {}
+        setAppName(data.appName || DEFAULT_APP_BASELINE.appName)
+        setAppSubtitle(data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
+        setAppDescription(data.appDescription || DEFAULT_APP_BASELINE.appDescription)
+      } catch {
+        setAppName(DEFAULT_APP_BASELINE.appName)
+        setAppSubtitle(DEFAULT_APP_BASELINE.appSubtitle)
+        setAppDescription(DEFAULT_APP_BASELINE.appDescription)
+      }
+    })()
+  }, [slug])
 
   const features: FeatureProps[] = [
     {
@@ -128,7 +149,7 @@ const PublicLandingPage: React.FC = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <SparklesIcon className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">ConMGR</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">{appName}</span>
             </div>
             <div className="flex items-center gap-4">
               <Link
@@ -172,8 +193,7 @@ const PublicLandingPage: React.FC = () => {
               variants={itemVariants}
               className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed"
             >
-              ConMGR is the all-in-one platform for contest organizers. From event creation to 
-              certificate distribution, streamline your entire workflow with powerful, intuitive tools.
+              {appDescription}
             </motion.p>
             
             <motion.div
@@ -195,6 +215,14 @@ const PublicLandingPage: React.FC = () => {
             >
               New accounts require an invitation from an organizer or admin
             </motion.p>
+            {appSubtitle && (
+              <motion.p
+                variants={itemVariants}
+                className="mt-2 text-xs text-gray-500 dark:text-gray-500"
+              >
+                {appSubtitle}
+              </motion.p>
+            )}
           </motion.div>
         </div>
 
@@ -274,7 +302,7 @@ const PublicLandingPage: React.FC = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <SparklesIcon className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-gray-900 dark:text-white">ConMGR</span>
+              <span className="text-lg font-bold text-gray-900 dark:text-white">{appName}</span>
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
               © {new Date().getFullYear()} ConMGR. All rights reserved.

@@ -10,6 +10,7 @@ type SystemSettingFull = Prisma.SystemSettingGetPayload<object>;
 export interface PublicSettings {
   appName: string;
   appSubtitle: string;
+  appDescription: string;
   showForgotPassword: boolean;
   logoPath: string | null;
   faviconPath: string | null;
@@ -311,6 +312,7 @@ export class SettingsService extends BaseService {
     const keys = [
       'app_name',
       'app_subtitle',
+      'app_description',
       'show_forgot_password',
       'theme_logoPath',
       'theme_faviconPath',
@@ -326,6 +328,7 @@ export class SettingsService extends BaseService {
     return {
       appName: map['app_name'] || 'ConMGR',
       appSubtitle: map['app_subtitle'] || '',
+      appDescription: map['app_description'] || 'Manage events, scoring, certifications, and reporting from one secure platform.',
       showForgotPassword: (map['show_forgot_password'] || 'true') === 'true',
       logoPath: map['theme_logoPath'] || null,
       faviconPath: map['theme_faviconPath'] || null,

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { FormProvider, FormInput, FormField } from '../components/form'
 import { loginSchema, LoginInput } from '../lib/validation'
@@ -26,6 +27,7 @@ interface TenantInfo {
 interface PublicSettings {
   appName: string
   appSubtitle: string
+  appDescription: string
   showForgotPassword: boolean
   logoPath: string | null
   faviconPath: string | null
@@ -44,12 +46,13 @@ const LoginPage: React.FC = () => {
   })
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
   const [settings, setSettings] = useState<PublicSettings>({
-    appName: 'ConMGR',
-    appSubtitle: '',
+    appName: DEFAULT_APP_BASELINE.appName,
+    appSubtitle: DEFAULT_APP_BASELINE.appSubtitle,
+    appDescription: DEFAULT_APP_BASELINE.appDescription,
     showForgotPassword: true,
     logoPath: null,
     faviconPath: null,
-    contactEmail: 'support@conmgr.com'
+    contactEmail: DEFAULT_APP_BASELINE.contactEmail
   })
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -127,6 +130,9 @@ const LoginPage: React.FC = () => {
         const payload = data.data || data
         setSettings((prev) => ({
           ...prev,
+          appName: payload.appName || prev.appName,
+          appSubtitle: payload.appSubtitle || prev.appSubtitle,
+          appDescription: payload.appDescription || prev.appDescription,
           showForgotPassword: payload.showForgotPassword !== false,
           contactEmail: payload.contactEmail || prev.contactEmail,
         }))
@@ -308,7 +314,7 @@ const LoginPage: React.FC = () => {
                   </a>
                   <span className="hidden sm:inline text-gray-400">|</span>
                   <a
-                    href={`mailto:${settings.contactEmail || 'support@conmgr.com'}`}
+                    href={`mailto:${settings.contactEmail || DEFAULT_APP_BASELINE.contactEmail}`}
                     className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
                     aria-label="Contact support via email"
                   >

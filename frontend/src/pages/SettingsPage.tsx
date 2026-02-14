@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
 import api from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import {
   Cog6ToothIcon,
   CheckIcon,
@@ -154,7 +155,7 @@ const SettingsPage: React.FC = () => {
     email_smtp_user: '',
     email_smtp_pass: '',
     email_from_address: '',
-    email_from_name: 'ConMGR',
+    email_from_name: DEFAULT_APP_BASELINE.appName,
   })
 
   const [themeFormData, setThemeFormData] = useState<ThemeSettings>({
@@ -162,7 +163,7 @@ const SettingsPage: React.FC = () => {
     theme_secondaryColor: '#8b5cf6',
     theme_logoPath: '',
     theme_faviconPath: '',
-    app_name: 'ConMGR',
+    app_name: DEFAULT_APP_BASELINE.appName,
     app_subtitle: '',
   })
 
@@ -248,7 +249,7 @@ const SettingsPage: React.FC = () => {
             email_smtp_user: data.email_smtp_user || '',
             email_smtp_pass: data.email_smtp_pass || '',
             email_from_address: data.email_from_address || '',
-            email_from_name: data.email_from_name || 'ConMGR',
+            email_from_name: data.email_from_name || DEFAULT_APP_BASELINE.appName,
           })
         }
       },
@@ -271,7 +272,7 @@ const SettingsPage: React.FC = () => {
             theme_secondaryColor: data.theme_secondaryColor || data.secondaryColor || '#8b5cf6',
             theme_logoPath: data.theme_logoPath || data.logoPath || '',
             theme_faviconPath: data.theme_faviconPath || data.faviconPath || '',
-            app_name: data.app_name || data.appName || 'ConMGR',
+            app_name: data.app_name || data.appName || DEFAULT_APP_BASELINE.appName,
             app_subtitle: data.app_subtitle || data.appSubtitle || '',
           })
         }
@@ -1248,7 +1249,7 @@ const SettingsPage: React.FC = () => {
                           type="text"
                           value={emailFormData.email_from_name}
                           onChange={(e) => setEmailFormData({ ...emailFormData, email_from_name: e.target.value })}
-                          placeholder="ConMGR"
+                          placeholder={DEFAULT_APP_BASELINE.appName}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
