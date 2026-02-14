@@ -9,6 +9,13 @@ import { useTenant } from '../contexts/TenantContext'
  */
 const NotFoundPage: React.FC = () => {
   const { buildPath } = useTenant()
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      window.history.back()
+      return
+    }
+    window.location.assign(buildPath('/dashboard'))
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-4 py-16">
@@ -40,7 +47,7 @@ const NotFoundPage: React.FC = () => {
           Go to Dashboard
         </Link>
         <button
-          onClick={() => window.history.back()}
+          onClick={handleGoBack}
           className="inline-flex items-center justify-center px-5 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           <ArrowLeftIcon className="h-5 w-5 mr-2" aria-hidden="true" />

@@ -47,6 +47,13 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Never route API/file/socket navigations to SPA fallback.
+        // This prevents `/api/...` links (like bio files) from being treated as tenant routes.
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/uploads\//,
+          /^\/socket\.io\//
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\..*/i,

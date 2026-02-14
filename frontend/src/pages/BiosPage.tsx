@@ -47,8 +47,16 @@ interface BioDirectoryResponse {
 
 const toImageUrl = (path?: string | null): string | null => {
   if (!path) return null
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path
-  return `/${path}`
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const normalized = path.startsWith('/uploads/bios/')
+    ? path.replace('/uploads/bios/', '/uploads/users/bios/')
+    : path
+  const match = normalized.match(/\/uploads\/(?:users\/bios|users|bios)\/([^/?#]+)/i)
+  if (match?.[1]) {
+    return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
+  }
+  if (normalized.startsWith('/')) return normalized
+  return `/${normalized}`
 }
 
 const toFileUrl = (path?: string | null): string | null => {
@@ -59,7 +67,7 @@ const toFileUrl = (path?: string | null): string | null => {
     : path
   const match = normalized.match(/\/uploads\/(?:users\/bios|bios)\/([^/?#]+)/i)
   if (match?.[1]) {
-    return `/api/bios/files/${encodeURIComponent(match[1])}`
+    return `/api/v1/bios/files/${encodeURIComponent(match[1])}`
   }
   if (normalized.startsWith('/')) return normalized
   return `/${normalized}`

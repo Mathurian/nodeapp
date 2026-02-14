@@ -76,10 +76,13 @@ export class BioController {
 
       const legacyPath = path.resolve(process.cwd(), 'uploads/bios', filename);
       const userBioPath = path.resolve(process.cwd(), 'uploads/users/bios', filename);
+      const userRootPath = path.resolve(process.cwd(), 'uploads/users', filename);
       const targetPath = fs.existsSync(userBioPath)
         ? userBioPath
         : fs.existsSync(legacyPath)
           ? legacyPath
+          : fs.existsSync(userRootPath)
+            ? userRootPath
           : null;
 
       if (!targetPath) {
