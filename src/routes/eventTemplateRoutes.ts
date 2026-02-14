@@ -1,5 +1,12 @@
 import express, { Router } from 'express';
-import { createTemplate, getTemplates, getTemplate } from '../controllers/eventTemplateController';
+import {
+  createTemplate,
+  getTemplates,
+  getTemplate,
+  updateTemplate,
+  deleteTemplate,
+  createEventFromTemplate
+} from '../controllers/eventTemplateController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 
@@ -37,6 +44,9 @@ router.use(authenticateToken)
 router.get('/', getTemplates)
 router.get('/:id', getTemplate)
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), updateTemplate)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), deleteTemplate)
+router.post('/:id/create-event', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createEventFromTemplate)
 
 export default router;
 

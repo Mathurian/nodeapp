@@ -241,7 +241,7 @@ router.get('/email-templates/:id', emailTemplateController.getTemplateById.bind(
  *       403:
  *         description: Forbidden - requires ADMIN or ORGANIZER role
  */
-router.post('/email-templates', checkRoles(['ADMIN', 'ORGANIZER']), emailTemplateController.createTemplate.bind(emailTemplateController));
+router.post('/email-templates', checkRoles(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), emailTemplateController.createTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -288,7 +288,7 @@ router.post('/email-templates', checkRoles(['ADMIN', 'ORGANIZER']), emailTemplat
  *       404:
  *         description: Template not found
  */
-router.put('/email-templates/:id', checkRoles(['ADMIN', 'ORGANIZER']), emailTemplateController.updateTemplate.bind(emailTemplateController));
+router.put('/email-templates/:id', checkRoles(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), emailTemplateController.updateTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -316,7 +316,7 @@ router.put('/email-templates/:id', checkRoles(['ADMIN', 'ORGANIZER']), emailTemp
  *       404:
  *         description: Template not found
  */
-router.delete('/email-templates/:id', checkRoles(['ADMIN', 'ORGANIZER']), emailTemplateController.deleteTemplate.bind(emailTemplateController));
+router.delete('/email-templates/:id', checkRoles(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), emailTemplateController.deleteTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -363,7 +363,7 @@ router.delete('/email-templates/:id', checkRoles(['ADMIN', 'ORGANIZER']), emailT
  *       404:
  *         description: Template not found
  */
-router.post('/email-templates/:id/clone', checkRoles(['ADMIN', 'ORGANIZER']), emailTemplateController.cloneTemplate.bind(emailTemplateController));
+router.post('/email-templates/:id/clone', checkRoles(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), emailTemplateController.cloneTemplate.bind(emailTemplateController));
 
 /**
  * @swagger

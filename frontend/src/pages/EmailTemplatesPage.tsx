@@ -16,7 +16,7 @@ interface EmailTemplate {
   subject: string
   body: string
   variables: string[]
-  category: 'NOTIFICATION' | 'WELCOME' | 'REMINDER' | 'REPORT' | 'CUSTOM'
+  type: 'NOTIFICATION' | 'WELCOME' | 'REMINDER' | 'REPORT' | 'CUSTOM'
   createdAt: string
   updatedAt: string
 }
@@ -33,12 +33,12 @@ const EmailTemplatesPage: React.FC = () => {
     name: string
     subject: string
     body: string
-    category: 'NOTIFICATION' | 'WELCOME' | 'REMINDER' | 'REPORT' | 'CUSTOM'
+    type: 'NOTIFICATION' | 'WELCOME' | 'REMINDER' | 'REPORT' | 'CUSTOM'
   }>({
     name: '',
     subject: '',
     body: '',
-    category: 'CUSTOM',
+    type: 'CUSTOM',
   })
 
   useEffect(() => {
@@ -51,7 +51,24 @@ const EmailTemplatesPage: React.FC = () => {
       const response = await emailAPI.getTemplates()
       const payload = response.data?.data
       const templateList = Array.isArray(payload) ? payload : (payload?.templates || payload?.data || [])
-      setTemplates(Array.isArray(templateList) ? templateList : [])
+      const mapped = Array.isArray(templateList)
+        ? templateList.map((template: any) => ({
+            ...template,
+            type: template.type || template.category || 'CUSTOM',
+            variables: Array.isArray(template.variables)
+              ? template.variables
+              : typeof template.variables === 'string'
+                ? (() => {
+                    try {
+                      return JSON.parse(template.variables || '[]')
+                    } catch {
+                      return []
+                    }
+                  })()
+                : [],
+          }))
+        : []
+      setTemplates(mapped)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load templates')
     } finally {
@@ -97,7 +114,7 @@ const EmailTemplatesPage: React.FC = () => {
       name: '',
       subject: '',
       body: '',
-      category: 'CUSTOM',
+      type: 'CUSTOM',
     })
   }
 
@@ -107,7 +124,7 @@ const EmailTemplatesPage: React.FC = () => {
       name: template.name,
       subject: template.subject,
       body: template.body,
-      category: template.category,
+      type: template.type,
     })
     setShowModal(true)
   }
@@ -201,7 +218,7 @@ const EmailTemplatesPage: React.FC = () => {
                       {template.name}
                     </h3>
                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                      {template.category}
+                      {template.type}
                     </span>
                   </div>
                 </div>
@@ -292,8 +309,8 @@ const EmailTemplatesPage: React.FC = () => {
                     Category
                   </label>
                   <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                   >
                     <option value="CUSTOM">Custom</option>

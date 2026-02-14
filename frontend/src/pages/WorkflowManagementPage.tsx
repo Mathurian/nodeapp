@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import {
@@ -11,36 +11,118 @@ import {
   BoltIcon,
 } from '@heroicons/react/24/outline'
 
-interface Workflow {
-  id: string
+type WorkflowRole = 'SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'BOARD' | 'TALLY_MASTER' | 'AUDITOR' | 'JUDGE' | 'EMCEE' | 'CONTESTANT'
+
+interface WorkflowStep {
+  id?: string
   name: string
-  description: string
-  trigger: 'EVENT_CREATED' | 'SCORE_SUBMITTED' | 'CERTIFICATION_APPROVED' | 'MANUAL'
-  isActive: boolean
-  actions: WorkflowAction[]
-  createdAt: string
+  description?: string
+  stepOrder: number
+  requiredRole?: WorkflowRole | ''
+  requireApproval?: boolean
+  autoAdvance?: boolean
 }
 
-interface WorkflowAction {
+interface WorkflowTemplate {
   id: string
-  type: 'SEND_EMAIL' | 'SEND_NOTIFICATION' | 'UPDATE_STATUS' | 'CREATE_TASK'
-  config: Record<string, any>
-  order: number
+  name: string
+  description?: string
+  type: string
+  isActive: boolean
+  createdAt: string
+  steps: WorkflowStep[]
+}
+
+interface WorkflowForm {
+  name: string
+  description: string
+  type: string
+  isActive: boolean
+  steps: WorkflowStep[]
+}
+
+const EMPTY_STEP = (order: number): WorkflowStep => ({
+  name: '',
+  description: '',
+  stepOrder: order,
+  requiredRole: '',
+  requireApproval: true,
+  autoAdvance: false,
+})
+
+const EMPTY_FORM: WorkflowForm = {
+  name: '',
+  description: '',
+  type: 'custom',
+  isActive: true,
+  steps: [EMPTY_STEP(1)],
+}
+
+const ROLE_OPTIONS: WorkflowRole[] = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT']
+
+const parseTemplate = (raw: any): WorkflowTemplate => {
+  const parsedSteps: WorkflowStep[] = Array.isArray(raw?.steps)
+    ? raw.steps
+    : Array.isArray(raw?.config?.steps)
+      ? raw.config.steps
+      : []
+
+  return {
+    id: raw.id,
+    name: raw.name || 'Untitled Workflow',
+    description: raw.description || '',
+    type: raw.type || 'custom',
+    isActive: Boolean(raw.isActive),
+    createdAt: raw.createdAt,
+    steps: parsedSteps
+      .map((step: any, index: number) => ({
+        id: step.id,
+        name: String(step.name || '').trim(),
+        description: step.description || '',
+        stepOrder: Number(step.stepOrder || index + 1),
+        requiredRole: (step.requiredRole || '') as WorkflowRole | '',
+        requireApproval: step.requireApproval !== false,
+        autoAdvance: Boolean(step.autoAdvance),
+      }))
+      .sort((a: WorkflowStep, b: WorkflowStep) => a.stepOrder - b.stepOrder),
+  }
+}
+
+const buildPayload = (form: WorkflowForm) => {
+  const steps = form.steps
+    .map((step, index) => ({
+      name: step.name.trim(),
+      description: step.description?.trim() || undefined,
+      stepOrder: index + 1,
+      requiredRole: step.requiredRole || undefined,
+      requireApproval: step.requireApproval !== false,
+      autoAdvance: Boolean(step.autoAdvance),
+    }))
+    .filter((step) => step.name.length > 0)
+
+  return {
+    name: form.name.trim(),
+    description: form.description.trim(),
+    type: form.type.trim() || 'custom',
+    isActive: form.isActive,
+    steps,
+  }
 }
 
 const WorkflowManagementPage: React.FC = () => {
   const { user } = useAuth()
-  const [workflows, setWorkflows] = useState<Workflow[]>([])
+  const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
-  const [newWorkflow, setNewWorkflow] = useState({
-    name: '',
-    description: '',
-    trigger: 'MANUAL' as const,
-    actions: [] as WorkflowAction[],
-  })
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null)
+  const [form, setForm] = useState<WorkflowForm>(EMPTY_FORM)
+
+  const canManage = useMemo(
+    () => ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || ''),
+    [user?.role]
+  )
 
   useEffect(() => {
     fetchWorkflows()
@@ -50,48 +132,76 @@ const WorkflowManagementPage: React.FC = () => {
     try {
       setLoading(true)
       const response = await api.get('/workflows/templates')
-      const unwrapped = response.data.data || response.data
-      setWorkflows(Array.isArray(unwrapped) ? unwrapped : [])
+      const payload = response.data?.data || response.data
+      const list = Array.isArray(payload) ? payload : []
+      setWorkflows(list.map(parseTemplate))
+      setError(null)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load workflows')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load workflows')
     } finally {
       setLoading(false)
     }
   }
 
-  const createWorkflow = async () => {
-    try {
-      await api.post('/workflows/templates', newWorkflow)
-      setShowCreateModal(false)
-      setNewWorkflow({
-        name: '',
-        description: '',
-        trigger: 'MANUAL',
-        actions: [],
-      })
-      await fetchWorkflows()
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create workflow')
-    }
+  const openCreate = () => {
+    setEditingWorkflowId(null)
+    setForm(EMPTY_FORM)
+    setIsModalOpen(true)
   }
 
-  const updateWorkflow = async (id: string, data: Partial<Workflow>) => {
+  const openEdit = (workflow: WorkflowTemplate) => {
+    setEditingWorkflowId(workflow.id)
+    setForm({
+      name: workflow.name,
+      description: workflow.description || '',
+      type: workflow.type || 'custom',
+      isActive: workflow.isActive,
+      steps: workflow.steps.length > 0
+        ? workflow.steps.map((step, index) => ({
+            ...step,
+            stepOrder: index + 1,
+          }))
+        : [EMPTY_STEP(1)],
+    })
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingWorkflowId(null)
+    setForm(EMPTY_FORM)
+  }
+
+  const saveWorkflow = async () => {
+    const payload = buildPayload(form)
+    if (!payload.name) {
+      setError('Workflow name is required')
+      return
+    }
+
     try {
-      await api.put(`/workflows/templates/${id}`, data)
-      setEditingWorkflow(null)
+      setSaving(true)
+      if (editingWorkflowId) {
+        await api.put(`/workflows/templates/${editingWorkflowId}`, payload)
+      } else {
+        await api.post('/workflows/templates', payload)
+      }
+      closeModal()
       await fetchWorkflows()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update workflow')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to save workflow')
+    } finally {
+      setSaving(false)
     }
   }
 
   const deleteWorkflow = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this workflow?')) return
+    if (!confirm('Delete this workflow template?')) return
     try {
       await api.delete(`/workflows/templates/${id}`)
       await fetchWorkflows()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete workflow')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete workflow')
     }
   }
 
@@ -100,55 +210,52 @@ const WorkflowManagementPage: React.FC = () => {
       await api.put(`/workflows/templates/${id}`, { isActive: !isActive })
       await fetchWorkflows()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to toggle workflow')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to toggle workflow')
     }
   }
 
   const executeWorkflow = async (id: string) => {
     try {
-      await api.post(`/workflows/instances`, {
+      await api.post('/workflows/instances', {
         templateId: id,
         entityType: 'MANUAL_EXECUTION',
-        entityId: `manual-${Date.now()}`
+        entityId: `manual-${Date.now()}`,
       })
       alert('Workflow executed successfully')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to execute workflow')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to execute workflow')
     }
   }
 
-  const addAction = () => {
-    setNewWorkflow({
-      ...newWorkflow,
-      actions: [
-        ...newWorkflow.actions,
-        {
-          id: `temp-${Date.now()}`,
-          type: 'SEND_EMAIL',
-          config: {},
-          order: newWorkflow.actions.length,
-        },
-      ],
-    })
+  const addStep = () => {
+    setForm((prev) => ({
+      ...prev,
+      steps: [...prev.steps, EMPTY_STEP(prev.steps.length + 1)],
+    }))
   }
 
-  const removeAction = (index: number) => {
-    setNewWorkflow({
-      ...newWorkflow,
-      actions: newWorkflow.actions.filter((_, i) => i !== index),
-    })
+  const updateStep = (index: number, patch: Partial<WorkflowStep>) => {
+    setForm((prev) => ({
+      ...prev,
+      steps: prev.steps.map((step, stepIndex) =>
+        stepIndex === index ? { ...step, ...patch, stepOrder: stepIndex + 1 } : step
+      ),
+    }))
   }
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
+  const removeStep = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      steps: prev.steps.filter((_, stepIndex) => stepIndex !== index).map((step, idx) => ({ ...step, stepOrder: idx + 1 })),
+    }))
+  }
+
+  if (!canManage) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white mb-2">
-            Access Denied
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-            You don't have permission to manage workflows.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h2>
+          <p className="text-gray-600 dark:text-gray-400">You don't have permission to manage workflows.</p>
         </div>
       </div>
     )
@@ -156,27 +263,25 @@ const WorkflowManagementPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Loading workflows...</div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400">Loading workflows...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between gap-4 sm:items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">
-              Workflow Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mt-2">
-              Automate tasks with workflow triggers and actions
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Workflow Management</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              Configure step-based automation templates and execute manual workflows.
             </p>
           </div>
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+            onClick={openCreate}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             Create Workflow
@@ -191,93 +296,80 @@ const WorkflowManagementPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {workflows.length === 0 ? (
-            <div className="col-span-2 bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
               <Square3Stack3DIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                No workflows created yet. Create your first workflow to automate tasks.
+              <p className="text-gray-600 dark:text-gray-400">
+                No workflows created yet. Create a workflow template to define your stage process.
               </p>
             </div>
           ) : (
             workflows.map((workflow) => (
-              <div key={workflow.id} className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
-                <div className="flex justify-between items-start mb-4">
+              <div key={workflow.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="flex justify-between items-start gap-3 mb-4">
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-2">
-                      {workflow.name}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 text-sm mb-3">
-                      {workflow.description}
-                    </p>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">{workflow.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{workflow.description || 'No description provided.'}</p>
+                    <div className="mt-2 text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                      Type: {workflow.type}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleWorkflow(workflow.id, workflow.isActive)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        workflow.isActive
-                          ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900'
-                          : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                      title={workflow.isActive ? 'Active' : 'Inactive'}
-                    >
-                      {workflow.isActive ? (
-                        <PlayIcon className="h-5 w-5" />
-                      ) : (
-                        <PauseIcon className="h-5 w-5" />
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => toggleWorkflow(workflow.id, workflow.isActive)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      workflow.isActive
+                        ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900'
+                        : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                    title={workflow.isActive ? 'Active' : 'Inactive'}
+                  >
+                    {workflow.isActive ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
+                  </button>
                 </div>
 
                 <div className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <BoltIcon className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">
-                      Trigger:
-                    </span>
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                      {workflow.trigger.replace(/_/g, ' ')}
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Steps ({workflow.steps.length})
                     </span>
                   </div>
-
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
-                      Actions ({workflow.actions.length}):
-                    </p>
-                    <div className="space-y-2">
-                      {workflow.actions.map((action, index) => (
-                        <div
-                          key={action.id}
-                          className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500"
-                        >
-                          <span className="w-6 h-6 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-full text-xs">
-                            {index + 1}
-                          </span>
-                          {action.type.replace(/_/g, ' ')}
+                  <div className="space-y-2">
+                    {workflow.steps.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No configured steps.</p>
+                    ) : (
+                      workflow.steps.map((step) => (
+                        <div key={`${workflow.id}-${step.stepOrder}-${step.id || step.name}`} className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded p-2">
+                          <div className="font-medium">
+                            {step.stepOrder}. {step.name}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Role: {step.requiredRole || 'Any'} | Approval: {step.requireApproval ? 'Required' : 'Not required'}
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  {workflow.trigger === 'MANUAL' && (
-                    <button
-                      onClick={() => executeWorkflow(workflow.id)}
-                      className="flex-1 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-sm"
-                    >
-                      Execute
-                    </button>
-                  )}
+                <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setEditingWorkflow(workflow)}
-                    className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
+                    onClick={() => executeWorkflow(workflow.id)}
+                    className="px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-sm"
                   >
+                    Execute
+                  </button>
+                  <button
+                    onClick={() => openEdit(workflow)}
+                    className="px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
+                  >
+                    <PencilIcon className="h-4 w-4 inline mr-1" />
                     Edit
                   </button>
                   <button
                     onClick={() => deleteWorkflow(workflow.id)}
                     className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors text-sm"
                   >
+                    <TrashIcon className="h-4 w-4 inline mr-1" />
                     Delete
                   </button>
                 </div>
@@ -285,111 +377,154 @@ const WorkflowManagementPage: React.FC = () => {
             ))
           )}
         </div>
+      </div>
 
-        {/* Create Workflow Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 max-h-[90vh] overflow-y-auto p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
-                Create Workflow
-              </h3>
-              <div className="space-y-4">
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {editingWorkflowId ? 'Edit Workflow' : 'Create Workflow'}
+            </h3>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
-                    Name
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                   <input
                     type="text"
-                    value={newWorkflow.name}
-                    onChange={(e) => setNewWorkflow({ ...newWorkflow, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                    value={form.name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={newWorkflow.description}
-                    onChange={(e) => setNewWorkflow({ ...newWorkflow, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                  <input
+                    type="text"
+                    value={form.type}
+                    onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}
+                    placeholder="custom"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
-                    Trigger
-                  </label>
-                  <select
-                    value={newWorkflow.trigger}
-                    onChange={(e) => setNewWorkflow({ ...newWorkflow, trigger: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
-                  >
-                    <option value="MANUAL">Manual</option>
-                    <option value="EVENT_CREATED">Event Created</option>
-                    <option value="SCORE_SUBMITTED">Score Submitted</option>
-                    <option value="CERTIFICATION_APPROVED">Certification Approved</option>
-                  </select>
-                </div>
+              </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">
-                      Actions
-                    </label>
-                    <button
-                      onClick={addAction}
-                      className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
-                    >
-                      Add Action
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {newWorkflow.actions.map((action, index) => (
-                      <div key={action.id} className="flex gap-2">
-                        <select
-                          value={action.type}
-                          onChange={(e) => {
-                            const newActions = [...newWorkflow.actions]
-                            newActions[index].type = e.target.value as any
-                            setNewWorkflow({ ...newWorkflow, actions: newActions })
-                          }}
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
-                        >
-                          <option value="SEND_EMAIL">Send Email</option>
-                          <option value="SEND_NOTIFICATION">Send Notification</option>
-                          <option value="UPDATE_STATUS">Update Status</option>
-                          <option value="CREATE_TASK">Create Task</option>
-                        </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="workflow-active"
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <label htmlFor="workflow-active" className="text-sm text-gray-700 dark:text-gray-300">
+                  Active
+                </label>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Workflow Steps</label>
+                  <button
+                    onClick={addStep}
+                    className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
+                  >
+                    Add Step
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {form.steps.map((step, index) => (
+                    <div key={`step-${index}`} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          Step {index + 1}
+                        </h4>
                         <button
-                          onClick={() => removeAction(index)}
-                          className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600"
+                          onClick={() => removeStep(index)}
+                          disabled={form.steps.length <= 1}
+                          className="text-red-600 disabled:text-gray-400"
                         >
-                          <TrashIcon className="h-5 w-5" />
+                          <TrashIcon className="h-4 w-4" />
                         </button>
                       </div>
-                    ))}
-                  </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Step name"
+                          value={step.name}
+                          onChange={(e) => updateStep(index, { name: e.target.value })}
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                        <select
+                          value={step.requiredRole || ''}
+                          onChange={(e) => updateStep(index, { requiredRole: e.target.value as WorkflowRole | '' })}
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="">Any role</option>
+                          {ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <textarea
+                        placeholder="Step description"
+                        value={step.description || ''}
+                        onChange={(e) => updateStep(index, { description: e.target.value })}
+                        rows={2}
+                        className="mt-3 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                      <div className="flex flex-wrap gap-4 mt-3">
+                        <label className="text-sm text-gray-700 dark:text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={step.requireApproval !== false}
+                            onChange={(e) => updateStep(index, { requireApproval: e.target.checked })}
+                            className="mr-2"
+                          />
+                          Require approval
+                        </label>
+                        <label className="text-sm text-gray-700 dark:text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(step.autoAdvance)}
+                            onChange={(e) => updateStep(index, { autoAdvance: e.target.checked })}
+                            className="mr-2"
+                          />
+                          Auto-advance
+                        </label>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={createWorkflow}
-                  className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-                >
-                  Create
-                </button>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={saveWorkflow}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-70"
+              >
+                {saving ? 'Saving...' : editingWorkflowId ? 'Save Changes' : 'Create Workflow'}
+              </button>
+              <button
+                onClick={closeModal}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

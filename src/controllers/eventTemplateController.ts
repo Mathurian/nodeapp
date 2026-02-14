@@ -104,7 +104,8 @@ export class EventTemplateController {
         return;
       }
 
-      const { templateId, eventName, eventDescription, startDate, endDate } = req.body;
+      const templateId = req.params['id'] || req.body.templateId;
+      const { eventName, eventDescription, startDate, endDate } = req.body;
       const event = await this.eventTemplateService.createEventFromTemplate({
         templateId,
         eventName,

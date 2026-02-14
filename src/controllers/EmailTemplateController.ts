@@ -22,7 +22,7 @@ export class EmailTemplateController {
 
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getAllEmailTemplates(eventId as string, req.user.tenantId);
+      const templates = await emailTemplateService.getAllEmailTemplates(req.user.tenantId, eventId as string | undefined);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: unknown) {
@@ -74,7 +74,7 @@ export class EmailTemplateController {
       const type = getRequiredParam(req, 'type');
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getEmailTemplatesByType(type, eventId as string, req.user.tenantId);
+      const templates = await emailTemplateService.getEmailTemplatesByType(type, req.user.tenantId, eventId as string | undefined);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: unknown) {

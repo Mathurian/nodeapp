@@ -7,6 +7,85 @@ import { WorkflowService } from '../services/WorkflowService';
 import { sendSuccess } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 
+interface LegacyWorkflowAction {
+  id?: string;
+  type: string;
+  config?: Record<string, unknown>;
+  order?: number;
+}
+
+interface LegacyWorkflowBody {
+  name?: string;
+  description?: string;
+  type?: string;
+  trigger?: string;
+  isDefault?: boolean;
+  isActive?: boolean;
+  steps?: Array<Record<string, unknown>>;
+  actions?: LegacyWorkflowAction[];
+}
+
+const normalizeTemplatePayload = (
+  body: LegacyWorkflowBody,
+  tenantId: string,
+  options?: { requireName?: boolean }
+): {
+  tenantId: string;
+  name?: string;
+  description?: string;
+  type: string;
+  isDefault?: boolean;
+  isActive?: boolean;
+  steps: any[];
+} => {
+  const normalizedType = body.type || body.trigger || 'custom';
+  const normalizedName = typeof body.name === 'string' ? body.name : undefined;
+  const name = options?.requireName ? (normalizedName || '') : normalizedName;
+  if (Array.isArray(body.steps) && body.steps.length > 0) {
+    return {
+      tenantId,
+      name,
+      description: body.description,
+      type: normalizedType,
+      isDefault: body.isDefault,
+      isActive: body.isActive,
+      steps: body.steps,
+    };
+  }
+
+  if (Array.isArray(body.actions) && body.actions.length > 0) {
+    const orderedActions = [...body.actions].sort((a, b) => (a.order || 0) - (b.order || 0));
+    return {
+      tenantId,
+      name,
+      description: body.description,
+      type: normalizedType,
+      isDefault: body.isDefault,
+      isActive: body.isActive,
+      steps: [
+        {
+          name: body.trigger ? `${body.trigger} Actions` : 'Workflow Actions',
+          description: 'Legacy action set migrated into step-based workflow',
+          stepOrder: 1,
+          actions: { items: orderedActions },
+          requireApproval: true,
+          autoAdvance: false,
+        },
+      ],
+    };
+  }
+
+  return {
+    tenantId,
+    name,
+    description: body.description,
+    type: normalizedType,
+    isDefault: body.isDefault,
+    isActive: body.isActive,
+    steps: [],
+  };
+};
+
 export const createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.tenantId) {
@@ -17,17 +96,19 @@ export const createTemplate = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const input = {
-      ...req.body,
-      // Frontend currently sends `trigger` + `actions`; normalize to workflow service shape.
-      type: req.body?.type || req.body?.trigger || 'custom',
-      steps: Array.isArray(req.body?.steps)
-        ? req.body.steps
-        : [],
-      tenantId: req.tenantId,
-    };
+    const input = normalizeTemplatePayload(req.body as LegacyWorkflowBody, req.tenantId, { requireName: true });
+    if (!input.name || !input.name.trim()) {
+      res.status(400).json({
+        success: false,
+        error: 'Workflow template name is required'
+      });
+      return;
+    }
 
-    const template = await WorkflowService.createTemplate(input);
+    const template = await WorkflowService.createTemplate({
+      ...input,
+      name: input.name as string,
+    });
     sendSuccess(res, template, 'Workflow template created', 201);
   } catch (error) {
     return next(error);
@@ -56,7 +137,8 @@ export const listTemplates = async (req: Request, res: Response, next: NextFunct
 export const updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = getRequiredParam(req, 'id');
-    const template = await WorkflowService.updateTemplate(id, req.tenantId!, req.body);
+    const payload = normalizeTemplatePayload(req.body as LegacyWorkflowBody, req.tenantId!);
+    const template = await WorkflowService.updateTemplate(id, req.tenantId!, payload);
     sendSuccess(res, template, 'Workflow template updated');
   } catch (error) {
     return next(error);
@@ -96,6 +178,14 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
     const id = getRequiredParam(req, 'id');
     const { approvalStatus, comments } = req.body;
     const userId = (req as any).user?.id;
+    const userRole = (req as any).user?.role;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication is required'
+      });
+      return;
+    }
     if (!approvalStatus || !['approved', 'rejected'].includes(approvalStatus)) {
       res.status(400).json({
         success: false,
@@ -104,7 +194,7 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    const instance = await WorkflowService.advanceWorkflow(id, req.tenantId!, userId, approvalStatus, comments);
+    const instance = await WorkflowService.advanceWorkflow(id, req.tenantId!, userId, userRole, approvalStatus, comments);
     sendSuccess(res, instance, 'Workflow advanced');
   } catch (error) {
     return next(error);

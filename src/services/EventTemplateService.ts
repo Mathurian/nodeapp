@@ -64,10 +64,10 @@ export interface UpdateTemplateDto {
 
 export interface CreateEventFromTemplateDto {
   templateId: string;
-  eventName: string;
+  eventName?: string;
   eventDescription?: string;
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date | string;
+  endDate?: Date | string;
   tenantId: string;
 }
 
@@ -239,8 +239,8 @@ export class EventTemplateService extends BaseService {
   }
 
   async createEventFromTemplate(data: CreateEventFromTemplateDto): Promise<EventCreationResponse> {
-    if (!data.templateId || !data.eventName || !data.startDate || !data.endDate) {
-      throw this.badRequestError('Template ID, event name, start date, and end date are required');
+    if (!data.templateId) {
+      throw this.badRequestError('Template ID is required');
     }
 
     const template: EventTemplate | null = await this.prisma.eventTemplate.findFirst({
@@ -251,15 +251,23 @@ export class EventTemplateService extends BaseService {
       throw this.notFoundError('Template', data.templateId);
     }
 
+    const now = new Date();
+    const startDate = data.startDate ? new Date(data.startDate) : now;
+    const endDate = data.endDate ? new Date(data.endDate) : new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+    const eventName = (data.eventName || `${template.name} - ${now.toISOString().slice(0, 10)}`).trim();
+    if (!eventName) {
+      throw this.badRequestError('Event name is required');
+    }
+
     const contests: ContestTemplate[] = JSON.parse(template.contests as string) as ContestTemplate[];
     const categories: CategoryTemplate[] = JSON.parse(template.categories as string) as CategoryTemplate[];
 
     const event: Event = await this.prisma.event.create({
       data: {
-        name: data.eventName,
+        name: eventName,
         description: data.eventDescription || null,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        startDate,
+        endDate,
         tenantId: data.tenantId
       }
     });

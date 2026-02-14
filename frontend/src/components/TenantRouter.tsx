@@ -196,7 +196,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
-            <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TemplatesPage /></ProtectedRoute>} />
+            <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
@@ -256,7 +256,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
             <Route path="/:slug/profile" element={<ProfilePage />} />
             <Route path="/:slug/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
-            <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TemplatesPage /></ProtectedRoute>} />
+            <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
             <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />

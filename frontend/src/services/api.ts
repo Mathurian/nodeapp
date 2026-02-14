@@ -459,10 +459,11 @@ export const scoreGovernanceAPI = {
 
 export const emailAPI = {
   getAll: () => api.get('/email'),
-  getTemplates: () => api.get('/email/templates'),
-  createTemplate: (data: any) => api.post('/email/templates', data),
-  updateTemplate: (id: string, data: any) => api.put(`/email/templates/${id}`, data),
-  deleteTemplate: (id: string) => api.delete(`/email/templates/${id}`),
+  getTemplates: () => api.get('/email-templates'),
+  createTemplate: (data: any) => api.post('/email-templates', data),
+  updateTemplate: (id: string, data: any) => api.put(`/email-templates/${id}`, data),
+  deleteTemplate: (id: string) => api.delete(`/email-templates/${id}`),
+  previewTemplate: (id: string, variables: Record<string, string>) => api.post(`/email-templates/${id}/preview`, { variables }),
   getCampaigns: () => api.get('/email/campaigns'),
   createCampaign: (data: any) => api.post('/email/campaigns', data),
   sendCampaign: (id: string) => api.post(`/email/campaigns/${id}/send`),
