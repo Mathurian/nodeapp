@@ -1445,12 +1445,15 @@ export class UsersController {
         '# Instructions:',
         '# - Required fields for ALL users: name, email, password, role',
         '# - Role must be one of: SUPER_ADMIN, ADMIN, ORGANIZER, JUDGE, CONTESTANT, TALLY_MASTER, AUDITOR, BOARD, EMCEE',
+        '# - Use unique email addresses. Existing users are not updated by this import.',
+        '# - contestId/categoryId must be real IDs from your tenant (UI: Assignments or API: /api/contests, /api/categories).',
         '# - JUDGE-specific fields: judgeNumber, judgeLevel, isHeadJudge (true/false)',
         '# - CONTESTANT-specific fields: contestantNumber, age, parentGuardian, parentPhone, school, grade',
         '# - Optional fields for all: bio, phone, address, preferredName, pronouns, gender',
-        '# - Assignment fields: contestId (assigns to all categories in contest), categoryId (assigns to specific category)',
+        '# - Assignment fields: contestId (assign to all categories in contest), categoryId (assign to specific category)',
         '#   - For JUDGE: If contestId provided, assigns to all categories. If categoryId provided, assigns to that category.',
         '#   - For CONTESTANT: If categoryId provided, assigns to that category. If contestId provided, assigns to all categories.',
+        '# - If both contestId and categoryId are provided, categoryId takes precedence for assignment.',
         '# - Leave fields empty if not applicable',
         '# - You may leave contestId and categoryId empty for users that should not be assigned during import',
         '# - Remove these instruction lines (starting with #) before uploading',
@@ -1490,9 +1493,9 @@ export class UsersController {
       // Create example rows for different roles
       const exampleRows = [
         // Judge example with assignment
-        ['John Doe', 'judge@example.com', 'SecurePass123!', 'JUDGE', '', '', '', '555-0001', '', 'Experienced judge', 'J001', 'EXPERT', 'false', '', '', '', '', '', '', 'contest-id-here', 'category-id-here'],
+        ['John Doe', 'judge@example.com', 'SecurePass123!', 'JUDGE', '', '', '', '555-0001', '', 'Experienced judge', 'J001', 'EXPERT', 'false', '', '', '', '', '', '', 'cm_contest_abc123', ''],
         // Contestant example with assignment
-        ['Jane Smith', 'contestant@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0002', '123 Main St', 'Great student', '', '', '', 'C001', '15', 'Parent Name', '555-0003', 'High School', '10', 'contest-id-here', 'category-id-here'],
+        ['Jane Smith', 'contestant@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0002', '123 Main St', 'Great student', '', '', '', 'C001', '15', 'Parent Name', '555-0003', 'High School', '10', '', 'cm_category_xyz789'],
         // Admin example (no assignments)
         ['Admin User', 'admin@example.com', 'SecurePass123!', 'ADMIN', '', '', '', '555-0004', '', '', '', '', '', '', '', '', '', '', '', '', ''],
       ];

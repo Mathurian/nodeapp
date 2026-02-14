@@ -272,16 +272,79 @@ const ResultsPage: React.FC = () => {
   const { data: contestScores = [], isLoading: contestResultsLoading, error: contestResultsError } = useQuery<ContestScoreRow[]>(
     ['contest-results', selectedContestId],
     async () => {
-      if (!selectedContestId || selectedCategoryId) return []
+      if (!selectedContestId) return []
       const response = await resultsAPI.getContestResults(selectedContestId)
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
-      enabled: !!selectedContestId && !selectedCategoryId,
+      enabled: !!selectedContestId,
       retry: 1,
     }
   )
+
+  const fallbackCategoryResults = useMemo<CategoryResults | null>(() => {
+    if (!selectedCategoryId || contestScores.length === 0) return null
+
+    const selectedCategory = categories?.find((c) => c.id === selectedCategoryId)
+    const rows = contestScores.filter((row) => row.categoryId === selectedCategoryId)
+    if (rows.length === 0) return null
+
+    const totalsMap = new Map<string, {
+      contestant: Winner['contestant']
+      totalScore: number
+    }>()
+
+    for (const row of rows) {
+      const base = totalsMap.get(row.contestantId) || {
+        contestant: {
+          id: row.contestant.id,
+          name: row.contestant.name,
+          contestantNumber: row.contestant.contestantNumber ?? null,
+          imagePath: row.contestant.imagePath ?? null,
+        },
+        totalScore: 0,
+      }
+      const net = Number(row.score || 0) - Number(row.deduction || 0)
+      base.totalScore += net
+      totalsMap.set(row.contestantId, base)
+    }
+
+    const winners: Winner[] = Array.from(totalsMap.values())
+      .sort((a, b) => b.totalScore - a.totalScore)
+      .map((entry, index) => ({
+        id: `${entry.contestant.id}-${selectedCategoryId}`,
+        contestantId: entry.contestant.id,
+        categoryId: selectedCategoryId,
+        rank: index + 1,
+        totalScore: entry.totalScore,
+        isCertified: Boolean(selectedCategory?.totalsCertified),
+        certifiedAt: null,
+        contestant: entry.contestant,
+        category: {
+          id: selectedCategoryId,
+          name: selectedCategory?.name || rows[0]?.category?.name || 'Category',
+          scoreCap: selectedCategory?.scoreCap ?? rows[0]?.category?.scoreCap ?? null,
+        },
+      }))
+
+    return {
+      category: selectedCategory || {
+        id: selectedCategoryId,
+        name: rows[0]?.category?.name || 'Category',
+        contestId: selectedContestId,
+        scoreCap: rows[0]?.category?.scoreCap ?? null,
+        totalsCertified: false,
+      },
+      winners,
+      scoreBreakdowns: {},
+    }
+  }, [categories, contestScores, selectedCategoryId, selectedContestId])
+
+  const effectiveCategoryResults = useMemo(() => {
+    if (categoryResults && (categoryResults.winners?.length || 0) > 0) return categoryResults
+    return fallbackCategoryResults
+  }, [categoryResults, fallbackCategoryResults])
 
   const { data: categoryAttachments = [] } = useQuery<ScoreAttachment[]>(
     ['category-score-attachments', selectedCategoryId],
@@ -325,7 +388,7 @@ const ResultsPage: React.FC = () => {
     return Array.from(totalsMap.values()).sort((a, b) => b.totalScore - a.totalScore)
   }, [contestScores, selectedCategoryId, selectedContestId])
 
-  const hasCategoryResults = Boolean(selectedCategoryId && categoryResults && (categoryResults.winners?.length || 0) > 0)
+  const hasCategoryResults = Boolean(selectedCategoryId && effectiveCategoryResults && (effectiveCategoryResults.winners?.length || 0) > 0)
   const hasContestResults = Boolean(selectedContestId && !selectedCategoryId && contestLevelResults.length > 0)
   const selectedContestName = contests?.find((c) => c.id === selectedContestId)?.name || ''
 
@@ -393,10 +456,10 @@ const ResultsPage: React.FC = () => {
         return
       }
 
-      if (!categoryResults) return
+      if (!effectiveCategoryResults) return
 
       // Prepare winners data for Excel
-      const winnersData = categoryResults.winners.map((winner) => ({
+      const winnersData = effectiveCategoryResults.winners.map((winner) => ({
         Rank: winner.rank,
         'Contestant Number': winner.contestant.contestantNumber || 'N/A',
         'Contestant Name': winner.contestant.name,
@@ -413,7 +476,7 @@ const ResultsPage: React.FC = () => {
       XLSX.utils.book_append_sheet(workbook, winnersWorksheet, 'Winners')
 
       // If score breakdowns are available, add them as a separate sheet
-      if (categoryResults.scoreBreakdowns && Object.keys(categoryResults.scoreBreakdowns).length > 0) {
+      if (effectiveCategoryResults.scoreBreakdowns && Object.keys(effectiveCategoryResults.scoreBreakdowns).length > 0) {
         const breakdownData: Array<{
           'Contestant Name': string
           'Contestant Number': string | number
@@ -425,8 +488,8 @@ const ResultsPage: React.FC = () => {
           'Comment': string
         }> = []
 
-        categoryResults.winners.forEach((winner) => {
-          const breakdowns = categoryResults.scoreBreakdowns[winner.contestantId]
+        effectiveCategoryResults.winners.forEach((winner) => {
+          const breakdowns = effectiveCategoryResults.scoreBreakdowns[winner.contestantId]
           if (breakdowns && breakdowns.length > 0) {
             breakdowns.forEach((breakdown) => {
               breakdownData.push({
@@ -451,7 +514,7 @@ const ResultsPage: React.FC = () => {
 
       // Generate filename with category name and timestamp
       const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss')
-      const categoryName = categoryResults.category.name.replace(/[^a-z0-9]/gi, '_')
+      const categoryName = effectiveCategoryResults.category.name.replace(/[^a-z0-9]/gi, '_')
       const filename = `Results_${categoryName}_${timestamp}.xlsx`
 
       // Write and download the file
@@ -604,18 +667,18 @@ const ResultsPage: React.FC = () => {
             <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading results...</p>
           </Card>
-        ) : categoryResults && categoryResults.winners?.length > 0 ? (
+        ) : effectiveCategoryResults && effectiveCategoryResults.winners?.length > 0 ? (
           <Card className="rounded-lg p-6">
             {/* Category Header */}
             <div className="mb-6 pb-4 border-b">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {categoryResults.category.name}
+                {effectiveCategoryResults.category.name}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                {categoryResults.category.contest?.name || selectedContestName}
+                {effectiveCategoryResults.category.contest?.name || selectedContestName}
               </p>
               <div className="mt-2 flex items-center">
-                {categoryResults.category.totalsCertified ? (
+                {effectiveCategoryResults.category.totalsCertified ? (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                     <CheckCircleIcon className="h-4 w-4 mr-1" />
                     Certified
@@ -637,7 +700,7 @@ const ResultsPage: React.FC = () => {
               </h3>
 
               <div className="space-y-3">
-                {categoryResults.winners.map((winner) => (
+                {effectiveCategoryResults.winners.map((winner) => (
                   <div
                     key={winner.id}
                     className={`border-2 rounded-lg p-4 ${getRankColor(winner.rank)}`}
@@ -693,13 +756,13 @@ const ResultsPage: React.FC = () => {
                     </div>
 
                     {/* Score Breakdown (if enabled) */}
-                    {showScoreBreakdowns && categoryResults.scoreBreakdowns?.[winner.contestantId] && (
+                    {showScoreBreakdowns && effectiveCategoryResults.scoreBreakdowns?.[winner.contestantId] && (
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Score Breakdown by Judge:
                         </div>
                         <div className="space-y-1">
-                          {categoryResults.scoreBreakdowns[winner.contestantId]?.map((breakdown, idx) => (
+                          {effectiveCategoryResults.scoreBreakdowns[winner.contestantId]?.map((breakdown, idx) => (
                             <div key={idx} className="flex justify-between text-sm">
                               <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500">
                                 {breakdown.judgeName}

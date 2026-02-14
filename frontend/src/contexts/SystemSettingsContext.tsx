@@ -120,10 +120,16 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
         document.head.appendChild(dynamicStyle)
       }
       dynamicStyle.textContent = `
-        .bg-blue-600, .bg-indigo-600, .dark\\:bg-blue-500, .dark\\:bg-indigo-500 { background-color: ${primary} !important; }
-        .hover\\:bg-blue-700:hover, .hover\\:bg-indigo-700:hover, .dark\\:hover\\:bg-blue-600:hover, .dark\\:hover\\:bg-indigo-600:hover { filter: brightness(0.9); }
-        .text-blue-600, .text-indigo-600, .dark\\:text-blue-400, .dark\\:text-indigo-400 { color: ${primary} !important; }
-        .border-blue-600, .border-indigo-600, .ring-blue-500 { border-color: ${primary} !important; --tw-ring-color: ${primary} !important; }
+        .bg-blue-600, .bg-blue-500, .bg-indigo-600, .bg-indigo-500,
+        .dark\\:bg-blue-500, .dark\\:bg-blue-600, .dark\\:bg-indigo-500, .dark\\:bg-indigo-600 { background-color: ${primary} !important; }
+        .hover\\:bg-blue-700:hover, .hover\\:bg-blue-600:hover, .hover\\:bg-indigo-700:hover, .hover\\:bg-indigo-600:hover,
+        .dark\\:hover\\:bg-blue-600:hover, .dark\\:hover\\:bg-blue-500:hover, .dark\\:hover\\:bg-indigo-600:hover, .dark\\:hover\\:bg-indigo-500:hover { filter: brightness(0.9); }
+        .text-blue-600, .text-blue-500, .text-indigo-600, .text-indigo-500,
+        .dark\\:text-blue-400, .dark\\:text-blue-300, .dark\\:text-indigo-400, .dark\\:text-indigo-300 { color: ${primary} !important; }
+        .border-blue-600, .border-blue-500, .border-indigo-600, .border-indigo-500,
+        .ring-blue-500, .focus\\:ring-blue-500 { border-color: ${primary} !important; --tw-ring-color: ${primary} !important; }
+        .from-blue-600, .from-blue-500, .from-indigo-600, .from-indigo-500 { --tw-gradient-from: ${primary} var(--tw-gradient-from-position) !important; }
+        .to-blue-600, .to-blue-500, .to-indigo-600, .to-indigo-500 { --tw-gradient-to: ${primary} var(--tw-gradient-to-position) !important; }
       `
     }
     if (themeSettings.theme_secondaryColor) {
@@ -189,6 +195,17 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
   useEffect(() => {
     fetchSettings()
   }, [location.pathname]) // Re-fetch settings when URL changes (tenant slug may have changed)
+
+  useEffect(() => {
+    const onThemeUpdate = () => {
+      void fetchSettings()
+    }
+
+    window.addEventListener('event-manager:theme-settings-updated', onThemeUpdate)
+    return () => {
+      window.removeEventListener('event-manager:theme-settings-updated', onThemeUpdate)
+    }
+  }, [location.pathname])
 
   const value = {
     settings,

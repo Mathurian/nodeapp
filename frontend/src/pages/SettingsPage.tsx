@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
+import { useSystemSettings } from '../contexts/SystemSettingsContext'
 import { settingsAPI } from '../services/api'
 import api from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
@@ -93,6 +94,7 @@ interface DatabaseConnectionInfo {
 
 const SettingsPage: React.FC = () => {
   const { user } = useAuth()
+  const { refreshSettings } = useSystemSettings()
   const queryClient = useQueryClient()
   const logoInputRef = useRef<HTMLInputElement>(null)
   const faviconInputRef = useRef<HTMLInputElement>(null)
@@ -435,6 +437,8 @@ const SettingsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries(['theme-settings-full', editingGlobal, selectedTenantId])
         queryClient.invalidateQueries('theme-settings')
+        void refreshSettings()
+        window.dispatchEvent(new Event('event-manager:theme-settings-updated'))
         setMessage({ type: 'success', text: `Theme settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
@@ -526,6 +530,8 @@ const SettingsPage: React.FC = () => {
       onSuccess: (data) => {
         queryClient.invalidateQueries('theme-settings-full')
         setThemeFormData(prev => ({ ...prev, theme_logoPath: data.data?.logoPath || data.logoPath }))
+        void refreshSettings()
+        window.dispatchEvent(new Event('event-manager:theme-settings-updated'))
         setMessage({ type: 'success', text: 'Logo uploaded successfully!' })
         setTimeout(() => setMessage(null), 5000)
       },
@@ -545,6 +551,8 @@ const SettingsPage: React.FC = () => {
       onSuccess: (data) => {
         queryClient.invalidateQueries('theme-settings-full')
         setThemeFormData(prev => ({ ...prev, theme_faviconPath: data.data?.faviconPath || data.faviconPath }))
+        void refreshSettings()
+        window.dispatchEvent(new Event('event-manager:theme-settings-updated'))
         setMessage({ type: 'success', text: 'Favicon uploaded successfully!' })
         setTimeout(() => setMessage(null), 5000)
       },

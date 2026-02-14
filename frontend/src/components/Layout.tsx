@@ -632,11 +632,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         {/* Desktop Sidebar */}
         <aside
           ref={desktopSidebarRef}
-          className={`hidden lg:block ${sidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden`}
+          className={`hidden lg:block ${sidebarOpen ? 'w-64' : 'w-0'} sticky top-16 self-start h-[calc(100vh-64px)] flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden`}
           aria-label="Main navigation"
         >
           {sidebarOpen && (
-            <div className="w-64 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div className="w-64 h-full overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
               <AccordionNav key={`desktop-${location.pathname}`} className="py-2" onNavigate={handleDesktopNavigate} />
             </div>
           )}
