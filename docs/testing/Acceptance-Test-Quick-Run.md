@@ -4,7 +4,12 @@ Purpose: fast manual validation of critical paths, routing, permissions, and vis
 
 Before running this checklist, reset tenant UAT state:
 ```bash
-scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario preseeded
+```
+
+For empty-tenant lifecycle setup runs:
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario empty-tenant
 ```
 
 If your AI runner cannot access local files, fetch scenario IDs via:

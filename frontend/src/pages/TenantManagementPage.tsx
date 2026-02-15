@@ -75,7 +75,19 @@ const TenantManagementPage: React.FC = () => {
 
   const createTenant = async () => {
     try {
-      await api.post('/tenants', formData)
+      const payload = {
+        ...formData,
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        domain: formData.domain.trim() || undefined,
+        adminName: formData.adminName.trim(),
+        adminEmail: formData.adminEmail.trim().toLowerCase(),
+        maxUsers: formData.maxUsers === '' ? undefined : Number(formData.maxUsers),
+        maxEvents: formData.maxEvents === '' ? undefined : Number(formData.maxEvents),
+        maxStorage: formData.maxStorage === '' ? undefined : Number(formData.maxStorage),
+      }
+
+      await api.post('/tenants', payload)
       setShowModal(false)
       resetForm()
       await fetchTenants()
@@ -87,7 +99,17 @@ const TenantManagementPage: React.FC = () => {
   const updateTenant = async () => {
     if (!editingTenant) return
     try {
-      await api.put(`/tenants/${editingTenant.id}`, formData)
+      const payload = {
+        ...formData,
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        domain: formData.domain.trim() || undefined,
+        maxUsers: formData.maxUsers === '' ? undefined : Number(formData.maxUsers),
+        maxEvents: formData.maxEvents === '' ? undefined : Number(formData.maxEvents),
+        maxStorage: formData.maxStorage === '' ? undefined : Number(formData.maxStorage),
+      }
+
+      await api.put(`/tenants/${editingTenant.id}`, payload)
       setEditingTenant(null)
       resetForm()
       await fetchTenants()

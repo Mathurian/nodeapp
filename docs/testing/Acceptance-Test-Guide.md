@@ -14,9 +14,9 @@ Machine-readable exports:
 ## 1. Execution Model
 
 This guide assumes:
-- Tenant and users are created manually by humans.
+- Tenant may be preseeded by humans, or bootstrapped by AI in `EMPTY_TENANT` mode.
 - AI is provided tenant slug + credentials.
-- AI resets tenant UAT state before each run.
+- AI resets tenant UAT state before each run (operator shell) or uses existing tenant state (browser-only).
 
 Reset script:
 - `scripts/uat/reset-tenant-uat-state.sh`
@@ -48,12 +48,12 @@ Do not require local scripts for browser-only AI if this endpoint is available.
 
 Required pre-run command:
 ```bash
-scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario preseeded
 ```
 
 Optional (preserve logs/reports/notifications/search):
 ```bash
-scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --keep-logs
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario preseeded --keep-logs
 ```
 
 ## 2. Run Inputs (Required)
@@ -98,13 +98,11 @@ For `PRESEEDED_TENANT` mode:
 - At least 1 emcee script with viewable file.
 
 For `EMPTY_TENANT` mode:
-- Sufficient role users exist to execute lifecycle setup and flow:
-  - organizer/admin
-  - judge
-  - tally master
-  - auditor
-  - board (or organizer final authority)
-- Permission to create events/contests/categories/assignments/contestants in tenant.
+- Minimum required starting credentials: organizer/admin only.
+- AI must create required users directly in UI with explicit passwords (no inbox/invite dependency).
+- Permission to create users/events/contests/categories/criteria/assignments/contestants in tenant.
+- Reset recommendation before run:
+  - `scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario empty-tenant`
 
 ## 3.1 Lifecycle Track Modes
 
@@ -118,7 +116,8 @@ Lifecycle track supports two tenant states:
 
 Mode requirements:
 - For `PRESEEDED_TENANT`, IDs should come from `/api/v1/test-runner/uat-ids`.
-- For `EMPTY_TENANT`, IDs are created during setup steps and then reused for the same run.
+- For `EMPTY_TENANT`, AI creates IDs during setup steps and reuses them for the same run.
+- For `EMPTY_TENANT`, user provisioning must be direct-create with known passwords; do not require email invites.
 
 ## 4. Output Contract
 

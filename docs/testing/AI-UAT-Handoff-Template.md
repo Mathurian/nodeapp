@@ -24,6 +24,10 @@ Provide valid test accounts for each role used in the run.
 - `EMCEE`: `<email>` / `<password>`
 - `CONTESTANT`: `<email>` / `<password>`
 
+Minimum required by lifecycle mode:
+- `PRESEEDED_TENANT`: provide credentials for each role under test.
+- `EMPTY_TENANT`: provide at least one `ADMIN` or `ORGANIZER`; AI will create additional users with explicit passwords.
+
 ### 2.1 Execution Mode
 
 Choose one mode:
@@ -70,6 +74,26 @@ Extract and use:
 If `LIFECYCLE_MODE=EMPTY_TENANT`:
 - do not require pre-existing IDs
 - create IDs during bootstrap (TC-LIFE-001 / TC-LIFE-002) and reuse for all remaining lifecycle cases in the same run
+- do not rely on inbox access or invite links
+- create users directly in UI and assign passwords during creation
+
+## 3.1 Empty-Tenant Bootstrap (No Inbox Access)
+
+When `LIFECYCLE_MODE=EMPTY_TENANT`, run this bootstrap sequence first:
+
+1. Login as `ADMIN` or `ORGANIZER`.
+2. Create users directly (no invites) with known passwords for:
+   - `JUDGE` (at least 1)
+   - `TALLY_MASTER` (at least 1)
+   - `AUDITOR` (at least 1)
+   - `BOARD` (at least 1, or organizer as final approver)
+   - `EMCEE` (at least 1)
+   - `CONTESTANT` (at least 3 for ranking checks)
+3. Create one event, one contest, and at least two categories.
+4. Add criteria to each category.
+5. Assign contestants to contest/categories.
+6. Assign judge/tally/auditor/board to contest/category scope.
+7. Capture created IDs via UI/API responses and reuse for lifecycle test cases.
 
 ## 4) Test Cases To Execute
 
@@ -153,7 +177,13 @@ For `MULTI_USER_PER_ROLE`, also include:
 If your operator supports shell access, reset test state before run:
 
 ```bash
-scripts/uat/reset-tenant-uat-state.sh --tenant-slug <tenant-slug> --apply
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <tenant-slug> --apply --scenario preseeded
+```
+
+For `EMPTY_TENANT` shell reset:
+
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <tenant-slug> --apply --scenario empty-tenant
 ```
 
 For browser-only AI, skip shell reset and proceed with available tenant state.

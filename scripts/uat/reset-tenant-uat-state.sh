@@ -4,7 +4,7 @@ set -euo pipefail
 # Tenant-scoped UAT reset helper.
 # Default mode is VERIFY-ONLY. Use --apply to execute reset.
 #
-# Preserves:
+# Preserves (preseeded scenario):
 # - tenant record
 # - users, judges, contestants
 # - events/contests/categories/criteria structure
@@ -25,20 +25,24 @@ DB_PASSWORD="${DB_PASSWORD:-dittibop}"
 TENANT_SLUG="${TENANT_SLUG:-}"
 APPLY=0
 CLEAR_LOGS=1
+SCENARIO="${SCENARIO:-preseeded}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> [--apply] [--keep-logs]
+  scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> [--apply] [--keep-logs] [--scenario preseeded|empty-tenant]
 
 Options:
   --tenant-slug <slug>   Required tenant slug (example: febtest1)
   --apply                Execute reset (without this flag, script is verify-only)
   --keep-logs            Preserve notifications/reports/log/search artifacts
+  --scenario <mode>      Reset mode:
+                         preseeded    = keep event/contest/category setup
+                         empty-tenant = also remove event/contest/category setup and assignments
   -h, --help             Show this help
 
 Environment overrides:
-  DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, TENANT_SLUG
+  DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, TENANT_SLUG, SCENARIO
 USAGE
 }
 
@@ -55,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     --keep-logs)
       CLEAR_LOGS=0
       shift
+      ;;
+    --scenario)
+      SCENARIO="${2:-}"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -74,6 +82,12 @@ if [[ -z "${TENANT_SLUG}" ]]; then
   exit 1
 fi
 
+if [[ "${SCENARIO}" != "preseeded" && "${SCENARIO}" != "empty-tenant" ]]; then
+  echo "Error: --scenario must be 'preseeded' or 'empty-tenant'." >&2
+  usage
+  exit 1
+fi
+
 psql_cmd() {
   PGPASSWORD="${DB_PASSWORD}" psql \
     -h "${DB_HOST}" \
@@ -86,6 +100,7 @@ psql_cmd() {
 echo "UAT reset target tenant slug: ${TENANT_SLUG}"
 echo "Mode: $([[ ${APPLY} -eq 1 ]] && echo APPLY || echo VERIFY-ONLY)"
 echo "Clear logs/reports/search/notifications: $([[ ${CLEAR_LOGS} -eq 1 ]] && echo YES || echo NO)"
+echo "Scenario: ${SCENARIO}"
 echo
 
 TENANT_ID="$(psql_cmd -tA -c "SELECT id FROM tenants WHERE slug = '${TENANT_SLUG}' LIMIT 1;")"
@@ -163,6 +178,25 @@ if [[ ${CLEAR_LOGS} -eq 1 ]]; then
   "
 fi
 
+STRUCTURE_SQL=""
+if [[ "${SCENARIO}" == "empty-tenant" ]]; then
+  STRUCTURE_SQL="
+    DELETE FROM emcee_scripts WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM role_assignments WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM assignments WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM tally_master_assignments WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM auditor_assignments WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM contest_judges WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM category_judges WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM contest_contestants WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM category_contestants WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM criteria WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM categories WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM contests WHERE \"tenantId\"='${TENANT_ID}';
+    DELETE FROM events WHERE \"tenantId\"='${TENANT_ID}';
+  "
+fi
+
 psql_cmd -v ON_ERROR_STOP=1 -c "
 BEGIN;
   DELETE FROM score_governance_approvals WHERE \"tenantId\"='${TENANT_ID}';
@@ -213,6 +247,7 @@ BEGIN;
   WHERE \"tenantId\"='${TENANT_ID}';
 
   ${LOG_SQL}
+  ${STRUCTURE_SQL}
 COMMIT;
 "
 
@@ -234,4 +269,3 @@ UNION ALL SELECT 'contests', COUNT(*) FROM contests WHERE \"tenantId\"='${TENANT
 UNION ALL SELECT 'categories', COUNT(*) FROM categories WHERE \"tenantId\"='${TENANT_ID}' AND \"deletedAt\" IS NULL
 ORDER BY table_name;
 "
-

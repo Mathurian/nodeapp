@@ -56,6 +56,30 @@ export interface TenantUsageStats {
 }
 
 export class TenantService {
+  private static normalizeOptionalString(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private static normalizeOptionalInt(value: unknown): number | undefined {
+    if (value === null || value === undefined || value === '') return undefined;
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? Math.trunc(parsed) : undefined;
+  }
+
+  private static normalizeOptionalBigInt(value: unknown): bigint | undefined {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'bigint') return value;
+    if (typeof value === 'number' && Number.isFinite(value)) return BigInt(Math.trunc(value));
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      return BigInt(trimmed);
+    }
+    return undefined;
+  }
+
   private static buildInviteRegistrationToken(payload: { userId: string; tenantId: string; email: string }): string {
     return jwt.sign(
       {
@@ -74,33 +98,49 @@ export class TenantService {
    */
   static async createTenant(input: CreateTenantInput): Promise<{ tenant: Tenant; adminUser: { id: string; name: string; email: string; role: UserRole } }> {
     try {
+      const name = (input.name || '').trim();
+      const slug = (input.slug || '').trim();
+      const adminName = (input.adminName || '').trim();
+      const adminEmail = (input.adminEmail || '').trim().toLowerCase();
+      const adminPassword = input.adminPassword || '';
+      const domain = TenantService.normalizeOptionalString(input.domain);
+      const maxUsers = TenantService.normalizeOptionalInt(input.maxUsers);
+      const maxEvents = TenantService.normalizeOptionalInt(input.maxEvents);
+      const maxStorage = TenantService.normalizeOptionalBigInt(input.maxStorage);
+
+      if (!name) throw new Error('Tenant name is required');
+      if (!slug) throw new Error('Tenant slug is required');
+      if (!adminName) throw new Error('Admin name is required');
+      if (!adminEmail) throw new Error('Admin email is required');
+      if (!adminPassword) throw new Error('Admin password is required');
+
       // Validate slug is unique
       const existingSlug = await prisma.tenant.findUnique({
-        where: { slug: input.slug },
+        where: { slug },
       });
 
       if (existingSlug) {
-        throw new Error(`Tenant with slug '${input.slug}' already exists`);
+        throw new Error(`Tenant with slug '${slug}' already exists`);
       }
 
       // Validate domain is unique (if provided)
-      if (input.domain) {
+      if (domain) {
         const existingDomain = await prisma.tenant.findUnique({
-          where: { domain: input.domain },
+          where: { domain },
         });
 
         if (existingDomain) {
-          throw new Error(`Tenant with domain '${input.domain}' already exists`);
+          throw new Error(`Tenant with domain '${domain}' already exists`);
         }
       }
 
       // Validate admin email is not already used
       const existingEmail = await prisma.user.findFirst({
-        where: { email: input.adminEmail },
+        where: { email: adminEmail },
       });
 
       if (existingEmail) {
-        throw new Error(`User with email '${input.adminEmail}' already exists`);
+        throw new Error(`User with email '${adminEmail}' already exists`);
       }
 
       // Create tenant and admin user in a transaction
@@ -108,28 +148,28 @@ export class TenantService {
         // Create tenant
         const tenant = await tx.tenant.create({
           data: {
-            name: input.name,
-            slug: input.slug,
-            domain: input.domain,
+            name,
+            slug,
+            domain,
             planType: input.planType || 'free',
             subscriptionStatus: 'trial',
             subscriptionEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
-            maxUsers: input.maxUsers || (input.planType === 'enterprise' ? null : 50),
-            maxEvents: input.maxEvents || (input.planType === 'enterprise' ? null : 10),
-            maxStorage: input.maxStorage,
+            maxUsers: maxUsers ?? (input.planType === 'enterprise' ? null : 50),
+            maxEvents: maxEvents ?? (input.planType === 'enterprise' ? null : 10),
+            maxStorage,
             settings: input.settings || {},
           },
         });
 
         // Hash admin password
-        const hashedPassword = await bcrypt.hash(input.adminPassword, 10);
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
         // Create admin user
         const adminUser = await tx.user.create({
           data: {
             tenantId: tenant.id,
-            name: input.adminName,
-            email: input.adminEmail,
+            name: adminName,
+            email: adminEmail,
             password: hashedPassword,
             role: 'ADMIN',
             isActive: true,

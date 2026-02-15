@@ -153,9 +153,9 @@ export const configureMiddleware = (app: Application, allowedOrigins: string[]):
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // React dev requires unsafe-eval
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "blob:"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://unpkg.com'], // React dev requires unsafe-eval
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+          imgSrc: ["'self'", "data:", "blob:", 'https://*.tile.openstreetmap.org'],
           fontSrc: ["'self'", "data:"],
           connectSrc,
           frameSrc: ["'none'"],

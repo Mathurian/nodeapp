@@ -80,6 +80,13 @@ const getNavigationItems = (userRole: string): any[] => {
         path: '/settings',
         icon: 'Cog6ToothIcon',
         roles: ['ADMIN', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'login-locations',
+        label: 'Login Locations',
+        path: '/login-locations',
+        icon: 'MapPinIcon',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
       }
     ],
     BOARD: [

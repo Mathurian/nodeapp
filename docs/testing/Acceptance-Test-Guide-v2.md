@@ -37,18 +37,24 @@ scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug>
 
 2. Apply reset:
 ```bash
-scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario preseeded
+```
+
+2a. For empty-tenant bootstrap runs:
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario empty-tenant
 ```
 
 3. Optional: preserve logs/reports/notifications/search artifacts:
 ```bash
-scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --keep-logs
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario preseeded --keep-logs
 ```
 
 What reset does:
 - Clears transactional UAT artifacts (scores, certifications, deductions, governance requests, winner signatures, score comments/files).
 - Resets winner publication and lock flags on events/contests.
-- Keeps manual setup intact (tenant, users, event/contest/category structure, assignments).
+- `preseeded` scenario keeps manual setup intact (tenant, users, event/contest/category structure, assignments).
+- `empty-tenant` scenario also removes event/contest/category setup and assignment mappings so bootstrap can start from blank.
 
 Optional helper for operators (and browser-only AI assistants):
 - `GET /api/v1/test-runner/uat-ids`

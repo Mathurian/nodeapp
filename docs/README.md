@@ -165,6 +165,9 @@ Welcome to the complete documentation for Event Manager Contest System!
 4. Run the case set from [Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md) and `docs/testing/Acceptance-Test-Cases.json`.
 5. Require PASS/FAIL by case ID plus blocker summary.
 6. Set lifecycle mode (`PRESEEDED_TENANT` or `EMPTY_TENANT`) and run [E2E Lifecycle Track](testing/E2E-Lifecycle-Track.md).
+7. If shell reset is available, run:
+   - preseeded: `scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario preseeded`
+   - empty-tenant: `scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario empty-tenant`
 
 ## Additional Resources
 
