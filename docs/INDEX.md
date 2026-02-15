@@ -6,11 +6,10 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 
 ### Getting Started
 - **[Getting Started Guide](02-GETTING-STARTED.md)** - Installation, setup, and configuration
-- **[Quick Start (Root)](../QUICK_START.md)** - 5-minute quick start guide
-- **[AI UAT Handoff Template](AI-UAT-Handoff-Template.md)** - Copy/paste brief for browser AI testing
-- **[Acceptance Test Guide (AI)](Acceptance-Test-Guide.md)** - AI/browser-oriented runbook
-- **[Acceptance Test Guide v2 (Human)](Acceptance-Test-Guide-v2.md)** - Human-friendly manual UAT
-- **[Acceptance Test Quick Run](Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
+- **[AI UAT Handoff Template](testing/AI-UAT-Handoff-Template.md)** - Copy/paste brief for browser AI testing
+- **[Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md)** - AI/browser-oriented runbook
+- **[Acceptance Test Guide v2 (Human)](testing/Acceptance-Test-Guide-v2.md)** - Human-friendly manual UAT
+- **[Acceptance Test Quick Run](testing/Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
 
 ### Core Documentation
 1. **[Architecture Overview](01-ARCHITECTURE.md)** - System architecture, technology stack, and design patterns
@@ -29,18 +28,18 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 14. **[Advanced Features](14-ADVANCED-FEATURES.md)** - Feature flags, webhooks, custom fields, and 14 more advanced features
 
 ### Planning & Operations
-- **[Outstanding Tasks](OUTSTANDING-TASKS.md)** - Current backlog: contract tests, Phase 5 deployment, GraphQL/CQRS evaluation, A/B testing
-- **[Next Steps (Phase 5)](NEXT-STEPS.md)** - Final testing and production deployment checklist
-- **[Deployment Guide](DEPLOYMENT-GUIDE.md)** - Full production deployment procedures
-- **[Testing Guide](testing-guide.md)** - Testing infrastructure and coverage targets
-- **[Database Optimization](DATABASE-OPTIMIZATION.md)** - Query optimization and indexing
-- **[Migration Guide](MIGRATION-GUIDE.md)** - Database migration procedures
+- **[Outstanding Tasks](operations/OUTSTANDING-TASKS.md)** - Current backlog: contract tests, Phase 5 deployment, GraphQL/CQRS evaluation, A/B testing
+- **[Next Steps (Phase 5)](operations/NEXT-STEPS.md)** - Final testing and production deployment checklist
+- **[Deployment Guide](operations/DEPLOYMENT-GUIDE.md)** - Full production deployment procedures
+- **[Testing Guide](testing/testing-guide.md)** - Testing infrastructure and coverage targets
+- **[Database Optimization](operations/DATABASE-OPTIMIZATION.md)** - Query optimization and indexing
+- **[Migration Guide](operations/MIGRATION-GUIDE.md)** - Database migration procedures
 
 ### Additional Resources
-- **[Accessibility Testing](ACCESSIBILITY-TESTING.md)** - WCAG 2.1 AA compliance testing
-- **[CDN Setup](CDN-SETUP.md)** - CDN configuration guide
-- **[Database Read Replicas](DATABASE-READ-REPLICAS.md)** - Read replica setup
-- **[Visual Regression Testing](VISUAL-REGRESSION-TESTING.md)** - Chromatic/screenshot testing
+- **[Accessibility Testing](testing/ACCESSIBILITY-TESTING.md)** - WCAG 2.1 AA compliance testing
+- **[CDN Setup](operations/CDN-SETUP.md)** - CDN configuration guide
+- **[Database Read Replicas](operations/DATABASE-READ-REPLICAS.md)** - Read replica setup
+- **[Visual Regression Testing](testing/VISUAL-REGRESSION-TESTING.md)** - Chromatic/screenshot testing
 
 ## About Event Manager
 
@@ -111,7 +110,7 @@ See [Security Guide - Permission Matrix](07-SECURITY.md#permission-matrix) for c
 - **Database GUI**: Run `npx prisma studio` (http://localhost:5555)
 - **Code Generator**: Run `npm run test:e2e:codegen` (record tests)
 - **Browser UAT IDs API**: `GET /api/v1/test-runner/uat-ids` (roles: `SUPER_ADMIN`, `ADMIN`, `ORGANIZER`)
-- **AI Handoff Template**: `docs/AI-UAT-Handoff-Template.md`
+- **AI Handoff Template**: `docs/testing/AI-UAT-Handoff-Template.md`
 
 See [Administrator Guide](13-ADMIN-GUIDE.md) for complete system administration documentation.
 

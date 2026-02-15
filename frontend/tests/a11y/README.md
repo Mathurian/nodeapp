@@ -186,7 +186,7 @@ Verify:
 
 ## Resources
 
-- [Full Documentation](../../docs/ACCESSIBILITY-TESTING.md)
+- [Full Documentation](../../docs/testing/ACCESSIBILITY-TESTING.md)
 - [WCAG 2.1 Quick Reference](https://www.w3.org/WAI/WCAG21/quickref/)
 - [axe DevTools](https://www.deque.com/axe/devtools/)
 - [WebAIM](https://webaim.org/)
@@ -259,6 +259,6 @@ Ensure every input has:
 ## Contact
 
 Questions? Issues?
-- Read [full docs](../../docs/ACCESSIBILITY-TESTING.md)
+- Read [full docs](../../docs/testing/ACCESSIBILITY-TESTING.md)
 - Ask in #engineering Slack channel
 - File issue on GitHub

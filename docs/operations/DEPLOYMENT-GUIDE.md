@@ -861,7 +861,7 @@ echo $REDIS_URL
    SELECT * FROM events WHERE status = 'active';
    ```
 
-3. Add missing indexes (see `docs/DATABASE-OPTIMIZATION.md`)
+3. Add missing indexes (see `docs/operations/DATABASE-OPTIMIZATION.md`)
 
 ### Issue: High memory usage
 
@@ -972,7 +972,7 @@ pm2 restart event-manager-api
 ## Additional Resources
 
 - **Security:** See `docs/SECURITY-IMPLEMENTATION.md`
-- **Database Optimization:** See `docs/DATABASE-OPTIMIZATION.md`
+- **Database Optimization:** See `docs/operations/DATABASE-OPTIMIZATION.md`
 - **Load Testing:** See `tests/load/README.md`
 - **Implementation Status:** See `docs/IMPLEMENTATION-STATUS.md`
 - **TODO Tracker:** See `docs/TODO-TRACKER.md`

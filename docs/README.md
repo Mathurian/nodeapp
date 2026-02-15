@@ -5,10 +5,10 @@ Welcome to the complete documentation for Event Manager Contest System!
 ## Quick Links
 
 - **[Documentation Index](INDEX.md)** - Start here for complete navigation
-- **[AI UAT Handoff Template](AI-UAT-Handoff-Template.md)** - Copy/paste prompt template for browser AI test execution
-- **[Acceptance Test Guide (AI)](Acceptance-Test-Guide.md)** - AI/browser-oriented UAT runbook
-- **[Acceptance Test Guide v2 (Human)](Acceptance-Test-Guide-v2.md)** - Human-friendly UAT guide
-- **[Acceptance Test Quick Run](Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
+- **[AI UAT Handoff Template](testing/AI-UAT-Handoff-Template.md)** - Copy/paste prompt template for browser AI test execution
+- **[Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md)** - AI/browser-oriented UAT runbook
+- **[Acceptance Test Guide v2 (Human)](testing/Acceptance-Test-Guide-v2.md)** - Human-friendly UAT guide
+- **[Acceptance Test Quick Run](testing/Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
 - **[Getting Started](02-GETTING-STARTED.md)** - Installation and setup
 - **[Architecture Overview](01-ARCHITECTURE.md)** - System design and technology
 - **[API Reference](04-API-REFERENCE.md)** - Complete API documentation
@@ -30,10 +30,10 @@ Welcome to the complete documentation for Event Manager Contest System!
 13. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow customization
 14. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - System administration and monitoring
 15. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced features and enterprise capabilities
-16. **[AI-UAT-Handoff-Template.md](AI-UAT-Handoff-Template.md)** - Browser AI run handoff template
-17. **[Acceptance-Test-Guide.md](Acceptance-Test-Guide.md)** - AI-centric acceptance testing runbook
-18. **[Acceptance-Test-Guide-v2.md](Acceptance-Test-Guide-v2.md)** - Human-centric UAT guide
-19. **[Acceptance-Test-Quick-Run.md](Acceptance-Test-Quick-Run.md)** - Human quick smoke checklist
+16. **[AI-UAT-Handoff-Template.md](testing/AI-UAT-Handoff-Template.md)** - Browser AI run handoff template
+17. **[Acceptance-Test-Guide.md](testing/Acceptance-Test-Guide.md)** - AI-centric acceptance testing runbook
+18. **[Acceptance-Test-Guide-v2.md](testing/Acceptance-Test-Guide-v2.md)** - Human-centric UAT guide
+19. **[Acceptance-Test-Quick-Run.md](testing/Acceptance-Test-Quick-Run.md)** - Human quick smoke checklist
 
 ## Documentation Statistics
 
@@ -134,7 +134,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 ### For New Users
 1. Start with [Getting Started](02-GETTING-STARTED.md)
 2. Review [Features Guide](03-FEATURES.md) for capabilities
-3. Use [Acceptance Test Guide](Acceptance-Test-Guide.md) for structured validation
+3. Use [Acceptance Test Guide](testing/Acceptance-Test-Guide.md) for structured validation
 4. Check [Troubleshooting](10-TROUBLESHOOTING.md) if issues arise
 
 ### For Developers
@@ -157,10 +157,10 @@ Welcome to the complete documentation for Event Manager Contest System!
 4. Review [WebSocket Events](04-API-REFERENCE.md#websocket-events)
 
 ### For Browser-AI UAT Runs
-1. Open [AI UAT Handoff Template](AI-UAT-Handoff-Template.md).
+1. Open [AI UAT Handoff Template](testing/AI-UAT-Handoff-Template.md).
 2. Fill in URL, tenant slug, and role credentials.
 3. In the prompt, require `GET /api/v1/test-runner/uat-ids` to gather scenario IDs.
-4. Run the case set from [Acceptance Test Guide (AI)](Acceptance-Test-Guide.md) and `docs/Acceptance-Test-Cases.json`.
+4. Run the case set from [Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md) and `docs/testing/Acceptance-Test-Cases.json`.
 5. Require PASS/FAIL by case ID plus blocker summary.
 
 ## Additional Resources

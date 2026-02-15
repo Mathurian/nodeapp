@@ -259,7 +259,7 @@ Implemented via event-log webhook endpoints.
 ## Accuracy Notes
 
 This file intentionally avoids plan-tier matrices and aspirational claims. For acceptance validation, use:
-- `docs/Acceptance-Test-Guide.md`
+- `docs/testing/Acceptance-Test-Guide.md`
 - `docs/04-API-REFERENCE.md`
 - `docs/13-ADMIN-GUIDE.md`
 

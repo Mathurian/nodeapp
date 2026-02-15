@@ -48,7 +48,7 @@ contract test file, before the other imports, so the real `jsonwebtoken` library
 ### 2. Phase 5: Final Testing & Deployment
 
 **Priority:** Medium
-**Effort:** 2 days (see docs/NEXT-STEPS.md for full checklist)
+**Effort:** 2 days (see docs/operations/NEXT-STEPS.md for full checklist)
 **Background:** Phases 1–4 are all complete. Phase 5 is the final validation and production
 deployment phase.
 
@@ -70,7 +70,7 @@ deployment phase.
   curl http://localhost:3000/health
   curl http://localhost:3000/api/health/db
   ```
-- [ ] Create `scripts/daily-validation.sh` (template in docs/NEXT-STEPS.md)
+- [ ] Create `scripts/daily-validation.sh` (template in docs/operations/NEXT-STEPS.md)
 - [ ] Monitor for first week (see NEXT-STEPS.md daily checklist)
 
 ---
@@ -163,4 +163,4 @@ feature flag `ENABLE_DYNAMIC_PERMISSIONS=false` for safety. The recommended path
 
 - **SettingsPage** was intentionally excluded from Task #13 migration. It uses 6 independent section-save buttons (not a single form), boolean/string type inconsistencies, and file uploads. The controlled state pattern is appropriate here.
 - **Contract tests** (Task #1): Auth middleware error responses were already fixed to include `success: false`. The remaining 401s are purely the JWT global mock issue — a targeted fix.
-- See `docs/NEXT-STEPS.md` for the full Day 19/Day 20 deployment checklist with scripts and verification commands.
+- See `docs/operations/NEXT-STEPS.md` for the full Day 19/Day 20 deployment checklist with scripts and verification commands.

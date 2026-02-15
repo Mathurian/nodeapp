@@ -174,6 +174,6 @@ await expect(page).toHaveScreenshot({
 
 ## Resources
 
-- [Full Documentation](../../docs/VISUAL-REGRESSION-TESTING.md)
+- [Full Documentation](../../docs/testing/VISUAL-REGRESSION-TESTING.md)
 - [Playwright Docs](https://playwright.dev/docs/test-snapshots)
 - [Best Practices](https://www.browserstack.com/guide/visual-regression-testing)

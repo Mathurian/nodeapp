@@ -5,11 +5,11 @@ Purpose: deterministic checklist for AI/browser-driven execution across roles an
 Audience: automation operator (AI agent with browser access; filesystem access optional).
 
 Companion human document:
-- `docs/Acceptance-Test-Guide-v2.md`
+- `docs/testing/Acceptance-Test-Guide-v2.md`
 
 Machine-readable exports:
-- `docs/Acceptance-Test-Cases.csv`
-- `docs/Acceptance-Test-Cases.json`
+- `docs/testing/Acceptance-Test-Cases.csv`
+- `docs/testing/Acceptance-Test-Cases.json`
 
 ## 1. Execution Model
 
@@ -324,8 +324,8 @@ Run is `FAIL` if any of the above is violated.
 ## 17. Export and Reporting Contract
 
 Automation runners should key all results by `id` from:
-- `docs/Acceptance-Test-Cases.csv` or
-- `docs/Acceptance-Test-Cases.json`
+- `docs/testing/Acceptance-Test-Cases.csv` or
+- `docs/testing/Acceptance-Test-Cases.json`
 
 Suggested result schema:
 ```json

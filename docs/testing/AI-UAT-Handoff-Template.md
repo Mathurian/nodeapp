@@ -69,15 +69,15 @@ Extract and use:
 ## 4) Test Cases To Execute
 
 Primary source:
-- `docs/Acceptance-Test-Guide.md`
+- `docs/testing/Acceptance-Test-Guide.md`
 
 Machine-readable source:
-- `docs/Acceptance-Test-Cases.json`
-  - Optional alternate: `docs/Acceptance-Test-Cases.csv`
+- `docs/testing/Acceptance-Test-Cases.json`
+  - Optional alternate: `docs/testing/Acceptance-Test-Cases.csv`
 
 Human UX reference (if needed):
-- `docs/Acceptance-Test-Guide-v2.md`
-- `docs/Acceptance-Test-Quick-Run.md`
+- `docs/testing/Acceptance-Test-Guide-v2.md`
+- `docs/testing/Acceptance-Test-Quick-Run.md`
 
 ## 5) Execution Rules
 

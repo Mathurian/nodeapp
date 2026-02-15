@@ -67,6 +67,8 @@ function sanitizePath(userPath: string): string {
     '08-security',
     '09-performance',
     '10-reference',
+    'testing',
+    'operations',
     'outdated',
     'outmoded',
     '',
@@ -115,6 +117,8 @@ function getCategoryOrder(category: string): number {
     '08-security': 8,
     '09-performance': 9,
     '10-reference': 10,
+    testing: 11,
+    operations: 12,
     'outmoded': 99,
   };
   return order[category] ?? 50;
