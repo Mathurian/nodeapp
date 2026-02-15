@@ -244,7 +244,7 @@ Capabilities:
 **Methods**:
 1. Manual entry
 2. Bulk CSV import
-3. Self-registration (if enabled)
+3. Invite-only registration completion (tokenized flow)
 
 **Information Tracked**:
 - Name and email
@@ -266,9 +266,10 @@ Capabilities:
 
 **Features**:
 - Rich text bio editing
+- Uploaded bio file support (document formats)
 - Image upload
-- Judge-specific bio view
-- Emcee announcement view
+- Role-scoped bio visibility
+- Unified `/bios` page with role-separated views
 - Print-friendly formats
 
 ## Judge Management
@@ -313,7 +314,6 @@ Capabilities:
 
 **Features**:
 - Auto-save functionality
-- Offline support (PWA)
 - Bulk score entry
 - Score templates
 - Calculator integration
@@ -338,19 +338,18 @@ Capabilities:
 
 ### Deductions
 
-**Overall Deductions**: Apply score deductions
+**Category + General Deductions**: Apply deductions tied to category criteria or general category context.
 
 **Process**:
 1. Request deduction (with reason)
-2. Multi-level approval required
+2. Multi-level approval required (governance workflow)
 3. Documented justification
 4. Reflected in final scores
 5. Audit trail maintained
 
-**Approval Levels**:
-- Head Judge approval
-- Tally Master approval
-- Board approval (for large deductions)
+**Typical Approval Stages**:
+- Initiator certification
+- Additional cross-role approvals per configured policy
 
 ### Score Management
 
@@ -376,7 +375,8 @@ Capabilities:
 
 **Per-Contestant Certification**:
 - Certify each contestant individually
-- Cannot proceed until all contestants certified
+- Score values lock immediately when submitted/certified
+- Commentary remains editable after certification
 - Digital signature capture
 - Timestamp recorded
 
@@ -428,7 +428,7 @@ Capabilities:
 
 **Process**:
 1. Request uncertification (with reason)
-2. Multi-level approval
+2. Governance approval flow (not immediate action)
 3. Uncertify stage-by-stage (reverse order)
 4. Edit scores
 5. Re-certify through workflow
@@ -468,7 +468,7 @@ Capabilities:
 
 **Views**:
 - Category-specific results
-- Contest-wide standings
+- Contest-wide standings and overall ordering
 - Event-level rankings
 - Filtered views
 - Print-friendly formats
@@ -665,7 +665,7 @@ Capabilities:
 - Swipe gestures
 - Bottom navigation
 - Pull-to-refresh
-- Offline support (PWA)
+- Progressive enhancement support (network-dependent features may require connectivity)
 
 ---
 

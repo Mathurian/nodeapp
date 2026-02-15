@@ -5,6 +5,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 ## Quick Links
 
 - **[Documentation Index](INDEX.md)** - Start here for complete navigation
+- **[Acceptance Test Guide](Acceptance-Test-Guide.md)** - Role-based UAT checklist
 - **[Getting Started](02-GETTING-STARTED.md)** - Installation and setup
 - **[Architecture Overview](01-ARCHITECTURE.md)** - System design and technology
 - **[API Reference](04-API-REFERENCE.md)** - Complete API documentation
@@ -26,10 +27,11 @@ Welcome to the complete documentation for Event Manager Contest System!
 13. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow customization
 14. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - System administration and monitoring
 15. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced features and enterprise capabilities
+16. **[Acceptance-Test-Guide.md](Acceptance-Test-Guide.md)** - End-to-end acceptance testing by role
 
 ## Documentation Statistics
 
-- **Total Files**: 15 comprehensive documentation files
+- **Total Files**: 16 core documentation files
 - **Total Lines**: 7,500+ lines of documentation
 - **Total Size**: ~175 KB
 - **Coverage**: Complete system documentation from architecture to administration
@@ -55,6 +57,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 - Event, contest, and category management
 - Scoring system and workflows
 - Multi-stage certification process
+- Score governance flows (un-certification, score throw-out requests)
 - Reporting and analytics
 - Administrative features
 
@@ -81,7 +84,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 - Accessibility implementation
 
 ### Security
-- Authentication mechanisms (JWT, MFA)
+- Authentication mechanisms (JWT cookie session + MFA)
 - Authorization and RBAC
 - **Complete CRUD permissions matrix for all roles**
 - Security middleware
@@ -125,7 +128,8 @@ Welcome to the complete documentation for Event Manager Contest System!
 ### For New Users
 1. Start with [Getting Started](02-GETTING-STARTED.md)
 2. Review [Features Guide](03-FEATURES.md) for capabilities
-3. Check [Troubleshooting](10-TROUBLESHOOTING.md) if issues arise
+3. Use [Acceptance Test Guide](Acceptance-Test-Guide.md) for structured validation
+4. Check [Troubleshooting](10-TROUBLESHOOTING.md) if issues arise
 
 ### For Developers
 1. Review [Architecture](01-ARCHITECTURE.md) for system design
@@ -180,7 +184,7 @@ This documentation is generated from the actual codebase and should be updated w
 
 - **Documentation Version**: 1.0.0
 - **Application Version**: 1.0.0
-- **Last Updated**: January 2026
+- **Last Updated**: February 15, 2026
 
 ---
 

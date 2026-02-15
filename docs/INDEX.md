@@ -7,6 +7,7 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 ### Getting Started
 - **[Getting Started Guide](02-GETTING-STARTED.md)** - Installation, setup, and configuration
 - **[Quick Start (Root)](../QUICK_START.md)** - 5-minute quick start guide
+- **[Acceptance Test Guide](Acceptance-Test-Guide.md)** - Role-by-role UAT checklist
 
 ### Core Documentation
 1. **[Architecture Overview](01-ARCHITECTURE.md)** - System architecture, technology stack, and design patterns
@@ -47,10 +48,11 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 - **Role-Based Access Control** - 9 distinct user roles with granular permissions
 - **Real-Time Updates** - WebSocket-based live score updates and notifications
 - **Multi-Tenancy** - Full tenant isolation with domain-based routing
-- **Offline Capability** - Progressive Web App (PWA) with offline support
+- **Tenant-Aware Routing** - Slug-prefixed and canonicalized user routing
+- **Role-Scoped Navigation** - Menu and command palette filtered by effective permissions
 - **Comprehensive Reporting** - Advanced analytics and export capabilities
-- **Accessibility** - WCAG 2.1 AA compliant with full keyboard navigation
-- **Security** - MFA, CSRF protection, rate limiting, and audit logging
+- **Accessibility** - WCAG 2.1 AA compliant with keyboard navigation
+- **Security** - MFA policy controls, CSRF protection, rate limiting, and audit logging
 
 ### Technology Stack
 - **Backend**: Node.js 18+, Express, TypeScript

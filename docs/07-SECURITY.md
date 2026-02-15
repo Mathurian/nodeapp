@@ -51,22 +51,30 @@ Event Manager implements multiple layers of security:
 **Token Lifetime**: 1 hour (configurable via JWT_EXPIRES_IN)
 
 **Token Storage**:
-- Frontend: In-memory only (AuthContext)
-- Never in localStorage or cookies
-- Cleared on logout/tab close
+- Primary session token is set as `httpOnly` cookie (`access_token`)
+- Cookie is inaccessible to browser JavaScript
+- Bearer tokens remain supported for API client integrations
+- Session invalidates on logout and session version changes
 
 ### Multi-Factor Authentication (MFA)
 
 **Supported Methods**:
 - TOTP (Time-based One-Time Password)
+- Email one-time code challenge
+- SMS one-time code challenge
 - Backup codes (recovery)
 
 **MFA Flow**:
-1. User enables MFA in settings
-2. QR code generated with secret
-3. User scans with authenticator app
-4. Verification code required at login
-5. Backup codes provided for recovery
+1. Login validates credentials and checks tenant MFA policy.
+2. If MFA required, server returns temporary token + allowed provider list.
+3. User completes TOTP directly or requests Email/SMS challenge code.
+4. User submits code to complete MFA login.
+5. Session is issued only after successful MFA verification.
+
+**Tenant Policy**:
+- MFA enforcement can be enabled at tenant level.
+- Allowed providers are configured by `security_mfaProviders` (`TOTP`, `SMS`, `EMAIL`).
+- Current implementation requires `TOTP` to remain included when tenant MFA enforcement is enabled.
 
 **Implementation** (`src/services/AuthService.ts`):
 ```typescript

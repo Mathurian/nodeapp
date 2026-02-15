@@ -158,7 +158,7 @@ GET /api/resource?page=1&limit=50&sortBy=createdAt&sortOrder=desc
 
 ### POST /api/auth/login
 
-Login and receive JWT token.
+Login and establish authenticated session.
 
 **Request**:
 ```json
@@ -173,7 +173,6 @@ Login and receive JWT token.
 {
   "success": true,
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "id": "clx123...",
       "email": "user@example.com",
@@ -184,6 +183,18 @@ Login and receive JWT token.
   }
 }
 ```
+
+Notes:
+- Session token is returned as an `httpOnly` cookie.
+- If MFA is required, response includes `requiresMFA`, `tempToken`, and provider options.
+
+### POST /api/auth/mfa/challenge
+
+Request an MFA challenge code for `EMAIL` or `SMS`.
+
+### POST /api/auth/mfa/complete
+
+Complete MFA login using TOTP or challenge code with temporary token.
 
 ### GET /api/auth/profile
 

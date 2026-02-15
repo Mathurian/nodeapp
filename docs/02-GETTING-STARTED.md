@@ -381,16 +381,10 @@ curl -X POST http://localhost:3000/api/tenants \
     "slug": "default-org"
   }'
 
-# Note the returned tenant ID, then create admin user
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenantId": "TENANT_ID_FROM_ABOVE",
-    "name": "System Administrator",
-    "email": "admin@example.com",
-    "password": "SecurePassword123!",
-    "role": "ADMIN"
-  }'
+# Create admin user through users endpoint (authenticated admin context required)
+# For first admin bootstrap, use SQL method above or a seed script.
+# Invite-only registration completion endpoint:
+# POST /api/auth/complete-invitation-registration
 ```
 
 ### Generate Password Hash

@@ -2,7 +2,16 @@
 
 ## Overview
 
-The Event Manager includes a powerful workflow engine that allows you to create custom multi-step approval processes for any entity type.
+The Event Manager includes workflow templates and workflow instances for modeling multi-step approval processes.
+
+Current implementation focus:
+- Template-driven step sequencing
+- Role-based progression and approvals
+- Instance history tracking
+
+Current limitations:
+- No generic background trigger automation engine (event-driven automations are limited).
+- Workflows are primarily advanced through explicit UI/API actions.
 
 ## Table of Contents
 
@@ -30,7 +39,7 @@ The Event Manager includes a powerful workflow engine that allows you to create 
 1. **Design**: Create template with steps and transitions
 2. **Activate**: Enable template for use
 3. **Instantiate**: Start workflow for specific entity
-4. **Execute**: Progress through steps
+4. **Execute**: Progress through steps via explicit action calls
 5. **Complete**: Workflow reaches final state
 
 ## Creating Workflows
@@ -543,6 +552,6 @@ GET /api/workflows/instances/{id}/history
 
 ## Additional Resources
 
-- Visual Workflow Designer: `/admin/workflows/designer`
-- Workflow Templates Library: `/admin/workflows/templates`
-- Workflow Analytics: `/admin/workflows/analytics`
+- Workflow Management UI: `/workflows`
+- Templates API: `/api/workflows/templates`
+- Instances API: `/api/workflows/instances`
