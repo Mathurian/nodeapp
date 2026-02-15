@@ -12,6 +12,24 @@ import { createLogger } from '../utils/logger'
 
 const logger = createLogger('express')
 
+const resolveTrustProxySetting = (): boolean | number | string => {
+  const raw = (process.env['TRUST_PROXY'] || '').trim();
+  if (!raw) {
+    return 'loopback, linklocal, uniquelocal';
+  }
+
+  const normalized = raw.toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+
+  const parsedNumber = Number(raw);
+  if (!Number.isNaN(parsedNumber) && Number.isInteger(parsedNumber) && parsedNumber >= 0) {
+    return parsedNumber;
+  }
+
+  return raw;
+};
+
 /**
  * Parse allowed origins from environment
  */
@@ -123,8 +141,9 @@ export const buildConnectSrc = (allowedOrigins: string[]): string[] => {
  * Configure Express middleware
  */
 export const configureMiddleware = (app: Application, allowedOrigins: string[]): void => {
-  // Trust proxy for rate limiting behind Nginx
-  app.set('trust proxy', 1)
+  // Trust only explicitly configured proxies (or local/private network proxies by default)
+  // so req.ip is derived safely from X-Forwarded-For in proxied deployments.
+  app.set('trust proxy', resolveTrustProxySetting())
 
   const connectSrc = buildConnectSrc(allowedOrigins)
 

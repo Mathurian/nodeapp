@@ -13,6 +13,21 @@ const isLocalhost = (req: Request): boolean => {
   return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.startsWith('::ffff:127.0.0.1');
 };
 
+const isBootstrapPath = (path: string): boolean => {
+  return (
+    path === '/v1/settings/theme' ||
+    path === '/settings/theme' ||
+    path === '/v1/settings/public' ||
+    path === '/settings/public' ||
+    path === '/v1/navigation' ||
+    path === '/navigation' ||
+    path.startsWith('/v1/tenants/slug/') ||
+    path.startsWith('/tenants/slug/') ||
+    path === '/v1/csrf-token' ||
+    path === '/csrf-token'
+  );
+};
+
 // General API rate limiter
 const generalLimiter = isTestEnv ? noopLimiter : rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -22,7 +37,19 @@ const generalLimiter = isTestEnv ? noopLimiter : rateLimit({
   skip: (req: Request): boolean =>
     req.path === '/health' ||
     isLocalhost(req) ||
+    isBootstrapPath(req.path) ||
     req.path.startsWith('/v1/test-runner') // Test runner has SUPER_ADMIN/ADMIN auth checks
+})
+
+// Higher-volume limiter for bootstrap/public-read endpoints
+const bootstrapEndpointLimiter = isTestEnv ? noopLimiter : rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 1200, // 1200 requests per 5 minutes per client
+  message: 'Too many bootstrap requests, please try again shortly',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  skip: (req: Request): boolean => isLocalhost(req),
 })
 
 // Auth endpoints rate limiter - strict limits to prevent brute force
@@ -79,6 +106,7 @@ const publicEndpointLimiter = isTestEnv ? noopLimiter : rateLimit({
 
 export {
   generalLimiter,
+  bootstrapEndpointLimiter,
   authLimiter,
   perEmailAuthLimiter,
   passwordResetLimiter,
