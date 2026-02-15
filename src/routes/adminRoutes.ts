@@ -12,6 +12,7 @@ import {
   getCategories,
   getScores,
   getAuditLogs,
+  getLoginLocations,
   exportAuditLogs,
   testConnection,
   forceLogoutAllUsers,
@@ -131,6 +132,7 @@ router.get('/contests', getContests)
 router.get('/categories', getCategories)
 router.get('/scores', getScores)
 router.get('/audit-logs', getAuditLogs)
+router.get('/login-locations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getLoginLocations)
 router.post('/export-audit-logs', exportAuditLogs)
 router.post('/test/:type', testConnection)
 router.post('/users/force-logout-all', logActivity('FORCE_LOGOUT_ALL', 'USER'), forceLogoutAllUsers)

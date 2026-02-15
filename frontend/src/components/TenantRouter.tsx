@@ -54,6 +54,7 @@ const BiosPage = lazyWithRetry(() => import('../pages/BiosPage'), 'BiosPage')
 const AssignmentsPage = lazyWithRetry(() => import('../pages/AssignmentsPage'), 'AssignmentsPage')
 const RateLimitConfigPage = lazyWithRetry(() => import('../pages/RateLimitConfigPage'), 'RateLimitConfigPage')
 const ActivityLogPage = lazyWithRetry(() => import('../pages/ActivityLogPage'), 'ActivityLogPage')
+const LoginLocationsPage = lazyWithRetry(() => import('../pages/LoginLocationsPage'), 'LoginLocationsPage')
 const TestRunnerPage = lazyWithRetry(() => import('../pages/TestRunnerPage'), 'TestRunnerPage')
 const AuditorPage = lazyWithRetry(() => import('../pages/AuditorPage'), 'AuditorPage')
 const AuditorPendingAuditsPage = lazyWithRetry(() => import('../pages/AuditorPendingAuditsPage'), 'AuditorPendingAuditsPage')
@@ -225,6 +226,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
             <Route path="/logs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><LogViewerPage /></ProtectedRoute>} />
             <Route path="/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />
+            <Route path="/login-locations" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']}><LoginLocationsPage /></ProtectedRoute>} />
             <Route path="/performance" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><PerformancePage /></ProtectedRoute>} />
             <Route path="/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
@@ -309,6 +311,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />
+            <Route path="/:slug/login-locations" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']}><LoginLocationsPage /></ProtectedRoute>} />
             <Route path="/:slug/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<RoleDefaultRoute basePath={basePath} />} />
 

@@ -8,7 +8,7 @@ const KNOWN_ROUTE_SEGMENTS = new Set([
   'bulk-operations', 'category-types', 'field-visibility',
   'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs',
   'activity', 'auditor', 'board', 'permissions', 'test-runner', 'tally-master',
-  'winners', 'score-governance',
+  'winners', 'score-governance', 'login-locations',
 ])
 
 const RESERVED_NON_TENANT_PREFIXES = new Set([

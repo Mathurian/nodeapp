@@ -244,6 +244,7 @@ export const adminAPI = {
   getScores: () => api.get('/admin/scores'),
   getActivityLogs: () => api.get('/admin/logs'),
   getAuditLogs: (params?: any) => api.get('/admin/audit-logs', { params }),
+  getLoginLocations: (params?: { days?: number; limit?: number; tenantId?: string }) => api.get('/admin/login-locations', { params }),
   exportAuditLogs: (params?: any) => api.post('/admin/export-audit-logs', params),
   testConnection: (type: string) => api.post(`/admin/test/${type}`),
 }

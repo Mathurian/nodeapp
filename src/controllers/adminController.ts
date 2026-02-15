@@ -469,6 +469,28 @@ export class AdminController {
     }
   };
 
+  getLoginLocations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const days = parseInt(req.query['days'] as string, 10);
+      const limit = parseInt(req.query['limit'] as string, 10);
+      const requestedTenantId = req.query['tenantId'] as string | undefined;
+
+      const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+      const tenantId = isSuperAdmin ? requestedTenantId : (req.tenantId || req.user?.tenantId);
+
+      const result = await this.adminService.getLoginLocations({
+        tenantId,
+        isSuperAdmin,
+        days: Number.isFinite(days) ? days : undefined,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      });
+
+      return sendSuccess(res, result);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   exportAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const format = (req.query['format'] as string) || 'json';
@@ -671,6 +693,7 @@ export const getCategories = controller.getCategories;
 export const getScores = controller.getScores;
 export const getActivityLogs = controller.getActivityLogs;
 export const getAuditLogs = controller.getAuditLogs;
+export const getLoginLocations = controller.getLoginLocations;
 export const exportAuditLogs = controller.exportAuditLogs;
 export const testConnection = controller.testConnection;
 export const forceLogoutAllUsers = controller.forceLogoutAllUsers;

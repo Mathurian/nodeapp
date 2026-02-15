@@ -7,6 +7,7 @@ import { createLogger } from '../utils/logger';
 import { PaginationOptions, PaginatedResponse, createPaginatedResponse } from '../utils/pagination';
 import { env } from '../config/env';
 import { CacheService } from './CacheService';
+import { getGeoLocationForIp } from '../utils/ipGeolocation';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
@@ -105,6 +106,45 @@ export interface DashboardStats {
   databaseSize: string;
   uptime: string;
   uptimeSeconds: number;
+}
+
+export interface LoginLocationItem {
+  ipAddress: string;
+  successfulLogins: number;
+  failedLogins: number;
+  visitEvents: number;
+  totalEvents: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  country?: string;
+  countryCode?: string;
+  region?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  geoSource: 'provider' | 'private' | 'invalid' | 'unavailable';
+  tenantCount: number;
+  tenants: Array<{
+    tenantId: string;
+    tenantName: string;
+    eventCount: number;
+  }>;
+}
+
+export interface LoginLocationSummary {
+  totalDistinctIps: number;
+  totalSuccessfulLogins: number;
+  totalFailedLogins: number;
+  totalVisitEvents: number;
+  totalEvents: number;
+}
+
+export interface LoginLocationsResponse {
+  scope: 'global' | 'tenant';
+  generatedAt: string;
+  days: number;
+  summary: LoginLocationSummary;
+  locations: LoginLocationItem[];
 }
 
 export interface SystemHealth {
@@ -394,6 +434,212 @@ export class AdminService extends BaseService {
     // For now, use ActivityLog as audit logs
     // In the future, you might want a separate AuditLog table
     return this.getActivityLogs({ limit });
+  }
+
+  private normalizeIpAddress(rawIp?: string | null): string {
+    if (!rawIp) return '';
+    const trimmed = rawIp.trim();
+    if (!trimmed) return '';
+    return trimmed.split(',')[0]!.trim();
+  }
+
+  async getLoginLocations(params: {
+    tenantId?: string;
+    isSuperAdmin?: boolean;
+    days?: number;
+    limit?: number;
+  }): Promise<LoginLocationsResponse> {
+    const days = Math.min(Math.max(params.days ?? 30, 1), 365);
+    const limit = Math.min(Math.max(params.limit ?? 250, 1), 1000);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const whereTenantId = params.isSuperAdmin ? params.tenantId : params.tenantId;
+
+    const loginWhere: Prisma.AuditLogWhereInput = {
+      timestamp: { gte: since },
+      action: { in: ['auth.login', 'auth.failed_login'] },
+      ipAddress: { not: null },
+    };
+    if (whereTenantId) {
+      loginWhere.tenantId = whereTenantId;
+    }
+
+    const visitWhere: Prisma.ActivityLogWhereInput = {
+      createdAt: { gte: since },
+      ipAddress: { not: null },
+    };
+    if (whereTenantId) {
+      visitWhere.tenantId = whereTenantId;
+    }
+
+    const [loginGroups, visitGroups] = await Promise.all([
+      this.prisma.auditLog.groupBy({
+        by: ['ipAddress', 'action', 'tenantId'],
+        where: loginWhere,
+        _count: { _all: true },
+        _min: { timestamp: true },
+        _max: { timestamp: true },
+      }),
+      this.prisma.activityLog.groupBy({
+        by: ['ipAddress', 'tenantId'],
+        where: visitWhere,
+        _count: { _all: true },
+        _min: { createdAt: true },
+        _max: { createdAt: true },
+      }),
+    ]);
+
+    type Aggregate = {
+      ipAddress: string;
+      successfulLogins: number;
+      failedLogins: number;
+      visitEvents: number;
+      totalEvents: number;
+      firstSeenAt: Date;
+      lastSeenAt: Date;
+      tenantCounts: Map<string, number>;
+    };
+
+    const aggregates = new Map<string, Aggregate>();
+    const getOrCreate = (ipAddress: string, firstSeenAt: Date, lastSeenAt: Date): Aggregate => {
+      const existing = aggregates.get(ipAddress);
+      if (existing) {
+        if (firstSeenAt < existing.firstSeenAt) existing.firstSeenAt = firstSeenAt;
+        if (lastSeenAt > existing.lastSeenAt) existing.lastSeenAt = lastSeenAt;
+        return existing;
+      }
+
+      const initial: Aggregate = {
+        ipAddress,
+        successfulLogins: 0,
+        failedLogins: 0,
+        visitEvents: 0,
+        totalEvents: 0,
+        firstSeenAt,
+        lastSeenAt,
+        tenantCounts: new Map<string, number>(),
+      };
+      aggregates.set(ipAddress, initial);
+      return initial;
+    };
+
+    for (const group of loginGroups) {
+      const normalizedIp = this.normalizeIpAddress(group.ipAddress);
+      if (!normalizedIp) continue;
+      const firstSeenAt = group._min.timestamp || new Date();
+      const lastSeenAt = group._max.timestamp || firstSeenAt;
+      const aggregate = getOrCreate(normalizedIp, firstSeenAt, lastSeenAt);
+
+      const count = group._count._all;
+      if (group.action === 'auth.login') {
+        aggregate.successfulLogins += count;
+      } else if (group.action === 'auth.failed_login') {
+        aggregate.failedLogins += count;
+      }
+      aggregate.totalEvents += count;
+      aggregate.tenantCounts.set(
+        group.tenantId,
+        (aggregate.tenantCounts.get(group.tenantId) || 0) + count
+      );
+    }
+
+    for (const group of visitGroups) {
+      const normalizedIp = this.normalizeIpAddress(group.ipAddress);
+      if (!normalizedIp) continue;
+      const firstSeenAt = group._min.createdAt || new Date();
+      const lastSeenAt = group._max.createdAt || firstSeenAt;
+      const aggregate = getOrCreate(normalizedIp, firstSeenAt, lastSeenAt);
+
+      const count = group._count._all;
+      aggregate.visitEvents += count;
+      aggregate.totalEvents += count;
+      if (group.tenantId) {
+        aggregate.tenantCounts.set(
+          group.tenantId,
+          (aggregate.tenantCounts.get(group.tenantId) || 0) + count
+        );
+      }
+    }
+
+    const sorted = Array.from(aggregates.values())
+      .sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime())
+      .slice(0, limit);
+
+    const tenantIds = Array.from(new Set(
+      sorted.flatMap((item) => Array.from(item.tenantCounts.keys())).filter(Boolean)
+    ));
+    const tenantNameById = new Map<string, string>();
+    if (tenantIds.length > 0) {
+      const tenants = await this.prisma.tenant.findMany({
+        where: { id: { in: tenantIds } },
+        select: { id: true, name: true },
+      });
+      for (const tenant of tenants) {
+        tenantNameById.set(tenant.id, tenant.name);
+      }
+    }
+
+    const geolocations = await Promise.all(
+      sorted.map(async (item) => {
+        const geo = await getGeoLocationForIp(item.ipAddress);
+        return { ipAddress: item.ipAddress, geo };
+      })
+    );
+    const geoByIp = new Map(geolocations.map((item) => [item.ipAddress, item.geo]));
+
+    const locations: LoginLocationItem[] = sorted.map((item) => {
+      const geo = geoByIp.get(item.ipAddress);
+      const tenants = Array.from(item.tenantCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([tenantId, eventCount]) => ({
+          tenantId,
+          tenantName: tenantNameById.get(tenantId) || 'Unknown Tenant',
+          eventCount,
+        }));
+
+      return {
+        ipAddress: item.ipAddress,
+        successfulLogins: item.successfulLogins,
+        failedLogins: item.failedLogins,
+        visitEvents: item.visitEvents,
+        totalEvents: item.totalEvents,
+        firstSeenAt: item.firstSeenAt.toISOString(),
+        lastSeenAt: item.lastSeenAt.toISOString(),
+        country: geo?.country,
+        countryCode: geo?.countryCode,
+        region: geo?.region,
+        city: geo?.city,
+        latitude: geo?.latitude,
+        longitude: geo?.longitude,
+        geoSource: geo?.source || 'unavailable',
+        tenantCount: tenants.length,
+        tenants,
+      };
+    });
+
+    const summary: LoginLocationSummary = locations.reduce(
+      (acc, item) => {
+        acc.totalSuccessfulLogins += item.successfulLogins;
+        acc.totalFailedLogins += item.failedLogins;
+        acc.totalVisitEvents += item.visitEvents;
+        acc.totalEvents += item.totalEvents;
+        return acc;
+      },
+      {
+        totalDistinctIps: locations.length,
+        totalSuccessfulLogins: 0,
+        totalFailedLogins: 0,
+        totalVisitEvents: 0,
+        totalEvents: 0,
+      }
+    );
+
+    return {
+      scope: params.isSuperAdmin && !params.tenantId ? 'global' : 'tenant',
+      generatedAt: new Date().toISOString(),
+      days,
+      summary,
+      locations,
+    };
   }
 
   async getDatabaseTables(): Promise<TableWithCount[]> {
