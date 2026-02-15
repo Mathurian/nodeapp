@@ -6,16 +6,6 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
-import {
-  ResponsiveContainer,
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  ZAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts'
 import { adminAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Card, PageHeader, Button } from '../components/ui'
@@ -70,6 +60,26 @@ interface MapPoint {
 }
 
 const timeWindowOptions = [1, 7, 30, 90];
+const MAP_WIDTH = 1000;
+const MAP_HEIGHT = 520;
+
+const projectLon = (longitude: number): number => ((longitude + 180) / 360) * MAP_WIDTH;
+const projectLat = (latitude: number): number => ((90 - latitude) / 180) * MAP_HEIGHT;
+
+const continents = [
+  // North America
+  'M85 145 L125 95 L220 75 L300 95 L290 140 L240 165 L175 205 L125 210 L95 180 Z',
+  // South America
+  'M235 245 L275 275 L285 340 L265 410 L235 470 L195 440 L190 380 L215 315 Z',
+  // Europe + Asia
+  'M430 105 L485 85 L565 90 L635 80 L730 95 L810 120 L875 150 L885 185 L840 205 L775 225 L710 215 L665 200 L625 170 L575 155 L525 145 L475 155 L440 130 Z',
+  // Africa
+  'M500 180 L555 195 L590 240 L600 305 L570 365 L530 395 L485 365 L470 305 L485 245 Z',
+  // Australia
+  'M770 350 L835 365 L870 405 L840 445 L780 450 L740 420 L745 380 Z',
+  // Greenland
+  'M305 55 L345 35 L390 45 L375 75 L330 82 Z',
+]
 
 const LoginLocationsPage: React.FC = () => {
   const { user } = useAuth()
@@ -205,47 +215,55 @@ const LoginLocationsPage: React.FC = () => {
           ) : isError ? (
             <div className="flex h-[420px] items-center justify-center text-rose-600 dark:text-rose-300">Failed to load login locations.</div>
           ) : (
-            <div className="h-[420px] w-full rounded-lg border border-gray-200 bg-gradient-to-br from-slate-100 to-slate-200 p-2 dark:border-gray-700 dark:from-slate-900 dark:to-slate-800">
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 30, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                  <XAxis
-                    dataKey="longitude"
-                    type="number"
-                    domain={[-180, 180]}
-                    ticks={[-120, -60, 0, 60, 120]}
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    label={{ value: 'Longitude', position: 'insideBottom', offset: -8, fill: '#6b7280' }}
-                  />
-                  <YAxis
-                    dataKey="latitude"
-                    type="number"
-                    domain={[-90, 90]}
-                    ticks={[-60, -30, 0, 30, 60]}
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    label={{ value: 'Latitude', angle: -90, position: 'insideLeft', fill: '#6b7280' }}
-                  />
-                  <ZAxis dataKey="totalEvents" range={[80, 1200]} />
-                  <Tooltip
-                    cursor={{ strokeDasharray: '4 4' }}
-                    content={({ active, payload }) => {
-                      if (!active || !payload || payload.length === 0) return null
-                      const point = payload[0]?.payload as MapPoint
-                      if (!point) return null
-                      return (
-                        <div className="rounded-md border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                          <p className="font-semibold text-gray-900 dark:text-white">{point.displayLocation}</p>
-                          <p className="mt-1 text-gray-600 dark:text-gray-300">{point.ipAddress}</p>
-                          <p className="mt-2 text-emerald-700 dark:text-emerald-300">Successful: {point.successfulLogins}</p>
-                          <p className="text-rose-700 dark:text-rose-300">Failed: {point.failedLogins}</p>
-                          <p className="text-gray-700 dark:text-gray-300">Total Events: {point.totalEvents}</p>
-                        </div>
-                      )
-                    }}
-                  />
-                  <Scatter name="Login Activity" data={mapPoints} fill="#2563eb" fillOpacity={0.72} />
-                </ScatterChart>
-              </ResponsiveContainer>
+            <div className="h-[500px] w-full overflow-hidden rounded-lg border border-gray-200 bg-gradient-to-b from-slate-100 via-sky-100 to-slate-200 p-2 dark:border-gray-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+              <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} className="h-full w-full">
+                <defs>
+                  <pattern id="graticulePattern" width="83.33" height="86.66" patternUnits="userSpaceOnUse">
+                    <path d="M 83.33 0 L 0 0 0 86.66" fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="1" />
+                  </pattern>
+                </defs>
+
+                <rect x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#graticulePattern)" className="text-slate-500 dark:text-slate-400" />
+
+                <g>
+                  {continents.map((pathData) => (
+                    <path
+                      key={pathData}
+                      d={pathData}
+                      className="fill-slate-300 stroke-slate-500 dark:fill-slate-700 dark:stroke-slate-500"
+                      strokeWidth="1.25"
+                    />
+                  ))}
+                </g>
+
+                {mapPoints.map((point) => {
+                  const x = projectLon(point.longitude)
+                  const y = projectLat(point.latitude)
+                  const radius = Math.max(4, Math.min(20, 4 + Math.sqrt(point.totalEvents)))
+                  const fill = point.failedLogins > 0 ? '#f43f5e' : '#2563eb'
+
+                  return (
+                    <g key={point.ipAddress}>
+                      <circle cx={x} cy={y} r={radius} fill={fill} fillOpacity="0.68" stroke="#0f172a" strokeOpacity="0.45" strokeWidth="1.2">
+                        <title>
+                          {`${point.displayLocation} (${point.ipAddress}) | Successful: ${point.successfulLogins} | Failed: ${point.failedLogins} | Events: ${point.totalEvents}`}
+                        </title>
+                      </circle>
+                    </g>
+                  )
+                })}
+              </svg>
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-700 dark:text-gray-300">
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                  Successful only
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+                  Includes failed logins
+                </span>
+                <span>Bubble size = total events from IP</span>
+              </div>
             </div>
           )}
         </Card>
