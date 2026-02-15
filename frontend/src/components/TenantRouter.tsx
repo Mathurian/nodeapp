@@ -168,8 +168,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
   const userTenantSlug = user?.tenant?.slug
   const shouldCanonicalizeToTenantPath =
     !tenantSlug &&
-    Boolean(userTenantSlug) &&
-    userTenantSlug !== 'default'
+    Boolean(userTenantSlug)
 
   if (shouldCanonicalizeToTenantPath) {
     return (

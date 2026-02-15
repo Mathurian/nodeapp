@@ -598,7 +598,10 @@ You now have access to all documentation for your role (${user.role}).
                 Signed in as <span className="font-medium text-gray-900 dark:text-white">{user.email}</span>
               </span>
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => {
+                  const tenantSlug = user?.tenant?.slug
+                  navigate(tenantSlug ? `/${tenantSlug}/dashboard` : '/dashboard')
+                }}
                 className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Back to Application

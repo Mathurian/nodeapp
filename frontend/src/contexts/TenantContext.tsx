@@ -94,10 +94,6 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   // Helper to build paths with tenant slug prefix
   const buildPath = (path: string): string => {
     const cleanPath = path.startsWith('/') ? path : `/${path}`
-    if (slug === DEFAULT_TENANT_SLUG) {
-      // Default tenant doesn't need slug in URL
-      return cleanPath
-    }
     return `/${slug}${cleanPath}`
   }
 

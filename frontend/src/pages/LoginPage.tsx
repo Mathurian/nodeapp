@@ -187,6 +187,15 @@ const LoginPage: React.FC = () => {
     }
   }
 
+  const getPostLoginPath = (role?: string, tenantSlug?: string | null) => {
+    const roleRoute = getDefaultRouteForRole(role)
+    const resolvedSlug = (slug || tenantSlug || '').trim()
+    if (resolvedSlug) {
+      return `/${resolvedSlug}${roleRoute}`
+    }
+    return roleRoute
+  }
+
   const setupMfaEnrollment = async (tempToken: string) => {
     setMfaSetupLoading(true)
     try {
@@ -220,14 +229,7 @@ const LoginPage: React.FC = () => {
     setServerError('')
     try {
       const user = await completeMfaLogin(mfaPendingToken, mfaCode.trim(), mfaSelectedProvider)
-      const roleRoute = getDefaultRouteForRole(user?.role)
-      if (slug && slug !== 'default') {
-        navigate(`/${slug}${roleRoute}`)
-      } else if (user?.tenant?.slug && user.tenant.slug !== 'default') {
-        navigate(`/${user.tenant.slug}${roleRoute}`)
-      } else {
-        navigate(roleRoute)
-      }
+      navigate(getPostLoginPath(user?.role, user?.tenant?.slug))
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'MFA verification failed')
     } finally {
@@ -305,14 +307,7 @@ const LoginPage: React.FC = () => {
       }
 
       const user = result.user
-      const roleRoute = getDefaultRouteForRole(user?.role)
-      if (slug && slug !== 'default') {
-        navigate(`/${slug}${roleRoute}`)
-      } else if (user?.tenant?.slug && user.tenant.slug !== 'default') {
-        navigate(`/${user.tenant.slug}${roleRoute}`)
-      } else {
-        navigate(roleRoute)
-      }
+      navigate(getPostLoginPath(user?.role, user?.tenant?.slug))
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Login failed')
     }
