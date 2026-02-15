@@ -103,6 +103,11 @@ CORS_CREDENTIALS="true"
 RATE_LIMIT_WINDOW_MS="900000"  # 15 minutes
 RATE_LIMIT_MAX_REQUESTS="100"  # 100 requests per window
 
+# Reverse Proxy Trust Chain
+# Must match trusted upstream proxy hops used by your reverse proxy.
+# Use explicit IPs/CIDRs only (avoid broad ranges).
+TRUST_PROXY="127.0.0.1,::1,10.10.10.10"
+
 # ============================================================================
 # REDIS CONFIGURATION (Phase 6)
 # ============================================================================
@@ -161,6 +166,15 @@ EMAIL_FROM="noreply@yourdomain.com"
 SENTRY_DSN="<your-sentry-dsn>"
 DATADOG_API_KEY="<your-datadog-key>"
 ```
+
+### 3. Reverse Proxy Client IP Integrity
+
+If your deployment uses one or more upstream proxies/load balancers:
+
+1. Upstream proxies must append to `X-Forwarded-For` (not overwrite).
+2. Reverse proxy should resolve the real client IP using trusted upstream hops only.
+3. Application `TRUST_PROXY` must match those same trusted hops.
+4. Validate in app request logs that `ip` reflects real client addresses.
 
 ### 3. Generate Secrets
 

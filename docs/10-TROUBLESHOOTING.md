@@ -250,6 +250,49 @@ socket.connected === true
 // Verify io.to(room).emit() is called
 ```
 
+## Rate Limiting and Client IP Issues
+
+### All Users Appear to Share the Same IP
+
+**Problem**: Logs and rate limiting show a proxy/load balancer IP instead of real client IPs.
+
+**Solution**:
+```bash
+# 1) Verify reverse proxy real IP settings
+#    - real_ip_header X-Forwarded-For;
+#    - real_ip_recursive on;
+#    - set_real_ip_from <trusted-proxy-ip-or-cidr>; (explicit upstream hops only)
+
+# 2) Ensure proxy forwards IP headers
+#    proxy_set_header X-Real-IP $realip_remote_addr;
+#    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#    proxy_set_header X-Forwarded-Proto $scheme;
+
+# 3) Ensure app trust matches proxy trust
+#    In .env:
+#    TRUST_PROXY=127.0.0.1,::1,<trusted-proxy-ip-or-cidr>
+
+# 4) Restart services and retest
+sudo systemctl reload nginx
+sudo systemctl restart event-manager.service
+```
+
+### Frequent 429 Errors Across Many Users
+
+**Problem**: Many users get 429 at the same time.
+
+**Likely Cause**: Client IP resolution is collapsing to one shared proxy IP.
+
+**Solution**:
+```bash
+# Confirm request logs show diverse client IPs after fixes
+tail -f /var/www/event-manager/logs/general/app-request-$(date +%F).log
+
+# If IPs are still proxy addresses, check upstream forwarding behavior:
+# - Upstream must append X-Forwarded-For, not replace it
+# - All proxy hops should preserve the header chain
+```
+
 ## File Upload Issues
 
 ### File Upload Fails

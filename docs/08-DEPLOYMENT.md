@@ -267,10 +267,18 @@ server {
     return 301 https://$server_name$request_uri;
 }
 
-# HTTPS Server
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com www.yourdomain.com;
+    # HTTPS Server
+    server {
+        listen 443 ssl http2;
+        server_name yourdomain.com www.yourdomain.com;
+
+        # Real client IP handling for multi-hop reverse proxy chains.
+        # Trust only your direct upstream proxy/load balancer IPs or CIDRs.
+        set_real_ip_from 127.0.0.1;
+        set_real_ip_from ::1;
+        set_real_ip_from 10.10.10.10;   # Replace with your trusted proxy IP/CIDR
+        real_ip_header X-Forwarded-For;
+        real_ip_recursive on;
 
     # SSL Configuration
     ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
@@ -302,7 +310,7 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Real-IP $realip_remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
@@ -315,12 +323,30 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $realip_remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # Upload size limit
     client_max_body_size 10M;
 }
 ```
+
+### Reverse Proxy Chain Requirements
+
+For accurate rate limiting, audit logs, and security controls:
+
+1. Preserve full forwarding chain:
+   - Upstream proxies must append to `X-Forwarded-For` (not overwrite).
+2. Trust only known proxies:
+   - In Nginx, use `set_real_ip_from` for explicit upstream hops only.
+   - Avoid broad private CIDRs unless your network design requires them.
+3. Align application trust with proxy trust:
+   - Set `TRUST_PROXY` in `.env` to the same trusted proxy IPs/CIDRs.
+4. Validate after deployment:
+   - Check request logs and confirm `ip` reflects real clients.
+   - Confirm rate limiting no longer groups all users behind one proxy IP.
 
 ### Enable Configuration
 
@@ -372,6 +398,7 @@ JWT_SECRET=<generate-secure-secret>
 SESSION_SECRET=<generate-secure-secret>
 CSRF_SECRET=<generate-secure-secret>
 BCRYPT_ROUNDS=12
+TRUST_PROXY=127.0.0.1,::1,10.10.10.10
 
 # URLs
 APP_URL=https://yourdomain.com
