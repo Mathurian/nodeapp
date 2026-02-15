@@ -1,222 +1,311 @@
-# Acceptance Test Guide
+# Acceptance Test Guide (AI Runbook)
 
-Purpose: structured UAT checklist for validating Event Manager behavior across all supported user roles, workflows, and cross-role handoffs.
+Purpose: deterministic checklist for AI/browser-driven execution across roles and scenarios.
 
-Scope: frontend UI/UX, API-backed behavior, role scoping, score/certification pipeline, deductions/governance, files/bios/scripts, tenant routing, and settings.
+Audience: automation operator (AI agent with browser + API/DB access).
 
-## 1. Test Setup
+Companion human document:
+- `docs/Acceptance-Test-Guide-v2.md`
 
-### Environment Preconditions
-- Application is reachable at `https://conmgr.com`.
-- API is reachable at `/api/*`.
-- Tenant slug under test exists (example: `febtest1`).
-- Default tenant exists (slug: `default`).
-- Database has seeded users for each role in the target tenant.
-- Browser cache is cleared before full pass (private window preferred).
+Machine-readable exports:
+- `docs/Acceptance-Test-Cases.csv`
+- `docs/Acceptance-Test-Cases.json`
 
-### Baseline Data Preconditions
-- At least 1 active event with at least 2 contests.
-- Each contest has at least 2 categories.
-- Each category has multiple contestants.
-- At least 2 judges assigned to at least one shared category.
-- At least 1 tally master, 1 auditor, and 1 board user assigned.
-- Contestants include:
-  - Manual text bio.
-  - Uploaded bio file.
-  - Uploaded profile image.
-- At least one emcee script exists and is viewable.
+## 1. Execution Model
 
-### Global Pass/Fail Rules
-- No unhandled runtime exceptions in console.
-- No unexpected `403`, `404`, `409`, or `500` in valid user flows.
-- No dynamic import failure for navigated pages.
-- No role can access forbidden pages through menu, command palette, or direct URL.
-- Menu and command palette visibility are consistent with effective permissions.
-- Navigation closes after route selection and when clicking outside.
+This guide assumes:
+- Tenant and users are created manually by humans.
+- AI is provided tenant slug + credentials.
+- AI resets tenant UAT state before each run.
 
-## 2. Cross-Role Core Flows
+Reset script:
+- `scripts/uat/reset-tenant-uat-state.sh`
 
-### Tenant Routing and Canonical URLs
-- Open `/dashboard` without slug while authenticated:
-  - Expected: user is routed/canonicalized into `/{tenantSlug}/dashboard`.
-- Open role home route without slug:
-  - Expected: app resolves tenant and loads correct page and data.
-- Hard refresh on tenant pages (for example `/{slug}/bios`):
-  - Expected: page loads correctly with tenant context retained.
+Required pre-run command:
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply
+```
 
-### Authentication and MFA
-- Login success path works for each role.
-- Logout invalidates active session in UI.
-- MFA policy enforcement follows tenant settings:
-  - `security_mfaEnabled=true` enforces MFA challenge.
-  - Allowed providers come from `security_mfaProviders`.
-  - TOTP path works when user is enrolled.
-  - Email/SMS challenge path works when allowed and configured.
-- Invalid MFA code is rejected without creating session.
+Optional (preserve logs/reports/notifications/search):
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --keep-logs
+```
 
-### Role-Based Navigation
-- Menu only shows allowed routes for current user.
-- Command palette only returns allowed actions/routes.
-- No “Access Denied” entries should appear as discoverable menu options for unauthorized routes.
+## 2. Run Inputs (Required)
 
-### Search
-- Global search returns real, actionable results.
-- Selecting a search result navigates correctly.
-- Empty state and no-match state are clear and non-breaking.
+- `BASE_URL` (example: `https://conmgr.com`)
+- `TENANT_SLUG` (example: `febtest1`)
+- Role credentials:
+  - `SUPER_ADMIN`
+  - `ADMIN`
+  - `ORGANIZER`
+  - `BOARD`
+  - `TALLY_MASTER`
+  - `AUDITOR`
+  - `JUDGE`
+  - `EMCEE`
+  - `CONTESTANT`
+- Scenario test IDs:
+  - single-category scenario IDs (event/contest/category/contestants)
+  - multi-category scenario IDs
 
-### Bios and Media
-- `/bios` displays scoped data by role.
-- Bio text, uploaded bio files, and profile images all render when present.
-- File links resolve with `200` and open correctly (no fallback 404 page in valid links).
+## 3. Global Preconditions (Hard Fail if Missing)
 
-## 3. SUPER_ADMIN Checklist
+- At least 1 active event in tenant.
+- At least 2 contests.
+- At least 2 categories per contest for multi-category scenario.
+- Assigned users for judge/tally/auditor/board workflow.
+- Contestants with:
+  - manual bio text
+  - uploaded bio file
+  - uploaded image
+- At least 1 emcee script with viewable file.
 
-- Can access all tenant and platform-level pages.
-- Can switch tenant context and verify scoped data changes accordingly.
-- Can manage permissions across tenants.
-- Can view and update tenant-level MFA policy/providers.
-- Can view full certification overview with drilldown.
-- Can submit, approve, and monitor score governance requests per allowed scope.
+## 4. Output Contract
 
-## 4. ADMIN Checklist
+AI must emit:
+- `PASS/FAIL` per test case ID.
+- Failure payload:
+  - case ID
+  - role
+  - URL
+  - reproduction steps
+  - expected vs actual
+  - status/error code or console/runtime signature
+- Summary:
+  - total/pass/fail/skip
+  - blocker defects list
 
-- Lands on correct dashboard with tenant-scoped data.
-- Can fully CRUD: events, contests, categories, users, assignments.
-- Can edit tenant permissions for local tenant users.
-- Can manage branding/theme and see applied visual changes.
-- Can manage workflows/templates and verify they function end-to-end.
-- Can generate reports and preview files in UI (not raw JSON unless JSON format selected).
+## 5. Test Case Format
 
-## 5. ORGANIZER Checklist
+Each case below has:
+- `ID`
+- `Role`
+- `Action`
+- `Expected`
 
-- Default post-login page is organizer-relevant and functional.
-- Can create/manage event structure and scoring configuration.
-- Can configure contestant login visibility and result visibility flags.
-- Can manage assignments (contest/category filters work as expected).
-- Can access permissions page for tenant-scoped CRUD management.
-- Can view certification pipeline status at contest/category level with meaningful names (not raw IDs).
-- Can certify at organizer stage where allowed and see status update.
+Use strict matching. “Looks good” is invalid unless explicitly marked UX-only.
 
-## 6. BOARD Checklist
+Automation fields:
+- `id`: stable test case ID
+- `area`: functional domain
+- `role`: execution role/scope
+- `action`: executable step target
+- `expected`: assertion target
+- `priority`: `P0|P1|P2`
+- `blocking`: `true|false`
 
-- Can view certification progress across contests/categories.
-- Can review and certify board stage only when prior stages are satisfied.
-- Can request un-certification with governance safeguards.
-- Can review deductions and participate in required approval chain.
-- Can control winners visibility/unlock behavior where configured.
+ID governance:
+- IDs are immutable once published.
+- New test: add a new ID, do not repurpose existing ID.
+- Retired test: mark deprecated in export, do not delete historical ID usage from reports.
 
-## 7. TALLY_MASTER Checklist
+## 6. Core Routing and Session Cases
 
-- Lands on tally dashboard with non-zero metrics when data exists.
-- Overview shows contest/category names, not UUID-only display.
-- Can view judge-level submitted scores with filters:
-  - By contest.
-  - By category.
-  - By contestant.
-- Can certify tally stage only when judge-stage requirements are met.
-- Can initiate/request score throw-out or un-certification flows with required approvals.
+### TC-CORE-001
+- Role: Any authenticated role
+- Action: Open `/dashboard` without slug
+- Expected: canonical redirect to `/{TENANT_SLUG}/dashboard`
 
-## 8. AUDITOR Checklist
+### TC-CORE-002
+- Role: Any authenticated role
+- Action: hard refresh on `/{TENANT_SLUG}/bios`
+- Expected: page loads with tenant context, no blank shell
 
-- Lands on auditor dashboard (not generic `/dashboard` UX).
-- Can view tally-certified scores and certification chain status.
-- Can certify auditor stage only when tally stage is completed.
-- Can request un-certification and throw-out via governance workflow.
-- Dashboard includes certification quick actions and pending review queues.
+### TC-CORE-003
+- Role: Any authenticated role
+- Action: use 404 page actions (`Go Back`, `Go to Dashboard`)
+- Expected: app returns to working routed shell, not blank/partial UI
 
-## 9. JUDGE Checklist
+### TC-CORE-004
+- Role: Any
+- Action: normal navigation across 5 pages
+- Expected: no dynamic import failures
 
-- Scoring page shows only assigned categories (none if no active assignments).
-- Category selection and scoring page load without 404/dynamic import errors.
-- Can score contestants in assigned scope only.
-- Submit flow:
-  - Requires judge certification/signature input.
-  - Locks score values immediately on submit/certify.
-  - Keeps commentary editable after certification.
-- Can add per-contestant/per-category commentary.
-- Can upload commentary files (images/docs) and verify availability in downstream views/reports.
-- Can view only scoped contestant bios/images/files for assigned contests/categories.
+## 7. Navigation/Permission Matrix Cases
 
-## 10. CONTESTANT Checklist
+### TC-NAV-001
+- Role: Organizer
+- Action: open menu + command palette
+- Expected: only allowed routes visible; no dead “Access Denied” options
 
-- Login allowed/blocked based on event-level policy.
-- If allowed and assigned across multiple events/tenants:
-  - Dashboard shows only permitted partial data.
-- Can view own event/contest/category scope only.
-- Can view judge and contestant bios/images only within permitted scope.
-- Results visibility respects configured release flags.
+### TC-NAV-002
+- Role: Organizer
+- Action: select a menu item, then click outside drawer
+- Expected: drawer closes in both interactions
 
-## 11. EMCEE Checklist
+### TC-NAV-003
+- Role: Super admin
+- Action: verify admin-only pages visible and functional
+- Expected: access allowed + data loads
 
-- Default dashboard emphasizes scripts + bios.
-- Can view contestant and judge bios/images in scoped view, filterable by contest.
-- Script active/inactive state is visually clear.
-- Script view/download opens valid files (no 404).
-- Winners page access behavior matches unlock/finalization rules.
+## 8. Judge Scoring Flow Cases
 
-## 12. Scoring and Certification Pipeline (End-to-End)
+### TC-JUDGE-001
+- Role: Judge
+- Action: open `/scoring`
+- Expected: only assigned categories listed
 
-### Happy Path
-1. Judge submits and certifies category scores.
-2. Tally master reviews category totals and certifies tally stage.
-3. Auditor reviews certified tally output and certifies auditor stage.
-4. Board/Organizer performs final certification.
-5. Winners page unlock logic behaves per policy.
+### TC-JUDGE-002
+- Role: Judge with no active assignment
+- Action: open `/scoring`
+- Expected: no categories shown; no error
 
-Expected:
-- Stage indicators reflect completion only when stage-wide requirements are truly satisfied.
-- Partial submissions do not mark whole category/contest as complete.
-- Drilldown always exposes pending users/items.
+### TC-JUDGE-003
+- Role: Judge
+- Action: score one contestant and submit with certification
+- Expected: submit succeeds; score locks immediately
 
-### Negative/Guardrail Cases
-- Attempt certification out of order: blocked with clear reason.
-- Attempt duplicate certification: idempotent or safely rejected.
-- Attempt uncertify/throw-out without approvals: blocked.
-- Attempt scoring outside assignment scope: blocked.
+### TC-JUDGE-004
+- Role: Judge
+- Action: edit comments after certification
+- Expected: comments remain editable
 
-## 13. Deductions and Governance
+### TC-JUDGE-005
+- Role: Judge
+- Action: upload commentary file
+- Expected: file persists and is visible in downstream results/report contexts
 
-- Deductions can be initiated by allowed roles.
-- Supports category-specific and general deductions.
-- Requires reason, amount, and initiator certification.
-- Requires additional approvals per configured policy.
-- Approved deductions affect final score calculations.
-- Deductions and rationale appear in results and reports.
+## 9. Bios and Media Cases
 
-## 14. Results and Reports
+### TC-BIO-001
+- Role: Judge
+- Action: open `/bios`
+- Expected: scoped contestants and bios/images/files shown (no placeholder-only when data exists)
 
-- Contest-level results show overall contest ordering.
-- Category drilldown shows per-category standings and details.
-- Export/print/view controls appear consistently at all valid scopes.
-- Contestant visibility flags are enforced in contestant view.
-- Report generation supports:
-  - View preview (inline when applicable).
-  - Download formats.
-  - Email/send where configured.
+### TC-BIO-002
+- Role: Emcee
+- Action: open `/bios`, filter by contest
+- Expected: contestant + judge data shown per scope
 
-## 15. Files, Uploads, and Storage
+### TC-BIO-003
+- Role: Organizer
+- Action: open bio file and user image links
+- Expected: HTTP 200 and valid render, no 404
 
-- File management page lists real files with useful metadata.
-- Upload paths are valid and retrievable through app URLs.
-- Permissions enforce who can view which files.
-- Nginx/static routing serves upload folders used by bios/scripts/images.
+## 10. Certification Pipeline Cases
 
-## 16. Settings, Branding, and Public Pages
+### TC-CERT-001 (Single Category)
+- Role chain: Judge -> Tally -> Auditor -> Board/Organizer
+- Action: complete full certification flow for one category
+- Expected: each stage only unlocks after prior stage complete
 
-- Landing page uses default tenant app name/favicon.
-- Login/help pages include return-to-home link.
-- Registration link is absent in invite-only mode.
-- Theme/branding changes apply after save and refresh.
-- Public settings endpoint resolves correctly and does not break app shell.
+### TC-CERT-002 (Partial Guardrail)
+- Role: Tally+ views
+- Action: judge certifies only one contestant in category
+- Expected: stage not shown as fully complete
 
-## 17. Final UAT Signoff Checklist
+### TC-CERT-003 (Multi Category)
+- Role chain: Judge -> Tally -> Auditor -> Board/Organizer
+- Action: run flow on 2+ categories in same contest
+- Expected: status accurate per category and contest rollup
 
-- All role checklists passed.
-- End-to-end certification pipeline passed in at least:
-  - Single-category scenario.
-  - Multi-category scenario.
-- No critical console/runtime errors.
-- No broken links/files in bios/scripts/results.
-- No unauthorized data exposure across roles or tenants.
-- Documentation and in-app help align with final implemented behavior.
+## 11. Governance, Un-certify, Throw-Out Cases
 
+### TC-GOV-001
+- Role: Judge
+- Action: request un-certification
+- Expected: request created; no immediate uncertification
+
+### TC-GOV-002
+- Role: Tally/Auditor/Board/Admin
+- Action: request throw-out (judge/category and judge/contest scopes)
+- Expected: request requires approvals; no immediate score deletion
+
+### TC-GOV-003
+- Role: Approver chain
+- Action: complete required approvals
+- Expected: final governance action executes only after threshold reached
+
+## 12. Deductions Cases
+
+### TC-DED-001
+- Role: Allowed initiator
+- Action: create category-specific deduction
+- Expected: request accepted with required fields
+
+### TC-DED-002
+- Role: Allowed initiator
+- Action: create general deduction (non-criterion specific)
+- Expected: request accepted and routed through approval chain
+
+### TC-DED-003
+- Role: Approvers
+- Action: complete approvals
+- Expected: deduction applied to final calculations and visible in results/reports
+
+## 13. Results and Reports Cases
+
+### TC-RES-001
+- Role: Organizer/Admin
+- Action: open contest-level results
+- Expected: overall contest ordering shown
+
+### TC-RES-002
+- Role: Organizer/Admin
+- Action: drill into category
+- Expected: category results shown with controls in correct context
+
+### TC-RES-003
+- Role: Contestant with visibility disabled
+- Action: view results
+- Expected: blocked/hidden according to visibility flags
+
+### TC-RPT-001
+- Role: Allowed report role
+- Action: generate report and use View
+- Expected: rendered preview (not raw JSON for normal report preview mode)
+
+## 14. Emcee and File Cases
+
+### TC-EMC-001
+- Role: Emcee
+- Action: open script via View
+- Expected: file opens without 404
+
+### TC-FILE-001
+- Role: Admin/Organizer
+- Action: open `/files`
+- Expected: table includes real filenames/metadata
+
+## 15. MFA Cases
+
+### TC-MFA-001
+- Role: User under tenant MFA enforcement
+- Action: login
+- Expected: MFA challenge required
+
+### TC-MFA-002
+- Role: same
+- Action: complete TOTP/EMAIL/SMS (allowed providers)
+- Expected: successful session only after valid challenge
+
+## 16. Final Gate
+
+Run is `PASS` only if:
+- all blocker cases pass
+- no unauthorized data exposure across roles
+- no critical runtime/module-load failures
+- no broken file links in bios/scripts/results paths
+
+Run is `FAIL` if any of the above is violated.
+
+## 17. Export and Reporting Contract
+
+Automation runners should key all results by `id` from:
+- `docs/Acceptance-Test-Cases.csv` or
+- `docs/Acceptance-Test-Cases.json`
+
+Suggested result schema:
+```json
+{
+  "id": "TC-CORE-001",
+  "status": "PASS",
+  "startedAt": "2026-02-15T12:00:00Z",
+  "finishedAt": "2026-02-15T12:00:08Z",
+  "role": "ADMIN",
+  "url": "https://conmgr.com/dashboard",
+  "notes": "",
+  "evidence": []
+}
+```

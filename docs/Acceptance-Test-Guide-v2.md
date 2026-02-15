@@ -2,6 +2,11 @@
 
 Use this guide for manual testing by a person or small group. It is written for end-user validation of behavior, look/feel, and usability.
 
+Test model used by this guide:
+- Tenant and test users are created manually by humans.
+- Before each UAT cycle, run a tenant-scoped reset to return to a known-good state.
+- Reset script path: `scripts/uat/reset-tenant-uat-state.sh`
+
 ## How To Use This Guide
 
 - Test in a private/incognito window.
@@ -18,6 +23,32 @@ Use this guide for manual testing by a person or small group. It is written for 
 - Tenant slug tested:
 - Browser(s):
 - Build/version:
+- Reset script verify run completed: `Yes/No`
+- Reset script apply run completed: `Yes/No`
+
+## Pre-Run Reset (Required)
+
+Run from repository root:
+
+1. Verify what will be reset (safe, no changes):
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug>
+```
+
+2. Apply reset:
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply
+```
+
+3. Optional: preserve logs/reports/notifications/search artifacts:
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --keep-logs
+```
+
+What reset does:
+- Clears transactional UAT artifacts (scores, certifications, deductions, governance requests, winner signatures, score comments/files).
+- Resets winner publication and lock flags on events/contests.
+- Keeps manual setup intact (tenant, users, event/contest/category structure, assignments).
 
 ## Quick Defect Log Template
 
@@ -249,4 +280,3 @@ Signoff:
 - Date:
 - Result: `Pass` / `Pass with Known Issues` / `Fail`
 - Notes:
-

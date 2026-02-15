@@ -2,6 +2,11 @@
 
 Purpose: fast manual validation of critical paths, routing, permissions, and visible UX.
 
+Before running this checklist, reset tenant UAT state:
+```bash
+scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply
+```
+
 ## Session Info
 
 - Tester:
@@ -63,4 +68,3 @@ Top Issues Found:
 1.
 2.
 3.
-

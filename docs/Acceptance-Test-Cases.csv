@@ -1,0 +1,33 @@
+id,area,role,action,expected,priority,blocking
+TC-CORE-001,CORE,Any authenticated role,"Open /dashboard without slug","Redirects to /{tenantSlug}/dashboard",P0,true
+TC-CORE-002,CORE,Any authenticated role,"Hard refresh /{tenantSlug}/bios","Loads with correct tenant context",P0,true
+TC-CORE-003,CORE,Any authenticated role,"Use 404 page Go Back/Go to Dashboard","Returns to working app shell",P0,true
+TC-CORE-004,CORE,Any,"Navigate across 5 normal pages","No dynamic import/module-load failures",P0,true
+TC-NAV-001,NAV,Organizer,"Open menu + command palette","Only allowed routes/actions visible",P1,true
+TC-NAV-002,NAV,Organizer,"Select menu item then click outside drawer","Drawer closes in both cases",P2,false
+TC-NAV-003,NAV,Super admin,"Open admin-only pages from nav/command palette","Access allowed and data loads",P1,true
+TC-JUDGE-001,JUDGE,Judge,"Open /scoring","Only assigned categories listed",P0,true
+TC-JUDGE-002,JUDGE,Judge with no active assignment,"Open /scoring","No categories shown and no error",P0,true
+TC-JUDGE-003,JUDGE,Judge,"Score one contestant and submit with certification","Submit succeeds and score locks immediately",P0,true
+TC-JUDGE-004,JUDGE,Judge,"Edit comments after certification","Comments remain editable",P1,true
+TC-JUDGE-005,JUDGE,Judge,"Upload commentary file","File persists and appears in downstream views",P1,true
+TC-BIO-001,BIO,Judge,"Open /bios","Scoped contestant bios/images/files shown",P0,true
+TC-BIO-002,BIO,Emcee,"Open /bios and filter by contest","Contestant + judge records shown per scope",P1,true
+TC-BIO-003,BIO,Organizer,"Open bio file and image links","HTTP 200 and valid render (no 404)",P0,true
+TC-CERT-001,CERT,Judge->Tally->Auditor->Board/Organizer,"Complete full flow for one category","Each stage unlocks only after prior stage completion",P0,true
+TC-CERT-002,CERT,Tally+ views,"Judge certifies only one contestant","Stage not shown as fully complete",P0,true
+TC-CERT-003,CERT,Judge->Tally->Auditor->Board/Organizer,"Run certification flow on 2+ categories","Status accurate per category and contest rollup",P0,true
+TC-GOV-001,GOV,Judge,"Request un-certification","Request created; no immediate uncertification",P0,true
+TC-GOV-002,GOV,Tally/Auditor/Board/Admin,"Request throw-out at judge/category and judge/contest scope","Request requires approvals; no immediate deletion",P0,true
+TC-GOV-003,GOV,Approver chain,"Complete required approvals","Governance action executes only after threshold",P0,true
+TC-DED-001,DEDUCTIONS,Allowed initiator,"Create category-specific deduction","Request accepted with required fields",P1,true
+TC-DED-002,DEDUCTIONS,Allowed initiator,"Create general deduction","Request accepted and routed through approvals",P1,true
+TC-DED-003,DEDUCTIONS,Approvers,"Complete deduction approvals","Deduction applied in results and reports",P1,true
+TC-RES-001,RESULTS,Organizer/Admin,"Open contest-level results","Overall contest ordering shown",P0,true
+TC-RES-002,RESULTS,Organizer/Admin,"Drill into category results","Category details shown with correct controls",P0,true
+TC-RES-003,RESULTS,Contestant with visibility disabled,"Open results","Blocked/hidden per visibility flags",P0,true
+TC-RPT-001,REPORTS,Allowed report role,"Generate report and use View","Rendered preview shown (not raw JSON)",P1,true
+TC-EMC-001,EMCEE,Emcee,"Open script via View","File opens without 404",P0,true
+TC-FILE-001,FILES,Admin/Organizer,"Open /files","Table contains real filenames and metadata",P1,false
+TC-MFA-001,MFA,User under MFA-enforced tenant,"Login","MFA challenge required",P0,true
+TC-MFA-002,MFA,User under MFA-enforced tenant,"Complete TOTP/EMAIL/SMS allowed challenge","Session established only after valid MFA",P0,true
