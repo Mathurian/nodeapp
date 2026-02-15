@@ -1,525 +1,126 @@
 # Frontend Documentation
 
-Complete frontend architecture documentation for the Event Manager React application.
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Technology Stack](#technology-stack)
-- [Application Structure](#application-structure)
-- [Pages](#pages)
-- [Components](#components)
-- [State Management](#state-management)
-- [Routing](#routing)
-- [API Integration](#api-integration)
-- [Real-Time Features](#real-time-features)
-- [Styling](#styling)
-- [Accessibility](#accessibility)
-
-## Overview
-
-The Event Manager frontend is a modern React 18 single-page application built with TypeScript, Vite, and Tailwind CSS. It provides a responsive, accessible, and performant user interface for all user roles.
-
-**Key Features**:
-- Progressive Web App (PWA) with offline support
-- Real-time updates via WebSocket
-- Role-based UI rendering
-- WCAG 2.1 AA accessibility compliance
-- Mobile-responsive design
-- Dark mode support
-- Code splitting and lazy loading
-
-## Technology Stack
-
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| React | 18.2 | UI library |
-| TypeScript | 5.2 | Type safety |
-| Vite | 5.0 | Build tool |
-| React Router | 6.8 | Routing |
-| Tailwind CSS | 3.3 | Styling |
-| React Query | 3.39 | Server state |
-| Socket.IO Client | 4.7 | Real-time |
-| Axios | 1.6 | HTTP client |
-| Heroicons | 2.1 | Icons |
-
-## Application Structure
-
-```
-frontend/src/
-├── App.tsx                 # Root component
-├── main.tsx                # Entry point
-├── index.css               # Global styles
-├── components/             # Reusable components (80+)
-├── pages/                  # Page components (40+)
-├── contexts/               # React contexts (6)
-├── hooks/                  # Custom hooks (10+)
-├── services/               # API services
-├── utils/                  # Utility functions
-├── types/                  # TypeScript types
-└── constants/              # Constants
-```
-
-## Pages
-
-### Public Pages
-
-**LoginPage** (`/login`)
-- Email/password login
-- MFA support
-- "Remember me" option
-- Password strength indicator
-- Error handling
-
-**ForgotPasswordPage** (`/forgot-password`)
-- Email input for reset
-- Rate limiting feedback
-- Success confirmation
-
-**ResetPasswordPage** (`/reset-password`)
-- Token validation
-- Password reset form
-- Strength requirements
-
-### Protected Pages
-
-**EventsPage** (`/events`)
-- List all events
-- Create/edit/delete events
-- Search and filter
-- Archive management
-
-**ContestsPage** (`/contests/:id`)
-- Contest listing
-- Create/edit contests
-- Assign judges/contestants
-- Category management
-
-**CategoriesPage** (`/categories/:id`)
-- Category details
-- Scoring criteria setup
-- Judge/contestant assignment
-- Certification status
-
-**ScoringPage** (`/scoring`)
-- Judge score entry interface
-- Contestant list
-- Criteria-based scoring
-- Comment entry
-- Real-time validation
-
-**ResultsPage** (`/results`)
-- View contest results
-- Filter by category
-- Export options
-- Winner display
-
-**AdminPage** (`/admin`)
-- System overview
-- User management
-- Settings configuration
-- Database browser
-- Cache management
-
-**AuditorPage** (`/auditor`)
-- Score audit interface
-- Certification workflow
-- Discrepancy flagging
-- Audit reports
-
-**TallyMasterPage** (`/tally`)
-- Score verification
-- Calculation checks
-- Tally reports
-- Certification
+**Last Updated:** February 15, 2026
 
-**BoardPage** (`/board`)
-- Final approval interface
-- Winner approval
-- Comprehensive reports
-- Sign-off workflow
-
-## Components
-
-### Layout Components
-
-**Layout**
-Main application shell with navigation
-
-Features:
-- Top navigation bar
-- Sidebar (desktop)
-- Bottom navigation (mobile)
-- Breadcrumbs
-- User menu
-
-**TopNavigation**
-Header with app branding and user actions
-
-**BottomNavigation**
-Mobile-friendly bottom nav
-
-**Sidebar**
-Desktop navigation sidebar
-
-### Data Display Components
-
-**DataTable**
-Reusable table with sorting, filtering, pagination
-
-Props:
-```typescript
-interface DataTableProps<T> {
-  data: T[];
-  columns: Column<T>[];
-  loading?: boolean;
-  onSort?: (field: string, direction: 'asc' | 'desc') => void;
-  onFilter?: (filters: Record<string, any>) => void;
-  pagination?: PaginationConfig;
-}
-```
-
-**ResponsiveDataTable**
-Mobile-optimized data table
-
-**Modal**
-Accessible modal dialog
-
-Props:
-```typescript
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
-}
-```
-
-### Form Components
-
-**FormField**
-Standardized form field wrapper
-
-**MobileFormField**
-Touch-optimized form field
-
-**PasswordStrengthMeter**
-Visual password strength indicator
-
-### Scoring Components
-
-**CategoryEditor**
-Category configuration interface
-
-**CertificationWorkflow**
-Multi-stage certification display
-
-**CategoryCertificationView**
-Certification status view
-
-### Notification Components
-
-**RealTimeNotifications**
-Live notification display
-
-**NotificationCenter**
-Notification management
-
-## State Management
-
-### Context API
-
-**AuthContext**
-```typescript
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-}
-```
-
-**ThemeContext**
-```typescript
-interface ThemeContextType {
-  theme: 'light' | 'dark';
-  setTheme: (theme: 'light' | 'dark') => void;
-  toggleTheme: () => void;
-}
-```
-
-**SocketContext**
-```typescript
-interface SocketContextType {
-  socket: Socket | null;
-  connected: boolean;
-  emit: (event: string, data: any) => void;
-  on: (event: string, handler: Function) => void;
-}
-```
-
-**ToastContext**
-```typescript
-interface ToastContextType {
-  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
-  hideToast: () => void;
-}
-```
-
-### React Query
-
-Server state managed with React Query:
-
-```typescript
-// Example: Fetch events
-const { data, isLoading, error } = useQuery(
-  ['events', tenantId],
-  () => fetchEvents(tenantId),
-  {
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-  }
-);
-```
-
-## Routing
-
-### Route Structure
-
-```typescript
-<Routes>
-  {/* Public routes */}
-  <Route path="/login" element={<LoginPage />} />
-  
-  {/* Protected routes */}
-  <Route path="/*" element={
-    <ProtectedRoute>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<HomeRedirect />} />
-          <Route path="/events" element={<EventsPage />} />
-          
-          {/* Role-protected routes */}
-          <Route path="/admin" element={
-            <RoleProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminPage />
-            </RoleProtectedRoute>
-          } />
-        </Routes>
-      </Layout>
-    </ProtectedRoute>
-  } />
-</Routes>
-```
-
-### Route Guards
-
-**ProtectedRoute**
-Requires authentication
-
-**RoleProtectedRoute**
-Requires specific role(s)
-
-Props:
-```typescript
-interface RoleProtectedRouteProps {
-  allowedRoles: UserRole[];
-  children: ReactNode;
-}
-```
-
-## API Integration
-
-### API Client Setup
-
-```typescript
-// services/api.ts
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add auth token interceptor
-api.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-```
-
-### API Service Pattern
-
-```typescript
-// services/eventService.ts
-export const eventService = {
-  async getAll(tenantId: string) {
-    const { data } = await api.get(`/events?tenantId=${tenantId}`);
-    return data.data;
-  },
-  
-  async create(eventData: CreateEventDto) {
-    const { data } = await api.post('/events', eventData);
-    return data.data;
-  },
-  
-  async update(id: string, eventData: UpdateEventDto) {
-    const { data } = await api.put(`/events/${id}`, eventData);
-    return data.data;
-  },
-};
-```
-
-## Real-Time Features
-
-### Socket Connection
-
-```typescript
-// contexts/SocketContext.tsx
-const socket = io(import.meta.env.VITE_WS_URL, {
-  auth: {
-    token: authToken,
-  },
-  transports: ['websocket', 'polling'],
-});
-
-socket.on('connect', () => {
-  console.log('Connected to WebSocket');
-});
-
-socket.on('score:updated', (data) => {
-  // Handle score update
-  queryClient.invalidateQueries(['scores', data.categoryId]);
-});
-```
-
-### Event Handling
-
-```typescript
-// Use in components
-const { socket } = useSocket();
-
-useEffect(() => {
-  if (!socket) return;
-  
-  const handleScoreUpdate = (data: ScoreUpdate) => {
-    // Update UI
-  };
-  
-  socket.on('score:updated', handleScoreUpdate);
-  
-  return () => {
-    socket.off('score:updated', handleScoreUpdate);
-  };
-}, [socket]);
-```
-
-## Styling
-
-### Tailwind CSS
-
-Utility-first CSS framework
-
-**Configuration** (`tailwind.config.js`):
-```javascript
-module.exports = {
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        primary: {...},
-        secondary: {...},
-      },
-    },
-  },
-  plugins: [],
-};
-```
-
-### Design System
-
-**Colors**:
-- Primary: Blue shades
-- Secondary: Indigo shades
-- Success: Green
-- Warning: Yellow
-- Error: Red
-- Neutral: Gray scale
-
-**Typography**:
-- Font family: Inter (sans-serif)
-- Scale: text-xs to text-6xl
-- Weights: normal, medium, semibold, bold
-
-**Spacing**:
-- Base: 0.25rem (4px)
-- Scale: 0, 1, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64
-
-### Dark Mode
-
-Toggle via ThemeContext:
-```typescript
-const { theme, toggleTheme } = useTheme();
-```
-
-Implemented with Tailwind's `dark:` variant:
-```jsx
-<div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-  Content
-</div>
-```
-
-## Accessibility
-
-### WCAG 2.1 AA Compliance
-
-**Features**:
-- Semantic HTML
-- ARIA labels and roles
-- Keyboard navigation
-- Focus management
-- Screen reader support
-- Color contrast (4.5:1 minimum)
-
-### Keyboard Navigation
-
-**Shortcuts**:
-```typescript
-// hooks/useKeyboardShortcut.ts
-useKeyboardShortcut('ctrl+k', openCommandPalette);
-useKeyboardShortcut('ctrl+/', showShortcuts);
-useKeyboardShortcut('escape', closeModal);
-```
-
-### Screen Readers
-
-```jsx
-<button
-  aria-label="Close modal"
-  aria-describedby="modal-description"
-  onClick={handleClose}
->
-  <XIcon className="h-5 w-5" aria-hidden="true" />
-</button>
-```
-
-### Focus Management
-
-```typescript
-// hooks/useFocusManagement.ts
-const { focusTrap, returnFocus } = useFocusManagement();
-
-// Apply to modals
-<Modal ref={focusTrap}>...</Modal>
-```
-
----
-
-**Next**: [Security Documentation](07-SECURITY.md)
+This document reflects the current React frontend architecture and routing behavior.
+
+## 1. Stack
+
+- React 18 + TypeScript
+- React Router v6
+- React Query (`react-query`)
+- Axios (`withCredentials` enabled)
+- Tailwind CSS
+- Socket.IO client
+
+## 2. Application Shell
+
+Entry points:
+- `frontend/src/App.tsx`
+- `frontend/src/components/TenantRouter.tsx`
+
+Top-level providers (in order):
+- `QueryClientProvider`
+- `ThemeProvider`
+- `Router`
+- `SystemSettingsProvider`
+- `AuthProvider`
+- `SocketProvider`
+
+Global UX:
+- Error boundary wrapping app
+- Command palette (`Ctrl/Cmd + K`)
+- Toast notifications
+
+## 3. Routing Model
+
+### Public routes
+- `/`
+- `/:slug` (public landing for tenant slug)
+- `/login`, `/:slug/login`
+- `/forgot-password`, `/:slug/forgot-password`
+- `/register`, `/:slug/register`
+- `/help`, `/help/*`, `/:slug/help`, `/:slug/help/*`
+
+### App routes
+App routes are available in both forms:
+- non-slug: `/dashboard`, `/results`, ...
+- slug-prefixed: `/:slug/dashboard`, `/:slug/results`, ...
+
+When authenticated and visiting non-slug app routes, `TenantRouter` canonicalizes to `/{userTenantSlug}/...`.
+
+### Role default landing
+- `AUDITOR` -> `/auditor`
+- `TALLY_MASTER` -> `/tally-master`
+- `EMCEE` -> `/emcee`
+- `BOARD` -> `/board`
+- others -> `/dashboard`
+
+### 404 handling
+- In-app unknown routes render `NotFoundPage`.
+
+## 4. Key Frontend Pages
+
+Core shared pages:
+- `dashboard`, `profile`, `notifications`, `search`, `bios`, `results`
+
+Event/admin management pages:
+- `events`, `contests`, `categories`, `users`, `assignments`, `settings`, `permissions`
+- `templates`, `event-templates`, `custom-fields`, `category-types`
+
+Scoring/governance pages:
+- `scoring`, `certifications`, `deductions`, `score-governance`
+- `tally-master`, `auditor/*`, `board/*`, `winners`
+
+Ops pages:
+- `reports`, `files`, `backups`, `disaster-recovery`, `database`, `cache`, `logs`, `activity`, `performance`, `rate-limit-configs`, `data-wipe`, `test-runner`
+
+## 5. Auth and Tenant Behavior
+
+- Frontend API client uses cookie-based auth (`withCredentials: true`).
+- Login may return MFA-required responses with temporary token and provider list.
+- Tenant context is resolved from URL slug and tenant API lookups.
+- `SystemSettingsContext` and `Theme` settings are tenant-aware.
+
+## 6. Navigation and Permissions
+
+- Route access is enforced with `ProtectedRoute` + `requiredRole` checks.
+- Navigation menu uses shared config and role filtering.
+- Command palette uses the same navigation definitions and role filters.
+- Server-scoped navigation IDs can further constrain visible entries.
+
+## 7. Lazy Loading and Reliability
+
+- Pages are lazy-loaded with `lazyWithRetry(...)`.
+- Dynamic import self-healing is used to reduce chunk-load failures.
+
+## 8. API Integration Pattern
+
+Primary client:
+- `frontend/src/services/api.ts`
+
+Characteristics:
+- `axios.create(...)` with `withCredentials: true`
+- centralized API modules (results, reports, permissions, scoring, settings, etc.)
+- CSRF + tenant context handled through request flow and middleware expectations
+
+## 9. Real-Time
+
+- Socket context connects authenticated sessions to server events.
+- Frontend listens for updates (notifications, certification/status signals, etc.) and refreshes views as needed.
+
+## 10. Styling and Accessibility
+
+- Tailwind utility styling with theme support.
+- Responsive layout with desktop/mobile navigation behavior.
+- Accessibility includes semantic controls, keyboard interaction, and error/focus states.
+
+## 11. Frontend Source of Truth
+
+For route/role parity checks, use:
+- `frontend/src/components/TenantRouter.tsx`
+- `frontend/src/config/navigationConfig.ts`
+- `frontend/src/components/Layout.tsx`
+- `frontend/src/components/ProtectedRoute.tsx`
+- `frontend/src/services/api.ts`
+

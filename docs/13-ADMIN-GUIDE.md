@@ -281,7 +281,7 @@ Quick import via Grafana UI:
 **Usage**:
 1. Navigate to http://conmgr.com/api-docs
 2. Click "Authorize" button
-3. Enter JWT token in format: `Bearer <your-jwt-token>`
+3. Use either session cookie auth (browser) or provide `Bearer <your-jwt-token>` for API client testing
 4. Expand any endpoint to see details
 5. Click "Try it out" to test endpoints interactively
 
@@ -974,5 +974,5 @@ sudo journalctl --vacuum-time=30d
 
 ---
 
-**Last Updated**: December 2024
+**Last Updated**: February 15, 2026
 **Version**: 1.0.0
