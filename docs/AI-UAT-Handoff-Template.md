@@ -23,6 +23,37 @@ Provide valid test accounts for each role used in the run.
 - `EMCEE`: `<email>` / `<password>`
 - `CONTESTANT`: `<email>` / `<password>`
 
+### 2.1 Execution Mode
+
+Choose one mode:
+- `SINGLE_USER_PER_ROLE`: one account per role (fast baseline run)
+- `MULTI_USER_PER_ROLE`: multiple accounts per role (scope and assignment validation)
+
+Set:
+- `EXECUTION_MODE`: `<SINGLE_USER_PER_ROLE | MULTI_USER_PER_ROLE>`
+
+### 2.2 Multi-User Role Map (Use when `MULTI_USER_PER_ROLE`)
+
+Provide user lists for roles that need multi-user validation (typically `JUDGE`, `CONTESTANT`, optionally others):
+
+```yaml
+users_by_role:
+  JUDGE:
+    - email: judge1@example.com
+      password: <password>
+      label: assigned-judge
+    - email: judge2@example.com
+      password: <password>
+      label: unassigned-judge
+  CONTESTANT:
+    - email: contestant12@example.com
+      password: <password>
+      label: visibility-disabled
+    - email: contestant13@example.com
+      password: <password>
+      label: visibility-enabled
+```
+
 ## 3) Scenario ID Discovery (Required)
 
 After login as `ORGANIZER` (or `ADMIN`/`SUPER_ADMIN`), call:
@@ -56,6 +87,25 @@ Human UX reference (if needed):
 - Treat runtime/module-load errors, broken routing, and unauthorized data exposure as blockers.
 - Capture URL and exact repro steps for every failure.
 
+### 5.1 Single-User Rules
+
+- Run each case once with the single credential for that role.
+- Report one result per case ID.
+
+### 5.2 Multi-User Rules
+
+- Run role-global cases against the first user in each role list.
+- Run scope-sensitive/assignment-sensitive cases against all relevant users in that role list.
+- Case targeting can be done via labels (for example `assigned-judge`, `unassigned-judge`).
+- Report results keyed by case and user:
+  - `<CASE_ID> | <email-or-label>`
+- A case is considered failed if any required targeted user fails.
+
+Suggested targeting examples:
+- `TC-JUDGE-001`: all `JUDGE` users
+- `TC-JUDGE-002`: `JUDGE` users labeled `unassigned-judge`
+- `TC-RES-003`: `CONTESTANT` users labeled `visibility-disabled`
+
 ## 6) Required Output Format
 
 Return one result object per case ID:
@@ -83,6 +133,11 @@ Final summary required:
 - fail count
 - skip count
 - blocker list
+
+For `MULTI_USER_PER_ROLE`, also include:
+- tested users per role
+- pass/fail counts by role
+- pass/fail counts by user label (if labels were provided)
 
 ## 7) Optional Reset Instruction (Operator-Run)
 
