@@ -231,6 +231,13 @@ If this guide is executed by a browser AI assistant instead of a person, provide
 
 ## End-to-End Workflow Scenarios
 
+Lifecycle mode (select one before running scenarios):
+- `PRESEEDED_TENANT`: existing event/contest/category data already present
+- `EMPTY_TENANT`: tenant starts blank and must be bootstrapped first
+
+For detailed lifecycle sequence, see:
+- `docs/testing/E2E-Lifecycle-Track.md`
+
 ## Scenario 1: Single Category Full Pipeline
 1. Judge scores all contestants and certifies.
 2. Tally master certifies totals.
@@ -255,6 +262,13 @@ Expected:
 - [ ] Submit un-certification request (judge own scope, higher roles broader scope).
 - [ ] Submit throw-out request for judge scores (category-level and contest-level options).
 - [ ] Verify no immediate score removal without approvals.
+
+## Scenario 5: Full Lifecycle (Empty or Preseeded Tenant)
+- [ ] If `EMPTY_TENANT`, create event/contest/categories/criteria/contestants before scoring.
+- [ ] Assign all required roles to contest/category scope.
+- [ ] Complete scoring through full certification chain.
+- [ ] Validate winners controls before and after publish/unlock.
+- [ ] Validate role visibility and final artifacts (files/reports).
 
 ## Results and Reports UX Validation
 

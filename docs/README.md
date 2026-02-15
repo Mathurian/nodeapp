@@ -9,6 +9,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 - **[Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md)** - AI/browser-oriented UAT runbook
 - **[Acceptance Test Guide v2 (Human)](testing/Acceptance-Test-Guide-v2.md)** - Human-friendly UAT guide
 - **[Acceptance Test Quick Run](testing/Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
+- **[E2E Lifecycle Track](testing/E2E-Lifecycle-Track.md)** - Full lifecycle testing (empty or preseeded tenant)
 - **[Getting Started](02-GETTING-STARTED.md)** - Installation and setup
 - **[Architecture Overview](01-ARCHITECTURE.md)** - System design and technology
 - **[API Reference](04-API-REFERENCE.md)** - Complete API documentation
@@ -34,10 +35,11 @@ Welcome to the complete documentation for Event Manager Contest System!
 17. **[Acceptance-Test-Guide.md](testing/Acceptance-Test-Guide.md)** - AI-centric acceptance testing runbook
 18. **[Acceptance-Test-Guide-v2.md](testing/Acceptance-Test-Guide-v2.md)** - Human-centric UAT guide
 19. **[Acceptance-Test-Quick-Run.md](testing/Acceptance-Test-Quick-Run.md)** - Human quick smoke checklist
+20. **[E2E-Lifecycle-Track.md](testing/E2E-Lifecycle-Track.md)** - End-to-end lifecycle flow track
 
 ## Documentation Statistics
 
-- **Total Files**: 19 core documentation files
+- **Total Files**: 20 core documentation files
 - **Total Lines**: 7,500+ lines of documentation
 - **Total Size**: ~175 KB
 - **Coverage**: Complete system documentation from architecture to administration
@@ -162,6 +164,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 3. In the prompt, require `GET /api/v1/test-runner/uat-ids` to gather scenario IDs.
 4. Run the case set from [Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md) and `docs/testing/Acceptance-Test-Cases.json`.
 5. Require PASS/FAIL by case ID plus blocker summary.
+6. Set lifecycle mode (`PRESEEDED_TENANT` or `EMPTY_TENANT`) and run [E2E Lifecycle Track](testing/E2E-Lifecycle-Track.md).
 
 ## Additional Resources
 

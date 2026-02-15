@@ -8,6 +8,7 @@ Use this template to brief a browser-based AI tester for a full UAT run.
 - `TENANT_SLUG`: `<febtest1>`
 - `DATE`: `<YYYY-MM-DD>`
 - `RUN_LABEL`: `<optional-run-name>`
+- `LIFECYCLE_MODE`: `<PRESEEDED_TENANT | EMPTY_TENANT>`
 
 ## 2) Credentials By Role
 
@@ -66,10 +67,15 @@ Extract and use:
 - Any required IDs from nested:
   - `events[] -> contests[] -> categories[] -> contestants[]`
 
+If `LIFECYCLE_MODE=EMPTY_TENANT`:
+- do not require pre-existing IDs
+- create IDs during bootstrap (TC-LIFE-001 / TC-LIFE-002) and reuse for all remaining lifecycle cases in the same run
+
 ## 4) Test Cases To Execute
 
 Primary source:
 - `docs/testing/Acceptance-Test-Guide.md`
+- `docs/testing/E2E-Lifecycle-Track.md`
 
 Machine-readable source:
 - `docs/testing/Acceptance-Test-Cases.json`
@@ -105,6 +111,9 @@ Suggested targeting examples:
 - `TC-JUDGE-001`: all `JUDGE` users
 - `TC-JUDGE-002`: `JUDGE` users labeled `unassigned-judge`
 - `TC-RES-003`: `CONTESTANT` users labeled `visibility-disabled`
+- `TC-LIFE-*`: run based on `LIFECYCLE_MODE`
+  - `PRESEEDED_TENANT`: run full lifecycle using existing entities
+  - `EMPTY_TENANT`: run setup bootstrap first, then full lifecycle
 
 ## 6) Required Output Format
 

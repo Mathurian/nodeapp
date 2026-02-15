@@ -10,6 +10,7 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 - **[Acceptance Test Guide (AI)](testing/Acceptance-Test-Guide.md)** - AI/browser-oriented runbook
 - **[Acceptance Test Guide v2 (Human)](testing/Acceptance-Test-Guide-v2.md)** - Human-friendly manual UAT
 - **[Acceptance Test Quick Run](testing/Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
+- **[E2E Lifecycle Track](testing/E2E-Lifecycle-Track.md)** - Full lifecycle validation for empty/preseeded tenants
 
 ### Core Documentation
 1. **[Architecture Overview](01-ARCHITECTURE.md)** - System architecture, technology stack, and design patterns

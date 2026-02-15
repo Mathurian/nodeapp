@@ -31,3 +31,11 @@ TC-EMC-001,EMCEE,Emcee,"Open script via View","File opens without 404",P0,true
 TC-FILE-001,FILES,Admin/Organizer,"Open /files","Table contains real filenames and metadata",P1,false
 TC-MFA-001,MFA,User under MFA-enforced tenant,"Login","MFA challenge required",P0,true
 TC-MFA-002,MFA,User under MFA-enforced tenant,"Complete TOTP/EMAIL/SMS allowed challenge","Session established only after valid MFA",P0,true
+TC-LIFE-001,LIFECYCLE,Organizer/Admin,"Create event, contest, categories, criteria, and contestants in empty tenant","All setup entities persist and are visible in UI",P0,true
+TC-LIFE-002,LIFECYCLE,Organizer/Admin,"Assign judge/tally/auditor/board users to created scopes","Assignments persist with correct scope labels and effective access",P0,true
+TC-LIFE-003,LIFECYCLE,Judge,"Submit and certify all contestant scores","Scores lock on submit and comments remain editable",P0,true
+TC-LIFE-004,LIFECYCLE,Tally->Auditor->Board/Organizer,"Complete certification chain after prerequisites","Stage progression only advances when prior stage is complete",P0,true
+TC-LIFE-005,LIFECYCLE,Organizer/Admin,"Open contest and category results after full certifications","Contest-level ordering and category-level detail both render",P0,true
+TC-LIFE-006,LIFECYCLE,Board/Organizer,"Validate winners state before and after publish/unlock","Pre-publish and post-publish visibility states match policy",P0,true
+TC-LIFE-007,LIFECYCLE,Contestant+Emcee,"Validate visibility before and after release flags","Only permitted data is visible per role and release policy",P0,true
+TC-LIFE-008,LIFECYCLE,Organizer/Admin,"Validate final-state artifacts (files/reports)","Commentary/bio files open and reports reflect certified workflow",P1,true

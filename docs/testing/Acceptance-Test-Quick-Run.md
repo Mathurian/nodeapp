@@ -15,6 +15,7 @@ Browser-AI minimum handoff:
 - `TENANT_SLUG`
 - Role credentials for the flows being tested
 - Instruction to fetch scenario IDs from `/api/v1/test-runner/uat-ids` after login as organizer/admin/super admin
+- `LIFECYCLE_MODE` = `PRESEEDED_TENANT` or `EMPTY_TENANT`
 
 ## Session Info
 

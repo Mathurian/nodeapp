@@ -60,6 +60,7 @@ scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --keep-logs
 
 - `BASE_URL` (example: `https://conmgr.com`)
 - `TENANT_SLUG` (example: `febtest1`)
+- `LIFECYCLE_MODE` (`PRESEEDED_TENANT` or `EMPTY_TENANT`)
 - Role credentials:
   - `SUPER_ADMIN`
   - `ADMIN`
@@ -80,8 +81,12 @@ Preferred source:
 Fallback source (operator/local shell only):
 - `scripts/uat/export-uat-ids.sh --tenant-slug <slug>`
 
+Lifecycle reference:
+- `docs/testing/E2E-Lifecycle-Track.md`
+
 ## 3. Global Preconditions (Hard Fail if Missing)
 
+For `PRESEEDED_TENANT` mode:
 - At least 1 active event in tenant.
 - At least 2 contests.
 - At least 2 categories per contest for multi-category scenario.
@@ -91,6 +96,29 @@ Fallback source (operator/local shell only):
   - uploaded bio file
   - uploaded image
 - At least 1 emcee script with viewable file.
+
+For `EMPTY_TENANT` mode:
+- Sufficient role users exist to execute lifecycle setup and flow:
+  - organizer/admin
+  - judge
+  - tally master
+  - auditor
+  - board (or organizer final authority)
+- Permission to create events/contests/categories/assignments/contestants in tenant.
+
+## 3.1 Lifecycle Track Modes
+
+Lifecycle track supports two tenant states:
+- `PRESEEDED_TENANT`
+  - event/contest/category/assignments already exist
+  - run full workflow from scoring through winners validation
+- `EMPTY_TENANT`
+  - tenant starts with no usable event setup
+  - run setup bootstrap first, then complete full workflow
+
+Mode requirements:
+- For `PRESEEDED_TENANT`, IDs should come from `/api/v1/test-runner/uat-ids`.
+- For `EMPTY_TENANT`, IDs are created during setup steps and then reused for the same run.
 
 ## 4. Output Contract
 
@@ -311,7 +339,49 @@ ID governance:
 - Action: complete TOTP/EMAIL/SMS (allowed providers)
 - Expected: successful session only after valid challenge
 
-## 16. Final Gate
+## 16. E2E Lifecycle Track
+
+### TC-LIFE-001 (Bootstrap - Empty Tenant)
+- Role: Organizer/Admin
+- Action: create event, contest, 2+ categories, criteria, and contestant records from blank tenant
+- Expected: all setup entities persist and are visible in management UIs
+
+### TC-LIFE-002 (Assignments - Empty Tenant)
+- Role: Organizer/Admin
+- Action: assign judge, tally master, auditor, board users to the created contest/category scope
+- Expected: assignments persist with correct scope labels and effective access
+
+### TC-LIFE-003 (Scoring - Lifecycle)
+- Role: Judge(s)
+- Action: submit/certify all contestant scores for target category/contest
+- Expected: scores lock on submit and judge comments remain editable
+
+### TC-LIFE-004 (Certification Chain - Lifecycle)
+- Role chain: Tally -> Auditor -> Board/Organizer
+- Action: complete each certification stage after prerequisites are met
+- Expected: stage progression only advances when prior stage is complete
+
+### TC-LIFE-005 (Results Integrity - Lifecycle)
+- Role: Organizer/Admin
+- Action: open contest and category results after full certifications
+- Expected: contest-level overall ordering and category-level detail both render correctly
+
+### TC-LIFE-006 (Winner Control - Lifecycle)
+- Role: Board/Organizer
+- Action: verify winners page/control state before and after final publish/unlock action
+- Expected: pre-publish hidden/restricted state and post-publish visible state match configuration
+
+### TC-LIFE-007 (Role Visibility - Lifecycle)
+- Role: Contestant + Emcee
+- Action: verify visibility constraints for results/winners before and after release flags
+- Expected: only permitted data is visible per role and release policy
+
+### TC-LIFE-008 (Artifact Validation - Lifecycle)
+- Role: Organizer/Admin
+- Action: verify commentary files, bio files, and report outputs in final workflow state
+- Expected: files open successfully, reports reflect certified workflow outputs
+
+## 17. Final Gate
 
 Run is `PASS` only if:
 - all blocker cases pass
@@ -321,7 +391,7 @@ Run is `PASS` only if:
 
 Run is `FAIL` if any of the above is violated.
 
-## 17. Export and Reporting Contract
+## 18. Export and Reporting Contract
 
 Automation runners should key all results by `id` from:
 - `docs/testing/Acceptance-Test-Cases.csv` or
