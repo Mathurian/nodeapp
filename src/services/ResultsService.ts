@@ -8,7 +8,7 @@ type UserWithJudge = Prisma.UserGetPayload<{
 }>;
 
 type UserWithContestantId = Prisma.UserGetPayload<{
-  select: { contestantId: true };
+  select: { contestantId: true; tenantId: true };
 }>;
 
 type ScoreWithRelations = Prisma.ScoreGetPayload<{
@@ -140,7 +140,6 @@ type EventScore = Prisma.ScoreGetPayload<{
   };
 }>;
 
-type SystemSetting = Prisma.SystemSettingGetPayload<{}>;
 type Category = Prisma.CategoryGetPayload<{ select: { id: true } }>;
 type CategoryFull = Prisma.CategoryGetPayload<{}>;
 type Contest = Prisma.ContestGetPayload<{}>;
@@ -233,6 +232,32 @@ export class ResultsService extends BaseService {
     }
 
     return true;
+  }
+
+  private async getSettingWithTenantFallback(key: string, tenantId: string): Promise<string | null> {
+    const tenantSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId }
+    });
+    if (tenantSetting?.value !== undefined && tenantSetting?.value !== null) {
+      return tenantSetting.value;
+    }
+
+    const globalSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId: null }
+    });
+    return globalSetting?.value ?? null;
+  }
+
+  private async getContestantVisibility(tenantId: string): Promise<{ canViewWinners: boolean; canViewOverallResults: boolean }> {
+    const [winnersRaw, overallRaw] = await Promise.all([
+      this.getSettingWithTenantFallback('contestant_visibility_canViewWinners', tenantId),
+      this.getSettingWithTenantFallback('contestant_visibility_canViewOverallResults', tenantId),
+    ]);
+
+    return {
+      canViewWinners: (winnersRaw ?? 'true') === 'true',
+      canViewOverallResults: (overallRaw ?? 'true') === 'true',
+    };
   }
 
   /**
@@ -342,18 +367,17 @@ export class ResultsService extends BaseService {
       case 'CONTESTANT': {
         const user = await this.prisma.user.findUnique({
           where: { id: userId },
-          select: { contestantId: true },
+          select: { contestantId: true, tenantId: true },
         }) as UserWithContestantId | null;
 
         if (!user?.contestantId) {
           return { results: [], total: 0 };
         }
 
-        // Get visibility settings (global setting)
-        const canViewOverallResults = await this.prisma.systemSetting.findFirst({
-          where: { key: 'contestant_can_view_overall_results', tenantId: null },
-        }) as SystemSetting | null;
-        const canViewOverall = (canViewOverallResults?.value || 'true') === 'true';
+        const visibility = await this.getContestantVisibility(user.tenantId);
+        if (!visibility.canViewOverallResults) {
+          return { results: [], total: 0 };
+        }
 
         // Get certified category IDs
         const certifiedCategories = await this.prisma.category.findMany({
@@ -366,16 +390,9 @@ export class ResultsService extends BaseService {
           return { results: [], total: 0 };
         }
 
-        if (canViewOverall) {
-          whereClause = {
-            categoryId: { in: certifiedCategoryIds },
-          };
-        } else {
-          whereClause = {
-            contestantId: user.contestantId,
-            categoryId: { in: certifiedCategoryIds },
-          };
-        }
+        whereClause = {
+          categoryId: { in: certifiedCategoryIds },
+        };
         break;
       }
 
@@ -502,7 +519,7 @@ export class ResultsService extends BaseService {
     } else if (userRole === 'CONTESTANT') {
       const contestantUser = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { contestantId: true },
+        select: { contestantId: true, tenantId: true },
       }) as UserWithContestantId | null;
 
       if (!contestantUser?.contestantId) {
@@ -562,11 +579,16 @@ export class ResultsService extends BaseService {
     if (userRole === 'CONTESTANT') {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { contestantId: true },
+        select: { contestantId: true, tenantId: true },
       }) as UserWithContestantId | null;
 
       if (!user?.contestantId || user.contestantId !== contestantId) {
         throw new Error('Access denied. You can only view your own results.');
+      }
+
+      const visibility = await this.getContestantVisibility(user.tenantId);
+      if (!visibility.canViewWinners) {
+        return [];
       }
     } else if (userRole === 'JUDGE') {
       const judgeUser = await this.prisma.user.findUnique({
@@ -620,10 +642,15 @@ export class ResultsService extends BaseService {
     if (userRole === 'CONTESTANT') {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { contestantId: true },
+        select: { contestantId: true, tenantId: true },
       }) as UserWithContestantId | null;
 
       if (!user?.contestantId) {
+        return [];
+      }
+
+      const visibility = await this.getContestantVisibility(user.tenantId);
+      if (!visibility.canViewWinners) {
         return [];
       }
 
@@ -766,10 +793,15 @@ export class ResultsService extends BaseService {
     if (userRole === 'CONTESTANT') {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { contestantId: true },
+        select: { contestantId: true, tenantId: true },
       }) as UserWithContestantId | null;
 
       if (!user?.contestantId) {
+        return [];
+      }
+
+      const visibility = await this.getContestantVisibility(user.tenantId);
+      if (!visibility.canViewOverallResults) {
         return [];
       }
 
@@ -864,10 +896,15 @@ export class ResultsService extends BaseService {
     if (userRole === 'CONTESTANT') {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { contestantId: true },
+        select: { contestantId: true, tenantId: true },
       }) as UserWithContestantId | null;
 
       if (!user?.contestantId) {
+        return [];
+      }
+
+      const visibility = await this.getContestantVisibility(user.tenantId);
+      if (!visibility.canViewOverallResults) {
         return [];
       }
 

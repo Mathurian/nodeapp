@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { login, getProfile, getPermissions, forgotPassword, resetPasswordWithToken, logout, completeInvitationRegistration } from '../controllers/authController';
+import { login, getProfile, getPermissions, forgotPassword, resetPasswordWithToken, logout, completeInvitationRegistration, completeMfaLogin, requestMfaChallenge } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 import { perEmailAuthLimiter, passwordResetLimiter } from '../middleware/rateLimiting';
 import { validate, loginSchema, forgotPasswordSchema, resetPasswordSchema, completeInvitationRegistrationSchema } from '../middleware/validation';
@@ -55,6 +55,8 @@ const router: Router = express.Router();
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/login', perEmailAuthLimiter, validate(loginSchema, 'body'), login);
+router.post('/mfa/complete', perEmailAuthLimiter, completeMfaLogin);
+router.post('/mfa/challenge', perEmailAuthLimiter, requestMfaChallenge);
 
 /**
  * @swagger

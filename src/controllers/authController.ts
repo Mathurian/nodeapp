@@ -62,8 +62,30 @@ export class AuthController {
       log.info('Login successful', {
         userId: result.user.id,
         email: result.user.email,
-        role: result.user.role
+        role: result.user.role,
+        requiresMFA: !!result.requiresMFA
       });
+
+      if (result.requiresMFA) {
+        return sendSuccess(
+          res,
+          {
+            requiresMFA: true,
+            requiresMFASetup: !!result.requiresMFASetup,
+            tempToken: result.tempToken,
+            message: result.message,
+            mfaProviders: result.mfaProviders || ['TOTP'],
+            user: {
+              id: result.user.id,
+              email: result.user.email,
+              role: result.user.role,
+              tenantId: result.user.tenantId,
+              tenant: result.user.tenant || null
+            }
+          },
+          'MFA verification required'
+        );
+      }
 
       // Audit log: successful login
       try {
@@ -504,6 +526,73 @@ export class AuthController {
       return next(error);
     }
   };
+
+  completeMfaLogin = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    const log = createRequestLogger(req, 'auth');
+
+    try {
+      const { tempToken, code, provider } = req.body;
+      if (!tempToken || !code) {
+        return sendBadRequest(res, 'Temporary token and MFA code are required');
+      }
+
+      const ipAddress = req.ip || req.connection?.remoteAddress;
+      const userAgent = req.get('User-Agent');
+      const result = await this.authService.completeMfaLogin(tempToken, code, provider || 'TOTP', ipAddress, userAgent);
+
+      res.cookie('access_token', result.token, {
+        httpOnly: true,
+        secure: env.isProduction(),
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+
+      // Track active session after full authentication completion
+      this.sessionTracker.trackLogin(result.user.id, result.user.tenantId || req.tenantId || 'default_tenant', userAgent);
+
+      return sendSuccess(res, { user: result.user }, 'MFA verification successful');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Complete MFA login error', { error: errorMessage });
+
+      if (
+        errorMessage.includes('MFA') ||
+        errorMessage.includes('verification') ||
+        errorMessage.includes('Temporary token') ||
+        errorMessage.includes('Invalid MFA session')
+      ) {
+        return sendUnauthorized(res, errorMessage);
+      }
+
+      return next(error);
+    }
+  };
+
+  requestMfaChallenge = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    const log = createRequestLogger(req, 'auth');
+    try {
+      const { tempToken, provider } = req.body;
+      if (!tempToken || !provider) {
+        return sendBadRequest(res, 'Temporary token and provider are required');
+      }
+
+      const upper = String(provider).toUpperCase();
+      if (upper !== 'EMAIL' && upper !== 'SMS') {
+        return sendBadRequest(res, 'Provider must be EMAIL or SMS');
+      }
+
+      const data = await this.authService.requestMfaChallenge(tempToken, upper as 'EMAIL' | 'SMS');
+      return sendSuccess(res, data, 'MFA challenge sent');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Request MFA challenge error', { error: errorMessage });
+      if (errorMessage.includes('MFA') || errorMessage.includes('verification') || errorMessage.includes('provider')) {
+        return sendBadRequest(res, errorMessage);
+      }
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and methods
@@ -516,6 +605,8 @@ export const resetPassword = controller.resetPassword;
 export const changePassword = controller.changePassword;
 export const logout = controller.logout;
 export const completeInvitationRegistration = controller.completeInvitationRegistration;
+export const completeMfaLogin = controller.completeMfaLogin;
+export const requestMfaChallenge = controller.requestMfaChallenge;
 
 // Aliases for backward compatibility with routes
 export const forgotPassword = controller.requestPasswordReset;

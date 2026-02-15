@@ -15,6 +15,8 @@ import { userCache } from '../utils/cache';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
 import { EmailService } from './EmailService';
 import { ErrorLogService } from './ErrorLogService';
+import { MFAService } from './MFAService';
+import { SMSService } from './SMSService';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 
@@ -77,6 +79,8 @@ interface LoginResult {
   token: string;
   user: UserProfile;
   requiresMFA?: boolean;
+  requiresMFASetup?: boolean;
+  mfaProviders?: string[];
   tempToken?: string;
   message?: string;
 }
@@ -94,6 +98,18 @@ interface TokenPayload {
   role: string;
   sessionVersion: number;
   tenantId: string;
+  tempAuth?: boolean;
+}
+
+interface TenantMFAPolicy {
+  enabled: boolean;
+  providers: string[];
+}
+
+interface MfaChallengeRecord {
+  code: string;
+  userId: string;
+  provider: 'SMS' | 'EMAIL';
 }
 
 interface InvitationRegistrationTokenPayload {
@@ -106,15 +122,86 @@ interface InvitationRegistrationTokenPayload {
 @injectable()
 export class AuthService {
   private resetTokenCache: NodeCache;
+  private mfaChallengeCache: NodeCache;
 
   constructor(
     @inject('PrismaClient') private prisma: PrismaClient,
-    @inject(EmailService) private emailService: EmailService
+    @inject(EmailService) private emailService: EmailService,
+    @inject(MFAService) private mfaService: MFAService,
+    @inject(SMSService) private smsService: SMSService
   ) {
     this.resetTokenCache = new NodeCache({
       stdTTL: RESET_TOKEN_TTL_SECONDS,
       checkperiod: 120
     });
+    this.mfaChallengeCache = new NodeCache({
+      stdTTL: 5 * 60,
+      checkperiod: 120
+    });
+  }
+
+  private async getSettingWithFallback(key: string, tenantId: string): Promise<string | null> {
+    const tenantSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId }
+    });
+    if (tenantSetting?.value !== undefined && tenantSetting?.value !== null) {
+      return tenantSetting.value;
+    }
+
+    const globalSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId: null }
+    });
+    return globalSetting?.value ?? null;
+  }
+
+  private normalizeProviders(raw: string | null): string[] {
+    if (!raw) return ['TOTP'];
+    const candidates = raw
+      .split(',')
+      .map((item) => item.trim().toUpperCase())
+      .filter(Boolean);
+    const allowed = new Set(['TOTP', 'SMS', 'EMAIL']);
+    const providers = candidates.filter((provider) => allowed.has(provider));
+    return providers.length > 0 ? providers : ['TOTP'];
+  }
+
+  private async getTenantMfaPolicy(tenantId: string): Promise<TenantMFAPolicy> {
+    const [newKey, legacyKey, providersRaw] = await Promise.all([
+      this.getSettingWithFallback('security_mfaEnabled', tenantId),
+      this.getSettingWithFallback('security_enableTwoFactor', tenantId),
+      this.getSettingWithFallback('security_mfaProviders', tenantId),
+    ]);
+
+    const enabledRaw = (newKey ?? legacyKey ?? 'false').toLowerCase();
+    return {
+      enabled: enabledRaw === 'true',
+      providers: this.normalizeProviders(providersRaw),
+    };
+  }
+
+  private resolveAllowedMfaProviders(user: { mfaEnabled: boolean; mfaMethod?: string | null }, policy: TenantMFAPolicy): string[] {
+    const providers = new Set<string>();
+    if (policy.enabled) {
+      policy.providers.forEach((provider) => providers.add(provider));
+    }
+
+    if (user.mfaEnabled) {
+      providers.add((user.mfaMethod || 'TOTP').toUpperCase());
+    }
+
+    if (providers.size === 0) {
+      providers.add('TOTP');
+    }
+
+    return Array.from(providers);
+  }
+
+  private getChallengeCacheKey(userId: string, provider: 'SMS' | 'EMAIL'): string {
+    return `mfa_challenge:${userId}:${provider}`;
+  }
+
+  private generateSixDigitCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   /**
@@ -210,6 +297,7 @@ export class AuthService {
         mfaEnabled: true,
         mfaSecret: true,
         mfaMethod: true,
+        phone: true,
         tenant: {
           select: {
             id: true,
@@ -256,6 +344,7 @@ export class AuthService {
           mfaEnabled: true,
           mfaSecret: true,
           mfaMethod: true,
+          phone: true,
           tenant: {
             select: {
               id: true,
@@ -315,9 +404,23 @@ export class AuthService {
       throw new Error('Account is inactive');
     }
 
-    // Check if MFA is enabled and return temp token for MFA verification
-    if (user.mfaEnabled) {
-      logger.info('MFA required for user', { userId: user.id, email: user.email });
+    const tenantMfaPolicy = await this.getTenantMfaPolicy(user.tenantId);
+    const availableProviders = this.resolveAllowedMfaProviders(user, tenantMfaPolicy);
+    const requiresTenantMfa = tenantMfaPolicy.enabled;
+    const requiresMfaSetup = requiresTenantMfa && !user.mfaEnabled && !availableProviders.some((p) => p === 'SMS' || p === 'EMAIL');
+
+    if (requiresTenantMfa && availableProviders.length === 0) {
+      throw new Error('Tenant MFA policy requires at least one MFA provider.');
+    }
+
+    // Require MFA challenge if user MFA is enabled or tenant policy enforces MFA.
+    if (user.mfaEnabled || requiresTenantMfa) {
+      logger.info('MFA required for user', {
+        userId: user.id,
+        email: user.email,
+        requiresTenantMfa,
+        requiresMfaSetup,
+      });
 
       // Generate temporary token (5 minute expiry) for MFA verification
       const tempPayload = {
@@ -377,8 +480,12 @@ export class AuthService {
           } : null
         },
         requiresMFA: true,
+        requiresMFASetup: requiresMfaSetup,
+        mfaProviders: availableProviders,
         tempToken: tempToken,
-        message: 'Please provide MFA code to complete login'
+        message: requiresMfaSetup
+          ? 'Tenant policy requires MFA enrollment before login. Complete setup to continue.'
+          : 'Please provide MFA code to complete login'
       };
     }
 
@@ -457,6 +564,197 @@ export class AuthService {
         } : null
       }
     };
+  }
+
+  async requestMfaChallenge(tempToken: string, provider: 'SMS' | 'EMAIL'): Promise<{ provider: 'SMS' | 'EMAIL'; destination: string }> {
+    if (!tempToken || !provider) {
+      throw new Error('Temporary token and MFA provider are required');
+    }
+
+    let payload: TokenPayload;
+    try {
+      payload = jwt.verify(tempToken, JWT_SECRET as string) as TokenPayload;
+    } catch {
+      throw new Error('Invalid or expired MFA session');
+    }
+
+    if (!payload.tempAuth) {
+      throw new Error('Invalid MFA session');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        tenantId: true,
+        isActive: true,
+        mfaEnabled: true,
+        mfaMethod: true
+      }
+    });
+
+    if (!user || !user.isActive) {
+      throw new Error('Invalid MFA session');
+    }
+
+    const policy = await this.getTenantMfaPolicy(user.tenantId);
+    const allowed = this.resolveAllowedMfaProviders(user, policy);
+    if (!allowed.includes(provider)) {
+      throw new Error(`${provider} is not allowed by tenant MFA policy.`);
+    }
+
+    const code = this.generateSixDigitCode();
+    this.mfaChallengeCache.set(this.getChallengeCacheKey(user.id, provider), {
+      code,
+      userId: user.id,
+      provider,
+    } satisfies MfaChallengeRecord);
+
+    if (provider === 'EMAIL') {
+      await this.emailService.sendEmail(
+        user.email,
+        'Your MFA verification code',
+        `Your Event Manager verification code is ${code}. It expires in 5 minutes.`
+      );
+      return { provider, destination: user.email };
+    }
+
+    if (!user.phone) {
+      throw new Error('A phone number is required to use SMS MFA.');
+    }
+
+    await this.smsService.sendSMS(
+      user.phone,
+      `Your verification code is ${code}. It expires in 5 minutes.`
+    );
+    return { provider, destination: user.phone };
+  }
+
+  async completeMfaLogin(
+    tempToken: string,
+    verificationCode: string,
+    provider: 'TOTP' | 'SMS' | 'EMAIL' = 'TOTP',
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<LoginResult> {
+    if (!tempToken || !verificationCode) {
+      throw new Error('Temporary token and MFA verification code are required');
+    }
+
+    let payload: TokenPayload;
+    try {
+      payload = jwt.verify(tempToken, JWT_SECRET as string) as TokenPayload;
+    } catch {
+      throw new Error('Invalid or expired MFA session');
+    }
+
+    if (!payload.tempAuth) {
+      throw new Error('Invalid MFA session');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        name: true,
+        preferredName: true,
+        email: true,
+        role: true,
+        sessionVersion: true,
+        isActive: true,
+        judgeId: true,
+        contestantId: true,
+        gender: true,
+        pronouns: true,
+        imagePath: true,
+        tenantId: true,
+        mfaEnabled: true,
+        mfaMethod: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    if (!user || !user.isActive) {
+      throw new Error('Invalid MFA session');
+    }
+
+    const tenantMfaPolicy = await this.getTenantMfaPolicy(user.tenantId);
+    const allowedProviders = this.resolveAllowedMfaProviders(user, tenantMfaPolicy);
+    const normalizedProvider = provider.toUpperCase() as 'TOTP' | 'SMS' | 'EMAIL';
+    if (!allowedProviders.includes(normalizedProvider)) {
+      throw new Error(`${normalizedProvider} is not allowed by tenant MFA policy.`);
+    }
+
+    if (normalizedProvider === 'TOTP') {
+      if (!user.mfaEnabled) {
+        throw new Error('TOTP MFA enrollment is required before completing login');
+      }
+
+      const verification = await this.mfaService.verifyMFAToken(user.id, verificationCode);
+      if (!verification.success) {
+        throw new Error(verification.message || 'MFA verification failed');
+      }
+    } else {
+      const key = this.getChallengeCacheKey(user.id, normalizedProvider);
+      const record = this.mfaChallengeCache.get<MfaChallengeRecord>(key);
+      if (!record || record.code !== verificationCode.trim()) {
+        throw new Error('Invalid or expired verification code');
+      }
+      this.mfaChallengeCache.del(key);
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
+
+    userCache.invalidate(user.id);
+
+    const tokenExpiresIn: string = (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'ORGANIZER')
+      ? '1h'
+      : (JWT_EXPIRES_IN as string);
+
+    const fullPayload: TokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      sessionVersion: user.sessionVersion,
+      tenantId: user.tenantId
+    };
+
+    const token = jwt.sign(fullPayload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as jwt.SignOptions);
+    const profile = await this.getProfile(user.id);
+
+    try {
+      await this.prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'LOGIN',
+          resourceType: 'AUTH',
+          ipAddress: ipAddress || 'unknown',
+          userAgent: userAgent || 'unknown',
+          details: JSON.stringify({
+            timestamp: new Date().toISOString(),
+            email: user.email,
+            mfaCompleted: true
+          })
+        }
+      });
+    } catch (logError) {
+      logger.error('Failed to log MFA-complete login activity', { error: logError });
+    }
+
+    return { token, user: profile };
   }
 
   /**

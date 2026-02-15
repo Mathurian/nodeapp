@@ -67,6 +67,8 @@ interface SecuritySettings {
   security_sessionTimeout: string
   security_requireStrongPasswords: string
   security_enableTwoFactor: string
+  security_mfaEnabled: string
+  security_mfaProviders: string
 }
 
 interface ContestantVisibilitySettings {
@@ -176,6 +178,8 @@ const SettingsPage: React.FC = () => {
     security_sessionTimeout: '24',
     security_requireStrongPasswords: 'true',
     security_enableTwoFactor: 'false',
+    security_mfaEnabled: 'false',
+    security_mfaProviders: 'TOTP',
   })
 
   const [contestantVisibilityFormData, setContestantVisibilityFormData] = useState<ContestantVisibilitySettings>({
@@ -299,7 +303,9 @@ const SettingsPage: React.FC = () => {
             security_lockoutDuration: data.security_lockoutDuration || '15',
             security_sessionTimeout: data.security_sessionTimeout || '24',
             security_requireStrongPasswords: data.security_requireStrongPasswords || 'true',
-            security_enableTwoFactor: data.security_enableTwoFactor || 'false',
+            security_enableTwoFactor: data.security_enableTwoFactor || data.security_mfaEnabled || 'false',
+            security_mfaEnabled: data.security_mfaEnabled || data.security_enableTwoFactor || 'false',
+            security_mfaProviders: data.security_mfaProviders || 'TOTP',
           })
         }
       },
@@ -583,6 +589,32 @@ const SettingsPage: React.FC = () => {
     } else {
       setExpandedSections([...expandedSections, section])
     }
+  }
+
+  const mfaProviderSet = new Set(
+    (securityFormData.security_mfaProviders || 'TOTP')
+      .split(',')
+      .map((provider) => provider.trim().toUpperCase())
+      .filter(Boolean)
+  )
+
+  const toggleMfaProvider = (provider: 'TOTP' | 'SMS' | 'EMAIL', checked: boolean) => {
+    const next = new Set(mfaProviderSet)
+    if (checked) {
+      next.add(provider)
+    } else {
+      next.delete(provider)
+    }
+
+    // Keep at least one provider selected.
+    if (next.size === 0) {
+      next.add('TOTP')
+    }
+
+    setSecurityFormData({
+      ...securityFormData,
+      security_mfaProviders: Array.from(next).join(','),
+    })
   }
 
   const handleSaveSection = (section: string) => {
@@ -1381,10 +1413,36 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <input
                         type="checkbox"
-                        checked={securityFormData.security_enableTwoFactor === 'true'}
-                        onChange={(e) => setSecurityFormData({ ...securityFormData, security_enableTwoFactor: e.target.checked ? 'true' : 'false' })}
+                        checked={(securityFormData.security_mfaEnabled || securityFormData.security_enableTwoFactor) === 'true'}
+                        onChange={(e) => setSecurityFormData({
+                          ...securityFormData,
+                          security_enableTwoFactor: e.target.checked ? 'true' : 'false',
+                          security_mfaEnabled: e.target.checked ? 'true' : 'false',
+                        })}
                         className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                       />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                        MFA Providers Allowed for This Tenant
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                        TOTP is currently required for enforced MFA sign-in.
+                      </p>
+                      <div className="space-y-2">
+                        {(['TOTP', 'SMS', 'EMAIL'] as const).map((provider) => (
+                          <label key={provider} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={mfaProviderSet.has(provider)}
+                              onChange={(e) => toggleMfaProvider(provider, e.target.checked)}
+                              className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                            />
+                            <span className="text-sm text-gray-900 dark:text-white">{provider}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
 

@@ -428,7 +428,20 @@ export class SettingsService extends BaseService {
    */
   async getSecuritySettings(tenantId?: string | null): Promise<Record<string, string>> {
     const settings = await this.getSettingsByCategoryForTenant('security', tenantId);
-    return Object.fromEntries(settings.map((s) => [s.key, s.value]));
+    const keyMap = Object.fromEntries(settings.map((s) => [s.key, s.value]));
+
+    const mfaEnabled = keyMap['security_mfaEnabled'] ?? keyMap['security_enableTwoFactor'] ?? 'false';
+    const mfaProviders = keyMap['security_mfaProviders'] || 'TOTP';
+
+    return {
+      security_maxLoginAttempts: keyMap['security_maxLoginAttempts'] || '5',
+      security_lockoutDuration: keyMap['security_lockoutDuration'] || '15',
+      security_sessionTimeout: keyMap['security_sessionTimeout'] || '24',
+      security_requireStrongPasswords: keyMap['security_requireStrongPasswords'] || 'true',
+      security_enableTwoFactor: mfaEnabled,
+      security_mfaEnabled: mfaEnabled,
+      security_mfaProviders: mfaProviders,
+    };
   }
 
   /**
@@ -439,7 +452,26 @@ export class SettingsService extends BaseService {
     userId: string,
     tenantId?: string | null
   ): Promise<number> {
-    return await this.updateSettings(securitySettings, userId, tenantId);
+    const nextSettings: Record<string, string> = { ...securitySettings };
+
+    const mfaEnabled = (nextSettings['security_mfaEnabled'] ?? nextSettings['security_enableTwoFactor'] ?? 'false') === 'true';
+    const rawProviders = nextSettings['security_mfaProviders'] || 'TOTP';
+    const providers = rawProviders
+      .split(',')
+      .map((item) => item.trim().toUpperCase())
+      .filter(Boolean)
+      .filter((item) => ['TOTP', 'SMS', 'EMAIL'].includes(item));
+    const normalizedProviders = providers.length > 0 ? providers : ['TOTP'];
+
+    if (mfaEnabled && !normalizedProviders.includes('TOTP')) {
+      throw new Error('Tenant MFA enforcement currently requires TOTP to be included in allowed providers.');
+    }
+
+    nextSettings['security_mfaEnabled'] = mfaEnabled ? 'true' : 'false';
+    nextSettings['security_enableTwoFactor'] = mfaEnabled ? 'true' : 'false';
+    nextSettings['security_mfaProviders'] = normalizedProviders.join(',');
+
+    return await this.updateSettings(nextSettings, userId, tenantId);
   }
 
   /**

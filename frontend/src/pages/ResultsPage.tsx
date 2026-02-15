@@ -35,6 +35,7 @@ interface Category {
   name: string
   contestId: string
   scoreCap?: number | null
+  boardApproved?: boolean
   contest?: {
     name: string
     event?: { name: string }
@@ -229,7 +230,7 @@ const ResultsPage: React.FC = () => {
             categoryId: row.category.id,
             rank: row.rank || index + 1,
             totalScore: row.totalScore,
-            isCertified: Boolean(row.category?.totalsCertified),
+            isCertified: Boolean((row.category as any)?.boardApproved),
             certifiedAt: null,
             contestant: {
               id: row.contestant.id,
@@ -318,7 +319,7 @@ const ResultsPage: React.FC = () => {
         categoryId: selectedCategoryId,
         rank: index + 1,
         totalScore: entry.totalScore,
-        isCertified: Boolean(selectedCategory?.totalsCertified),
+            isCertified: Boolean(selectedCategory?.boardApproved),
         certifiedAt: null,
         contestant: entry.contestant,
         category: {
@@ -678,13 +679,18 @@ const ResultsPage: React.FC = () => {
                 {effectiveCategoryResults.category.contest?.name || selectedContestName}
               </p>
               <div className="mt-2 flex items-center">
-                {effectiveCategoryResults.category.totalsCertified ? (
+                {effectiveCategoryResults.category.boardApproved ? (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                     <CheckCircleIcon className="h-4 w-4 mr-1" />
-                    Certified
+                    Final Certified
+                  </span>
+                ) : effectiveCategoryResults.category.totalsCertified ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                    <ArrowPathIcon className="h-4 w-4 mr-1" />
+                    In Certification Workflow
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
                     <XCircleIcon className="h-4 w-4 mr-1" />
                     Not Certified
                   </span>

@@ -214,7 +214,19 @@ const HelpPage: React.FC = () => {
     setLoginLoading(true)
 
     try {
-      await login(loginEmail, loginPassword)
+      const result = await login(loginEmail, loginPassword)
+      if (result.requiresMFA) {
+        toast('MFA verification is required. Continue on the login page.')
+        setShowLoginModal(false)
+        setLoginPassword('')
+        const maybeSlug = location.pathname.split('/').filter(Boolean)[0]
+        if (maybeSlug && maybeSlug !== 'help') {
+          navigate(`/${maybeSlug}/login`)
+        } else {
+          navigate('/login')
+        }
+        return
+      }
       toast.success('Logged in successfully!')
       setShowLoginModal(false)
       setLoginEmail('')

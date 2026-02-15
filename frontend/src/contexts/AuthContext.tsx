@@ -27,7 +27,15 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string, tenantSlug?: string) => Promise<User>
+  login: (email: string, password: string, tenantSlug?: string) => Promise<{
+    user?: User
+    requiresMFA?: boolean
+    requiresMFASetup?: boolean
+    tempToken?: string
+    message?: string
+    mfaProviders?: string[]
+  }>
+  completeMfaLogin: (tempToken: string, code: string, provider?: 'TOTP' | 'SMS' | 'EMAIL') => Promise<User>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isLoading: boolean
@@ -100,6 +108,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Backend wraps response in { success, message, data, timestamp }
       const loginData = response.data.data || response.data
+      if (loginData?.requiresMFA) {
+        return {
+          requiresMFA: true,
+          requiresMFASetup: Boolean(loginData?.requiresMFASetup),
+          tempToken: loginData?.tempToken,
+          message: loginData?.message,
+          mfaProviders: Array.isArray(loginData?.mfaProviders) ? loginData.mfaProviders : ['TOTP']
+        }
+      }
+
       const { user: userData } = loginData
 
       // No need to store token - it's in httpOnly cookie
@@ -107,9 +125,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(userData)
 
       // Return user data so caller can handle navigation based on tenant
-      return userData
+      return { user: userData }
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed')
+    }
+  }
+
+  const completeMfaLogin = async (
+    tempToken: string,
+    code: string,
+    provider: 'TOTP' | 'SMS' | 'EMAIL' = 'TOTP'
+  ): Promise<User> => {
+    try {
+      const csrfResponse = await api.get('/csrf-token')
+      const csrfToken = csrfResponse.data.csrfToken || csrfResponse.data.token
+
+      const response = await api.post(
+        '/auth/mfa/complete',
+        { tempToken, code, provider },
+        { headers: { 'X-CSRF-Token': csrfToken } }
+      )
+
+      const payload = response.data?.data || response.data
+      const userData = payload?.user
+      if (!userData) {
+        throw new Error('MFA completion failed')
+      }
+
+      setUser(userData)
+      return userData
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || error.response?.data?.message || 'MFA verification failed')
     }
   }
 
@@ -140,6 +186,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value = {
     user,
     login,
+    completeMfaLogin,
     logout,
     refreshUser,
     isLoading,
