@@ -7,7 +7,10 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 ### Getting Started
 - **[Getting Started Guide](02-GETTING-STARTED.md)** - Installation, setup, and configuration
 - **[Quick Start (Root)](../QUICK_START.md)** - 5-minute quick start guide
-- **[Acceptance Test Guide](Acceptance-Test-Guide.md)** - Role-by-role UAT checklist
+- **[AI UAT Handoff Template](AI-UAT-Handoff-Template.md)** - Copy/paste brief for browser AI testing
+- **[Acceptance Test Guide (AI)](Acceptance-Test-Guide.md)** - AI/browser-oriented runbook
+- **[Acceptance Test Guide v2 (Human)](Acceptance-Test-Guide-v2.md)** - Human-friendly manual UAT
+- **[Acceptance Test Quick Run](Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
 
 ### Core Documentation
 1. **[Architecture Overview](01-ARCHITECTURE.md)** - System architecture, technology stack, and design patterns
@@ -107,6 +110,8 @@ See [Security Guide - Permission Matrix](07-SECURITY.md#permission-matrix) for c
 - **Test Reports**: Run `npm run test:e2e:report` (HTML test results)
 - **Database GUI**: Run `npx prisma studio` (http://localhost:5555)
 - **Code Generator**: Run `npm run test:e2e:codegen` (record tests)
+- **Browser UAT IDs API**: `GET /api/v1/test-runner/uat-ids` (roles: `SUPER_ADMIN`, `ADMIN`, `ORGANIZER`)
+- **AI Handoff Template**: `docs/AI-UAT-Handoff-Template.md`
 
 See [Administrator Guide](13-ADMIN-GUIDE.md) for complete system administration documentation.
 

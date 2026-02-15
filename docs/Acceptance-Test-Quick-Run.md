@@ -7,6 +7,15 @@ Before running this checklist, reset tenant UAT state:
 scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply
 ```
 
+If your AI runner cannot access local files, fetch scenario IDs via:
+- `GET /api/v1/test-runner/uat-ids`
+
+Browser-AI minimum handoff:
+- `BASE_URL`
+- `TENANT_SLUG`
+- Role credentials for the flows being tested
+- Instruction to fetch scenario IDs from `/api/v1/test-runner/uat-ids` after login as organizer/admin/super admin
+
 ## Session Info
 
 - Tester:

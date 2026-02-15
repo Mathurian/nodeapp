@@ -2,7 +2,7 @@
 
 Purpose: deterministic checklist for AI/browser-driven execution across roles and scenarios.
 
-Audience: automation operator (AI agent with browser + API/DB access).
+Audience: automation operator (AI agent with browser access; filesystem access optional).
 
 Companion human document:
 - `docs/Acceptance-Test-Guide-v2.md`
@@ -20,6 +20,31 @@ This guide assumes:
 
 Reset script:
 - `scripts/uat/reset-tenant-uat-state.sh`
+
+Browser-only AI data source (no filesystem required):
+- `GET /api/v1/test-runner/uat-ids`
+- Access roles: `SUPER_ADMIN`, `ADMIN`, `ORGANIZER`
+- Response includes suggested `singleCategoryScenario` and `multiCategoryScenario` IDs.
+
+## 1.1 Browser-AI Input Contract (Minimum Handoff)
+
+Provide the AI runner:
+- `BASE_URL` (example: `https://conmgr.com`)
+- `TENANT_SLUG` (example: `febtest1`)
+- Credentials for each role to be tested:
+  - `SUPER_ADMIN`
+  - `ADMIN`
+  - `ORGANIZER`
+  - `BOARD`
+  - `TALLY_MASTER`
+  - `AUDITOR`
+  - `JUDGE`
+  - `EMCEE`
+  - `CONTESTANT`
+- Instruction to fetch scenario IDs from:
+  - `GET /api/v1/test-runner/uat-ids` after login as `ORGANIZER` (or `ADMIN`/`SUPER_ADMIN`)
+
+Do not require local scripts for browser-only AI if this endpoint is available.
 
 Required pre-run command:
 ```bash
@@ -46,8 +71,14 @@ scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --keep-logs
   - `EMCEE`
   - `CONTESTANT`
 - Scenario test IDs:
-  - single-category scenario IDs (event/contest/category/contestants)
-  - multi-category scenario IDs
+  - `singleCategoryScenario` IDs (event/contest/category/contestants)
+  - `multiCategoryScenario` IDs
+
+Preferred source:
+- `/api/v1/test-runner/uat-ids`
+
+Fallback source (operator/local shell only):
+- `scripts/uat/export-uat-ids.sh --tenant-slug <slug>`
 
 ## 3. Global Preconditions (Hard Fail if Missing)
 

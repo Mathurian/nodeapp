@@ -111,6 +111,18 @@ Key endpoints:
 - `/test-runner`
 - `/feature-flags`
 
+Key endpoint for browser-only UAT automation:
+- `GET /api/v1/test-runner/uat-ids` (also `/api/test-runner/uat-ids`)
+  - roles: `SUPER_ADMIN`, `ADMIN`, `ORGANIZER`
+  - returns tenant-scoped scenario IDs:
+    - `singleCategoryScenario`
+    - `multiCategoryScenario`
+  - includes nested data for:
+    - `tenant`
+    - `events[] -> contests[] -> categories[] -> contestants[]`
+  - intended usage:
+    - browser-only AI/manual testers can gather all needed IDs without shell or filesystem access
+
 ### Integrations and Utilities
 - `/workflows`
 - `/events/logs`

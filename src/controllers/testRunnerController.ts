@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { exec } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import prisma from '../utils/prisma';
+import { Prisma } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('TestRunner');
@@ -466,6 +468,234 @@ export async function bulkCleanupTestRuns(_req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       message: 'Failed to cleanup test runs',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+/**
+ * Get tenant-scoped UAT IDs and suggested scenarios.
+ * Intended for browser-only AI/manual operators who cannot access filesystem scripts.
+ */
+export async function getUatIds(req: Request, res: Response): Promise<void> {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({
+        success: false,
+        message: 'Tenant context is required'
+      });
+      return;
+    }
+
+    const rows = await prisma.$queryRaw<Array<{ payload: unknown }>>(Prisma.sql`
+      WITH tenant AS (
+        SELECT id, slug, name
+        FROM tenants
+        WHERE id = ${tenantId}
+        LIMIT 1
+      ),
+      category_data AS (
+        SELECT
+          ca.id AS category_id,
+          ca.name AS category_name,
+          ca."contestId" AS contest_id,
+          co."eventId" AS event_id,
+          COALESCE(
+            jsonb_agg(
+              DISTINCT jsonb_build_object(
+                'id', con.id,
+                'name', con.name,
+                'contestantNumber', con."contestantNumber"
+              )
+            ) FILTER (WHERE con.id IS NOT NULL),
+            '[]'::jsonb
+          ) AS contestants,
+          COALESCE(
+            jsonb_agg(DISTINCT con.id) FILTER (WHERE con.id IS NOT NULL),
+            '[]'::jsonb
+          ) AS contestant_ids,
+          COUNT(DISTINCT con.id)::int AS contestant_count
+        FROM tenant t
+        JOIN categories ca
+          ON ca."tenantId" = t.id
+         AND ca."deletedAt" IS NULL
+        JOIN contests co
+          ON co.id = ca."contestId"
+         AND co."tenantId" = t.id
+         AND co."deletedAt" IS NULL
+        JOIN events e
+          ON e.id = co."eventId"
+         AND e."tenantId" = t.id
+         AND e."deletedAt" IS NULL
+        LEFT JOIN category_contestants cc
+          ON cc."tenantId" = t.id
+         AND cc."categoryId" = ca.id
+        LEFT JOIN contestants con
+          ON con."tenantId" = t.id
+         AND con.id = cc."contestantId"
+        GROUP BY ca.id, ca.name, ca."contestId", co."eventId"
+      ),
+      contest_data AS (
+        SELECT
+          co.id AS contest_id,
+          co.name AS contest_name,
+          co."eventId" AS event_id,
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'id', cd.category_id,
+                'name', cd.category_name,
+                'contestantCount', cd.contestant_count,
+                'contestantIds', cd.contestant_ids,
+                'contestants', cd.contestants
+              )
+              ORDER BY cd.category_name
+            ) FILTER (WHERE cd.category_id IS NOT NULL),
+            '[]'::jsonb
+          ) AS categories,
+          COUNT(cd.category_id)::int AS category_count,
+          COUNT(*) FILTER (WHERE cd.contestant_count > 0)::int AS categories_with_contestants
+        FROM tenant t
+        JOIN contests co
+          ON co."tenantId" = t.id
+         AND co."deletedAt" IS NULL
+        JOIN events e
+          ON e.id = co."eventId"
+         AND e."tenantId" = t.id
+         AND e."deletedAt" IS NULL
+        LEFT JOIN category_data cd
+          ON cd.contest_id = co.id
+        GROUP BY co.id, co.name, co."eventId"
+      ),
+      event_data AS (
+        SELECT
+          e.id AS event_id,
+          e.name AS event_name,
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'id', ct.contest_id,
+                'name', ct.contest_name,
+                'categoryCount', ct.category_count,
+                'categoriesWithContestants', ct.categories_with_contestants,
+                'categories', ct.categories
+              )
+              ORDER BY ct.contest_name
+            ) FILTER (WHERE ct.contest_id IS NOT NULL),
+            '[]'::jsonb
+          ) AS contests
+        FROM tenant t
+        JOIN events e
+          ON e."tenantId" = t.id
+         AND e."deletedAt" IS NULL
+        LEFT JOIN contest_data ct
+          ON ct.event_id = e.id
+        GROUP BY e.id, e.name
+      ),
+      single_category_suggestion AS (
+        SELECT jsonb_build_object(
+          'eventId', e.id,
+          'eventName', e.name,
+          'contestId', co.id,
+          'contestName', co.name,
+          'categoryId', ca.id,
+          'categoryName', ca.name,
+          'contestantIds', cd.contestant_ids
+        ) AS payload
+        FROM tenant t
+        JOIN events e
+          ON e."tenantId" = t.id
+         AND e."deletedAt" IS NULL
+        JOIN contests co
+          ON co."tenantId" = t.id
+         AND co."eventId" = e.id
+         AND co."deletedAt" IS NULL
+        JOIN categories ca
+          ON ca."tenantId" = t.id
+         AND ca."contestId" = co.id
+         AND ca."deletedAt" IS NULL
+        JOIN category_data cd
+          ON cd.category_id = ca.id
+        WHERE cd.contestant_count > 0
+        ORDER BY e.name, co.name, ca.name
+        LIMIT 1
+      ),
+      multi_category_suggestion AS (
+        SELECT jsonb_build_object(
+          'eventId', e.id,
+          'eventName', e.name,
+          'contestId', co.id,
+          'contestName', co.name,
+          'categoryIds', (
+            SELECT COALESCE(jsonb_agg(cd.category_id ORDER BY cd.category_name), '[]'::jsonb)
+            FROM category_data cd
+            WHERE cd.contest_id = co.id
+              AND cd.contestant_count > 0
+          ),
+          'contestantIds', (
+            SELECT COALESCE(jsonb_agg(DISTINCT cc."contestantId"), '[]'::jsonb)
+            FROM category_contestants cc
+            JOIN categories ca2 ON ca2.id = cc."categoryId"
+            WHERE cc."tenantId" = t.id
+              AND ca2."contestId" = co.id
+              AND ca2."deletedAt" IS NULL
+          )
+        ) AS payload
+        FROM tenant t
+        JOIN events e
+          ON e."tenantId" = t.id
+         AND e."deletedAt" IS NULL
+        JOIN contests co
+          ON co."tenantId" = t.id
+         AND co."eventId" = e.id
+         AND co."deletedAt" IS NULL
+        JOIN contest_data ctd
+          ON ctd.contest_id = co.id
+        WHERE ctd.categories_with_contestants >= 2
+        ORDER BY e.name, co.name
+        LIMIT 1
+      )
+      SELECT jsonb_build_object(
+        'generatedAt', NOW(),
+        'tenant', (SELECT jsonb_build_object('id', id, 'slug', slug, 'name', name) FROM tenant),
+        'singleCategoryScenario', (SELECT payload FROM single_category_suggestion),
+        'multiCategoryScenario', (SELECT payload FROM multi_category_suggestion),
+        'events', (
+          SELECT COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'id', ed.event_id,
+                'name', ed.event_name,
+                'contests', ed.contests
+              )
+              ORDER BY ed.event_name
+            ),
+            '[]'::jsonb
+          )
+          FROM event_data ed
+        )
+      ) AS payload;
+    `);
+
+    const payload = rows?.[0]?.payload;
+    if (!payload) {
+      res.status(404).json({
+        success: false,
+        message: 'No UAT ID data available for tenant'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: payload
+    });
+  } catch (error) {
+    logger.error('Failed to build UAT IDs payload', { error });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate UAT IDs payload',
       error: error instanceof Error ? error.message : String(error)
     });
   }

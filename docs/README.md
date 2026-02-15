@@ -5,7 +5,10 @@ Welcome to the complete documentation for Event Manager Contest System!
 ## Quick Links
 
 - **[Documentation Index](INDEX.md)** - Start here for complete navigation
-- **[Acceptance Test Guide](Acceptance-Test-Guide.md)** - Role-based UAT checklist
+- **[AI UAT Handoff Template](AI-UAT-Handoff-Template.md)** - Copy/paste prompt template for browser AI test execution
+- **[Acceptance Test Guide (AI)](Acceptance-Test-Guide.md)** - AI/browser-oriented UAT runbook
+- **[Acceptance Test Guide v2 (Human)](Acceptance-Test-Guide-v2.md)** - Human-friendly UAT guide
+- **[Acceptance Test Quick Run](Acceptance-Test-Quick-Run.md)** - 30-minute smoke checklist
 - **[Getting Started](02-GETTING-STARTED.md)** - Installation and setup
 - **[Architecture Overview](01-ARCHITECTURE.md)** - System design and technology
 - **[API Reference](04-API-REFERENCE.md)** - Complete API documentation
@@ -27,11 +30,14 @@ Welcome to the complete documentation for Event Manager Contest System!
 13. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow customization
 14. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - System administration and monitoring
 15. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced features and enterprise capabilities
-16. **[Acceptance-Test-Guide.md](Acceptance-Test-Guide.md)** - End-to-end acceptance testing by role
+16. **[AI-UAT-Handoff-Template.md](AI-UAT-Handoff-Template.md)** - Browser AI run handoff template
+17. **[Acceptance-Test-Guide.md](Acceptance-Test-Guide.md)** - AI-centric acceptance testing runbook
+18. **[Acceptance-Test-Guide-v2.md](Acceptance-Test-Guide-v2.md)** - Human-centric UAT guide
+19. **[Acceptance-Test-Quick-Run.md](Acceptance-Test-Quick-Run.md)** - Human quick smoke checklist
 
 ## Documentation Statistics
 
-- **Total Files**: 16 core documentation files
+- **Total Files**: 19 core documentation files
 - **Total Lines**: 7,500+ lines of documentation
 - **Total Size**: ~175 KB
 - **Coverage**: Complete system documentation from architecture to administration
@@ -150,6 +156,13 @@ Welcome to the complete documentation for Event Manager Contest System!
 3. Understand [Database Schema](05-DATABASE.md)
 4. Review [WebSocket Events](04-API-REFERENCE.md#websocket-events)
 
+### For Browser-AI UAT Runs
+1. Open [AI UAT Handoff Template](AI-UAT-Handoff-Template.md).
+2. Fill in URL, tenant slug, and role credentials.
+3. In the prompt, require `GET /api/v1/test-runner/uat-ids` to gather scenario IDs.
+4. Run the case set from [Acceptance Test Guide (AI)](Acceptance-Test-Guide.md) and `docs/Acceptance-Test-Cases.json`.
+5. Require PASS/FAIL by case ID plus blocker summary.
+
 ## Additional Resources
 
 ### System Access
@@ -168,6 +181,10 @@ Welcome to the complete documentation for Event Manager Contest System!
 - **Playwright Test UI**: Run `npm run test:e2e:ui`
 - **Test Reports**: Run `npm run test:e2e:report`
 - **Code Generator**: Run `npm run test:e2e:codegen`
+
+### UAT Data Discovery
+- **Browser AI / API helper**: `GET /api/v1/test-runner/uat-ids` (roles: `SUPER_ADMIN`, `ADMIN`, `ORGANIZER`)
+- **Operator fallback script**: `scripts/uat/export-uat-ids.sh --tenant-slug <slug>`
 
 See [Administrator Guide](13-ADMIN-GUIDE.md) for complete details.
 

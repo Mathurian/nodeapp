@@ -4,8 +4,13 @@ import * as testRunnerController from '../controllers/testRunnerController';
 
 const router = express.Router();
 
-// All test runner routes require SUPER_ADMIN role
+// All test runner routes require authentication
 router.use(authenticateToken);
+
+// Tenant-scoped UAT IDs for browser-only/manual AI operators
+router.get('/uat-ids', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), testRunnerController.getUatIds);
+
+// Remaining test-runner operations are admin-only
 router.use(requireRole(['SUPER_ADMIN', 'ADMIN']));
 
 // Get available test files

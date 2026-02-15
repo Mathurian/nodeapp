@@ -50,6 +50,16 @@ What reset does:
 - Resets winner publication and lock flags on events/contests.
 - Keeps manual setup intact (tenant, users, event/contest/category structure, assignments).
 
+Optional helper for operators (and browser-only AI assistants):
+- `GET /api/v1/test-runner/uat-ids`
+- Returns tenant-scoped event/contest/category/contestant IDs and suggested scenarios.
+
+If this guide is executed by a browser AI assistant instead of a person, provide:
+- `BASE_URL`
+- `TENANT_SLUG`
+- role credentials
+- instruction to call `GET /api/v1/test-runner/uat-ids` after login to collect scenario IDs
+
 ## Quick Defect Log Template
 
 | ID | Role | Page/URL | Steps | Expected | Actual | Severity |
