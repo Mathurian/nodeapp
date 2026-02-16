@@ -36,6 +36,13 @@ export class ScoringController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private getEffectiveTenantId(req: Request): string {
+    if (req.user?.role === 'SUPER_ADMIN') {
+      return ((req.query['tenantId'] as string | undefined) || req.tenantId || req.user.tenantId || 'default_tenant');
+    }
+    return (req.tenantId || req.user?.tenantId || 'default_tenant');
+  }
+
   /**
    * Get scores for a category
    * PHASE 2.1: Enforces contestant score visibility restrictions
@@ -45,7 +52,7 @@ export class ScoringController {
     try {
       const categoryId = req.params['categoryId']!;
       const contestantId = req.query['contestantId'] as string | undefined;
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = this.getEffectiveTenantId(req);
       const userRole = req.user?.role;
       const userId = req.user?.id;
 
@@ -121,7 +128,8 @@ export class ScoringController {
         userId: req.user.id
       });
 
-      const newScore = await this.scoringService.submitScore(data, req.user.id, req.user.tenantId);
+      const tenantId = this.getEffectiveTenantId(req);
+      const newScore = await this.scoringService.submitScore(data, req.user.id, tenantId);
 
       log.info('Score submitted successfully', { scoreId: newScore.id });
 
@@ -169,7 +177,7 @@ export class ScoringController {
 
       log.info('Score update requested', { scoreId });
 
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = this.getEffectiveTenantId(req);
       const userRole = req.user?.role;
 
       const existingScore = await this.prisma.score.findFirst({
@@ -247,6 +255,37 @@ export class ScoringController {
 
         sendSuccess(res, updatedScore);
         return;
+      }
+
+      // Score value changes require unlocked + uncertified state.
+      if (scoreChanged && data.score !== undefined) {
+        const scoreMeta = await this.prisma.score.findFirst({
+          where: { id: scoreId, tenantId },
+          select: {
+            criterionId: true,
+            categoryId: true,
+          }
+        });
+
+        if (scoreMeta?.criterionId) {
+          const criterion = await this.prisma.criterion.findFirst({
+            where: { id: scoreMeta.criterionId, categoryId: scoreMeta.categoryId },
+            select: { maxScore: true }
+          });
+          if (criterion && data.score > Number(criterion.maxScore)) {
+            errorResponse(res, `Score cannot exceed criterion max (${criterion.maxScore})`, ErrorCode.VALIDATION_ERROR, 400);
+            return;
+          }
+        } else if (scoreMeta?.categoryId) {
+          const category = await this.prisma.category.findFirst({
+            where: { id: scoreMeta.categoryId, tenantId },
+            select: { scoreCap: true }
+          });
+          if (category?.scoreCap !== null && category?.scoreCap !== undefined && data.score > Number(category.scoreCap)) {
+            errorResponse(res, `Score cannot exceed category cap (${category.scoreCap})`, ErrorCode.VALIDATION_ERROR, 400);
+            return;
+          }
+        }
       }
 
       // Score value changes require unlocked + uncertified state.
@@ -371,7 +410,7 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const scoreId = req.params['scoreId']!;
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = this.getEffectiveTenantId(req);
       const userRole = req.user?.role;
 
       log.info('Score deletion requested', { scoreId });
@@ -513,7 +552,8 @@ export class ScoringController {
 
       log.info('Score certification requested', { scoreId, certifiedBy: req.user.id });
 
-      const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, req.user.tenantId);
+      const tenantId = this.getEffectiveTenantId(req);
+      const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, tenantId);
 
       log.info('Score certified successfully', { scoreId });
 
@@ -563,7 +603,7 @@ export class ScoringController {
       const result = await this.scoringService.certifyScores(
         categoryId,
         req.user.id,
-        req.user.tenantId,
+        this.getEffectiveTenantId(req),
         {
           userRole: req.user.role,
           judgeId: req.user.judgeId ?? req.user.judge?.id ?? null
@@ -626,7 +666,7 @@ export class ScoringController {
 
       log.info('Score unsigned requested', { scoreId });
 
-      const unsignedScore = await this.scoringService.unsignScore(scoreId, req.user.tenantId);
+      const unsignedScore = await this.scoringService.unsignScore(scoreId, this.getEffectiveTenantId(req));
 
       log.info('Score unsigned successfully', { scoreId });
       sendSuccess(res, unsignedScore);
@@ -651,7 +691,7 @@ export class ScoringController {
 
       log.debug('Fetching scores by judge', { judgeId });
 
-      const scores = await this.scoringService.getScoresByJudge(judgeId, req.user.tenantId);
+      const scores = await this.scoringService.getScoresByJudge(judgeId, this.getEffectiveTenantId(req));
 
       log.info('Scores by judge retrieved successfully', { judgeId, count: scores.length });
       sendSuccess(res, scores);
@@ -674,7 +714,7 @@ export class ScoringController {
       }
 
       const contestantId = req.params['contestantId']!;
-      const tenantId = req.user.tenantId;
+      const tenantId = this.getEffectiveTenantId(req);
       const userRole = req.user.role;
       const userId = req.user.id;
 
@@ -727,7 +767,7 @@ export class ScoringController {
       }
 
       const contestId = req.params['contestId']!;
-      const tenantId = req.user.tenantId;
+      const tenantId = this.getEffectiveTenantId(req);
       const userRole = req.user.role;
       const userId = req.user.id;
 
@@ -828,7 +868,7 @@ export class ScoringController {
         return;
       }
 
-      const tenantId = req.user.tenantId;
+      const tenantId = this.getEffectiveTenantId(req);
       const userRole = String(req.user.role || '').toUpperCase();
       const contestId = req.query['contestId'] as string | undefined;
 
@@ -1163,6 +1203,10 @@ export class ScoringController {
       if (!contestantId || amount === undefined || !reason) {
         return errorResponse(res, 'contestantId, amount, and reason are required', ErrorCode.VALIDATION_ERROR, 400);
       }
+      const normalizedAmount = Math.abs(Number(amount));
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        return errorResponse(res, 'amount must be a positive number', ErrorCode.VALIDATION_ERROR, 400);
+      }
 
       // Support contest-level "general" deductions by resolving a deterministic carrier category.
       let resolvedCategoryId = categoryId as string | undefined;
@@ -1219,7 +1263,7 @@ export class ScoringController {
           data: {
             contestantId,
             categoryId: resolvedCategoryId!,
-            amount,
+            amount: normalizedAmount,
             reason: normalizedReason,
             requestedById: req.user!.id,
             status: 'PENDING',
@@ -1319,10 +1363,12 @@ export class ScoringController {
         const hasInitiator = approverIds.has(deduction.requestedById);
         const additionalApprovals = Array.from(approverIds).filter((id) => id !== deduction.requestedById).length;
 
-        return tx.deductionRequest.update({
+        const shouldApprove = hasInitiator && additionalApprovals >= 2;
+
+        const updatedRequest = await tx.deductionRequest.update({
           where: { id: deductionId! },
           data: {
-            status: hasInitiator && additionalApprovals >= 2 ? 'APPROVED' : 'PENDING'
+            status: shouldApprove ? 'APPROVED' : 'PENDING'
           },
           include: {
             approvals: {
@@ -1336,6 +1382,32 @@ export class ScoringController {
             }
           }
         });
+
+        if (shouldApprove) {
+          await tx.overallDeduction.upsert({
+            where: {
+              tenantId_categoryId_contestantId: {
+                tenantId: req.user!.tenantId,
+                categoryId: deduction.categoryId,
+                contestantId: deduction.contestantId
+              }
+            },
+            create: {
+              tenantId: req.user!.tenantId,
+              categoryId: deduction.categoryId,
+              contestantId: deduction.contestantId,
+              deduction: Math.abs(Number(deduction.amount || 0)),
+              reason: deduction.reason
+            },
+            update: {
+              deduction: Math.abs(Number(deduction.amount || 0)),
+              reason: deduction.reason,
+              updatedAt: new Date()
+            }
+          });
+        }
+
+        return updatedRequest;
       });
 
       const message = updated.status === 'APPROVED'

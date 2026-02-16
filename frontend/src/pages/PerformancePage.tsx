@@ -59,15 +59,13 @@ const PerformancePage: React.FC = () => {
       // Map dashboard response to expected metrics format
       setMetrics({
         cpu: {
-          usage: (dashboard.system?.cpu?.user || 0) / 1000000, // Convert microseconds to percentage approximation
+          usage: Number(dashboard.system?.cpu?.percent || 0),
           loadAverage: dashboard.system?.loadAverage || [0, 0, 0],
         },
         memory: {
-          used: dashboard.system?.memory?.heapUsed || 0,
-          total: dashboard.system?.memory?.heapTotal || 1,
-          percentage: dashboard.system?.memory?.heapTotal
-            ? (dashboard.system?.memory?.heapUsed / dashboard.system?.memory?.heapTotal) * 100
-            : 0,
+          used: Number(dashboard.system?.memory?.used || 0),
+          total: Number(dashboard.system?.memory?.total || 1),
+          percentage: Number(dashboard.system?.memory?.percentage || 0),
         },
         database: {
           activeConnections: dashboard.database?.activeConnections || 0,
@@ -171,7 +169,7 @@ const PerformancePage: React.FC = () => {
                   />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
-                  {formatBytes(metrics.memory.used)} / {formatBytes(metrics.memory.total)}
+                  {formatBytes(metrics.memory.used)} / {formatBytes(metrics.memory.total)} (system)
                 </p>
               </div>
 

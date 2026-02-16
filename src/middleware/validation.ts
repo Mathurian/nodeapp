@@ -219,7 +219,7 @@ export const updateEventSchema = z.object({
  * Score creation schema
  */
 export const createScoreSchema = z.object({
-  score: z.number().int().min(0).max(100, 'Score must be between 0 and 100'),
+  score: z.number().min(0, 'Score must be non-negative'),
   criteriaId: z.string().cuid().optional(),
   deduction: z.number().int().min(0).optional(),
   deductionReason: z.string().max(500).optional(),
@@ -230,7 +230,7 @@ export const createScoreSchema = z.object({
  * Score update schema
  */
 export const updateScoreSchema = z.object({
-  score: z.number().int().min(0).max(100).optional(),
+  score: z.number().min(0).optional(),
   comments: z.string().max(1000).optional()
 });
 
@@ -261,12 +261,23 @@ export const dateRangeSchema = z.object({
 /**
  * Contest creation schema
  */
+const contestantNumberingModeSchema = z.preprocess((value) => {
+  if (value === 'AUTO' || value === 'AUTOMATIC' || value === 'AUTO_INCREMENT') {
+    return 'AUTO_INDEXED';
+  }
+  if (value === 'AUTO_RANDOM') {
+    return 'OPTIONAL';
+  }
+  return value;
+}, z.enum(['MANUAL', 'AUTO_INDEXED', 'OPTIONAL']));
+
 export const createContestSchema = z.object({
-  eventId: z.string().cuid('Invalid event ID format'),
+  // eventId is provided via /event/:eventId for primary create route
+  eventId: z.string().cuid('Invalid event ID format').optional(),
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   archived: z.boolean().optional(),
-  contestantNumberingMode: z.enum(['MANUAL', 'AUTOMATIC']).optional(),
+  contestantNumberingMode: contestantNumberingModeSchema.optional(),
   nextContestantNumber: z.number().int().positive().optional()
 });
 
@@ -277,7 +288,7 @@ export const updateContestSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
   archived: z.boolean().optional(),
-  contestantNumberingMode: z.enum(['MANUAL', 'AUTOMATIC']).optional(),
+  contestantNumberingMode: contestantNumberingModeSchema.optional(),
   nextContestantNumber: z.number().int().positive().optional()
 });
 
@@ -285,7 +296,8 @@ export const updateContestSchema = z.object({
  * Category creation schema
  */
 export const createCategorySchema = z.object({
-  contestId: z.string().cuid('Invalid contest ID format'),
+  // contestId is provided via /contest/:contestId for primary create route
+  contestId: z.string().cuid('Invalid contest ID format').optional(),
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   scoreCap: z.number().int().positive().optional(),

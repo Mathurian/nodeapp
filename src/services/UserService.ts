@@ -18,6 +18,7 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger('UserService');
 
 export interface CreateUserDTO {
+  tenantId?: string;
   name: string;
   email: string;
   password: string;
@@ -343,6 +344,9 @@ export class UserService extends BaseService {
     try {
       // Validate required fields
       this.validateRequired(data as unknown as Record<string, unknown>, ['name', 'email', 'password', 'role']);
+      if (!data.tenantId) {
+        throw new ValidationError('Tenant context is required to create a user');
+      }
 
       // Validate email format
       if (!this.isValidEmail(data.email)) {
@@ -382,6 +386,7 @@ export class UserService extends BaseService {
 
       // Create user
       const user = await this.userRepository.create({
+        tenantId: data.tenantId,
         name: data.name,
         email: data.email,
         password: hashedPassword,

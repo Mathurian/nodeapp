@@ -29,6 +29,30 @@ export class EventsController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private isContestVisibleToContestant(contest: {
+    contestantViewRestricted?: boolean | null;
+    contestantViewReleaseDate?: Date | null;
+    event?: {
+      contestantViewRestricted?: boolean | null;
+      contestantViewReleaseDate?: Date | null;
+    } | null;
+  }): boolean {
+    const now = new Date();
+    const eventRestricted = Boolean(contest.event?.contestantViewRestricted);
+    const eventRelease = contest.event?.contestantViewReleaseDate || null;
+    if (eventRestricted && (!eventRelease || eventRelease > now)) {
+      return false;
+    }
+
+    const contestRestricted = Boolean(contest.contestantViewRestricted);
+    const contestRelease = contest.contestantViewReleaseDate || null;
+    if (contestRestricted && (!contestRelease || contestRelease > now)) {
+      return false;
+    }
+
+    return true;
+  }
+
   /**
    * Get all events
    */
@@ -132,22 +156,63 @@ export class EventsController {
         const contestantId = req.user.contestantId;
         const contestRows = await this.prisma.contestContestant.findMany({
           where: { contestantId },
-          select: { contest: { select: { eventId: true } } }
+          select: {
+            contest: {
+              select: {
+                eventId: true,
+                contestantViewRestricted: true,
+                contestantViewReleaseDate: true,
+                event: {
+                  select: {
+                    contestantViewRestricted: true,
+                    contestantViewReleaseDate: true
+                  }
+                }
+              }
+            }
+          }
         });
         const categoryRows = await this.prisma.categoryContestant.findMany({
           where: { contestantId },
-          select: { category: { select: { contest: { select: { eventId: true } } } } }
+          select: {
+            category: {
+              select: {
+                contest: {
+                  select: {
+                    eventId: true,
+                    contestantViewRestricted: true,
+                    contestantViewReleaseDate: true,
+                    event: {
+                      select: {
+                        contestantViewRestricted: true,
+                        contestantViewReleaseDate: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         });
 
         const visibleEventIds = new Set<string>();
-        contestRows.forEach((row: any) => row?.contest?.eventId && visibleEventIds.add(row.contest.eventId));
-        categoryRows.forEach((row: any) => row?.category?.contest?.eventId && visibleEventIds.add(row.category.contest.eventId));
+        contestRows.forEach((row: any) => {
+          const contest = row?.contest;
+          if (!contest?.eventId) return;
+          if (this.isContestVisibleToContestant(contest)) {
+            visibleEventIds.add(contest.eventId);
+          }
+        });
+        categoryRows.forEach((row: any) => {
+          const contest = row?.category?.contest;
+          if (!contest?.eventId) return;
+          if (this.isContestVisibleToContestant(contest)) {
+            visibleEventIds.add(contest.eventId);
+          }
+        });
 
         filteredEvents = filteredEvents.filter((event: any) => {
-          if (!visibleEventIds.has(event.id)) return false;
-          if (!event.contestantViewRestricted) return true;
-          if (!event.contestantViewReleaseDate) return false;
-          return new Date(event.contestantViewReleaseDate) <= now;
+          return visibleEventIds.has(event.id);
         });
       }
 
@@ -230,7 +295,12 @@ export class EventsController {
    */
   createEvent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const event = await this.eventService.createEvent(req.body);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required to create an event');
+        return;
+      }
+      const event = await this.eventService.createEvent({ ...req.body, tenantId });
 
       // Audit log: event creation
       try {

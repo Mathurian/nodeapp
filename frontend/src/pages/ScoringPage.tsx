@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
 import { scoreFilesAPI } from '../services/api'
@@ -166,6 +167,9 @@ const ScoringPage: React.FC = () => {
   const [typedSignature, setTypedSignature] = useState('')
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
   const [isDrawingSignature, setIsDrawingSignature] = useState(false)
+
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/scoring'
+  const basePath = currentPath.replace(/\/scoring\/?$/, '')
   const signatureCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const requiresSignOff = user?.role === 'JUDGE'
 
@@ -262,12 +266,26 @@ const ScoringPage: React.FC = () => {
     ? existingScores
     : ((existingScores as unknown as { scores?: Score[] })?.scores || [])
 
+  const effectiveCriteria: Criterion[] = (criteria && criteria.length > 0)
+    ? criteria
+    : (selectedCategory
+      ? [{
+          id: '__category_total__',
+          name: 'Category Total Score',
+          maxScore: selectedCategory.scoreCap ?? 100,
+          weight: 1,
+          description: 'No criteria configured. Enter a single score for this category.',
+        }]
+      : [])
+
   // Initialize form data when contestant or scores change
   useEffect(() => {
-    if (criteria && selectedContestant) {
+    if (selectedContestant && effectiveCriteria.length > 0) {
       const initialFormData: Record<string, ScoreFormData> = {}
-      criteria.forEach(criterion => {
-        const existingScore = normalizedExistingScores.find(s => s.criterionId === criterion.id)
+      effectiveCriteria.forEach(criterion => {
+        const existingScore = criterion.id === '__category_total__'
+          ? normalizedExistingScores.find(s => !s.criterionId)
+          : normalizedExistingScores.find(s => s.criterionId === criterion.id)
         initialFormData[criterion.id] = {
           criterionId: criterion.id,
           score: existingScore?.score || 0,
@@ -276,7 +294,7 @@ const ScoringPage: React.FC = () => {
       })
       setScoreFormData(initialFormData)
     }
-  }, [criteria, selectedContestant, normalizedExistingScores])
+  }, [effectiveCriteria, selectedContestant, normalizedExistingScores])
 
   useEffect(() => {
     setIsSignOffChecked(false)
@@ -293,7 +311,10 @@ const ScoringPage: React.FC = () => {
       const latestScores: Score[] = Array.isArray(latestRaw) ? latestRaw : []
 
       await Promise.all(data.scores.map(async (scoreData) => {
-        const existing = latestScores.find((s) => s.criterionId === scoreData.criterionId)
+        const criterionId = scoreData.criterionId === '__category_total__' ? undefined : scoreData.criterionId
+        const existing = criterionId
+          ? latestScores.find((s) => s.criterionId === criterionId)
+          : latestScores.find((s) => !s.criterionId)
         const payload = {
           score: Number(scoreData.score) || 0,
           comments: scoreData.comment || '',
@@ -303,7 +324,7 @@ const ScoringPage: React.FC = () => {
           await scoringAPI.updateScore(existing.id, payload)
         } else {
           await scoringAPI.submitScore(data.categoryId, data.contestantId, {
-            criteriaId: scoreData.criterionId,
+            criteriaId: criterionId,
             ...payload,
           })
         }
@@ -355,11 +376,17 @@ const ScoringPage: React.FC = () => {
   })
 
   const handleScoreChange = (criterionId: string, field: keyof ScoreFormData, value: any) => {
+    const criterion = effectiveCriteria.find((c) => c.id === criterionId)
+    const maxScore = criterion?.maxScore ?? selectedCategory?.scoreCap ?? 100
+    const normalizedValue = field === 'score'
+      ? Math.max(0, Math.min(Number(value) || 0, Number(maxScore)))
+      : value
+
     setScoreFormData(prev => ({
       ...prev,
       [criterionId]: {
         ...prev[criterionId],
-        [field]: value,
+        [field]: normalizedValue,
       },
     }))
   }
@@ -375,6 +402,17 @@ const ScoringPage: React.FC = () => {
     setSaveStatus('saving')
     try {
       const scores = Object.values(scoreFormData)
+      const overCap = scores.find((entry) => {
+        const criterion = effectiveCriteria.find((c) => c.id === entry.criterionId)
+        const maxScore = criterion?.maxScore ?? selectedCategory.scoreCap ?? 100
+        return Number(entry.score) > Number(maxScore)
+      })
+      if (overCap) {
+        toast.error('One or more scores exceed the allowed cap')
+        setSaveStatus('error')
+        setIsSubmitting(false)
+        return
+      }
       await submitScoreMutation.mutateAsync({
         categoryId: selectedCategory.id,
         contestantId: selectedContestant.id,
@@ -572,6 +610,16 @@ const ScoringPage: React.FC = () => {
           subtitle="Select a category and contestant to begin scoring"
           icon={TrophyIcon}
         />
+        {user?.role === 'JUDGE' && (
+          <div className="mb-4">
+            <Link
+              to={`${basePath || ''}/score-governance?action=UNCERTIFY&scope=CONTESTANT_CATEGORY`}
+              className="inline-flex items-center rounded-md bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
+            >
+              Request Un-certify
+            </Link>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Categories */}
@@ -717,6 +765,16 @@ const ScoringPage: React.FC = () => {
                         View uploaded bio file
                       </button>
                     )}
+                    {user?.role === 'JUDGE' && (
+                      <div className="mt-3">
+                        <Link
+                          to={`${basePath || ''}/score-governance?action=UNCERTIFY&scope=CONTESTANT_CATEGORY&contestId=${encodeURIComponent(selectedCategory.contest.id)}&categoryId=${encodeURIComponent(selectedCategory.id)}&contestantId=${encodeURIComponent(selectedContestant.id)}`}
+                          className="inline-flex items-center rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-200"
+                        >
+                          Request Un-certify
+                        </Link>
+                      </div>
+                    )}
                     <div className="mt-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Contestant Commentary Attachment
@@ -757,9 +815,9 @@ const ScoringPage: React.FC = () => {
                     <div className="text-center py-8">
                       <ArrowPathIcon className="mx-auto h-8 w-8 text-blue-500 animate-spin" />
                     </div>
-                  ) : criteria && criteria.length > 0 ? (
+                  ) : effectiveCriteria.length > 0 ? (
                     <div className="space-y-6">
-                      {criteria.map(criterion => (
+                      {effectiveCriteria.map(criterion => (
                         <div key={criterion.id} className="border-b pb-4">
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             {criterion.name}
@@ -787,6 +845,7 @@ const ScoringPage: React.FC = () => {
                             rows={2}
                             className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
+                          {criterion.id !== '__category_total__' && (
                           <div className="mt-2">
                             <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Criterion Attachment
@@ -820,6 +879,7 @@ const ScoringPage: React.FC = () => {
                               </div>
                             )}
                           </div>
+                          )}
                         </div>
                       ))}
 

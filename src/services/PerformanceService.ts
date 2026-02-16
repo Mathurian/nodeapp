@@ -220,15 +220,25 @@ export class PerformanceService extends BaseService {
     const memoryUsage = process.memoryUsage();
 
     // System information
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const usedMemory = totalMemory - freeMemory;
+    const loadAverage = os.loadavg();
+    const cpuCount = os.cpus().length || 1;
+    const cpuPercent = Math.max(0, Math.min(100, (((loadAverage[0] ?? 0) / cpuCount) * 100)));
+
     const systemInfo = {
       platform: os.platform(),
       arch: os.arch(),
       hostname: os.hostname(),
       uptime: os.uptime(),
-      loadAverage: os.loadavg(),
-      totalMemory: os.totalmem(),
-      freeMemory: os.freemem(),
-      cpuCount: os.cpus().length,
+      loadAverage,
+      totalMemory,
+      freeMemory,
+      usedMemory,
+      memoryPercent: totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0,
+      cpuCount,
+      cpuPercent,
     };
 
     // Database connection status
@@ -461,8 +471,18 @@ export class PerformanceService extends BaseService {
 
         // System metrics
         system: {
-          cpu: systemMetrics.process.cpuUsage,
-          memory: systemMetrics.process.memoryUsage,
+          cpu: {
+            percent: systemMetrics.system.cpuPercent,
+            loadAverage: systemMetrics.system.loadAverage,
+            cpuCount: systemMetrics.system.cpuCount,
+          },
+          memory: {
+            used: systemMetrics.system.usedMemory,
+            free: systemMetrics.system.freeMemory,
+            total: systemMetrics.system.totalMemory,
+            percentage: systemMetrics.system.memoryPercent,
+          },
+          processMemory: systemMetrics.process.memoryUsage,
           loadAverage: systemMetrics.system.loadAverage,
           platform: systemMetrics.system.platform,
           cpuCount: systemMetrics.system.cpuCount,

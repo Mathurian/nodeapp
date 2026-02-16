@@ -219,10 +219,15 @@ export class CategoriesController {
       if (!contestId) {
         return sendError(res, 'Contest ID is required', 400);
       }
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required to create a category', 400);
+      }
 
       const { name, description, scoreCap, timeLimit, contestantMin, contestantMax } = req.body;
 
       const category = await this.categoryService.createCategory({
+        tenantId,
         contestId,
         name,
         description,

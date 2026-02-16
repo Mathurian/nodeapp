@@ -260,6 +260,37 @@ export class ResultsService extends BaseService {
     };
   }
 
+  private async getApprovedDeductionMap(
+    tenantId: string,
+    categoryIds: string[],
+    contestantIds: string[]
+  ): Promise<Map<string, number>> {
+    if (categoryIds.length === 0 || contestantIds.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const requests = await this.prisma.deductionRequest.findMany({
+      where: {
+        tenantId,
+        status: 'APPROVED',
+        categoryId: { in: categoryIds },
+        contestantId: { in: contestantIds },
+      },
+      select: {
+        categoryId: true,
+        contestantId: true,
+        amount: true,
+      },
+    });
+
+    const map = new Map<string, number>();
+    for (const request of requests) {
+      const key = `${request.contestantId}:${request.categoryId}`;
+      map.set(key, (map.get(key) || 0) + Math.abs(Number(request.amount || 0)));
+    }
+    return map;
+  }
+
   /**
    * Get all results with role-based filtering and pagination
    */
@@ -752,6 +783,42 @@ export class ResultsService extends BaseService {
       result.scores.push(score);
     });
 
+    // Apply approved deductions (source of truth: approved deduction requests).
+    const deductionMap = await this.getApprovedDeductionMap(
+      category.tenantId,
+      [categoryId],
+      Array.from(resultsMap.keys())
+    );
+
+    // Backward-compat: include overall_deductions table entries as well.
+    if (resultsMap.size > 0) {
+      const deductions = await this.prisma.overallDeduction.findMany({
+        where: {
+          categoryId,
+          contestantId: { in: Array.from(resultsMap.keys()) },
+        },
+        select: {
+          contestantId: true,
+          deduction: true,
+        },
+      });
+
+      for (const deduction of deductions) {
+        const row = resultsMap.get(deduction.contestantId);
+        if (!row) continue;
+        const key = `${deduction.contestantId}:${categoryId}`;
+        deductionMap.set(key, (deductionMap.get(key) || 0) + Math.abs(Number(deduction.deduction || 0)));
+      }
+
+      for (const [key, amount] of deductionMap.entries()) {
+        const [contestantId] = key.split(':');
+        if (!contestantId) continue;
+        const row = resultsMap.get(contestantId);
+        if (!row) continue;
+        row.totalScore -= amount;
+      }
+    }
+
     // Calculate averages and create final results array
     const results: CategoryResultWithRanking[] = Array.from(resultsMap.values()).map((result) => ({
       ...result,
@@ -860,7 +927,7 @@ export class ResultsService extends BaseService {
       throw new Error('Insufficient permissions');
     }
 
-    return await this.prisma.score.findMany({
+    const contestScores = await this.prisma.score.findMany({
       where: whereClause,
       include: {
         category: true,
@@ -868,6 +935,45 @@ export class ResultsService extends BaseService {
         judge: true,
       },
     }) as ContestScore[];
+
+    if (contestScores.length === 0) {
+      return contestScores;
+    }
+
+    const contestantIds = Array.from(new Set(contestScores.map((score) => score.contestantId)));
+    const categoryIds = Array.from(new Set(contestScores.map((score) => score.categoryId)));
+    const approvedDeductionMap = await this.getApprovedDeductionMap(contest.tenantId, categoryIds, contestantIds);
+    const deductions = await this.prisma.overallDeduction.findMany({
+      where: {
+        contestantId: { in: contestantIds },
+        categoryId: { in: categoryIds },
+      },
+      select: {
+        contestantId: true,
+        categoryId: true,
+        deduction: true,
+      },
+    });
+
+    const deductionByKey = new Map<string, number>();
+    deductions.forEach((row) => {
+      const key = `${row.contestantId}:${row.categoryId}`;
+      deductionByKey.set(key, (deductionByKey.get(key) || 0) + Math.abs(Number(row.deduction || 0)));
+    });
+    approvedDeductionMap.forEach((amount, key) => {
+      deductionByKey.set(key, (deductionByKey.get(key) || 0) + amount);
+    });
+
+    const appliedKeys = new Set<string>();
+    return contestScores.map((score) => {
+      const key = `${score.contestantId}:${score.categoryId}`;
+      const overallDeduction = appliedKeys.has(key) ? 0 : (deductionByKey.get(key) || 0);
+      appliedKeys.add(key);
+      return {
+        ...score,
+        deduction: Number(score.deduction || 0) + overallDeduction
+      };
+    });
   }
 
   /**
@@ -953,7 +1059,7 @@ export class ResultsService extends BaseService {
       throw new Error('Insufficient permissions');
     }
 
-    return await this.prisma.score.findMany({
+    const eventScores = await this.prisma.score.findMany({
       where: whereClause,
       include: {
         category: {
@@ -965,5 +1071,44 @@ export class ResultsService extends BaseService {
         judge: true,
       },
     }) as EventScore[];
+
+    if (eventScores.length === 0) {
+      return eventScores;
+    }
+
+    const contestantIds = Array.from(new Set(eventScores.map((score) => score.contestantId)));
+    const categoryIds = Array.from(new Set(eventScores.map((score) => score.categoryId)));
+    const approvedDeductionMap = await this.getApprovedDeductionMap(event.tenantId, categoryIds, contestantIds);
+    const deductions = await this.prisma.overallDeduction.findMany({
+      where: {
+        contestantId: { in: contestantIds },
+        categoryId: { in: categoryIds },
+      },
+      select: {
+        contestantId: true,
+        categoryId: true,
+        deduction: true,
+      },
+    });
+
+    const deductionByKey = new Map<string, number>();
+    deductions.forEach((row) => {
+      const key = `${row.contestantId}:${row.categoryId}`;
+      deductionByKey.set(key, (deductionByKey.get(key) || 0) + Math.abs(Number(row.deduction || 0)));
+    });
+    approvedDeductionMap.forEach((amount, key) => {
+      deductionByKey.set(key, (deductionByKey.get(key) || 0) + amount);
+    });
+
+    const appliedKeys = new Set<string>();
+    return eventScores.map((score) => {
+      const key = `${score.contestantId}:${score.categoryId}`;
+      const overallDeduction = appliedKeys.has(key) ? 0 : (deductionByKey.get(key) || 0);
+      appliedKeys.add(key);
+      return {
+        ...score,
+        deduction: Number(score.deduction || 0) + overallDeduction
+      };
+    });
   }
 }

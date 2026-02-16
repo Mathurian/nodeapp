@@ -39,13 +39,14 @@ interface EventStats {
 }
 
 interface CreateEventDto {
+  tenantId?: string;
   name: string;
   startDate: Date | string;
   endDate: Date | string;
   location?: string;
   description?: string;
   maxContestants?: number;
-  contestantNumberingMode?: 'MANUAL' | 'AUTO';
+  contestantNumberingMode?: 'MANUAL' | 'AUTO_INDEXED' | 'OPTIONAL';
   contestantViewRestricted?: boolean;
   contestantViewReleaseDate?: Date | string | null;
 }
@@ -108,6 +109,9 @@ export class EventService extends BaseService {
     try {
       // Validate required fields
       this.validateRequired(data as unknown as Record<string, unknown>, ['name', 'startDate', 'endDate']);
+      if (!data.tenantId) {
+        throw new ValidationError('Tenant context is required to create an event');
+      }
 
       // Validate dates
       const startDate = new Date(data.startDate);
@@ -127,6 +131,7 @@ export class EventService extends BaseService {
 
       // Create event
       const event = await this.eventRepo.create({
+        tenantId: data.tenantId,
         ...data,
         startDate,
         endDate,

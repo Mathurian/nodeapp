@@ -51,6 +51,13 @@ type CategoryWithContest = Prisma.CategoryGetPayload<{
   select: {
     id: true;
     name: true;
+    scoreCap: true;
+    criteria: {
+      select: {
+        id: true;
+        maxScore: true;
+      };
+    };
     contestId: true;
     contest: {
       select: {
@@ -236,7 +243,14 @@ export class ScoringService extends BaseService {
         select: {
           id: true,
           name: true,
+          scoreCap: true,
           contestId: true,
+          criteria: {
+            select: {
+              id: true,
+              maxScore: true
+            }
+          },
           contest: {
             select: {
               id: true,
@@ -254,6 +268,26 @@ export class ScoringService extends BaseService {
 
       if (!category) {
         throw this.notFoundError('Category', categoryId);
+      }
+
+      const numericScore = Number(score);
+      if (!Number.isFinite(numericScore) || numericScore < 0) {
+        throw new ValidationError('Score must be a non-negative number');
+      }
+
+      const categoryCriteria = Array.isArray((category as any).criteria) ? (category as any).criteria : [];
+      if (criteriaId) {
+        const criterion = categoryCriteria.find((c: { id: string; maxScore: number }) => c.id === criteriaId);
+        if (!criterion) {
+          throw new ValidationError('Invalid criterion for category');
+        }
+        if (numericScore > Number(criterion.maxScore)) {
+          throw new ValidationError(`Score cannot exceed criterion max (${criterion.maxScore})`);
+        }
+      } else if (categoryCriteria.length > 0) {
+        throw new ValidationError('criteriaId is required when category criteria are defined');
+      } else if (category.scoreCap !== null && category.scoreCap !== undefined && numericScore > Number(category.scoreCap)) {
+        throw new ValidationError(`Score cannot exceed category cap (${category.scoreCap})`);
       }
 
       // Get the Judge record from the User
@@ -306,7 +340,7 @@ export class ScoringService extends BaseService {
             contestantId,
             criterionId: criteriaId || null,
             judgeId,
-            score: score,
+            score: numericScore,
             tenantId,
             certifiedAt: null,
             certifiedBy: null

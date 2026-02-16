@@ -6,6 +6,8 @@ import ProtectedRoute from './ProtectedRoute'
 import Layout from './Layout'
 import { lazyWithRetry } from '../utils/lazyWithRetry'
 import { isKnownRoute } from '../utils/routeSegments'
+import ResultsPage from '../pages/ResultsPage'
+import ScoreGovernancePage from '../pages/ScoreGovernancePage'
 
 // Lazy load pages
 const LoginPage = lazyWithRetry(() => import('../pages/LoginPage'), 'LoginPage')
@@ -17,7 +19,7 @@ const EventsPage = lazyWithRetry(() => import('../pages/EventsPage'), 'EventsPag
 const ContestsPage = lazyWithRetry(() => import('../pages/ContestsPage'), 'ContestsPage')
 const CategoriesPage = lazyWithRetry(() => import('../pages/CategoriesPage'), 'CategoriesPage')
 const ScoringPage = lazyWithRetry(() => import('../pages/ScoringPage'), 'ScoringPage')
-const ResultsPage = lazyWithRetry(() => import('../pages/ResultsPage'), 'ResultsPage')
+// Keep critical UAT routes eagerly loaded to avoid lazy chunk fetch flakiness.
 const WinnersPage = lazyWithRetry(() => import('../pages/WinnersPage'), 'WinnersPage')
 const UsersPage = lazyWithRetry(() => import('../pages/UsersPage'), 'UsersPage')
 const AdminPage = lazyWithRetry(() => import('../pages/AdminPage'), 'AdminPage')
@@ -66,10 +68,8 @@ const AuditorAuditLogPage = lazyWithRetry(() => import('../pages/AuditorAuditLog
 const TallyDashboardPage = lazyWithRetry(() => import('../pages/TallyDashboardPage'), 'TallyDashboardPage')
 const BoardPage = lazyWithRetry(() => import('../pages/BoardPage'), 'BoardPage')
 const BoardCertificationsPage = lazyWithRetry(() => import('../pages/BoardCertificationsPage'), 'BoardCertificationsPage')
-const BoardScoreRemovalPage = lazyWithRetry(() => import('../pages/BoardScoreRemovalPage'), 'BoardScoreRemovalPage')
 const PermissionsPage = lazyWithRetry(() => import('../pages/PermissionsPage'), 'PermissionsPage')
 const PermissionAuditLogPage = lazyWithRetry(() => import('../pages/PermissionAuditLogPage'), 'PermissionAuditLogPage')
-const ScoreGovernancePage = lazyWithRetry(() => import('../pages/ScoreGovernancePage'), 'ScoreGovernancePage')
 const NotFoundPage = lazyWithRetry(() => import('../pages/NotFoundPage'), 'NotFoundPage')
 
 // Loading fallback
@@ -240,6 +240,9 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
             <Route path="/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
+            <Route path="/governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
+            <Route path="/score-removal" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
+            <Route path="/score-removal-requests" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
             <Route path="/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
             <Route path="/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
@@ -249,7 +252,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/auditor/audit-log" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorAuditLogPage /></ProtectedRoute>} />
             <Route path="/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
             <Route path="/board/certifications" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardCertificationsPage /></ProtectedRoute>} />
-            <Route path="/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
+            <Route path="/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
             <Route path="/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
 
@@ -298,6 +301,9 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
             <Route path="/:slug/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
             <Route path="/:slug/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
+            <Route path="/:slug/governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
+            <Route path="/:slug/score-removal" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
+            <Route path="/:slug/score-removal-requests" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/:slug/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
             <Route path="/:slug/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
             <Route path="/:slug/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
@@ -307,7 +313,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/auditor/audit-log" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
             <Route path="/:slug/board/certifications" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardCertificationsPage /></ProtectedRoute>} />
-            <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardScoreRemovalPage /></ProtectedRoute>} />
+            <Route path="/:slug/board/score-removal" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/:slug/permissions" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionsPage /></ProtectedRoute>} />
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />

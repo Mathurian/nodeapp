@@ -166,6 +166,62 @@ export class ScoreGovernanceService extends BaseService {
     }
   }
 
+  private async inferThrowOutDefaults(input: CreateGovernanceRequestInput): Promise<CreateGovernanceRequestInput> {
+    if (input.actionType !== 'THROW_OUT') return input
+
+    const out = { ...input }
+
+    if (out.scopeType === 'CATEGORY_JUDGE' && !out.categoryId && out.contestId) {
+      const firstCategory = await this.prisma.category.findFirst({
+        where: { tenantId: out.tenantId, contestId: out.contestId, deletedAt: null },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' }
+      })
+      out.categoryId = firstCategory?.id || out.categoryId
+    }
+
+    if (out.scopeType === 'CONTEST_JUDGE' && !out.contestId && out.categoryId) {
+      const category = await this.prisma.category.findFirst({
+        where: { id: out.categoryId, tenantId: out.tenantId },
+        select: { contestId: true }
+      })
+      out.contestId = category?.contestId || out.contestId
+    }
+
+    if (!out.judgeId) {
+      const score = await this.prisma.score.findFirst({
+        where: {
+          tenantId: out.tenantId,
+          ...(out.categoryId ? { categoryId: out.categoryId } : {}),
+          ...(out.contestId ? { category: { contestId: out.contestId } } : {})
+        },
+        select: { judgeId: true },
+        orderBy: { updatedAt: 'desc' }
+      })
+      out.judgeId = score?.judgeId || out.judgeId
+    }
+
+    if (out.judgeId && out.scopeType === 'CONTEST_JUDGE' && !out.contestId) {
+      const score = await this.prisma.score.findFirst({
+        where: { tenantId: out.tenantId, judgeId: out.judgeId },
+        select: { category: { select: { contestId: true } } },
+        orderBy: { updatedAt: 'desc' }
+      })
+      out.contestId = score?.category?.contestId || out.contestId
+    }
+
+    if (out.judgeId && out.scopeType === 'CATEGORY_JUDGE' && !out.categoryId) {
+      const score = await this.prisma.score.findFirst({
+        where: { tenantId: out.tenantId, judgeId: out.judgeId },
+        select: { categoryId: true },
+        orderBy: { updatedAt: 'desc' }
+      })
+      out.categoryId = score?.categoryId || out.categoryId
+    }
+
+    return out
+  }
+
   private async enrichScope(input: CreateGovernanceRequestInput): Promise<CreateGovernanceRequestInput> {
     const out = { ...input }
     if (out.scoreId) {
@@ -218,13 +274,14 @@ export class ScoreGovernanceService extends BaseService {
 
   async createRequest(input: CreateGovernanceRequestInput) {
     this.validateSignature(input.signature)
-    this.validateRequestRules(input)
 
     if (input.actionType === 'THROW_OUT' && input.userRole === 'JUDGE') {
       throw this.forbiddenError('Judges cannot create throw-out requests')
     }
 
-    const normalized = await this.enrichScope(input)
+    let normalized = await this.enrichScope(input)
+    normalized = await this.inferThrowOutDefaults(normalized)
+    this.validateRequestRules(normalized)
 
     if (normalized.actionType === 'UNCERTIFY' && normalized.scopeType === 'CATEGORY_LEVEL') {
       const levelRank: Record<UserRole, number> = {
@@ -253,8 +310,8 @@ export class ScoreGovernanceService extends BaseService {
 
     if (normalized.userRole === 'JUDGE') {
       if (normalized.actionType !== 'UNCERTIFY') throw this.forbiddenError('Judges can only create uncertification requests')
-      if (normalized.scopeType !== 'SCORE') {
-        throw this.forbiddenError('Judges may only request uncertification for individual score rows they own')
+      if (!['SCORE', 'CONTESTANT_CATEGORY'].includes(normalized.scopeType)) {
+        throw this.forbiddenError('Judges may only request uncertification for their own score rows')
       }
       const user = await this.prisma.user.findFirst({ where: { id: normalized.userId, tenantId: normalized.tenantId }, select: { judgeId: true } })
       if (!user?.judgeId) throw this.forbiddenError('Judge account linkage is required')
@@ -263,11 +320,27 @@ export class ScoreGovernanceService extends BaseService {
       if (normalized.judgeId && normalized.judgeId !== ownJudgeId) {
         throw this.forbiddenError('Judges may only request uncertification for their own scores')
       }
+      normalized.judgeId = ownJudgeId
 
       if (normalized.scoreId) {
         const score = await this.prisma.score.findFirst({ where: { id: normalized.scoreId, tenantId: normalized.tenantId }, select: { judgeId: true } })
         if (!score || score.judgeId !== ownJudgeId) {
           throw this.forbiddenError('Judges may only request uncertification for their own scores')
+        }
+      }
+
+      if (normalized.scopeType === 'CONTESTANT_CATEGORY') {
+        const hasOwnScores = await this.prisma.score.findFirst({
+          where: {
+            tenantId: normalized.tenantId,
+            judgeId: ownJudgeId,
+            contestantId: normalized.contestantId || undefined,
+            categoryId: normalized.categoryId || undefined
+          },
+          select: { id: true }
+        })
+        if (!hasOwnScores) {
+          throw this.forbiddenError('Judges may only request uncertification for contestant/category scores they own')
         }
       }
     }

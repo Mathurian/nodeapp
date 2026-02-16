@@ -211,6 +211,11 @@ export class BulkUserController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant context is required' });
+        return;
+      }
 
       if (!req.file) {
         res.status(400).json({ error: 'CSV file is required' });
@@ -234,7 +239,7 @@ export class BulkUserController {
       // Import users
       const importResult = await this.bulkOperationService.executeBulkOperation(
         async (userData: any) => {
-          await this.userService.createUser(userData);
+          await this.userService.createUser({ ...userData, tenantId });
         },
         validationResult.data
       );

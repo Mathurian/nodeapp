@@ -147,9 +147,9 @@ export class AssignmentService extends BaseService {
    * Get all assignments with optional filters (P2-4: Proper typing)
    * Includes both Assignment records and CategoryJudge relationships
    */
-  async getAllAssignments(filters: AssignmentFilters): Promise<AssignmentWithRelations[]> {
+  async getAllAssignments(filters: AssignmentFilters, tenantId?: string): Promise<AssignmentWithRelations[]> {
     // P2-3: Check cache
-    const cacheKey = `assignments:list:${JSON.stringify(filters)}`;
+    const cacheKey = `assignments:list:${tenantId || 'all'}:${JSON.stringify(filters)}`;
     const cached = await this.cacheService.get<AssignmentWithRelations[]>(cacheKey);
     if (cached) {
       return cached;
@@ -158,6 +158,7 @@ export class AssignmentService extends BaseService {
     // Get Assignment records
     const assignments = await this.prisma.assignment.findMany({
       where: {
+        ...(tenantId && { tenantId }),
         ...(filters.status && { status: filters.status as AssignmentStatus }),
         ...(filters.judgeId && { judgeId: filters.judgeId }),
         ...(filters.categoryId && { categoryId: filters.categoryId }),
@@ -211,6 +212,9 @@ export class AssignmentService extends BaseService {
 
     // Also get CategoryJudge relationships and convert them to assignment-like objects
     const categoryJudgeWhere: Prisma.CategoryJudgeWhereInput = {};
+    if (tenantId) {
+      categoryJudgeWhere.tenantId = tenantId;
+    }
     if (filters.judgeId) {
       categoryJudgeWhere.judgeId = filters.judgeId;
     }
@@ -864,7 +868,12 @@ export class AssignmentService extends BaseService {
       bio: string | null;
       users?: Array<{ role: string; email: string }>;
     };
-    return contestants.map((contestant: ContestantWithUsers) => ({
+    return contestants
+      .filter((contestant: ContestantWithUsers) => {
+        if (!contestant.users || contestant.users.length === 0) return true;
+        return contestant.users.some((u: { role: string }) => u.role === 'CONTESTANT');
+      })
+      .map((contestant: ContestantWithUsers) => ({
       id: contestant.id,
       name: contestant.name,
       email: contestant.users && contestant.users.length > 0
@@ -879,7 +888,7 @@ export class AssignmentService extends BaseService {
    * Get all categories
    * Excludes categories from archived events
    */
-  async getCategories(): Promise<Array<{
+  async getCategories(tenantId?: string): Promise<Array<{
     id: string;
     name: string;
     description: string | null;
@@ -896,6 +905,9 @@ export class AssignmentService extends BaseService {
     // Note: Can't filter by nested contest.event.archived in Prisma where clause
     // Fetching all and filtering in memory
     const categories = await this.prisma.category.findMany({
+      where: {
+        ...(tenantId ? { tenantId } : {})
+      },
       include: {
         contest: {
           select: {
@@ -922,7 +934,7 @@ export class AssignmentService extends BaseService {
   /**
    * Get all contestant assignments
    */
-  async getAllContestantAssignments(filters?: { categoryId?: string; contestId?: string }): Promise<Prisma.CategoryContestantGetPayload<{
+  async getAllContestantAssignments(filters?: { categoryId?: string; contestId?: string }, tenantId?: string): Promise<Prisma.CategoryContestantGetPayload<{
     include: {
       contestant: {
         select: {
@@ -950,6 +962,10 @@ export class AssignmentService extends BaseService {
   }>[]> {
     const where: Prisma.CategoryContestantWhereInput = {};
     
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+
     if (filters?.categoryId) {
       where.categoryId = filters.categoryId;
     }
@@ -997,7 +1013,7 @@ export class AssignmentService extends BaseService {
   /**
    * Get contestants for a specific category
    */
-  async getCategoryContestants(categoryId: string): Promise<Prisma.CategoryContestantGetPayload<{
+  async getCategoryContestants(categoryId: string, tenantId?: string): Promise<Prisma.CategoryContestantGetPayload<{
     include: {
       contestant: {
         select: {
@@ -1011,7 +1027,7 @@ export class AssignmentService extends BaseService {
     };
   }>[]> {
     const contestants = await this.prisma.categoryContestant.findMany({
-      where: { categoryId },
+      where: { categoryId, ...(tenantId ? { tenantId } : {}) },
       include: {
         contestant: {
           select: {
@@ -1287,8 +1303,8 @@ export class AssignmentService extends BaseService {
     eventId?: string;
     contestId?: string;
     categoryId?: string;
-  }): Promise<unknown[]> {
-    const where: Prisma.TallyMasterAssignmentWhereInput = {};
+  }, tenantId?: string): Promise<unknown[]> {
+    const where: Prisma.TallyMasterAssignmentWhereInput = tenantId ? { tenantId } : {};
 
     if (filters?.eventId) {
       where.eventId = filters.eventId;
@@ -1452,8 +1468,8 @@ export class AssignmentService extends BaseService {
     eventId?: string;
     contestId?: string;
     categoryId?: string;
-  }): Promise<unknown[]> {
-    const where: Prisma.AuditorAssignmentWhereInput = {};
+  }, tenantId?: string): Promise<unknown[]> {
+    const where: Prisma.AuditorAssignmentWhereInput = tenantId ? { tenantId } : {};
 
     if (filters?.eventId) {
       where.eventId = filters.eventId;

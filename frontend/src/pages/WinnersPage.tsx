@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
-import { contestsAPI, winnersAPI } from '../services/api'
+import { contestsAPI, resultsAPI, winnersAPI } from '../services/api'
 import { TrophyIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader } from '../components/ui'
 
@@ -19,6 +19,17 @@ interface Winner {
   }
   rank: number
   totalScore: number
+}
+
+interface ContestScoreRow {
+  contestantId: string
+  score: number | null
+  deduction: number | null
+  contestant: {
+    id: string
+    name: string
+    contestantNumber?: number | null
+  }
 }
 
 interface PublicationStatus {
@@ -71,9 +82,55 @@ const WinnersPage: React.FC = () => {
     { enabled: !!selectedContestId, retry: 1 }
   )
 
-  const winners: Winner[] = Array.isArray(winnersResponse?.winners)
-    ? winnersResponse.winners
-    : (Array.isArray(winnersResponse?.data?.winners) ? winnersResponse.data.winners : [])
+  const { data: fallbackContestScores = [] } = useQuery<ContestScoreRow[]>(
+    ['winners-fallback-contest-results', selectedContestId],
+    async () => {
+      if (!selectedContestId) return []
+      const response = await resultsAPI.getContestResults(selectedContestId)
+      const payload = response.data?.data || response.data
+      return Array.isArray(payload) ? payload : []
+    },
+    { enabled: !!selectedContestId, retry: 1 }
+  )
+
+  const winners: Winner[] = (() => {
+    const source = Array.isArray(winnersResponse?.winners)
+      ? winnersResponse.winners
+      : Array.isArray(winnersResponse?.data?.winners)
+        ? winnersResponse.data.winners
+        : Array.isArray(winnersResponse?.contestants)
+          ? winnersResponse.contestants
+          : Array.isArray(winnersResponse?.data?.contestants)
+            ? winnersResponse.data.contestants
+            : []
+
+    return source.map((entry: any, index: number) => ({
+      contestant: entry.contestant,
+      totalScore: Number(entry.totalScore || 0),
+      rank: Number(entry.rank || index + 1)
+    }))
+  })()
+
+  const effectiveWinners: Winner[] = useMemo(() => {
+    if (winners.length > 0) return winners
+    if (!selectedContestId || fallbackContestScores.length === 0) return []
+
+    const totals = new Map<string, { contestant: ContestScoreRow['contestant']; total: number }>()
+    for (const row of fallbackContestScores) {
+      const base = totals.get(row.contestantId) || { contestant: row.contestant, total: 0 }
+      const net = Number(row.score || 0) - Math.abs(Number(row.deduction || 0))
+      base.total += net
+      totals.set(row.contestantId, base)
+    }
+
+    return Array.from(totals.values())
+      .sort((a, b) => b.total - a.total)
+      .map((row, index) => ({
+        contestant: row.contestant,
+        totalScore: row.total,
+        rank: index + 1
+      }))
+  }, [fallbackContestScores, selectedContestId, winners])
 
   const publishMutation = useMutation(
     async () => winnersAPI.publish(selectedContestId),
@@ -143,11 +200,11 @@ const WinnersPage: React.FC = () => {
 
         {selectedContestId && !winnersError && (
           <Card className="rounded-lg p-6">
-            {winners.length === 0 ? (
+            {effectiveWinners.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-400">No winners available yet.</p>
             ) : (
               <div className="space-y-2">
-                {winners.map((winner, idx) => (
+                {effectiveWinners.map((winner, idx) => (
                   <div key={`${winner.contestant?.id || 'winner'}-${idx}`} className="flex justify-between border rounded-md p-3">
                     <div className="font-medium text-gray-900 dark:text-white">
                       #{winner.rank} {winner.contestant?.name || 'Contestant'}

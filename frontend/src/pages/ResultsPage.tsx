@@ -369,6 +369,8 @@ const ResultsPage: React.FC = () => {
       name: string
       contestantNumber: number | null
       imagePath: string | null
+      rawScore: number
+      totalDeductions: number
       totalScore: number
     }>()
 
@@ -379,10 +381,15 @@ const ResultsPage: React.FC = () => {
         name: row.contestant.name,
         contestantNumber: row.contestant.contestantNumber ?? null,
         imagePath: row.contestant.imagePath ?? null,
+        rawScore: 0,
+        totalDeductions: 0,
         totalScore: 0,
       }
-      const net = Number(row.score || 0) - Number(row.deduction || 0)
-      base.totalScore += net
+      const raw = Number(row.score || 0)
+      const deduction = Math.abs(Number(row.deduction || 0))
+      base.rawScore += raw
+      base.totalDeductions += deduction
+      base.totalScore += raw - deduction
       totalsMap.set(key, base)
     }
 
@@ -709,6 +716,9 @@ const ResultsPage: React.FC = () => {
                 {effectiveCategoryResults.winners.map((winner) => (
                   <div
                     key={winner.id}
+                    data-testid="category-result-row"
+                    data-contestant-name={winner.contestant.name}
+                    data-total-score={String(winner.totalScore)}
                     className={`border-2 rounded-lg p-4 ${getRankColor(winner.rank)}`}
                   >
                     <div className="flex items-center justify-between">
@@ -758,6 +768,12 @@ const ResultsPage: React.FC = () => {
                             Certified
                           </div>
                         )}
+                        <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                          Net Score: {winner.totalScore}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300">
+                          Total Score: {winner.totalScore}
+                        </div>
                       </div>
                     </div>
 
@@ -828,8 +844,44 @@ const ResultsPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg" data-testid="contest-results-summary">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Contestant</th>
+                        <th className="px-3 py-2 text-right">Raw Score</th>
+                        <th className="px-3 py-2 text-right">Deductions</th>
+                        <th className="px-3 py-2 text-right">Net Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contestLevelResults.map((winner) => (
+                        <tr
+                          key={`summary-${winner.contestantId}`}
+                          data-testid="contest-result-summary-row"
+                          data-contestant-name={winner.name}
+                          data-raw-score={String(winner.rawScore)}
+                          data-total-deductions={String(winner.totalDeductions)}
+                          data-total-score={String(winner.totalScore)}
+                          className="border-t border-gray-200 dark:border-gray-700"
+                        >
+                          <td className="px-3 py-2">{winner.name}</td>
+                          <td className="px-3 py-2 text-right">{winner.rawScore}</td>
+                          <td className="px-3 py-2 text-right">{winner.totalDeductions}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{winner.totalScore}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {contestLevelResults.map((winner, idx) => (
-                  <div key={winner.contestantId} className={`border-2 rounded-lg p-4 ${getRankColor(idx + 1)}`}>
+                  <div
+                    key={winner.contestantId}
+                    data-testid="contest-result-row"
+                    data-contestant-name={winner.name}
+                    data-total-score={String(winner.totalScore)}
+                    className={`border-2 rounded-lg p-4 ${getRankColor(idx + 1)}`}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="text-3xl font-bold">{getMedalIcon(idx + 1)}</div>
@@ -858,6 +910,12 @@ const ResultsPage: React.FC = () => {
                       <div className="text-right">
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
                           {winner.totalScore}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                          Net Score: {winner.totalScore}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300">
+                          Total Score: {winner.totalScore}
                         </div>
                       </div>
                     </div>

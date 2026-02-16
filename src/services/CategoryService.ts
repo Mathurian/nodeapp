@@ -28,6 +28,7 @@ interface CategoryStats {
 }
 
 interface CreateCategoryDto {
+  tenantId?: string;
   contestId: string;
   name: string;
   description?: string;
@@ -67,12 +68,18 @@ export class CategoryService extends BaseService {
   async createCategory(data: CreateCategoryDto): Promise<Category> {
     try {
       this.validateRequired(data as unknown as Record<string, unknown>, ['contestId', 'name']);
+      if (!data.tenantId) {
+        throw new ValidationError('Tenant context is required to create a category');
+      }
 
       if (data.scoreCap !== undefined && data.scoreCap < 0) {
         throw new ValidationError('Score cap must be non-negative');
       }
 
-      const category = await this.categoryRepo.create(data as unknown as Record<string, unknown>);
+      const category = await this.categoryRepo.create({
+        ...data,
+        tenantId: data.tenantId
+      } as unknown as Record<string, unknown>);
       await this.invalidateCategoryCache(undefined, data.contestId);
 
       this.logInfo('Category created', { categoryId: category.id, contestId: data.contestId });

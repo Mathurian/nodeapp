@@ -16,6 +16,14 @@ export class AssignmentsController {
     this.assignmentService = container.resolve(AssignmentService);
   }
 
+  private getEffectiveTenantId(req: Request): string | undefined {
+    if (!req.user) return (req as any).tenantId;
+    if (req.user.role === 'SUPER_ADMIN') {
+      return (req.query['tenantId'] as string | undefined) || (req as any).tenantId || req.user.tenantId;
+    }
+    return (req as any).tenantId || req.user.tenantId;
+  }
+
   /**
    * Get all assignments
    */
@@ -46,7 +54,7 @@ export class AssignmentsController {
         filters.judgeId = judgeId;
       }
 
-      const assignments = await this.assignmentService.getAllAssignments(filters);
+      const assignments = await this.assignmentService.getAllAssignments(filters, this.getEffectiveTenantId(req));
       return sendSuccess(res, assignments, 'Assignments retrieved successfully');
     } catch (error) {
       return next(error);
@@ -223,9 +231,7 @@ export class AssignmentsController {
 
   getJudges = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const tenantId = req.user?.role === 'SUPER_ADMIN'
-        ? (req.query['tenantId'] as string | undefined)
-        : (req as any).tenantId || req.user?.tenantId;
+      const tenantId = this.getEffectiveTenantId(req);
       const judges = await this.assignmentService.getJudges(undefined, tenantId);
       return sendSuccess(res, judges, 'Judges retrieved successfully');
     } catch (error) {
@@ -233,9 +239,9 @@ export class AssignmentsController {
     }
   };
 
-  getCategories = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const categories = await this.assignmentService.getCategories();
+      const categories = await this.assignmentService.getCategories(this.getEffectiveTenantId(req));
       return sendSuccess(res, categories, 'Categories retrieved successfully');
     } catch (error) {
       return next(error);
@@ -265,9 +271,7 @@ export class AssignmentsController {
 
   getContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const tenantId = req.user?.role === 'SUPER_ADMIN'
-        ? (req.query['tenantId'] as string | undefined)
-        : (req as any).tenantId || req.user?.tenantId;
+      const tenantId = this.getEffectiveTenantId(req);
       const contestants = await this.assignmentService.getContestants(tenantId);
       return sendSuccess(res, contestants, 'Contestants retrieved successfully');
     } catch (error) {
@@ -288,7 +292,7 @@ export class AssignmentsController {
       // If contestId is provided, assign to all categories in the contest
       if (contestId && !categoryId) {
         log.debug('Assigning contestant to all categories in contest', { contestId, contestantId });
-        const categories = await this.assignmentService.getCategories();
+        const categories = await this.assignmentService.getCategories(this.getEffectiveTenantId(req));
         const contestCategories = categories.filter((cat: any) => cat.contest?.id === contestId);
 
         if (contestCategories.length === 0) {
@@ -357,7 +361,7 @@ export class AssignmentsController {
   getCategoryContestants = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const categoryId = getRequiredParam(req, 'categoryId');
-      const contestants = await this.assignmentService.getCategoryContestants(categoryId);
+      const contestants = await this.assignmentService.getCategoryContestants(categoryId, this.getEffectiveTenantId(req));
       return sendSuccess(res, contestants, 'Category contestants retrieved successfully');
     } catch (error) {
       return next(error);
@@ -370,7 +374,7 @@ export class AssignmentsController {
         categoryId: req.query['categoryId'] as string | undefined,
         contestId: req.query['contestId'] as string | undefined,
       };
-      const raw = await this.assignmentService.getAllContestantAssignments(filters);
+      const raw = await this.assignmentService.getAllContestantAssignments(filters, this.getEffectiveTenantId(req));
       // CategoryContestant has composite PK (no id field) and nested contest/event.
       // Flatten to a shape consistent with other assignment types.
       const assignments = raw.map((a) => ({
@@ -398,7 +402,7 @@ export class AssignmentsController {
         contestId: req.query['contestId'] as string | undefined,
         categoryId: req.query['categoryId'] as string | undefined,
       };
-      const assignments = await this.assignmentService.getTallyMasterAssignments(filters);
+      const assignments = await this.assignmentService.getTallyMasterAssignments(filters, this.getEffectiveTenantId(req));
       return sendSuccess(res, assignments, 'Tally master assignments retrieved successfully');
     } catch (error) {
       return next(error);
@@ -447,7 +451,7 @@ export class AssignmentsController {
         contestId: req.query['contestId'] as string | undefined,
         categoryId: req.query['categoryId'] as string | undefined,
       };
-      const assignments = await this.assignmentService.getAuditorAssignments(filters);
+      const assignments = await this.assignmentService.getAuditorAssignments(filters, this.getEffectiveTenantId(req));
       return sendSuccess(res, assignments, 'Auditor assignments retrieved successfully');
     } catch (error) {
       return next(error);

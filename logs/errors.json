@@ -1110,5 +1110,431 @@
       "message": "User with identifier 'csv-template' not found",
       "code": "RESOURCE_NOT_FOUND"
     }
+  },
+  {
+    "id": "err_1771189230795_ow23suy0v",
+    "timestamp": "2026-02-15T21:00:30.795Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Organizer 1\",\n    email: \"organizer1@febtest2.com\",\n    password: \"$2b$10$yxSUm.6BVkFTnW6n16gDxeDQhBdY8XjxKYe3UAHgjB7pTd4DkHH.G\",\n    preferredName: \"\",\n    role: \"ORGANIZER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Organizer 1\",\n    email: \"organizer1@febtest2.com\",\n    password: \"$2b$10$yxSUm.6BVkFTnW6n16gDxeDQhBdY8XjxKYe3UAHgjB7pTd4DkHH.G\",\n    preferredName: \"\",\n    role: \"ORGANIZER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Organizer 1"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Organizer 1\",\n    email: \"organizer1@febtest2.com\",\n    password: \"$2b$10$yxSUm.6BVkFTnW6n16gDxeDQhBdY8XjxKYe3UAHgjB7pTd4DkHH.G\",\n    preferredName: \"\",\n    role: \"ORGANIZER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189233940_j6f66rimz",
+    "timestamp": "2026-02-15T21:00:33.940Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Judge 1\",\n    email: \"judge1@febtest2.com\",\n    password: \"$2b$10$3W6llHaVu1KvjSsWjQNVXubSgtisSVpSwDTo8OGzdnKTFoPXnAFvK\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Judge 1\",\n    email: \"judge1@febtest2.com\",\n    password: \"$2b$10$3W6llHaVu1KvjSsWjQNVXubSgtisSVpSwDTo8OGzdnKTFoPXnAFvK\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Judge 1"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Judge 1\",\n    email: \"judge1@febtest2.com\",\n    password: \"$2b$10$3W6llHaVu1KvjSsWjQNVXubSgtisSVpSwDTo8OGzdnKTFoPXnAFvK\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189237088_gcj0i9mdi",
+    "timestamp": "2026-02-15T21:00:37.088Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Judge 2\",\n    email: \"judge2@febtest2.com\",\n    password: \"$2b$10$UUylbzocfK9HyfmpiDWnOeyV2D77W8As2Xb.cfyd14DWrtofIOKBi\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Judge 2\",\n    email: \"judge2@febtest2.com\",\n    password: \"$2b$10$UUylbzocfK9HyfmpiDWnOeyV2D77W8As2Xb.cfyd14DWrtofIOKBi\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Judge 2"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Judge 2\",\n    email: \"judge2@febtest2.com\",\n    password: \"$2b$10$UUylbzocfK9HyfmpiDWnOeyV2D77W8As2Xb.cfyd14DWrtofIOKBi\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189240236_cm8wc9910",
+    "timestamp": "2026-02-15T21:00:40.236Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Tally 1\",\n    email: \"tally1@febtest2.com\",\n    password: \"$2b$10$5k.oo6AUFsLmCIIjutboTetZqZfbXi0a7O7Q1Y88wFqmJQ99o/MVS\",\n    preferredName: \"\",\n    role: \"TALLY_MASTER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Tally 1\",\n    email: \"tally1@febtest2.com\",\n    password: \"$2b$10$5k.oo6AUFsLmCIIjutboTetZqZfbXi0a7O7Q1Y88wFqmJQ99o/MVS\",\n    preferredName: \"\",\n    role: \"TALLY_MASTER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Tally 1"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Tally 1\",\n    email: \"tally1@febtest2.com\",\n    password: \"$2b$10$5k.oo6AUFsLmCIIjutboTetZqZfbXi0a7O7Q1Y88wFqmJQ99o/MVS\",\n    preferredName: \"\",\n    role: \"TALLY_MASTER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189243389_rulzavc1n",
+    "timestamp": "2026-02-15T21:00:43.389Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Auditor 1\",\n    email: \"auditor1@febtest2.com\",\n    password: \"$2b$10$r18iRGDBCUhkuWI.Rio6quxmgdb3XhRSt.WWRvRtO.JwWXkMvqLEy\",\n    preferredName: \"\",\n    role: \"AUDITOR\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Auditor 1\",\n    email: \"auditor1@febtest2.com\",\n    password: \"$2b$10$r18iRGDBCUhkuWI.Rio6quxmgdb3XhRSt.WWRvRtO.JwWXkMvqLEy\",\n    preferredName: \"\",\n    role: \"AUDITOR\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Auditor 1"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Auditor 1\",\n    email: \"auditor1@febtest2.com\",\n    password: \"$2b$10$r18iRGDBCUhkuWI.Rio6quxmgdb3XhRSt.WWRvRtO.JwWXkMvqLEy\",\n    preferredName: \"\",\n    role: \"AUDITOR\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189246551_e2d4pvikv",
+    "timestamp": "2026-02-15T21:00:46.551Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Board 1\",\n    email: \"board1@febtest2.com\",\n    password: \"$2b$10$hh2cISviQaCvsk/3U4J81.T3tMqNiX3BYqR1omL3VfqJzqKaNz2fe\",\n    preferredName: \"\",\n    role: \"BOARD\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Board 1\",\n    email: \"board1@febtest2.com\",\n    password: \"$2b$10$hh2cISviQaCvsk/3U4J81.T3tMqNiX3BYqR1omL3VfqJzqKaNz2fe\",\n    preferredName: \"\",\n    role: \"BOARD\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Board 1"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Board 1\",\n    email: \"board1@febtest2.com\",\n    password: \"$2b$10$hh2cISviQaCvsk/3U4J81.T3tMqNiX3BYqR1omL3VfqJzqKaNz2fe\",\n    preferredName: \"\",\n    role: \"BOARD\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189249674_tlq5bqak2",
+    "timestamp": "2026-02-15T21:00:49.674Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Emcee 1\",\n    email: \"emcee1@febtest2.com\",\n    password: \"$2b$10$zkyMSenUPe8p0cOK6IpJ4umXKBSN1GQJYAF8V/I0pJl1XzdIbwMlC\",\n    preferredName: \"\",\n    role: \"EMCEE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Emcee 1\",\n    email: \"emcee1@febtest2.com\",\n    password: \"$2b$10$zkyMSenUPe8p0cOK6IpJ4umXKBSN1GQJYAF8V/I0pJl1XzdIbwMlC\",\n    preferredName: \"\",\n    role: \"EMCEE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Emcee 1"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Emcee 1\",\n    email: \"emcee1@febtest2.com\",\n    password: \"$2b$10$zkyMSenUPe8p0cOK6IpJ4umXKBSN1GQJYAF8V/I0pJl1XzdIbwMlC\",\n    preferredName: \"\",\n    role: \"EMCEE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189252827_vw224a1nc",
+    "timestamp": "2026-02-15T21:00:52.827Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 11\",\n    email: \"contestant11@febtest2.com\",\n    password: \"$2b$10$702RbtUdNsbCgZEgfZprYOZVw/nrOCqEMepmphwT9BD.n335Vxj9u\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 11\",\n    email: \"contestant11@febtest2.com\",\n    password: \"$2b$10$702RbtUdNsbCgZEgfZprYOZVw/nrOCqEMepmphwT9BD.n335Vxj9u\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Contestant 11"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 11\",\n    email: \"contestant11@febtest2.com\",\n    password: \"$2b$10$702RbtUdNsbCgZEgfZprYOZVw/nrOCqEMepmphwT9BD.n335Vxj9u\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189255973_p63thqkvk",
+    "timestamp": "2026-02-15T21:00:55.974Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 12\",\n    email: \"contestant12@febtest2.com\",\n    password: \"$2b$10$3Dwyp3dHo2V7xDHpD/qW7.f8FfwVwgaCW3MIpCacKr/VAAevIew/y\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 12\",\n    email: \"contestant12@febtest2.com\",\n    password: \"$2b$10$3Dwyp3dHo2V7xDHpD/qW7.f8FfwVwgaCW3MIpCacKr/VAAevIew/y\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Contestant 12"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 12\",\n    email: \"contestant12@febtest2.com\",\n    password: \"$2b$10$3Dwyp3dHo2V7xDHpD/qW7.f8FfwVwgaCW3MIpCacKr/VAAevIew/y\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189259143_apwf523zq",
+    "timestamp": "2026-02-15T21:00:59.143Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 13\",\n    email: \"contestant13@febtest2.com\",\n    password: \"$2b$10$Cfo4cJHkipMkfNg8f0GmNOlp6wGH/CdV07hLKhncrXOferoG.gnIO\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 13\",\n    email: \"contestant13@febtest2.com\",\n    password: \"$2b$10$Cfo4cJHkipMkfNg8f0GmNOlp6wGH/CdV07hLKhncrXOferoG.gnIO\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Feb2 Contestant 13"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Feb2 Contestant 13\",\n    email: \"contestant13@febtest2.com\",\n    password: \"$2b$10$Cfo4cJHkipMkfNg8f0GmNOlp6wGH/CdV07hLKhncrXOferoG.gnIO\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189262083_sytxhj8sy",
+    "timestamp": "2026-02-15T21:01:02.083Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Feb15 Empty Event\",\n    description: \"UAT empty tenant event bootstrap\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"UAT Location\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Feb15 Empty Event\",\n    description: \"UAT empty tenant event bootstrap\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"UAT Location\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async EventService.createEvent (/var/www/event-manager/dist/services/EventService.js:61:27)\n    at async createEvent (/var/www/event-manager/dist/controllers/eventsController.js:176:27)",
+    "context": {
+      "operation": "createEvent",
+      "data": {
+        "name": "UAT Feb15 Empty Event",
+        "description": "UAT empty tenant event bootstrap",
+        "startDate": "2026-02-15T00:00:00.000Z",
+        "endDate": "2026-02-22T00:00:00.000Z",
+        "location": "UAT Location",
+        "contestantViewRestricted": false,
+        "contestantViewReleaseDate": null
+      }
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Feb15 Empty Event\",\n    description: \"UAT empty tenant event bootstrap\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"UAT Location\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing."
+    }
+  },
+  {
+    "id": "err_1771189351538_qopt0kftk",
+    "timestamp": "2026-02-15T21:02:31.538Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Organizer 15Feb26\",\n    email: \"organizer_15feb26@febtest2.com\",\n    password: \"$2b$10$5mXeidKcJl1ITTG1bRCys.dEZhC2APrzvEzXNwQThruC0GueiDh6i\",\n    preferredName: \"\",\n    role: \"ORGANIZER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Organizer 15Feb26\",\n    email: \"organizer_15feb26@febtest2.com\",\n    password: \"$2b$10$5mXeidKcJl1ITTG1bRCys.dEZhC2APrzvEzXNwQThruC0GueiDh6i\",\n    preferredName: \"\",\n    role: \"ORGANIZER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Organizer 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Organizer 15Feb26\",\n    email: \"organizer_15feb26@febtest2.com\",\n    password: \"$2b$10$5mXeidKcJl1ITTG1bRCys.dEZhC2APrzvEzXNwQThruC0GueiDh6i\",\n    preferredName: \"\",\n    role: \"ORGANIZER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189354081_uifs2sf2u",
+    "timestamp": "2026-02-15T21:02:34.081Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Judge Assigned 15Feb26\",\n    email: \"judge_assigned_15feb26@febtest2.com\",\n    password: \"$2b$10$OARFmpTJlNYHK/83GBQbae2RhShZkOkHOGvEbgh0IgmYUmqSfTFqe\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Judge Assigned 15Feb26\",\n    email: \"judge_assigned_15feb26@febtest2.com\",\n    password: \"$2b$10$OARFmpTJlNYHK/83GBQbae2RhShZkOkHOGvEbgh0IgmYUmqSfTFqe\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Judge Assigned 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Judge Assigned 15Feb26\",\n    email: \"judge_assigned_15feb26@febtest2.com\",\n    password: \"$2b$10$OARFmpTJlNYHK/83GBQbae2RhShZkOkHOGvEbgh0IgmYUmqSfTFqe\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189356628_ggeb13tfn",
+    "timestamp": "2026-02-15T21:02:36.628Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Judge Unassigned 15Feb26\",\n    email: \"judge_unassigned_15feb26@febtest2.com\",\n    password: \"$2b$10$AeA0ZQbVNN2zZxNu9r013u5HVWmOl9DaipnZ1SFNPw55dO3W7qscS\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Judge Unassigned 15Feb26\",\n    email: \"judge_unassigned_15feb26@febtest2.com\",\n    password: \"$2b$10$AeA0ZQbVNN2zZxNu9r013u5HVWmOl9DaipnZ1SFNPw55dO3W7qscS\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Judge Unassigned 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Judge Unassigned 15Feb26\",\n    email: \"judge_unassigned_15feb26@febtest2.com\",\n    password: \"$2b$10$AeA0ZQbVNN2zZxNu9r013u5HVWmOl9DaipnZ1SFNPw55dO3W7qscS\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189359178_n7nwr8jrb",
+    "timestamp": "2026-02-15T21:02:39.178Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Tally 15Feb26\",\n    email: \"tally_15feb26@febtest2.com\",\n    password: \"$2b$10$3.NnHtEg9PdlMKAqDlCHmukJpag.o2dbHTOjqc2xnEWbTOfVNazYC\",\n    preferredName: \"\",\n    role: \"TALLY_MASTER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Tally 15Feb26\",\n    email: \"tally_15feb26@febtest2.com\",\n    password: \"$2b$10$3.NnHtEg9PdlMKAqDlCHmukJpag.o2dbHTOjqc2xnEWbTOfVNazYC\",\n    preferredName: \"\",\n    role: \"TALLY_MASTER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Tally 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Tally 15Feb26\",\n    email: \"tally_15feb26@febtest2.com\",\n    password: \"$2b$10$3.NnHtEg9PdlMKAqDlCHmukJpag.o2dbHTOjqc2xnEWbTOfVNazYC\",\n    preferredName: \"\",\n    role: \"TALLY_MASTER\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189361753_hf1pipatp",
+    "timestamp": "2026-02-15T21:02:41.753Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Auditor 15Feb26\",\n    email: \"auditor_15feb26@febtest2.com\",\n    password: \"$2b$10$BFggnqRh/jB54UzPmx/MbObWibcuMxLxeS6e.Sn5VhCCidXZTBGkO\",\n    preferredName: \"\",\n    role: \"AUDITOR\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Auditor 15Feb26\",\n    email: \"auditor_15feb26@febtest2.com\",\n    password: \"$2b$10$BFggnqRh/jB54UzPmx/MbObWibcuMxLxeS6e.Sn5VhCCidXZTBGkO\",\n    preferredName: \"\",\n    role: \"AUDITOR\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Auditor 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Auditor 15Feb26\",\n    email: \"auditor_15feb26@febtest2.com\",\n    password: \"$2b$10$BFggnqRh/jB54UzPmx/MbObWibcuMxLxeS6e.Sn5VhCCidXZTBGkO\",\n    preferredName: \"\",\n    role: \"AUDITOR\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189364246_4s6vh0h8q",
+    "timestamp": "2026-02-15T21:02:44.247Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Board 15Feb26\",\n    email: \"board_15feb26@febtest2.com\",\n    password: \"$2b$10$bp8UZL3JNFOev4uffP7vkezNlL0DwJV69my7mUgAOOjEIgZlaLxQq\",\n    preferredName: \"\",\n    role: \"BOARD\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Board 15Feb26\",\n    email: \"board_15feb26@febtest2.com\",\n    password: \"$2b$10$bp8UZL3JNFOev4uffP7vkezNlL0DwJV69my7mUgAOOjEIgZlaLxQq\",\n    preferredName: \"\",\n    role: \"BOARD\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Board 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Board 15Feb26\",\n    email: \"board_15feb26@febtest2.com\",\n    password: \"$2b$10$bp8UZL3JNFOev4uffP7vkezNlL0DwJV69my7mUgAOOjEIgZlaLxQq\",\n    preferredName: \"\",\n    role: \"BOARD\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189366784_wf1zai3ld",
+    "timestamp": "2026-02-15T21:02:46.784Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Emcee 15Feb26\",\n    email: \"emcee_15feb26@febtest2.com\",\n    password: \"$2b$10$RGzmUVr5WKal8cFaL9Ohnulo6BVV2CWj235/Eg7HfCJ94Zdgy0TO6\",\n    preferredName: \"\",\n    role: \"EMCEE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Emcee 15Feb26\",\n    email: \"emcee_15feb26@febtest2.com\",\n    password: \"$2b$10$RGzmUVr5WKal8cFaL9Ohnulo6BVV2CWj235/Eg7HfCJ94Zdgy0TO6\",\n    preferredName: \"\",\n    role: \"EMCEE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Emcee 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Emcee 15Feb26\",\n    email: \"emcee_15feb26@febtest2.com\",\n    password: \"$2b$10$RGzmUVr5WKal8cFaL9Ohnulo6BVV2CWj235/Eg7HfCJ94Zdgy0TO6\",\n    preferredName: \"\",\n    role: \"EMCEE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189369448_hain6ttuy",
+    "timestamp": "2026-02-15T21:02:49.448Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant VD 15Feb26\",\n    email: \"contestant_vd_15feb26@febtest2.com\",\n    password: \"$2b$10$blpA/geBuRTlAdNdhf1cHO070xOXZdV32tk6ayYMp5mP24B1lRwUi\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant VD 15Feb26\",\n    email: \"contestant_vd_15feb26@febtest2.com\",\n    password: \"$2b$10$blpA/geBuRTlAdNdhf1cHO070xOXZdV32tk6ayYMp5mP24B1lRwUi\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Contestant VD 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant VD 15Feb26\",\n    email: \"contestant_vd_15feb26@febtest2.com\",\n    password: \"$2b$10$blpA/geBuRTlAdNdhf1cHO070xOXZdV32tk6ayYMp5mP24B1lRwUi\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189372004_w7ppeud18",
+    "timestamp": "2026-02-15T21:02:52.004Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant VE 15Feb26\",\n    email: \"contestant_ve_15feb26@febtest2.com\",\n    password: \"$2b$10$/HTde85115SA4/KIw3eQiuBQaXCaGOrCTPTxM./kahsySIphE5yBa\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant VE 15Feb26\",\n    email: \"contestant_ve_15feb26@febtest2.com\",\n    password: \"$2b$10$/HTde85115SA4/KIw3eQiuBQaXCaGOrCTPTxM./kahsySIphE5yBa\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Contestant VE 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant VE 15Feb26\",\n    email: \"contestant_ve_15feb26@febtest2.com\",\n    password: \"$2b$10$/HTde85115SA4/KIw3eQiuBQaXCaGOrCTPTxM./kahsySIphE5yBa\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189374537_qwp9do48f",
+    "timestamp": "2026-02-15T21:02:54.537Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant 3 15Feb26\",\n    email: \"contestant3_15feb26@febtest2.com\",\n    password: \"$2b$10$i6f/5ltJCFPWqouZbXPzi.u7mMKpQugKYeTcmjGl8d9GgVgTUMfQ2\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant 3 15Feb26\",\n    email: \"contestant3_15feb26@febtest2.com\",\n    password: \"$2b$10$i6f/5ltJCFPWqouZbXPzi.u7mMKpQugKYeTcmjGl8d9GgVgTUMfQ2\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "UAT Contestant 3 15Feb26"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"UAT Contestant 3 15Feb26\",\n    email: \"contestant3_15feb26@febtest2.com\",\n    password: \"$2b$10$i6f/5ltJCFPWqouZbXPzi.u7mMKpQugKYeTcmjGl8d9GgVgTUMfQ2\",\n    preferredName: \"\",\n    role: \"CONTESTANT\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189378034_tokaeb5tv",
+    "timestamp": "2026-02-15T21:02:58.034Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"UAT 15Feb26 Event\",\n    description: \"UAT bootstrap event\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"UAT Virtual\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"UAT 15Feb26 Event\",\n    description: \"UAT bootstrap event\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"UAT Virtual\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async EventService.createEvent (/var/www/event-manager/dist/services/EventService.js:61:27)\n    at async createEvent (/var/www/event-manager/dist/controllers/eventsController.js:176:27)",
+    "context": {
+      "operation": "createEvent",
+      "data": {
+        "name": "UAT 15Feb26 Event",
+        "description": "UAT bootstrap event",
+        "startDate": "2026-02-15T00:00:00.000Z",
+        "endDate": "2026-02-22T00:00:00.000Z",
+        "location": "UAT Virtual",
+        "contestantViewRestricted": false,
+        "contestantViewReleaseDate": null
+      }
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"UAT 15Feb26 Event\",\n    description: \"UAT bootstrap event\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"UAT Virtual\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing."
+    }
+  },
+  {
+    "id": "err_1771189506556_mpox1mr4o",
+    "timestamp": "2026-02-15T21:05:06.556Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Probe User\",\n    email: \"probe_user_1771189505238@febtest2.com\",\n    password: \"$2b$10$z7OcKfUrEfE.WSu9i.uYwuU.CzhkSsJC0qbonxn2rKhb17.7OQ6Xq\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Probe User\",\n    email: \"probe_user_1771189505238@febtest2.com\",\n    password: \"$2b$10$z7OcKfUrEfE.WSu9i.uYwuU.CzhkSsJC0qbonxn2rKhb17.7OQ6Xq\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async UserService.createUser (/var/www/event-manager/dist/services/UserService.js:223:26)\n    at async createUser (/var/www/event-manager/dist/controllers/usersController.js:160:26)",
+    "context": {
+      "method": "createUser",
+      "name": "Probe User"
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.user.create()` invocation:\n\n{\n  data: {\n    name: \"Probe User\",\n    email: \"probe_user_1771189505238@febtest2.com\",\n    password: \"$2b$10$z7OcKfUrEfE.WSu9i.uYwuU.CzhkSsJC0qbonxn2rKhb17.7OQ6Xq\",\n    preferredName: \"\",\n    role: \"JUDGE\",\n    isActive: true,\n    gender: \"\",\n    pronouns: \"\",\n    phone: \"\",\n    address: undefined,\n    bio: \"\",\n+   tenant: {\n+     create: TenantCreateWithoutUsersInput | TenantUncheckedCreateWithoutUsersInput,\n+     connectOrCreate: TenantCreateOrConnectWithoutUsersInput,\n+     connect: TenantWhereUniqueInput\n+   }\n  }\n}\n\nArgument `tenant` is missing."
+    }
+  },
+  {
+    "id": "err_1771189509545_28j8b8ri0",
+    "timestamp": "2026-02-15T21:05:09.545Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"Probe Event 1771189509464\",\n    description: \"probe event\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"online\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"Probe Event 1771189509464\",\n    description: \"probe event\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"online\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async EventService.createEvent (/var/www/event-manager/dist/services/EventService.js:61:27)\n    at async createEvent (/var/www/event-manager/dist/controllers/eventsController.js:176:27)",
+    "context": {
+      "operation": "createEvent",
+      "data": {
+        "name": "Probe Event 1771189509464",
+        "description": "probe event",
+        "startDate": "2026-02-15T00:00:00.000Z",
+        "endDate": "2026-02-22T00:00:00.000Z",
+        "location": "online",
+        "contestantViewRestricted": false,
+        "contestantViewReleaseDate": null
+      }
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"Probe Event 1771189509464\",\n    description: \"probe event\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-22T00:00:00.000Z\"),\n    location: \"online\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing."
+    }
+  },
+  {
+    "id": "err_1771189968694_c30gd3gvk",
+    "timestamp": "2026-02-15T21:12:48.694Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"febtest2 event\",\n    description: \"\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-18T00:00:00.000Z\"),\n    location: \"\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"febtest2 event\",\n    description: \"\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-18T00:00:00.000Z\"),\n    location: \"\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async EventService.createEvent (/var/www/event-manager/dist/services/EventService.js:61:27)\n    at async createEvent (/var/www/event-manager/dist/controllers/eventsController.js:176:27)",
+    "context": {
+      "operation": "createEvent",
+      "data": {
+        "name": "febtest2 event",
+        "description": "",
+        "startDate": "2026-02-15T00:00:00.000Z",
+        "endDate": "2026-02-18T00:00:00.000Z",
+        "location": "",
+        "contestantViewRestricted": false,
+        "contestantViewReleaseDate": null
+      }
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.event.create()` invocation:\n\n{\n  data: {\n    name: \"febtest2 event\",\n    description: \"\",\n    startDate: new Date(\"2026-02-15T00:00:00.000Z\"),\n    endDate: new Date(\"2026-02-18T00:00:00.000Z\"),\n    location: \"\",\n    contestantViewRestricted: false,\n    contestantViewReleaseDate: null,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing."
+    }
+  },
+  {
+    "id": "err_1771192515550_u5jodoom5",
+    "timestamp": "2026-02-15T21:55:15.550Z",
+    "severity": "high",
+    "message": "\nInvalid `prisma.contest.create()` invocation:\n\n{\n  data: {\n    eventId: \"cmlo979zm000lkqjqoc8c23w7\",\n    name: \"UAT Contest 1771192515\",\n    description: \"route-params create test\",\n    contestantNumberingMode: undefined,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.",
+    "stack": "PrismaClientValidationError: \nInvalid `prisma.contest.create()` invocation:\n\n{\n  data: {\n    eventId: \"cmlo979zm000lkqjqoc8c23w7\",\n    name: \"UAT Contest 1771192515\",\n    description: \"route-params create test\",\n    contestantNumberingMode: undefined,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing.\n    at wn (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:29:1363)\n    at $n.handleRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6958)\n    at $n.handleAndLogRequestError (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/var/www/event-manager/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async /var/www/event-manager/dist/middleware/queryMonitoring.js:14:28\n    at async ContestService.createContest (/var/www/event-manager/dist/services/ContestService.js:50:29)\n    at async createContest (/var/www/event-manager/dist/controllers/contestsController.js:127:29)",
+    "context": {
+      "operation": "createContest",
+      "data": {
+        "eventId": "cmlo979zm000lkqjqoc8c23w7",
+        "name": "UAT Contest 1771192515",
+        "description": "route-params create test"
+      }
+    },
+    "error": {
+      "name": "PrismaClientValidationError",
+      "message": "\nInvalid `prisma.contest.create()` invocation:\n\n{\n  data: {\n    eventId: \"cmlo979zm000lkqjqoc8c23w7\",\n    name: \"UAT Contest 1771192515\",\n    description: \"route-params create test\",\n    contestantNumberingMode: undefined,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing."
+    }
   }
 ]

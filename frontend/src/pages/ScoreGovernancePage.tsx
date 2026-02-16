@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
-import { categoriesAPI, contestsAPI, scoreGovernanceAPI } from '../services/api'
+import { useLocation } from 'react-router-dom'
+import { assignmentsAPI, categoriesAPI, contestsAPI, scoreGovernanceAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Button, Card, PageHeader } from '../components/ui'
 
@@ -11,6 +12,7 @@ type CertificationLevel = 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'
 
 const ScoreGovernancePage: React.FC = () => {
   const { user } = useAuth()
+  const location = useLocation()
   const queryClient = useQueryClient()
 
   const [contestId, setContestId] = useState('')
@@ -18,7 +20,7 @@ const ScoreGovernancePage: React.FC = () => {
   const [contestantId, setContestantId] = useState('')
 
   const [actionType, setActionType] = useState<GovernanceAction>('THROW_OUT')
-  const [scopeType, setScopeType] = useState<GovernanceScope>('CATEGORY_JUDGE')
+  const [scopeType, setScopeType] = useState<GovernanceScope>('CONTEST_JUDGE')
   const [targetCertificationLevel, setTargetCertificationLevel] = useState<CertificationLevel>('JUDGE')
   const [judgeId, setJudgeId] = useState('')
   const [scoreId, setScoreId] = useState('')
@@ -57,6 +59,13 @@ const ScoreGovernancePage: React.FC = () => {
     return Array.isArray(rows) ? rows : []
   })
 
+  const { data: judgeUsers = [] } = useQuery('governance-judge-users', async () => {
+    const response = await assignmentsAPI.getJudges()
+    const payload = response.data?.data || response.data
+    const rows = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : [])
+    return rows
+  })
+
   const { data: requests = [] } = useQuery(['governance-requests', contestId, categoryId, contestantId], async () => {
     const response = await scoreGovernanceAPI.getRequests({
       contestId: contestId || undefined,
@@ -84,9 +93,40 @@ const ScoreGovernancePage: React.FC = () => {
   useEffect(() => {
     if (isJudge) {
       setActionType('UNCERTIFY')
-      setScopeType('SCORE')
+      setScopeType('CONTESTANT_CATEGORY')
     }
   }, [isJudge])
+
+  useEffect(() => {
+    if (!reason.trim()) {
+      if (actionType === 'THROW_OUT') {
+        setReason('Requesting throw-out due to scoring irregularity.')
+      } else {
+        setReason('Requesting un-certification for review.')
+      }
+    }
+  }, [actionType, reason])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const queryAction = (params.get('action') || '').toUpperCase()
+    const queryScope = (params.get('scope') || '').toUpperCase()
+    const queryContestId = params.get('contestId') || ''
+    const queryCategoryId = params.get('categoryId') || ''
+    const queryContestantId = params.get('contestantId') || ''
+    const queryScoreId = params.get('scoreId') || ''
+
+    if (queryAction === 'THROW_OUT' || queryAction === 'UNCERTIFY') {
+      setActionType(queryAction)
+    }
+    if (queryScope && ['CATEGORY_JUDGE', 'CONTEST_JUDGE', 'SCORE', 'CONTESTANT_CATEGORY', 'CATEGORY_LEVEL'].includes(queryScope)) {
+      setScopeType(queryScope as GovernanceScope)
+    }
+    if (queryContestId) setContestId(queryContestId)
+    if (queryCategoryId) setCategoryId(queryCategoryId)
+    if (queryContestantId) setContestantId(queryContestantId)
+    if (queryScoreId) setScoreId(queryScoreId)
+  }, [location.search])
 
   const contestants = useMemo(() => {
     const map = new Map<string, { id: string; name: string; contestantNumber?: number | null }>()
@@ -101,8 +141,35 @@ const ScoreGovernancePage: React.FC = () => {
     reviewRows.forEach((row: any) => {
       if (row.judge?.id) map.set(row.judge.id, row.judge)
     })
+    judgeUsers.forEach((judge: any) => {
+      if (judge.id) {
+        map.set(judge.id, {
+          id: judge.id,
+          name: judge.name || judge.email || 'Judge',
+          email: judge.email || undefined
+        })
+      }
+    })
     return Array.from(map.values())
-  }, [reviewRows])
+  }, [reviewRows, judgeUsers])
+
+  useEffect(() => {
+    if (!typedSignature.trim() && user) {
+      setTypedSignature(user.name || user.email || '')
+    }
+  }, [typedSignature, user])
+
+  useEffect(() => {
+    if (scopeType === 'CATEGORY_JUDGE' && !categoryId && categories.length > 0) {
+      setCategoryId(categories[0].id)
+    }
+    if (scopeType === 'CONTEST_JUDGE' && !contestId && contests.length > 0) {
+      setContestId(contests[0].id)
+    }
+    if ((scopeType === 'CATEGORY_JUDGE' || scopeType === 'CONTEST_JUDGE') && !judgeId && judges.length > 0) {
+      setJudgeId(judges[0].id)
+    }
+  }, [scopeType, categoryId, contestId, judgeId, categories, contests, judges])
 
   const createMutation = useMutation((payload: any) => scoreGovernanceAPI.createRequest(payload), {
     onSuccess: async () => {
@@ -281,10 +348,10 @@ const ScoreGovernancePage: React.FC = () => {
           </Card>
         )}
 
-        <Card className="rounded-lg p-4 space-y-3">
+        <Card className="rounded-lg p-4 space-y-3" data-testid="create-governance-request">
           <h2 className="font-semibold text-gray-900 dark:text-white">Create Governance Request</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select value={actionType} onChange={(e) => setActionType(e.target.value as GovernanceAction)} disabled={isJudge} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60">
+            <select data-testid="governance-action-type" value={actionType} onChange={(e) => setActionType(e.target.value as GovernanceAction)} disabled={isJudge} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60">
               {isJudge ? (
                 <option value="UNCERTIFY">Un-certify</option>
               ) : (
@@ -294,9 +361,9 @@ const ScoreGovernancePage: React.FC = () => {
                 </>
               )}
             </select>
-            <select value={scopeType} onChange={(e) => setScopeType(e.target.value as GovernanceScope)} disabled={isJudge} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60">
+            <select data-testid="governance-scope-type" value={scopeType} onChange={(e) => setScopeType(e.target.value as GovernanceScope)} disabled={isJudge} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60">
               {isJudge ? (
-                <option value="SCORE">Single Score</option>
+                <option value="CONTESTANT_CATEGORY">Contestant + Category</option>
               ) : actionType === 'THROW_OUT' ? (
                 <>
                   <option value="CATEGORY_JUDGE">Judge + Category</option>
@@ -321,7 +388,7 @@ const ScoreGovernancePage: React.FC = () => {
           </div>
 
           {(scopeType === 'CATEGORY_JUDGE' || scopeType === 'CONTEST_JUDGE') && (
-            <select value={judgeId} onChange={(e) => setJudgeId(e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <select data-testid="governance-judge-select" value={judgeId} onChange={(e) => setJudgeId(e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
               <option value="">Select Judge</option>
               {judges.map((judge) => <option key={judge.id} value={judge.id}>{judge.name}</option>)}
             </select>
@@ -353,7 +420,7 @@ const ScoreGovernancePage: React.FC = () => {
             <Button type="button" onClick={clearDrawing} variant="secondary" size="sm" className="mt-2">Clear Drawn Signature</Button>
           </div>
 
-          <Button onClick={submitRequest}>Submit Request</Button>
+          <Button onClick={submitRequest} data-testid="create-governance-request-button">Create Request</Button>
         </Card>
 
         <Card className="rounded-lg p-0 overflow-x-auto">
@@ -418,7 +485,7 @@ const ScoreGovernancePage: React.FC = () => {
                             }}
                             className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
                           >
-                            Certify
+                            Approve
                           </button>
                           <button
                             onClick={() => {

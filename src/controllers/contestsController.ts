@@ -169,9 +169,14 @@ export class ContestsController {
       if (!eventId) {
         return sendError(res, 'Event ID is required', 400);
       }
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required to create a contest', 400);
+      }
       const { name, description, contestantNumberingMode } = req.body;
 
       const contest = await this.contestService.createContest({
+        tenantId,
         eventId,
         name,
         description,

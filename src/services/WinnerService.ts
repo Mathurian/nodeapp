@@ -270,7 +270,7 @@ export class WinnerService extends BaseService {
     for (const deduction of deductions) {
       if (contestantTotals.has(deduction.contestantId)) {
         const contestantData = contestantTotals.get(deduction.contestantId)!;
-        contestantData.totalScore -= deduction.deduction;
+        contestantData.totalScore -= Math.abs(Number(deduction.deduction || 0));
       }
     }
 
@@ -417,8 +417,9 @@ export class WinnerService extends BaseService {
     const contestantTotals = new Map<string, ContestWinner>();
 
     for (const categoryData of categoryWinners) {
-      if (!categoryData.canShowWinners && _userRole !== 'ADMIN' && _userRole !== 'BOARD') {
-        continue; // Skip uncertified categories for non-admins
+      const canViewPublished = Boolean(contest.winnersPublished) && this.canViewPublishedWinners(_userRole);
+      if (!categoryData.canShowWinners && _userRole !== 'ADMIN' && _userRole !== 'BOARD' && !canViewPublished) {
+        continue; // Skip uncertified categories for non-privileged users before publish
       }
 
       for (const contestantData of categoryData.contestants || []) {
@@ -451,6 +452,10 @@ export class WinnerService extends BaseService {
       contestants: overallWinners,
       message: 'Contest winners calculated successfully',
     };
+  }
+
+  private canViewPublishedWinners(role: string): boolean {
+    return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'].includes(role);
   }
 
   /**

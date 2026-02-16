@@ -188,15 +188,18 @@ const ReportsPage: React.FC = () => {
       const response = await reportsAPI.getById(id)
       const payload = response.data?.data || response.data || null
       setViewingReport(payload)
-      const reportFormat = String(payload?.format || '').toLowerCase()
-      if (reportFormat.includes('pdf')) {
+      try {
+        // Prefer a rendered preview (PDF) even when stored format metadata is missing/inaccurate.
         const blobResponse = await reportsAPI.exportPdf(id)
         const url = URL.createObjectURL(new Blob([blobResponse.data], { type: 'application/pdf' }))
         setPreviewUrl(url)
-      } else if (reportFormat.includes('csv')) {
-        const blobResponse = await reportsAPI.exportCsv(id)
-        const text = await new Blob([blobResponse.data], { type: 'text/csv' }).text()
-        setPreviewText(text)
+      } catch {
+        const reportFormat = String(payload?.format || '').toLowerCase()
+        if (reportFormat.includes('csv') || reportFormat.includes('excel')) {
+          const blobResponse = await reportsAPI.exportCsv(id)
+          const text = await new Blob([blobResponse.data], { type: 'text/csv' }).text()
+          setPreviewText(text)
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load report preview')
@@ -455,12 +458,11 @@ const ReportsPage: React.FC = () => {
                       </dl>
                     </div>
                   )}
-                  <details className="text-xs">
-                    <summary className="cursor-pointer text-gray-600 dark:text-gray-400">Show raw data</summary>
-                    <pre className="mt-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 overflow-x-auto whitespace-pre-wrap">
-                      {JSON.stringify(viewingReport.data ?? {}, null, 2)}
-                    </pre>
-                  </details>
+                  {!previewUrl && !previewText && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Rendered file preview is not available for this report type. Use PDF/Excel/CSV export buttons for full output.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

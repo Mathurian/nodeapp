@@ -227,7 +227,7 @@ const getNavigationItems = (userRole: string): any[] => {
       {
         id: 'scripts',
         label: 'Scripts',
-        path: '/scripts',
+        path: '/emcee',
         icon: 'DocumentTextIcon',
         roles: ['EMCEE', 'ORGANIZER', 'BOARD']
       },

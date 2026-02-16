@@ -33,10 +33,11 @@ interface ContestStats {
 }
 
 interface CreateContestDto {
+  tenantId?: string;
   eventId: string;
   name: string;
   description?: string;
-  contestantNumberingMode?: 'MANUAL' | 'AUTO';
+  contestantNumberingMode?: 'MANUAL' | 'AUTO_INDEXED' | 'OPTIONAL';
 }
 
 interface UpdateContestDto extends Partial<CreateContestDto> {}
@@ -91,9 +92,15 @@ export class ContestService extends BaseService {
     try {
       // Validate required fields
       this.validateRequired(data as unknown as Record<string, unknown>, ['eventId', 'name']);
+      if (!data.tenantId) {
+        throw new ValidationError('Tenant context is required to create a contest');
+      }
 
       // Create contest
-      const contest = await this.contestRepo.create(data as any);
+      const contest = await this.contestRepo.create({
+        ...data,
+        tenantId: data.tenantId
+      } as any);
 
       // Invalidate caches
       await this.invalidateContestCache(undefined, data.eventId);

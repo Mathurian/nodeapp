@@ -193,10 +193,16 @@ export class UsersController {
         return;
       }
 
-      // Check if email already exists
       const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || authReq.user?.tenantId;
+      if (!tenantId) {
+        errorResponse(res, 'Tenant context is required to create users', ErrorCode.VALIDATION_ERROR, 400);
+        return;
+      }
+
+      // Check if email already exists
       const existingUser = await this.prisma.user.findUnique({
-        where: { tenantId_email: { tenantId: authReq.tenantId!, email: data.email  } }
+        where: { tenantId_email: { tenantId, email: data.email } }
       });
 
       if (existingUser) {
@@ -207,6 +213,7 @@ export class UsersController {
 
       // Create user with role-specific data
       const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
+        tenantId,
         name: data.name,
         email: data.email,
         password: data.password,
@@ -238,13 +245,12 @@ export class UsersController {
       try {
         if (data.role === 'JUDGE') {
           log.debug('Creating judge record', { userId: user.id });
-          const authReq = req as AuthenticatedRequest;
 
           // Use transaction for judge creation and user linkage
           await this.prisma.$transaction(async (tx) => {
             const judge = await tx.judge.create({
               data: {
-                tenantId: authReq.tenantId!,
+                tenantId,
                 name: data.name,
                 email: data.email,
                 gender: data.gender || null,
@@ -262,13 +268,12 @@ export class UsersController {
           log.info('Judge record created and linked', { userId: user.id });
         } else if (data.role === 'CONTESTANT') {
           log.debug('Creating contestant record', { userId: user.id });
-          const authReq = req as AuthenticatedRequest;
 
           // Use transaction for contestant creation and user linkage
           await this.prisma.$transaction(async (tx) => {
             const contestant = await tx.contestant.create({
               data: {
-                tenantId: authReq.tenantId!,
+                tenantId,
                 name: data.name,
                 email: data.email,
                 contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
@@ -328,7 +333,13 @@ export class UsersController {
         log.error('Failed to log user creation audit', { error: auditError });
       }
 
-      sendCreated(res, createdUser);
+      if (!createdUser) {
+        errorResponse(res, 'Failed to load created user', ErrorCode.INTERNAL_ERROR, 500);
+        return;
+      }
+
+      const { password: _password, ...safeUser } = createdUser;
+      sendCreated(res, safeUser);
     } catch (error) {
       log.error('Create user error', { error: (error as Error).message, email: req.body['email'] });
       const prismaError = error as Prisma.PrismaClientKnownRequestError;
@@ -1041,10 +1052,15 @@ export class UsersController {
     try {
       const log = createRequestLogger(req, 'users');
       const authReq = req as AuthenticatedRequest;
+      const tenantId = authReq.tenantId || authReq.user?.tenantId;
 
       if (!authReq.file) {
         log.warn('Bulk upload failed: No file provided');
         return sendError(res, 'No file provided', 400);
+      }
+      if (!tenantId) {
+        log.warn('Bulk upload failed: Missing tenant context');
+        return sendError(res, 'Tenant context is required for bulk user upload', 400);
       }
 
       // File size limit check (10MB max to prevent memory issues)
@@ -1196,7 +1212,7 @@ export class UsersController {
 
           // Check if email already exists
           const existingUser = await this.prisma.user.findUnique({
-            where: { tenantId_email: { tenantId: authReq.tenantId!, email: String(userData['email']) } }
+            where: { tenantId_email: { tenantId, email: String(userData['email']) } }
           });
 
           if (existingUser) {
@@ -1207,6 +1223,7 @@ export class UsersController {
 
           // Build user data object with role-specific fields
           const createUserData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
+            tenantId,
             name: userData['name'] as string,
             email: userData['email'] as string,
             password: userData['password'] as string,
@@ -1241,7 +1258,7 @@ export class UsersController {
           if (userData['role'] === 'JUDGE') {
             const judge = await this.prisma.judge.create({
               data: {
-                tenantId: authReq.tenantId!,
+                tenantId,
                 name: String(userData['name']),
                 email: String(userData['email']),
                 gender: userData['gender'] ? String(userData['gender']) : null,
@@ -1258,7 +1275,7 @@ export class UsersController {
           } else if (userData['role'] === 'CONTESTANT') {
             const contestant = await this.prisma.contestant.create({
               data: {
-                tenantId: authReq.tenantId!,
+                tenantId,
                 name: String(userData['name']),
                 email: String(userData['email']),
                 contestantNumber: userData['contestantNumber'] ? parseInt(String(userData['contestantNumber'])) : null,
