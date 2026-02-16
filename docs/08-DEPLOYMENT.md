@@ -476,18 +476,41 @@ log_min_duration_statement = 1000  # Log slow queries (>1s)
 Create `/etc/logrotate.d/event-manager`:
 
 ```
-/var/www/event-manager/logs/*.log {
+/var/www/event-manager/logs/*.log /var/www/event-manager/logs/*/*.log /var/log/backup-*.log /var/log/pitr-backup.log /var/log/recovery-test.log /var/log/event-manager-*.log {
     daily
     rotate 14
+    size 25M
     compress
     delaycompress
     notifempty
-    create 0640 www-data www-data
-    sharedscripts
-    postrotate
-        systemctl reload event-manager > /dev/null 2>&1 || true
-    endscript
+    copytruncate
+    missingok
 }
+```
+
+Apply/test:
+
+```bash
+sudo logrotate -f /etc/logrotate.d/event-manager
+```
+
+### Persistent Journal Caps
+
+Create `/etc/systemd/journald.conf.d/event-manager.conf`:
+
+```ini
+[Journal]
+SystemMaxUse=500M
+SystemKeepFree=2G
+RuntimeMaxUse=200M
+MaxRetentionSec=14day
+```
+
+Apply:
+
+```bash
+sudo systemctl restart systemd-journald
+sudo journalctl --vacuum-size=500M
 ```
 
 ### Prometheus Metrics
@@ -520,6 +543,39 @@ This installs `/etc/cron.d/event-manager-backup` with:
 - Backup verification weekly
 - Backup cleanup daily at 04:00
 - Recovery test monthly
+
+### Backup Rotation Tuning (Where It Is Set)
+
+Primary config:
+- `/var/www/event-manager/config/backup.config.sh`
+
+Production override (recommended):
+- `/etc/event-manager/backup.env`
+- UI runtime override (auto-generated from Super Admin settings):
+- `/var/www/event-manager/config/backup.runtime.env`
+
+Install override template:
+```bash
+sudo mkdir -p /etc/event-manager
+sudo cp /var/www/event-manager/config/backup.env.example /etc/event-manager/backup.env
+sudo chmod 600 /etc/event-manager/backup.env
+```
+
+Key retention controls:
+- `RETENTION_DAYS_FULL_LOCAL`
+- `RETENTION_DAYS_INCREMENTAL_LOCAL`
+- `RETENTION_DAYS_PITR_LOCAL`
+- `MIN_BACKUPS_TO_KEEP_FULL`
+- `MIN_BACKUPS_TO_KEEP_INCREMENTAL`
+- `MIN_BACKUPS_TO_KEEP_PITR`
+
+Precedence order at runtime:
+1. `config/backup.config.sh` defaults
+2. `/etc/event-manager/backup.env` (manual file override)
+3. `/var/www/event-manager/config/backup.runtime.env` (Super Admin UI override)
+
+Super Admin UI path:
+- `Settings -> Backup & Off-site Replication` (switch settings scope to `Global`)
 
 ### External Alerts (Outside Application)
 
@@ -555,6 +611,18 @@ Scoring workflow alerts now support:
 - recipient routing by configured roles/users/emails per tenant
 - event-type toggles (governance create/approve/reject, deductions, certifications)
 - unread-gated escalation (`onlyIfUnviewed` + `escalationMinutes`) using in-app notification read state
+
+### Off-Host Backup Integrations
+
+Backup scripts can replicate archives off-host via `upload_to_remote()` in `config/backup.config.sh`.
+
+Supported types:
+- `REMOTE_BACKUP_TYPE=s3`
+- `REMOTE_BACKUP_TYPE=rsync`
+- `REMOTE_BACKUP_TYPE=sftp`
+- `REMOTE_BACKUP_TYPE=rclone`
+
+`rclone` enables additional providers (Azure Blob, Google Cloud Storage, S3-compatible, Backblaze B2, etc.) through one integration path.
 
 ## Performance Tuning
 

@@ -30,9 +30,11 @@ Description:
     Removes backups older than retention period while keeping minimum backups.
 
     Retention:
-    - Local: ${RETENTION_DAYS_LOCAL} days
+    - Full backups: ${RETENTION_DAYS_FULL_LOCAL} days
+    - Incremental backups: ${RETENTION_DAYS_INCREMENTAL_LOCAL} days
+    - PITR backups: ${RETENTION_DAYS_PITR_LOCAL} days
     - Remote: ${RETENTION_DAYS_REMOTE} days
-    - Minimum to keep: ${MIN_BACKUPS_TO_KEEP}
+    - Minimum to keep (full/incremental/pitr): ${MIN_BACKUPS_TO_KEEP_FULL}/${MIN_BACKUPS_TO_KEEP_INCREMENTAL}/${MIN_BACKUPS_TO_KEEP_PITR}
 
 EOF
     exit 0
@@ -50,6 +52,7 @@ cleanup_directory() {
     local dir="$1"
     local retention_days="$2"
     local pattern="$3"
+    local min_keep="$4"
 
     if [[ ! -d "$dir" ]]; then
         log "WARNING" "Directory not found: $dir"
@@ -65,7 +68,7 @@ cleanup_directory() {
 
     log "INFO" "Total backups found: $total_count"
 
-    if [[ $total_count -le $MIN_BACKUPS_TO_KEEP ]]; then
+    if [[ $total_count -le $min_keep ]]; then
         log "INFO" "Keeping all backups (below minimum threshold)"
         return 0
     fi
@@ -77,7 +80,7 @@ cleanup_directory() {
         local age_days=$(( ($(date +%s) - $(stat -c %Y "$backup")) / 86400 ))
 
         # Always keep minimum number of recent backups
-        if [[ $kept_count -lt $MIN_BACKUPS_TO_KEEP ]]; then
+        if [[ $kept_count -lt $min_keep ]]; then
             log "INFO" "Keeping (recent): $(basename $backup)"
             kept_count=$((kept_count + 1))
             continue
@@ -113,13 +116,13 @@ main() {
     log "INFO" "=========================================="
 
     # Cleanup full backups
-    cleanup_directory "$BACKUP_FULL_DIR" "$RETENTION_DAYS_LOCAL" "full_backup_*.tar.*"
+    cleanup_directory "$BACKUP_FULL_DIR" "$RETENTION_DAYS_FULL_LOCAL" "full_backup_*.tar.*" "$MIN_BACKUPS_TO_KEEP_FULL"
 
     # Cleanup incremental backups
-    cleanup_directory "$BACKUP_INCREMENTAL_DIR" "$RETENTION_DAYS_LOCAL" "incremental_*.tar.*"
+    cleanup_directory "$BACKUP_INCREMENTAL_DIR" "$RETENTION_DAYS_INCREMENTAL_LOCAL" "incremental_*.tar.*" "$MIN_BACKUPS_TO_KEEP_INCREMENTAL"
 
     # Cleanup PITR base backups
-    cleanup_directory "/var/backups/postgresql/base" "$RETENTION_DAYS_LOCAL" "pitr_base_*.tar.*"
+    cleanup_directory "/var/backups/postgresql/base" "$RETENTION_DAYS_PITR_LOCAL" "pitr_base_*.tar.*" "$MIN_BACKUPS_TO_KEEP_PITR"
 
     # Cleanup old logs
     if [[ -d "$LOG_DIR" ]]; then

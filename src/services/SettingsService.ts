@@ -2,6 +2,8 @@ import { injectable, inject } from 'tsyringe';
 import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { BaseService } from './BaseService';
 import nodemailer from 'nodemailer';
+import fs from 'fs/promises';
+import path from 'path';
 import { env } from '../config/env';
 
 // Prisma payload types
@@ -63,11 +65,71 @@ export interface SystemSettingWithSource extends SystemSettingFull {
 const DEFAULT_APP_NAME = 'ConMGR';
 const DEFAULT_APP_DESCRIPTION = 'Manage events, scoring, certifications, and reporting from one secure platform.';
 const ALERT_CATEGORY = 'alerts';
+const DEFAULT_BACKUP_RUNTIME_ENV_PATH = path.resolve(process.cwd(), 'config/backup.runtime.env');
+const BACKUP_RUNTIME_SETTING_MAP: Array<{ settingKey: string; envKey: string }> = [
+  { settingKey: 'backup_remote_enabled', envKey: 'REMOTE_BACKUP_ENABLED' },
+  { settingKey: 'backup_remote_type', envKey: 'REMOTE_BACKUP_TYPE' },
+  { settingKey: 'backup_remote_host', envKey: 'REMOTE_BACKUP_HOST' },
+  { settingKey: 'backup_remote_port', envKey: 'REMOTE_BACKUP_PORT' },
+  { settingKey: 'backup_remote_user', envKey: 'REMOTE_BACKUP_USER' },
+  { settingKey: 'backup_remote_path', envKey: 'REMOTE_BACKUP_PATH' },
+  { settingKey: 'backup_rclone_remote', envKey: 'RCLONE_REMOTE' },
+  { settingKey: 'backup_s3_bucket', envKey: 'S3_BUCKET' },
+  { settingKey: 'backup_s3_region', envKey: 'S3_REGION' },
+  { settingKey: 'backup_s3_access_key_id', envKey: 'AWS_ACCESS_KEY_ID' },
+  { settingKey: 'backup_s3_secret_access_key', envKey: 'AWS_SECRET_ACCESS_KEY' },
+  { settingKey: 'backup_retention_days_full_local', envKey: 'RETENTION_DAYS_FULL_LOCAL' },
+  { settingKey: 'backup_retention_days_incremental_local', envKey: 'RETENTION_DAYS_INCREMENTAL_LOCAL' },
+  { settingKey: 'backup_retention_days_pitr_local', envKey: 'RETENTION_DAYS_PITR_LOCAL' },
+  { settingKey: 'backup_min_backups_to_keep_full', envKey: 'MIN_BACKUPS_TO_KEEP_FULL' },
+  { settingKey: 'backup_min_backups_to_keep_incremental', envKey: 'MIN_BACKUPS_TO_KEEP_INCREMENTAL' },
+  { settingKey: 'backup_min_backups_to_keep_pitr', envKey: 'MIN_BACKUPS_TO_KEEP_PITR' },
+  { settingKey: 'backup_log_retention_days', envKey: 'LOG_RETENTION_DAYS' },
+];
 
 @injectable()
 export class SettingsService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
+  }
+
+  private getBackupRuntimeEnvPath(): string {
+    return process.env['BACKUP_RUNTIME_ENV_PATH'] || DEFAULT_BACKUP_RUNTIME_ENV_PATH;
+  }
+
+  private formatEnvValue(rawValue: string): string {
+    const value = String(rawValue ?? '').trim();
+    if (value === '') return '""';
+    if (/^[A-Za-z0-9._/:@+-]+$/.test(value)) return value;
+    return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+  }
+
+  async syncGlobalBackupRuntimeEnv(): Promise<string> {
+    const settings = await this.prisma.systemSetting.findMany({
+      where: { category: 'backup', tenantId: null },
+      select: { key: true, value: true }
+    });
+
+    const values = new Map<string, string>(settings.map((item) => [item.key, item.value]));
+    const nowIso = new Date().toISOString();
+    const lines: string[] = [
+      '# Auto-generated from Super Admin backup settings.',
+      '# Do not edit manually; use Settings -> Backup & Off-site Replication.',
+      `# Generated at ${nowIso}`,
+      '',
+    ];
+
+    for (const item of BACKUP_RUNTIME_SETTING_MAP) {
+      const raw = values.get(item.settingKey);
+      if (!raw || raw.trim() === '') continue;
+      lines.push(`${item.envKey}=${this.formatEnvValue(raw)}`);
+    }
+
+    const runtimeEnvPath = this.getBackupRuntimeEnvPath();
+    await fs.mkdir(path.dirname(runtimeEnvPath), { recursive: true });
+    await fs.writeFile(runtimeEnvPath, `${lines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
+    await fs.chmod(runtimeEnvPath, 0o600);
+    return runtimeEnvPath;
   }
 
   /**

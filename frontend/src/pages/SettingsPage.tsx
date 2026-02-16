@@ -120,6 +120,27 @@ interface ScoringWorkflowAlertSettings {
   escalationMinutes: number
 }
 
+interface BackupSettings {
+  backup_remote_enabled: string
+  backup_remote_type: string
+  backup_remote_host: string
+  backup_remote_port: string
+  backup_remote_user: string
+  backup_remote_path: string
+  backup_rclone_remote: string
+  backup_s3_bucket: string
+  backup_s3_region: string
+  backup_s3_access_key_id: string
+  backup_s3_secret_access_key: string
+  backup_retention_days_full_local: string
+  backup_retention_days_incremental_local: string
+  backup_retention_days_pitr_local: string
+  backup_min_backups_to_keep_full: string
+  backup_min_backups_to_keep_incremental: string
+  backup_min_backups_to_keep_pitr: string
+  backup_log_retention_days: string
+}
+
 interface AlertCandidateUser {
   id: string
   name: string
@@ -265,6 +286,26 @@ const SettingsPage: React.FC = () => {
   })
 
   const [scoringAlertEmailInput, setScoringAlertEmailInput] = useState('')
+  const [backupFormData, setBackupFormData] = useState<BackupSettings>({
+    backup_remote_enabled: 'false',
+    backup_remote_type: 'rsync',
+    backup_remote_host: '',
+    backup_remote_port: '22',
+    backup_remote_user: '',
+    backup_remote_path: '',
+    backup_rclone_remote: '',
+    backup_s3_bucket: '',
+    backup_s3_region: 'us-east-1',
+    backup_s3_access_key_id: '',
+    backup_s3_secret_access_key: '',
+    backup_retention_days_full_local: '30',
+    backup_retention_days_incremental_local: '14',
+    backup_retention_days_pitr_local: '14',
+    backup_min_backups_to_keep_full: '7',
+    backup_min_backups_to_keep_incremental: '28',
+    backup_min_backups_to_keep_pitr: '4',
+    backup_log_retention_days: '14',
+  })
 
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
@@ -279,6 +320,7 @@ const SettingsPage: React.FC = () => {
       queryClient.invalidateQueries(['security-settings'])
       queryClient.invalidateQueries(['contestant-visibility-settings'])
       queryClient.invalidateQueries(['password-policy'])
+      queryClient.invalidateQueries(['backup-settings'])
       queryClient.invalidateQueries(['system-health-alert-settings'])
       queryClient.invalidateQueries(['scoring-workflow-alert-settings'])
       queryClient.invalidateQueries(['scoring-workflow-alert-candidates'])
@@ -415,6 +457,40 @@ const SettingsPage: React.FC = () => {
             password_policy_requireSpecialChars: data.password_policy_requireSpecialChars || String(data.requireSpecialChars) || 'true',
           })
         }
+      },
+    }
+  )
+
+  const { isLoading: backupSettingsLoading } = useQuery<any>(
+    ['backup-settings', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await api.get(`/settings/backup${getGlobalParam()}`)
+      return response.data.data || response.data
+    },
+    {
+      enabled: isSuperAdmin,
+      onSuccess: (data) => {
+        if (!data) return
+        setBackupFormData({
+          backup_remote_enabled: data.backup_remote_enabled || 'false',
+          backup_remote_type: data.backup_remote_type || 'rsync',
+          backup_remote_host: data.backup_remote_host || '',
+          backup_remote_port: data.backup_remote_port || '22',
+          backup_remote_user: data.backup_remote_user || '',
+          backup_remote_path: data.backup_remote_path || '',
+          backup_rclone_remote: data.backup_rclone_remote || '',
+          backup_s3_bucket: data.backup_s3_bucket || '',
+          backup_s3_region: data.backup_s3_region || 'us-east-1',
+          backup_s3_access_key_id: data.backup_s3_access_key_id || '',
+          backup_s3_secret_access_key: data.backup_s3_secret_access_key || '',
+          backup_retention_days_full_local: data.backup_retention_days_full_local || '30',
+          backup_retention_days_incremental_local: data.backup_retention_days_incremental_local || '14',
+          backup_retention_days_pitr_local: data.backup_retention_days_pitr_local || '14',
+          backup_min_backups_to_keep_full: data.backup_min_backups_to_keep_full || '7',
+          backup_min_backups_to_keep_incremental: data.backup_min_backups_to_keep_incremental || '28',
+          backup_min_backups_to_keep_pitr: data.backup_min_backups_to_keep_pitr || '4',
+          backup_log_retention_days: data.backup_log_retention_days || '14',
+        })
       },
     }
   )
@@ -638,6 +714,24 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const updateBackupMutation = useMutation(
+    async (data: BackupSettings) => {
+      const response = await api.put(`/settings/backup${getGlobalParam()}`, data)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['backup-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Backup settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Error: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
   const updateScoringTypeMutation = useMutation(
     async (newScoringType: 'STRAIGHT' | 'OLYMPIC') => {
       const response = await api.put('/tenants/current', { scoringType: newScoringType })
@@ -782,6 +876,9 @@ const SettingsPage: React.FC = () => {
     })
   }
 
+  const backupRemoteEnabled = backupFormData.backup_remote_enabled === 'true'
+  const backupSectionReadOnly = isSuperAdmin && !editingGlobal
+
   const toggleScoringAlertRole = (role: string, checked: boolean) => {
     const next = new Set(scoringWorkflowAlertFormData.recipientRoles || [])
     if (checked) {
@@ -847,6 +944,9 @@ const SettingsPage: React.FC = () => {
       case 'password-policy':
         updatePasswordPolicyMutation.mutate(passwordPolicyFormData)
         break
+      case 'backup':
+        updateBackupMutation.mutate(backupFormData)
+        break
       case 'scoring':
         updateScoringTypeMutation.mutate(scoringType)
         break
@@ -880,6 +980,7 @@ const SettingsPage: React.FC = () => {
     securityLoading ||
     contestantVisibilityLoading ||
     passwordPolicyLoading ||
+    (isSuperAdmin && backupSettingsLoading) ||
     databaseInfoLoading ||
     (isSuperAdmin && systemHealthAlertLoading) ||
     scoringWorkflowAlertLoading ||
@@ -1207,6 +1308,280 @@ const SettingsPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Backup & Off-site Replication (SUPER_ADMIN) */}
+            {isSuperAdmin && (
+              <div className="cgr-surface overflow-hidden rounded-lg">
+                <button
+                  onClick={() => toggleSection('backup')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <ServerIcon className="h-6 w-6 mr-3 text-indigo-600 dark:text-indigo-400" />
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Backup & Off-site Replication</h2>
+                  </div>
+                  {expandedSections.includes('backup') ? (
+                    <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  )}
+                </button>
+
+                {expandedSections.includes('backup') && (
+                  <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                    {backupSectionReadOnly && (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                        Switch scope to <strong>Global</strong> to edit runtime backup config used by host backup scripts.
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Retention (days)</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_retention_days_full_local}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_retention_days_full_local: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Incremental Retention (days)</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_retention_days_incremental_local}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_retention_days_incremental_local: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PITR Retention (days)</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_retention_days_pitr_local}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_retention_days_pitr_local: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Keep Full</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_min_backups_to_keep_full}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_min_backups_to_keep_full: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Keep Incremental</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_min_backups_to_keep_incremental}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_min_backups_to_keep_incremental: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Keep PITR</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_min_backups_to_keep_pitr}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_min_backups_to_keep_pitr: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Backup Log Retention (days)</label>
+                        <input
+                          disabled={backupSectionReadOnly}
+                          type="number"
+                          min={1}
+                          value={backupFormData.backup_log_retention_days}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_log_retention_days: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Enable Off-site Replication</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Replicate completed backups to remote storage.</p>
+                      </div>
+                      <input
+                        disabled={backupSectionReadOnly}
+                        type="checkbox"
+                        checked={backupRemoteEnabled}
+                        onChange={(e) => setBackupFormData({ ...backupFormData, backup_remote_enabled: e.target.checked ? 'true' : 'false' })}
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Type</label>
+                        <select
+                          disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                          value={backupFormData.backup_remote_type}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_remote_type: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="rsync">rsync (SSH)</option>
+                          <option value="sftp">SFTP/SCP (SSH)</option>
+                          <option value="s3">S3 Compatible Object Storage</option>
+                          <option value="rclone">rclone Target</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {(backupFormData.backup_remote_type === 'rsync' || backupFormData.backup_remote_type === 'sftp') && (
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Host</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_remote_host}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_remote_host: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Port</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="number"
+                            min={1}
+                            max={65535}
+                            value={backupFormData.backup_remote_port}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_remote_port: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote User</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_remote_user}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_remote_user: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Path</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_remote_path}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_remote_path: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {backupFormData.backup_remote_type === 's3' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Bucket</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_s3_bucket}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_s3_bucket: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Region</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_s3_region}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_s3_region: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AWS Access Key ID</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_s3_access_key_id}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_s3_access_key_id: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AWS Secret Access Key</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="password"
+                            value={backupFormData.backup_s3_secret_access_key}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_s3_secret_access_key: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {backupFormData.backup_remote_type === 'rclone' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Remote Target</label>
+                        <input
+                          disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                          type="text"
+                          value={backupFormData.backup_rclone_remote}
+                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_remote: e.target.value })}
+                          placeholder="remote:bucket/path"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Saving writes both DB settings and runtime backup config file used by host scripts.
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={() => handleSaveSection('backup')}
+                        disabled={updateBackupMutation.isLoading || backupSectionReadOnly}
+                        className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                      >
+                        {updateBackupMutation.isLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckIcon className="h-5 w-5 mr-2" />
+                            Save Changes
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* System Health Alerts (SUPER_ADMIN) */}
             {isSuperAdmin && (

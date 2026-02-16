@@ -344,9 +344,14 @@ export class SettingsController {
         tenantId
       );
 
+      let runtimeEnvPath: string | undefined;
+      if (tenantId === null) {
+        runtimeEnvPath = await this.settingsService.syncGlobalBackupRuntimeEnv();
+      }
+
       successResponse(
         res,
-        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global', runtimeEnvPath },
         'Backup settings updated successfully'
       );
     } catch (error) {

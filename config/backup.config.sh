@@ -7,6 +7,21 @@
 # Source this file in backup scripts: source /var/www/event-manager/config/backup.config.sh
 ################################################################################
 
+# Optional external override file (preferred for production tuning)
+BACKUP_ENV_FILE="${BACKUP_ENV_FILE:-/etc/event-manager/backup.env}"
+if [[ -r "$BACKUP_ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$BACKUP_ENV_FILE"
+fi
+
+# Optional runtime override generated from Super Admin UI backup settings.
+# This file is loaded after BACKUP_ENV_FILE and takes precedence when present.
+BACKUP_RUNTIME_ENV_FILE="${BACKUP_RUNTIME_ENV_FILE:-/var/www/event-manager/config/backup.runtime.env}"
+if [[ -r "$BACKUP_RUNTIME_ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$BACKUP_RUNTIME_ENV_FILE"
+fi
+
 # Backup directories
 export BACKUP_BASE_DIR="${BACKUP_BASE_DIR:-/var/backups/event-manager}"
 export BACKUP_FULL_DIR="${BACKUP_BASE_DIR}/full"
@@ -18,6 +33,12 @@ export WAL_ARCHIVE_DIR="${WAL_ARCHIVE_DIR:-/var/lib/postgresql/wal_archive}"
 export RETENTION_DAYS_LOCAL="${RETENTION_DAYS_LOCAL:-30}"
 export RETENTION_DAYS_REMOTE="${RETENTION_DAYS_REMOTE:-90}"
 export MIN_BACKUPS_TO_KEEP="${MIN_BACKUPS_TO_KEEP:-7}"
+export RETENTION_DAYS_FULL_LOCAL="${RETENTION_DAYS_FULL_LOCAL:-${RETENTION_DAYS_LOCAL}}"
+export RETENTION_DAYS_INCREMENTAL_LOCAL="${RETENTION_DAYS_INCREMENTAL_LOCAL:-14}"
+export RETENTION_DAYS_PITR_LOCAL="${RETENTION_DAYS_PITR_LOCAL:-14}"
+export MIN_BACKUPS_TO_KEEP_FULL="${MIN_BACKUPS_TO_KEEP_FULL:-${MIN_BACKUPS_TO_KEEP}}"
+export MIN_BACKUPS_TO_KEEP_INCREMENTAL="${MIN_BACKUPS_TO_KEEP_INCREMENTAL:-28}"
+export MIN_BACKUPS_TO_KEEP_PITR="${MIN_BACKUPS_TO_KEEP_PITR:-4}"
 
 # Backup settings
 export BACKUP_COMPRESSION="${BACKUP_COMPRESSION:-zstd}"  # zstd or gzip
@@ -35,6 +56,8 @@ export REMOTE_BACKUP_TYPE="${REMOTE_BACKUP_TYPE:-rsync}"  # s3, rsync, or custom
 export REMOTE_BACKUP_HOST="${REMOTE_BACKUP_HOST:-}"
 export REMOTE_BACKUP_USER="${REMOTE_BACKUP_USER:-}"
 export REMOTE_BACKUP_PATH="${REMOTE_BACKUP_PATH:-}"
+export REMOTE_BACKUP_PORT="${REMOTE_BACKUP_PORT:-22}"
+export RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 
 # S3 settings (if using S3)
 export S3_BUCKET="${S3_BUCKET:-}"
@@ -258,6 +281,26 @@ upload_to_remote() {
                 return $?
             else
                 echo "ERROR: rsync not configured properly"
+                return 1
+            fi
+            ;;
+        sftp)
+            if command -v scp &> /dev/null && [[ -n "$REMOTE_BACKUP_HOST" ]]; then
+                scp -P "$REMOTE_BACKUP_PORT" "$local_file" \
+                    "${REMOTE_BACKUP_USER}@${REMOTE_BACKUP_HOST}:${REMOTE_BACKUP_PATH}/${remote_path}" \
+                    &> /dev/null
+                return $?
+            else
+                echo "ERROR: sftp/scp not configured properly"
+                return 1
+            fi
+            ;;
+        rclone)
+            if command -v rclone &> /dev/null && [[ -n "$RCLONE_REMOTE" ]]; then
+                rclone copy "$local_file" "${RCLONE_REMOTE}/${remote_path}" &> /dev/null
+                return $?
+            else
+                echo "ERROR: rclone not configured properly"
                 return 1
             fi
             ;;
