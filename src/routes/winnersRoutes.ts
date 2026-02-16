@@ -32,7 +32,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Winners retrieved successfully
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE']), getWinners)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinners)
 
 /**
  * @swagger
@@ -52,7 +52,7 @@ router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCE
  *       200:
  *         description: Category winners retrieved successfully
  */
-router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE']), getWinnersByCategory)
+router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByCategory)
 
 /**
  * @swagger
@@ -72,7 +72,7 @@ router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANI
  *       200:
  *         description: Contest winners retrieved successfully
  */
-router.get('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE']), getWinnersByContest)
+router.get('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByContest)
 router.post('/category/:categoryId/sign', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('SIGN_WINNERS', 'WINNER'), signWinners)
 router.get('/category/:categoryId/signatures', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getSignatureStatus)
 
@@ -82,7 +82,7 @@ router.get('/category/:categoryId/certification-status/:role', requireRole(['SUP
 router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('CERTIFY_SCORES', 'CERTIFICATION'), certifyScores)
 
 // Winners publication control endpoints
-router.get('/contest/:contestId/publication-status', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), getWinnersPublicationStatus)
+router.get('/contest/:contestId/publication-status', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersPublicationStatus)
 router.post('/contest/:contestId/publish', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), logActivity('PUBLISH_WINNERS', 'CONTEST'), publishWinners)
 router.post('/contest/:contestId/unpublish', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('UNPUBLISH_WINNERS', 'CONTEST'), unpublishWinners)
 

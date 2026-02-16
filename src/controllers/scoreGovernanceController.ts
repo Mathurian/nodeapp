@@ -101,6 +101,7 @@ export class ScoreGovernanceController {
         judgeId: req.body?.judgeId,
         scoreId: req.body?.scoreId,
         reason: req.body?.reason,
+        adjustmentDelta: req.body?.adjustmentDelta,
         signature: {
           typedSignature: req.body?.typedSignature,
           drawnSignatureData: req.body?.drawnSignatureData,

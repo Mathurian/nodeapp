@@ -100,6 +100,7 @@ const ContestsPage: React.FC = () => {
     isOpen: false,
     contest: null,
   })
+  const [minimumWinningScoreInput, setMinimumWinningScoreInput] = useState<string>('')
 
   // Check permissions
   const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
@@ -183,6 +184,19 @@ const ContestsPage: React.FC = () => {
     }
   )
 
+  const { data: minimumWinningScoreData } = useQuery<{ contestId: string; minimumWinningScore: number | null }>(
+    ['contest-minimum-winning-score', editingContest?.id],
+    async () => {
+      if (!editingContest?.id) return { contestId: '', minimumWinningScore: null }
+      const response = await contestsAPI.getMinimumWinningScore(editingContest.id)
+      return response.data?.data || response.data
+    },
+    {
+      enabled: !!editingContest?.id,
+      retry: 1,
+    }
+  )
+
   // Create contest mutation
   const createMutation = useMutation(
     async (data: ContestFormData) => {
@@ -221,6 +235,23 @@ const ContestsPage: React.FC = () => {
     }
   )
 
+  const updateMinimumWinningScoreMutation = useMutation(
+    async ({ contestId, minimumWinningScore }: { contestId: string; minimumWinningScore: number | null }) => {
+      const response = await contestsAPI.updateMinimumWinningScore(contestId, minimumWinningScore)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['contest-minimum-winning-score', editingContest?.id])
+        toast.success('Minimum winning score updated')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update minimum winning score'
+        toast.error(errorMessage)
+      },
+    }
+  )
+
   // Delete contest mutation
   const deleteMutation = useMutation(
     async (id: string) => {
@@ -242,6 +273,7 @@ const ContestsPage: React.FC = () => {
   const resetForm = () => {
     reset({ eventId: '', name: '', description: '', scoringType: '' })
     setEditingContest(null)
+    setMinimumWinningScoreInput('')
     setIsFormOpen(false)
   }
 
@@ -255,6 +287,15 @@ const ContestsPage: React.FC = () => {
     })
     setIsFormOpen(true)
   }
+
+  useEffect(() => {
+    if (!editingContest) {
+      setMinimumWinningScoreInput('')
+      return
+    }
+    const value = minimumWinningScoreData?.minimumWinningScore
+    setMinimumWinningScoreInput(value === null || value === undefined ? '' : String(value))
+  }, [editingContest, minimumWinningScoreData?.minimumWinningScore])
 
   const handleDelete = (contest: Contest) => {
     setConfirmDelete({ isOpen: true, contest })
@@ -280,6 +321,20 @@ const ContestsPage: React.FC = () => {
     } else {
       createMutation.mutate(dataToSend)
     }
+  }
+
+  const handleSaveMinimumWinningScore = () => {
+    if (!editingContest?.id) return
+    const normalized = minimumWinningScoreInput.trim()
+    const value = normalized === '' ? null : Number(normalized)
+    if (value !== null && (!Number.isFinite(value) || value < 0)) {
+      toast.error('Minimum winning score must be a number greater than or equal to 0')
+      return
+    }
+    updateMinimumWinningScoreMutation.mutate({
+      contestId: editingContest.id,
+      minimumWinningScore: value
+    })
   }
 
   // Filter contests
@@ -588,6 +643,36 @@ const ContestsPage: React.FC = () => {
                     Leave empty to inherit from event or tenant. This setting will apply to all categories in this contest.
                   </p>
                 </div>
+
+                {editingContest && (
+                  <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Minimum Winning Score (Contest Level)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={minimumWinningScoreInput}
+                        onChange={(e) => setMinimumWinningScoreInput(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Leave empty for no threshold"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveMinimumWinningScore}
+                        disabled={updateMinimumWinningScoreMutation.isLoading}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
+                      >
+                        {updateMinimumWinningScoreMutation.isLoading ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      If no contestant reaches this threshold, winners remain empty and the contest is flagged for score adjustment review.
+                    </p>
+                  </div>
+                )}
 
                 {/* Olympic Scoring Warning - shown when editing a contest with Olympic scoring and insufficient judges */}
                 {editingContest && olympicValidation?.warning && (

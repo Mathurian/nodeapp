@@ -21,6 +21,18 @@ interface Winner {
   totalScore: number
 }
 
+interface ContestWinnersPayload {
+  winners?: Winner[]
+  data?: {
+    winners?: Winner[]
+    contestants?: Winner[]
+  }
+  contestants?: Winner[]
+  noQualifyingWinners?: boolean
+  qualificationMessage?: string | null
+  minimumWinningScore?: number | null
+}
+
 interface ContestScoreRow {
   contestantId: string
   score: number | null
@@ -79,7 +91,7 @@ const WinnersPage: React.FC = () => {
 
   const shouldHideForUnpublishedEmcee = isEmcee && selectedContestId && publicationStatus && !publicationStatus.winnersPublished
 
-  const { data: winnersResponse, error: winnersError } = useQuery<any>(
+  const { data: winnersResponse, error: winnersError } = useQuery<ContestWinnersPayload | null>(
     ['winners-by-contest', selectedContestId],
     async () => {
       if (!selectedContestId) return null
@@ -123,6 +135,10 @@ const WinnersPage: React.FC = () => {
       rank: Number(entry.rank || index + 1)
     }))
   })()
+
+  const noQualifyingWinners = Boolean((winnersResponse as any)?.noQualifyingWinners)
+  const qualificationMessage = (winnersResponse as any)?.qualificationMessage as string | undefined
+  const minimumWinningScore = (winnersResponse as any)?.minimumWinningScore as number | null | undefined
 
   const effectiveWinners: Winner[] = useMemo(() => {
     if (winners.length > 0) return winners
@@ -226,7 +242,21 @@ const WinnersPage: React.FC = () => {
         {selectedContestId && !winnersError && !shouldHideForUnpublishedEmcee && (!isEmcee || !isPublicationStatusLoading) && (
           <Card className="rounded-lg p-6">
             {effectiveWinners.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400">No winners available yet.</p>
+              <div className="space-y-2">
+                <p className="text-gray-600 dark:text-gray-400">
+                  {noQualifyingWinners
+                    ? 'No contestants met the minimum winning score.'
+                    : 'No winners available yet.'}
+                </p>
+                {minimumWinningScore !== null && minimumWinningScore !== undefined && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Minimum winning score: {minimumWinningScore}
+                  </p>
+                )}
+                {qualificationMessage && (
+                  <p className="text-sm text-amber-700 dark:text-amber-400">{qualificationMessage}</p>
+                )}
+              </div>
             ) : (
               <div className="space-y-2">
                 {effectiveWinners.map((winner, idx) => (

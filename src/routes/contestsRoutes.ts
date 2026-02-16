@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getAllContests, getContestById, getContestsByEvent, createContest, updateContest, deleteContest, restoreContest, archiveContest, reactivateContest, getOlympicScoringValidation } from '../controllers/contestsController';
+import { getAllContests, getContestById, getContestsByEvent, createContest, updateContest, deleteContest, restoreContest, archiveContest, reactivateContest, getOlympicScoringValidation, getMinimumWinningScore, updateMinimumWinningScore } from '../controllers/contestsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validate, createContestSchema, updateContestSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';
@@ -146,6 +146,8 @@ router.post('/:id/reactivate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER',
  *                   type: boolean
  */
 router.get('/:id/olympic-scoring-validation', getOlympicScoringValidation);
+router.get('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE']), getMinimumWinningScore);
+router.put('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CONTEST_MIN_WINNING_SCORE', 'CONTEST'), updateMinimumWinningScore);
 
 export default router;
 

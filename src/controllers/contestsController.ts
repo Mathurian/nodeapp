@@ -385,6 +385,91 @@ export class ContestsController {
       return next(error);
     }
   };
+
+  getMinimumWinningScore = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!id) return sendError(res, 'Contest ID is required', 400);
+      if (!tenantId) return sendError(res, 'Tenant context is required', 400);
+
+      const contest = await this.prisma.contest.findFirst({
+        where: { id, tenantId },
+        select: { id: true }
+      });
+      if (!contest) return sendError(res, 'Contest not found', 404);
+
+      const key = `contest_min_winning_score:${id}`;
+      const setting = await this.prisma.systemSetting.findFirst({
+        where: { key, tenantId },
+        select: { value: true }
+      });
+      const parsed = setting?.value ? Number(setting.value) : null;
+      const minimumWinningScore = Number.isFinite(parsed as number) && (parsed as number) >= 0 ? parsed : null;
+
+      return sendSuccess(res, { contestId: id, minimumWinningScore }, 'Minimum winning score retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  updateMinimumWinningScore = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const updatedBy = req.user?.id || null;
+      if (!id) return sendError(res, 'Contest ID is required', 400);
+      if (!tenantId) return sendError(res, 'Tenant context is required', 400);
+
+      const raw = req.body?.minimumWinningScore;
+      let minimumWinningScore: number | null = null;
+      if (raw !== null && raw !== undefined && raw !== '') {
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return sendError(res, 'minimumWinningScore must be a number greater than or equal to 0', 400);
+        }
+        minimumWinningScore = parsed;
+      }
+
+      const contest = await this.prisma.contest.findFirst({
+        where: { id, tenantId },
+        select: { id: true }
+      });
+      if (!contest) return sendError(res, 'Contest not found', 404);
+
+      const key = `contest_min_winning_score:${id}`;
+
+      if (minimumWinningScore === null) {
+        await this.prisma.systemSetting.deleteMany({
+          where: { key, tenantId }
+        });
+      } else {
+        await this.prisma.systemSetting.upsert({
+          where: { key_tenantId: { key, tenantId } },
+          create: {
+            key,
+            value: String(minimumWinningScore),
+            category: 'scoring',
+            description: 'Contest minimum winning score threshold',
+            tenantId,
+            updatedBy
+          },
+          update: {
+            value: String(minimumWinningScore),
+            updatedBy
+          }
+        });
+      }
+
+      return sendSuccess(
+        res,
+        { contestId: id, minimumWinningScore },
+        minimumWinningScore === null ? 'Minimum winning score cleared' : 'Minimum winning score updated successfully'
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and individual methods
@@ -402,3 +487,5 @@ export const getArchivedContests = controller.getArchivedContests;
 export const getContestStats = controller.getContestStats;
 export const searchContests = controller.searchContests;
 export const getOlympicScoringValidation = controller.getOlympicScoringValidation;
+export const getMinimumWinningScore = controller.getMinimumWinningScore;
+export const updateMinimumWinningScore = controller.updateMinimumWinningScore;

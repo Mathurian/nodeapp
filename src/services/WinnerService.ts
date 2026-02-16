@@ -130,6 +130,21 @@ export class WinnerService extends BaseService {
     super();
   }
 
+  private getContestMinimumWinningScoreKey(contestId: string): string {
+    return `contest_min_winning_score:${contestId}`;
+  }
+
+  private async getContestMinimumWinningScore(contestId: string, tenantId: string): Promise<number | null> {
+    const key = this.getContestMinimumWinningScoreKey(contestId);
+    const setting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId },
+      select: { value: true }
+    });
+    if (!setting?.value) return null;
+    const parsed = Number(setting.value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
   /**
    * Generate signature for winner verification
    */
@@ -443,13 +458,25 @@ export class WinnerService extends BaseService {
     }
 
     // Sort overall winners by total score
-    const overallWinners = Array.from(contestantTotals.values())
+    const sortedOverallWinners = Array.from(contestantTotals.values())
       .sort((a, b) => b.totalScore - a.totalScore);
+
+    const minimumWinningScore = await this.getContestMinimumWinningScore(contestId, tenantId);
+    const overallWinners = minimumWinningScore === null
+      ? sortedOverallWinners
+      : sortedOverallWinners.filter((winner) => (winner.totalScore || 0) >= minimumWinningScore);
+    const noQualifyingWinners = minimumWinningScore !== null && overallWinners.length === 0;
 
     return {
       contest,
       categories: includeCategoryBreakdown ? categoryWinners : undefined,
       contestants: overallWinners,
+      minimumWinningScore,
+      noQualifyingWinners,
+      requiresAcrossBoardAdjustmentReview: noQualifyingWinners,
+      qualificationMessage: noQualifyingWinners
+        ? 'No contestants met the minimum winning score. Review score calibration/governance adjustments before finalizing.'
+        : null,
       message: 'Contest winners calculated successfully',
     };
   }
@@ -1089,7 +1116,7 @@ export class WinnerService extends BaseService {
    * Check if user can view unpublished winners
    */
   private canViewUnpublishedWinners(userRole: string): boolean {
-    return ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER'].includes(userRole);
+    return ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR'].includes(userRole);
   }
 
   /**

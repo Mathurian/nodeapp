@@ -6,8 +6,8 @@ import { assignmentsAPI, categoriesAPI, contestsAPI, scoreGovernanceAPI } from '
 import { useAuth } from '../contexts/AuthContext'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 
-type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY'
-type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL'
+type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY' | 'ADJUST'
+type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL' | 'CONTEST_LEVEL'
 type CertificationLevel = 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'
 
 const ScoreGovernancePage: React.FC = () => {
@@ -25,6 +25,7 @@ const ScoreGovernancePage: React.FC = () => {
   const [judgeId, setJudgeId] = useState('')
   const [scoreId, setScoreId] = useState('')
   const [reason, setReason] = useState('')
+  const [adjustmentDelta, setAdjustmentDelta] = useState<string>('0')
   const [typedSignature, setTypedSignature] = useState('')
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
   const [isDrawing, setIsDrawing] = useState(false)
@@ -104,9 +105,24 @@ const ScoreGovernancePage: React.FC = () => {
   }, [isJudge])
 
   useEffect(() => {
+    if (isJudge) return
+    if (actionType === 'THROW_OUT' && !['CATEGORY_JUDGE', 'CONTEST_JUDGE'].includes(scopeType)) {
+      setScopeType('CONTEST_JUDGE')
+    }
+    if (actionType === 'UNCERTIFY' && !['SCORE', 'CONTESTANT_CATEGORY', 'CATEGORY_LEVEL'].includes(scopeType)) {
+      setScopeType('CONTESTANT_CATEGORY')
+    }
+    if (actionType === 'ADJUST' && !['CATEGORY_LEVEL', 'CONTEST_LEVEL'].includes(scopeType)) {
+      setScopeType('CATEGORY_LEVEL')
+    }
+  }, [actionType, isJudge, scopeType])
+
+  useEffect(() => {
     if (!reason.trim()) {
       if (actionType === 'THROW_OUT') {
         setReason('Requesting throw-out due to scoring irregularity.')
+      } else if (actionType === 'ADJUST') {
+        setReason('Requesting score adjustment after review calibration.')
       } else {
         setReason('Requesting un-certification for review.')
       }
@@ -122,10 +138,10 @@ const ScoreGovernancePage: React.FC = () => {
     const queryContestantId = params.get('contestantId') || ''
     const queryScoreId = params.get('scoreId') || ''
 
-    if (queryAction === 'THROW_OUT' || queryAction === 'UNCERTIFY') {
+    if (queryAction === 'THROW_OUT' || queryAction === 'UNCERTIFY' || queryAction === 'ADJUST') {
       setActionType(queryAction)
     }
-    if (queryScope && ['CATEGORY_JUDGE', 'CONTEST_JUDGE', 'SCORE', 'CONTESTANT_CATEGORY', 'CATEGORY_LEVEL'].includes(queryScope)) {
+    if (queryScope && ['CATEGORY_JUDGE', 'CONTEST_JUDGE', 'SCORE', 'CONTESTANT_CATEGORY', 'CATEGORY_LEVEL', 'CONTEST_LEVEL'].includes(queryScope)) {
       setScopeType(queryScope as GovernanceScope)
     }
     if (queryContestId) setContestId(queryContestId)
@@ -284,6 +300,14 @@ const ScoreGovernancePage: React.FC = () => {
       return
     }
 
+    if (actionType === 'ADJUST') {
+      const delta = Number(adjustmentDelta)
+      if (!Number.isFinite(delta) || delta === 0) {
+        toast.error('Adjustment amount must be a non-zero number')
+        return
+      }
+    }
+
     createMutation.mutate({
       actionType,
       scopeType,
@@ -293,6 +317,7 @@ const ScoreGovernancePage: React.FC = () => {
       contestantId: contestantId || undefined,
       judgeId: judgeId || undefined,
       scoreId: scoreId || undefined,
+      adjustmentDelta: actionType === 'ADJUST' ? Number(adjustmentDelta) : undefined,
       reason,
       typedSignature: typedSignature.trim() || undefined,
       drawnSignatureData: drawnSignatureData || undefined
@@ -372,6 +397,7 @@ const ScoreGovernancePage: React.FC = () => {
                 <>
                   <option value="THROW_OUT">Throw Out Scores</option>
                   <option value="UNCERTIFY">Un-certify</option>
+                  <option value="ADJUST">Adjust Scores</option>
                 </>
               )}
             </select>
@@ -382,6 +408,11 @@ const ScoreGovernancePage: React.FC = () => {
                 <>
                   <option value="CATEGORY_JUDGE">Judge + Category</option>
                   <option value="CONTEST_JUDGE">Judge + Contest</option>
+                </>
+              ) : actionType === 'ADJUST' ? (
+                <>
+                  <option value="CATEGORY_LEVEL">Category Level</option>
+                  <option value="CONTEST_LEVEL">Contest Level</option>
                 </>
               ) : (
                 <>
@@ -413,6 +444,17 @@ const ScoreGovernancePage: React.FC = () => {
               value={scoreId}
               onChange={(e) => setScoreId(e.target.value)}
               placeholder="Score ID"
+              className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          )}
+
+          {actionType === 'ADJUST' && (
+            <input
+              type="number"
+              step="0.01"
+              value={adjustmentDelta}
+              onChange={(e) => setAdjustmentDelta(e.target.value)}
+              placeholder="Adjustment amount (e.g. 1 or -0.5)"
               className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           )}

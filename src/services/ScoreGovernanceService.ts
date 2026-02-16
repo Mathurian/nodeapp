@@ -12,8 +12,8 @@ const SETTINGS_KEYS = {
 const DEFAULT_REQUIRED_ADDITIONAL_APPROVALS = 2
 const DEFAULT_APPROVER_ROLES: UserRole[] = ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
 
-type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY'
-type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL'
+type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY' | 'ADJUST'
+type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL' | 'CONTEST_LEVEL'
 type CertificationLevel = 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'
 
 interface SignaturePayload {
@@ -41,6 +41,7 @@ interface CreateGovernanceRequestInput {
   judgeId?: string
   scoreId?: string
   reason: string
+  adjustmentDelta?: number
   signature: SignaturePayload
 }
 
@@ -164,6 +165,39 @@ export class ScoreGovernanceService extends BaseService {
         }
       }
     }
+
+    if (input.actionType === 'ADJUST') {
+      if (!['CATEGORY_LEVEL', 'CONTEST_LEVEL'].includes(input.scopeType)) {
+        throw this.badRequestError('Adjust supports CATEGORY_LEVEL or CONTEST_LEVEL scope')
+      }
+      if (input.scopeType === 'CATEGORY_LEVEL' && !input.categoryId) {
+        throw this.badRequestError('categoryId is required for CATEGORY_LEVEL adjustment')
+      }
+      if (input.scopeType === 'CONTEST_LEVEL' && !input.contestId) {
+        throw this.badRequestError('contestId is required for CONTEST_LEVEL adjustment')
+      }
+      const delta = Number(input.adjustmentDelta)
+      if (!Number.isFinite(delta) || delta === 0) {
+        throw this.badRequestError('adjustmentDelta must be a non-zero number')
+      }
+    }
+  }
+
+  private normalizeAdjustmentReason(input: CreateGovernanceRequestInput): CreateGovernanceRequestInput {
+    if (input.actionType !== 'ADJUST') return input
+    const delta = Number(input.adjustmentDelta)
+    const marker = `[ADJUST_DELTA=${delta}]`
+    const reason = String(input.reason || '').includes('[ADJUST_DELTA=')
+      ? String(input.reason || '')
+      : `${String(input.reason || '').trim()} ${marker}`.trim()
+    return { ...input, reason }
+  }
+
+  private parseAdjustmentDeltaFromReason(reason: string): number | null {
+    const match = String(reason || '').match(/\[ADJUST_DELTA=([+-]?\d+(?:\.\d+)?)\]/i)
+    if (!match?.[1]) return null
+    const delta = Number(match[1])
+    return Number.isFinite(delta) && delta !== 0 ? delta : null
   }
 
   private async inferThrowOutDefaults(input: CreateGovernanceRequestInput): Promise<CreateGovernanceRequestInput> {
@@ -281,6 +315,7 @@ export class ScoreGovernanceService extends BaseService {
 
     let normalized = await this.enrichScope(input)
     normalized = await this.inferThrowOutDefaults(normalized)
+    normalized = this.normalizeAdjustmentReason(normalized)
     this.validateRequestRules(normalized)
 
     if (normalized.actionType === 'UNCERTIFY' && normalized.scopeType === 'CATEGORY_LEVEL') {
@@ -596,6 +631,73 @@ export class ScoreGovernanceService extends BaseService {
         await this.recomputeCertificationState(tx, request.tenantId, request.categoryId)
         return `Uncertified category level ${level}`
       }
+    }
+
+    if (request.actionType === 'ADJUST') {
+      const delta = this.parseAdjustmentDeltaFromReason(request.reason || '')
+      if (!delta) throw this.badRequestError('Adjustment delta is missing or invalid')
+
+      const candidateRows = await tx.score.findMany({
+        where: {
+          tenantId: request.tenantId,
+          ...(request.scopeType === 'CATEGORY_LEVEL' ? { categoryId: request.categoryId || undefined } : {}),
+          ...(request.scopeType === 'CONTEST_LEVEL' ? { category: { contestId: request.contestId || undefined } } : {})
+        },
+        select: {
+          id: true,
+          score: true,
+          categoryId: true,
+          criterion: { select: { maxScore: true } },
+          category: { select: { scoreCap: true } }
+        }
+      })
+
+      let updatedCount = 0
+      for (const row of candidateRows) {
+        if (row.score === null || row.score === undefined) continue
+        const cap = row.criterion?.maxScore ?? row.category?.scoreCap ?? null
+        let next = Number(row.score) + delta
+        if (cap !== null && cap !== undefined) {
+          next = Math.min(next, Number(cap))
+        }
+        next = Math.max(0, next)
+        if (next !== Number(row.score)) {
+          await tx.score.update({
+            where: { id: row.id },
+            data: {
+              score: next,
+              updatedAt: new Date(),
+              // Force recertification after score adjustment.
+              isCertified: false,
+              certifiedAt: null,
+              certifiedBy: null,
+              isLocked: false,
+              lockedAt: null,
+              lockedBy: null
+            }
+          })
+          updatedCount++
+        }
+      }
+
+      const categoryIds = Array.from(new Set(candidateRows.map((r) => r.categoryId).filter(Boolean)))
+      if (categoryIds.length > 0) {
+        await tx.judgeCertification.deleteMany({
+          where: { tenantId: request.tenantId, categoryId: { in: categoryIds } }
+        })
+        await tx.categoryCertification.deleteMany({
+          where: {
+            tenantId: request.tenantId,
+            categoryId: { in: categoryIds },
+            role: { in: ['TALLY_MASTER', 'AUDITOR', 'BOARD'] as any }
+          }
+        })
+        for (const cid of categoryIds) {
+          await this.recomputeCertificationState(tx, request.tenantId, cid)
+        }
+      }
+
+      return `Applied score adjustment (${delta >= 0 ? '+' : ''}${delta}) to ${updatedCount} score rows`
     }
 
     throw this.badRequestError('Unsupported governance action/scope combination')

@@ -134,6 +134,9 @@ export const contestsAPI = {
   update: (id: string, data: any) => api.put(`/contests/${id}`, data),
   delete: (id: string) => api.delete(`/contests/${id}`),
   getOlympicScoringValidation: (id: string) => api.get(`/contests/${id}/olympic-scoring-validation`),
+  getMinimumWinningScore: (id: string) => api.get(`/contests/${id}/minimum-winning-score`),
+  updateMinimumWinningScore: (id: string, minimumWinningScore: number | null) =>
+    api.put(`/contests/${id}/minimum-winning-score`, { minimumWinningScore }),
 }
 
 export const categoriesAPI = {
