@@ -842,22 +842,39 @@ export class AssignmentService extends BaseService {
     bio: string | null;
   }>> {
     const where = tenantId ? { tenantId } : {};
-    const contestants = await this.prisma.contestant.findMany({
-      where,
-      include: {
-        users: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
+    const [contestants, nonContestantUsers] = await Promise.all([
+      this.prisma.contestant.findMany({
+        where,
+        include: {
+          users: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+            },
           },
         },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+        orderBy: {
+          name: 'asc',
+        },
+      }),
+      this.prisma.user.findMany({
+        where: {
+          ...(tenantId ? { tenantId } : {}),
+          role: { not: 'CONTESTANT' },
+          isActive: true,
+          email: { not: '' },
+        },
+        select: { email: true },
+      }),
+    ]);
+
+    const blockedEmails = new Set(
+      nonContestantUsers
+        .map((u) => (u.email || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
 
     // Map contestants to include user email if available, otherwise use contestant email
     type ContestantWithUsers = {
@@ -870,14 +887,17 @@ export class AssignmentService extends BaseService {
     };
     return contestants
       .filter((contestant: ContestantWithUsers) => {
-        if (!contestant.users || contestant.users.length === 0) return true;
+        if (!contestant.users || contestant.users.length === 0) {
+          const email = (contestant.email || '').trim().toLowerCase();
+          return !email || !blockedEmails.has(email);
+        }
         return contestant.users.some((u: { role: string }) => u.role === 'CONTESTANT');
       })
       .map((contestant: ContestantWithUsers) => ({
       id: contestant.id,
       name: contestant.name,
       email: contestant.users && contestant.users.length > 0
-        ? contestant.users.find((u: { role: string; email: string }) => u.role === 'CONTESTANT')?.email || contestant.users[0]?.email || contestant.email || null
+        ? contestant.users.find((u: { role: string; email: string }) => u.role === 'CONTESTANT')?.email || contestant.email || null
         : contestant.email || null,
       contestantNumber: contestant.contestantNumber !== null ? String(contestant.contestantNumber) : null,
       bio: contestant.bio,

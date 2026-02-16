@@ -407,16 +407,153 @@ export class UsersController {
         if (data.school !== undefined) userData['contestantSchool'] = data.school ?? undefined;
       }
 
-      // Update user
-      log.debug('Updating user record', { userId: id });
-      const user = await this.prisma.user.update({
-        where: { id },
-        data: userData as Prisma.UserUpdateInput,
-        include: {
-          judge: true,
-          contestant: true
+      const targetRole = (data.role || currentUser.role) as User['role'];
+      const roleChanged = targetRole !== currentUser.role;
+      const nextName = data.name ?? currentUser.name;
+      const nextEmail = data.email ?? currentUser.email;
+      const nextGender = data.gender !== undefined ? (data.gender ?? null) : currentUser.gender;
+      const nextPronouns = data.pronouns !== undefined ? (data.pronouns ?? null) : currentUser.pronouns;
+
+      // Normalize role-specific profile fields on any role transition.
+      if (roleChanged) {
+        if (targetRole !== 'JUDGE') {
+          userData['judgeBio'] = null;
+          userData['judgeSpecialties'] = null;
+          userData['judgeCertifications'] = null;
         }
-      }) as UserWithRelations;
+        if (targetRole !== 'CONTESTANT') {
+          (userData as Record<string, string | number | boolean | null | undefined>)['contestantBio'] = null;
+          (userData as Record<string, string | number | boolean | null | undefined>)['contestantNumber'] = null;
+          (userData as Record<string, string | number | boolean | null | undefined>)['contestantAge'] = null;
+          (userData as Record<string, string | number | boolean | null | undefined>)['contestantSchool'] = null;
+        }
+      }
+
+      // Update user and role-link integrity atomically to avoid stale contestant/judge linkage.
+      log.debug('Updating user record with role transition handling', {
+        userId: id,
+        roleChanged,
+        targetRole
+      });
+      const user = await this.prisma.$transaction(async (tx) => {
+        let nextJudgeId: string | null = currentUser.judgeId;
+        let nextContestantId: string | null = currentUser.contestantId;
+
+        if (targetRole === 'JUDGE') {
+          if (!nextJudgeId) {
+            const existingJudge = await tx.judge.findFirst({
+              where: {
+                tenantId: currentUser.tenantId,
+                email: { equals: nextEmail, mode: 'insensitive' }
+              },
+              select: { id: true }
+            });
+            if (existingJudge) {
+              nextJudgeId = existingJudge.id;
+            } else {
+              const createdJudge = await tx.judge.create({
+                data: {
+                  tenantId: currentUser.tenantId,
+                  name: nextName,
+                  email: nextEmail,
+                  gender: nextGender,
+                  pronouns: nextPronouns,
+                  bio: data.bio ?? null,
+                  isHeadJudge: data.isHeadJudge ?? false
+                },
+                select: { id: true }
+              });
+              nextJudgeId = createdJudge.id;
+            }
+          }
+
+          const judgeUpdateData: Prisma.JudgeUpdateInput = {};
+          if (data.name !== undefined) judgeUpdateData.name = data.name;
+          if (data.email !== undefined) judgeUpdateData.email = data.email;
+          if (data.gender !== undefined) judgeUpdateData.gender = data.gender ?? null;
+          if (data.pronouns !== undefined) judgeUpdateData.pronouns = data.pronouns ?? null;
+          if (data.bio !== undefined) judgeUpdateData.bio = data.bio ?? null;
+          if (data.isHeadJudge !== undefined) judgeUpdateData.isHeadJudge = data.isHeadJudge;
+          if (nextJudgeId && Object.keys(judgeUpdateData).length > 0) {
+            await tx.judge.update({
+              where: { id: nextJudgeId },
+              data: judgeUpdateData
+            });
+          }
+
+          // Judges should not remain linked as contestants after role transition.
+          nextContestantId = null;
+        } else if (targetRole === 'CONTESTANT') {
+          if (!nextContestantId) {
+            const existingContestant = await tx.contestant.findFirst({
+              where: {
+                tenantId: currentUser.tenantId,
+                email: { equals: nextEmail, mode: 'insensitive' }
+              },
+              select: { id: true }
+            });
+            if (existingContestant) {
+              nextContestantId = existingContestant.id;
+            } else {
+              const createdContestant = await tx.contestant.create({
+                data: {
+                  tenantId: currentUser.tenantId,
+                  name: nextName,
+                  email: nextEmail,
+                  gender: nextGender,
+                  pronouns: nextPronouns,
+                  bio: data.bio ?? null,
+                  contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber), 10) : null
+                },
+                select: { id: true }
+              });
+              nextContestantId = createdContestant.id;
+            }
+          }
+
+          const contestantUpdateData: Prisma.ContestantUpdateInput = {};
+          if (data.name !== undefined) contestantUpdateData.name = data.name;
+          if (data.email !== undefined) contestantUpdateData.email = data.email;
+          if (data.gender !== undefined) contestantUpdateData.gender = data.gender ?? null;
+          if (data.pronouns !== undefined) contestantUpdateData.pronouns = data.pronouns ?? null;
+          if (data.bio !== undefined) contestantUpdateData.bio = data.bio ?? null;
+          if (data.contestantNumber !== undefined) {
+            contestantUpdateData.contestantNumber = data.contestantNumber ? parseInt(String(data.contestantNumber), 10) : null;
+          }
+          if (nextContestantId && Object.keys(contestantUpdateData).length > 0) {
+            await tx.contestant.update({
+              where: { id: nextContestantId },
+              data: contestantUpdateData
+            });
+          }
+
+          // Contestants should not remain linked as judges after role transition.
+          nextJudgeId = null;
+        } else if (roleChanged) {
+          // For non-judge/non-contestant roles, clear stale role links.
+          nextJudgeId = null;
+          nextContestantId = null;
+        }
+
+        const userUpdateData: Prisma.UserUpdateInput = {
+          ...(userData as Prisma.UserUpdateInput),
+          ...(roleChanged || targetRole === 'JUDGE' || targetRole === 'CONTESTANT'
+            ? {
+                judgeId: nextJudgeId,
+                contestantId: nextContestantId
+              }
+            : {})
+        };
+
+        return await tx.user.update({
+          where: { id },
+          data: userUpdateData,
+          include: {
+            judge: true,
+            contestant: true
+          }
+        }) as UserWithRelations;
+      });
 
       // Invalidate user cache after update
       userCache.invalidate(id);
@@ -438,45 +575,6 @@ export class UsersController {
         });
       } catch (auditError) {
         log.error('Failed to log user update audit', { error: auditError });
-      }
-
-      // Update associated Judge record if user is a judge and isHeadJudge is provided
-      if (currentUser.role === 'JUDGE' && data.isHeadJudge !== undefined && currentUser.judgeId) {
-        log.debug('Updating judge head judge status', { userId: id, judgeId: currentUser.judgeId, isHeadJudge: data.isHeadJudge });
-        await this.prisma.judge.update({
-          where: { id: currentUser.judgeId },
-          data: { isHeadJudge: data.isHeadJudge }
-        });
-      }
-
-      // Keep linked role records in sync so role-specific views (scoring/results/bios) show updates.
-      if (currentUser.role === 'JUDGE' && currentUser.judgeId) {
-        const judgeUpdateData: Prisma.JudgeUpdateInput = {};
-        if (data.name !== undefined) judgeUpdateData.name = data.name;
-        if (data.email !== undefined) judgeUpdateData.email = data.email;
-        if (data.gender !== undefined) judgeUpdateData.gender = data.gender ?? null;
-        if (data.pronouns !== undefined) judgeUpdateData.pronouns = data.pronouns ?? null;
-        if (Object.keys(judgeUpdateData).length > 0) {
-          await this.prisma.judge.update({
-            where: { id: currentUser.judgeId },
-            data: judgeUpdateData,
-          });
-        }
-      } else if (currentUser.role === 'CONTESTANT' && currentUser.contestantId) {
-        const contestantUpdateData: Prisma.ContestantUpdateInput = {};
-        if (data.name !== undefined) contestantUpdateData.name = data.name;
-        if (data.email !== undefined) contestantUpdateData.email = data.email;
-        if (data.gender !== undefined) contestantUpdateData.gender = data.gender ?? null;
-        if (data.pronouns !== undefined) contestantUpdateData.pronouns = data.pronouns ?? null;
-        if (data.contestantNumber !== undefined) {
-          contestantUpdateData.contestantNumber = data.contestantNumber ? parseInt(String(data.contestantNumber), 10) : null;
-        }
-        if (Object.keys(contestantUpdateData).length > 0) {
-          await this.prisma.contestant.update({
-            where: { id: currentUser.contestantId },
-            data: contestantUpdateData,
-          });
-        }
       }
 
       log.info('User updated successfully', { userId: id, email: user.email });
