@@ -710,6 +710,105 @@ export class SettingsController {
   };
 
   /**
+   * Get system health external alert settings
+   * SUPER_ADMIN-only route.
+   */
+  getSystemHealthAlertSettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const settings = await this.settingsService.getSystemHealthAlertSettings(tenantId);
+      successResponse(res, settings, 'System health alert settings retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Update system health external alert settings
+   * SUPER_ADMIN-only route.
+   */
+  updateSystemHealthAlertSettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
+      const updatedCount = await this.settingsService.updateSystemHealthAlertSettings(req.body || {}, userId, tenantId);
+      successResponse(
+        res,
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
+        'System health alert settings updated successfully'
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Get scoring workflow alert settings
+   */
+  getScoringWorkflowAlertSettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const settings = await this.settingsService.getScoringWorkflowAlertSettings(tenantId);
+      successResponse(res, settings, 'Scoring workflow alert settings retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Update scoring workflow alert settings
+   */
+  updateScoringWorkflowAlertSettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
+      const updatedCount = await this.settingsService.updateScoringWorkflowAlertSettings(req.body || {}, userId, tenantId);
+      successResponse(
+        res,
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
+        'Scoring workflow alert settings updated successfully'
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Get candidate tenant users for scoring workflow alert routing
+   */
+  getScoringWorkflowAlertCandidates = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const candidates = await this.settingsService.getScoringWorkflowAlertCandidates(tenantId);
+      successResponse(res, candidates, 'Scoring workflow alert candidates retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
    * Reset tenant setting to global default (delete tenant-specific override)
    */
   resetSettingToGlobal = async (
@@ -772,3 +871,8 @@ export const updateContestantVisibilitySettings =
   controller.updateContestantVisibilitySettings;
 export const getGlobalSettings = controller.getGlobalSettings;
 export const resetSettingToGlobal = controller.resetSettingToGlobal;
+export const getSystemHealthAlertSettings = controller.getSystemHealthAlertSettings;
+export const updateSystemHealthAlertSettings = controller.updateSystemHealthAlertSettings;
+export const getScoringWorkflowAlertSettings = controller.getScoringWorkflowAlertSettings;
+export const updateScoringWorkflowAlertSettings = controller.updateScoringWorkflowAlertSettings;
+export const getScoringWorkflowAlertCandidates = controller.getScoringWorkflowAlertCandidates;

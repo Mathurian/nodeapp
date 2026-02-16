@@ -59,7 +59,8 @@ cleanup_directory() {
     log "INFO" "Cleaning: $dir (retention: ${retention_days} days)"
 
     # Find all backups matching pattern
-    local backups=($(find "$dir" -name "$pattern" -type f | sort -r))
+    local backups=()
+    mapfile -t backups < <(find "$dir" -name "$pattern" -type f | sort -r)
     local total_count=${#backups[@]}
 
     log "INFO" "Total backups found: $total_count"
@@ -78,7 +79,7 @@ cleanup_directory() {
         # Always keep minimum number of recent backups
         if [[ $kept_count -lt $MIN_BACKUPS_TO_KEEP ]]; then
             log "INFO" "Keeping (recent): $(basename $backup)"
-            ((kept_count++))
+            kept_count=$((kept_count + 1))
             continue
         fi
 
@@ -90,10 +91,10 @@ cleanup_directory() {
                 rm -f "$backup"
                 log "INFO" "Removed: $(basename $backup) (age: ${age_days}d)"
             fi
-            ((removed_count++))
+            removed_count=$((removed_count + 1))
         else
             log "INFO" "Keeping: $(basename $backup) (age: ${age_days}d)"
-            ((kept_count++))
+            kept_count=$((kept_count + 1))
         fi
     done
 

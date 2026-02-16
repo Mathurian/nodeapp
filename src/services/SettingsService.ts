@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { BaseService } from './BaseService';
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
@@ -22,6 +22,39 @@ export interface AppNameSettings {
   appSubtitle: string;
 }
 
+export interface SystemHealthAlertSettings {
+  enabled: boolean;
+  webhookUrl: string;
+  emailRecipients: string[];
+  warnDiskPercent: number;
+  criticalDiskPercent: number;
+  warnMemoryPercent: number;
+  criticalMemoryPercent: number;
+}
+
+export interface ScoringWorkflowAlertSettings {
+  enabled: boolean;
+  recipientRoles: UserRole[];
+  recipientUserIds: string[];
+  recipientEmails: string[];
+  notifyOnGovernanceRequestCreated: boolean;
+  notifyOnGovernanceRequestApproved: boolean;
+  notifyOnGovernanceRequestRejected: boolean;
+  notifyOnDeductionRequested: boolean;
+  notifyOnDeductionApproved: boolean;
+  notifyOnJudgeCertified: boolean;
+  notifyOnCategoryCertified: boolean;
+  onlyIfUnviewed: boolean;
+  escalationMinutes: number;
+}
+
+export interface AlertCandidateUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
 // Extended setting type with source information
 export interface SystemSettingWithSource extends SystemSettingFull {
   isInherited?: boolean;  // true if this is a global setting being used as fallback
@@ -29,6 +62,7 @@ export interface SystemSettingWithSource extends SystemSettingFull {
 
 const DEFAULT_APP_NAME = 'ConMGR';
 const DEFAULT_APP_DESCRIPTION = 'Manage events, scoring, certifications, and reporting from one secure platform.';
+const ALERT_CATEGORY = 'alerts';
 
 @injectable()
 export class SettingsService extends BaseService {
@@ -843,6 +877,202 @@ export class SettingsService extends BaseService {
         error: 'Unable to read database configuration'
       };
     }
+  }
+
+  private parseBooleanSetting(value: string | null | undefined, fallback: boolean): boolean {
+    if (typeof value !== 'string') return fallback;
+    return value.toLowerCase() === 'true';
+  }
+
+  private parseNumberSetting(value: string | null | undefined, fallback: number, min: number, max: number): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(min, Math.min(max, parsed));
+  }
+
+  private parseStringArraySetting(value: string | null | undefined): string[] {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map((v) => String(v).trim()).filter(Boolean);
+    } catch {
+      // ignore malformed JSON and return fallback split
+    }
+    return value.split(',').map((v) => v.trim()).filter(Boolean);
+  }
+
+  async getSystemHealthAlertSettings(tenantId?: string | null): Promise<SystemHealthAlertSettings> {
+    const [
+      enabled,
+      webhookUrl,
+      emailRecipients,
+      warnDiskPercent,
+      criticalDiskPercent,
+      warnMemoryPercent,
+      criticalMemoryPercent
+    ] = await Promise.all([
+      this.getSettingWithFallback('alerts_system_health_enabled', tenantId),
+      this.getSettingWithFallback('alerts_system_health_webhook_url', tenantId),
+      this.getSettingWithFallback('alerts_system_health_email_recipients', tenantId),
+      this.getSettingWithFallback('alerts_system_health_warn_disk_percent', tenantId),
+      this.getSettingWithFallback('alerts_system_health_critical_disk_percent', tenantId),
+      this.getSettingWithFallback('alerts_system_health_warn_memory_percent', tenantId),
+      this.getSettingWithFallback('alerts_system_health_critical_memory_percent', tenantId),
+    ]);
+
+    return {
+      enabled: this.parseBooleanSetting(enabled, true),
+      webhookUrl: webhookUrl || '',
+      emailRecipients: this.parseStringArraySetting(emailRecipients),
+      warnDiskPercent: this.parseNumberSetting(warnDiskPercent, 80, 1, 99),
+      criticalDiskPercent: this.parseNumberSetting(criticalDiskPercent, 90, 1, 99),
+      warnMemoryPercent: this.parseNumberSetting(warnMemoryPercent, 85, 1, 99),
+      criticalMemoryPercent: this.parseNumberSetting(criticalMemoryPercent, 92, 1, 99),
+    };
+  }
+
+  async updateSystemHealthAlertSettings(
+    settings: Partial<SystemHealthAlertSettings>,
+    userId: string,
+    tenantId?: string | null
+  ): Promise<number> {
+    const current = await this.getSystemHealthAlertSettings(tenantId);
+    const merged: SystemHealthAlertSettings = {
+      ...current,
+      ...settings,
+      emailRecipients: Array.isArray(settings.emailRecipients) ? settings.emailRecipients : current.emailRecipients
+    };
+
+    if (merged.warnDiskPercent >= merged.criticalDiskPercent) {
+      throw new Error('Warn disk threshold must be lower than critical disk threshold');
+    }
+    if (merged.warnMemoryPercent >= merged.criticalMemoryPercent) {
+      throw new Error('Warn memory threshold must be lower than critical memory threshold');
+    }
+
+    const kv: Array<[string, string]> = [
+      ['alerts_system_health_enabled', String(merged.enabled)],
+      ['alerts_system_health_webhook_url', merged.webhookUrl || ''],
+      ['alerts_system_health_email_recipients', JSON.stringify(merged.emailRecipients || [])],
+      ['alerts_system_health_warn_disk_percent', String(merged.warnDiskPercent)],
+      ['alerts_system_health_critical_disk_percent', String(merged.criticalDiskPercent)],
+      ['alerts_system_health_warn_memory_percent', String(merged.warnMemoryPercent)],
+      ['alerts_system_health_critical_memory_percent', String(merged.criticalMemoryPercent)],
+    ];
+
+    for (const [key, value] of kv) {
+      await this.setSettingForTenant(key, value, tenantId ?? null, ALERT_CATEGORY, 'System health external alert setting', userId);
+    }
+    return kv.length;
+  }
+
+  async getScoringWorkflowAlertSettings(tenantId?: string | null): Promise<ScoringWorkflowAlertSettings> {
+    const [
+      enabled,
+      recipientRolesRaw,
+      recipientUserIdsRaw,
+      recipientEmailsRaw,
+      createdRaw,
+      approvedRaw,
+      rejectedRaw,
+      deductionRequestedRaw,
+      deductionApprovedRaw,
+      judgeCertifiedRaw,
+      categoryCertifiedRaw,
+      onlyIfUnviewedRaw,
+      escalationMinutesRaw
+    ] = await Promise.all([
+      this.getSettingWithFallback('alerts_scoring_enabled', tenantId),
+      this.getSettingWithFallback('alerts_scoring_recipient_roles', tenantId),
+      this.getSettingWithFallback('alerts_scoring_recipient_user_ids', tenantId),
+      this.getSettingWithFallback('alerts_scoring_recipient_emails', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_governance_created', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_governance_approved', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_governance_rejected', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_deduction_requested', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_deduction_approved', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_judge_certified', tenantId),
+      this.getSettingWithFallback('alerts_scoring_on_category_certified', tenantId),
+      this.getSettingWithFallback('alerts_scoring_only_if_unviewed', tenantId),
+      this.getSettingWithFallback('alerts_scoring_escalation_minutes', tenantId),
+    ]);
+
+    const parsedRoles = this.parseStringArraySetting(recipientRolesRaw).filter((r): r is UserRole =>
+      Object.values(UserRole).includes(r as UserRole)
+    );
+
+    return {
+      enabled: this.parseBooleanSetting(enabled, true),
+      recipientRoles: parsedRoles.length > 0 ? parsedRoles : ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'],
+      recipientUserIds: this.parseStringArraySetting(recipientUserIdsRaw),
+      recipientEmails: this.parseStringArraySetting(recipientEmailsRaw),
+      notifyOnGovernanceRequestCreated: this.parseBooleanSetting(createdRaw, true),
+      notifyOnGovernanceRequestApproved: this.parseBooleanSetting(approvedRaw, true),
+      notifyOnGovernanceRequestRejected: this.parseBooleanSetting(rejectedRaw, true),
+      notifyOnDeductionRequested: this.parseBooleanSetting(deductionRequestedRaw, true),
+      notifyOnDeductionApproved: this.parseBooleanSetting(deductionApprovedRaw, true),
+      notifyOnJudgeCertified: this.parseBooleanSetting(judgeCertifiedRaw, true),
+      notifyOnCategoryCertified: this.parseBooleanSetting(categoryCertifiedRaw, true),
+      onlyIfUnviewed: this.parseBooleanSetting(onlyIfUnviewedRaw, false),
+      escalationMinutes: this.parseNumberSetting(escalationMinutesRaw, 60, 5, 10080),
+    };
+  }
+
+  async updateScoringWorkflowAlertSettings(
+    settings: Partial<ScoringWorkflowAlertSettings>,
+    userId: string,
+    tenantId?: string | null
+  ): Promise<number> {
+    const current = await this.getScoringWorkflowAlertSettings(tenantId);
+    const merged: ScoringWorkflowAlertSettings = {
+      ...current,
+      ...settings,
+      recipientRoles: Array.isArray(settings.recipientRoles) ? settings.recipientRoles : current.recipientRoles,
+      recipientUserIds: Array.isArray(settings.recipientUserIds) ? settings.recipientUserIds : current.recipientUserIds,
+      recipientEmails: Array.isArray(settings.recipientEmails) ? settings.recipientEmails : current.recipientEmails
+    };
+
+    merged.recipientRoles = merged.recipientRoles.filter((r): r is UserRole => Object.values(UserRole).includes(r));
+
+    const kv: Array<[string, string]> = [
+      ['alerts_scoring_enabled', String(merged.enabled)],
+      ['alerts_scoring_recipient_roles', JSON.stringify(merged.recipientRoles)],
+      ['alerts_scoring_recipient_user_ids', JSON.stringify(merged.recipientUserIds || [])],
+      ['alerts_scoring_recipient_emails', JSON.stringify(merged.recipientEmails || [])],
+      ['alerts_scoring_on_governance_created', String(merged.notifyOnGovernanceRequestCreated)],
+      ['alerts_scoring_on_governance_approved', String(merged.notifyOnGovernanceRequestApproved)],
+      ['alerts_scoring_on_governance_rejected', String(merged.notifyOnGovernanceRequestRejected)],
+      ['alerts_scoring_on_deduction_requested', String(merged.notifyOnDeductionRequested)],
+      ['alerts_scoring_on_deduction_approved', String(merged.notifyOnDeductionApproved)],
+      ['alerts_scoring_on_judge_certified', String(merged.notifyOnJudgeCertified)],
+      ['alerts_scoring_on_category_certified', String(merged.notifyOnCategoryCertified)],
+      ['alerts_scoring_only_if_unviewed', String(merged.onlyIfUnviewed)],
+      ['alerts_scoring_escalation_minutes', String(merged.escalationMinutes)],
+    ];
+
+    for (const [key, value] of kv) {
+      await this.setSettingForTenant(key, value, tenantId ?? null, ALERT_CATEGORY, 'Scoring workflow alert setting', userId);
+    }
+    return kv.length;
+  }
+
+  async getScoringWorkflowAlertCandidates(tenantId?: string | null): Promise<AlertCandidateUser[]> {
+    if (!tenantId) return [];
+    const roles: UserRole[] = ['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN', 'JUDGE', 'EMCEE'];
+    return await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        role: { in: roles }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      },
+      orderBy: [{ role: 'asc' }, { name: 'asc' }]
+    });
   }
 
   /**

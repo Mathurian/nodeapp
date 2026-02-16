@@ -922,6 +922,15 @@ npm run health:check
 ./scripts/status.sh
 curl http://conmgr.com/health
 
+# Confirm alert policy config in UI
+# SUPER_ADMIN: Settings -> System Health Alerts
+# ADMIN/ORGANIZER/BOARD: Settings -> Scoring Workflow Alerts
+
+# Verify external alert jobs are running
+grep event-manager /etc/cron.d/event-manager-backup
+tail -n 100 /var/log/event-manager-health-alert.log
+tail -n 100 /var/log/event-manager-scoring-alert.log
+
 # View overnight errors
 sudo journalctl -u event-manager --since "yesterday" | grep -i error
 

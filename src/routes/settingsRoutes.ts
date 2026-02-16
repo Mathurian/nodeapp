@@ -27,7 +27,12 @@ import {
   uploadThemeFavicon,
   getContestantVisibilitySettings,
   updateContestantVisibilitySettings,
-  getDatabaseConnectionInfo
+  getDatabaseConnectionInfo,
+  getSystemHealthAlertSettings,
+  updateSystemHealthAlertSettings,
+  getScoringWorkflowAlertSettings,
+  updateScoringWorkflowAlertSettings,
+  getScoringWorkflowAlertCandidates
 } from '../controllers/settingsController';
 import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
@@ -191,6 +196,13 @@ router.post('/theme/favicon',
 // Allow contestants to read, but only ADMIN/ORGANIZER can update
 router.get('/contestant-visibility', getContestantVisibilitySettings)
 router.put('/contestant-visibility', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_CONTESTANT_VISIBILITY_SETTINGS', 'SETTINGS'), updateContestantVisibilitySettings)
+
+// Alert settings
+router.get('/alerts/system-health', requireRole(['SUPER_ADMIN']), getSystemHealthAlertSettings)
+router.put('/alerts/system-health', requireRole(['SUPER_ADMIN']), logActivity('UPDATE_SYSTEM_HEALTH_ALERT_SETTINGS', 'SETTINGS'), updateSystemHealthAlertSettings)
+router.get('/alerts/scoring-workflow', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getScoringWorkflowAlertSettings)
+router.put('/alerts/scoring-workflow', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SCORING_WORKFLOW_ALERT_SETTINGS', 'SETTINGS'), updateScoringWorkflowAlertSettings)
+router.get('/alerts/scoring-workflow/candidates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getScoringWorkflowAlertCandidates)
 
 // Database connection info (read-only, masked)
 router.get('/database-connection-info', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getDatabaseConnectionInfo)

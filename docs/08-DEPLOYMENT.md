@@ -504,37 +504,57 @@ scrape_configs:
 
 ## Backup Strategy
 
-### Automated Database Backups
+Use the built-in backup scripts and cron installer in this repository.
 
-Create `/usr/local/bin/backup-event-manager.sh`:
-
-```bash
-#!/bin/bash
-BACKUP_DIR="/var/backups/event-manager"
-DATE=$(date +%Y%m%d_%H%M%S)
-DB_NAME="event_manager"
-
-# Create backup directory
-mkdir -p $BACKUP_DIR
-
-# Database backup
-pg_dump $DB_NAME | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
-
-# File backup
-tar -czf "$BACKUP_DIR/files_$DATE.tar.gz" /var/www/event-manager/uploads
-
-# Keep only last 30 days
-find $BACKUP_DIR -name "*.gz" -mtime +30 -delete
-
-echo "Backup completed: $DATE"
-```
-
-### Cron Schedule
+### Install Scheduled Backups and Cleanup
 
 ```bash
-# Add to crontab
-0 2 * * * /usr/local/bin/backup-event-manager.sh
+cd /var/www/event-manager
+sudo ./scripts/setup-cron.sh
 ```
+
+This installs `/etc/cron.d/event-manager-backup` with:
+- Full backup daily at 02:00
+- Incremental backup every 6 hours
+- PITR base backup weekly
+- Backup verification weekly
+- Backup cleanup daily at 04:00
+- Recovery test monthly
+
+### External Alerts (Outside Application)
+
+1. Create alert config:
+```bash
+sudo mkdir -p /etc/event-manager
+sudo cp /var/www/event-manager/config/alerts.env.example /etc/event-manager/alerts.env
+sudo chmod 600 /etc/event-manager/alerts.env
+```
+
+2. Configure defaults (optional fallback):
+- `ALERT_WEBHOOK_URL` (push/webhook notifications)
+- `ALERT_EMAIL_TO` (email notifications, requires local mail/sendmail support)
+
+3. Configure runtime alert policy in the app:
+- `Settings -> System Health Alerts` (SUPER_ADMIN)
+- `Settings -> Scoring Workflow Alerts` (SUPER_ADMIN/ADMIN/ORGANIZER/BOARD)
+
+These settings are persisted in `system_settings` and are consumed by cron alert scripts.
+The `/etc/event-manager/alerts.env` values remain fallback defaults and transport config.
+
+4. `setup-cron.sh` also schedules:
+- `scripts/ops/system-health-alert.sh` every 5 minutes
+- `scripts/ops/scoring-event-alerts.sh` every 2 minutes
+
+These provide out-of-app alerts for:
+- host/service health (disk, memory, service status)
+- governance requests
+- deduction requests
+- judge/category certification events
+
+Scoring workflow alerts now support:
+- recipient routing by configured roles/users/emails per tenant
+- event-type toggles (governance create/approve/reject, deductions, certifications)
+- unread-gated escalation (`onlyIfUnviewed` + `escalationMinutes`) using in-app notification read state
 
 ## Performance Tuning
 

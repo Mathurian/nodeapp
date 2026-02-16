@@ -32,6 +32,8 @@ Description:
     - Backup verification: Weekly (Saturday 3 AM)
     - Backup cleanup: Daily at 4 AM
     - Recovery test: Monthly (1st at 5 AM)
+    - System health alert: Every 5 minutes
+    - Scoring workflow event alerts: Every 2 minutes
 
 EOF
     exit 0
@@ -99,6 +101,12 @@ install_cron_jobs() {
 # Recovery test - Monthly on 1st at 5 AM
 0 5 1 * * root /var/www/event-manager/scripts/test-recovery.sh >> /var/log/recovery-test.log 2>&1
 
+# System health alert check - Every 5 minutes
+*/5 * * * * root /var/www/event-manager/scripts/ops/system-health-alert.sh >> /var/log/event-manager-health-alert.log 2>&1
+
+# Scoring workflow event alerts - Every 2 minutes
+*/2 * * * * root /var/www/event-manager/scripts/ops/scoring-event-alerts.sh >> /var/log/event-manager-scoring-alert.log 2>&1
+
 EOF
         return 0
     fi
@@ -128,6 +136,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 # Recovery test - Monthly on 1st at 5 AM
 0 5 1 * * root /var/www/event-manager/scripts/test-recovery.sh >> /var/log/recovery-test.log 2>&1
 
+# System health alert check - Every 5 minutes
+*/5 * * * * root /var/www/event-manager/scripts/ops/system-health-alert.sh >> /var/log/event-manager-health-alert.log 2>&1
+
+# Scoring workflow event alerts - Every 2 minutes
+*/2 * * * * root /var/www/event-manager/scripts/ops/scoring-event-alerts.sh >> /var/log/event-manager-scoring-alert.log 2>&1
+
 EOF
 
     chmod 644 "$CRON_FILE"
@@ -149,6 +163,8 @@ verify_installation() {
         "backup-verify.sh"
         "backup-cleanup.sh"
         "test-recovery.sh"
+        "ops/system-health-alert.sh"
+        "ops/scoring-event-alerts.sh"
     )
 
     for script in "${scripts[@]}"; do
@@ -169,6 +185,8 @@ verify_installation() {
     log "INFO" "  Backup verification: Saturdays at 03:00"
     log "INFO" "  Backup cleanup:      Daily at 04:00"
     log "INFO" "  Recovery test:       1st of month at 05:00"
+    log "INFO" "  Health alerts:       Every 5 minutes"
+    log "INFO" "  Scoring alerts:      Every 2 minutes"
 }
 
 main() {

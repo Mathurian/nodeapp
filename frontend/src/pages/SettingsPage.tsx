@@ -94,6 +94,39 @@ interface DatabaseConnectionInfo {
   password: string
 }
 
+interface SystemHealthAlertSettings {
+  enabled: boolean
+  webhookUrl: string
+  emailRecipients: string[]
+  warnDiskPercent: number
+  criticalDiskPercent: number
+  warnMemoryPercent: number
+  criticalMemoryPercent: number
+}
+
+interface ScoringWorkflowAlertSettings {
+  enabled: boolean
+  recipientRoles: string[]
+  recipientUserIds: string[]
+  recipientEmails: string[]
+  notifyOnGovernanceRequestCreated: boolean
+  notifyOnGovernanceRequestApproved: boolean
+  notifyOnGovernanceRequestRejected: boolean
+  notifyOnDeductionRequested: boolean
+  notifyOnDeductionApproved: boolean
+  notifyOnJudgeCertified: boolean
+  notifyOnCategoryCertified: boolean
+  onlyIfUnviewed: boolean
+  escalationMinutes: number
+}
+
+interface AlertCandidateUser {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 const SettingsPage: React.FC = () => {
   const { user } = useAuth()
   const { refreshSettings } = useSystemSettings()
@@ -205,6 +238,34 @@ const SettingsPage: React.FC = () => {
     password: '',
   })
 
+  const [systemHealthAlertFormData, setSystemHealthAlertFormData] = useState<SystemHealthAlertSettings>({
+    enabled: true,
+    webhookUrl: '',
+    emailRecipients: [],
+    warnDiskPercent: 80,
+    criticalDiskPercent: 90,
+    warnMemoryPercent: 85,
+    criticalMemoryPercent: 92,
+  })
+
+  const [scoringWorkflowAlertFormData, setScoringWorkflowAlertFormData] = useState<ScoringWorkflowAlertSettings>({
+    enabled: true,
+    recipientRoles: ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'],
+    recipientUserIds: [],
+    recipientEmails: [],
+    notifyOnGovernanceRequestCreated: true,
+    notifyOnGovernanceRequestApproved: true,
+    notifyOnGovernanceRequestRejected: true,
+    notifyOnDeductionRequested: true,
+    notifyOnDeductionApproved: true,
+    notifyOnJudgeCertified: true,
+    notifyOnCategoryCertified: true,
+    onlyIfUnviewed: false,
+    escalationMinutes: 60,
+  })
+
+  const [scoringAlertEmailInput, setScoringAlertEmailInput] = useState('')
+
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'BOARD'
@@ -218,6 +279,9 @@ const SettingsPage: React.FC = () => {
       queryClient.invalidateQueries(['security-settings'])
       queryClient.invalidateQueries(['contestant-visibility-settings'])
       queryClient.invalidateQueries(['password-policy'])
+      queryClient.invalidateQueries(['system-health-alert-settings'])
+      queryClient.invalidateQueries(['scoring-workflow-alert-settings'])
+      queryClient.invalidateQueries(['scoring-workflow-alert-candidates'])
     }
   }, [editingGlobal, selectedTenantId, isSuperAdmin, queryClient])
 
@@ -380,6 +444,71 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const { data: systemHealthAlertSettings, isLoading: systemHealthAlertLoading } = useQuery<SystemHealthAlertSettings>(
+    ['system-health-alert-settings', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await api.get(`/settings/alerts/system-health${getGlobalParam()}`)
+      return response.data.data || response.data
+    },
+    {
+      enabled: isSuperAdmin,
+      onSuccess: (data) => {
+        if (data) {
+          setSystemHealthAlertFormData({
+            enabled: data.enabled !== false,
+            webhookUrl: data.webhookUrl || '',
+            emailRecipients: Array.isArray(data.emailRecipients) ? data.emailRecipients : [],
+            warnDiskPercent: Number(data.warnDiskPercent || 80),
+            criticalDiskPercent: Number(data.criticalDiskPercent || 90),
+            warnMemoryPercent: Number(data.warnMemoryPercent || 85),
+            criticalMemoryPercent: Number(data.criticalMemoryPercent || 92),
+          })
+        }
+      }
+    }
+  )
+
+  const { data: scoringWorkflowAlertSettings, isLoading: scoringWorkflowAlertLoading } = useQuery<ScoringWorkflowAlertSettings>(
+    ['scoring-workflow-alert-settings', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await api.get(`/settings/alerts/scoring-workflow${getGlobalParam()}`)
+      return response.data.data || response.data
+    },
+    {
+      enabled: isAdmin,
+      onSuccess: (data) => {
+        if (data) {
+          setScoringWorkflowAlertFormData({
+            enabled: data.enabled !== false,
+            recipientRoles: Array.isArray(data.recipientRoles) ? data.recipientRoles : [],
+            recipientUserIds: Array.isArray(data.recipientUserIds) ? data.recipientUserIds : [],
+            recipientEmails: Array.isArray(data.recipientEmails) ? data.recipientEmails : [],
+            notifyOnGovernanceRequestCreated: data.notifyOnGovernanceRequestCreated !== false,
+            notifyOnGovernanceRequestApproved: data.notifyOnGovernanceRequestApproved !== false,
+            notifyOnGovernanceRequestRejected: data.notifyOnGovernanceRequestRejected !== false,
+            notifyOnDeductionRequested: data.notifyOnDeductionRequested !== false,
+            notifyOnDeductionApproved: data.notifyOnDeductionApproved !== false,
+            notifyOnJudgeCertified: data.notifyOnJudgeCertified !== false,
+            notifyOnCategoryCertified: data.notifyOnCategoryCertified !== false,
+            onlyIfUnviewed: data.onlyIfUnviewed === true,
+            escalationMinutes: Number(data.escalationMinutes || 60),
+          })
+        }
+      }
+    }
+  )
+
+  const { data: scoringWorkflowAlertCandidates = [], isLoading: scoringWorkflowAlertCandidatesLoading } = useQuery<AlertCandidateUser[]>(
+    ['scoring-workflow-alert-candidates', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await api.get(`/settings/alerts/scoring-workflow/candidates${getGlobalParam()}`)
+      return response.data.data || []
+    },
+    {
+      enabled: isAdmin && (!isSuperAdmin || !editingGlobal || !!selectedTenantId),
+    }
+  )
+
   // Fetch current tenant's scoring type
   const { data: tenantScoringType, isLoading: scoringTypeLoading } = useQuery<any>(
     ['tenant-scoring-type', selectedTenantId],
@@ -527,6 +656,42 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const updateSystemHealthAlertMutation = useMutation(
+    async (data: SystemHealthAlertSettings) => {
+      const response = await api.put(`/settings/alerts/system-health${getGlobalParam()}`, data)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['system-health-alert-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `System health alert settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Error: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
+  const updateScoringWorkflowAlertMutation = useMutation(
+    async (data: ScoringWorkflowAlertSettings) => {
+      const response = await api.put(`/settings/alerts/scoring-workflow${getGlobalParam()}`, data)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['scoring-workflow-alert-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Scoring workflow alert settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Error: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
   const uploadLogoMutation = useMutation(
     async (file: File) => {
       const response = await settingsAPI.uploadThemeLogo(file)
@@ -617,6 +782,51 @@ const SettingsPage: React.FC = () => {
     })
   }
 
+  const toggleScoringAlertRole = (role: string, checked: boolean) => {
+    const next = new Set(scoringWorkflowAlertFormData.recipientRoles || [])
+    if (checked) {
+      next.add(role)
+    } else {
+      next.delete(role)
+    }
+    setScoringWorkflowAlertFormData({
+      ...scoringWorkflowAlertFormData,
+      recipientRoles: Array.from(next),
+    })
+  }
+
+  const toggleScoringAlertUser = (userId: string, checked: boolean) => {
+    const next = new Set(scoringWorkflowAlertFormData.recipientUserIds || [])
+    if (checked) {
+      next.add(userId)
+    } else {
+      next.delete(userId)
+    }
+    setScoringWorkflowAlertFormData({
+      ...scoringWorkflowAlertFormData,
+      recipientUserIds: Array.from(next),
+    })
+  }
+
+  const addScoringAlertEmail = () => {
+    const email = scoringAlertEmailInput.trim().toLowerCase()
+    if (!email || !email.includes('@')) return
+    const next = new Set(scoringWorkflowAlertFormData.recipientEmails || [])
+    next.add(email)
+    setScoringWorkflowAlertFormData({
+      ...scoringWorkflowAlertFormData,
+      recipientEmails: Array.from(next),
+    })
+    setScoringAlertEmailInput('')
+  }
+
+  const removeScoringAlertEmail = (email: string) => {
+    setScoringWorkflowAlertFormData({
+      ...scoringWorkflowAlertFormData,
+      recipientEmails: (scoringWorkflowAlertFormData.recipientEmails || []).filter((item) => item !== email),
+    })
+  }
+
   const handleSaveSection = (section: string) => {
     switch (section) {
       case 'general':
@@ -640,6 +850,12 @@ const SettingsPage: React.FC = () => {
       case 'scoring':
         updateScoringTypeMutation.mutate(scoringType)
         break
+      case 'system-health-alerts':
+        updateSystemHealthAlertMutation.mutate(systemHealthAlertFormData)
+        break
+      case 'scoring-workflow-alerts':
+        updateScoringWorkflowAlertMutation.mutate(scoringWorkflowAlertFormData)
+        break
     }
   }
 
@@ -657,7 +873,18 @@ const SettingsPage: React.FC = () => {
     )
   }
 
-  const isLoading = generalLoading || emailLoading || themeLoading || securityLoading || contestantVisibilityLoading || passwordPolicyLoading || databaseInfoLoading
+  const isLoading =
+    generalLoading ||
+    emailLoading ||
+    themeLoading ||
+    securityLoading ||
+    contestantVisibilityLoading ||
+    passwordPolicyLoading ||
+    databaseInfoLoading ||
+    (isSuperAdmin && systemHealthAlertLoading) ||
+    scoringWorkflowAlertLoading ||
+    scoringTypeLoading ||
+    scoringWorkflowAlertCandidatesLoading
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -965,6 +1192,316 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
                     >
                       {updateScoringTypeMutation.isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="h-5 w-5 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* System Health Alerts (SUPER_ADMIN) */}
+            {isSuperAdmin && (
+              <div className="cgr-surface overflow-hidden rounded-lg">
+                <button
+                  onClick={() => toggleSection('system-health-alerts')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <BellIcon className="h-6 w-6 mr-3 text-amber-600 dark:text-amber-400" />
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">System Health Alerts</h2>
+                  </div>
+                  {expandedSections.includes('system-health-alerts') ? (
+                    <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  )}
+                </button>
+
+                {expandedSections.includes('system-health-alerts') && (
+                  <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Enable System Health Alerts</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Triggers webhook/email alerts for disk, memory, and service health.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={systemHealthAlertFormData.enabled}
+                        onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, enabled: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Webhook URL</label>
+                      <input
+                        type="url"
+                        value={systemHealthAlertFormData.webhookUrl}
+                        onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, webhookUrl: e.target.value })}
+                        placeholder="https://example.com/webhook"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Recipients (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={systemHealthAlertFormData.emailRecipients.join(', ')}
+                        onChange={(e) =>
+                          setSystemHealthAlertFormData({
+                            ...systemHealthAlertFormData,
+                            emailRecipients: e.target.value.split(',').map((v) => v.trim()).filter(Boolean),
+                          })
+                        }
+                        placeholder="ops@example.com, security@example.com"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Warn Disk %</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={systemHealthAlertFormData.warnDiskPercent}
+                          onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, warnDiskPercent: Number(e.target.value) || 80 })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Disk %</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={systemHealthAlertFormData.criticalDiskPercent}
+                          onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, criticalDiskPercent: Number(e.target.value) || 90 })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Warn Memory %</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={systemHealthAlertFormData.warnMemoryPercent}
+                          onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, warnMemoryPercent: Number(e.target.value) || 85 })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Memory %</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={systemHealthAlertFormData.criticalMemoryPercent}
+                          onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, criticalMemoryPercent: Number(e.target.value) || 92 })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={() => handleSaveSection('system-health-alerts')}
+                        disabled={updateSystemHealthAlertMutation.isLoading}
+                        className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                      >
+                        {updateSystemHealthAlertMutation.isLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckIcon className="h-5 w-5 mr-2" />
+                            Save Changes
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Scoring Workflow Alerts */}
+            <div className="cgr-surface overflow-hidden rounded-lg">
+              <button
+                onClick={() => toggleSection('scoring-workflow-alerts')}
+                className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center">
+                  <BellIcon className="h-6 w-6 mr-3 text-cyan-600 dark:text-cyan-400" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Scoring Workflow Alerts</h2>
+                </div>
+                {expandedSections.includes('scoring-workflow-alerts') ? (
+                  <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                )}
+              </button>
+
+              {expandedSections.includes('scoring-workflow-alerts') && (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">Enable Scoring Alerts</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Route governance, deduction, and certification events to approvers and designated recipients.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={scoringWorkflowAlertFormData.enabled}
+                      onChange={(e) => setScoringWorkflowAlertFormData({ ...scoringWorkflowAlertFormData, enabled: e.target.checked })}
+                      className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">Notify Roles</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN', 'JUDGE', 'EMCEE'].map((role) => (
+                        <label key={role} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={scoringWorkflowAlertFormData.recipientRoles.includes(role)}
+                            onChange={(e) => toggleScoringAlertRole(role, e.target.checked)}
+                            className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">{role}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">Notify Specific Users</p>
+                    <div className="max-h-44 overflow-auto border border-gray-200 dark:border-gray-700 rounded-md p-3 space-y-2">
+                      {scoringWorkflowAlertCandidates.length === 0 && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No candidate users available in current scope.</p>
+                      )}
+                      {scoringWorkflowAlertCandidates.map((candidate) => (
+                        <label key={candidate.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={scoringWorkflowAlertFormData.recipientUserIds.includes(candidate.id)}
+                            onChange={(e) => toggleScoringAlertUser(candidate.id, e.target.checked)}
+                            className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">
+                            {candidate.name} ({candidate.email}) - {candidate.role}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Emails</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={scoringAlertEmailInput}
+                        onChange={(e) => setScoringAlertEmailInput(e.target.value)}
+                        placeholder="alerts@example.com"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={addScoringAlertEmail}
+                        className="px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {scoringWorkflowAlertFormData.recipientEmails.map((email) => (
+                        <button
+                          key={email}
+                          type="button"
+                          onClick={() => removeScoringAlertEmail(email)}
+                          className="px-2 py-1 text-xs rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                        >
+                          {email} x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      ['notifyOnGovernanceRequestCreated', 'Governance Request Created'],
+                      ['notifyOnGovernanceRequestApproved', 'Governance Request Approved'],
+                      ['notifyOnGovernanceRequestRejected', 'Governance Request Rejected'],
+                      ['notifyOnDeductionRequested', 'Deduction Requested'],
+                      ['notifyOnDeductionApproved', 'Deduction Approved'],
+                      ['notifyOnJudgeCertified', 'Judge Certified'],
+                      ['notifyOnCategoryCertified', 'Category Certified'],
+                    ].map(([key, label]) => (
+                      <label key={key} className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
+                        <span className="text-sm text-gray-900 dark:text-white">{label}</span>
+                        <input
+                          type="checkbox"
+                          checked={(scoringWorkflowAlertFormData as any)[key] === true}
+                          onChange={(e) =>
+                            setScoringWorkflowAlertFormData({
+                              ...scoringWorkflowAlertFormData,
+                              [key]: e.target.checked,
+                            } as ScoringWorkflowAlertSettings)
+                          }
+                          className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between py-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Only If Unviewed</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Saved for phased rollout.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={scoringWorkflowAlertFormData.onlyIfUnviewed}
+                        onChange={(e) => setScoringWorkflowAlertFormData({ ...scoringWorkflowAlertFormData, onlyIfUnviewed: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Escalation Minutes</label>
+                      <input
+                        type="number"
+                        min={5}
+                        max={10080}
+                        value={scoringWorkflowAlertFormData.escalationMinutes}
+                        onChange={(e) => setScoringWorkflowAlertFormData({ ...scoringWorkflowAlertFormData, escalationMinutes: Number(e.target.value) || 60 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => handleSaveSection('scoring-workflow-alerts')}
+                      disabled={updateScoringWorkflowAlertMutation.isLoading}
+                      className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                    >
+                      {updateScoringWorkflowAlertMutation.isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Saving...
