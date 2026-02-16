@@ -609,6 +609,8 @@ export class ScoreGovernanceService extends BaseService {
       throw this.forbiddenError(`Role ${approverRole} is not configured as a governance approver`)
     }
 
+    let categoryIdToRefresh: string | null = null
+
     await this.prisma.$transaction(async (tx) => {
       const requestRows = await tx.$queryRaw<any[]>`
         SELECT * FROM "score_governance_requests" WHERE id = ${id} AND "tenantId" = ${tenantId} LIMIT 1
@@ -652,11 +654,13 @@ export class ScoreGovernanceService extends BaseService {
           WHERE id = ${id}
         `
 
-        if (request.categoryId) {
-          await refreshJudgeStage(this.prisma, tenantId, request.categoryId as string).catch(() => undefined)
-        }
+        categoryIdToRefresh = (request.categoryId as string) || null
       }
     })
+
+    if (categoryIdToRefresh) {
+      await refreshJudgeStage(this.prisma, tenantId, categoryIdToRefresh).catch(() => undefined)
+    }
 
     return this.getRequestById(id, tenantId)
   }
