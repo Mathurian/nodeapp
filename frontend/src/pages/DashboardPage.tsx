@@ -18,7 +18,7 @@ import {
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { StatCardSkeleton, ActivityItemSkeleton, TableRowSkeleton } from '../components/ui/SkeletonPatterns'
-import { Card, PageHeader, StatsCard } from '../components/ui'
+import { Card, PageHeader, ResponsiveTable, StatsCard } from '../components/ui'
 
 interface DashboardStats {
   totalUsers: number
@@ -383,6 +383,7 @@ const DashboardPage: React.FC = () => {
             </h2>
             <Card className="overflow-hidden p-0">
               {tenantsLoading ? (
+                <ResponsiveTable caption="Tenant breakdown loading">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
@@ -398,12 +399,13 @@ const DashboardPage: React.FC = () => {
                     <TableRowSkeleton columns={5} rows={5} hasActions />
                   </tbody>
                 </table>
+                </ResponsiveTable>
               ) : !tenants || tenants.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   No tenants found
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <ResponsiveTable caption="Tenant breakdown">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
@@ -465,7 +467,7 @@ const DashboardPage: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveTable>
               )}
             </Card>
           </div>

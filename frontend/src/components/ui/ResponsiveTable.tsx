@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react'
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 
 export interface ResponsiveTableProps {
   /** Table content (should be a <table> element) */
@@ -11,6 +11,8 @@ export interface ResponsiveTableProps {
   minWidth?: string
   /** Additional CSS classes for the container */
   className?: string
+  /** Render stacked cards on mobile derived from table headers/cells */
+  enableCardView?: boolean
 }
 
 /**
@@ -36,6 +38,7 @@ const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
   captionVisible = false,
   minWidth = '640px',
   className = '',
+  enableCardView = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scrollState, setScrollState] = useState({
@@ -104,6 +107,41 @@ const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
   const showLeftShadow = scrollState.scrollLeft > 0
   const showRightShadow = scrollState.hasOverflow && scrollState.canScrollRight
 
+  const tableElement = React.isValidElement(children) ? children : null
+  const tableChildren = tableElement ? React.Children.toArray((tableElement.props as any).children) : []
+  const theadElement = tableChildren.find((child: any) => React.isValidElement(child) && child.type === 'thead') as React.ReactElement | undefined
+  const tbodyElement = tableChildren.find((child: any) => React.isValidElement(child) && child.type === 'tbody') as React.ReactElement | undefined
+
+  const headerLabels = useMemo(() => {
+    if (!theadElement) return [] as string[]
+    const headerRows = React.Children.toArray((theadElement.props as any).children)
+    const firstRow = headerRows.find((row: any) => React.isValidElement(row) && row.type === 'tr') as React.ReactElement | undefined
+    if (!firstRow) return [] as string[]
+    return React.Children.toArray((firstRow.props as any).children)
+      .filter((cell: any) => React.isValidElement(cell))
+      .map((cell: any) => {
+        const raw = React.Children.toArray((cell.props as any).children).map((node: any) => {
+          if (typeof node === 'string' || typeof node === 'number') return String(node)
+          return ''
+        }).join(' ').trim()
+        return raw || 'Value'
+      })
+  }, [theadElement])
+
+  const bodyRows = useMemo(() => {
+    if (!tbodyElement) return [] as Array<{ key: string; cells: React.ReactNode[] }>
+    const rows = React.Children.toArray((tbodyElement.props as any).children)
+      .filter((row: any) => React.isValidElement(row) && row.type === 'tr') as React.ReactElement[]
+    return rows.map((row, index) => {
+      const cells = React.Children.toArray((row.props as any).children)
+        .filter((cell: any) => React.isValidElement(cell) && (cell.type === 'td' || cell.type === 'th'))
+        .map((cell: any) => (cell.props as any).children)
+      return { key: String((row as any).key || index), cells }
+    })
+  }, [tbodyElement])
+
+  const canRenderCards = enableCardView && headerLabels.length > 0 && bodyRows.length > 0
+
   return (
     <div className={`relative ${className}`}>
       {/* Accessible caption */}
@@ -113,43 +151,63 @@ const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
         </div>
       )}
 
-      {/* Left scroll shadow indicator */}
-      <div
-        className={`
-          absolute left-0 top-0 bottom-0 w-8 z-10
-          bg-gradient-to-r from-white dark:from-gray-800 to-transparent
-          pointer-events-none
-          transition-opacity duration-200 ease-in-out
-          ${showLeftShadow ? 'opacity-100' : 'opacity-0'}
-        `}
-        aria-hidden="true"
-      />
-
-      {/* Scrollable table container */}
-      <div
-        ref={containerRef}
-        className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
-        style={{ minWidth: '100%' }}
-        tabIndex={scrollState.hasOverflow ? 0 : undefined}
-        role={scrollState.hasOverflow ? 'region' : undefined}
-        aria-label={scrollState.hasOverflow ? 'Scrollable table' : undefined}
-      >
-        <div style={{ minWidth }}>
-          {children}
+      {canRenderCards ? (
+        <div className="space-y-3 md:space-y-4">
+          {bodyRows.map((row) => (
+            <div key={`card-${row.key}`} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 md:p-4 bg-white dark:bg-gray-800">
+              <div className="space-y-2 md:space-y-2.5">
+                {row.cells.map((cell, cellIndex) => (
+                  <div key={`cell-${row.key}-${cellIndex}`} className="grid grid-cols-[120px_1fr] md:grid-cols-[180px_1fr] gap-2 md:gap-3 items-start">
+                    <div className="text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      {headerLabels[cellIndex] || `Field ${cellIndex + 1}`}
+                    </div>
+                    <div className="text-sm md:text-[15px] text-gray-900 dark:text-white break-words">{cell}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Left scroll shadow indicator */}
+          <div
+            className={`
+              absolute left-0 top-0 bottom-0 w-8 z-10
+              bg-gradient-to-r from-white dark:from-gray-800 to-transparent
+              pointer-events-none
+              transition-opacity duration-200 ease-in-out
+              ${showLeftShadow ? 'opacity-100' : 'opacity-0'}
+            `}
+            aria-hidden="true"
+          />
 
-      {/* Right scroll shadow indicator */}
-      <div
-        className={`
-          absolute right-0 top-0 bottom-0 w-8 z-10
-          bg-gradient-to-l from-white dark:from-gray-800 to-transparent
-          pointer-events-none
-          transition-opacity duration-200 ease-in-out
-          ${showRightShadow ? 'opacity-100' : 'opacity-0'}
-        `}
-        aria-hidden="true"
-      />
+          {/* Scrollable table container */}
+          <div
+            ref={containerRef}
+            className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+            style={{ minWidth: '100%' }}
+            tabIndex={scrollState.hasOverflow ? 0 : undefined}
+            role={scrollState.hasOverflow ? 'region' : undefined}
+            aria-label={scrollState.hasOverflow ? 'Scrollable table' : undefined}
+          >
+            <div style={{ minWidth }}>
+              {children}
+            </div>
+          </div>
+          {/* Right scroll shadow indicator */}
+          <div
+            className={`
+              absolute right-0 top-0 bottom-0 w-8 z-10
+              bg-gradient-to-l from-white dark:from-gray-800 to-transparent
+              pointer-events-none
+              transition-opacity duration-200 ease-in-out
+              ${showRightShadow ? 'opacity-100' : 'opacity-0'}
+            `}
+            aria-hidden="true"
+          />
+        </>
+      )}
 
       {/* Optional scroll hint for mobile - appears briefly then fades */}
       {scrollState.hasOverflow && (

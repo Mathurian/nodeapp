@@ -11,7 +11,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
-import { ConfirmModal } from '../components/ui'
+import { ConfirmModal, ResponsiveTable } from '../components/ui'
 
 interface RateLimitConfig {
   id: string
@@ -400,8 +400,8 @@ const RateLimitConfigPage: React.FC = () => {
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <ResponsiveTable>
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -458,7 +458,7 @@ const RateLimitConfigPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+          </ResponsiveTable>
             </div>
           </div>
         )}
@@ -523,7 +523,7 @@ const RateLimitConfigPage: React.FC = () => {
 
         {/* Configurations Table */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
@@ -637,7 +637,7 @@ const RateLimitConfigPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
           </>
         )}

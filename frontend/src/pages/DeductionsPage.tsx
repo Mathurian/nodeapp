@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
-import { Button, Card, PageHeader } from '../components/ui'
+import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 import {
   MinusCircleIcon,
   CheckCircleIcon,
@@ -456,8 +456,8 @@ const DeductionsPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <ResponsiveTable>
+            <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
@@ -561,7 +561,7 @@ const DeductionsPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
-            </div>
+          </ResponsiveTable>
           )}
         </Card>
 

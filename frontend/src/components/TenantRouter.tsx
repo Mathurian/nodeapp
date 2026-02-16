@@ -201,7 +201,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/contests/:contestId/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
             <Route path="/scoring" element={<ProtectedRoute requiredRole={SCORING_ROLES}><ScoringPage /></ProtectedRoute>} />
             <Route path="/results" element={<ResultsPage />} />
-            <Route path="/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']}><WinnersPage /></ProtectedRoute>} />
+            <Route path="/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE']}><WinnersPage /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><AdminPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
@@ -265,7 +265,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/contests/:contestId/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
             <Route path="/:slug/scoring" element={<ProtectedRoute requiredRole={SCORING_ROLES}><ScoringPage /></ProtectedRoute>} />
             <Route path="/:slug/results" element={<ResultsPage />} />
-            <Route path="/:slug/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']}><WinnersPage /></ProtectedRoute>} />
+            <Route path="/:slug/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE']}><WinnersPage /></ProtectedRoute>} />
             <Route path="/:slug/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
             <Route path="/:slug/admin" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><AdminPage /></ProtectedRoute>} />
             <Route path="/:slug/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />

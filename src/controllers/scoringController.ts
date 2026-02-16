@@ -643,7 +643,7 @@ export class ScoringController {
             signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
           }
         });
-        await refreshJudgeStage(this.prisma, req.user.tenantId, categoryId);
+        await refreshJudgeStage(this.prisma, req.user.tenantId, categoryId, req.user.id);
       } else if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
         await applyCertificationStage({
           prisma: this.prisma,

@@ -7,6 +7,7 @@ import { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { ResponsiveTable } from '../components/ui'
 import {
   BookOpenIcon,
   MagnifyingGlassIcon,
@@ -682,7 +683,11 @@ You now have access to all documentation for your role (${user.role}).
                     a: ({node, ...props}) => <a className="text-blue-600 dark:text-blue-400 hover:underline font-medium" {...props} />,
                     strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
                     hr: ({node, ...props}) => <hr className="my-8 border-gray-300 dark:border-gray-600" {...props} />,
-                    table: ({node, ...props}) => <div className="overflow-x-auto mb-4"><table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700" {...props} /></div>,
+                    table: ({node, ...props}) => (
+                      <ResponsiveTable className="mb-4" minWidth="640px">
+                        <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700" {...props} />
+                      </ResponsiveTable>
+                    ),
                     thead: ({node, ...props}) => <thead className="bg-gray-50 dark:bg-gray-800" {...props} />,
                     tbody: ({node, ...props}) => <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800" {...props} />,
                     tr: ({node, ...props}) => <tr {...props} />,

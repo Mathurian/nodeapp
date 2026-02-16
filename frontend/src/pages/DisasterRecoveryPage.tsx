@@ -11,6 +11,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { ResponsiveTable } from '../components/ui'
 
 interface DRPlan {
   id: string
@@ -274,7 +275,7 @@ const DisasterRecoveryPage: React.FC = () => {
               Recent DR Tests
             </h2>
           </div>
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                 <tr>
@@ -325,7 +326,7 @@ const DisasterRecoveryPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
 
         {/* Create Plan Modal */}

@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { adminAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Card, PageHeader, Button } from '../components/ui'
+import { Card, PageHeader, Button, ResponsiveTable } from '../components/ui'
 
 interface LoginLocationTenantSummary {
   tenantId: string;
@@ -664,7 +664,7 @@ const LoginLocationsPage: React.FC = () => {
         </Card>
 
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-100 dark:bg-gray-800">
                 <tr>
@@ -710,7 +710,7 @@ const LoginLocationsPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </Card>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">

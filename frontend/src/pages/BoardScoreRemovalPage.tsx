@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { scoringAPI } from '../services/api'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { ConfirmModal } from '../components/ui'
+import { ConfirmModal, ResponsiveTable } from '../components/ui'
 
 interface ScoreRemovalRequest {
   id: string
@@ -153,8 +153,8 @@ const BoardScoreRemovalPage: React.FC = () => {
               No score removal requests
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 request-list">
+            <ResponsiveTable>
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 request-list">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -239,7 +239,7 @@ const BoardScoreRemovalPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+          </ResponsiveTable>
           )}
         </div>
 

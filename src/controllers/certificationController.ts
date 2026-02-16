@@ -271,7 +271,7 @@ export class CertificationController {
         certifiedBy: req.user?.id || null
       });
 
-      await refreshJudgeStage(this.prisma, tenantId, certification.categoryId);
+      await refreshJudgeStage(this.prisma, tenantId, certification.categoryId, req.user?.id || null);
 
       return sendSuccess(res, updated, 'Judge certification completed successfully');
     } catch (error) {
@@ -660,7 +660,7 @@ export class CertificationController {
         return sendSuccess(res, { contests: [] });
       }
 
-      const [certifications, assignments, judgeCertifications, scores] = await Promise.all([
+      const [certifications, assignments, judgeCertifications, scores, categoryContestants, criteria] = await Promise.all([
         this.prisma.certification.findMany({
           where: {
             tenantId,
@@ -674,8 +674,7 @@ export class CertificationController {
             status: 'ACTIVE',
             OR: [
               { categoryId: { in: categoryIds } },
-              { categoryId: null, contestId: { in: Array.from(new Set(categories.map((c) => c.contestId))) } },
-              { categoryId: null, eventId: { in: Array.from(new Set(categories.map((c) => c.contest?.event?.id).filter((id): id is string => !!id))) } }
+              { categoryId: null, contestId: { in: Array.from(new Set(categories.map((c) => c.contestId))) } }
             ]
           },
           select: {
@@ -709,8 +708,31 @@ export class CertificationController {
           },
           select: {
             categoryId: true,
+            judgeId: true,
+            contestantId: true,
+            criterionId: true,
             isCertified: true,
             isLocked: true
+          }
+        }),
+        this.prisma.categoryContestant.findMany({
+          where: {
+            tenantId,
+            categoryId: { in: categoryIds }
+          },
+          select: {
+            categoryId: true,
+            contestantId: true
+          }
+        }),
+        this.prisma.criterion.findMany({
+          where: {
+            tenantId,
+            categoryId: { in: categoryIds }
+          },
+          select: {
+            categoryId: true,
+            id: true
           }
         })
       ]);
@@ -723,18 +745,10 @@ export class CertificationController {
       }
 
       const categoryIdsByContest = new Map<string, string[]>();
-      const categoryIdsByEvent = new Map<string, string[]>();
       for (const category of categories) {
         const byContest = categoryIdsByContest.get(category.contestId) || [];
         byContest.push(category.id);
         categoryIdsByContest.set(category.contestId, byContest);
-
-        const eventId = category.contest?.event?.id;
-        if (eventId) {
-          const byEvent = categoryIdsByEvent.get(eventId) || [];
-          byEvent.push(category.id);
-          categoryIdsByEvent.set(eventId, byEvent);
-        }
       }
 
       const assignmentByCategory = new Map<string, Map<string, { judgeId: string; judgeName: string }>>();
@@ -757,12 +771,6 @@ export class CertificationController {
           }
           continue;
         }
-        if (a.eventId) {
-          const categoryIdsForEvent = categoryIdsByEvent.get(a.eventId) || [];
-          for (const categoryId of categoryIdsForEvent) {
-            addAssignment(categoryId, a.judgeId, judgeName);
-          }
-        }
       }
 
       const judgeCertByCategory = new Map<string, Map<string, Date>>();
@@ -772,13 +780,37 @@ export class CertificationController {
         judgeCertByCategory.set(jc.categoryId, map);
       }
 
-      const scoreByCategory = new Map<string, { total: number; certified: number; locked: number }>();
-      for (const s of scores) {
-        const current = scoreByCategory.get(s.categoryId) || { total: 0, certified: 0, locked: 0 };
-        current.total += 1;
-        if (s.isCertified) current.certified += 1;
-        if (s.isLocked) current.locked += 1;
-        scoreByCategory.set(s.categoryId, current);
+      const contestantsByCategory = new Map<string, Set<string>>();
+      for (const cc of categoryContestants) {
+        const set = contestantsByCategory.get(cc.categoryId) || new Set<string>();
+        set.add(cc.contestantId);
+        contestantsByCategory.set(cc.categoryId, set);
+      }
+
+      const criteriaByCategory = new Map<string, Set<string>>();
+      for (const criterion of criteria) {
+        const set = criteriaByCategory.get(criterion.categoryId) || new Set<string>();
+        set.add(criterion.id);
+        criteriaByCategory.set(criterion.categoryId, set);
+      }
+
+      const scoresByCategory = new Map<string, Array<{
+        judgeId: string;
+        contestantId: string;
+        criterionId: string | null;
+        isCertified: boolean;
+        isLocked: boolean;
+      }>>();
+      for (const score of scores) {
+        const list = scoresByCategory.get(score.categoryId) || [];
+        list.push({
+          judgeId: score.judgeId,
+          contestantId: score.contestantId,
+          criterionId: score.criterionId,
+          isCertified: score.isCertified,
+          isLocked: score.isLocked
+        });
+        scoresByCategory.set(score.categoryId, list);
       }
 
       const contestMap = new Map<string, any>();
@@ -794,7 +826,59 @@ export class CertificationController {
           certifiedAt: judgeCertMap.get(j.judgeId) || null
         }));
 
-        const scoreStats = scoreByCategory.get(category.id) || { total: 0, certified: 0, locked: 0 };
+        const assignedJudgeIds = new Set(assigned.map((j) => j.judgeId));
+        const scopedContestantIds = contestantsByCategory.get(category.id) || new Set<string>();
+        const scopedCriterionIds = criteriaByCategory.get(category.id) || new Set<string>();
+
+        const expectedCriteriaCount = scopedCriterionIds.size > 0 ? scopedCriterionIds.size : 1;
+        const expectedTotal = assignedJudgeIds.size * scopedContestantIds.size * expectedCriteriaCount;
+
+        const submittedKeys = new Set<string>();
+        const certifiedKeys = new Set<string>();
+        const lockedKeys = new Set<string>();
+        const categoryScores = scoresByCategory.get(category.id) || [];
+
+        for (const score of categoryScores) {
+          if (!assignedJudgeIds.has(score.judgeId)) continue;
+          if (!scopedContestantIds.has(score.contestantId)) continue;
+
+          const criterionKey = score.criterionId || '__NO_CRITERIA__';
+          if (scopedCriterionIds.size > 0 && !scopedCriterionIds.has(criterionKey)) continue;
+          if (scopedCriterionIds.size === 0 && criterionKey !== '__NO_CRITERIA__') continue;
+
+          const entryKey = `${score.judgeId}:${score.contestantId}:${criterionKey}`;
+          submittedKeys.add(entryKey);
+          if (score.isCertified) certifiedKeys.add(entryKey);
+          if (score.isLocked) lockedKeys.add(entryKey);
+        }
+
+        const scoreStats = {
+          total: expectedTotal,
+          submitted: submittedKeys.size,
+          certified: certifiedKeys.size,
+          locked: lockedKeys.size
+        };
+
+        const judgeCertifiedDerived = judgeRows.length > 0
+          ? judgeRows.every((judge) => judge.certified)
+          : Boolean(certification?.judgeCertified);
+        const tallyCertified = Boolean(certification?.tallyCertified);
+        const auditorCertified = Boolean(certification?.auditorCertified);
+        const boardApproved = Boolean(certification?.boardApproved);
+        const effectiveStatus = boardApproved
+          ? 'CERTIFIED'
+          : (judgeCertifiedDerived || tallyCertified || auditorCertified)
+            ? 'IN_PROGRESS'
+            : 'PENDING';
+        const effectiveCurrentStep = boardApproved
+          ? 4
+          : auditorCertified
+            ? 4
+            : tallyCertified
+              ? 3
+              : judgeCertifiedDerived
+                ? 2
+                : 1;
 
         const categoryOverview = {
           categoryId: category.id,
@@ -803,13 +887,13 @@ export class CertificationController {
           contestName: category.contest?.name || '',
           eventId: category.contest?.event?.id || '',
           eventName: category.contest?.event?.name || '',
-          status: certification?.status || 'PENDING',
-          currentStep: certification?.currentStep || 1,
+          status: effectiveStatus,
+          currentStep: effectiveCurrentStep,
           totalSteps: certification?.totalSteps || 4,
-          judgeCertified: Boolean(certification?.judgeCertified),
-          tallyCertified: Boolean(certification?.tallyCertified),
-          auditorCertified: Boolean(certification?.auditorCertified),
-          boardApproved: Boolean(certification?.boardApproved),
+          judgeCertified: judgeCertifiedDerived,
+          tallyCertified,
+          auditorCertified,
+          boardApproved,
           certifiedAt: certification?.certifiedAt || null,
           certifiedBy: certification?.certifiedBy || null,
           judgeProgress: {

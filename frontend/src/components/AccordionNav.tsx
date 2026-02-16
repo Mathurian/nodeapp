@@ -36,13 +36,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
     return location.pathname === href || location.pathname.startsWith(href + '/')
   }
 
-  const hasRoleAccess = (roles: string[]) => {
-    return user && roles.includes(user.role)
-  }
-
-  const filteredSections = navigationSections.filter((section) =>
-    hasRoleAccess(section.roles)
-  )
+  const filteredSections = navigationSections
 
   useEffect(() => {
     setExpandedSections(new Set(['Navigation']))
@@ -55,8 +49,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
           const isExpanded = expandedSections.has(section.name)
           const hasItems = section.items && section.items.length > 0
           const filteredItems = section.items?.filter((item) => {
-            if (!hasRoleAccess(item.roles)) return false
-            if (!allowedNavigationIds || allowedNavigationIds.size === 0) return true
+            if (!allowedNavigationIds || allowedNavigationIds.size === 0) return false
             return allowedNavigationIds.has(item.id)
           })
 

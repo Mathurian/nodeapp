@@ -11,7 +11,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
-import { Card, PageHeader } from '../components/ui'
+import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface ArchivedItem {
   id: string
@@ -161,8 +161,8 @@ const ArchivePage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <ResponsiveTable>
+            <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -237,7 +237,7 @@ const ArchivePage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+          </ResponsiveTable>
           )}
         </Card>
 

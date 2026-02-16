@@ -64,6 +64,8 @@ interface Score {
   score: number
   deduction: number
   comment: string | null
+  isCertified?: boolean
+  isLocked?: boolean
   isSigned: boolean
   signedAt: Date | null
   createdAt: Date
@@ -89,6 +91,13 @@ interface ScoreAttachment {
     criterionId?: string | null
     noteText?: string | null
   } | null
+}
+
+interface PendingCommentaryFile {
+  id: string
+  file: File
+  fileName: string
+  criterionId?: string
 }
 
 const getImageUrl = (path?: string | null): string | null => {
@@ -163,6 +172,8 @@ const ScoringPage: React.FC = () => {
   const [isSignOffChecked, setIsSignOffChecked] = useState(false)
   const [saveStatus, setSaveStatus] = useState<OptimisticStatus>('idle')
   const [uploadingContext, setUploadingContext] = useState<string | null>(null)
+  const [updatingCommentary, setUpdatingCommentary] = useState(false)
+  const [pendingCommentaryFiles, setPendingCommentaryFiles] = useState<PendingCommentaryFile[]>([])
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [typedSignature, setTypedSignature] = useState('')
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
@@ -434,7 +445,8 @@ const ScoringPage: React.FC = () => {
     }
   }
 
-  const startSignatureDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const startSignatureDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
     const canvas = signatureCanvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -442,11 +454,17 @@ const ScoringPage: React.FC = () => {
     const rect = canvas.getBoundingClientRect()
     ctx.beginPath()
     ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top)
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // no-op
+    }
     setIsDrawingSignature(true)
   }
 
-  const drawSignature = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const drawSignature = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingSignature) return
+    event.preventDefault()
     const canvas = signatureCanvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -459,10 +477,17 @@ const ScoringPage: React.FC = () => {
     ctx.stroke()
   }
 
-  const stopSignatureDrawing = () => {
+  const stopSignatureDrawing = (event?: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = signatureCanvasRef.current
     if (canvas) {
       setDrawnSignatureData(canvas.toDataURL('image/png'))
+    }
+    if (event) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      } catch {
+        // no-op
+      }
     }
     setIsDrawingSignature(false)
   }
@@ -500,9 +525,8 @@ const ScoringPage: React.FC = () => {
     }
   }
 
-  const handleUploadAttachment = async (file: File, criterionId?: string) => {
+  const uploadAttachmentNow = async (file: File, criterionId?: string, silent = false) => {
     if (!selectedCategory || !selectedContestant || !file) return
-
     const contextKey = criterionId ? `criterion-${criterionId}` : 'contestant'
     setUploadingContext(contextKey)
     try {
@@ -515,12 +539,30 @@ const ScoringPage: React.FC = () => {
       }
       await scoreFilesAPI.upload(formData)
       await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
-      toast.success('Attachment uploaded')
+      if (!silent) toast.success('Attachment uploaded')
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to upload attachment')
+      throw error
     } finally {
       setUploadingContext(null)
     }
+  }
+
+  const handleUploadAttachment = async (file: File, criterionId?: string) => {
+    if (!selectedCategory || !selectedContestant || !file) return
+
+    if (isCertifiedContext) {
+      const pending: PendingCommentaryFile = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        fileName: file.name || file.type || 'Selected file',
+        criterionId
+      }
+      setPendingCommentaryFiles((prev) => [...prev, pending])
+      return
+    }
+
+    await uploadAttachmentNow(file, criterionId)
   }
 
   const getTotalScore = () => {
@@ -531,6 +573,70 @@ const ScoringPage: React.FC = () => {
   const criterionAttachments = (criterionId: string) => scoreAttachments.filter(
     (file) => file?.metadata?.contextType === 'CRITERION_COMMENT' && file?.metadata?.criterionId === criterionId
   )
+  const isCertifiedContext = normalizedExistingScores.length > 0
+
+  useEffect(() => {
+    setPendingCommentaryFiles([])
+  }, [selectedCategory?.id, selectedContestant?.id])
+
+  const removePendingAttachment = (pendingId: string) => {
+    setPendingCommentaryFiles((prev) => prev.filter((item) => item.id !== pendingId))
+  }
+
+  const removeUploadedAttachment = async (fileId: string) => {
+    if (!selectedCategory || !selectedContestant) return
+    try {
+      await scoreFilesAPI.remove(fileId)
+      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
+      toast.success('Attachment removed')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to remove attachment')
+    }
+  }
+
+  const handleUpdateCommentary = async () => {
+    if (!selectedCategory || !selectedContestant) return
+
+    setUpdatingCommentary(true)
+    try {
+      const existingByCriterion = new Map<string, Score>()
+      normalizedExistingScores.forEach((score) => {
+        const key = score.criterionId || '__category_total__'
+        existingByCriterion.set(key, score)
+      })
+
+      const commentUpdates = Array.from(existingByCriterion.entries())
+        .map(([criterionKey, score]) => {
+          const nextComment = scoreFormData[criterionKey]?.comment ?? ''
+          const currentComment = score.comment ?? ''
+          if (nextComment === currentComment) return null
+          return scoringAPI.updateScore(score.id, { comments: nextComment })
+        })
+        .filter((entry): entry is ReturnType<typeof scoringAPI.updateScore> => Boolean(entry))
+
+      if (commentUpdates.length > 0) {
+        await Promise.all(commentUpdates)
+      }
+
+      if (pendingCommentaryFiles.length > 0) {
+        for (const pending of pendingCommentaryFiles) {
+          await uploadAttachmentNow(pending.file, pending.criterionId, true)
+        }
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id]),
+        queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
+      ])
+
+      setPendingCommentaryFiles([])
+      toast.success('Commentary Updated')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to update commentary')
+    } finally {
+      setUpdatingCommentary(false)
+    }
+  }
 
   // Authorization check
   if (!isJudge) {
@@ -791,19 +897,43 @@ const ScoringPage: React.FC = () => {
                       {uploadingContext === 'contestant' && (
                         <p className="mt-1 text-xs text-blue-600">Uploading...</p>
                       )}
+                      {isCertifiedContext && pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {pendingCommentaryFiles.filter((f) => !f.criterionId).map((pending) => (
+                            <div key={pending.id} className="flex items-center justify-between gap-2 text-xs text-amber-700">
+                              <span>Queued: {pending.fileName}</span>
+                              <button
+                                type="button"
+                                onClick={() => removePendingAttachment(pending.id)}
+                                className="text-red-600 hover:text-red-700 underline"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {contestantLevelAttachments.length > 0 && (
                         <div className="mt-2 space-y-1">
                           {contestantLevelAttachments.map((file) => (
-                            <a
-                              key={file.id}
-                              href={file.publicUrl || file.filePath}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 underline"
-                            >
-                              <PaperClipIcon className="h-4 w-4" />
-                              {file.fileName}
-                            </a>
+                            <div key={file.id} className="flex items-center justify-between gap-2">
+                              <a
+                                href={file.publicUrl || file.filePath}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                              >
+                                <PaperClipIcon className="h-4 w-4" />
+                                {file.fileName}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => void removeUploadedAttachment(file.id)}
+                                className="text-xs text-red-600 hover:text-red-700 underline"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -862,19 +992,43 @@ const ScoringPage: React.FC = () => {
                             {uploadingContext === `criterion-${criterion.id}` && (
                               <p className="mt-1 text-xs text-blue-600">Uploading...</p>
                             )}
+                            {isCertifiedContext && pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).length > 0 && (
+                              <div className="mt-1 space-y-1">
+                                {pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).map((pending) => (
+                                  <div key={pending.id} className="flex items-center justify-between gap-2 text-xs text-amber-700">
+                                    <span>Queued: {pending.fileName}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removePendingAttachment(pending.id)}
+                                      className="text-red-600 hover:text-red-700 underline"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             {criterionAttachments(criterion.id).length > 0 && (
                               <div className="mt-1 space-y-1">
                                 {criterionAttachments(criterion.id).map((file) => (
-                                  <a
-                                    key={file.id}
-                                    href={file.publicUrl || file.filePath}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 underline"
-                                  >
-                                    <PaperClipIcon className="h-3.5 w-3.5" />
-                                    {file.fileName}
-                                  </a>
+                                  <div key={file.id} className="flex items-center justify-between gap-2">
+                                    <a
+                                      href={file.publicUrl || file.filePath}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 underline"
+                                    >
+                                      <PaperClipIcon className="h-3.5 w-3.5" />
+                                      {file.fileName}
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => void removeUploadedAttachment(file.id)}
+                                      className="text-xs text-red-600 hover:text-red-700 underline"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
                                 ))}
                               </div>
                             )}
@@ -900,6 +1054,25 @@ const ScoringPage: React.FC = () => {
 
                       {/* Submit Button with Save Status */}
                       <div className="space-y-2">
+                        {isCertifiedContext && (
+                          <button
+                            onClick={handleUpdateCommentary}
+                            disabled={updatingCommentary}
+                            className="w-full px-4 py-3 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            {updatingCommentary ? (
+                              <>
+                                <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                                Updating Commentary...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircleIcon className="h-5 w-5 mr-2" />
+                                Update Commentary
+                              </>
+                            )}
+                          </button>
+                        )}
                         {requiresSignOff && (
                           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                             <input
@@ -978,11 +1151,13 @@ const ScoringPage: React.FC = () => {
                 ref={signatureCanvasRef}
                 width={560}
                 height={140}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white"
-                onMouseDown={startSignatureDrawing}
-                onMouseMove={drawSignature}
-                onMouseUp={stopSignatureDrawing}
-                onMouseLeave={stopSignatureDrawing}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white touch-none"
+                style={{ touchAction: 'none' }}
+                onPointerDown={startSignatureDrawing}
+                onPointerMove={drawSignature}
+                onPointerUp={stopSignatureDrawing}
+                onPointerLeave={stopSignatureDrawing}
+                onPointerCancel={stopSignatureDrawing}
               />
               <button type="button" onClick={clearSignatureDrawing} className="mt-2 text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                 Clear Drawn Signature

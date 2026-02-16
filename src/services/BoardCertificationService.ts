@@ -99,10 +99,20 @@ export class BoardCertificationService extends BaseService {
       const auditorCertifications = category.categoryCertifications.filter(
         (cert) => cert.role === 'AUDITOR'
       );
+      const pipelineCertification = await this.prisma.certification.findFirst({
+        where: {
+          tenantId,
+          categoryId
+        },
+        select: {
+          auditorCertified: true,
+          boardApproved: true
+        }
+      });
 
       const totalAuditors = assignedAuditors.length;
       const completedAuditors = auditorCertifications.length;
-      const pendingAuditors = totalAuditors - completedAuditors;
+      const pendingAuditors = Math.max(totalAuditors - completedAuditors, 0);
 
       // Check if Board has already approved
       const boardCertification = category.categoryCertifications.find(
@@ -112,10 +122,14 @@ export class BoardCertificationService extends BaseService {
       let canCertify = false;
       let reason: string | undefined;
 
-      if (boardCertification) {
+      if (boardCertification || pipelineCertification?.boardApproved) {
         reason = 'Board has already approved this category';
+      } else if (pipelineCertification?.auditorCertified || completedAuditors > 0) {
+        // Unified pipeline: explicit assignment rows are not required as long as
+        // auditor certification evidence exists.
+        canCertify = true;
       } else if (totalAuditors === 0) {
-        reason = 'No Auditors assigned to this category';
+        reason = 'Auditor certification must be completed first';
       } else if (completedAuditors < totalAuditors) {
         reason = `Not all Auditors have signed. ${pendingAuditors} pending out of ${totalAuditors}.`;
       } else {

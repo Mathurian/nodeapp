@@ -8,7 +8,7 @@ import {
   ChartBarIcon,
   KeyIcon,
 } from '@heroicons/react/24/outline'
-import { Card, PageHeader, StatsCard } from '../components/ui'
+import { Card, PageHeader, ResponsiveTable, StatsCard } from '../components/ui'
 
 interface CacheStats {
   keys: number

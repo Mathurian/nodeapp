@@ -29,7 +29,10 @@ const TallyDashboardPage: React.FC = () => {
         allowCertify
         certifyLabel="Certify Totals"
         onCertifyCategory={certifyTotals}
-        canCertifyCategory={(category) => category.judgeCertified && !category.tallyCertified}
+        canCertifyCategory={(category) => {
+          const judgeReady = category.judgeCertified || (category.judgeProgress.total > 0 && category.judgeProgress.certified >= category.judgeProgress.total)
+          return judgeReady && !category.tallyCertified
+        }}
       />
     </div>
   )

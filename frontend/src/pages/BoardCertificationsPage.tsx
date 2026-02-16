@@ -107,7 +107,8 @@ const BoardCertificationsPage: React.FC = () => {
     setConfirmApprove({ isOpen: true, certification })
   }
 
-  const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -115,11 +116,17 @@ const BoardCertificationsPage: React.FC = () => {
     const rect = canvas.getBoundingClientRect()
     ctx.beginPath()
     ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top)
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // no-op
+    }
     setIsDrawing(true)
   }
 
-  const draw = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return
+    event.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -132,10 +139,17 @@ const BoardCertificationsPage: React.FC = () => {
     ctx.stroke()
   }
 
-  const stopDrawing = () => {
+  const stopDrawing = (event?: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (canvas) {
       setDrawnSignatureData(canvas.toDataURL('image/png'))
+    }
+    if (event) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      } catch {
+        // no-op
+      }
     }
     setIsDrawing(false)
   }
@@ -381,11 +395,13 @@ const BoardCertificationsPage: React.FC = () => {
                   ref={canvasRef}
                   width={560}
                   height={140}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white"
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white touch-none"
+                  style={{ touchAction: 'none' }}
+                  onPointerDown={startDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={stopDrawing}
+                  onPointerLeave={stopDrawing}
+                  onPointerCancel={stopDrawing}
                 />
                 <button type="button" onClick={clearDrawing} className="mt-2 text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                   Clear Drawn Signature

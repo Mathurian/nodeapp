@@ -10,6 +10,7 @@ interface State {
   error: Error | null
   errorInfo: ErrorInfo | null
 }
+const UPDATE_RECOVERY_NOTICE_KEY = 'app:update-recovery-notice'
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -26,6 +27,26 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const message = error?.message ? String(error.message).toLowerCase() : ''
+    const isImportChunkFailure =
+      message.includes('importing a module script failed') ||
+      message.includes('module script failed') ||
+      message.includes('failed to fetch dynamically imported module') ||
+      message.includes('chunkloaderror') ||
+      message.includes('loading chunk')
+
+    if (isImportChunkFailure && typeof window !== 'undefined') {
+      const retryKey = 'error-boundary:chunk-retry'
+      const alreadyRetried = window.sessionStorage.getItem(retryKey) === '1'
+      if (!alreadyRetried) {
+        window.sessionStorage.setItem(retryKey, '1')
+        window.sessionStorage.setItem(UPDATE_RECOVERY_NOTICE_KEY, '1')
+        window.location.reload()
+        return
+      }
+      window.sessionStorage.removeItem(retryKey)
+    }
+
     // Log error details (console.error is acceptable in error boundaries)
     // eslint-disable-next-line no-console
     console.error('ErrorBoundary caught an error:', error, errorInfo)

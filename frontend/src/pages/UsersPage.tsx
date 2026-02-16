@@ -507,11 +507,17 @@ const UsersPage: React.FC = () => {
   }
 
   const handleSelectAll = () => {
-    if (selectedUsers.size === filteredUsers.length) {
-      setSelectedUsers(new Set())
-    } else {
-      setSelectedUsers(new Set(filteredUsers.map(u => u.id)))
-    }
+    setSelectedUsers((prev) => {
+      const next = new Set(prev)
+      if (allVisibleSelected) {
+        // Deselect only currently visible/filtered users.
+        visibleUserIds.forEach((id) => next.delete(id))
+      } else {
+        // Select all currently visible/filtered users.
+        visibleUserIds.forEach((id) => next.add(id))
+      }
+      return next
+    })
   }
 
   // Handle bulk delete
@@ -564,6 +570,11 @@ const UsersPage: React.FC = () => {
 
     return matchesSearch && matchesRole && matchesActive && matchesTenant
   }) : []
+
+  const visibleUserIds = filteredUsers.map((u) => u.id)
+  const selectedVisibleCount = visibleUserIds.filter((id) => selectedUsers.has(id)).length
+  const allVisibleSelected = visibleUserIds.length > 0 && selectedVisibleCount === visibleUserIds.length
+  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected
 
   // Check if any filters are active
   const hasActiveFilters = !!(searchQuery || roleFilter || activeFilter !== 'all' || tenantFilter)
@@ -648,6 +659,9 @@ const UsersPage: React.FC = () => {
           onTenantReassign={handleTenantReassign}
           onSelectUser={handleSelectUser}
           onSelectAll={handleSelectAll}
+          allVisibleSelected={allVisibleSelected}
+          someVisibleSelected={someVisibleSelected}
+          visibleCount={visibleUserIds.length}
           onToggleStatus={handleToggleStatus}
         />
 

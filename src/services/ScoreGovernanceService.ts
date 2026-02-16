@@ -747,15 +747,12 @@ export class ScoreGovernanceService extends BaseService {
 
       const categoryIds = assignments.map((a) => a.categoryId).filter((id): id is string => !!id)
       const contestIds = assignments.map((a) => a.contestId).filter((id): id is string => !!id)
-      const eventIds = assignments.map((a) => a.eventId).filter((id): id is string => !!id)
-
       return {
         tenantId,
         deletedAt: null,
         OR: [
           ...(categoryIds.length > 0 ? [{ id: { in: categoryIds } }] : []),
-          ...(contestIds.length > 0 ? [{ contestId: { in: contestIds } }] : []),
-          ...(eventIds.length > 0 ? [{ contest: { eventId: { in: eventIds } } }] : [])
+          ...(contestIds.length > 0 ? [{ contestId: { in: contestIds } }] : [])
         ]
       }
     }
@@ -814,6 +811,7 @@ export class ScoreGovernanceService extends BaseService {
               select: {
                 id: true,
                 name: true,
+                scoreCap: true,
                 contest: {
                   select: {
                     id: true,

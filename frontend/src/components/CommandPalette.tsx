@@ -16,6 +16,7 @@ import { createQuickActionCommands } from '../lib/commands/definitions/quickActi
 import { createContextCommands } from '../lib/commands/definitions/contextCommands'
 import type { Command } from '../lib/commands/CommandRegistry'
 import { useAllowedNavigationIds } from '../hooks/useAllowedNavigationIds'
+import { NAV_SECTIONS } from '../config/navigationConfig'
 
 interface CommandPaletteProps {
   isOpen: boolean
@@ -36,6 +37,34 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   const allowedNavigationIds = useAllowedNavigationIds()
   const inputRef = useRef<HTMLInputElement>(null)
   const isHoveringRef = useRef(false)
+
+  const normalizePath = (path: string): string => {
+    const [withoutQuery] = path.split('?')
+    if (!withoutQuery) return '/'
+    return withoutQuery.startsWith('/') ? withoutQuery : `/${withoutQuery}`
+  }
+
+  const allowedBasePaths = React.useMemo(() => {
+    if (!allowedNavigationIds || allowedNavigationIds.size === 0) return null
+    const byId = new Map(
+      NAV_SECTIONS.flatMap((section) =>
+        section.items.map((item) => [item.id, normalizePath(item.href)] as const)
+      )
+    )
+
+    const allowed = new Set<string>()
+    for (const navId of allowedNavigationIds) {
+      const path = byId.get(navId)
+      if (path) allowed.add(path)
+    }
+    return allowed
+  }, [allowedNavigationIds])
+
+  const isRouteCommandAllowed = (cmd: Command): boolean => {
+    if (!cmd.href) return true
+    if (!allowedBasePaths) return true
+    return allowedBasePaths.has(normalizePath(cmd.href))
+  }
 
   // Initialize registry with commands
   useEffect(() => {
@@ -71,14 +100,14 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       navigate: (path: string) => {
         navigate(path)
       }
-    })
+    }).filter(isRouteCommandAllowed)
 
     // Create quick action commands
     const quickActionCommands = createQuickActionCommands({
       navigate: (path: string) => {
         navigate(path)
       }
-    })
+    }).filter(isRouteCommandAllowed)
 
     // Create context-specific commands based on current page
     const currentPath = location.pathname
@@ -94,7 +123,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       navigate: (path: string) => {
         navigate(path)
       }
-    })
+    }).filter(isRouteCommandAllowed)
 
     // Register all commands
     registry.registerCommands([

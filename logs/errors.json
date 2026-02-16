@@ -1536,5 +1536,90 @@
       "name": "PrismaClientValidationError",
       "message": "\nInvalid `prisma.contest.create()` invocation:\n\n{\n  data: {\n    eventId: \"cmlo979zm000lkqjqoc8c23w7\",\n    name: \"UAT Contest 1771192515\",\n    description: \"route-params create test\",\n    contestantNumberingMode: undefined,\n+   tenantId: String\n  }\n}\n\nArgument `tenantId` is missing."
     }
+  },
+  {
+    "id": "err_1771273914000_mblpot5nk",
+    "timestamp": "2026-02-16T20:31:54.000Z",
+    "severity": "high",
+    "message": "No Auditors assigned to this category",
+    "stack": "BadRequestError: No Auditors assigned to this category\n    at BoardCertificationService.badRequestError (/var/www/event-manager/dist/services/BaseService.js:75:16)\n    at BoardCertificationService.submitBoardCertification (/var/www/event-manager/dist/services/BoardCertificationService.js:102:28)\n    at async submitBoardCertification (/var/www/event-manager/dist/controllers/boardCertificationController.js:40:31)",
+    "context": {
+      "method": "submitBoardCertification",
+      "categoryId": "cmloot6fk01hgl7n7neh5cu5v",
+      "userId": "cmloofzd6015rl7n7d1bqoer9"
+    },
+    "error": {
+      "name": "BadRequestError",
+      "message": "No Auditors assigned to this category",
+      "code": "BAD_REQUEST"
+    }
+  },
+  {
+    "id": "err_1771273926066_fhroqtrvp",
+    "timestamp": "2026-02-16T20:32:06.066Z",
+    "severity": "high",
+    "message": "No Auditors assigned to this category",
+    "stack": "BadRequestError: No Auditors assigned to this category\n    at BoardCertificationService.badRequestError (/var/www/event-manager/dist/services/BaseService.js:75:16)\n    at BoardCertificationService.submitBoardCertification (/var/www/event-manager/dist/services/BoardCertificationService.js:102:28)\n    at async submitBoardCertification (/var/www/event-manager/dist/controllers/boardCertificationController.js:40:31)",
+    "context": {
+      "method": "submitBoardCertification",
+      "categoryId": "cmloot6fk01hgl7n7neh5cu5v",
+      "userId": "cmloofzd6015rl7n7d1bqoer9"
+    },
+    "error": {
+      "name": "BadRequestError",
+      "message": "No Auditors assigned to this category",
+      "code": "BAD_REQUEST"
+    }
+  },
+  {
+    "id": "err_1771274018575_p9gynkvkr",
+    "timestamp": "2026-02-16T20:33:38.575Z",
+    "severity": "high",
+    "message": "No Auditors assigned to this category",
+    "stack": "BadRequestError: No Auditors assigned to this category\n    at BoardCertificationService.badRequestError (/var/www/event-manager/dist/services/BaseService.js:75:16)\n    at BoardCertificationService.submitBoardCertification (/var/www/event-manager/dist/services/BoardCertificationService.js:102:28)\n    at async submitBoardCertification (/var/www/event-manager/dist/controllers/boardCertificationController.js:40:31)",
+    "context": {
+      "method": "submitBoardCertification",
+      "categoryId": "cmloot6fk01hgl7n7neh5cu5v",
+      "userId": "cmloofzd6015rl7n7d1bqoer9"
+    },
+    "error": {
+      "name": "BadRequestError",
+      "message": "No Auditors assigned to this category",
+      "code": "BAD_REQUEST"
+    }
+  },
+  {
+    "id": "err_1771274179811_4ofnx2ioq",
+    "timestamp": "2026-02-16T20:36:19.811Z",
+    "severity": "high",
+    "message": "No Auditors assigned to this category",
+    "stack": "BadRequestError: No Auditors assigned to this category\n    at BoardCertificationService.badRequestError (/var/www/event-manager/dist/services/BaseService.js:75:16)\n    at BoardCertificationService.submitBoardCertification (/var/www/event-manager/dist/services/BoardCertificationService.js:102:28)\n    at async submitBoardCertification (/var/www/event-manager/dist/controllers/boardCertificationController.js:40:31)",
+    "context": {
+      "method": "submitBoardCertification",
+      "categoryId": "cmloot6fk01hgl7n7neh5cu5v",
+      "userId": "cmloofzd6015rl7n7d1bqoer9"
+    },
+    "error": {
+      "name": "BadRequestError",
+      "message": "No Auditors assigned to this category",
+      "code": "BAD_REQUEST"
+    }
+  },
+  {
+    "id": "err_1771274202129_1xyckwni1",
+    "timestamp": "2026-02-16T20:36:42.129Z",
+    "severity": "high",
+    "message": "No Auditors assigned to this category",
+    "stack": "BadRequestError: No Auditors assigned to this category\n    at BoardCertificationService.badRequestError (/var/www/event-manager/dist/services/BaseService.js:75:16)\n    at BoardCertificationService.submitBoardCertification (/var/www/event-manager/dist/services/BoardCertificationService.js:102:28)\n    at async submitBoardCertification (/var/www/event-manager/dist/controllers/boardCertificationController.js:40:31)",
+    "context": {
+      "method": "submitBoardCertification",
+      "categoryId": "cmloot6fk01hgl7n7neh5cu5v",
+      "userId": "cmloofzd6015rl7n7d1bqoer9"
+    },
+    "error": {
+      "name": "BadRequestError",
+      "message": "No Auditors assigned to this category",
+      "code": "BAD_REQUEST"
+    }
   }
 ]

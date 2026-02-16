@@ -10,6 +10,7 @@ export interface Command {
   name: string;
   description?: string;
   icon?: React.ComponentType<{ className?: string }>;
+  href?: string;
   action: () => void | Promise<void>;
   keywords: string[];
   category: 'navigation' | 'action' | 'admin' | 'quick' | 'search';

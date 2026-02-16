@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { useLocation } from 'react-router-dom'
 import { assignmentsAPI, categoriesAPI, contestsAPI, scoreGovernanceAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Button, Card, PageHeader } from '../components/ui'
+import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY'
 type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL'
@@ -36,6 +36,12 @@ const ScoreGovernancePage: React.FC = () => {
   const canConfigure = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(user?.role || '')
   const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER'].includes(user?.role || '')
   const isJudge = user?.role === 'JUDGE'
+
+  const formatScoreWithPossible = (row: any): string => {
+    if (row?.score == null) return '-'
+    const possible = row?.criterion?.maxScore ?? row?.category?.scoreCap ?? null
+    return possible != null ? `${row.score} / ${possible}` : String(row.score)
+  }
 
   const { data: contests = [] } = useQuery('governance-contests', async () => {
     const response = await contestsAPI.getAll()
@@ -213,7 +219,8 @@ const ScoreGovernancePage: React.FC = () => {
     }
   )
 
-  const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -221,11 +228,17 @@ const ScoreGovernancePage: React.FC = () => {
     const rect = canvas.getBoundingClientRect()
     ctx.beginPath()
     ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top)
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // no-op
+    }
     setIsDrawing(true)
   }
 
-  const draw = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return
+    event.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -238,9 +251,16 @@ const ScoreGovernancePage: React.FC = () => {
     ctx.stroke()
   }
 
-  const stopDrawing = () => {
+  const stopDrawing = (event?: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (canvas) setDrawnSignatureData(canvas.toDataURL('image/png'))
+    if (event) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      } catch {
+        // no-op
+      }
+    }
     setIsDrawing(false)
   }
 
@@ -405,11 +425,13 @@ const ScoreGovernancePage: React.FC = () => {
               ref={canvasRef}
               width={560}
               height={130}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded bg-white"
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded bg-white touch-none"
+              style={{ touchAction: 'none' }}
+              onPointerDown={startDrawing}
+              onPointerMove={draw}
+              onPointerUp={stopDrawing}
+              onPointerLeave={stopDrawing}
+              onPointerCancel={stopDrawing}
             />
             <Button type="button" onClick={clearDrawing} variant="secondary" size="sm" className="mt-2">Clear Drawn Signature</Button>
           </div>
@@ -418,86 +440,90 @@ const ScoreGovernancePage: React.FC = () => {
         </Card>
 
         <Card className="rounded-lg p-0 overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Contest/Category</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Contestant</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Judge</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Criterion</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Score</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Cert/Lock</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Comment</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {reviewRows.map((row: any) => (
-                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.category?.contest?.name} / {row.category?.name}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">#{row.contestant?.contestantNumber ?? 'N/A'} {row.contestant?.name}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.judge?.name}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.criterion?.name || '-'}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.score ?? '-'}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.isCertified ? 'Certified' : 'Open'} / {row.isLocked ? 'Locked' : 'Unlocked'}</td>
-                  <td className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">{row.comment || '-'}</td>
+          <ResponsiveTable caption="Governance score review rows" minWidth="1100px">
+            <table className="w-full min-w-[1100px]">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Contest/Category</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Contestant</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Judge</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Criterion</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Score / Possible</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Cert/Lock</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Comment</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {reviewRows.map((row: any) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.category?.contest?.name} / {row.category?.name}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">#{row.contestant?.contestantNumber ?? 'N/A'} {row.contestant?.name}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.judge?.name}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.criterion?.name || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{formatScoreWithPossible(row)}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{row.isCertified ? 'Certified' : 'Open'} / {row.isLocked ? 'Locked' : 'Unlocked'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">{row.comment || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ResponsiveTable>
         </Card>
 
         <Card className="rounded-lg p-0 overflow-x-auto">
-          <table className="w-full min-w-[1050px]">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Action/Scope</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Reason</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Approvals</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Execution</th>
-                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {requests.map((request: any) => {
-                const additionalApprovals = Math.max(0, (request.approvals?.length || 0) - 1)
-                return (
-                  <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.actionType} / {request.scopeType}</td>
-                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.reason}</td>
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.status}</td>
-                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{additionalApprovals}/{request.requiredAdditionalApprovals} additional</td>
-                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.executionSummary || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
-                      {canApprove && request.status === 'PENDING' ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              const typed = window.prompt('Enter typed signature to certify this request', user?.name || user?.email || '') || ''
-                              if (!typed.trim()) return
-                              approveMutation.mutate({ id: request.id, signature: { typedSignature: typed.trim() } })
-                            }}
-                            className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => {
-                              const reason = window.prompt('Rejection reason') || ''
-                              if (reason.trim()) rejectMutation.mutate({ id: request.id, reason })
-                            }}
-                            className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : '-'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <ResponsiveTable caption="Governance requests" minWidth="1050px">
+            <table className="w-full min-w-[1050px]">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Action/Scope</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Reason</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Status</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Approvals</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Execution</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {requests.map((request: any) => {
+                  const additionalApprovals = Math.max(0, (request.approvals?.length || 0) - 1)
+                  return (
+                    <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.actionType} / {request.scopeType}</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.reason}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.status}</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{additionalApprovals}/{request.requiredAdditionalApprovals} additional</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.executionSummary || '-'}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                        {canApprove && request.status === 'PENDING' ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const typed = window.prompt('Enter typed signature to certify this request', user?.name || user?.email || '') || ''
+                                if (!typed.trim()) return
+                                approveMutation.mutate({ id: request.id, signature: { typedSignature: typed.trim() } })
+                              }}
+                              className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => {
+                                const reason = window.prompt('Rejection reason') || ''
+                                if (reason.trim()) rejectMutation.mutate({ id: request.id, reason })
+                              }}
+                              className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </ResponsiveTable>
         </Card>
     </div>
   )

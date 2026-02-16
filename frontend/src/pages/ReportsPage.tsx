@@ -8,7 +8,7 @@ import {
   CheckCircleIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
-import { Button, Card, PageHeader } from '../components/ui'
+import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 type ReportType = 'event' | 'contest' | 'system'
 type ExportFormat = 'pdf' | 'excel' | 'csv'
@@ -385,35 +385,37 @@ const ReportsPage: React.FC = () => {
                     />
                   ) : previewText ? (
                     csvRows.length > 0 ? (
-                      <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded">
-                        <table className="min-w-full text-xs">
-                          <thead className="bg-gray-50 dark:bg-gray-900">
-                            <tr>
-                              {csvRows[0]?.map((header, index) => (
-                                <th key={`h-${index}`} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
-                                  {header || `Column ${index + 1}`}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {csvRows.slice(1).map((row, rowIndex) => (
-                              <tr key={`r-${rowIndex}`} className="border-t border-gray-200 dark:border-gray-700">
-                                {row.map((cell, cellIndex) => (
-                                  <td key={`c-${rowIndex}-${cellIndex}`} className="px-3 py-2 text-gray-700 dark:text-gray-300">
-                                    {cell}
-                                  </td>
+                      <>
+                        <ResponsiveTable className="border border-gray-200 dark:border-gray-700 rounded">
+                          <table className="min-w-full text-xs">
+                            <thead className="bg-gray-50 dark:bg-gray-900">
+                              <tr>
+                                {csvRows[0]?.map((header, index) => (
+                                  <th key={`h-${index}`} className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                                    {header || `Column ${index + 1}`}
+                                  </th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {csvRows.slice(1).map((row, rowIndex) => (
+                                <tr key={`r-${rowIndex}`} className="border-t border-gray-200 dark:border-gray-700">
+                                  {row.map((cell, cellIndex) => (
+                                    <td key={`c-${rowIndex}-${cellIndex}`} className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                                      {cell}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </ResponsiveTable>
                         {previewText.split(/\r?\n/).filter(Boolean).length > 26 && (
-                          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+                          <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border border-t-0 border-gray-200 dark:border-gray-700 rounded-b">
                             Showing first 25 rows. Use CSV export for full data.
                           </div>
                         )}
-                      </div>
+                      </>
                     ) : (
                       <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 overflow-x-auto whitespace-pre-wrap">
                         {previewText}

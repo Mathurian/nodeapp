@@ -22,6 +22,7 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
         name: item.name,
         description: item.description || `Go to ${item.name}`,
         icon: item.icon,
+        href: item.href,
         action: () => navigate(item.href),
         keywords: normalizeKeywords(item.name, item.keywords || [section.name, item.href.replace('/', '')]),
         category: 'navigation',
@@ -35,4 +36,3 @@ export const createNavigationCommands = (navigate: (path: string) => void): Comm
 
   return commands
 }
-

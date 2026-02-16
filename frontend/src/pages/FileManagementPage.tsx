@@ -8,7 +8,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
-import { Card, PageHeader } from '../components/ui'
+import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface FileItem {
   id: string
@@ -297,7 +297,7 @@ const FileManagementPage: React.FC = () => {
 
         {/* Files List */}
         <Card className="rounded-lg overflow-hidden p-0">
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                 <tr>
@@ -383,7 +383,7 @@ const FileManagementPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </Card>
     </div>
   )

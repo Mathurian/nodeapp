@@ -1,11 +1,14 @@
 import { lazy, type ComponentType } from 'react'
 
 type ModuleFactory<T extends ComponentType<any>> = () => Promise<{ default: T }>
+const UPDATE_RECOVERY_NOTICE_KEY = 'app:update-recovery-notice'
 
 function isChunkLoadError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error || '')
   const lower = message.toLowerCase()
   return (
+    lower.includes('importing a module script failed') ||
+    lower.includes('module script failed') ||
     lower.includes('dynamically imported module') ||
     lower.includes('failed to fetch dynamically imported module') ||
     lower.includes('chunkloaderror') ||
@@ -30,6 +33,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
         const alreadyRetried = window.sessionStorage.getItem(retryKey) === '1'
         if (!alreadyRetried) {
           window.sessionStorage.setItem(retryKey, '1')
+          window.sessionStorage.setItem(UPDATE_RECOVERY_NOTICE_KEY, '1')
           window.location.reload()
           return new Promise<never>(() => {})
         }
@@ -39,4 +43,3 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     }
   })
 }
-

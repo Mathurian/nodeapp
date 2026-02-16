@@ -356,6 +356,7 @@ const LoginPage: React.FC = () => {
                   label="Email address"
                   type="email"
                   autoComplete="email"
+                  autoFocus
                   placeholder="Enter your email"
                   required
                 />

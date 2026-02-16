@@ -51,6 +51,11 @@ const WinnersPage: React.FC = () => {
     () => ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || ''),
     [user?.role]
   )
+  const isEmcee = user?.role === 'EMCEE'
+  const canCheckPublicationStatus = useMemo(
+    () => ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE'].includes(user?.role || ''),
+    [user?.role]
+  )
 
   const { data: contests = [] } = useQuery<Contest[]>(
     ['winners-contests'],
@@ -62,15 +67,17 @@ const WinnersPage: React.FC = () => {
     { retry: 1 }
   )
 
-  const { data: publicationStatus } = useQuery<PublicationStatus | null>(
+  const { data: publicationStatus, isLoading: isPublicationStatusLoading } = useQuery<PublicationStatus | null>(
     ['winners-publication-status', selectedContestId],
     async () => {
-      if (!selectedContestId || !canManagePublish) return null
+      if (!selectedContestId || !canCheckPublicationStatus) return null
       const response = await winnersAPI.getPublicationStatus(selectedContestId)
       return response.data?.data || response.data
     },
-    { enabled: !!selectedContestId && canManagePublish, retry: 1 }
+    { enabled: !!selectedContestId && canCheckPublicationStatus, retry: 1 }
   )
+
+  const shouldHideForUnpublishedEmcee = isEmcee && selectedContestId && publicationStatus && !publicationStatus.winnersPublished
 
   const { data: winnersResponse, error: winnersError } = useQuery<any>(
     ['winners-by-contest', selectedContestId],
@@ -79,7 +86,10 @@ const WinnersPage: React.FC = () => {
       const response = await winnersAPI.getByContest(selectedContestId)
       return response.data?.data || response.data
     },
-    { enabled: !!selectedContestId, retry: 1 }
+    {
+      enabled: !!selectedContestId && (!isEmcee || publicationStatus?.winnersPublished === true),
+      retry: 1
+    }
   )
 
   const { data: fallbackContestScores = [] } = useQuery<ContestScoreRow[]>(
@@ -90,7 +100,10 @@ const WinnersPage: React.FC = () => {
       const payload = response.data?.data || response.data
       return Array.isArray(payload) ? payload : []
     },
-    { enabled: !!selectedContestId, retry: 1 }
+    {
+      enabled: !!selectedContestId && (!isEmcee || publicationStatus?.winnersPublished === true),
+      retry: 1
+    }
   )
 
   const winners: Winner[] = (() => {
@@ -198,7 +211,19 @@ const WinnersPage: React.FC = () => {
           </Card>
         )}
 
-        {selectedContestId && !winnersError && (
+        {selectedContestId && isEmcee && isPublicationStatusLoading && (
+          <Card className="bg-slate-50 border-slate-200 rounded-lg p-6 text-slate-700">
+            Checking publication status...
+          </Card>
+        )}
+
+        {selectedContestId && shouldHideForUnpublishedEmcee && (
+          <Card className="bg-yellow-50 border-yellow-200 rounded-lg p-6 text-yellow-800">
+            Results not finalized
+          </Card>
+        )}
+
+        {selectedContestId && !winnersError && !shouldHideForUnpublishedEmcee && (!isEmcee || !isPublicationStatusLoading) && (
           <Card className="rounded-lg p-6">
             {effectiveWinners.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-400">No winners available yet.</p>

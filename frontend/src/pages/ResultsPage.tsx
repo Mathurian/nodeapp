@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
-import { Card, PageHeader } from '../components/ui'
+import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface Event {
   id: string
@@ -844,8 +844,8 @@ const ResultsPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg" data-testid="contest-results-summary">
+                <ResponsiveTable>
+            <table className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg" data-testid="contest-results-summary">
                     <thead className="bg-gray-50 dark:bg-gray-800">
                       <tr>
                         <th className="px-3 py-2 text-left">Contestant</th>
@@ -873,7 +873,7 @@ const ResultsPage: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
-                </div>
+          </ResponsiveTable>
                 {contestLevelResults.map((winner, idx) => (
                   <div
                     key={winner.contestantId}

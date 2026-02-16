@@ -190,7 +190,8 @@ export const scoreFilesAPI = {
     api.get('/score-files', { params }),
   getByCategory: (categoryId: string) => api.get(`/score-files/category/${categoryId}`),
   getByContestant: (contestantId: string) => api.get(`/score-files/contestant/${contestantId}`),
-  download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' })
+  download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' }),
+  remove: (id: string) => api.delete(`/score-files/${id}`)
 }
 
 export const resultsAPI = {

@@ -11,7 +11,7 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { Card, PageHeader } from '../components/ui'
+import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface Table {
   name: string
@@ -485,8 +485,8 @@ const DatabaseBrowserPage: React.FC = () => {
                   </div>
                 ) : tableData ? (
                   <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <ResponsiveTable>
+            <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-900 dark:bg-gray-700">
                           <tr>
                             {isSuperAdmin && (
@@ -543,7 +543,7 @@ const DatabaseBrowserPage: React.FC = () => {
                           ))}
                         </tbody>
                       </table>
-                    </div>
+          </ResponsiveTable>
 
                     {/* Pagination */}
                     {totalPages > 1 && (

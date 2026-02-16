@@ -18,7 +18,7 @@ import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Button, Card, PageHeader } from '../components/ui';
+import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui';
 
 const ROLES: UserRole[] = [
   'SUPER_ADMIN',
@@ -352,7 +352,7 @@ const PermissionAuditLogPage: React.FC = () => {
 
         {/* Audit Log Table */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          <ResponsiveTable>
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
@@ -463,7 +463,7 @@ const PermissionAuditLogPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         </div>
 
         {/* Pagination */}

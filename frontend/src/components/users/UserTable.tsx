@@ -42,6 +42,12 @@ export interface UserTableProps {
   onSelectUser: (userId: string) => void
   /** Callback when select all is toggled */
   onSelectAll: () => void
+  /** Whether all currently visible users are selected */
+  allVisibleSelected: boolean
+  /** Whether some (but not all) currently visible users are selected */
+  someVisibleSelected: boolean
+  /** Number of currently visible users */
+  visibleCount: number
   /** Callback when user active status is toggled (optional) */
   onToggleStatus?: (user: User) => void
 }
@@ -63,8 +69,23 @@ const UserTable: React.FC<UserTableProps> = ({
   onTenantReassign,
   onSelectUser,
   onSelectAll,
+  allVisibleSelected,
+  someVisibleSelected,
+  visibleCount,
   onToggleStatus,
 }) => {
+  const selectAllRef = React.useRef<HTMLInputElement | null>(null)
+  const bulkSelectRef = React.useRef<HTMLInputElement | null>(null)
+
+  React.useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someVisibleSelected
+    }
+    if (bulkSelectRef.current) {
+      bulkSelectRef.current.indeterminate = someVisibleSelected
+    }
+  }, [someVisibleSelected])
+
   /**
    * Render role badge with appropriate color
    */
@@ -100,6 +121,19 @@ const UserTable: React.FC<UserTableProps> = ({
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+        <input
+          ref={bulkSelectRef}
+          type="checkbox"
+          checked={allVisibleSelected}
+          onChange={onSelectAll}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+          aria-label={`Select all visible users (${visibleCount})`}
+        />
+        <span className="text-sm text-gray-700 dark:text-gray-300">
+          Select all visible users ({visibleCount})
+        </span>
+      </div>
       <ResponsiveTable
         caption="List of users with their roles, status, and available actions"
         minWidth="900px"
@@ -109,11 +143,12 @@ const UserTable: React.FC<UserTableProps> = ({
           <tr>
             <th scope="col" className="px-4 py-3 text-left">
               <input
+                ref={selectAllRef}
                 type="checkbox"
-                checked={selectedUsers.size === users.length && users.length > 0}
+                checked={allVisibleSelected}
                 onChange={onSelectAll}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-                aria-label="Select all users"
+                aria-label={`Select all visible users (${visibleCount})`}
               />
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
