@@ -358,7 +358,7 @@ export class ScoreGovernanceService extends BaseService {
         ) VALUES (
           ${requestId},${normalized.actionType},${normalized.scopeType},${normalized.targetCertificationLevel || null},${normalized.eventId || null},${normalized.contestId || null},
           ${normalized.categoryId || null},${normalized.contestantId || null},${normalized.judgeId || null},${normalized.scoreId || null},
-          ${normalized.reason.trim()},${'PENDING' as RequestStatus},${normalized.userId},${normalized.userRole},${normalized.signature.typedSignature || null},
+          ${normalized.reason.trim()},'PENDING'::"RequestStatus",${normalized.userId},${normalized.userRole},${normalized.signature.typedSignature || null},
           ${normalized.signature.drawnSignatureData || null},${normalized.signature.signatureFilePath || null},${settings.requiredAdditionalApprovals},${normalized.tenantId},
           NOW(),NOW()
         )
@@ -644,7 +644,7 @@ export class ScoreGovernanceService extends BaseService {
         const executionSummary = await this.executeRequest(tx, request)
         await tx.$executeRaw`
           UPDATE "score_governance_requests"
-          SET "status" = ${'APPROVED' as RequestStatus},
+          SET "status" = 'APPROVED'::"RequestStatus",
               "executedAt" = NOW(),
               "executedById" = ${approverId},
               "executionSummary" = ${executionSummary},
@@ -676,7 +676,7 @@ export class ScoreGovernanceService extends BaseService {
 
     await this.prisma.$executeRaw`
       UPDATE "score_governance_requests"
-      SET "status" = ${'REJECTED' as RequestStatus},
+      SET "status" = 'REJECTED'::"RequestStatus",
           "executionSummary" = ${reason.trim()},
           "updatedAt" = NOW()
       WHERE id = ${id}
