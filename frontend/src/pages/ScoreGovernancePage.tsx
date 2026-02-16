@@ -160,16 +160,10 @@ const ScoreGovernancePage: React.FC = () => {
   }, [typedSignature, user])
 
   useEffect(() => {
-    if (scopeType === 'CATEGORY_JUDGE' && !categoryId && categories.length > 0) {
-      setCategoryId(categories[0].id)
-    }
-    if (scopeType === 'CONTEST_JUDGE' && !contestId && contests.length > 0) {
-      setContestId(contests[0].id)
-    }
     if ((scopeType === 'CATEGORY_JUDGE' || scopeType === 'CONTEST_JUDGE') && !judgeId && judges.length > 0) {
       setJudgeId(judges[0].id)
     }
-  }, [scopeType, categoryId, contestId, judgeId, categories, contests, judges])
+  }, [scopeType, judgeId, judges])
 
   const createMutation = useMutation((payload: any) => scoreGovernanceAPI.createRequest(payload), {
     onSuccess: async () => {

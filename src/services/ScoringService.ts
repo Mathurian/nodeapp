@@ -203,12 +203,20 @@ export class ScoringService extends BaseService {
   /**
    * Get scores by category
    */
-  async getScoresByCategory(categoryId: string, tenantId: string, contestantId?: string): Promise<Score[]> {
+  async getScoresByCategory(categoryId: string, tenantId: string, contestantId?: string, judgeId?: string): Promise<Score[]> {
     try {
       if (contestantId) {
         // P2-2 OPTIMIZATION: Selective field loading instead of full includes
         return (await this.prisma.score.findMany({
-          where: { categoryId, contestantId, tenantId },
+          where: { categoryId, contestantId, tenantId, ...(judgeId ? { judgeId } : {}) },
+          select: SCORE_WITH_RELATIONS_SELECT,
+          orderBy: { createdAt: 'desc' }
+        })) as unknown as Score[];
+      }
+
+      if (judgeId) {
+        return (await this.prisma.score.findMany({
+          where: { categoryId, tenantId, judgeId },
           select: SCORE_WITH_RELATIONS_SELECT,
           orderBy: { createdAt: 'desc' }
         })) as unknown as Score[];
@@ -216,7 +224,7 @@ export class ScoringService extends BaseService {
 
       return await this.scoreRepository.findByCategory(categoryId, tenantId);
     } catch (error) {
-      this.handleError(error, { method: 'getScoresByCategory', categoryId, contestantId });
+      this.handleError(error, { method: 'getScoresByCategory', categoryId, contestantId, judgeId });
     }
   }
 

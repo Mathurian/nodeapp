@@ -88,7 +88,19 @@ export class ScoringController {
       }
 
       // For non-contestant roles, use original logic
-      const scores = await this.scoringService.getScoresByCategory(categoryId, tenantId, contestantId);
+      let judgeFilterId: string | undefined;
+      if (userRole === 'JUDGE') {
+        judgeFilterId = req.user?.judgeId || req.user?.judge?.id;
+        if (!judgeFilterId && userId) {
+          const linkedUser = await this.prisma.user.findFirst({
+            where: { id: userId, tenantId },
+            select: { judgeId: true }
+          });
+          judgeFilterId = linkedUser?.judgeId || undefined;
+        }
+      }
+
+      const scores = await this.scoringService.getScoresByCategory(categoryId, tenantId, contestantId, judgeFilterId);
 
       log.info('Scores retrieved successfully', { categoryId, contestantId, count: scores.length });
       sendSuccess(res, scores);

@@ -68,6 +68,13 @@ const getNavigationItems = (userRole: string): any[] => {
         roles: ['ADMIN', 'ORGANIZER', 'BOARD']
       },
       {
+        id: 'score-governance',
+        label: 'Score Governance',
+        path: '/score-governance',
+        icon: 'ClipboardDocumentCheckIcon',
+        roles: ['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']
+      },
+      {
         id: 'admin',
         label: 'Admin',
         path: '/admin',
@@ -147,6 +154,13 @@ const getNavigationItems = (userRole: string): any[] => {
         path: '/final-certification',
         icon: 'ShieldCheckIcon',
         roles: ['AUDITOR', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'score-governance',
+        label: 'Score Governance',
+        path: '/score-governance',
+        icon: 'ClipboardDocumentCheckIcon',
+        roles: ['AUDITOR', 'ORGANIZER', 'BOARD', 'ADMIN']
       }
     ],
     TALLY_MASTER: [
@@ -177,6 +191,13 @@ const getNavigationItems = (userRole: string): any[] => {
         path: '/certification-workflow',
         icon: 'ClipboardDocumentCheckIcon',
         roles: ['TALLY_MASTER', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'score-governance',
+        label: 'Score Governance',
+        path: '/score-governance',
+        icon: 'ClipboardDocumentCheckIcon',
+        roles: ['TALLY_MASTER', 'ORGANIZER', 'BOARD', 'ADMIN']
       }
     ],
     JUDGE: [
@@ -207,6 +228,13 @@ const getNavigationItems = (userRole: string): any[] => {
         path: '/contestant-bios',
         icon: 'UserGroupIcon',
         roles: ['JUDGE', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'score-governance',
+        label: 'Score Governance',
+        path: '/score-governance',
+        icon: 'ClipboardDocumentCheckIcon',
+        roles: ['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']
       }
     ],
     EMCEE: [
