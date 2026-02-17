@@ -282,37 +282,62 @@ export class TenantService {
    */
   static async updateTenant(tenantId: string, input: UpdateTenantInput): Promise<Tenant> {
     try {
+      const updateData: Prisma.TenantUpdateInput = {};
+
+      if (input.name !== undefined) updateData.name = String(input.name).trim();
+      if (input.slug !== undefined) updateData.slug = String(input.slug).trim();
+      if (input.domain !== undefined) updateData.domain = this.normalizeOptionalString(input.domain) ?? null;
+      if (input.isActive !== undefined) updateData.isActive = Boolean(input.isActive);
+      if (input.planType !== undefined) updateData.planType = String(input.planType);
+      if (input.subscriptionStatus !== undefined) updateData.subscriptionStatus = String(input.subscriptionStatus);
+      if (input.subscriptionEndsAt !== undefined) {
+        if (input.subscriptionEndsAt === null) {
+          updateData.subscriptionEndsAt = null;
+        } else {
+          const parsed = input.subscriptionEndsAt instanceof Date
+            ? input.subscriptionEndsAt
+            : new Date(String(input.subscriptionEndsAt));
+          if (!Number.isNaN(parsed.getTime())) {
+            updateData.subscriptionEndsAt = parsed;
+          }
+        }
+      }
+      if (input.maxUsers !== undefined) updateData.maxUsers = input.maxUsers === null ? null : this.normalizeOptionalInt(input.maxUsers) ?? null;
+      if (input.maxEvents !== undefined) updateData.maxEvents = input.maxEvents === null ? null : this.normalizeOptionalInt(input.maxEvents) ?? null;
+      if (input.maxStorage !== undefined) updateData.maxStorage = input.maxStorage === null ? null : this.normalizeOptionalBigInt(input.maxStorage) ?? null;
+      if (input.settings !== undefined) updateData.settings = input.settings;
+
       // Validate slug uniqueness if changing
-      if (input.slug) {
+      if (typeof updateData.slug === 'string' && updateData.slug.length > 0) {
         const existingSlug = await prisma.tenant.findFirst({
           where: {
-            slug: input.slug,
+            slug: updateData.slug,
             NOT: { id: tenantId },
           },
         });
 
         if (existingSlug) {
-          throw new Error(`Tenant with slug '${input.slug}' already exists`);
+          throw new Error(`Tenant with slug '${updateData.slug}' already exists`);
         }
       }
 
       // Validate domain uniqueness if changing
-      if (input.domain) {
+      if (typeof updateData.domain === 'string' && updateData.domain.length > 0) {
         const existingDomain = await prisma.tenant.findFirst({
           where: {
-            domain: input.domain,
+            domain: updateData.domain,
             NOT: { id: tenantId },
           },
         });
 
         if (existingDomain) {
-          throw new Error(`Tenant with domain '${input.domain}' already exists`);
+          throw new Error(`Tenant with domain '${updateData.domain}' already exists`);
         }
       }
 
       const tenant = await prisma.tenant.update({
         where: { id: tenantId },
-        data: input,
+        data: updateData,
       });
 
       logger.info(`Tenant updated: ${tenant.slug} (${tenant.id})`);
@@ -365,21 +390,79 @@ export class TenantService {
   /**
    * Delete tenant (soft delete by deactivating)
    */
-  static async deleteTenant(tenantId: string, hard: boolean = false): Promise<void> {
+  static async deleteTenant(
+    tenantId: string,
+    hard: boolean = false
+  ): Promise<{ mode: 'hard_deleted' | 'deactivated'; reason?: string }> {
     try {
-      if (tenantId === 'default_tenant') {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { id: true, slug: true, name: true }
+      });
+
+      if (!tenant) {
+        throw new Error('Tenant not found');
+      }
+
+      if (tenant.id === 'default-tenant' || tenant.id === 'default_tenant' || tenant.slug === 'default') {
         throw new Error('Cannot delete the default tenant');
       }
 
       if (hard) {
-        // Hard delete - removes all data (use with caution!)
-        await prisma.tenant.delete({
-          where: { id: tenantId },
+        // Hard delete must remove all tenant-scoped data first because most tables
+        // are not directly FK-cascaded from tenants.
+        await prisma.$transaction(async (tx) => {
+          const tenantTables = await tx.$queryRaw<Array<{ table_name: string }>>`
+            SELECT table_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND column_name = 'tenantId'
+              AND table_name <> 'tenants'
+          `;
+
+          const pending = tenantTables
+            .map((row) => row.table_name)
+            .filter((table) => table && table !== 'tenants');
+
+          const isFkConstraintError = (error: unknown): boolean => {
+            const message = error instanceof Error ? error.message : String(error);
+            return /foreign key constraint|violates foreign key|23503/i.test(message);
+          };
+
+          // Retry passes allow child tables to be cleared before parents without hard-coding schema order.
+          while (pending.length > 0) {
+            let progress = false;
+
+            for (let i = pending.length - 1; i >= 0; i -= 1) {
+              const table = pending[i];
+              try {
+                await tx.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "tenantId" = $1`, tenantId);
+                pending.splice(i, 1);
+                progress = true;
+              } catch (error) {
+                if (isFkConstraintError(error)) {
+                  continue;
+                }
+                throw error;
+              }
+            }
+
+            if (!progress) {
+              throw new Error(`Unable to resolve tenant delete dependencies for tables: ${pending.join(', ')}`);
+            }
+          }
+
+          await tx.tenant.delete({
+            where: { id: tenantId },
+          });
         });
+
         logger.warn(`Tenant hard deleted: ${tenantId}`);
+        return { mode: 'hard_deleted' };
       } else {
         // Soft delete - just deactivate
         await this.deactivateTenant(tenantId);
+        return { mode: 'deactivated' };
       }
     } catch (error) {
       logger.error('Error deleting tenant:', error);

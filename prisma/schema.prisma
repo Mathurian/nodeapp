@@ -1013,14 +1013,14 @@ model DeductionRequest {
   categoryId    String
   amount        Float
   reason        String
-  requestedById String
+  requestedById String?
   status        DeductionStatus @default(PENDING)
   createdAt     DateTime        @default(now())
   tenantId      String
 
   contestant  Contestant @relation(fields: [contestantId], references: [id], onDelete: Cascade)
   category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  requestedBy User       @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedBy User?      @relation(fields: [requestedById], references: [id], onDelete: SetNull)
   approvals   DeductionApproval[]
 
   @@index([tenantId])
@@ -1214,12 +1214,12 @@ model EventTemplate {
   description String?
   contests    Json
   categories  Json
-  createdBy   String
+  createdBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tenantId    String
 
-  creator User @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, name])
@@ -1280,7 +1280,7 @@ model JudgeUncertificationRequest {
   categoryId      String
   judgeId         String
   reason          String
-  requestedBy     String
+  requestedBy     String?
   requestedAt     DateTime      @default(now())
   approvedBy      String?
   approvedAt      DateTime?
@@ -1294,7 +1294,7 @@ model JudgeUncertificationRequest {
 
   category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   judge           Judge    @relation(fields: [judgeId], references: [id], onDelete: Cascade)
-  requestedByUser User     @relation(fields: [requestedBy], references: [id], onDelete: SetNull)
+  requestedByUser User?    @relation(fields: [requestedBy], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -1416,7 +1416,7 @@ model PerformanceLog {
 model ReportInstance {
   id            String   @id @default(cuid())
   templateId    String?  @default("default")
-  generatedById String
+  generatedById String?
   generatedAt   DateTime @default(now())
   data          String?
   format        String
@@ -1424,7 +1424,7 @@ model ReportInstance {
   type          String
   tenantId      String
 
-  generatedBy User @relation("ReportInstances", fields: [generatedById], references: [id], onDelete: SetNull)
+  generatedBy User? @relation("ReportInstances", fields: [generatedById], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, type])
@@ -1453,7 +1453,7 @@ model ReviewContestantCertification {
   id           String   @id @default(cuid())
   categoryId   String
   contestantId String
-  reviewedBy   String
+  reviewedBy   String?
   reviewerRole String
   reviewedAt   DateTime @default(now())
   comments     String?
@@ -1461,7 +1461,7 @@ model ReviewContestantCertification {
 
   category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   contestant Contestant @relation(fields: [contestantId], references: [id], onDelete: Cascade)
-  reviewer   User       @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewer   User?      @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, categoryId, contestantId, reviewedBy])
   @@index([tenantId])
@@ -1474,7 +1474,7 @@ model ReviewJudgeScoreCertification {
   id           String   @id @default(cuid())
   categoryId   String
   judgeId      String
-  reviewedBy   String
+  reviewedBy   String?
   reviewerRole String
   reviewedAt   DateTime @default(now())
   comments     String?
@@ -1482,7 +1482,7 @@ model ReviewJudgeScoreCertification {
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   judge    Judge    @relation(fields: [judgeId], references: [id], onDelete: Cascade)
-  reviewer User     @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewer User?    @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, categoryId, judgeId, reviewedBy])
   @@index([tenantId])
@@ -1499,7 +1499,7 @@ model RoleAssignment {
   eventId    String?
   categoryId String?
   assignedAt DateTime @default(now())
-  assignedBy String
+  assignedBy String?
   notes      String?
   isActive   Boolean  @default(true)
   tenantId   String
@@ -1508,7 +1508,7 @@ model RoleAssignment {
   contest  Contest?  @relation(fields: [contestId], references: [id], onDelete: Cascade)
   event    Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  assigner User      @relation("RoleAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+  assigner User?     @relation("RoleAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, userId, role, contestId, eventId, categoryId])
   @@index([tenantId])
@@ -1574,7 +1574,7 @@ model ScoreFile {
   fileType     String
   filePath     String
   fileSize     Int
-  uploadedById String
+  uploadedById String?
   status       String   @default("pending")
   notes        String?
   createdAt    DateTime @default(now())
@@ -1584,7 +1584,7 @@ model ScoreFile {
   category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   judge      Judge      @relation(fields: [judgeId], references: [id], onDelete: Cascade)
   contestant Contestant? @relation(fields: [contestantId], references: [id], onDelete: Cascade)
-  uploader   User       @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploader   User?      @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -1604,7 +1604,7 @@ model ScoreRemovalRequest {
   judgeId          String
   reason           String
   status           RequestStatus @default(PENDING)
-  requestedBy      String
+  requestedBy      String?
   requestedAt      DateTime      @default(now())
   tallySignature   String?
   tallySignedAt    DateTime?
@@ -1621,7 +1621,7 @@ model ScoreRemovalRequest {
 
   category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   judge           Judge    @relation(fields: [judgeId], references: [id], onDelete: Cascade)
-  requestedByUser User     @relation(fields: [requestedBy], references: [id], onDelete: SetNull)
+  requestedByUser User?    @relation(fields: [requestedBy], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, categoryId])
@@ -1967,7 +1967,7 @@ model TallyMasterAssignment {
   eventId    String
   status     String   @default("ACTIVE")
   assignedAt DateTime @default(now())
-  assignedBy String
+  assignedBy String?
   notes      String?
   tenantId   String
 
@@ -1975,7 +1975,7 @@ model TallyMasterAssignment {
   category       Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   contest        Contest?  @relation(fields: [contestId], references: [id], onDelete: Cascade)
   event          Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  assignedByUser User      @relation("TallyMasterAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
+  assignedByUser User?     @relation("TallyMasterAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, userId, categoryId])
   @@index([tenantId])
@@ -1992,7 +1992,7 @@ model AuditorAssignment {
   eventId    String
   status     String   @default("ACTIVE")
   assignedAt DateTime @default(now())
-  assignedBy String
+  assignedBy String?
   notes      String?
   tenantId   String
 
@@ -2000,7 +2000,7 @@ model AuditorAssignment {
   category       Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   contest        Contest?  @relation(fields: [contestId], references: [id], onDelete: Cascade)
   event          Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  assignedByUser User      @relation("AuditorAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
+  assignedByUser User?     @relation("AuditorAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, userId, categoryId])
   @@index([tenantId])

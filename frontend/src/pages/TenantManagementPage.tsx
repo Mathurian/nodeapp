@@ -110,8 +110,10 @@ const TenantManagementPage: React.FC = () => {
       }
 
       await api.put(`/tenants/${editingTenant.id}`, payload)
+      setShowModal(false)
       setEditingTenant(null)
       resetForm()
+      setSuccessMessage(`Tenant "${payload.name}" updated successfully.`)
       await fetchTenants()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update tenant')
@@ -189,11 +191,13 @@ const TenantManagementPage: React.FC = () => {
   }
 
   const openEditModal = (tenant: Tenant) => {
+    const normalizedDomain = (tenant.domain || '').trim().toLowerCase()
+    const isPlaceholderDomain = normalizedDomain === 'localhost' || normalizedDomain === '127.0.0.1'
     setEditingTenant(tenant)
     setFormData({
       name: tenant.name,
       slug: tenant.slug,
-      domain: tenant.domain || '',
+      domain: isPlaceholderDomain ? '' : (tenant.domain || ''),
       isActive: tenant.isActive,
       adminName: '', // Not used when editing
       adminEmail: '', // Not used when editing
@@ -303,13 +307,19 @@ const TenantManagementPage: React.FC = () => {
                 )}
               </div>
 
-              {tenant.domain && (
+              {tenant.domain && tenant.domain.trim().toLowerCase() !== 'localhost' && tenant.domain.trim().toLowerCase() !== '127.0.0.1' && (
                 <div className="mb-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                     <span className="font-medium">Domain:</span> {tenant.domain}
                   </p>
                 </div>
               )}
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+                  <span className="font-medium">Tier:</span> {tenant.planType || 'free'}
+                </p>
+              </div>
 
               <div className="mb-4">
                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${

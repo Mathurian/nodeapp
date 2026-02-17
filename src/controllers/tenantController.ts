@@ -203,10 +203,13 @@ export class TenantController {
       const id = getRequiredParam(req, 'id');
       const hard = req.query['hard'] === 'true';
 
-      await TenantService.deleteTenant(id, hard);
+      const result = await TenantService.deleteTenant(id, hard);
 
       res.json({
-        message: hard ? 'Tenant deleted permanently' : 'Tenant deactivated',
+        message: result.mode === 'hard_deleted'
+          ? 'Tenant deleted permanently'
+          : (result.reason || 'Tenant deactivated'),
+        mode: result.mode,
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);

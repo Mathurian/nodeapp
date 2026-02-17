@@ -205,8 +205,27 @@ export class AdminService extends BaseService {
 
   async getDashboardStats(tenantId?: string): Promise<DashboardStats> {
     try {
-      // Build tenant filter
-      const tenantFilter = tenantId ? { tenantId } : {};
+      // Build tenant filter:
+      // - tenant-scoped admin: only own tenant
+      // - super-admin: only records tied to existing active tenants (ignores orphan rows)
+      let tenantFilter: Prisma.UserWhereInput = {};
+      let tenantScopedFilter:
+        | { tenantId: string }
+        | { tenantId: { in: string[] } }
+        | Record<string, never> = {};
+
+      if (tenantId) {
+        tenantFilter = { tenantId };
+        tenantScopedFilter = { tenantId };
+      } else {
+        const activeTenants = await this.prisma.tenant.findMany({
+          where: { isActive: true },
+          select: { id: true },
+        });
+        const activeTenantIds = activeTenants.map((t) => t.id);
+        tenantScopedFilter = activeTenantIds.length > 0 ? { tenantId: { in: activeTenantIds } } : { tenantId: { in: ['__none__'] } };
+        tenantFilter = tenantScopedFilter as Prisma.UserWhereInput;
+      }
 
       const [
         totalUsers,
@@ -218,10 +237,10 @@ export class AdminService extends BaseService {
         lastBackupRecord
       ] = await Promise.all([
         this.prisma.user.count({ where: tenantFilter }),
-        this.prisma.event.count({ where: tenantFilter }),
-        this.prisma.contest.count({ where: tenantFilter }),
-        this.prisma.category.count({ where: tenantFilter }),
-        this.prisma.score.count({ where: tenantFilter }),
+        this.prisma.event.count({ where: tenantScopedFilter }),
+        this.prisma.contest.count({ where: tenantScopedFilter }),
+        this.prisma.category.count({ where: tenantScopedFilter }),
+        this.prisma.score.count({ where: tenantScopedFilter }),
         this.prisma.user.count({
           where: {
             ...tenantFilter,
