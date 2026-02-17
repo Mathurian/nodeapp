@@ -2,7 +2,7 @@ const KNOWN_ROUTE_SEGMENTS = new Set([
   'login', 'register', 'forgot-password', 'dashboard', 'events', 'contests', 'categories',
   'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
   'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
-  'workflows', 'search', 'files', 'email-templates', 'custom-fields',
+  'workflows', 'files', 'email-templates', 'send-email', 'custom-fields',
   'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
   'bulk-operations', 'category-types', 'field-visibility',

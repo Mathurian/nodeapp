@@ -17,6 +17,7 @@ import { createContextCommands } from '../lib/commands/definitions/contextComman
 import type { Command } from '../lib/commands/CommandRegistry'
 import { useAllowedNavigationIds } from '../hooks/useAllowedNavigationIds'
 import { NAV_SECTIONS } from '../config/navigationConfig'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface CommandPaletteProps {
   isOpen: boolean
@@ -34,6 +35,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { setTheme, toggleTheme } = useTheme()
   const allowedNavigationIds = useAllowedNavigationIds()
   const inputRef = useRef<HTMLInputElement>(null)
   const isHoveringRef = useRef(false)
@@ -82,18 +84,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       logout: async () => {
         await logout()
       },
-      toggleTheme: () => {
-        // Theme toggle logic - to be implemented with theme context
-        const html = document.documentElement
-        const currentTheme = html.classList.contains('dark') ? 'dark' : 'light'
-        if (currentTheme === 'dark') {
-          html.classList.remove('dark')
-          localStorage.setItem('theme', 'light')
-        } else {
-          html.classList.add('dark')
-          localStorage.setItem('theme', 'dark')
-        }
-      },
+      setTheme,
+      toggleTheme,
       refreshPage: () => {
         window.location.reload()
       },
@@ -132,7 +124,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
       ...quickActionCommands,
       ...contextCommands
     ])
-  }, [navigate, logout, registry, location.pathname, allowedNavigationIds])
+  }, [navigate, logout, registry, location.pathname, allowedNavigationIds, setTheme, toggleTheme])
 
   // Update displayed commands based on query
   useEffect(() => {

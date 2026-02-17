@@ -14,7 +14,6 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'dashboard', path: '/dashboard', baseRoles: ALL_ROLES },
   { id: 'profile', path: '/profile', baseRoles: ALL_ROLES, resource: 'profile', allowCrudReadOverride: true },
   { id: 'notifications', path: '/notifications', baseRoles: ALL_ROLES },
-  { id: 'search', path: '/search', baseRoles: ALL_ROLES },
   { id: 'bios', path: '/bios', baseRoles: ALL_ROLES, resource: 'contestants', allowCrudReadOverride: true },
 
   { id: 'events', path: '/events', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'events', allowCrudReadOverride: true },
@@ -42,6 +41,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'users', path: '/users', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
   { id: 'assignments', path: '/assignments', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'assignments', allowCrudReadOverride: true },
   { id: 'bulk-operations', path: '/bulk-operations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
+  { id: 'send-email', path: '/send-email', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
 
   { id: 'admin', path: '/admin', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'settings', path: '/settings', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'settings', allowCrudReadOverride: true },

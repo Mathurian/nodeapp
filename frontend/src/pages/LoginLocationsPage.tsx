@@ -298,13 +298,16 @@ const LoginLocationsPage: React.FC = () => {
 
         const map = L.map(container, {
           worldCopyJump: true,
-          zoomControl: true,
+          zoomControl: false,
           attributionControl: true,
+          minZoom: 2,
+          maxZoom: 8,
         }).setView([20, 0], 2)
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
+          maxZoom: 8,
+          minZoom: 2,
         }).addTo(map)
 
         const layer = L.layerGroup().addTo(map)
@@ -650,7 +653,29 @@ const LoginLocationsPage: React.FC = () => {
             </div>
           ) : (
             <div className="login-locations-map relative isolate h-[500px] w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-md border border-gray-300 bg-white/90 p-1 shadow dark:border-gray-600 dark:bg-gray-800/90">
+              <div className="absolute right-3 top-3 z-[500] flex items-center gap-1 rounded-md border border-gray-300 bg-white/90 p-1 shadow dark:border-gray-600 dark:bg-gray-800/90">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const map = leafletMapRef.current
+                    if (map) map.zoomIn()
+                  }}
+                  className="rounded px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                  aria-label="Zoom in"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const map = leafletMapRef.current
+                    if (map) map.zoomOut()
+                  }}
+                  className="rounded px-2 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                  aria-label="Zoom out"
+                >
+                  -
+                </button>
                 <button
                   type="button"
                   onClick={() => {

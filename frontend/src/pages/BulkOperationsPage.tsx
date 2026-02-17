@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { usersAPI, emailAPI } from '../services/api'
 import {
@@ -11,7 +12,15 @@ import { Card, PageHeader } from '../components/ui'
 
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'import' | 'email'>('import')
+  const location = useLocation()
+  const desiredTab = useMemo<'import' | 'email'>(() => {
+    const tabParam = new URLSearchParams(location.search).get('tab')?.toLowerCase()
+    if (tabParam === 'email' || location.pathname.endsWith('/send-email')) {
+      return 'email'
+    }
+    return 'import'
+  }, [location.pathname, location.search])
+  const [activeTab, setActiveTab] = useState<'import' | 'email'>(desiredTab)
   const [file, setFile] = useState<File | null>(null)
   const [userType, setUserType] = useState<'JUDGE' | 'CONTESTANT'>('CONTESTANT')
   const [emailData, setEmailData] = useState({
@@ -22,6 +31,10 @@ const BulkOperationsPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    setActiveTab(desiredTab)
+  }, [desiredTab])
 
   const handleImport = async () => {
     if (!file) {

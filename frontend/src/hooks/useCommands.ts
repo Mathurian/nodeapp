@@ -10,6 +10,7 @@ import { createNavigationCommands } from '../lib/commands/definitions/navigation
 import { createActionCommands } from '../lib/commands/definitions/actionCommands'
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts'
 import { useAllowedNavigationIds } from './useAllowedNavigationIds'
+import { useTheme } from '../contexts/ThemeContext'
 
 /**
  * Main hook for command system
@@ -23,6 +24,7 @@ export const useCommands = (options: {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { setTheme, toggleTheme } = useTheme()
   const allowedNavigationIds = useAllowedNavigationIds()
 
   // Create command registry (memoized)
@@ -44,17 +46,8 @@ export const useCommands = (options: {
       logout: async () => {
         await logout()
       },
-      toggleTheme: () => {
-        const html = document.documentElement
-        const currentTheme = html.classList.contains('dark') ? 'dark' : 'light'
-        if (currentTheme === 'dark') {
-          html.classList.remove('dark')
-          localStorage.setItem('theme', 'light')
-        } else {
-          html.classList.add('dark')
-          localStorage.setItem('theme', 'dark')
-        }
-      },
+      setTheme,
+      toggleTheme,
       refreshPage: () => {
         window.location.reload()
       },
@@ -65,7 +58,7 @@ export const useCommands = (options: {
 
     // Register all commands
     registry.registerCommands([...navigationCommands, ...actionCommands])
-  }, [navigate, logout, registry, allowedNavigationIds])
+  }, [navigate, logout, registry, allowedNavigationIds, setTheme, toggleTheme])
 
   // Execute command with callback
   const executeCommand = useCallback(async (commandId: string) => {

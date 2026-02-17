@@ -14,6 +14,7 @@ import {
   ArrowRightOnRectangleIcon,
   MoonIcon,
   SunIcon,
+  ComputerDesktopIcon,
   BellIcon,
   PrinterIcon,
   ShareIcon
@@ -22,6 +23,7 @@ import {
 export const createActionCommands = (options: {
   logout?: () => void | Promise<void>;
   toggleTheme?: () => void;
+  setTheme?: (theme: 'light' | 'dark' | 'auto') => void;
   refreshPage?: () => void;
   navigate?: (path: string) => void;
 }): Command[] => {
@@ -122,14 +124,14 @@ export const createActionCommands = (options: {
     });
   }
 
-  if (options.toggleTheme) {
+  if (options.setTheme) {
     commands.push(
       {
         id: 'action-toggle-theme-dark',
         name: 'Switch to Dark Mode',
-        description: 'Change to dark theme',
+        description: 'Use dark mode',
         icon: MoonIcon,
-        action: () => options.toggleTheme!(),
+        action: () => options.setTheme!('dark'),
         keywords: ['dark', 'theme', 'mode', 'night'],
         category: 'action',
         group: 'Appearance',
@@ -139,16 +141,41 @@ export const createActionCommands = (options: {
       {
         id: 'action-toggle-theme-light',
         name: 'Switch to Light Mode',
-        description: 'Change to light theme',
+        description: 'Use light mode',
         icon: SunIcon,
-        action: () => options.toggleTheme!(),
+        action: () => options.setTheme!('light'),
         keywords: ['light', 'theme', 'mode', 'day'],
         category: 'action',
         group: 'Appearance',
         priority: 20,
         shortcut: 'Cmd+Shift+L'
+      },
+      {
+        id: 'action-toggle-theme-auto',
+        name: 'Use System Theme',
+        description: 'Follow your device light/dark mode',
+        icon: ComputerDesktopIcon,
+        action: () => options.setTheme!('auto'),
+        keywords: ['auto', 'system', 'theme', 'appearance'],
+        category: 'action',
+        group: 'Appearance',
+        priority: 20,
+        shortcut: 'Cmd+Shift+A'
       }
     );
+  } else if (options.toggleTheme) {
+    commands.push({
+      id: 'action-toggle-theme',
+      name: 'Toggle Theme',
+      description: 'Toggle between light and dark mode',
+      icon: MoonIcon,
+      action: () => options.toggleTheme!(),
+      keywords: ['toggle', 'theme', 'light', 'dark'],
+      category: 'action',
+      group: 'Appearance',
+      priority: 20,
+      shortcut: 'Cmd+Shift+D'
+    });
   }
 
   if (options.refreshPage) {

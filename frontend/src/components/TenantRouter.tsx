@@ -32,7 +32,6 @@ const NotificationsPage = lazyWithRetry(() => import('../pages/NotificationsPage
 const BackupManagementPage = lazyWithRetry(() => import('../pages/BackupManagementPage'), 'BackupManagementPage')
 const DisasterRecoveryPage = lazyWithRetry(() => import('../pages/DisasterRecoveryPage'), 'DisasterRecoveryPage')
 const WorkflowManagementPage = lazyWithRetry(() => import('../pages/WorkflowManagementPage'), 'WorkflowManagementPage')
-const SearchPage = lazyWithRetry(() => import('../pages/SearchPage'), 'SearchPage')
 const FileManagementPage = lazyWithRetry(() => import('../pages/FileManagementPage'), 'FileManagementPage')
 const EmailTemplatesPage = lazyWithRetry(() => import('../pages/EmailTemplatesPage'), 'EmailTemplatesPage')
 const CustomFieldsPage = lazyWithRetry(() => import('../pages/CustomFieldsPage'), 'CustomFieldsPage')
@@ -214,7 +213,6 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/backups" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
-            <Route path="/search" element={<SearchPage />} />
             <Route path="/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
             <Route path="/email-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EmailTemplatesPage /></ProtectedRoute>} />
             <Route path="/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
@@ -232,6 +230,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
             <Route path="/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
+            <Route path="/send-email" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
             <Route path="/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
             <Route path="/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
             <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
@@ -278,7 +277,6 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/:slug/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
-            <Route path="/:slug/search" element={<SearchPage />} />
             <Route path="/:slug/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/email-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EmailTemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
@@ -294,6 +292,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/:slug/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
+            <Route path="/:slug/send-email" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
             <Route path="/:slug/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
             <Route path="/:slug/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
             <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />

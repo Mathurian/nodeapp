@@ -4,6 +4,7 @@ import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
 import { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
@@ -52,9 +53,9 @@ const ROUTE_LABELS: Record<string, string> = {
   backups: 'Backups',
   'disaster-recovery': 'Disaster Recovery',
   workflows: 'Workflows',
-  search: 'Search',
   files: 'File Management',
   'email-templates': 'Email Templates',
+  'send-email': 'Send Email',
   'custom-fields': 'Custom Fields',
   tenants: 'Tenants',
   mfa: 'Multi-Factor Auth',
@@ -107,6 +108,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const desktopSidebarRef = useRef<HTMLElement | null>(null)
   const desktopToggleRef = useRef<HTMLButtonElement | null>(null)
   const { user, logout } = useAuth()
+  const { actualTheme, toggleTheme } = useTheme()
 
   // Persist sidebar state to localStorage
   useEffect(() => {
@@ -277,19 +279,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     return names[role as keyof typeof names] || role
   }
 
-  const toggleTheme = () => {
-    const html = document.documentElement
-    const currentTheme = html.classList.contains('dark') ? 'dark' : 'light'
-    if (currentTheme === 'dark') {
-      html.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    } else {
-      html.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    }
-  }
-
-  const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  const isDarkMode = actualTheme === 'dark'
 
   // Close desktop sidebar when clicking outside of it
   useEffect(() => {

@@ -76,7 +76,6 @@ import emailTemplateRoutes from '../routes/emailTemplateRoutes'
 import docsRoutes from '../routes/docs'
 import mfaRoutes from '../routes/mfa'
 import notificationPreferencesRoutes from '../routes/notificationPreferencesRoutes'
-import searchRoutes from '../routes/searchRoutes'
 import tenantRoutes from '../routes/tenant'
 import publicTenantRoutes from '../routes/publicTenantRoutes'
 import drRoutes from '../routes/drRoutes'
@@ -214,7 +213,6 @@ export const registerRoutes = (app: Application): void => {
   registerRoute(app, '/sms', smsRoutes);
   registerRoute(app, '/notifications', notificationsRoutes);
   registerRoute(app, '/notification-preferences', notificationPreferencesRoutes);
-  registerRoute(app, '/search', searchRoutes);
 
   // Assignments and tracking
   registerRoute(app, '/assignments', assignmentsRoutes);

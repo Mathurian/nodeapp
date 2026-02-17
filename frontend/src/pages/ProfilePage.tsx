@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from 'react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme, type Theme } from '../contexts/ThemeContext'
 import { usersAPI } from '../services/api'
 import {
   UserCircleIcon,
@@ -12,6 +13,9 @@ import {
   KeyIcon,
   PhotoIcon,
   TrashIcon,
+  ComputerDesktopIcon,
+  SunIcon,
+  MoonIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { FormProvider, FormInput, FormSubmitButton } from '../components/form'
@@ -31,6 +35,7 @@ interface ProfileFormData {
 
 const ProfilePage: React.FC = () => {
   const { user, refreshUser } = useAuth()
+  const { theme, actualTheme, setTheme } = useTheme()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -206,6 +211,36 @@ const ProfilePage: React.FC = () => {
           subtitle="Manage your personal information and account settings"
           icon={UserCircleIcon}
         />
+
+        <Card className="rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Appearance</h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px,1fr]">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Theme Preference
+              </label>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as Theme)}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white"
+              >
+                <option value="auto">Auto (System)</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                <ComputerDesktopIcon className="h-4 w-4" />
+                Preference: {theme}
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                {actualTheme === 'dark' ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
+                Active: {actualTheme}
+              </span>
+            </div>
+          </div>
+        </Card>
 
         {/* Profile Image */}
         <Card className="rounded-lg p-6 mb-6">
