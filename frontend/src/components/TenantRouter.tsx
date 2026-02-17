@@ -153,6 +153,7 @@ const RoleDefaultRoute: React.FC<{ basePath: string }> = ({ basePath }) => {
 
 const ADMIN_STANDARD_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
 const ADMIN_STRICT_ROLES = ['SUPER_ADMIN', 'ADMIN']
+const SUPER_ADMIN_ONLY = ['SUPER_ADMIN']
 const SCORING_ROLES = ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
 const EMCEE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']
 const DEDUCTION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']
@@ -210,7 +211,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
+            <Route path="/backups" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/search" element={<SearchPage />} />
@@ -237,7 +238,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
-            <Route path="/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestRunnerPage /></ProtectedRoute>} />
+            <Route path="/test-runner" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
             <Route path="/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
@@ -274,7 +275,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
-            <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/:slug/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/search" element={<SearchPage />} />
@@ -318,7 +319,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/permissions/audit-logs" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER']}><PermissionAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />
             <Route path="/:slug/login-locations" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']}><LoginLocationsPage /></ProtectedRoute>} />
-            <Route path="/:slug/test-runner" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestRunnerPage /></ProtectedRoute>} />
+            <Route path="/:slug/test-runner" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/:slug" element={<RoleDefaultRoute basePath={basePath} />} />
 
             {/* 404 Not Found */}

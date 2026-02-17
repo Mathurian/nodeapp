@@ -1,11 +1,19 @@
 /**
  * Data Wipe Service
- * Provides ability to completely wipe all event/contest/user data
+ * Provides explicit, high-risk data wiping operations with strict safeguards.
  */
 
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
+
+export interface DataWipeSummary {
+  scope: 'GLOBAL' | 'EVENT';
+  eventId?: string;
+  tenantId?: string;
+  counts: Record<string, number>;
+  dryRun: boolean;
+}
 
 @injectable()
 export class DataWipeService extends BaseService {
@@ -13,38 +21,156 @@ export class DataWipeService extends BaseService {
     super();
   }
 
+  private async purgeScoreGovernance(
+    executor: { $executeRawUnsafe: (...args: any[]) => Promise<unknown> },
+    scope?: { tenantId?: string; eventId?: string; categoryIds?: string[] }
+  ): Promise<void> {
+    try {
+      if (!scope?.tenantId) {
+        await executor.$executeRawUnsafe('DELETE FROM score_governance_approvals');
+        await executor.$executeRawUnsafe('DELETE FROM score_governance_requests');
+        return;
+      }
+
+      const categoryIds = scope.categoryIds || [];
+      await executor.$executeRawUnsafe(
+        `
+        DELETE FROM score_governance_approvals
+        WHERE "requestId" IN (
+          SELECT id
+          FROM score_governance_requests
+          WHERE "tenantId" = $1
+            AND ("eventId" = $2 OR "categoryId" = ANY($3::text[]))
+        )
+        `,
+        scope.tenantId,
+        scope.eventId || '',
+        categoryIds
+      );
+
+      await executor.$executeRawUnsafe(
+        `
+        DELETE FROM score_governance_requests
+        WHERE "tenantId" = $1
+          AND ("eventId" = $2 OR "categoryId" = ANY($3::text[]))
+        `,
+        scope.tenantId,
+        scope.eventId || '',
+        categoryIds
+      );
+    } catch (error: any) {
+      // Older environments may not include governance tables yet.
+      if (error?.code !== '42P01') {
+        throw error;
+      }
+    }
+  }
+
+  private async getGlobalWipeSummary(): Promise<Record<string, number>> {
+    const [
+      events,
+      contests,
+      categories,
+      scores,
+      files,
+      assignments,
+      deductions,
+    ] = await Promise.all([
+      this.prisma.event.count(),
+      this.prisma.contest.count(),
+      this.prisma.category.count(),
+      this.prisma.score.count(),
+      this.prisma.file.count(),
+      this.prisma.assignment.count(),
+      this.prisma.deductionRequest.count(),
+    ]);
+
+    return {
+      events,
+      contests,
+      categories,
+      scores,
+      files,
+      assignments,
+      deductionRequests: deductions,
+    };
+  }
+
+  private async getEventWipeSummary(eventId: string, tenantId: string): Promise<Record<string, number>> {
+    const contests = await this.prisma.contest.findMany({
+      where: { eventId, tenantId },
+      select: { id: true }
+    });
+    const contestIds = contests.map((c) => c.id);
+
+    const categories = await this.prisma.category.findMany({
+      where: { contestId: { in: contestIds }, tenantId },
+      select: { id: true }
+    });
+    const categoryIds = categories.map((c) => c.id);
+
+    const [
+      scoreCount,
+      commentCount,
+      certCount,
+      assignmentCount,
+      deductionCount,
+    ] = await Promise.all([
+      this.prisma.score.count({ where: { tenantId, categoryId: { in: categoryIds } } }),
+      this.prisma.judgeComment.count({ where: { tenantId, categoryId: { in: categoryIds } } }),
+      this.prisma.categoryCertification.count({ where: { tenantId, categoryId: { in: categoryIds } } }),
+      this.prisma.assignment.count({ where: { tenantId, eventId } }),
+      this.prisma.deductionRequest.count({ where: { tenantId, categoryId: { in: categoryIds } } }),
+    ]);
+
+    return {
+      contests: contestIds.length,
+      categories: categoryIds.length,
+      scores: scoreCount,
+      judgeComments: commentCount,
+      categoryCertifications: certCount,
+      assignments: assignmentCount,
+      deductionRequests: deductionCount,
+      events: 1,
+    };
+  }
+
   /**
-   * Wipe all event, contest, contestant, judge, organizer, and board data
-   * WARNING: This is irreversible!
+   * Wipe all event/contest/user data.
+   * STRICTLY SUPER_ADMIN only. Requires dual confirmation.
    */
-  async wipeAllData(userId: string, userRole: string, confirmation: string): Promise<void> {
-    // Only admin can wipe all data
-    if (userRole !== 'ADMIN') {
-      throw this.forbiddenError('Only administrators can wipe all data');
+  async wipeAllData(
+    userId: string,
+    userRole: string,
+    confirmation: string,
+    secondaryConfirmation: string,
+    dryRun: boolean
+  ): Promise<DataWipeSummary> {
+    if (userRole !== 'SUPER_ADMIN') {
+      throw this.forbiddenError('Only SUPER_ADMIN can wipe all data');
     }
 
-    // Require explicit confirmation
     if (confirmation !== 'WIPE_ALL_DATA') {
       throw this.validationError('Invalid confirmation. Type "WIPE_ALL_DATA" to confirm.');
     }
 
-    // Use transactions to ensure atomicity
+    if (secondaryConfirmation !== 'I_UNDERSTAND_THIS_IS_IRREVERSIBLE') {
+      throw this.validationError('Invalid secondary confirmation for global wipe.');
+    }
+
+    const counts = await this.getGlobalWipeSummary();
+    if (dryRun) {
+      return {
+        scope: 'GLOBAL',
+        counts,
+        dryRun: true,
+      };
+    }
+
     await this.prisma.$transaction(async (tx) => {
-      // Delete in order to respect foreign key constraints
-
-      // Note: scoreFile model doesn't exist in schema
-      // await tx.scoreFile.deleteMany({});
-
-      // Delete files
       await tx.file.deleteMany({});
-
-      // Delete scores
       await tx.score.deleteMany({});
-
-      // Delete judge comments
       await tx.judgeComment.deleteMany({});
-
-      // Delete certifications
       await tx.certification.deleteMany({});
       await tx.categoryCertification.deleteMany({});
       await tx.contestCertification.deleteMany({});
@@ -52,50 +178,30 @@ export class DataWipeService extends BaseService {
       await tx.judgeContestantCertification.deleteMany({});
       await tx.reviewContestantCertification.deleteMany({});
       await tx.reviewJudgeScoreCertification.deleteMany({});
-
-      // Delete score removal requests
       await tx.judgeScoreRemovalRequest.deleteMany({});
       await tx.judgeUncertificationRequest.deleteMany({});
-
-      // Delete deductions
-      await tx.deductionRequest.deleteMany({});
+      await this.purgeScoreGovernance(tx);
       await tx.deductionApproval.deleteMany({});
+      await tx.deductionRequest.deleteMany({});
       await tx.overallDeduction.deleteMany({});
-
-      // Delete assignments
       await tx.assignment.deleteMany({});
       await tx.roleAssignment.deleteMany({});
-
-      // Delete category contestants and judges
       await tx.categoryContestant.deleteMany({});
       await tx.categoryJudge.deleteMany({});
       await tx.contestContestant.deleteMany({});
       await tx.contestJudge.deleteMany({});
-
-      // Delete criteria
       await tx.criterion.deleteMany({});
-
-      // Delete categories
       await tx.category.deleteMany({});
-
-      // Delete contests
       await tx.contest.deleteMany({});
-
-      // Delete events
       await tx.event.deleteMany({});
-
-      // Delete contestants (but keep users)
       await tx.contestant.deleteMany({});
-
-      // Delete judges (but keep users)
       await tx.judge.deleteMany({});
 
-      // Note: We keep User records but can optionally deactivate non-admin users
-      // This is safer than deleting users entirely
+      // Preserve admin/super-admin identity, invalidate others.
       await tx.user.updateMany({
         where: {
           role: {
-            not: 'ADMIN'
+            notIn: ['SUPER_ADMIN', 'ADMIN']
           }
         },
         data: {
@@ -107,139 +213,99 @@ export class DataWipeService extends BaseService {
     });
 
     this.logInfo('All event/contest/user data wiped', { userId });
+    return {
+      scope: 'GLOBAL',
+      counts,
+      dryRun: false,
+    };
   }
 
   /**
-   * Wipe data for a specific event
+   * Wipe data for a specific event with tenant ownership enforcement.
    */
-  async wipeEventData(eventId: string, userId: string, userRole: string): Promise<void> {
-    if (!['ADMIN', 'ORGANIZER'].includes(userRole)) {
+  async wipeEventData(
+    eventId: string,
+    userId: string,
+    userRole: string,
+    tenantId: string | undefined,
+    isSuperAdmin: boolean,
+    dryRun: boolean
+  ): Promise<DataWipeSummary> {
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
       throw this.forbiddenError('You do not have permission to wipe event data');
+    }
+    if (!isSuperAdmin && !tenantId) {
+      throw this.forbiddenError('Tenant context is required for event wipe');
+    }
+
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        ...(isSuperAdmin ? {} : { tenantId })
+      },
+      select: { id: true, tenantId: true }
+    });
+
+    if (!event) {
+      throw this.notFoundError('Event', eventId);
+    }
+
+    const targetTenantId = event.tenantId;
+    const counts = await this.getEventWipeSummary(eventId, targetTenantId);
+    if (dryRun) {
+      return {
+        scope: 'EVENT',
+        eventId,
+        tenantId: targetTenantId,
+        counts,
+        dryRun: true,
+      };
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Get all contests for this event
       const contests = await tx.contest.findMany({
-        where: { eventId },
+        where: { eventId, tenantId: targetTenantId },
         select: { id: true }
       });
+      const contestIds = contests.map((c) => c.id);
 
-      const contestIds = contests.map(c => c.id);
-
-      // Get all categories for these contests
       const categories = await tx.category.findMany({
-        where: { contestId: { in: contestIds } },
+        where: { contestId: { in: contestIds }, tenantId: targetTenantId },
         select: { id: true }
       });
+      const categoryIds = categories.map((c) => c.id);
 
-      const categoryIds = categories.map(c => c.id);
-
-      // Note: scoreFile model does not exist in schema
-      // await tx.scoreFile.deleteMany({
-      //   where: {
-      //     score: {
-      //       categoryId: { in: categoryIds }
-      //     }
-      //   }
-      // });
-
-      // Delete scores
-      await tx.score.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
+      await tx.score.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.judgeComment.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.certification.deleteMany({ where: { tenantId: targetTenantId, eventId } });
+      await tx.categoryCertification.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.contestCertification.deleteMany({ where: { tenantId: targetTenantId, contestId: { in: contestIds } } });
+      await tx.judgeScoreRemovalRequest.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await this.purgeScoreGovernance(tx, {
+        tenantId: targetTenantId,
+        eventId,
+        categoryIds,
       });
-
-      // Delete other related data
-      await tx.judgeComment.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.certification.deleteMany({
-        where: { eventId }
-      });
-
-      await tx.categoryCertification.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.contestCertification.deleteMany({
-        where: {
-          contestId: { in: contestIds }
-        }
-      });
-
-      await tx.judgeScoreRemovalRequest.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.deductionRequest.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.assignment.deleteMany({
-        where: { eventId }
-      });
-
-      await tx.roleAssignment.deleteMany({
-        where: { eventId }
-      });
-
-      await tx.categoryContestant.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.categoryJudge.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.contestContestant.deleteMany({
-        where: {
-          contestId: { in: contestIds }
-        }
-      });
-
-      await tx.contestJudge.deleteMany({
-        where: {
-          contestId: { in: contestIds }
-        }
-      });
-
-      await tx.criterion.deleteMany({
-        where: {
-          categoryId: { in: categoryIds }
-        }
-      });
-
-      await tx.category.deleteMany({
-        where: {
-          contestId: { in: contestIds }
-        }
-      });
-
-      await tx.contest.deleteMany({
-        where: { eventId }
-      });
-
-      await tx.event.delete({
-        where: { id: eventId }
-      });
+      await tx.deductionRequest.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.assignment.deleteMany({ where: { tenantId: targetTenantId, eventId } });
+      await tx.roleAssignment.deleteMany({ where: { tenantId: targetTenantId, eventId } });
+      await tx.categoryContestant.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.categoryJudge.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.contestContestant.deleteMany({ where: { tenantId: targetTenantId, contestId: { in: contestIds } } });
+      await tx.contestJudge.deleteMany({ where: { tenantId: targetTenantId, contestId: { in: contestIds } } });
+      await tx.criterion.deleteMany({ where: { tenantId: targetTenantId, categoryId: { in: categoryIds } } });
+      await tx.category.deleteMany({ where: { tenantId: targetTenantId, contestId: { in: contestIds } } });
+      await tx.contest.deleteMany({ where: { tenantId: targetTenantId, eventId } });
+      await tx.event.deleteMany({ where: { id: eventId, tenantId: targetTenantId } });
     });
 
-    this.logInfo('Event data wiped', { eventId, userId });
+    this.logInfo('Event data wiped', { eventId, userId, tenantId: targetTenantId });
+    return {
+      scope: 'EVENT',
+      eventId,
+      tenantId: targetTenantId,
+      counts,
+      dryRun: false,
+    };
   }
 }
-
-

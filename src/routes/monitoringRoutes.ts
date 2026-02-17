@@ -10,8 +10,13 @@ import {
   updateServiceStatus,
   getSystemStatus,
 } from '../controllers/monitoringController';
+import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
+
+// Monitoring is privileged operational telemetry.
+router.use(authenticateToken);
+router.use(requireRole(['SUPER_ADMIN', 'ADMIN']));
 
 /**
  * POST /api/monitoring/test-results

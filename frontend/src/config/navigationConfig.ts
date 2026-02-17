@@ -128,7 +128,7 @@ export const NAV_SECTIONS: AppNavSection[] = [
       { id: 'activity', name: 'Activity Log', href: '/activity', icon: ClockIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'login-locations', name: 'Login Locations', href: '/login-locations', icon: MapPinIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'] },
       { id: 'performance', name: 'Performance', href: '/performance', icon: ChartBarIcon, roles: ADMIN_ONLY_ROLES },
-      { id: 'backups', name: 'Backups', href: '/backups', icon: CloudArrowDownIcon, roles: ADMIN_ROLES },
+      { id: 'backups', name: 'Backups', href: '/backups', icon: CloudArrowDownIcon, roles: ['SUPER_ADMIN'] },
       { id: 'disaster-recovery', name: 'Disaster Recovery', href: '/disaster-recovery', icon: CloudArrowDownIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'data-wipe', name: 'Data Wipe', href: '/data-wipe', icon: DocumentTextIcon, roles: ADMIN_ONLY_ROLES },
     ],

@@ -57,6 +57,23 @@ interface TenantInfo {
   slug: string;
 }
 
+export interface TenantSelectionOption {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export class TenantSelectionRequiredError extends Error {
+  public readonly code = 'TENANT_SELECTION_REQUIRED';
+  public readonly tenants: TenantSelectionOption[];
+
+  constructor(tenants: TenantSelectionOption[]) {
+    super('Multiple tenant accounts matched this email. Please sign in with a tenant-specific URL.');
+    this.name = 'TenantSelectionRequiredError';
+    this.tenants = tenants;
+  }
+}
+
 interface UserProfile {
   id: string;
   name: string;
@@ -320,40 +337,69 @@ export class AuthService {
       // Only do cross-tenant search if we're logging in from default tenant context
       // This prevents cross-tenant authentication when accessing tenant-specific URLs
       if (defaultTenant && tenantId === defaultTenant.id) {
-        user = await this.prisma.user.findFirst({
+        const candidates = await this.prisma.user.findMany({
           where: {
             email,
             isActive: true,
             tenant: { isActive: true }
           },
-        select: {
-          id: true,
-          name: true,
-          preferredName: true,
-          email: true,
-          password: true,
-          role: true,
-          sessionVersion: true,
-          isActive: true,
-          judgeId: true,
-          contestantId: true,
-          gender: true,
-          pronouns: true,
-          tenantId: true,
-          imagePath: true,
-          mfaEnabled: true,
-          mfaSecret: true,
-          mfaMethod: true,
-          phone: true,
-          tenant: {
-            select: {
-              id: true,
-              name: true,
-              slug: true
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            password: true,
+            role: true,
+            sessionVersion: true,
+            isActive: true,
+            judgeId: true,
+            contestantId: true,
+            gender: true,
+            pronouns: true,
+            tenantId: true,
+            imagePath: true,
+            mfaEnabled: true,
+            mfaSecret: true,
+            mfaMethod: true,
+            phone: true,
+            tenant: {
+              select: {
+                id: true,
+                name: true,
+                slug: true
+              }
             }
           }
-        }
         });
+
+        if (candidates.length === 1) {
+          const candidate = candidates[0];
+          if (candidate) {
+            user = candidate;
+          }
+        } else if (candidates.length > 1) {
+          const matchedCandidates: typeof candidates = [];
+          for (const candidate of candidates) {
+            if (await bcrypt.compare(password, candidate.password)) {
+              matchedCandidates.push(candidate);
+            }
+          }
+
+          if (matchedCandidates.length === 1) {
+            const matchedCandidate = matchedCandidates[0];
+            if (matchedCandidate) {
+              user = matchedCandidate;
+            }
+          } else if (matchedCandidates.length > 1) {
+            throw new TenantSelectionRequiredError(
+              matchedCandidates.map((candidate) => ({
+                id: candidate.tenant.id,
+                slug: candidate.tenant.slug,
+                name: candidate.tenant.name,
+              }))
+            );
+          }
+        }
       }
     }
 

@@ -17,7 +17,7 @@ router.use(authenticateToken);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/all', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('WIPE_ALL_DATA', 'SYSTEM'), wipeAllData);
+router.post('/all', requireRole(['SUPER_ADMIN']), logActivity('WIPE_ALL_DATA', 'SYSTEM'), wipeAllData);
 
 /**
  * @swagger
@@ -28,11 +28,10 @@ router.post('/all', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('WIPE_ALL
  *     security:
  *       - bearerAuth: []
  */
-router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('WIPE_EVENT_DATA', 'EVENT'), wipeEventData);
+router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('WIPE_EVENT_DATA', 'EVENT'), wipeEventData);
 
 export default router;
 
 // CommonJS compatibility
 module.exports = router;
-
 

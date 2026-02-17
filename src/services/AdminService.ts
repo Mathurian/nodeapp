@@ -400,12 +400,20 @@ export class AdminService extends BaseService {
     }
   }
 
-  async getActivityLogs(options?: PaginationOptions): Promise<PaginatedResponse<FormattedActivityLog>> {
+  async getActivityLogs(
+    options?: PaginationOptions,
+    scope?: { tenantId?: string; isSuperAdmin?: boolean }
+  ): Promise<PaginatedResponse<FormattedActivityLog>> {
     try {
       const { skip, take } = this.getPaginationParams(options);
+      const where: Prisma.ActivityLogWhereInput = {};
+      if (!scope?.isSuperAdmin) {
+        where.tenantId = scope?.tenantId || '__no_tenant__';
+      }
 
       const [logs, total] = await Promise.all([
         this.prisma.activityLog.findMany({
+          where,
           include: {
             user: {
               select: {
@@ -420,7 +428,7 @@ export class AdminService extends BaseService {
           skip,
           take
         }),
-        this.prisma.activityLog.count()
+        this.prisma.activityLog.count({ where })
       ]);
 
       const formattedLogs = logs.map(log => ({
@@ -449,10 +457,13 @@ export class AdminService extends BaseService {
     }
   }
 
-  async getAuditLogs(limit: number = 100) {
+  async getAuditLogs(
+    limit: number = 100,
+    scope?: { tenantId?: string; isSuperAdmin?: boolean }
+  ) {
     // For now, use ActivityLog as audit logs
     // In the future, you might want a separate AuditLog table
-    return this.getActivityLogs({ limit });
+    return this.getActivityLogs({ limit }, scope);
   }
 
   private normalizeIpAddress(rawIp?: string | null): string {

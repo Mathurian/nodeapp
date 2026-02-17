@@ -124,7 +124,10 @@ export class AdminController {
   getLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const paginationOptions = parsePaginationQuery(req.query);
-      const result = await this.adminService.getActivityLogs(paginationOptions);
+      const result = await this.adminService.getActivityLogs(paginationOptions, {
+        tenantId: req.tenantId || req.user?.tenantId,
+        isSuperAdmin: req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN',
+      });
       return sendSuccess(res, result);
     } catch (error) {
       return next(error);
@@ -403,6 +406,9 @@ export class AdminController {
       if (categoryId) {
         where.categoryId = categoryId;
       }
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
 
       const [scores, total] = await Promise.all([
         this.prisma.score.findMany({
@@ -452,7 +458,10 @@ export class AdminController {
   getActivityLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const paginationOptions = parsePaginationQuery(req.query);
-      const result = await this.adminService.getActivityLogs(paginationOptions);
+      const result = await this.adminService.getActivityLogs(paginationOptions, {
+        tenantId: req.tenantId || req.user?.tenantId,
+        isSuperAdmin: req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN',
+      });
       return sendSuccess(res, result);
     } catch (error) {
       return next(error);
@@ -462,7 +471,10 @@ export class AdminController {
   getAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const limit = parseInt(req.query['limit'] as string) || 100;
-      const logs = await this.adminService.getAuditLogs(limit);
+      const logs = await this.adminService.getAuditLogs(limit, {
+        tenantId: req.tenantId || req.user?.tenantId,
+        isSuperAdmin: req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN',
+      });
       return sendSuccess(res, logs);
     } catch (error) {
       return next(error);
@@ -496,7 +508,10 @@ export class AdminController {
       const format = (req.query['format'] as string) || 'json';
       const limit = parseInt(req.query['limit'] as string) || QUERY_LIMITS.DEFAULT;
 
-      const logsResult = await this.adminService.getAuditLogs(limit);
+      const logsResult = await this.adminService.getAuditLogs(limit, {
+        tenantId: req.tenantId || req.user?.tenantId,
+        isSuperAdmin: req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN',
+      });
       const logs = Array.isArray(logsResult)
         ? logsResult
         : (logsResult && typeof logsResult === 'object' && 'data' in logsResult ? logsResult.data : []) || [];
@@ -542,8 +557,12 @@ export class AdminController {
     }
   };
 
-  forceLogoutAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
+  forceLogoutAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (req.user?.role !== 'SUPER_ADMIN') {
+        return sendSuccess(res, { success: false }, 'Only SUPER_ADMIN can force logout all users', 403);
+      }
+
       // Increment sessionVersion for all users to invalidate their tokens
       await this.prisma.user.updateMany({
         data: {
@@ -567,11 +586,20 @@ export class AdminController {
 
   forceLogoutUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { userId } = req.params;
+      const userId = req.params['id'];
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const isSuperAdmin = req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN';
+
+      if (!userId) {
+        return sendSuccess(res, { success: false }, 'User id is required', 400);
+      }
 
       // Find user first
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId }
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: userId,
+          ...(isSuperAdmin ? {} : { tenantId }),
+        }
       });
 
       if (!user) {
@@ -582,14 +610,24 @@ export class AdminController {
       }
 
       // Increment sessionVersion to invalidate all tokens
-      await this.prisma.user.update({
-        where: { id: userId },
+      const updateResult = await this.prisma.user.updateMany({
+        where: {
+          id: userId,
+          ...(isSuperAdmin ? {} : { tenantId }),
+        },
         data: {
           sessionVersion: {
             increment: 1
           }
         }
       });
+
+      if (updateResult.count === 0) {
+        return sendSuccess(res, {
+          success: false,
+          message: 'User not found'
+        }, 'User not found', 404);
+      }
 
       return sendSuccess(res, {
         success: true,
@@ -609,6 +647,9 @@ export class AdminController {
       const where: Prisma.ScoreWhereInput = {
         contestantId
       };
+      if (!req.isSuperAdmin && req.tenantId) {
+        where.tenantId = req.tenantId;
+      }
 
       if (categoryId) {
         where.categoryId = categoryId;

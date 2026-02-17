@@ -54,7 +54,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'activity', path: '/activity', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'login-locations', path: '/login-locations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], resource: 'activity-logs', allowCrudReadOverride: true },
   { id: 'performance', path: '/performance', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
-  { id: 'backups', path: '/backups', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'backup', allowCrudReadOverride: true },
+  { id: 'backups', path: '/backups', baseRoles: ['SUPER_ADMIN'], hardProtected: true },
   { id: 'disaster-recovery', path: '/disaster-recovery', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'data-wipe', path: '/data-wipe', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
 
@@ -80,7 +80,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'field-visibility', path: '/field-visibility', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'test-event-setup', path: '/test-event-setup', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'events', allowCrudReadOverride: true },
   { id: 'rate-limit-configs', path: '/rate-limit-configs', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
-  { id: 'test-runner', path: '/test-runner', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true }
+  { id: 'test-runner', path: '/test-runner', baseRoles: ['SUPER_ADMIN'], hardProtected: true }
 ]
 
 export const PAGE_ACCESS_BY_PATH = new Map(PAGE_ACCESS_POLICIES.map((policy) => [policy.path, policy]))

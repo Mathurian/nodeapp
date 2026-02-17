@@ -87,6 +87,7 @@ import testRunnerRoutes from '../routes/testRunnerRoutes'
 import permissionsRoutes from '../routes/permissionsRoutes'
 import scoreGovernanceRoutes from '../routes/scoreGovernanceRoutes'
 import databaseHealthRoutes from '../routes/databaseHealthRoutes'
+import monitoringRoutes from '../routes/monitoringRoutes'
 
 /**
  * Helper to register routes for both legacy and versioned paths
@@ -122,7 +123,7 @@ export const registerRoutes = (app: Application): void => {
   registerRoute(app, '/health', healthRoutes);
   registerRoute(app, '/health', databaseHealthRoutes);
   registerRoute(app, '/performance', performanceRoutes);
-  // Note: /monitoring routes are registered in server.ts before tenant middleware
+  registerRoute(app, '/monitoring', monitoringRoutes);
   registerRoute(app, '/cache', cacheRoutes);
   registerRoute(app, '/logs', logFilesRoutes);
   registerRoute(app, '/error-handling', errorHandlingRoutes);

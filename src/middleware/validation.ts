@@ -5,12 +5,14 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { z, ZodSchema, ZodError } from 'zod';
+import { UserRole } from '@prisma/client';
 import { sendValidationError } from '../utils/responseHelpers';
 
 /**
  * Validation target
  */
 type ValidationTarget = 'body' | 'query' | 'params';
+const userRoleSchema = z.nativeEnum(UserRole);
 
 /**
  * Validate request using Zod schema
@@ -112,7 +114,7 @@ export const createUserSchema = z.object({
   preferredName: z.string().max(100).optional(),
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD']),
+  role: userRoleSchema,
   gender: z.string().optional(),
   pronouns: z.string().optional(),
   phone: z.string().optional(),
@@ -128,7 +130,7 @@ export const updateUserSchema = z.object({
   preferredName: z.string().max(100).optional(),
   email: z.string().email().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional(),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD']).optional(),
+  role: userRoleSchema.optional(),
   gender: z.string().optional(),
   pronouns: z.string().optional(),
   phone: z.string().optional(),
@@ -336,7 +338,7 @@ export const createNotificationSchema = z.object({
  * Notification broadcast schema
  */
 export const broadcastNotificationSchema = z.object({
-  roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).min(1, 'At least one role required'),
+  roles: z.array(userRoleSchema).min(1, 'At least one role required'),
   title: z.string().min(1, 'Title is required').max(200),
   message: z.string().min(1, 'Message is required').max(5000),
   type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
@@ -436,7 +438,7 @@ export const createEmailCampaignSchema = z.object({
   body: z.string().min(1, 'Body is required'),
   html: z.string().optional(),
   recipients: z.array(z.string().email('Invalid email address')).optional(),
-  roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).optional(),
+  roles: z.array(userRoleSchema).optional(),
   scheduledFor: z.string().datetime().or(z.date()).optional()
 });
 
@@ -454,7 +456,7 @@ export const sendMultipleEmailsSchema = z.object({
  * Send email by role schema
  */
 export const sendEmailByRoleSchema = z.object({
-  roles: z.array(z.enum(['SUPER_ADMIN', 'ADMIN', 'EVENT_MANAGER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD_MEMBER', 'ORGANIZER', 'BOARD'])).min(1, 'At least one role required'),
+  roles: z.array(userRoleSchema).min(1, 'At least one role required'),
   subject: z.string().min(1, 'Subject is required').max(200),
   body: z.string().min(1, 'Body is required'),
   html: z.string().optional()

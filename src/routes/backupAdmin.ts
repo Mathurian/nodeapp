@@ -4,9 +4,9 @@ import { authenticateToken, checkRoles } from '../middleware/auth';
 
 const router = express.Router();
 
-// All backup admin routes require authentication and ADMIN role
+// All backup admin routes require authentication and SUPER_ADMIN role
 router.use(authenticateToken);
-router.use(checkRoles(['ADMIN']));
+router.use(checkRoles(['SUPER_ADMIN']));
 
 /**
  * @swagger
@@ -62,7 +62,7 @@ router.use(checkRoles(['ADMIN']));
  *       401:
  *         description: Unauthorized - missing or invalid token
  *       403:
- *         description: Forbidden - requires ADMIN role
+ *         description: Forbidden - requires SUPER_ADMIN role
  */
 router.get('/', BackupAdminController.listBackups.bind(BackupAdminController));
 

@@ -10,8 +10,8 @@ router.use(authenticateToken);
 // Tenant-scoped UAT IDs for browser-only/manual AI operators
 router.get('/uat-ids', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), testRunnerController.getUatIds);
 
-// Remaining test-runner operations are admin-only
-router.use(requireRole(['SUPER_ADMIN', 'ADMIN']));
+// Remaining test-runner operations are SUPER_ADMIN-only (host-level command execution boundary)
+router.use(requireRole(['SUPER_ADMIN']));
 
 // Get available test files
 router.get('/files', testRunnerController.getTestFiles);

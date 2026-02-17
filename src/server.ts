@@ -163,13 +163,6 @@ app.use('/api/', metricsMiddleware);
 app.get('/metrics', metricsEndpoint);
 
 /**
- * Monitoring endpoints (public - no tenant required)
- */
-import monitoringRoutes from './routes/monitoringRoutes';
-app.use('/api/monitoring', monitoringRoutes);
-app.use('/api/v1/monitoring', monitoringRoutes);
-
-/**
  * Health check endpoint (public)
  */
 app.get('/health', async (_req: Request, res: Response) => {

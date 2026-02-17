@@ -377,9 +377,14 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
 /**
  * List all backups
  */
-export const listBackups = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const listBackups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestedTenantId = req.query['tenantId'] as string | undefined;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+    const effectiveTenantId = isSuperAdmin ? requestedTenantId : (req.tenantId || req.user?.tenantId);
+
     const backups = await prisma.backupLog.findMany({
+      where: effectiveTenantId ? { tenantId: effectiveTenantId } : undefined,
       orderBy: { createdAt: 'desc' }
     });
 
@@ -533,16 +538,18 @@ export const getBackupSettings = async (_req: Request, res: Response, next: Next
     }));
     
     // Return settings in the format expected by the frontend
-    sendSuccess(res, { 
+    sendSuccess(res, {
       success: true,
+      scope: 'platform',
       settings: schedules
     });
   } catch (error: unknown) {
     // If backupSetting table doesn't exist, return empty array
     const errorObj = error as { code?: string; message?: string };
     if (errorObj.code === 'P2021' || errorObj.message?.includes('does not exist')) {
-      sendSuccess(res, { 
+      sendSuccess(res, {
         success: true,
+        scope: 'platform',
         settings: []
       });
       return;

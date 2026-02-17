@@ -13,6 +13,19 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 const logger = createLogger('MonitoringController');
+const SAFE_SUITE_PATTERN = /^(unit|integration|e2e)([._:-][a-zA-Z0-9._:-]{1,40})?$/;
+const ALLOWED_SERVICE_LABELS = new Set([
+  'backend-production',
+  'grafana',
+  'frontend-dev',
+  'prometheus',
+  'nginx',
+  'postgresql',
+  'redis',
+  'redis-server',
+]);
+
+const normalizeLabel = (value: unknown): string => String(value ?? '').trim();
 
 export class MonitoringController {
   private metricsService: MetricsService;
@@ -39,9 +52,14 @@ export class MonitoringController {
         return sendBadRequest(res, 'Invalid type. Must be one of: unit, integration, e2e');
       }
 
+      const suiteName = normalizeLabel(suite);
+      if (!SAFE_SUITE_PATTERN.test(suiteName)) {
+        return sendBadRequest(res, 'Invalid suite label format. Use unit/integration/e2e[.name]');
+      }
+
       // Record test results
       this.metricsService.recordTestResults(
-        suite,
+        suiteName,
         type as 'unit' | 'integration' | 'e2e',
         parseInt(passed),
         parseInt(failed),
@@ -49,7 +67,7 @@ export class MonitoringController {
         parseFloat(durationSeconds)
       );
 
-      logger.info(`Test results reported: ${suite} (${type}) - ${passed}/${failed}/${skipped}`);
+      logger.info(`Test results reported: ${suiteName} (${type}) - ${passed}/${failed}/${skipped}`);
 
       return sendSuccess(res, { message: 'Test results recorded successfully' });
     } catch (error) {
@@ -74,7 +92,12 @@ export class MonitoringController {
         return sendBadRequest(res, 'Invalid type. Must be one of: unit, integration, e2e');
       }
 
-      this.metricsService.recordTestRunStart(suite, type as 'unit' | 'integration' | 'e2e');
+      const suiteName = normalizeLabel(suite);
+      if (!SAFE_SUITE_PATTERN.test(suiteName)) {
+        return sendBadRequest(res, 'Invalid suite label format. Use unit/integration/e2e[.name]');
+      }
+
+      this.metricsService.recordTestRunStart(suiteName, type as 'unit' | 'integration' | 'e2e');
 
       return sendSuccess(res, { message: 'Test run started' });
     } catch (error) {
@@ -95,15 +118,25 @@ export class MonitoringController {
         return sendBadRequest(res, 'Missing required field: service');
       }
 
-      this.metricsService.updateServiceMetrics(service, {
-        port,
+      const serviceLabel = normalizeLabel(service);
+      if (!ALLOWED_SERVICE_LABELS.has(serviceLabel)) {
+        return sendBadRequest(res, `Service '${serviceLabel}' is not allowlisted for monitoring updates`);
+      }
+
+      const normalizedPort = port !== undefined ? String(port) : undefined;
+      if (normalizedPort && !/^[0-9]{1,5}$/.test(normalizedPort)) {
+        return sendBadRequest(res, 'Invalid port format');
+      }
+
+      this.metricsService.updateServiceMetrics(serviceLabel, {
+        port: normalizedPort,
         isRunning: isRunning !== undefined ? Boolean(isRunning) : undefined,
         uptimeSeconds: uptimeSeconds !== undefined ? parseFloat(uptimeSeconds) : undefined,
         memoryBytes: memoryBytes !== undefined ? parseFloat(memoryBytes) : undefined,
         cpuPercent: cpuPercent !== undefined ? parseFloat(cpuPercent) : undefined,
       });
 
-      logger.debug(`Service status updated: ${service}`);
+      logger.debug(`Service status updated: ${serviceLabel}`);
 
       return sendSuccess(res, { message: 'Service status updated successfully' });
     } catch (error) {

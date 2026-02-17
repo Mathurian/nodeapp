@@ -8,6 +8,7 @@ import { userCache } from '../utils/cache';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 import { createTenantPrismaClient } from './tenantMiddleware';
+import { updateRequestContext } from './correlationId';
 
 const logger = createLogger('auth');
 
@@ -240,6 +241,13 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     }
 
     req.user = user;
+
+    updateRequestContext({
+      userId: user.id,
+      tenantId: user.tenantId,
+      userEmail: user.email,
+      userName: user.name,
+    });
 
     // Set isSuperAdmin flag for tenant filtering bypass
     // SUPER_ADMIN role can see data across all tenants

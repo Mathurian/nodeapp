@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
 import prisma from '../utils/prisma';
 import { Prisma } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('TestRunner');
+const TESTS_DIR = path.join(process.cwd(), 'tests', 'e2e');
+const MAX_TEST_PATTERN_LENGTH = 200;
 
 // Maximum concurrent test runs to prevent resource exhaustion
 const MAX_CONCURRENT_TESTS = 2;
@@ -26,8 +29,27 @@ const activeTestRuns = new Map<string, {
 const testQueue: Array<{
   runId: string;
   testFile: string;
+  testFilePath: string;
   testPattern?: string;
 }> = [];
+
+interface DiscoveredTestFile {
+  displayName: string;
+  relativePath: string;
+  absolutePath: string;
+  category: string;
+  description: string;
+}
+
+const normalizePath = (input: string): string => input.replace(/\\/g, '/');
+
+const isValidPattern = (pattern: string): boolean => {
+  const trimmed = pattern.trim();
+  if (!trimmed) return false;
+  if (trimmed.length > MAX_TEST_PATTERN_LENGTH) return false;
+  // Keep pattern printable and bounded (spawn avoids shell injection regardless).
+  return /^[\x20-\x7E]+$/.test(trimmed);
+};
 
 // Test file descriptions mapping
 const testDescriptions: Record<string, string> = {
@@ -87,6 +109,65 @@ function getTestMetadata(filename: string, relativePath: string): { category: st
                      'E2E test suite';
 
   return { category, description };
+}
+
+async function discoverTestFiles(): Promise<DiscoveredTestFile[]> {
+  const discovered: DiscoveredTestFile[] = [];
+  const stack: string[] = [TESTS_DIR];
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop();
+    if (!currentDir) continue;
+
+    let entries: fsSync.Dirent[];
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(absolutePath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (!entry.name.endsWith('.test.ts') && !entry.name.endsWith('.spec.ts')) continue;
+
+      const relativePath = normalizePath(path.relative(process.cwd(), absolutePath));
+      const relativeToE2e = normalizePath(path.relative(TESTS_DIR, absolutePath));
+      const { category, description } = getTestMetadata(entry.name, relativeToE2e);
+
+      discovered.push({
+        displayName: relativeToE2e,
+        relativePath,
+        absolutePath,
+        category,
+        description,
+      });
+    }
+  }
+
+  return discovered.sort((a, b) => {
+    if (a.category !== b.category) return a.category.localeCompare(b.category);
+    return a.displayName.localeCompare(b.displayName);
+  });
+}
+
+function resolveRequestedTestFile(
+  requested: string,
+  discovered: DiscoveredTestFile[]
+): DiscoveredTestFile | null {
+  const normalized = normalizePath(String(requested || '').trim()).replace(/^\.?\//, '');
+  if (!normalized) return null;
+
+  return discovered.find((item) => {
+    if (item.displayName === normalized) return true;
+    if (item.relativePath === normalized) return true;
+    if (`tests/e2e/${item.displayName}` === normalized) return true;
+    return false;
+  }) || null;
 }
 
 /**
@@ -154,52 +235,13 @@ loadHistoricalTestRuns().catch(err => {
  */
 export async function getTestFiles(_req: Request, res: Response): Promise<void> {
   try {
-    const testsDir = path.join(process.cwd(), 'tests', 'e2e');
-
-    // Read main directory
-    const files = await fs.readdir(testsDir);
-    const testFiles: any[] = [];
-
-    // Process main directory files
-    for (const file of files) {
-      if (file.endsWith('.test.ts') || file.endsWith('.spec.ts')) {
-        const { category, description } = getTestMetadata(file, file);
-        testFiles.push({
-          name: file,
-          path: `tests/e2e/${file}`,
-          category,
-          description
-        });
-      }
-    }
-
-    // Read comprehensive subdirectory
-    const comprehensiveDir = path.join(testsDir, 'comprehensive');
-    try {
-      const comprehensiveFiles = await fs.readdir(comprehensiveDir);
-      for (const file of comprehensiveFiles) {
-        if (file.endsWith('.test.ts') || file.endsWith('.spec.ts')) {
-          const relativePath = `comprehensive/${file}`;
-          const { category, description } = getTestMetadata(file, relativePath);
-          testFiles.push({
-            name: `comprehensive/${file}`,
-            path: `tests/e2e/comprehensive/${file}`,
-            category,
-            description
-          });
-        }
-      }
-    } catch {
-      // Comprehensive directory doesn't exist or isn't accessible
-    }
-
-    // Sort by category then name
-    testFiles.sort((a, b) => {
-      if (a.category !== b.category) {
-        return a.category.localeCompare(b.category);
-      }
-      return a.name.localeCompare(b.name);
-    });
+    const discovered = await discoverTestFiles();
+    const testFiles = discovered.map((entry) => ({
+      name: entry.displayName,
+      path: entry.relativePath,
+      category: entry.category,
+      description: entry.description
+    }));
 
     res.json({
       success: true,
@@ -229,6 +271,25 @@ export async function startTestRun(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const discovered = await discoverTestFiles();
+    const resolvedTestFile = resolveRequestedTestFile(String(testFile), discovered);
+    if (!resolvedTestFile) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid testFile. Use /api/v1/test-runner/files to select an allowed test file.'
+      });
+      return;
+    }
+
+    const normalizedPattern = typeof testPattern === 'string' ? testPattern.trim() : undefined;
+    if (normalizedPattern && !isValidPattern(normalizedPattern)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid testPattern. Pattern must be printable ASCII and <= ${MAX_TEST_PATTERN_LENGTH} chars.`
+      });
+      return;
+    }
+
     const runId = `test-${Date.now()}`;
 
     // Count currently running tests
@@ -241,11 +302,16 @@ export async function startTestRun(req: Request, res: Response): Promise<void> {
         status: 'queued',
         output: `Queued: Waiting for available slot (${runningTests}/${MAX_CONCURRENT_TESTS} tests running)...`,
         startTime: new Date(),
-        testFile,
-        testPattern
+        testFile: resolvedTestFile.displayName,
+        testPattern: normalizedPattern
       });
 
-      testQueue.push({ runId, testFile, testPattern });
+      testQueue.push({
+        runId,
+        testFile: resolvedTestFile.displayName,
+        testFilePath: resolvedTestFile.absolutePath,
+        testPattern: normalizedPattern
+      });
 
       res.json({
         success: true,
@@ -260,7 +326,7 @@ export async function startTestRun(req: Request, res: Response): Promise<void> {
     }
 
     // Start the test
-    executeTest(runId, testFile, testPattern);
+    executeTest(runId, resolvedTestFile.displayName, resolvedTestFile.absolutePath, normalizedPattern);
 
     res.json({
       success: true,
@@ -283,19 +349,12 @@ export async function startTestRun(req: Request, res: Response): Promise<void> {
 /**
  * Execute a test run
  */
-function executeTest(runId: string, testFile: string, testPattern?: string): void {
+function executeTest(runId: string, testFile: string, testFilePath: string, testPattern?: string): void {
   const outputFile = `/tmp/test-${runId}.log`;
-
-  // Build playwright command with reduced workers for GUI test runner
-  // Use 2 workers instead of 6 to reduce resource usage
-  let playwrightCmd = `DATABASE_URL="postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public" NODE_ENV=test timeout 300 npx playwright test ${testFile} --workers=2`;
-
+  const args = ['playwright', 'test', testFilePath, '--workers=2'];
   if (testPattern) {
-    playwrightCmd += ` -g "${testPattern}"`;
+    args.push('-g', testPattern);
   }
-
-  // Wrap in bash to capture exit code from playwright command, not tee
-  const command = `bash -c "${playwrightCmd} 2>&1 | tee ${outputFile}; exit \\$\\{PIPESTATUS[0]\\}"`;
 
   // Update test run status
   const run = activeTestRuns.get(runId);
@@ -304,16 +363,46 @@ function executeTest(runId: string, testFile: string, testPattern?: string): voi
     run.output = 'Test execution started...\n';
   }
 
-  // Execute test in background
-  const child = exec(command, { maxBuffer: 10 * 1024 * 1024 }); // 10MB buffer
+  const outputStream = fsSync.createWriteStream(outputFile, { flags: 'a' });
+  outputStream.write(`Running test file: ${testFile}\nCommand: npx ${args.join(' ')}\n\n`);
 
-  child.on('exit', async (code) => {
+  const child = spawn('npx', args, {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DATABASE_URL: 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public',
+      NODE_ENV: 'test',
+    },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  let outputBuffer = '';
+  const appendOutput = (chunk: Buffer): void => {
+    const text = chunk.toString();
+    outputStream.write(text);
+    outputBuffer += text;
+    // Keep in-memory output bounded.
+    if (outputBuffer.length > 500_000) {
+      outputBuffer = outputBuffer.slice(outputBuffer.length - 500_000);
+    }
+  };
+
+  child.stdout.on('data', appendOutput);
+  child.stderr.on('data', appendOutput);
+
+  const timeoutHandle = setTimeout(() => {
+    child.kill('SIGTERM');
+  }, 300_000);
+
+  child.on('exit', async (code, signal) => {
+    clearTimeout(timeoutHandle);
+    outputStream.end();
     const run = activeTestRuns.get(runId);
     if (run) {
       try {
-        const output = await fs.readFile(outputFile, 'utf-8');
+        const output = await fs.readFile(outputFile, 'utf-8').catch(() => outputBuffer);
         run.output = output;
-        run.status = code === 0 ? 'completed' : 'failed';
+        run.status = code === 0 && !signal ? 'completed' : 'failed';
         run.endTime = new Date();
       } catch (error) {
         run.status = 'failed';
@@ -337,7 +426,7 @@ function processQueue(): void {
 
   const next = testQueue.shift();
   if (next) {
-    executeTest(next.runId, next.testFile, next.testPattern);
+    executeTest(next.runId, next.testFile, next.testFilePath, next.testPattern);
   }
 }
 

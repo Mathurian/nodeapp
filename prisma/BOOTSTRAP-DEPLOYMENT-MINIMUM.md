@@ -34,8 +34,9 @@ The current minimum migration directory set is:
 21. `20260104100000_add_dynamic_permissions`
 22. `20260105000000_fix_role_enum_type`
 23. `20260213110000_add_score_governance`
-24. `CATEGORY_CERTIFICATION_WORKFLOW`
-25. `add_city_state_country_to_user`
+24. `20260217090000_add_tenant_foreign_keys_not_valid`
+25. `CATEGORY_CERTIFICATION_WORKFLOW`
+26. `add_city_state_country_to_user`
 
 ## Files Explicitly Pruned
 

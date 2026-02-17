@@ -51,18 +51,11 @@ export const correlationIdMiddleware = (
   next: NextFunction
 ): void => {
   // Generate or use existing request ID
-  // Accept from X-Request-ID header (standard) or x-request-id (lowercase)
-  const requestId =
-    (req.headers['x-request-id'] as string) ||
-    (req.headers['x-request-id'] as string) ||
-    uuidv4();
+  const requestId = (req.headers['x-request-id'] as string) || uuidv4();
 
   // Correlation ID for tracing across services
   // Accept from X-Correlation-ID header or default to request ID
-  const correlationId =
-    (req.headers['x-correlation-id'] as string) ||
-    (req.headers['x-correlation-id'] as string) ||
-    requestId;
+  const correlationId = (req.headers['x-correlation-id'] as string) || requestId;
 
   // Attach to request object
   req.id = requestId;
@@ -79,8 +72,8 @@ export const correlationIdMiddleware = (
  * Context Middleware
  * Establishes AsyncLocalStorage context for request tracking
  *
- * IMPORTANT: This must be registered AFTER authentication middleware
- * so that req.user and req.tenantId are available
+ * Context is initialized early so all logs carry request metadata.
+ * User identity is injected later by auth middleware via updateRequestContext().
  */
 export const contextMiddleware = (
   req: Request,
@@ -101,6 +94,17 @@ export const contextMiddleware = (
   requestContext.run(context, () => {
     next();
   });
+};
+
+/**
+ * Update current async request context with newly available fields.
+ * Used after authentication to attach user identity to an already-initialized context.
+ */
+export const updateRequestContext = (patch: Partial<RequestContext>): void => {
+  const current = requestContext.getStore();
+  if (!current) return;
+
+  Object.assign(current, patch);
 };
 
 /**
@@ -169,6 +173,7 @@ export const runWithContext = async <T>(
 export default {
   correlationIdMiddleware,
   contextMiddleware,
+  updateRequestContext,
   getRequestContext,
   getCorrelationId,
   getRequestId,

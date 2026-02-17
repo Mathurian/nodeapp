@@ -9,7 +9,7 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('AuthController');
 import { container } from 'tsyringe';
-import { AuthService } from '../services/AuthService';
+import { AuthService, TenantSelectionRequiredError } from '../services/AuthService';
 import { AuditLogService } from '../services/AuditLogService';
 import { ActiveSessionTracker } from '../services/ActiveSessionTracker';
 import { sendSuccess, sendUnauthorized, sendBadRequest, sendNotFound } from '../utils/responseHelpers';
@@ -141,6 +141,18 @@ export class AuthController {
         hasCsrfCookie: !!req.cookies?.['_csrf'],
         email: req.body?.email
       });
+
+      if (error instanceof TenantSelectionRequiredError) {
+        return res.status(409).json({
+          success: false,
+          error: 'Tenant selection required',
+          code: error.code,
+          data: {
+            tenants: error.tenants,
+            message: error.message,
+          }
+        });
+      }
 
       if (errorMessage === 'Invalid credentials') {
         // Audit log: failed login attempt

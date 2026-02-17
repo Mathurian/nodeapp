@@ -9,6 +9,7 @@ import { UserRole } from '@prisma/client';
 
 // Role values matching Prisma schema
 export const ROLES = {
+  SUPER_ADMIN: 'SUPER_ADMIN' as UserRole,
   ADMIN: 'ADMIN' as UserRole,
   ORGANIZER: 'ORGANIZER' as UserRole,
   BOARD: 'BOARD' as UserRole,
@@ -29,8 +30,7 @@ export const isValidRole = (role: string): role is UserRole => {
 
 // Helper function to get all roles except admin (useful for certain validations)
 export const getAllRolesExceptAdmin = (): UserRole[] => {
-  return VALID_ROLES.filter(role => role !== ROLES.ADMIN);
+  return VALID_ROLES.filter(role => role !== ROLES.ADMIN && role !== ROLES.SUPER_ADMIN);
 };
 
 export default ROLES;
-

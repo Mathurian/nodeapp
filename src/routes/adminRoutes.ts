@@ -42,6 +42,9 @@ import {
 } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
+const TENANT_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'] as const;
+const PLATFORM_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const;
+const SUPER_ADMIN_ONLY = ['SUPER_ADMIN'] as const;
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -83,7 +86,7 @@ router.get("/database/tables", requireRole(["SUPER_ADMIN", "ADMIN"]), getDatabas
  */
 // SECURITY FIX: Route disabled due to SQL injection vulnerability (P0-1)
 // router.post("/database/query", requireRole(["ADMIN"]), logActivity("EXECUTE_DATABASE_QUERY", "DATABASE"), executeDatabaseQuery)
-router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']))
+router.use(requireRole([...TENANT_ADMIN_ROLES]))
 
 /**
  * @swagger
@@ -131,12 +134,12 @@ router.get('/events', getEvents)
 router.get('/contests', getContests)
 router.get('/categories', getCategories)
 router.get('/scores', getScores)
-router.get('/audit-logs', getAuditLogs)
+router.get('/audit-logs', requireRole([...PLATFORM_ADMIN_ROLES]), getAuditLogs)
 router.get('/login-locations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getLoginLocations)
-router.post('/export-audit-logs', exportAuditLogs)
-router.post('/test/:type', testConnection)
-router.post('/users/force-logout-all', logActivity('FORCE_LOGOUT_ALL', 'USER'), forceLogoutAllUsers)
-router.post('/users/:id/force-logout', logActivity('FORCE_LOGOUT_USER', 'USER'), forceLogoutUser)
+router.post('/export-audit-logs', requireRole([...PLATFORM_ADMIN_ROLES]), exportAuditLogs)
+router.post('/test/:type', requireRole([...PLATFORM_ADMIN_ROLES]), testConnection)
+router.post('/users/force-logout-all', requireRole([...SUPER_ADMIN_ONLY]), logActivity('FORCE_LOGOUT_ALL', 'USER'), forceLogoutAllUsers)
+router.post('/users/:id/force-logout', requireRole([...PLATFORM_ADMIN_ROLES]), logActivity('FORCE_LOGOUT_USER', 'USER'), forceLogoutUser)
 router.get('/contestant/:contestantId/scores', getContestantScores)
 
 // Admin settings endpoints
@@ -146,8 +149,8 @@ router.get('/settings/logging', getLoggingLevels)
 router.put('/settings/logging', updateLoggingLevel)
 router.get('/settings/security', getSecuritySettings)
 router.put('/settings/security', updateSecuritySettings)
-router.get('/settings/backup', getBackupSettings)
-router.put('/settings/backup', updateBackupSettings)
+router.get('/settings/backup', requireRole([...PLATFORM_ADMIN_ROLES]), getBackupSettings)
+router.put('/settings/backup', requireRole([...PLATFORM_ADMIN_ROLES]), updateBackupSettings)
 router.get('/settings/email', getEmailSettings)
 router.put('/settings/email', updateEmailSettings)
 router.get('/password-policy', getPasswordPolicy)

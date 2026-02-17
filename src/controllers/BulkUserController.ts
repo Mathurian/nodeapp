@@ -5,6 +5,7 @@ import { BulkOperationService } from '../services/BulkOperationService';
 import { CSVService } from '../services/CSVService';
 import { UserService } from '../services/UserService';
 import { createLogger } from '../utils/logger';
+import { VALID_ROLES } from '../constants/roles';
 
 const Logger = createLogger('BulkUserController');
 
@@ -165,8 +166,9 @@ export class BulkUserController {
         return;
       }
 
-      const validRoles = ['ADMIN', 'BOARD', 'TALLYMASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT'];
-      if (!validRoles.includes(role)) {
+      const normalizedRole = String(role).toUpperCase();
+      const validRoles = VALID_ROLES.map((entry) => String(entry));
+      if (!validRoles.includes(normalizedRole)) {
         res.status(400).json({
           error: `Invalid role. Must be one of: ${validRoles.join(', ')}`
         });
@@ -181,12 +183,12 @@ export class BulkUserController {
 
       const result = await this.bulkOperationService.executeBulkOperation(
         async (userId: string) => {
-          await this.userService.updateUser(userId, { role });
+          await this.userService.updateUser(userId, { role: normalizedRole });
         },
         userIds
       );
 
-      Logger.info('Bulk change role completed', { result, role, userId: req.user?.id });
+      Logger.info('Bulk change role completed', { result, role: normalizedRole, userId: req.user?.id });
 
       res.json({
         message: 'Bulk role change completed',

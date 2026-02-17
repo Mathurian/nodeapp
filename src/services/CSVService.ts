@@ -2,6 +2,7 @@ import { injectable } from 'tsyringe';
 import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 import { createLogger } from '../utils/logger';
+import { VALID_ROLES } from '../constants/roles';
 
 const Logger = createLogger('CSVService');
 
@@ -65,7 +66,7 @@ export class CSVService {
     };
 
     const requiredFields = ['email', 'name', 'role'];
-    const validRoles = ['ADMIN', 'BOARD', 'TALLYMASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT'];
+    const validRoles = VALID_ROLES.map((role) => String(role));
 
     csvData.forEach((row, index) => {
       const rowNumber = index + 2; // +2 for header row and 0-index
@@ -97,8 +98,8 @@ export class CSVService {
       }
 
       // Validate role
-      const role = String(row['role'] || '');
-      if (role && !validRoles.includes(role.toUpperCase())) {
+      const role = String(row['role'] || '').toUpperCase();
+      if (role && !validRoles.includes(role)) {
         result.errors.push({
           row: rowNumber,
           field: 'role',

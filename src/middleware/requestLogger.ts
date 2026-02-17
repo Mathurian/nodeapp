@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { createRequestLogger } from '../utils/logger';
 
 /**
@@ -8,12 +7,9 @@ import { createRequestLogger } from '../utils/logger';
  * Logs request start and completion with timing information
  */
 const requestLogging = (req: Request, res: Response, next: NextFunction): void => {
-  // Generate unique request ID for correlation tracking
-  const requestId = uuidv4()
-  req.requestId = requestId
-
-  // Attach request ID to response headers for client-side correlation
-  res.setHeader('X-Request-ID', requestId)
+  // Reuse the correlation middleware request ID as the single source of truth.
+  const requestId = req.id || req.requestId || 'unknown';
+  req.requestId = requestId;
 
   // Create logger for this request
   const log = createRequestLogger(req, 'request')
