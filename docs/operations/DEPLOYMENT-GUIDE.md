@@ -5,6 +5,8 @@ Comprehensive guide for deploying the Event Manager application with all Phase 1
 **Last Updated:** 2026-02-12
 
 > **Note:** This application is managed by `systemd`, not pm2. Use `sudo systemctl start|stop|restart|status event-manager` and `journalctl -u event-manager` for logs. The `npm run deploy:prod` script handles this automatically.
+>
+> **Runtime Layout:** Production runtime now uses release directories under `/opt/event-manager/releases` with `/opt/event-manager/current` as the active symlink, shared mutable data under `/var/lib/event-manager`, logs under `/var/log/event-manager`, and service env at `/etc/event-manager/event-manager.env`. See `docs/operations/PROD-RUNTIME-LAYOUT.md`.
 
 ---
 

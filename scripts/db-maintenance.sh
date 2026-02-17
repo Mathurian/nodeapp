@@ -16,10 +16,10 @@
 #
 # Schedule with cron (example):
 #   # Run full maintenance weekly on Sunday at 2 AM
-#   0 2 * * 0 /var/www/event-manager/scripts/db-maintenance.sh all
+#   0 2 * * 0 /srv/event-manager/dev/scripts/db-maintenance.sh all
 #
 #   # Run VACUUM daily at 3 AM
-#   0 3 * * * /var/www/event-manager/scripts/db-maintenance.sh vacuum
+#   0 3 * * * /srv/event-manager/dev/scripts/db-maintenance.sh vacuum
 ###############################################################################
 
 set -e  # Exit on error

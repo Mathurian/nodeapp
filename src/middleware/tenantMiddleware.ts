@@ -78,6 +78,16 @@ type TokenTenantPayload = {
  * Tenant identification strategies
  */
 export class TenantIdentifier {
+  private static getReservedSubdomains(): Set<string> {
+    const defaults = ['www', 'api', 'app', 'admin', 'dev', 'staging', 'stage', 'test', 'preview'];
+    const configured = (process.env['TENANT_RESERVED_SUBDOMAINS'] || '')
+      .split(',')
+      .map(value => value.trim().toLowerCase())
+      .filter(Boolean);
+
+    return new Set([...defaults, ...configured]);
+  }
+
   private static isIpOrLocalHost(hostname: string): boolean {
     if (!hostname) return true;
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
@@ -106,9 +116,9 @@ export class TenantIdentifier {
     // Check if it's a subdomain (must have at least 3 parts)
     const parts = hostname.split('.');
     if (parts.length >= 3) {
-      const subdomain = parts[0];
-      // Ignore common subdomains
-      if (subdomain && !['www', 'api', 'app', 'admin'].includes(subdomain)) {
+      const subdomain = (parts[0] || '').trim().toLowerCase();
+      const reservedSubdomains = TenantIdentifier.getReservedSubdomains();
+      if (subdomain && !reservedSubdomains.has(subdomain)) {
         return subdomain;
       }
     }

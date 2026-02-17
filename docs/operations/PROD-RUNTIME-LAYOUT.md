@@ -1,0 +1,74 @@
+# Production Runtime Layout
+
+This deployment model separates development source code from the production runtime.
+
+## Directory Layout
+
+- Dev/source checkout: `/srv/event-manager/dev`
+- Production releases: `/opt/event-manager/releases/<timestamp>`
+- Active production symlink: `/opt/event-manager/current`
+- Shared runtime data: `/var/lib/event-manager`
+- Shared logs: `/var/log/event-manager`
+- Service env file: `/etc/event-manager/event-manager.env`
+
+## Development Layout
+
+- Canonical dev path: `/srv/event-manager/dev`
+- Compatibility symlink: `/var/www/event-manager -> /srv/event-manager/dev`
+- Optional dev service: `event-manager-dev.service`
+- Dev env file: `/etc/event-manager/event-manager-dev.env`
+- Dev API port: `3002`
+- Dev database: `event_manager_dev`
+
+### Dev service controls
+
+1. `sudo systemctl start event-manager-dev.service`
+2. `sudo systemctl stop event-manager-dev.service`
+3. `sudo systemctl status event-manager-dev.service`
+4. `curl http://127.0.0.1:3002/health`
+
+## What Runs in Production
+
+The `event-manager.service` unit runs from:
+
+- `WorkingDirectory=/opt/event-manager/current`
+- `ExecStart=/usr/bin/node dist/server.js`
+- `EnvironmentFile=/etc/event-manager/event-manager.env`
+
+Automated backup/alert cron jobs execute from:
+
+- `/opt/event-manager/current/scripts/*`
+
+Nginx serves frontend assets from:
+
+- `root /opt/event-manager/current/frontend/dist`
+
+Nginx serves uploads from:
+
+- `root /var/lib/event-manager`
+
+## Deployment Scripts
+
+Use these scripts from repo root:
+
+1. Stage release artifacts and runtime dependencies:
+   - `sudo scripts/deploy/stage-release.sh`
+2. Activate a release:
+   - `sudo scripts/deploy/activate-release.sh <release_timestamp>`
+3. Roll back to prior release (auto-select previous):
+   - `sudo scripts/deploy/rollback-release.sh`
+4. Roll back to explicit release:
+   - `sudo scripts/deploy/rollback-release.sh <release_timestamp>`
+
+For a concise operator runbook, see:
+
+- `docs/operations/DEV-TO-PROD-DEPLOY-QUICK.md`
+
+## Validation
+
+After activation:
+
+1. `systemctl status event-manager.service`
+2. `curl -sS http://127.0.0.1:3000/health`
+3. `readlink -f /opt/event-manager/current`
+4. `sudo nginx -t`

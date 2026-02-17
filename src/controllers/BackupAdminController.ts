@@ -155,7 +155,7 @@ export class BackupAdminController {
    */
   async verifyBackups(_req: Request, res: Response): Promise<void> {
     try {
-      const scriptPath = '/var/www/event-manager/scripts/backup-verify.sh';
+      const scriptPath = path.join(process.cwd(), 'scripts', 'backup-verify.sh');
 
       // Check if script exists
       try {
@@ -196,7 +196,7 @@ export class BackupAdminController {
    */
   async triggerFullBackup(_req: Request, res: Response): Promise<void> {
     try {
-      const scriptPath = '/var/www/event-manager/scripts/backup-full.sh';
+      const scriptPath = path.join(process.cwd(), 'scripts', 'backup-full.sh');
 
       // Check if script exists
       try {
