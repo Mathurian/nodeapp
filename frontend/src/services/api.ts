@@ -498,8 +498,20 @@ export const emailAPI = {
   sendCampaign: (id: string) => api.post(`/email/campaigns/${id}/send`),
   getLogs: () => api.get('/email/logs'),
   sendEmail: (data: any) => api.post('/email/send', data),
-  sendMultiple: (data: { recipients: string[], subject: string, content: string }) => api.post('/email/send-multiple', data),
-  sendByRole: (data: { roles: string[], subject: string, content: string }) => api.post('/email/send-by-role', data),
+  sendMultiple: (data: { recipients: string[]; subject: string; content?: string; body?: string; html?: string }) =>
+    api.post('/email/send-multiple', {
+      recipients: data.recipients,
+      subject: data.subject,
+      body: data.body ?? data.content ?? '',
+      html: data.html,
+    }),
+  sendByRole: (data: { roles: string[]; subject: string; content?: string; body?: string; html?: string }) =>
+    api.post('/email/send-by-role', {
+      roles: data.roles,
+      subject: data.subject,
+      body: data.body ?? data.content ?? '',
+      html: data.html,
+    }),
 }
 
 export const reportsAPI = {

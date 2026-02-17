@@ -315,7 +315,7 @@ const LoginPage: React.FC = () => {
 
   return (
     <div>
-      <div className="cgr-page-container min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
+      <div className="cgr-page-container min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-100 dark:from-gray-950 dark:via-slate-900 dark:to-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="text-center">
             {/* Custom Logo */}
@@ -334,13 +334,13 @@ const LoginPage: React.FC = () => {
             )}
 
             {/* App Name */}
-            <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
               {settings.appName}
             </h1>
 
             {/* Subtitle */}
             {settings.appSubtitle && (
-              <p className="mt-2 text-center text-sm text-gray-600">
+              <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-300">
                 {settings.appSubtitle}
               </p>
             )}
@@ -348,7 +348,7 @@ const LoginPage: React.FC = () => {
         </div>
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-200 dark:border-gray-700">
             {!mfaPendingToken ? (
               <FormProvider form={form} onSubmit={onSubmit} className="space-y-6">
                 <FormInput
@@ -371,16 +371,16 @@ const LoginPage: React.FC = () => {
                       placeholder="Enter your password"
                       {...form.register('password')}
                       className={
-                        'appearance-none block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-2 sm:text-sm ' +
+                        'appearance-none block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 sm:text-sm ' +
                         (form.formState.errors.password
                           ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                          : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500')
+                          : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500')
                       }
                       aria-invalid={form.formState.errors.password ? 'true' : undefined}
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
@@ -412,14 +412,14 @@ const LoginPage: React.FC = () => {
                   {settings.showForgotPassword ? (
                     <a
                       href={`${slug ? `/${slug}` : ''}/forgot-password`}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                     >
                       Forgot password?
                     </a>
                   ) : <span />}
                   <a
                     href={`${slug ? `/${slug}` : ''}/`}
-                    className="text-gray-600 hover:text-gray-900 hover:underline"
+                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:underline"
                   >
                     Back to Home
                   </a>
@@ -439,7 +439,7 @@ const LoginPage: React.FC = () => {
                 {mfaRequiresSetup && (
                   <div className="space-y-4">
                     {mfaSetupLoading ? (
-                      <div className="text-sm text-gray-600">Preparing MFA enrollment...</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Preparing MFA enrollment...</div>
                     ) : (
                       <>
                         {mfaQrCode && (
@@ -470,7 +470,7 @@ const LoginPage: React.FC = () => {
                         setMfaChallengeSent(false)
                         setMfaCode('')
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       {mfaProviders.map((provider) => (
                         <option key={provider} value={provider}>{provider}</option>
@@ -490,7 +490,7 @@ const LoginPage: React.FC = () => {
                     type="button"
                     onClick={sendMfaChallenge}
                     disabled={mfaVerifyLoading}
-                    className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-800 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
                   >
                     {mfaVerifyLoading ? 'Sending code...' : `Send ${mfaSelectedProvider} Code`}
                   </button>
@@ -511,7 +511,7 @@ const LoginPage: React.FC = () => {
                     value={mfaCode}
                     onChange={(e) => setMfaCode(e.target.value)}
                     placeholder="Enter 6-digit code"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     maxLength={12}
                   />
                 </div>
@@ -538,7 +538,7 @@ const LoginPage: React.FC = () => {
                     setMfaBackupCodes([])
                     setServerError('')
                   }}
-                  className="w-full text-sm text-gray-600 hover:text-gray-900 underline"
+                  className="w-full text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline"
                 >
                   Start over
                 </button>
@@ -548,21 +548,21 @@ const LoginPage: React.FC = () => {
             {/* Support Section */}
             <div className="mt-6 border-t border-gray-200 pt-6">
               <div className="text-center space-y-3">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   Need help accessing your account?
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 justify-center items-center text-sm">
                   <a
                     href="/help"
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium"
                     aria-label="View help documentation"
                   >
                     Help Documentation
                   </a>
-                  <span className="hidden sm:inline text-gray-400">|</span>
+                  <span className="hidden sm:inline text-gray-400 dark:text-gray-500">|</span>
                   <a
                     href={`mailto:${settings.contactEmail || DEFAULT_APP_BASELINE.contactEmail}`}
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium"
                     aria-label="Contact support via email"
                   >
                     Contact Support
@@ -575,7 +575,7 @@ const LoginPage: React.FC = () => {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Accessible design with WCAG 2.1 Level AA compliance
           </p>
         </div>

@@ -13,6 +13,33 @@ export class EmailController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private summarizeDispatchResults(results: PromiseSettledResult<any>[]): { sent: number; failed: number; skipped: number } {
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        failed += 1;
+        continue;
+      }
+
+      const payload = result.value || {};
+      const message = String(payload.message || '').toLowerCase();
+      const explicitlySkipped = message.includes('smtp disabled') || message.includes('skipped');
+
+      if (explicitlySkipped) {
+        skipped += 1;
+      } else if (payload.success === false) {
+        failed += 1;
+      } else {
+        sent += 1;
+      }
+    }
+
+    return { sent, failed, skipped };
+  }
+
   getConfig = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const config = await this.emailService.getConfig();
@@ -25,8 +52,13 @@ export class EmailController {
   sendEmail = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { to, subject, body } = req.body;
-      const result = await this.emailService.sendEmail(to, subject, body);
-      return sendSuccess(res, result, 'Email sent');
+      const result = await this.emailService.sendEmail(to, subject, body, {
+        tenantId: req.tenantId || req.user?.tenantId,
+        userId: req.user?.id,
+      });
+      const wasSkipped = String(result.message || '').toLowerCase().includes('skipped');
+      const message = wasSkipped ? 'Email skipped because SMTP is disabled for this tenant configuration' : 'Email sent';
+      return sendSuccess(res, result, message);
     } catch (error) {
       return next(error);
     }
@@ -35,8 +67,19 @@ export class EmailController {
   sendBulkEmail = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { recipients, subject, body } = req.body;
-      const results = await this.emailService.sendBulkEmail(recipients, subject, body);
-      return sendSuccess(res, results, 'Bulk email sent');
+      const results = await this.emailService.sendBulkEmail(recipients, subject, body, {
+        tenantId: req.tenantId || req.user?.tenantId,
+        userId: req.user?.id,
+      });
+      const skipped = results.filter((item) => String(item.error || '').toLowerCase().includes('smtp disabled')).length;
+      const failed = results.filter((item) => item.success === false).length;
+      const sent = results.length - skipped - failed;
+      const message = skipped === results.length
+        ? 'No emails were delivered because SMTP is disabled for this tenant configuration'
+        : failed > 0
+          ? 'Bulk email processed with some failures'
+          : 'Bulk email sent';
+      return sendSuccess(res, { results, sent, failed, skipped, total: results.length }, message);
     } catch (error) {
       return next(error);
     }
@@ -232,19 +275,25 @@ export class EmailController {
       // Send emails to all recipients
       const results = await Promise.allSettled(
         recipients.map(async (email: string) => {
-          return this.emailService.sendEmail(email, subject, body);
+          return this.emailService.sendEmail(email, subject, body, {
+            tenantId: req.tenantId || req.user?.tenantId,
+            userId: req.user?.id,
+          });
         })
       );
 
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const { sent, failed, skipped } = this.summarizeDispatchResults(results);
+      const message = skipped === recipients.length
+        ? 'Campaign email skipped because SMTP is disabled for this tenant configuration'
+        : 'Campaign sent';
 
       return sendSuccess(res, {
         campaignId,
-        sent: successful,
-        failed: failed,
+        sent,
+        failed,
+        skipped,
         total: recipients.length
-      }, 'Campaign sent');
+      }, message);
     } catch (error) {
       return next(error);
     }
@@ -307,18 +356,24 @@ export class EmailController {
 
       const results = await Promise.allSettled(
         recipients.map(async (to: string) => {
-          return this.emailService.sendEmail(to, subject, body);
+          return this.emailService.sendEmail(to, subject, body, {
+            tenantId: req.tenantId || req.user?.tenantId,
+            userId: req.user?.id,
+          });
         })
       );
 
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const { sent, failed, skipped } = this.summarizeDispatchResults(results);
+      const message = skipped === recipients.length
+        ? 'No emails were delivered because SMTP is disabled for this tenant configuration'
+        : 'Multiple emails sent';
 
       return sendSuccess(res, {
-        sent: successful,
-        failed: failed,
+        sent,
+        failed,
+        skipped,
         total: recipients.length
-      }, 'Multiple emails sent');
+      }, message);
     } catch (error) {
       return next(error);
     }
@@ -347,18 +402,24 @@ export class EmailController {
 
       // Send email to all users
       const results = await Promise.allSettled(
-        users.map(user => this.emailService.sendEmail(user.email, subject, body))
+        users.map(user => this.emailService.sendEmail(user.email, subject, body, {
+          tenantId: req.tenantId || req.user?.tenantId,
+          userId: req.user?.id,
+        }))
       );
 
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const { sent, failed, skipped } = this.summarizeDispatchResults(results);
+      const message = skipped === users.length
+        ? `No emails were delivered for roles ${roles.join(', ')} because SMTP is disabled for this tenant configuration`
+        : `Emails sent to users with roles: ${roles.join(', ')}`;
 
       return sendSuccess(res, {
-        sent: successful,
-        failed: failed,
+        sent,
+        failed,
+        skipped,
         total: users.length,
         roles
-      }, `Emails sent to users with roles: ${roles.join(', ')}`);
+      }, message);
     } catch (error) {
       return next(error);
     }

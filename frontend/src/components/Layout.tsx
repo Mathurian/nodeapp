@@ -6,7 +6,7 @@ import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
-import { settingsAPI } from '../services/api'
+import { settingsAPI, notificationsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import AccordionNav from './AccordionNav'
 import Breadcrumb, { BreadcrumbItem } from './Breadcrumb'
@@ -24,6 +24,7 @@ import {
   MoonIcon,
   Bars3Icon,
   XMarkIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline'
 
 interface LayoutProps {
@@ -203,6 +204,23 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     },
     {
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+      retry: false,
+    }
+  )
+
+  const { data: unreadCount = 0 } = useQuery<number>(
+    ['notifications-unread-count', user?.id, user?.tenantId],
+    async () => {
+      const response = await notificationsAPI.getUnreadCount()
+      const payload = response.data?.data || response.data || {}
+      const countValue = Number(payload.count ?? 0)
+      return Number.isFinite(countValue) ? Math.max(0, countValue) : 0
+    },
+    {
+      enabled: Boolean(user?.id),
+      staleTime: 15_000,
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: true,
       retry: false,
     }
   )
@@ -413,6 +431,18 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               )}
             </button>
 
+            {/* Help */}
+            <a
+              href="/help"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Open Help Documentation"
+              aria-label="Open help documentation in a new tab"
+            >
+              <QuestionMarkCircleIcon className="h-5 w-5" />
+            </a>
+
             {/* Notifications */}
             <Link
               to={buildPath("/notifications")}
@@ -420,7 +450,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               title="Notifications"
             >
               <BellIcon className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center font-semibold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
 
             {/* Connection Status - Only show if user is logged in */}

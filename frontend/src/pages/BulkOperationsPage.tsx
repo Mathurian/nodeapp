@@ -13,18 +13,21 @@ import { Card, PageHeader } from '../components/ui'
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
   const location = useLocation()
+  const isSendEmailRoute = useMemo(() => location.pathname.endsWith('/send-email'), [location.pathname])
   const desiredTab = useMemo<'import' | 'email'>(() => {
     const tabParam = new URLSearchParams(location.search).get('tab')?.toLowerCase()
-    if (tabParam === 'email' || location.pathname.endsWith('/send-email')) {
+    if (tabParam === 'email' || isSendEmailRoute) {
       return 'email'
     }
     return 'import'
-  }, [location.pathname, location.search])
+  }, [isSendEmailRoute, location.search])
   const [activeTab, setActiveTab] = useState<'import' | 'email'>(desiredTab)
   const [file, setFile] = useState<File | null>(null)
   const [userType, setUserType] = useState<'JUDGE' | 'CONTESTANT'>('CONTESTANT')
+  const [recipientMode, setRecipientMode] = useState<'roles' | 'manual'>('roles')
   const [emailData, setEmailData] = useState({
     roles: [] as string[],
+    recipientsText: '',
     subject: '',
     content: '',
   })
@@ -35,6 +38,12 @@ const BulkOperationsPage: React.FC = () => {
   useEffect(() => {
     setActiveTab(desiredTab)
   }, [desiredTab])
+
+  useEffect(() => {
+    if (isSendEmailRoute) {
+      setActiveTab('email')
+    }
+  }, [isSendEmailRoute])
 
   const handleImport = async () => {
     if (!file) {
@@ -75,19 +84,51 @@ const BulkOperationsPage: React.FC = () => {
       setError('Subject and content are required')
       return
     }
-    if (emailData.roles.length === 0) {
-      setError('Select at least one role')
-      return
-    }
 
     try {
       setLoading(true)
       setError(null)
-      await emailAPI.sendByRole(emailData)
-      setSuccess('Bulk email sent successfully')
-      setEmailData({ roles: [], subject: '', content: '' })
+
+      if (recipientMode === 'roles') {
+        if (emailData.roles.length === 0) {
+          setError('Select at least one role')
+          return
+        }
+        const response = await emailAPI.sendByRole(emailData)
+        const payload = response.data?.data || {}
+        const sent = Number(payload.sent ?? 0)
+        const failed = Number(payload.failed ?? 0)
+        const skipped = Number(payload.skipped ?? 0)
+        const responseMessage = response.data?.message || 'Email processed'
+        setSuccess(`${responseMessage} (Sent: ${sent}, Skipped: ${skipped}, Failed: ${failed})`)
+      } else {
+        const recipients = emailData.recipientsText
+          .split(/[\n,;]+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+        const uniqueRecipients = Array.from(new Set(recipients))
+
+        if (uniqueRecipients.length === 0) {
+          setError('Enter at least one email address')
+          return
+        }
+
+        const response = await emailAPI.sendMultiple({
+          recipients: uniqueRecipients,
+          subject: emailData.subject,
+          content: emailData.content,
+        })
+        const payload = response.data?.data || {}
+        const sent = Number(payload.sent ?? 0)
+        const failed = Number(payload.failed ?? 0)
+        const skipped = Number(payload.skipped ?? 0)
+        const responseMessage = response.data?.message || 'Email processed'
+        setSuccess(`${responseMessage} (Sent: ${sent}, Skipped: ${skipped}, Failed: ${failed})`)
+      }
+
+      setEmailData({ roles: [], recipientsText: '', subject: '', content: '' })
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send bulk email')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to send email')
     } finally {
       setLoading(false)
     }
@@ -137,8 +178,8 @@ const BulkOperationsPage: React.FC = () => {
   return (
     <div className="cgr-page-container">
         <PageHeader
-          title="Bulk Operations"
-          subtitle="Import users, send bulk emails, and perform batch operations"
+          title={isSendEmailRoute ? 'Send Email' : 'Bulk Operations'}
+          subtitle={isSendEmailRoute ? 'Send email by role or direct recipient addresses' : 'Import users, send bulk emails, and perform batch operations'}
         />
 
         {error && (
@@ -153,31 +194,32 @@ const BulkOperationsPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2">
-          <button
-            onClick={() => setActiveTab('import')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              activeTab === 'import'
-                ? 'bg-blue-600 dark:bg-blue-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            <UserPlusIcon className="h-5 w-5 inline mr-2" />
-            User Import
-          </button>
-          <button
-            onClick={() => setActiveTab('email')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              activeTab === 'email'
-                ? 'bg-blue-600 dark:bg-blue-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            <EnvelopeIcon className="h-5 w-5 inline mr-2" />
-            Bulk Email
-          </button>
-        </div>
+        {!isSendEmailRoute && (
+          <div className="mb-6 flex gap-2">
+            <button
+              onClick={() => setActiveTab('import')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'import'
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              <UserPlusIcon className="h-5 w-5 inline mr-2" />
+              User Import
+            </button>
+            <button
+              onClick={() => setActiveTab('email')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'email'
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              <EnvelopeIcon className="h-5 w-5 inline mr-2" />
+              Bulk Email
+            </button>
+          </div>
+        )}
 
         {/* User Import Tab */}
         {activeTab === 'import' && (
@@ -245,27 +287,75 @@ const BulkOperationsPage: React.FC = () => {
         {activeTab === 'email' && (
           <Card className="rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
-              Send Bulk Email
+              Send Email
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
-                  Select Recipient Roles
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  Recipient Mode
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].map((role) => (
-                    <label key={role} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={emailData.roles.includes(role)}
-                        onChange={() => toggleRole(role)}
-                        className="h-4 w-4 text-blue-600 rounded"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-300">{role}</span>
-                    </label>
-                  ))}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRecipientMode('roles')}
+                    className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                      recipientMode === 'roles'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    By Role
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipientMode('manual')}
+                    className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                      recipientMode === 'manual'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Manual Addresses
+                  </button>
                 </div>
               </div>
+
+              {recipientMode === 'roles' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
+                    Select Recipient Roles
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].map((role) => (
+                      <label key={role} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={emailData.roles.includes(role)}
+                          onChange={() => toggleRole(role)}
+                          className="h-4 w-4 text-blue-600 rounded"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-300">{role}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    Email Addresses
+                  </label>
+                  <textarea
+                    value={emailData.recipientsText}
+                    onChange={(e) => setEmailData({ ...emailData, recipientsText: e.target.value })}
+                    rows={4}
+                    placeholder="name1@example.com, name2@example.com"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Separate addresses using commas, semicolons, or new lines.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
@@ -297,7 +387,7 @@ const BulkOperationsPage: React.FC = () => {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <EnvelopeIcon className="h-5 w-5" />
-                {loading ? 'Sending...' : 'Send Bulk Email'}
+                {loading ? 'Sending...' : 'Send Email'}
               </button>
             </div>
           </Card>

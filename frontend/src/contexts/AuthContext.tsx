@@ -69,10 +69,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
   }
 
+  const isHelpPath = (pathname: string): boolean => {
+    if (pathname === '/help' || pathname.startsWith('/help/')) return true
+    return /^\/[^/]+\/help(\/.*)?$/.test(pathname)
+  }
+
   useEffect(() => {
     const initAuth = async () => {
       const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
-      if (isPublicPath(pathname)) {
+      const shouldProbeProfile = isHelpPath(pathname)
+
+      if (isPublicPath(pathname) && !shouldProbeProfile) {
         // Avoid expected 401 probes on public pages such as /login.
         setUser(null)
         setIsLoading(false)
@@ -82,10 +89,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // No need to check localStorage - httpOnly cookies are automatically sent
       // Just try to fetch profile, cookie will be sent automatically
       try {
-        // Step 1: Fetch CSRF token (ensures we have a fresh token for any POST/PUT/DELETE requests)
-        await api.get('/csrf-token')
+        if (!shouldProbeProfile) {
+          // Step 1: Fetch CSRF token (ensures we have a fresh token for any POST/PUT/DELETE requests)
+          await api.get('/csrf-token')
+        }
 
-        // Step 2: Fetch user profile
+        // Fetch user profile
         const response = await api.get('/auth/profile')
         // Backend wraps response in { success, message, data, timestamp }
         const profileData = response.data.data || response.data

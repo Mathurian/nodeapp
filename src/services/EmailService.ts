@@ -106,6 +106,43 @@ export class EmailService extends BaseService {
   }
 
   /**
+   * Normalize SMTP security settings to match common provider behavior.
+   * - Port 587 => STARTTLS (secure=false + requireTLS=true)
+   * - Port 465 => Implicit TLS (secure=true)
+   */
+  private normalizeSmtpSecurity(
+    port: number,
+    secure: boolean
+  ): { secure: boolean; requireTLS?: boolean; adjusted: boolean; note?: string } {
+    if (port === 587 && secure) {
+      return {
+        secure: false,
+        requireTLS: true,
+        adjusted: true,
+        note: 'Adjusted SMTP security for port 587 to STARTTLS (secure=false, requireTLS=true).',
+      };
+    }
+
+    if (port === 465 && !secure) {
+      return {
+        secure: true,
+        adjusted: true,
+        note: 'Adjusted SMTP security for port 465 to implicit TLS (secure=true).',
+      };
+    }
+
+    if (port === 587 && !secure) {
+      return {
+        secure: false,
+        requireTLS: true,
+        adjusted: false,
+      };
+    }
+
+    return { secure, adjusted: false };
+  }
+
+  /**
    * Initialize SMTP transporter from environment variables
    */
   private async initializeTransporter(): Promise<void> {
@@ -117,15 +154,26 @@ export class EmailService extends BaseService {
         return;
       }
 
-      const smtpConfig = {
+      const normalized = this.normalizeSmtpSecurity(
+        env.get('SMTP_PORT'),
+        env.get('SMTP_SECURE')
+      );
+      if (normalized.note) {
+        logger.warn(normalized.note, { source: 'env' });
+      }
+
+      const smtpConfig: Record<string, unknown> = {
         host: env.get('SMTP_HOST'),
         port: env.get('SMTP_PORT'),
-        secure: env.get('SMTP_SECURE'),
+        secure: normalized.secure,
         auth: {
           user: env.get('SMTP_USER'),
           pass: env.get('SMTP_PASS')
         }
       };
+      if (normalized.requireTLS) {
+        smtpConfig['requireTLS'] = true;
+      }
 
       // Create transporter
       this.transporter = nodemailer.createTransport(smtpConfig);
@@ -234,11 +282,19 @@ export class EmailService extends BaseService {
       }
       transporter = this.transporter;
     } else {
+      const normalized = this.normalizeSmtpSecurity(smtpConfig.port, smtpConfig.secure);
+      if (normalized.note) {
+        logger.warn(normalized.note, { source: 'settings', tenantId: options?.tenantId || null });
+      }
+
       const transportOptions: Record<string, unknown> = {
         host: smtpConfig.host,
         port: smtpConfig.port,
-        secure: smtpConfig.secure,
+        secure: normalized.secure,
       };
+      if (normalized.requireTLS) {
+        transportOptions['requireTLS'] = true;
+      }
       if (smtpConfig.user) {
         transportOptions['auth'] = {
           user: smtpConfig.user,
@@ -331,12 +387,13 @@ export class EmailService extends BaseService {
     }
 
     // All retries failed - log failure with enhanced tracking
+    const lastMessage = String(lastError?.message || '');
     await this.logEmail(
       to,
       subject,
       'FAILED',
       null,
-      String(lastError),
+      lastMessage,
       smtpConfig.from,
       options?.template,
       options?.variables as Record<string, unknown>,
@@ -362,7 +419,13 @@ export class EmailService extends BaseService {
       logger.error('Failed to log email sending error', { error: logError });
     }
 
-    throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
+    if (lastMessage.includes('wrong version number')) {
+      throw this.badRequestError(
+        'SMTP TLS configuration mismatch. For port 587 use STARTTLS (secure off), or use port 465 with secure on.'
+      );
+    }
+
+    throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastMessage || 'Unknown error'}`);
   }
 
   private parseBool(value: string | undefined, defaultValue = false): boolean {
@@ -496,7 +559,14 @@ export class EmailService extends BaseService {
       batchResults.forEach((result, index) => {
         const to = batch[index] || '';
         if (result.status === 'fulfilled') {
-          results.push({ ...result.value, to, success: true });
+          const payload = result.value || {};
+          results.push({
+            to,
+            success: Boolean(payload.success),
+            messageId: payload.messageId,
+            response: payload.response,
+            error: payload.success ? undefined : (payload.message || 'Email skipped'),
+          });
         } else {
           results.push({ to, success: false, error: String(result.reason || 'Unknown error') });
         }

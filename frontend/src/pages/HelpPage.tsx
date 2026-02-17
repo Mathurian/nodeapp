@@ -162,6 +162,10 @@ const HelpPage: React.FC = () => {
   const loadDoc = async (path: string, doc?: DocItem) => {
     // Check if locked
     if (doc && isDocLocked(doc)) {
+      if (user) {
+        toast.error(`"${doc.title}" requires ${doc.requiredRole?.join(' or ')} access.`)
+        return
+      }
       setAttemptedDoc(doc)
       setShowLoginModal(true)
       return
@@ -198,6 +202,10 @@ const HelpPage: React.FC = () => {
   // Handle doc selection
   const selectDoc = (doc: DocItem) => {
     if (isDocLocked(doc)) {
+      if (user) {
+        toast.error(`"${doc.title}" requires ${doc.requiredRole?.join(' or ')} access.`)
+        return
+      }
       setAttemptedDoc(doc)
       setShowLoginModal(true)
       return
