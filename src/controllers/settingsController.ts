@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { SettingsService } from '../services/SettingsService';
 import { successResponse } from '../utils/responseHelpers';
+import { logger } from '../utils/logger';
 
 // Type for tenant-aware request - uses intersection instead of extends
 type TenantRequest = Request & {
@@ -207,6 +208,14 @@ export class SettingsController {
           { success },
           'Email test successful'
         );
+      } else if (type === 'backup') {
+        const backupSettings = (req.body && typeof req.body === 'object') ? req.body : undefined;
+        const result = await this.settingsService.testBackupConnection(tenantId, backupSettings);
+        successResponse(
+          res,
+          result,
+          result.success ? 'Backup connection test successful' : 'Backup connection test failed'
+        );
       } else {
         res.status(400).json({ error: 'Invalid test type' });
       }
@@ -345,15 +354,161 @@ export class SettingsController {
       );
 
       let runtimeEnvPath: string | undefined;
+      let runtimeEnvWarning: string | undefined;
       if (tenantId === null) {
-        runtimeEnvPath = await this.settingsService.syncGlobalBackupRuntimeEnv();
+        try {
+          runtimeEnvPath = await this.settingsService.syncGlobalBackupRuntimeEnv();
+        } catch (syncErr: any) {
+          runtimeEnvWarning = syncErr?.message || 'Unable to sync backup runtime environment file';
+          logger.warn('Backup runtime env sync failed after settings update', {
+            warning: runtimeEnvWarning,
+            tenantId,
+            userId,
+          });
+        }
       }
 
       successResponse(
         res,
-        { updatedCount, scope: tenantId ? 'tenant' : 'global', runtimeEnvPath },
+        { updatedCount, scope: tenantId ? 'tenant' : 'global', runtimeEnvPath, runtimeEnvWarning },
         'Backup settings updated successfully'
       );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Start Google Drive OAuth flow for backup connection
+   */
+  startGoogleDriveOAuth = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id || '';
+      const tenantId = this.getTenantIdForRead(req);
+      const origin = String(req.body?.origin || `${req.protocol}://${req.get('host') || ''}`);
+      const result = await this.settingsService.startGoogleDriveOAuth(userId, tenantId, origin, {
+        clientId: typeof req.body?.clientId === 'string' ? req.body.clientId : undefined,
+        clientSecret: typeof req.body?.clientSecret === 'string' ? req.body.clientSecret : undefined,
+        redirectUri: typeof req.body?.redirectUri === 'string' ? req.body.redirectUri : undefined,
+      });
+      successResponse(res, result, 'Google OAuth URL generated');
+    } catch (error: any) {
+      const message = error?.message || 'Unable to start Google OAuth';
+      if (
+        message.includes('Google OAuth client ID and secret are required') ||
+        message.includes('Invalid OAuth redirect URI')
+      ) {
+        res.status(400).json({ success: false, error: message });
+        return;
+      }
+      return next(error);
+    }
+  };
+
+  /**
+   * OAuth callback endpoint for Google Drive
+   */
+  completeGoogleDriveOAuth = async (
+    req: TenantRequest,
+    res: Response
+  ): Promise<void> => {
+    const code = String(req.query['code'] || '');
+    const state = String(req.query['state'] || '');
+    const error = String(req.query['error'] || '');
+    const safeOrigin = `${req.protocol}://${req.get('host') || ''}`;
+    const sendPopupHtml = (ok: boolean, message: string): void => {
+      const escaped = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      res.status(ok ? 200 : 400).send(`<!doctype html><html><head><meta charset="utf-8"><title>Google Backup Connection</title></head><body><script>
+        (function(){
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({ type: 'google-drive-oauth-result', success: ${ok ? 'true' : 'false'}, message: ${JSON.stringify(message)} }, ${JSON.stringify(safeOrigin)});
+            }
+          } catch (e) {}
+          window.close();
+        })();
+      </script><p>${escaped}</p></body></html>`);
+    };
+
+    try {
+      if (error) {
+        sendPopupHtml(false, `Google OAuth denied: ${error}`);
+        return;
+      }
+      if (!code || !state) {
+        sendPopupHtml(false, 'Missing OAuth code or state.');
+        return;
+      }
+      const result = await this.settingsService.completeGoogleDriveOAuthCallback(code, state, safeOrigin);
+      sendPopupHtml(true, `Google Drive connected${result.email ? ` (${result.email})` : ''}.`);
+    } catch (err: any) {
+      logger.error('Google OAuth callback failed', {
+        error: err?.message || String(err),
+        statePresent: Boolean(state),
+        hasCode: Boolean(code),
+      });
+      sendPopupHtml(false, err?.message || 'Google OAuth callback failed');
+    }
+  };
+
+  /**
+   * Get Google Drive OAuth connection status
+   */
+  getGoogleDriveOAuthStatus = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const status = await this.settingsService.getGoogleDriveOAuthStatus(tenantId);
+      successResponse(res, status, 'Google OAuth status retrieved');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Disconnect Google Drive OAuth connection
+   */
+  disconnectGoogleDriveOAuth = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id || '';
+      const tenantId = this.getTenantIdForWrite(req, req.query['global'] === 'true');
+      await this.settingsService.disconnectGoogleDriveOAuth(userId, tenantId);
+      successResponse(res, { disconnected: true }, 'Google Drive disconnected');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Upload and save GCS service account credentials
+   */
+  uploadGcsServiceAccount = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id || '';
+      const tenantId = this.getTenantIdForWrite(req, req.query['global'] === 'true');
+      const serviceAccountJson = String(req.body?.serviceAccountJson || '');
+      const projectNumber = String(req.body?.projectNumber || '');
+      if (!serviceAccountJson) {
+        res.status(400).json({ success: false, error: 'serviceAccountJson is required' });
+        return;
+      }
+      await this.settingsService.setGcsServiceAccountFromUpload(userId, tenantId, serviceAccountJson, projectNumber);
+      successResponse(res, { uploaded: true }, 'GCS service account uploaded');
     } catch (error) {
       return next(error);
     }
@@ -859,6 +1014,11 @@ export const getSecuritySettings = controller.getSecuritySettings;
 export const updateSecuritySettings = controller.updateSecuritySettings;
 export const getBackupSettings = controller.getBackupSettings;
 export const updateBackupSettings = controller.updateBackupSettings;
+export const startGoogleDriveOAuth = controller.startGoogleDriveOAuth;
+export const completeGoogleDriveOAuth = controller.completeGoogleDriveOAuth;
+export const getGoogleDriveOAuthStatus = controller.getGoogleDriveOAuthStatus;
+export const disconnectGoogleDriveOAuth = controller.disconnectGoogleDriveOAuth;
+export const uploadGcsServiceAccount = controller.uploadGcsServiceAccount;
 export const getEmailSettings = controller.getEmailSettings;
 export const updateEmailSettings = controller.updateEmailSettings;
 export const getPasswordPolicy = controller.getPasswordPolicy;

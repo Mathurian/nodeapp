@@ -7,7 +7,16 @@ export interface AuthPermissionPayload {
   hasAdminAccess?: boolean
 }
 
-export const useAuthPermissions = () => {
+const isPublicPath = (pathname: string): boolean => {
+  if (pathname === '/') return true
+  if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true
+  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
+}
+
+export const useAuthPermissions = (options?: { enabled?: boolean }) => {
+  const defaultEnabled = typeof window !== 'undefined' ? !isPublicPath(window.location.pathname) : true
+  const enabled = options?.enabled ?? defaultEnabled
+
   return useQuery<AuthPermissionPayload>(
     ['auth-permissions'],
     async () => {
@@ -21,7 +30,8 @@ export const useAuthPermissions = () => {
     },
     {
       staleTime: 60_000,
-      retry: 1
+      retry: 1,
+      enabled
     }
   )
 }

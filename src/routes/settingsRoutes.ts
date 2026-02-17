@@ -17,6 +17,11 @@ import {
   updateSecuritySettings,
   getBackupSettings,
   updateBackupSettings,
+  startGoogleDriveOAuth,
+  completeGoogleDriveOAuth,
+  getGoogleDriveOAuthStatus,
+  disconnectGoogleDriveOAuth,
+  uploadGcsServiceAccount,
   getEmailSettings,
   updateEmailSettings,
   getPasswordPolicy,
@@ -115,6 +120,7 @@ router.get('/public', getPublicSettings)
  *         description: Theme settings retrieved
  */
 router.get('/theme', optionalAuth, getThemeSettings) // Public with optional auth - uses tenant context when logged in
+router.get('/backup/google-drive/oauth/callback', completeGoogleDriveOAuth)
 
 // Protected routes (require authentication)
 router.use(authenticateToken)
@@ -165,6 +171,10 @@ router.put('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD
 // Backup settings
 router.get('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getBackupSettings)
 router.put('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_BACKUP_SETTINGS', 'SETTINGS'), updateBackupSettings)
+router.post('/backup/google-drive/oauth/start', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), startGoogleDriveOAuth)
+router.get('/backup/google-drive/oauth/status', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getGoogleDriveOAuthStatus)
+router.post('/backup/google-drive/oauth/disconnect', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), disconnectGoogleDriveOAuth)
+router.post('/backup/gcs/service-account', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), uploadGcsServiceAccount)
 
 // Email settings
 router.get('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getEmailSettings)

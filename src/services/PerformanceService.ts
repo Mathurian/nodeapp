@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import * as os from 'os';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { execFileSync } from 'child_process';
 import { BaseService } from './BaseService';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
@@ -249,22 +250,59 @@ export class PerformanceService extends BaseService {
       SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
     `;
 
-    // Disk usage (if possible)
-    let diskUsage: { available: boolean; path?: string; error?: string } = {
+    // Disk usage
+    let diskUsage: {
+      available: boolean;
+      path?: string;
+      total?: number;
+      free?: number;
+      used?: number;
+      percentage?: number;
+      error?: string;
+    } = {
       available: false,
     };
     try {
       const projectRoot = path.join(__dirname, '../../');
       await fs.stat(projectRoot);
+      const statfs = await fs.statfs(projectRoot);
+      const total = Number(statfs.bsize) * Number(statfs.blocks);
+      const free = Number(statfs.bsize) * Number(statfs.bavail);
+      const used = Math.max(total - free, 0);
       diskUsage = {
         available: true,
         path: projectRoot,
+        total,
+        free,
+        used,
+        percentage: total > 0 ? (used / total) * 100 : 0,
       };
-    } catch (error) {
-      diskUsage = {
-        available: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+    } catch (primaryError) {
+      try {
+        // Fallback for environments without fs.statfs support
+        const projectRoot = path.join(__dirname, '../../');
+        const output = execFileSync('df', ['-kP', projectRoot], { encoding: 'utf8' });
+        const lines = output.trim().split('\n');
+        const row = lines[1]?.trim().split(/\s+/);
+        const total = Number(row?.[1] || 0) * 1024;
+        const used = Number(row?.[2] || 0) * 1024;
+        const free = Number(row?.[3] || 0) * 1024;
+        diskUsage = {
+          available: true,
+          path: projectRoot,
+          total,
+          free,
+          used,
+          percentage: total > 0 ? (used / total) * 100 : 0,
+        };
+      } catch (fallbackError) {
+        const primaryMessage = primaryError instanceof Error ? primaryError.message : 'Unknown error';
+        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : 'Unknown error';
+        diskUsage = {
+          available: false,
+          error: `statfs failed: ${primaryMessage}; df fallback failed: ${fallbackMessage}`,
+        };
+      }
     }
 
     return {
@@ -481,6 +519,14 @@ export class PerformanceService extends BaseService {
             free: systemMetrics.system.freeMemory,
             total: systemMetrics.system.totalMemory,
             percentage: systemMetrics.system.memoryPercent,
+          },
+          disk: {
+            available: systemMetrics.disk.available,
+            path: systemMetrics.disk.path,
+            used: systemMetrics.disk.used ?? 0,
+            free: systemMetrics.disk.free ?? 0,
+            total: systemMetrics.disk.total ?? 0,
+            percentage: systemMetrics.disk.percentage ?? 0,
           },
           processMemory: systemMetrics.process.memoryUsage,
           loadAverage: systemMetrics.system.loadAverage,

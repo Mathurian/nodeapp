@@ -452,8 +452,8 @@ export class ScoreGovernanceService extends BaseService {
     if (filters.contestId) conditions.push(Prisma.sql`r."contestId" = ${filters.contestId}`)
     if (filters.categoryId) conditions.push(Prisma.sql`r."categoryId" = ${filters.categoryId}`)
     if (filters.contestantId) conditions.push(Prisma.sql`r."contestantId" = ${filters.contestantId}`)
-    if (filters.status) conditions.push(Prisma.sql`r."status" = ${filters.status}`)
-    if (filters.actionType) conditions.push(Prisma.sql`r."actionType" = ${filters.actionType}`)
+    if (filters.status) conditions.push(Prisma.sql`r."status" = CAST(${String(filters.status)} AS "RequestStatus")`)
+    if (filters.actionType) conditions.push(Prisma.sql`r."actionType" = ${String(filters.actionType)}`)
     if (context?.userRole === 'JUDGE') {
       conditions.push(Prisma.sql`r."requestedById" = ${context.userId || ''}`)
     }

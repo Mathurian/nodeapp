@@ -2,7 +2,7 @@ import React from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useSystemSettings } from '../contexts/SystemSettingsContext'
-import { adminAPI, tenantsAPI, eventsAPI, contestsAPI } from '../services/api'
+import { adminAPI, tenantsAPI, eventsAPI, contestsAPI, scoreGovernanceAPI, tallyMasterAPI, auditorAPI, boardAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import {
   ChartBarIcon,
@@ -183,12 +183,6 @@ const DashboardPage: React.FC = () => {
 
   const getQuickActions = (role: string) => {
     const actions: Record<string, Array<{ label: string; href: string; icon: any; color: string }>> = {
-      ORGANIZER: [
-        { label: 'Create Event', href: '/events', icon: CalendarIcon, color: 'blue' },
-        { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'green' },
-        { label: 'View Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
-        { label: 'Event Templates', href: '/event-templates', icon: TrophyIcon, color: 'orange' },
-      ],
       JUDGE: [
         { label: 'Score Categories', href: '/scoring', icon: TrophyIcon, color: 'blue' },
         { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
@@ -204,21 +198,32 @@ const DashboardPage: React.FC = () => {
       TALLY_MASTER: [
         { label: 'Tally Dashboard', href: '/tally-master', icon: ChartBarIcon, color: 'blue' },
         { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'green' },
+        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
       AUDITOR: [
         { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'blue' },
         { label: 'Audit Queue', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green' },
+        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
       BOARD: [
         { label: 'Events', href: '/events', icon: CalendarIcon, color: 'blue' },
         { label: 'Users', href: '/users', icon: UsersIcon, color: 'green' },
         { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
+        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
       ADMIN: [
         { label: 'System Admin', href: '/admin', icon: UsersIcon, color: 'blue' },
         { label: 'Events', href: '/events', icon: CalendarIcon, color: 'green' },
         { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
         { label: 'Settings', href: '/settings', icon: UsersIcon, color: 'orange' },
+        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
+      ],
+      ORGANIZER: [
+        { label: 'Create Event', href: '/events', icon: CalendarIcon, color: 'blue' },
+        { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'green' },
+        { label: 'View Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
+        { label: 'Event Templates', href: '/event-templates', icon: TrophyIcon, color: 'orange' },
+        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
     }
     return actions[role] || actions.ADMIN
@@ -244,6 +249,43 @@ const DashboardPage: React.FC = () => {
     }
     return colors[color as keyof typeof colors] || colors.blue
   }
+
+  const roleNeedsWorkflowQueue = ['TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN'].includes(user?.role || '')
+
+  const { data: governancePendingCount = 0 } = useQuery<number>(
+    ['dashboard-governance-pending', user?.role],
+    async () => {
+      const response = await scoreGovernanceAPI.getRequests({ status: 'PENDING' })
+      const rows = response.data?.data || response.data || []
+      return Array.isArray(rows) ? rows.length : 0
+    },
+    { enabled: roleNeedsWorkflowQueue, retry: 1, refetchInterval: 30000 }
+  )
+
+  const { data: roleCertificationPending = 0 } = useQuery<number>(
+    ['dashboard-role-cert-pending', user?.role],
+    async () => {
+      if (user?.role === 'TALLY_MASTER') {
+        const res = await tallyMasterAPI.getPendingCertifications()
+        const rows = res.data?.data || res.data || []
+        return Array.isArray(rows) ? rows.length : 0
+      }
+      if (user?.role === 'AUDITOR') {
+        const res = await auditorAPI.getPendingAudits()
+        const rows = res.data?.data || res.data || []
+        return Array.isArray(rows) ? rows.length : 0
+      }
+      if (user?.role === 'BOARD') {
+        const res = await boardAPI.getCertifications()
+        const rows = res.data?.data || res.data || []
+        return Array.isArray(rows) ? rows.filter((r: any) => String(r.status || '').toUpperCase() === 'PENDING').length : 0
+      }
+      const res = await adminAPI.getStats()
+      const data = res.data?.data || res.data || {}
+      return Number(data?.pendingCertifications || 0)
+    },
+    { enabled: roleNeedsWorkflowQueue, retry: 1, refetchInterval: 30000 }
+  )
 
   // Handle errors — only show error state for roles that should have access
   if (canViewAdminData && (statsError || activityError)) {
@@ -430,7 +472,12 @@ const DashboardPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {tenants.map((tenant: any) => (
+                      {tenants.map((tenant: any) => {
+                        const statusLabel = tenant?.isActive === false ? 'inactive' : 'active'
+                        const statusClasses = statusLabel === 'active'
+                          ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                          : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                        return (
                         <tr key={tenant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                             {tenant.name}
@@ -440,13 +487,9 @@ const DashboardPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              tenant.status === 'active'
-                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                                : tenant.status === 'suspended'
-                                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                                : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                              statusClasses
                             }`}>
-                              {tenant.status}
+                              {statusLabel}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -464,7 +507,8 @@ const DashboardPage: React.FC = () => {
                             </Link>
                           </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </ResponsiveTable>
@@ -495,6 +539,38 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
             </Card>
+          </div>
+        )}
+
+        {roleNeedsWorkflowQueue && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Workflow Action Queue
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link to="/certifications" className="block">
+                <Card hover className="border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">Pending Certifications</p>
+                      <p className="text-2xl font-semibold text-blue-700 dark:text-blue-300">{roleCertificationPending}</p>
+                    </div>
+                    <CheckCircleIcon className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </Card>
+              </Link>
+              <Link to="/score-governance" className="block">
+                <Card hover className="border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">Pending Governance Requests</p>
+                      <p className="text-2xl font-semibold text-amber-700 dark:text-amber-300">{governancePendingCount}</p>
+                    </div>
+                    <ExclamationTriangleIcon className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                  </div>
+                </Card>
+              </Link>
+            </div>
           </div>
         )}
 

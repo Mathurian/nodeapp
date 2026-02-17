@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import multer from 'multer';
 import {
   createBackup,
+  deleteBackup,
   restoreBackup,
   listBackups,
   getBackupSettings,
@@ -48,6 +49,7 @@ router.use(authenticateToken)
 router.get('/', listBackups) // Admin can list backups
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
 router.post('/create', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_BACKUP', 'BACKUP'), deleteBackup)
 
 /**
  * @swagger

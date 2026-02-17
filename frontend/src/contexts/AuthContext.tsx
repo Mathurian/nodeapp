@@ -63,8 +63,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!user
 
+  const isPublicPath = (pathname: string): boolean => {
+    if (pathname === '/') return true
+    if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true
+    return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
+  }
+
   useEffect(() => {
     const initAuth = async () => {
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+      if (isPublicPath(pathname)) {
+        // Avoid expected 401 probes on public pages such as /login.
+        setUser(null)
+        setIsLoading(false)
+        return
+      }
+
       // No need to check localStorage - httpOnly cookies are automatically sent
       // Just try to fetch profile, cookie will be sent automatically
       try {

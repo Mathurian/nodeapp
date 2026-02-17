@@ -18,7 +18,7 @@ export interface CreateTenantInput {
   name: string;
   slug: string;
   domain?: string;
-  planType?: 'free' | 'pro' | 'enterprise';
+  planType?: 'free' | 'basic' | 'professional' | 'pro' | 'enterprise' | 'internal';
   maxUsers?: number;
   maxEvents?: number;
   maxStorage?: bigint;
@@ -145,17 +145,20 @@ export class TenantService {
 
       // Create tenant and admin user in a transaction
       const result = await prisma.$transaction(async (tx) => {
+        const planType = input.planType || 'free';
+        const isUnlimitedPlan = planType === 'enterprise' || planType === 'internal';
+
         // Create tenant
         const tenant = await tx.tenant.create({
           data: {
             name,
             slug,
             domain,
-            planType: input.planType || 'free',
+            planType,
             subscriptionStatus: 'trial',
             subscriptionEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
-            maxUsers: maxUsers ?? (input.planType === 'enterprise' ? null : 50),
-            maxEvents: maxEvents ?? (input.planType === 'enterprise' ? null : 10),
+            maxUsers: maxUsers ?? (isUnlimitedPlan ? null : 50),
+            maxEvents: maxEvents ?? (isUnlimitedPlan ? null : 10),
             maxStorage,
             settings: input.settings || {},
           },

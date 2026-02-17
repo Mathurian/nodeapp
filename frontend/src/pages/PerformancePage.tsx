@@ -6,6 +6,7 @@ import {
   ClockIcon,
   CircleStackIcon,
   CpuChipIcon,
+  ServerStackIcon,
 } from '@heroicons/react/24/outline'
 import { Card, PageHeader } from '../components/ui'
 
@@ -18,6 +19,12 @@ interface PerformanceMetrics {
     used: number
     total: number
     percentage: number
+  }
+  disk: {
+    used: number
+    total: number
+    percentage: number
+    available: boolean
   }
   database: {
     activeConnections: number
@@ -66,6 +73,12 @@ const PerformancePage: React.FC = () => {
           used: Number(dashboard.system?.memory?.used || 0),
           total: Number(dashboard.system?.memory?.total || 1),
           percentage: Number(dashboard.system?.memory?.percentage || 0),
+        },
+        disk: {
+          used: Number(dashboard.system?.disk?.used || 0),
+          total: Number(dashboard.system?.disk?.total || 1),
+          percentage: Number(dashboard.system?.disk?.percentage || 0),
+          available: Boolean(dashboard.system?.disk?.available),
         },
         database: {
           activeConnections: dashboard.database?.activeConnections || 0,
@@ -133,7 +146,7 @@ const PerformancePage: React.FC = () => {
         {metrics && (
           <>
             {/* Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
               <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <CpuChipIcon className="h-10 w-10 text-blue-600 dark:text-blue-400" />
@@ -170,6 +183,29 @@ const PerformancePage: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
                   {formatBytes(metrics.memory.used)} / {formatBytes(metrics.memory.total)} (system)
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <ServerStackIcon className="h-10 w-10 text-cyan-600 dark:text-cyan-400" />
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Disk Usage</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
+                      {metrics.disk.available ? `${metrics.disk.percentage.toFixed(1)}%` : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-cyan-600 h-2 rounded-full"
+                    style={{ width: `${Math.min(metrics.disk.percentage, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
+                  {metrics.disk.available
+                    ? `${formatBytes(metrics.disk.used)} / ${formatBytes(metrics.disk.total)}`
+                    : 'Disk metrics unavailable'}
                 </p>
               </div>
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useQuery } from 'react-query'
-import { boardAPI } from '../services/api'
+import { boardAPI, scoreGovernanceAPI } from '../services/api'
 import {
   ClipboardDocumentCheckIcon,
   DocumentTextIcon,
@@ -34,6 +34,19 @@ const BoardPage: React.FC = () => {
     }
   )
 
+  const { data: governancePending = 0 } = useQuery<number>(
+    'board-governance-pending',
+    async () => {
+      const response = await scoreGovernanceAPI.getRequests({ status: 'PENDING' })
+      const rows = response.data?.data || response.data || []
+      return Array.isArray(rows) ? rows.length : 0
+    },
+    {
+      refetchInterval: 30000,
+      retry: 1,
+    }
+  )
+
   const quickActions = [
     {
       label: 'Certifications',
@@ -48,6 +61,13 @@ const BoardPage: React.FC = () => {
       icon: DocumentTextIcon,
       color: 'orange',
       count: stats?.pendingScoreRemovals || 0
+    },
+    {
+      label: 'Governance Queue',
+      href: '/score-governance',
+      icon: ExclamationTriangleIcon,
+      color: 'orange',
+      count: governancePending
     },
   ]
 
@@ -85,11 +105,12 @@ const BoardPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Overview
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <StatsCard icon={ClipboardDocumentCheckIcon} value={isLoading ? '...' : (stats?.pendingCertifications ?? stats?.pending ?? 0)} label="Pending Certifications" color="blue" />
             <StatsCard icon={ClipboardDocumentCheckIcon} value={isLoading ? '...' : (stats?.approvedCertifications ?? stats?.certified ?? 0)} label="Approved" color="green" />
             <StatsCard icon={ExclamationTriangleIcon} value={isLoading ? '...' : (stats?.rejectedCertifications || 0)} label="Rejected" color="red" />
             <StatsCard icon={DocumentTextIcon} value={isLoading ? '...' : (stats?.pendingScoreRemovals || 0)} label="Score Removal Requests" color="orange" />
+            <StatsCard icon={ExclamationTriangleIcon} value={isLoading ? '...' : governancePending} label="Governance Pending" color="amber" />
           </div>
         </div>
 
@@ -98,7 +119,7 @@ const BoardPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {quickActions.map((action) => (
               <Link
                 key={action.label}

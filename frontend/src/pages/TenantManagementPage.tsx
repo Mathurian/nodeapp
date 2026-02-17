@@ -514,6 +514,7 @@ const TenantManagementPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, planType: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
+                      <option value="internal">Internal</option>
                       <option value="free">Free</option>
                       <option value="basic">Basic</option>
                       <option value="professional">Professional</option>

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useSystemSettings } from '../contexts/SystemSettingsContext'
-import { settingsAPI } from '../services/api'
+import { settingsAPI, backupAPI } from '../services/api'
 import api from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import {
@@ -24,8 +24,10 @@ import {
   PhotoIcon,
   BuildingOfficeIcon,
   TrophyIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline'
 import { Card, PageHeader } from '../components/ui'
+import { Tooltip } from '../components/Tooltip'
 
 interface GeneralSettings {
   siteName: string
@@ -128,6 +130,15 @@ interface BackupSettings {
   backup_remote_user: string
   backup_remote_path: string
   backup_rclone_remote: string
+  backup_rclone_provider: string
+  backup_rclone_auth_mode: string
+  backup_rclone_service_account_json: string
+  backup_rclone_drive_root_folder_id: string
+  backup_rclone_drive_team_drive: string
+  backup_rclone_gcs_project_number: string
+  backup_google_oauth_client_id: string
+  backup_google_oauth_client_secret: string
+  backup_google_oauth_redirect_uri: string
   backup_s3_bucket: string
   backup_s3_region: string
   backup_s3_access_key_id: string
@@ -148,6 +159,62 @@ interface AlertCandidateUser {
   role: string
 }
 
+interface BackupSchedule {
+  id?: string
+  backupType: 'FULL' | 'SCHEMA' | 'DATA'
+  deliveryMode: 'LOCAL' | 'REMOTE'
+  enabled: boolean
+  frequency: 'MINUTES' | 'HOURS' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
+  frequencyValue: number | null
+  retentionDays: number
+}
+
+const formatNextRunPreview = (row: BackupSchedule): string => {
+  if (!row.enabled) return 'Next run: disabled'
+  const now = new Date()
+  const next = new Date(now)
+  const value = Number(row.frequencyValue ?? 0)
+
+  if (row.frequency === 'MINUTES') {
+    const mins = Math.max(1, value || 60)
+    next.setMinutes(next.getMinutes() + mins, 0, 0)
+    return `Next run: in ~${mins} minute(s) (${next.toLocaleString()})`
+  }
+
+  if (row.frequency === 'HOURS') {
+    const hrs = Math.max(1, value || 1)
+    next.setHours(next.getHours() + hrs, 0, 0, 0)
+    return `Next run: in ~${hrs} hour(s) (${next.toLocaleString()})`
+  }
+
+  const hour = Math.min(23, Math.max(0, value || 2))
+  next.setHours(hour, 0, 0, 0)
+  if (row.frequency === 'DAILY') {
+    if (next <= now) next.setDate(next.getDate() + 1)
+    return `Next run: ${next.toLocaleString()}`
+  }
+  if (row.frequency === 'WEEKLY') {
+    const day = next.getDay()
+    const daysUntilSunday = (7 - day) % 7
+    next.setDate(next.getDate() + daysUntilSunday)
+    if (next <= now) next.setDate(next.getDate() + 7)
+    return `Next run: ${next.toLocaleString()} (Sunday schedule)`
+  }
+  // MONTHLY
+  next.setDate(1)
+  if (next <= now) next.setMonth(next.getMonth() + 1, 1)
+  return `Next run: ${next.toLocaleString()} (1st of month)`
+}
+
+const defaultBackupSchedules = (): BackupSchedule[] => ([
+  { backupType: 'FULL', deliveryMode: 'LOCAL', enabled: false, frequency: 'DAILY', frequencyValue: 2, retentionDays: 30 },
+  { backupType: 'FULL', deliveryMode: 'REMOTE', enabled: false, frequency: 'DAILY', frequencyValue: 2, retentionDays: 30 },
+  { backupType: 'SCHEMA', deliveryMode: 'LOCAL', enabled: false, frequency: 'DAILY', frequencyValue: 2, retentionDays: 30 },
+  { backupType: 'SCHEMA', deliveryMode: 'REMOTE', enabled: false, frequency: 'DAILY', frequencyValue: 2, retentionDays: 30 },
+  { backupType: 'DATA', deliveryMode: 'LOCAL', enabled: false, frequency: 'HOURS', frequencyValue: 6, retentionDays: 14 },
+  { backupType: 'DATA', deliveryMode: 'REMOTE', enabled: false, frequency: 'HOURS', frequencyValue: 6, retentionDays: 14 },
+])
+
 const SettingsPage: React.FC = () => {
   const { user } = useAuth()
   const { refreshSettings } = useSystemSettings()
@@ -159,6 +226,15 @@ const SettingsPage: React.FC = () => {
   const [expandedSections, setExpandedSections] = useState<string[]>(['general'])
   const [isEditing, setIsEditing] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [gcsUploadFileName, setGcsUploadFileName] = useState<string>('')
+  const [lastBackupTestResult, setLastBackupTestResult] = useState<{
+    success: boolean
+    message: string
+    details?: string
+    testedAt: string
+  } | null>(null)
+  const [backupScheduleScopeFilter, setBackupScheduleScopeFilter] = useState<'ALL' | 'LOCAL' | 'REMOTE'>('ALL')
+  const [backupScheduleEnabledOnly, setBackupScheduleEnabledOnly] = useState(false)
 
   // Tenant-aware settings state (SUPER_ADMIN only)
   const [editingGlobal, setEditingGlobal] = useState(false)
@@ -294,6 +370,15 @@ const SettingsPage: React.FC = () => {
     backup_remote_user: '',
     backup_remote_path: '',
     backup_rclone_remote: '',
+    backup_rclone_provider: 'generic',
+    backup_rclone_auth_mode: 'existing_remote',
+    backup_rclone_service_account_json: '',
+    backup_rclone_drive_root_folder_id: '',
+    backup_rclone_drive_team_drive: '',
+    backup_rclone_gcs_project_number: '',
+    backup_google_oauth_client_id: '',
+    backup_google_oauth_client_secret: '',
+    backup_google_oauth_redirect_uri: '',
     backup_s3_bucket: '',
     backup_s3_region: 'us-east-1',
     backup_s3_access_key_id: '',
@@ -306,6 +391,13 @@ const SettingsPage: React.FC = () => {
     backup_min_backups_to_keep_pitr: '4',
     backup_log_retention_days: '14',
   })
+
+  const [googleBackupOauthStatus, setGoogleBackupOauthStatus] = useState<{
+    connected: boolean
+    email?: string
+    connectedAt?: string
+  }>({ connected: false })
+  const [backupSchedules, setBackupSchedules] = useState<BackupSchedule[]>(defaultBackupSchedules())
 
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
@@ -479,6 +571,15 @@ const SettingsPage: React.FC = () => {
           backup_remote_user: data.backup_remote_user || '',
           backup_remote_path: data.backup_remote_path || '',
           backup_rclone_remote: data.backup_rclone_remote || '',
+          backup_rclone_provider: data.backup_rclone_provider || 'generic',
+          backup_rclone_auth_mode: data.backup_rclone_auth_mode || 'existing_remote',
+          backup_rclone_service_account_json: data.backup_rclone_service_account_json || '',
+          backup_rclone_drive_root_folder_id: data.backup_rclone_drive_root_folder_id || '',
+          backup_rclone_drive_team_drive: data.backup_rclone_drive_team_drive || '',
+          backup_rclone_gcs_project_number: data.backup_rclone_gcs_project_number || '',
+          backup_google_oauth_client_id: data.backup_google_oauth_client_id || '',
+          backup_google_oauth_client_secret: data.backup_google_oauth_client_secret || '',
+          backup_google_oauth_redirect_uri: data.backup_google_oauth_redirect_uri || '',
           backup_s3_bucket: data.backup_s3_bucket || '',
           backup_s3_region: data.backup_s3_region || 'us-east-1',
           backup_s3_access_key_id: data.backup_s3_access_key_id || '',
@@ -491,6 +592,59 @@ const SettingsPage: React.FC = () => {
           backup_min_backups_to_keep_pitr: data.backup_min_backups_to_keep_pitr || '4',
           backup_log_retention_days: data.backup_log_retention_days || '14',
         })
+      },
+    }
+  )
+
+  const { isLoading: backupSchedulesLoading } = useQuery<any>(
+    ['backup-schedules'],
+    async () => {
+      const response = await backupAPI.getSchedules()
+      return response.data?.data || response.data
+    },
+    {
+      enabled: isSuperAdmin,
+      onSuccess: (data) => {
+        const incoming = Array.isArray(data?.settings) ? data.settings : []
+        const byKey = new Map<string, any>(incoming.map((s: any) => [
+          `${String(s.backupType || '').toUpperCase()}::${String(s.deliveryMode || 'LOCAL').toUpperCase()}`,
+          s
+        ]))
+        const defaults: BackupSchedule[] = defaultBackupSchedules()
+        setBackupSchedules(defaults.map((d) => {
+          const s = byKey.get(`${d.backupType}::${d.deliveryMode}`)
+          if (!s) return d
+          return {
+            id: s.id,
+            backupType: d.backupType,
+            deliveryMode: d.deliveryMode,
+            enabled: Boolean(s.enabled),
+            frequency: (String(s.frequency || d.frequency).toUpperCase() as BackupSchedule['frequency']),
+            frequencyValue: s.frequencyValue == null ? d.frequencyValue : Number(s.frequencyValue),
+            retentionDays: Number(s.retentionDays || d.retentionDays),
+          }
+        }))
+      },
+    }
+  )
+
+  useQuery<any>(
+    ['backup-google-oauth-status', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await settingsAPI.getGoogleDriveBackupOAuthStatus()
+      return response.data?.data || response.data
+    },
+    {
+      enabled: isSuperAdmin,
+      onSuccess: (data) => {
+        setGoogleBackupOauthStatus({
+          connected: Boolean(data?.connected),
+          email: data?.email || undefined,
+          connectedAt: data?.connectedAt || undefined,
+        })
+      },
+      onError: () => {
+        setGoogleBackupOauthStatus({ connected: false })
       },
     }
   )
@@ -732,6 +886,156 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const testBackupConnectionMutation = useMutation(
+    async (data: BackupSettings) => {
+      const response = await settingsAPI.test('backup', data)
+      return response.data?.data || response.data
+    },
+    {
+      onSuccess: (result: any) => {
+        const ok = Boolean(result?.success)
+        const details = result?.details ? ` (${result.details})` : ''
+        setLastBackupTestResult({
+          success: ok,
+          message: result?.message || (ok ? 'Backup connection successful' : 'Backup connection failed'),
+          details: result?.details || undefined,
+          testedAt: new Date().toISOString(),
+        })
+        setMessage({
+          type: ok ? 'success' : 'error',
+          text: `${result?.message || (ok ? 'Backup connection successful' : 'Backup connection failed')}${details}`
+        })
+        setTimeout(() => setMessage(null), 6000)
+      },
+      onError: (error: any) => {
+        setLastBackupTestResult({
+          success: false,
+          message: 'Backup test failed',
+          details: error?.response?.data?.error || error?.message || 'Unknown error',
+          testedAt: new Date().toISOString(),
+        })
+        setMessage({ type: 'error', text: `Backup test failed: ${error?.response?.data?.error || error?.message || 'Unknown error'}` })
+        setTimeout(() => setMessage(null), 6000)
+      },
+    }
+  )
+
+  const startGoogleDriveOauthMutation = useMutation(
+    async () => {
+      const response = await settingsAPI.startGoogleDriveBackupOAuth({
+        origin: window.location.origin,
+        clientId: backupFormData.backup_google_oauth_client_id,
+        clientSecret: backupFormData.backup_google_oauth_client_secret,
+        redirectUri: backupFormData.backup_google_oauth_redirect_uri || defaultGoogleDriveRedirectUri,
+      })
+      return response.data?.data || response.data
+    },
+    {
+      onSuccess: (data: any) => {
+        const authUrl = data?.authUrl
+        if (!authUrl) {
+          setMessage({ type: 'error', text: 'Google OAuth URL was not returned.' })
+          return
+        }
+
+        const popup = window.open(authUrl, 'google-drive-oauth', 'width=560,height=700')
+        if (!popup) {
+          setMessage({ type: 'error', text: 'Popup blocked. Allow popups and try again.' })
+          return
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return
+          const payload = event.data || {}
+          if (payload?.type !== 'google-drive-oauth-result') return
+          window.removeEventListener('message', handleMessage)
+          queryClient.invalidateQueries(['backup-google-oauth-status', editingGlobal, selectedTenantId])
+          if (payload.success) {
+            setMessage({ type: 'success', text: payload.message || 'Google Drive connected.' })
+          } else {
+            setMessage({ type: 'error', text: payload.message || 'Google Drive connection failed.' })
+          }
+          setTimeout(() => setMessage(null), 7000)
+        }
+
+        window.addEventListener('message', handleMessage)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Failed to start Google OAuth: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 7000)
+      },
+    }
+  )
+
+  const disconnectGoogleDriveOauthMutation = useMutation(
+    async () => {
+      const response = await settingsAPI.disconnectGoogleDriveBackupOAuth()
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['backup-google-oauth-status', editingGlobal, selectedTenantId])
+        setGoogleBackupOauthStatus({ connected: false })
+        setMessage({ type: 'success', text: 'Google Drive disconnected.' })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Disconnect failed: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
+  const uploadGcsServiceAccountMutation = useMutation(
+    async (payload: { serviceAccountJson: string; projectNumber?: string }) => {
+      const response = await settingsAPI.uploadGcsBackupServiceAccount(payload.serviceAccountJson, payload.projectNumber)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['backup-settings', editingGlobal, selectedTenantId])
+        setGcsUploadFileName('')
+        setMessage({ type: 'success', text: 'GCS service account uploaded successfully.' })
+        setTimeout(() => setMessage(null), 6000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `GCS upload failed: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 6000)
+      },
+    }
+  )
+
+  const saveBackupSchedulesMutation = useMutation(
+    async (rows: BackupSchedule[]) => {
+      for (const row of rows) {
+        const payload = {
+          backupType: row.backupType,
+          deliveryMode: row.deliveryMode,
+          enabled: row.enabled,
+          frequency: row.frequency,
+          frequencyValue: row.frequencyValue,
+          retentionDays: row.retentionDays,
+        }
+        if (row.id) {
+          await backupAPI.updateSchedule(row.id, payload)
+        } else {
+          await backupAPI.createSchedule(payload)
+        }
+      }
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['backup-schedules'])
+        setMessage({ type: 'success', text: 'Backup frequency schedules updated. Active jobs refresh automatically within about 1 minute.' })
+        setTimeout(() => setMessage(null), 7000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Failed to save backup schedules: ${error?.response?.data?.error || error.message}` })
+        setTimeout(() => setMessage(null), 7000)
+      },
+    }
+  )
+
   const updateScoringTypeMutation = useMutation(
     async (newScoringType: 'STRAIGHT' | 'OLYMPIC') => {
       const response = await api.put('/tenants/current', { scoringType: newScoringType })
@@ -878,6 +1182,24 @@ const SettingsPage: React.FC = () => {
 
   const backupRemoteEnabled = backupFormData.backup_remote_enabled === 'true'
   const backupSectionReadOnly = isSuperAdmin && !editingGlobal
+  const defaultGoogleDriveRedirectUri = `${window.location.origin}/api/settings/backup/google-drive/oauth/callback`
+  const visibleBackupSchedules = backupSchedules
+    .map((row, idx) => ({ row, idx }))
+    .filter(({ row }) => backupScheduleScopeFilter === 'ALL' || row.deliveryMode === backupScheduleScopeFilter)
+    .filter(({ row }) => !backupScheduleEnabledOnly || row.enabled)
+
+  const backupProviderTooltipContent = (
+    <div className="space-y-2 text-xs leading-5">
+      <p className="font-semibold">Off-site Backup Setup Guide</p>
+      <p><span className="font-medium">AWS S3:</span> choose <code>s3</code>, set bucket/region, use IAM access key with write to backup prefix.</p>
+      <p><span className="font-medium">S3-Compatible:</span> Cloudflare R2, Backblaze B2 (S3 API), Wasabi, MinIO. Use <code>s3</code> if endpoint is already mapped on host; otherwise use <code>rclone</code>.</p>
+      <p><span className="font-medium">Azure Blob:</span> choose <code>rclone</code>, configure remote on host, then set target as <code>azure-remote:container/path</code>.</p>
+      <p><span className="font-medium">Google Drive / GCS:</span> choose <code>rclone</code>, then either (A) use an existing host remote or (B) set provider + service account JSON below for non-interactive auth.</p>
+      <p><span className="font-medium">Important:</span> Browser OAuth sign-in is not performed on this page. For OAuth remotes, run <code>rclone config</code> on the host first.</p>
+      <p><span className="font-medium">SFTP/SSH server:</span> choose <code>sftp</code> or <code>rsync</code>, set host/port/user/path, and ensure SSH key trust from app host.</p>
+      <p className="text-[11px] opacity-90">After saving, run a manual backup and verify remote file presence to confirm integration.</p>
+    </div>
+  )
 
   const toggleScoringAlertRole = (role: string, checked: boolean) => {
     const next = new Set(scoringWorkflowAlertFormData.recipientRoles || [])
@@ -922,6 +1244,33 @@ const SettingsPage: React.FC = () => {
       ...scoringWorkflowAlertFormData,
       recipientEmails: (scoringWorkflowAlertFormData.recipientEmails || []).filter((item) => item !== email),
     })
+  }
+
+  const handleGcsServiceAccountFileUpload = async (file: File | null) => {
+    if (!file) return
+    try {
+      const text = await file.text()
+      JSON.parse(text) // Validate before sending
+      uploadGcsServiceAccountMutation.mutate({
+        serviceAccountJson: text,
+        projectNumber: backupFormData.backup_rclone_gcs_project_number || undefined,
+      })
+      setGcsUploadFileName(file.name)
+    } catch (error: any) {
+      setMessage({ type: 'error', text: `Invalid JSON file: ${error?.message || 'Unable to parse file'}` })
+      setTimeout(() => setMessage(null), 6000)
+    }
+  }
+
+  const copyGoogleRedirectUri = async () => {
+    try {
+      await navigator.clipboard.writeText(defaultGoogleDriveRedirectUri)
+      setMessage({ type: 'success', text: 'OAuth redirect URI copied to clipboard.' })
+    } catch {
+      setMessage({ type: 'error', text: 'Unable to copy redirect URI. Copy it manually from the field.' })
+    } finally {
+      setTimeout(() => setMessage(null), 5000)
+    }
   }
 
   const handleSaveSection = (section: string) => {
@@ -1337,7 +1686,7 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Retention (days)</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep Full Backups For (days)</label>
                         <input
                           disabled={backupSectionReadOnly}
                           type="number"
@@ -1348,7 +1697,7 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Incremental Retention (days)</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep Incremental Backups For (days)</label>
                         <input
                           disabled={backupSectionReadOnly}
                           type="number"
@@ -1359,7 +1708,7 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PITR Retention (days)</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep PITR Base Backups For (days)</label>
                         <input
                           disabled={backupSectionReadOnly}
                           type="number"
@@ -1373,7 +1722,7 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Keep Full</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (Full)</label>
                         <input
                           disabled={backupSectionReadOnly}
                           type="number"
@@ -1384,7 +1733,7 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Keep Incremental</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (Incremental)</label>
                         <input
                           disabled={backupSectionReadOnly}
                           type="number"
@@ -1395,7 +1744,7 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Keep PITR</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (PITR Base)</label>
                         <input
                           disabled={backupSectionReadOnly}
                           type="number"
@@ -1417,10 +1766,163 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                     </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Retention deletes old files by age, but the “Always Keep At Least” fields protect a minimum number of most recent backups from deletion.
+                    </p>
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200">
+                      Retention values above currently control <strong>on-site/server backups and backup logs only</strong>.
+                      Off-site retention is managed by your remote provider lifecycle/policies (or separate off-site cleanup automation), not by these local retention fields.
+                    </div>
+
+                    <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Backup Frequency</h3>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {backupSchedulesLoading ? 'Loading…' : 'Applies to scheduled backups'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Configure when automatic backups run for each backup type. Changes are picked up automatically (about 1 minute).
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        LOCAL schedules create on-site backups. REMOTE schedules run backup and replicate to configured off-site targets.
+                        Enable both for full local + remote coverage.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Show rows</label>
+                          <select
+                            value={backupScheduleScopeFilter}
+                            onChange={(e) => setBackupScheduleScopeFilter(e.target.value as 'ALL' | 'LOCAL' | 'REMOTE')}
+                            className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="ALL">All schedules</option>
+                            <option value="LOCAL">Local schedules only</option>
+                            <option value="REMOTE">Remote schedules only</option>
+                          </select>
+                        </div>
+                        <label className="flex items-end gap-2 pb-2">
+                          <input
+                            type="checkbox"
+                            checked={backupScheduleEnabledOnly}
+                            onChange={(e) => setBackupScheduleEnabledOnly(e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-xs text-gray-700 dark:text-gray-300">Show enabled only</span>
+                        </label>
+                      </div>
+                      <div className="space-y-3">
+                        {visibleBackupSchedules.map(({ row, idx }) => (
+                          <div key={`${row.backupType}-${row.deliveryMode}`} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border border-gray-100 dark:border-gray-800 rounded-md p-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.backupType}</div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.deliveryMode}</div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
+                              <input
+                                disabled={backupSectionReadOnly}
+                                type="checkbox"
+                                checked={row.enabled}
+                                onChange={(e) => {
+                                  const next = [...backupSchedules]
+                                  next[idx] = { ...row, enabled: e.target.checked }
+                                  setBackupSchedules(next)
+                                }}
+                                className="h-4 w-4"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
+                              <select
+                                disabled={backupSectionReadOnly}
+                                value={row.frequency}
+                                onChange={(e) => {
+                                  const next = [...backupSchedules]
+                                  next[idx] = { ...row, frequency: e.target.value as BackupSchedule['frequency'] }
+                                  setBackupSchedules(next)
+                                }}
+                                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="MINUTES">Every N minutes</option>
+                                <option value="HOURS">Every N hours</option>
+                                <option value="DAILY">Daily at hour (0-23)</option>
+                                <option value="WEEKLY">Weekly at hour (0-23, Sunday)</option>
+                                <option value="MONTHLY">Monthly at hour (0-23, day 1)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                {row.frequency === 'MINUTES' ? 'Minutes interval' :
+                                  row.frequency === 'HOURS' ? 'Hours interval' : 'Hour of day (0-23)'}
+                              </label>
+                              <input
+                                disabled={backupSectionReadOnly}
+                                type="number"
+                                min={row.frequency === 'MINUTES' ? 1 : row.frequency === 'HOURS' ? 1 : 0}
+                                max={row.frequency === 'MINUTES' ? 1440 : row.frequency === 'HOURS' ? 24 : 23}
+                                value={row.frequencyValue ?? ''}
+                                onChange={(e) => {
+                                  const next = [...backupSchedules]
+                                  next[idx] = { ...row, frequencyValue: e.target.value === '' ? null : Number(e.target.value) }
+                                  setBackupSchedules(next)
+                                }}
+                                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
+                              <input
+                                disabled={backupSectionReadOnly || row.deliveryMode === 'REMOTE'}
+                                type="number"
+                                min={1}
+                                value={row.retentionDays}
+                                onChange={(e) => {
+                                  const next = [...backupSchedules]
+                                  next[idx] = { ...row, retentionDays: Number(e.target.value || 1) }
+                                  setBackupSchedules(next)
+                                }}
+                                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                              {row.deliveryMode === 'REMOTE' && (
+                                <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Provider policy controls remote retention.</p>
+                              )}
+                            </div>
+                            <div className="md:col-span-6">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {formatNextRunPreview(row)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => saveBackupSchedulesMutation.mutate(backupSchedules)}
+                          disabled={backupSectionReadOnly || saveBackupSchedulesMutation.isLoading}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
+                        >
+                          {saveBackupSchedulesMutation.isLoading ? 'Saving Schedule...' : 'Save Frequency Schedule'}
+                        </button>
+                      </div>
+                    </div>
 
                     <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Enable Off-site Replication</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">Enable Off-site Replication</p>
+                          <Tooltip content={backupProviderTooltipContent} position="right" className="max-w-md">
+                            <button type="button" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                              <QuestionMarkCircleIcon className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Replicate completed backups to remote storage.</p>
                       </div>
                       <input
@@ -1434,7 +1936,14 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Type</label>
+                        <div className="flex items-center gap-2 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Remote Type</label>
+                          <Tooltip content={backupProviderTooltipContent} position="right" className="max-w-md">
+                            <button type="button" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                              <QuestionMarkCircleIcon className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
+                        </div>
                         <select
                           disabled={backupSectionReadOnly || !backupRemoteEnabled}
                           value={backupFormData.backup_remote_type}
@@ -1450,7 +1959,11 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {(backupFormData.backup_remote_type === 'rsync' || backupFormData.backup_remote_type === 'sftp') && (
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Friendly setup: provide host/user/path, then use <strong>Test Remote Connection</strong>. No shell config required.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Host</label>
                           <input
@@ -1494,10 +2007,15 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                       </div>
+                      </div>
                     )}
 
                     {backupFormData.backup_remote_type === 's3' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Friendly setup: enter bucket/region/access key/secret, then test. Works for AWS S3 and compatible endpoints.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Bucket</label>
                           <input
@@ -1539,19 +2057,203 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                       </div>
+                      </div>
                     )}
 
                     {backupFormData.backup_remote_type === 'rclone' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Remote Target</label>
-                        <input
-                          disabled={backupSectionReadOnly || !backupRemoteEnabled}
-                          type="text"
-                          value={backupFormData.backup_rclone_remote}
-                          onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_remote: e.target.value })}
-                          placeholder="remote:bucket/path"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Provider</label>
+                            <select
+                              disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                              value={backupFormData.backup_rclone_provider}
+                              onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_provider: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                              <option value="generic">Generic (preconfigured remote)</option>
+                              <option value="google_drive">Google Drive</option>
+                              <option value="google_cloud_storage">Google Cloud Storage</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Auth Mode</label>
+                            <select
+                              disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                              value={backupFormData.backup_rclone_auth_mode}
+                              onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_auth_mode: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                              <option value="existing_remote">Existing host remote (rclone config)</option>
+                              {backupFormData.backup_rclone_provider === 'google_drive' && (
+                                <option value="oauth_connect">Connect Google account (OAuth)</option>
+                              )}
+                              {(backupFormData.backup_rclone_provider === 'google_drive' || backupFormData.backup_rclone_provider === 'google_cloud_storage') && (
+                                <option value="service_account">Service account file upload (non-interactive)</option>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Remote Target</label>
+                          <input
+                            disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                            type="text"
+                            value={backupFormData.backup_rclone_remote}
+                            onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_remote: e.target.value })}
+                            placeholder="remote:bucket/path"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Must include remote prefix (for example <code>gdrive:</code>, <code>gcs:</code>, or <code>myremote:path</code>).
+                          </p>
+                        </div>
+
+                        {backupFormData.backup_rclone_provider === 'google_drive' && backupFormData.backup_rclone_auth_mode === 'oauth_connect' && (
+                          <div className="space-y-4 rounded-md border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/40">
+                            <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 space-y-2">
+                              <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">How to get Google OAuth credentials</p>
+                              <ol className="list-decimal pl-5 space-y-1 text-xs text-blue-900 dark:text-blue-200">
+                                <li>Open Google Cloud Console and create/select a project.</li>
+                                <li>Enable the Google Drive API for that project.</li>
+                                <li>Go to APIs &amp; Services, then OAuth consent screen and complete required fields.</li>
+                                <li>Create credentials: OAuth Client ID, type Web application.</li>
+                                <li>Add this Authorized redirect URI exactly: <code>{defaultGoogleDriveRedirectUri}</code></li>
+                                <li>Copy the generated Client ID and Client Secret into the fields below, then click Connect Google Drive.</li>
+                              </ol>
+                              <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                                Recommended Drive scope: <code>drive.file</code> (least privilege for app-created files).
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google OAuth Client ID</label>
+                                <input
+                                  disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                                  type="text"
+                                  value={backupFormData.backup_google_oauth_client_id}
+                                  onChange={(e) => setBackupFormData({ ...backupFormData, backup_google_oauth_client_id: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google OAuth Client Secret</label>
+                                <input
+                                  disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                                  type="password"
+                                  value={backupFormData.backup_google_oauth_client_secret}
+                                  onChange={(e) => setBackupFormData({ ...backupFormData, backup_google_oauth_client_secret: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OAuth Redirect URI (optional override)</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                                  type="text"
+                                  value={backupFormData.backup_google_oauth_redirect_uri}
+                                  onChange={(e) => setBackupFormData({ ...backupFormData, backup_google_oauth_redirect_uri: e.target.value })}
+                                  placeholder={defaultGoogleDriveRedirectUri}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => void copyGoogleRedirectUri()}
+                                  className="px-3 py-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startGoogleDriveOauthMutation.mutate()}
+                                disabled={backupSectionReadOnly || !backupRemoteEnabled || startGoogleDriveOauthMutation.isLoading}
+                                className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                              >
+                                {startGoogleDriveOauthMutation.isLoading ? 'Starting...' : (googleBackupOauthStatus.connected ? 'Reconnect Google Drive' : 'Connect Google Drive')}
+                              </button>
+                              {googleBackupOauthStatus.connected && (
+                                <button
+                                  type="button"
+                                  onClick={() => disconnectGoogleDriveOauthMutation.mutate()}
+                                  disabled={backupSectionReadOnly || disconnectGoogleDriveOauthMutation.isLoading}
+                                  className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+                                >
+                                  Disconnect
+                                </button>
+                              )}
+                              <span className="text-xs text-gray-600 dark:text-gray-300">
+                                {googleBackupOauthStatus.connected
+                                  ? `Connected${googleBackupOauthStatus.email ? ` as ${googleBackupOauthStatus.email}` : ''}`
+                                  : 'Not connected'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {backupFormData.backup_rclone_auth_mode === 'service_account' && (
+                          <div className="space-y-4">
+                            <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/40">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Service Account JSON File</label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                  disabled={backupSectionReadOnly || !backupRemoteEnabled || uploadGcsServiceAccountMutation.isLoading}
+                                  type="file"
+                                  accept=".json,application/json"
+                                  onChange={(e) => void handleGcsServiceAccountFileUpload(e.target.files?.[0] || null)}
+                                  className="text-sm text-gray-900 dark:text-white"
+                                />
+                                {gcsUploadFileName && <span className="text-xs text-gray-600 dark:text-gray-300">Last file: {gcsUploadFileName}</span>}
+                              </div>
+                              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Upload only from a trusted source. File is validated and stored encrypted.
+                              </p>
+                            </div>
+
+                            {backupFormData.backup_rclone_provider === 'google_drive' && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drive Root Folder ID (optional)</label>
+                                  <input
+                                    disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                                    type="text"
+                                    value={backupFormData.backup_rclone_drive_root_folder_id}
+                                    onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_drive_root_folder_id: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Shared Drive ID (optional)</label>
+                                  <input
+                                    disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                                    type="text"
+                                    value={backupFormData.backup_rclone_drive_team_drive}
+                                    onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_drive_team_drive: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {backupFormData.backup_rclone_provider === 'google_cloud_storage' && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GCS Project Number (optional)</label>
+                                <input
+                                  disabled={backupSectionReadOnly || !backupRemoteEnabled}
+                                  type="text"
+                                  value={backupFormData.backup_rclone_gcs_project_number}
+                                  onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_gcs_project_number: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1559,7 +2261,21 @@ const SettingsPage: React.FC = () => {
                       Saving writes both DB settings and runtime backup config file used by host scripts.
                     </div>
 
-                    <div className="mt-6 flex justify-end">
+                    <div className="mt-6 flex justify-end gap-2">
+                      <button
+                        onClick={() => testBackupConnectionMutation.mutate(backupFormData)}
+                        disabled={testBackupConnectionMutation.isLoading || backupSectionReadOnly || !backupRemoteEnabled}
+                        className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                      >
+                        {testBackupConnectionMutation.isLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Testing...
+                          </>
+                        ) : (
+                          <>Test Remote Connection</>
+                        )}
+                      </button>
                       <button
                         onClick={() => handleSaveSection('backup')}
                         disabled={updateBackupMutation.isLoading || backupSectionReadOnly}
@@ -1578,6 +2294,27 @@ const SettingsPage: React.FC = () => {
                         )}
                       </button>
                     </div>
+
+                    {lastBackupTestResult && (
+                      <div
+                        className={`mt-3 rounded-md border px-3 py-2 text-sm ${
+                          lastBackupTestResult.success
+                            ? 'border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
+                            : 'border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
+                        }`}
+                      >
+                        <div className="font-medium">
+                          Last Test: {lastBackupTestResult.success ? 'Passed' : 'Failed'}
+                        </div>
+                        <div>{lastBackupTestResult.message}</div>
+                        {lastBackupTestResult.details && (
+                          <div className="text-xs opacity-90 mt-1">{lastBackupTestResult.details}</div>
+                        )}
+                        <div className="text-xs opacity-80 mt-1">
+                          {new Date(lastBackupTestResult.testedAt).toLocaleString()}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

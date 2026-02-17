@@ -313,7 +313,12 @@ export const archiveAPI = {
 
 export const backupAPI = {
   getAll: () => api.get('/backups'),
-  create: (type: 'FULL' | 'SCHEMA' | 'DATA') => api.post('/backups', { type }),
+  create: (type: 'FULL' | 'SCHEMA' | 'DATA', destination: 'LOCAL' | 'OFF_SITE' | 'BOTH' = 'LOCAL') =>
+    api.post('/backups', { type, destination }),
+  getSchedules: () => api.get('/backups/settings'),
+  createSchedule: (payload: any) => api.post('/backups/settings', payload),
+  updateSchedule: (id: string, payload: any) => api.put(`/backups/settings/${id}`, payload),
+  deleteSchedule: (id: string) => api.delete(`/backups/settings/${id}`),
   list: () => api.get('/backups'),
   download: async (backupId: string) => {
     const response = await api.get(`/backups/${backupId}/download`, { responseType: 'blob' })
@@ -358,7 +363,7 @@ export const settingsAPI = {
   getAppName: () => publicApi.get('/settings/app-name'),
   update: (data: Record<string, any>) => api.put('/settings', data),
   updateSettings: (data: any) => api.put('/settings', data),
-  test: (type: 'email' | 'database' | 'backup') => api.post(`/settings/test/${type}`),
+  test: (type: 'email' | 'database' | 'backup', payload?: any) => api.post(`/settings/test/${type}`, payload || {}),
   // General settings
   getGeneralSettings: () => api.get('/settings/general'),
   // Logging settings
@@ -370,6 +375,12 @@ export const settingsAPI = {
   // Backup settings
   getBackupSettings: () => api.get('/settings/backup'),
   updateBackupSettings: (settings: any) => api.put('/settings/backup', settings),
+  startGoogleDriveBackupOAuth: (payload?: { origin?: string; clientId?: string; clientSecret?: string; redirectUri?: string }) =>
+    api.post('/settings/backup/google-drive/oauth/start', payload || {}),
+  getGoogleDriveBackupOAuthStatus: () => api.get('/settings/backup/google-drive/oauth/status'),
+  disconnectGoogleDriveBackupOAuth: () => api.post('/settings/backup/google-drive/oauth/disconnect'),
+  uploadGcsBackupServiceAccount: (serviceAccountJson: string, projectNumber?: string) =>
+    api.post('/settings/backup/gcs/service-account', { serviceAccountJson, projectNumber }),
   // Email settings
   getEmailSettings: () => api.get('/settings/email'),
   updateEmailSettings: (settings: any) => api.put('/settings/email', settings),

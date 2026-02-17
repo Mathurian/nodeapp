@@ -4,6 +4,13 @@ import { BaseService } from './BaseService';
 import nodemailer from 'nodemailer';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
+import net from 'net';
+import crypto from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
+import axios from 'axios';
 import { env } from '../config/env';
 
 // Prisma payload types
@@ -74,6 +81,12 @@ const BACKUP_RUNTIME_SETTING_MAP: Array<{ settingKey: string; envKey: string }> 
   { settingKey: 'backup_remote_user', envKey: 'REMOTE_BACKUP_USER' },
   { settingKey: 'backup_remote_path', envKey: 'REMOTE_BACKUP_PATH' },
   { settingKey: 'backup_rclone_remote', envKey: 'RCLONE_REMOTE' },
+  { settingKey: 'backup_rclone_provider', envKey: 'RCLONE_PROVIDER' },
+  { settingKey: 'backup_rclone_auth_mode', envKey: 'RCLONE_AUTH_MODE' },
+  { settingKey: 'backup_rclone_service_account_json', envKey: 'RCLONE_SERVICE_ACCOUNT_JSON' },
+  { settingKey: 'backup_rclone_drive_root_folder_id', envKey: 'RCLONE_DRIVE_ROOT_FOLDER_ID' },
+  { settingKey: 'backup_rclone_drive_team_drive', envKey: 'RCLONE_DRIVE_TEAM_DRIVE' },
+  { settingKey: 'backup_rclone_gcs_project_number', envKey: 'RCLONE_GCS_PROJECT_NUMBER' },
   { settingKey: 'backup_s3_bucket', envKey: 'S3_BUCKET' },
   { settingKey: 'backup_s3_region', envKey: 'S3_REGION' },
   { settingKey: 'backup_s3_access_key_id', envKey: 'AWS_ACCESS_KEY_ID' },
@@ -86,11 +99,62 @@ const BACKUP_RUNTIME_SETTING_MAP: Array<{ settingKey: string; envKey: string }> 
   { settingKey: 'backup_min_backups_to_keep_pitr', envKey: 'MIN_BACKUPS_TO_KEEP_PITR' },
   { settingKey: 'backup_log_retention_days', envKey: 'LOG_RETENTION_DAYS' },
 ];
+const execFileAsync = promisify(execFile);
+const GOOGLE_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+type GoogleOAuthState = {
+  tenantId: string | null;
+  userId: string;
+  expiresAt: number;
+  oauthClientId?: string;
+  oauthClientSecret?: string;
+  oauthRedirectUri?: string;
+};
 
 @injectable()
 export class SettingsService extends BaseService {
+  private readonly googleOAuthStateStore = new Map<string, GoogleOAuthState>();
+
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
+  }
+
+  private getSettingsEncryptionKey(): Buffer {
+    const base = env.get('JWT_SECRET') || env.get('CSRF_SECRET') || 'fallback-settings-key';
+    return crypto.createHash('sha256').update(`settings-encryption:${base}`).digest();
+  }
+
+  private encryptSensitiveValue(value: string): string {
+    if (!value) return value;
+    if (value.startsWith('enc:v1:')) return value;
+    const iv = crypto.randomBytes(12);
+    const key = this.getSettingsEncryptionKey();
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return `enc:v1:${Buffer.concat([iv, tag, encrypted]).toString('base64')}`;
+  }
+
+  private decryptSensitiveValue(value: string | null | undefined): string {
+    const raw = value || '';
+    if (!raw.startsWith('enc:v1:')) return raw;
+    const payload = Buffer.from(raw.slice('enc:v1:'.length), 'base64');
+    const iv = payload.subarray(0, 12);
+    const tag = payload.subarray(12, 28);
+    const encrypted = payload.subarray(28);
+    const key = this.getSettingsEncryptionKey();
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  }
+
+  private cleanupExpiredGoogleStates(): void {
+    const now = Date.now();
+    for (const [state, info] of this.googleOAuthStateStore.entries()) {
+      if (info.expiresAt <= now) {
+        this.googleOAuthStateStore.delete(state);
+      }
+    }
   }
 
   private getBackupRuntimeEnvPath(): string {
@@ -575,7 +639,19 @@ export class SettingsService extends BaseService {
    */
   async getBackupSettings(tenantId?: string | null): Promise<Record<string, string>> {
     const settings = await this.getSettingsByCategoryForTenant('backup', tenantId);
-    return Object.fromEntries(settings.map((s) => [s.key, s.value]));
+    const result = Object.fromEntries(settings.map((s) => [s.key, s.value]));
+    const sensitiveKeys = [
+      'backup_s3_secret_access_key',
+      'backup_google_oauth_client_secret',
+      'backup_google_drive_oauth_tokens',
+      'backup_rclone_service_account_json',
+    ];
+    for (const key of sensitiveKeys) {
+      if (result[key]) {
+        result[key] = this.decryptSensitiveValue(result[key]);
+      }
+    }
+    return result;
   }
 
   /**
@@ -586,7 +662,389 @@ export class SettingsService extends BaseService {
     userId: string,
     tenantId?: string | null
   ): Promise<number> {
-    return await this.updateSettings(backupSettings, userId, tenantId);
+    const next: Record<string, string> = { ...backupSettings };
+    const sensitiveKeys = [
+      'backup_s3_secret_access_key',
+      'backup_google_oauth_client_secret',
+      'backup_google_drive_oauth_tokens',
+      'backup_rclone_service_account_json',
+    ];
+
+    for (const key of sensitiveKeys) {
+      if (!(key in next)) continue;
+      const value = String(next[key] ?? '');
+      if (value.trim() === '') {
+        next[key] = '';
+      } else {
+        next[key] = this.encryptSensitiveValue(value);
+      }
+    }
+
+    return await this.updateSettings(next, userId, tenantId);
+  }
+
+  async testBackupConnection(
+    tenantId?: string | null,
+    overrideSettings?: Record<string, string>
+  ): Promise<{ success: boolean; message: string; details?: string }> {
+    const stored = await this.getBackupSettings(tenantId);
+    const merged = { ...stored, ...(overrideSettings || {}) };
+    const enabled = String(merged['backup_remote_enabled'] || 'false') === 'true';
+    if (!enabled) {
+      return { success: false, message: 'Off-site replication is disabled', details: 'Enable off-site replication before testing connection.' };
+    }
+
+    const remoteType = String(merged['backup_remote_type'] || 'rsync').trim().toLowerCase();
+
+    if (remoteType === 'rsync' || remoteType === 'sftp') {
+      const host = String(merged['backup_remote_host'] || '').trim();
+      const port = Number(merged['backup_remote_port'] || '22');
+      if (!host) {
+        return { success: false, message: 'Remote host is required', details: 'Set Remote Host for SSH-based replication.' };
+      }
+
+      const socket = new net.Socket();
+      const timeoutMs = 5000;
+      return await new Promise((resolve) => {
+        let settled = false;
+        const finalize = (payload: { success: boolean; message: string; details?: string }) => {
+          if (settled) return;
+          settled = true;
+          socket.destroy();
+          resolve(payload);
+        };
+
+        socket.setTimeout(timeoutMs);
+        socket.once('connect', () => finalize({ success: true, message: 'Remote SSH endpoint reachable', details: `${host}:${port}` }));
+        socket.once('timeout', () => finalize({ success: false, message: 'Connection timeout', details: `Timed out connecting to ${host}:${port}` }));
+        socket.once('error', (err: Error) => finalize({ success: false, message: 'Connection failed', details: err.message }));
+        socket.connect(port, host);
+      });
+    }
+
+    if (remoteType === 's3') {
+      const bucket = String(merged['backup_s3_bucket'] || '').trim();
+      const region = String(merged['backup_s3_region'] || 'us-east-1').trim();
+      const accessKeyId = String(merged['backup_s3_access_key_id'] || '').trim();
+      const secretAccessKey = String(merged['backup_s3_secret_access_key'] || '').trim();
+      if (!bucket || !accessKeyId || !secretAccessKey) {
+        return { success: false, message: 'Incomplete S3 settings', details: 'Bucket, access key, and secret key are required.' };
+      }
+
+      try {
+        const client = new S3Client({
+          region,
+          credentials: { accessKeyId, secretAccessKey }
+        });
+        await client.send(new HeadBucketCommand({ Bucket: bucket }));
+        return { success: true, message: 'S3 connection successful', details: `Bucket ${bucket} reachable in ${region}` };
+      } catch (error: any) {
+        return { success: false, message: 'S3 connection failed', details: error?.message || 'Unable to reach bucket' };
+      }
+    }
+
+    if (remoteType === 'rclone') {
+      const provider = String(merged['backup_rclone_provider'] || 'generic').trim().toLowerCase();
+      const authMode = String(merged['backup_rclone_auth_mode'] || 'existing_remote').trim().toLowerCase();
+
+      if (provider === 'google_drive' && authMode === 'oauth_connect') {
+        const encryptedTokenPayload = String(merged['backup_google_drive_oauth_tokens'] || '').trim();
+        const clientId = String(merged['backup_google_oauth_client_id'] || '').trim();
+        const clientSecret = String(merged['backup_google_oauth_client_secret'] || '').trim();
+        if (!encryptedTokenPayload || !clientId || !clientSecret) {
+          return {
+            success: false,
+            message: 'Google Drive OAuth is not connected',
+            details: 'Provide OAuth client settings and connect your Google account first.',
+          };
+        }
+        try {
+          const tokenPayload = JSON.parse(this.decryptSensitiveValue(encryptedTokenPayload));
+          const refreshToken = String(tokenPayload?.refresh_token || '').trim();
+          if (!refreshToken) {
+            return { success: false, message: 'Missing refresh token', details: 'Reconnect Google Drive to obtain offline access.' };
+          }
+          const tokenResponse = await axios.post(
+            'https://oauth2.googleapis.com/token',
+            new URLSearchParams({
+              client_id: clientId,
+              client_secret: clientSecret,
+              refresh_token: refreshToken,
+              grant_type: 'refresh_token',
+            }).toString(),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 }
+          );
+          const accessToken = String(tokenResponse.data?.access_token || '');
+          if (!accessToken) {
+            return { success: false, message: 'Failed to refresh Google token', details: 'Token response did not include access token.' };
+          }
+          const about = await axios.get('https://www.googleapis.com/drive/v3/about?fields=user', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 10000,
+          });
+          const email = String(about.data?.user?.emailAddress || tokenPayload?.email || '');
+          const remote = String(merged['backup_rclone_remote'] || '').trim();
+          const remoteHint = remote
+            ? `Remote target configured: ${remote}`
+            : 'OAuth is connected. Set rclone target (e.g. gdrive:backups) to complete remote backup config.';
+          return { success: true, message: 'Google Drive OAuth connection successful', details: `${email || 'Connected account verified'}. ${remoteHint}` };
+        } catch (error: any) {
+          return { success: false, message: 'Google Drive OAuth test failed', details: error?.response?.data?.error_description || error?.message || 'Unable to validate OAuth token' };
+        }
+      }
+
+      const remote = String(merged['backup_rclone_remote'] || '').trim();
+      if (!remote) {
+        return { success: false, message: 'rclone target is required', details: 'Set rclone target in format remote:bucket/path.' };
+      }
+      const remoteName = remote.includes(':') ? remote.split(':')[0]?.trim() : '';
+      if (!remoteName) {
+        return { success: false, message: 'Invalid rclone target', details: 'Target must include a remote prefix, e.g. remote:path.' };
+      }
+
+      let tempDir: string | null = null;
+      try {
+        const args = ['lsd', remote, '--max-depth', '1'];
+
+        if (authMode === 'service_account' && (provider === 'google_drive' || provider === 'google_cloud_storage')) {
+          const rawServiceAccount = String(merged['backup_rclone_service_account_json'] || '').trim();
+          const serviceAccountJson = this.decryptSensitiveValue(rawServiceAccount).trim();
+          if (!serviceAccountJson) {
+            return {
+              success: false,
+              message: 'Service account JSON is required',
+              details: 'Provide Google service account JSON when auth mode is Service Account.',
+            };
+          }
+
+          let parsedJson: unknown;
+          try {
+            parsedJson = JSON.parse(serviceAccountJson);
+          } catch {
+            return { success: false, message: 'Invalid service account JSON', details: 'JSON could not be parsed.' };
+          }
+
+          tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'rclone-auth-'));
+          const serviceAccountPath = path.join(tempDir, 'service-account.json');
+          await fs.writeFile(serviceAccountPath, JSON.stringify(parsedJson), { encoding: 'utf-8', mode: 0o600 });
+          await fs.chmod(serviceAccountPath, 0o600);
+
+          const configPath = path.join(tempDir, 'rclone.conf');
+          const configLines: string[] = [`[${remoteName}]`];
+
+          if (provider === 'google_drive') {
+            configLines.push('type = drive');
+            configLines.push('scope = drive');
+            configLines.push(`service_account_file = ${serviceAccountPath}`);
+            const rootFolderId = String(merged['backup_rclone_drive_root_folder_id'] || '').trim();
+            const teamDrive = String(merged['backup_rclone_drive_team_drive'] || '').trim();
+            if (rootFolderId) configLines.push(`root_folder_id = ${rootFolderId}`);
+            if (teamDrive) configLines.push(`team_drive = ${teamDrive}`);
+          } else {
+            configLines.push('type = google cloud storage');
+            configLines.push(`service_account_file = ${serviceAccountPath}`);
+            const projectNumber = String(merged['backup_rclone_gcs_project_number'] || '').trim();
+            if (projectNumber) configLines.push(`project_number = ${projectNumber}`);
+          }
+
+          await fs.writeFile(configPath, `${configLines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
+          await fs.chmod(configPath, 0o600);
+          args.push('--config', configPath);
+        } else if (authMode === 'service_account' && provider === 'generic') {
+          return {
+            success: false,
+            message: 'Service account mode requires Google provider selection',
+            details: 'Choose Google Drive or Google Cloud Storage when using service account auth.',
+          };
+        }
+
+        await execFileAsync('rclone', args, { timeout: 10000 });
+        const authLabel = authMode === 'service_account' ? 'service account' : 'host remote';
+        return { success: true, message: 'rclone target is reachable', details: `${remote} (${authLabel})` };
+      } catch (error: any) {
+        return { success: false, message: 'rclone connection failed', details: error?.message || 'Unable to validate rclone target' };
+      } finally {
+        if (tempDir) {
+          await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+        }
+      }
+    }
+
+    return { success: false, message: 'Unsupported remote type', details: `Unsupported type: ${remoteType}` };
+  }
+
+  async getGoogleDriveOAuthStatus(tenantId?: string | null): Promise<{
+    connected: boolean;
+    email?: string;
+    connectedAt?: string;
+  }> {
+    const settings = await this.getBackupSettings(tenantId);
+    const hasToken = Boolean(settings['backup_google_drive_oauth_tokens']);
+    return {
+      connected: hasToken,
+      email: settings['backup_google_drive_oauth_connected_email'] || undefined,
+      connectedAt: settings['backup_google_drive_oauth_connected_at'] || undefined,
+    };
+  }
+
+  async startGoogleDriveOAuth(
+    userId: string,
+    tenantId: string | null,
+    origin?: string,
+    options?: {
+      clientId?: string;
+      clientSecret?: string;
+      redirectUri?: string;
+    }
+  ): Promise<{ authUrl: string; state: string }> {
+    this.cleanupExpiredGoogleStates();
+    const settings = await this.getBackupSettings(tenantId);
+    const clientId = String(options?.clientId ?? settings['backup_google_oauth_client_id'] ?? '').trim();
+    const clientSecret = String(options?.clientSecret ?? settings['backup_google_oauth_client_secret'] ?? '').trim();
+    const configuredRedirect = String(options?.redirectUri ?? settings['backup_google_oauth_redirect_uri'] ?? '').trim();
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth client ID and secret are required before connecting.');
+    }
+    const redirectUri = configuredRedirect || `${(origin || '').replace(/\/$/, '')}/api/settings/backup/google-drive/oauth/callback`;
+    if (!redirectUri.startsWith('http')) {
+      throw new Error('Invalid OAuth redirect URI. Set backup_google_oauth_redirect_uri in backup settings.');
+    }
+
+    const state = crypto.randomBytes(24).toString('hex');
+    this.googleOAuthStateStore.set(state, {
+      tenantId,
+      userId,
+      expiresAt: Date.now() + GOOGLE_OAUTH_STATE_TTL_MS,
+      oauthClientId: clientId,
+      oauthClientSecret: clientSecret,
+      oauthRedirectUri: redirectUri,
+    });
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: 'openid email profile https://www.googleapis.com/auth/drive',
+      state,
+    });
+    return { authUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`, state };
+  }
+
+  async completeGoogleDriveOAuthCallback(
+    code: string,
+    state: string,
+    origin?: string
+  ): Promise<{ email?: string }> {
+    this.cleanupExpiredGoogleStates();
+    const stateInfo = this.googleOAuthStateStore.get(state);
+    if (!stateInfo || stateInfo.expiresAt < Date.now()) {
+      throw new Error('OAuth state is invalid or expired.');
+    }
+    this.googleOAuthStateStore.delete(state);
+
+    const settings = await this.getBackupSettings(stateInfo.tenantId);
+    const clientId = String(stateInfo.oauthClientId ?? settings['backup_google_oauth_client_id'] ?? '').trim();
+    const clientSecret = String(stateInfo.oauthClientSecret ?? settings['backup_google_oauth_client_secret'] ?? '').trim();
+    const configuredRedirect = String(stateInfo.oauthRedirectUri ?? settings['backup_google_oauth_redirect_uri'] ?? '').trim();
+    const redirectUri = configuredRedirect || `${(origin || '').replace(/\/$/, '')}/api/settings/backup/google-drive/oauth/callback`;
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth client configuration missing.');
+    }
+
+    const tokenRes = await axios.post(
+      'https://oauth2.googleapis.com/token',
+      new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
+    );
+
+    const refreshToken = String(tokenRes.data?.refresh_token || '').trim();
+    const accessToken = String(tokenRes.data?.access_token || '').trim();
+    const idToken = String(tokenRes.data?.id_token || '').trim();
+    if (!refreshToken && !accessToken) {
+      throw new Error('Google token exchange failed.');
+    }
+
+    let email = '';
+    if (idToken) {
+      try {
+        const payloadSegment = idToken.split('.')[1] || '';
+        const decoded = JSON.parse(Buffer.from(payloadSegment, 'base64url').toString('utf8'));
+        email = String(decoded?.email || '');
+      } catch {
+        // no-op
+      }
+    }
+
+    const tokenPayload = {
+      refresh_token: refreshToken,
+      access_token: accessToken,
+      token_type: tokenRes.data?.token_type,
+      scope: tokenRes.data?.scope,
+      expires_in: tokenRes.data?.expires_in,
+      updated_at: new Date().toISOString(),
+      email,
+    };
+
+    await this.updateBackupSettings(
+      {
+        backup_google_drive_oauth_tokens: this.encryptSensitiveValue(JSON.stringify(tokenPayload)),
+        backup_google_drive_oauth_connected_email: email || '',
+        backup_google_drive_oauth_connected_at: new Date().toISOString(),
+        backup_remote_type: 'rclone',
+        backup_rclone_provider: 'google_drive',
+        backup_rclone_auth_mode: 'oauth_connect',
+      },
+      stateInfo.userId,
+      stateInfo.tenantId
+    );
+
+    return { email: email || undefined };
+  }
+
+  async disconnectGoogleDriveOAuth(userId: string, tenantId?: string | null): Promise<void> {
+    await this.updateBackupSettings(
+      {
+        backup_google_drive_oauth_tokens: '',
+        backup_google_drive_oauth_connected_email: '',
+        backup_google_drive_oauth_connected_at: '',
+      },
+      userId,
+      tenantId
+    );
+  }
+
+  async setGcsServiceAccountFromUpload(
+    userId: string,
+    tenantId: string | null,
+    serviceAccountJson: string,
+    projectNumber?: string
+  ): Promise<void> {
+    const parsed = JSON.parse(serviceAccountJson);
+    const clientEmail = String(parsed?.client_email || '');
+    const privateKey = String(parsed?.private_key || '');
+    const projectId = String(parsed?.project_id || '');
+    if (!clientEmail || !privateKey || !projectId) {
+      throw new Error('Invalid Google service account JSON. Missing client_email, private_key, or project_id.');
+    }
+    await this.updateBackupSettings(
+      {
+        backup_remote_type: 'rclone',
+        backup_rclone_provider: 'google_cloud_storage',
+        backup_rclone_auth_mode: 'service_account',
+        backup_rclone_service_account_json: this.encryptSensitiveValue(JSON.stringify(parsed)),
+        backup_rclone_gcs_project_number: String(projectNumber || ''),
+      },
+      userId,
+      tenantId
+    );
   }
 
   /**

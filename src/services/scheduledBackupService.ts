@@ -5,6 +5,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
+import BackupTransferService, { BackupTarget } from './BackupTransferService';
 
 const logger = createLogger('ScheduledBackupService');
 
@@ -13,11 +14,13 @@ class ScheduledBackupService {
   private prisma: PrismaClient;
   private jobs: Map<string, ReturnType<typeof cron.schedule>>;
   private isRunning: boolean;
+  private settingsRefreshInterval: NodeJS.Timeout | null;
 
   constructor(prismaClient: PrismaClient) {
     this.prisma = prismaClient;
     this.jobs = new Map();
     this.isRunning = false;
+    this.settingsRefreshInterval = null;
   }
 
   async start() {
@@ -30,7 +33,14 @@ class ScheduledBackupService {
     logger.info('Starting scheduled backup service...')
 
     // Load backup settings from database
-    await this.loadBackupSettings()
+    await this.reloadSettings()
+
+    // Periodically refresh schedules so UI changes take effect without restart
+    this.settingsRefreshInterval = setInterval(() => {
+      void this.reloadSettings().catch((error) => {
+        logger.error('Failed to refresh backup schedules', { error });
+      });
+    }, 60 * 1000);
   }
 
   async stop() {
@@ -46,6 +56,10 @@ class ScheduledBackupService {
     });
 
     this.jobs.clear()
+    if (this.settingsRefreshInterval) {
+      clearInterval(this.settingsRefreshInterval);
+      this.settingsRefreshInterval = null;
+    }
     this.isRunning = false
     logger.info('Scheduled backup service stopped')
   }
@@ -72,7 +86,7 @@ class ScheduledBackupService {
   }
 
   async scheduleBackup(setting: BackupSetting): Promise<void> {
-    const jobKey = `${setting.backupType}_${setting.frequency}`
+    const jobKey = `${setting.id}_${setting.backupType}_${setting.frequency}`
     
     // Stop existing job if it exists
     const existingJob = this.jobs.get(jobKey);
@@ -115,8 +129,14 @@ class ScheduledBackupService {
 
   async runScheduledBackup(setting: BackupSetting): Promise<void> {
     try {
+      const rawType = String(setting.backupType || '').toUpperCase();
+      const isRemoteMode = rawType.endsWith('_REMOTE');
+      const baseType = (rawType.endsWith('_LOCAL') || rawType.endsWith('_REMOTE'))
+        ? rawType.replace(/_(LOCAL|REMOTE)$/, '')
+        : rawType;
+
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `scheduled-backup-${setting.backupType.toLowerCase()}-${timestamp}.sql`
+      const filename = `scheduled-backup-${baseType.toLowerCase()}-${timestamp}.sql`
       const filepath = path.join('backups', filename)
 
       // Ensure backups directory exists
@@ -128,12 +148,16 @@ class ScheduledBackupService {
       const backupLog = await this.prisma.backupLog.create({
         data: {
           tenantId: 'default_tenant',
-          type: setting.backupType,
+          type: baseType,
           location: filepath,
           size: 0,
           status: 'running',
           startedAt: new Date(),
-          errorMessage: null
+          errorMessage: null,
+          metadata: {
+            scheduled: true,
+            deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+          }
         }
       })
 
@@ -147,7 +171,7 @@ class ScheduledBackupService {
 
       // Create backup based on type
       let command
-      switch (setting.backupType) {
+      switch (baseType) {
         case 'FULL':
           command = `PGPASSWORD="${password}" pg_dump -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
           break
@@ -188,21 +212,75 @@ class ScheduledBackupService {
 
         // Update backup log with success
         const stats = fs.statSync(filepath)
+        let finalStatus = 'success'
+        let finalError: string | null = null
+        let remoteResults: Array<{ targetId: string; targetName: string; success: boolean; error?: string }> = []
+
+        if (isRemoteMode) {
+          const targets = await this.prisma.backupTarget.findMany({
+            where: { enabled: true, tenantId: null },
+            orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }]
+          });
+          if (targets.length === 0) {
+            finalStatus = 'failed'
+            finalError = 'No enabled off-site backup targets configured.'
+          } else {
+            const mappedTargets: BackupTarget[] = targets.map((target) => ({
+              id: target.id,
+              name: target.name,
+              type: target.type as BackupTarget['type'],
+              config: target.config as unknown as BackupTarget['config'],
+              enabled: target.enabled,
+              priority: target.priority,
+            }));
+            for (const target of mappedTargets) {
+              const result = await BackupTransferService.uploadToTarget(filepath, target);
+              remoteResults.push({
+                targetId: target.id,
+                targetName: target.name,
+                success: result.success,
+                error: result.error,
+              });
+            }
+            if (!remoteResults.some((r) => r.success)) {
+              finalStatus = 'failed'
+              finalError = 'Off-site transfer failed for all targets.'
+            } else if (remoteResults.some((r) => !r.success)) {
+              finalError = `Off-site transfer partial failures (${remoteResults.filter((r) => !r.success).length}/${remoteResults.length}).`
+            }
+          }
+        }
+
         await this.prisma.backupLog.update({
           where: { id: backupLog.id },
           data: {
-            status: 'success',
+            status: finalStatus,
             size: stats.size,
-            errorMessage: null,
+            errorMessage: finalError,
             completedAt: new Date(),
-            duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000)
+            duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000),
+            metadata: {
+              scheduled: true,
+              deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+              remoteResults,
+            }
           }
         })
 
-        logger.info(`Scheduled ${setting.backupType} backup completed`, { filename })
+        if (isRemoteMode) {
+          try {
+            fs.unlinkSync(filepath);
+          } catch {
+            // ignore temporary file cleanup failures
+          }
+        }
+
+        logger.info(`Scheduled ${setting.backupType} backup completed`, { filename, mode: isRemoteMode ? 'REMOTE' : 'LOCAL' })
 
         // Clean up old backups based on retention policy
-        await this.cleanupOldBackups(setting)
+        if (!isRemoteMode) {
+          await this.cleanupOldBackups(setting)
+        }
       })
 
     } catch (error) {
@@ -245,20 +323,8 @@ class ScheduledBackupService {
     }
   }
 
-  async updateBackupSchedule(setting: BackupSetting): Promise<void> {
-    const jobKey = `${setting.backupType}_${setting.frequency}`
-    
-    // Stop existing job
-    const existingJob = this.jobs.get(jobKey);
-    if (existingJob) {
-      existingJob.stop();
-      this.jobs.delete(jobKey);
-    }
-
-    // Schedule new job if enabled
-    if (setting.enabled) {
-      await this.scheduleBackup(setting)
-    }
+  async updateBackupSchedule(_setting: BackupSetting): Promise<void> {
+    await this.reloadSettings();
   }
 
   async reloadSettings() {

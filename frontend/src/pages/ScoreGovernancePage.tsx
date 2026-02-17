@@ -33,6 +33,9 @@ const ScoreGovernancePage: React.FC = () => {
 
   const [requiredAdditionalApprovals, setRequiredAdditionalApprovals] = useState(2)
   const [approverRoles, setApproverRoles] = useState<string[]>(['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'])
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL')
+  const [actionFilter, setActionFilter] = useState<'ALL' | GovernanceAction>('ALL')
+  const [showCompleted, setShowCompleted] = useState(true)
 
   const canConfigure = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(user?.role || '')
   const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER'].includes(user?.role || '')
@@ -157,6 +160,36 @@ const ScoreGovernancePage: React.FC = () => {
     })
     return Array.from(map.values())
   }, [reviewRows])
+
+  const requestStats = useMemo(() => {
+    const total = requests.length
+    const pending = requests.filter((r: any) => r.status === 'PENDING').length
+    const approved = requests.filter((r: any) => r.status === 'APPROVED').length
+    const rejected = requests.filter((r: any) => r.status === 'REJECTED').length
+    return { total, pending, approved, rejected }
+  }, [requests])
+
+  const approverIdsForRequest = (request: any): string[] => (request.approvals || []).map((a: any) => a.approvedById).filter(Boolean)
+
+  const canCurrentUserApprove = (request: any) => {
+    if (!canApprove || request.status !== 'PENDING' || !user) return false
+    if (request.requestedById === user.id) return false
+    const approverIds = new Set(approverIdsForRequest(request))
+    return !approverIds.has(user.id)
+  }
+
+  const pendingForMyAction = useMemo(() => {
+    return requests.filter((request: any) => canCurrentUserApprove(request))
+  }, [requests, canApprove, user])
+
+  const filteredRequests = useMemo(() => {
+    return requests.filter((request: any) => {
+      if (statusFilter !== 'ALL' && request.status !== statusFilter) return false
+      if (actionFilter !== 'ALL' && request.actionType !== actionFilter) return false
+      if (!showCompleted && request.status !== 'PENDING') return false
+      return true
+    })
+  }, [requests, statusFilter, actionFilter, showCompleted])
 
   const judges = useMemo(() => {
     const map = new Map<string, { id: string; name: string; email?: string }>()
@@ -330,8 +363,59 @@ const ScoreGovernancePage: React.FC = () => {
     <div className="cgr-page-container space-y-6">
       <PageHeader
         title="Score Review & Governance"
-        subtitle="View judge-level scores and manage throw-out/uncertify requests with safeguards."
+        subtitle="Queue-first governance workspace for throw-outs, un-certifications, and score adjustments."
       />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="rounded-lg p-4">
+          <p className="text-xs uppercase text-gray-500 dark:text-gray-400">Total Requests</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-white">{requestStats.total}</p>
+        </Card>
+        <Card className="rounded-lg p-4 border-yellow-200 dark:border-yellow-700">
+          <p className="text-xs uppercase text-yellow-700 dark:text-yellow-300">Pending</p>
+          <p className="text-2xl font-semibold text-yellow-700 dark:text-yellow-300">{requestStats.pending}</p>
+        </Card>
+        <Card className="rounded-lg p-4 border-green-200 dark:border-green-700">
+          <p className="text-xs uppercase text-green-700 dark:text-green-300">Approved</p>
+          <p className="text-2xl font-semibold text-green-700 dark:text-green-300">{requestStats.approved}</p>
+        </Card>
+        <Card className="rounded-lg p-4 border-red-200 dark:border-red-700">
+          <p className="text-xs uppercase text-red-700 dark:text-red-300">Rejected</p>
+          <p className="text-2xl font-semibold text-red-700 dark:text-red-300">{requestStats.rejected}</p>
+        </Card>
+      </div>
+
+      <Card className="rounded-lg p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="px-3 py-2 rounded-md bg-blue-50 dark:bg-blue-900 text-sm text-blue-700 dark:text-blue-300">
+            Pending My Approval: <span className="font-semibold">{pendingForMyAction.length}</span>
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED')}
+            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+          <select
+            value={actionFilter}
+            onChange={(e) => setActionFilter(e.target.value as 'ALL' | GovernanceAction)}
+            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value="ALL">All Actions</option>
+            <option value="THROW_OUT">Throw Out</option>
+            <option value="UNCERTIFY">Un-certify</option>
+            <option value="ADJUST">Adjust</option>
+          </select>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
+            Show Completed
+          </label>
+        </div>
+      </Card>
 
         <Card className="rounded-lg p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -517,6 +601,7 @@ const ScoreGovernancePage: React.FC = () => {
             <table className="w-full min-w-[1050px]">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Target</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Action/Scope</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Reason</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Status</th>
@@ -526,17 +611,46 @@ const ScoreGovernancePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {requests.map((request: any) => {
+                {filteredRequests.map((request: any) => {
                   const additionalApprovals = Math.max(0, (request.approvals?.length || 0) - 1)
+                  const approvalsNeeded = Math.max(0, Number(request.requiredAdditionalApprovals || 0) - additionalApprovals)
+                  const canAct = canCurrentUserApprove(request)
                   return (
                     <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                        <div className="space-y-1">
+                          <div>{request.contest?.name || '-'}</div>
+                          <div>{request.category?.name || '-'}</div>
+                          <div>
+                            {request.contestant ? `#${request.contestant.contestantNumber ?? 'N/A'} ${request.contestant.name}` : '-'}
+                          </div>
+                          <div>{request.judge?.name ? `Judge: ${request.judge.name}` : ''}</div>
+                        </div>
+                      </td>
                       <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.actionType} / {request.scopeType}</td>
                       <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.reason}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.status}</td>
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{additionalApprovals}/{request.requiredAdditionalApprovals} additional</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          request.status === 'APPROVED'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            : request.status === 'REJECTED'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                        }`}>
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                        {additionalApprovals}/{request.requiredAdditionalApprovals} additional
+                        {request.status === 'PENDING' && approvalsNeeded > 0 && (
+                          <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                            {approvalsNeeded} more needed
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.executionSummary || '-'}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
-                        {canApprove && request.status === 'PENDING' ? (
+                        {canAct ? (
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
@@ -558,6 +672,10 @@ const ScoreGovernancePage: React.FC = () => {
                               Reject
                             </button>
                           </div>
+                        ) : request.status === 'PENDING' ? (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Waiting / already actioned
+                          </span>
                         ) : '-'}
                       </td>
                     </tr>
