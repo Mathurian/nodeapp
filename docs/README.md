@@ -37,12 +37,11 @@ Welcome to the complete documentation for Event Manager Contest System!
 19. **[Acceptance-Test-Quick-Run.md](testing/Acceptance-Test-Quick-Run.md)** - Human quick smoke checklist
 20. **[E2E-Lifecycle-Track.md](testing/E2E-Lifecycle-Track.md)** - End-to-end lifecycle flow track
 
-## Documentation Statistics
+## Documentation Scope
 
-- **Total Files**: 20 core documentation files
-- **Total Lines**: 7,500+ lines of documentation
-- **Total Size**: ~175 KB
-- **Coverage**: Complete system documentation from architecture to administration
+- Current, published docs are the markdown files in `docs/` plus `docs/testing/` and `docs/operations/`.
+- Archived material is retained in `docs/outdated/` and is not published in the in-app Help UI.
+- If code and docs diverge, treat code as source of truth and update docs in the same change set.
 
 ## What's Documented
 
@@ -205,9 +204,9 @@ This documentation is generated from the actual codebase and should be updated w
 
 ## Version
 
-- **Documentation Version**: 1.0.0
-- **Application Version**: 1.0.0
-- **Last Updated**: February 15, 2026
+- **Documentation Version**: rolling
+- **Application Version**: see `package.json`
+- **Last Updated**: February 17, 2026
 
 ---
 

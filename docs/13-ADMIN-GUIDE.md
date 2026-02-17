@@ -530,39 +530,19 @@ gunzip -c /backup/event_manager_20241228.sql.gz | psql -U event_manager event_ma
 4. **SSL Certificates** - If using Let's Encrypt
 5. **Grafana Dashboards** - `/var/lib/grafana`
 
-### Backup Script
+### Backup Scripts
 
-Create `/var/www/event-manager/scripts/backup.sh`:
+Use the maintained scripts in `/var/www/event-manager/scripts`:
 
 ```bash
-#!/bin/bash
-BACKUP_DIR="/backup/event-manager"
-DATE=$(date +%Y%m%d_%H%M%S)
+# Run immediate full backup
+sudo /var/www/event-manager/scripts/backup-full.sh
 
-# Create backup directory
-mkdir -p $BACKUP_DIR
+# Verify latest backup archive
+sudo /var/www/event-manager/scripts/backup-verify.sh
 
-# Backup database
-pg_dump -U event_manager event_manager | gzip > $BACKUP_DIR/db_$DATE.sql.gz
-
-# Backup uploads
-tar -czf $BACKUP_DIR/uploads_$DATE.tar.gz /var/www/event-manager/uploads/
-
-# Backup configuration
-cp /var/www/event-manager/.env $BACKUP_DIR/env_$DATE
-
-# Backup Grafana
-sudo tar -czf $BACKUP_DIR/grafana_$DATE.tar.gz /var/lib/grafana
-
-# Remove backups older than 30 days
-find $BACKUP_DIR -type f -mtime +30 -delete
-
-echo "Backup completed: $DATE"
-```
-
-Make it executable:
-```bash
-chmod +x /var/www/event-manager/scripts/backup.sh
+# Prune expired local backup artifacts
+sudo /var/www/event-manager/scripts/backup-cleanup.sh
 ```
 
 ## Security Management
@@ -947,7 +927,7 @@ npm run db:stats
 # Review backup status
 ls -lh /backup/event-manager/
 
-# Database maintenance
+# Database maintenance + size report
 npm run db:optimize
 
 # Security updates
@@ -961,7 +941,7 @@ sudo apt update && sudo apt upgrade
 
 ```bash
 # Full system backup
-./scripts/backup.sh
+sudo /var/www/event-manager/scripts/backup-full.sh
 
 # Review and rotate logs
 sudo journalctl --vacuum-time=30d

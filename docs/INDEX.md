@@ -66,17 +66,11 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 - **Authentication**: JWT with session versioning
 - **Testing**: Jest, Playwright, React Testing Library
 
-## Project Statistics
+## Scope Notes
 
-- **Backend Files**: 301 TypeScript files
-- **Frontend Files**: 295 TypeScript/TSX files
-- **Routes**: 69 route modules
-- **Controllers**: 70 controller modules
-- **Services**: 79 service modules
-- **Database Models**: 60+ Prisma models
-- **Frontend Pages**: 40+ page components
-- **Reusable Components**: 80+ UI components
-- **Test Coverage**: 90%+ (unit + integration)
+- Help/Docs UI publishes the files under `docs/` except `docs/outdated/`.
+- `docs/outdated/` remains in-repo for historical reference only.
+- For current test operations, use the guides in `docs/testing/`.
 
 ## System Roles
 

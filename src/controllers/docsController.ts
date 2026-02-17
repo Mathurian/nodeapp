@@ -55,24 +55,7 @@ function sanitizePath(userPath: string): string {
   const sanitized = userPath.replace(/\.\./g, '').replace(/\/\//g, '/');
 
   // Ensure it starts with a valid category or root
-  const validPaths = [
-    '00-getting-started',
-    '01-architecture',
-    '02-features',
-    '03-administration',
-    '04-development',
-    '05-deployment',
-    '06-phase-implementations',
-    '07-api',
-    '08-security',
-    '09-performance',
-    '10-reference',
-    'testing',
-    'operations',
-    'outdated',
-    'outmoded',
-    '',
-  ];
+  const validPaths = ['testing', 'operations', ''];
 
   const pathParts = sanitized.split('/').filter(p => p);
   if (pathParts.length > 0) {
@@ -106,20 +89,9 @@ function extractTitle(content: string): string {
  */
 function getCategoryOrder(category: string): number {
   const order: Record<string, number> = {
-    '00-getting-started': 0,
-    '01-architecture': 1,
-    '02-features': 2,
-    '03-administration': 3,
-    '04-development': 4,
-    '05-deployment': 5,
-    '06-phase-implementations': 6,
-    '07-api': 7,
-    '08-security': 8,
-    '09-performance': 9,
-    '10-reference': 10,
-    testing: 11,
-    operations: 12,
-    'outmoded': 99,
+    root: 0,
+    testing: 1,
+    operations: 2,
   };
   return order[category] ?? 50;
 }
@@ -137,8 +109,12 @@ async function scanDirectory(dir: string, relativePath: string = ''): Promise<Do
       const fullPath = path.join(dir, entry.name);
       const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
-      // Skip hidden files and node_modules
-      if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+      // Skip hidden files, dependencies, and archived docs
+      if (
+        entry.name.startsWith('.') ||
+        entry.name === 'node_modules' ||
+        entry.name === 'outdated'
+      ) {
         continue;
       }
 
@@ -201,7 +177,11 @@ async function getDocsMetadata(): Promise<DocMetadata[]> {
       const fullPath = path.join(dir, entry.name);
       const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
-      if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+      if (
+        entry.name.startsWith('.') ||
+        entry.name === 'node_modules' ||
+        entry.name === 'outdated'
+      ) {
         continue;
       }
 
