@@ -129,6 +129,7 @@ export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   preferredName: z.string().max(100).optional(),
   email: z.string().email().optional(),
+  currentPassword: z.string().min(1, 'Current password is required').optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional(),
   role: userRoleSchema.optional(),
   gender: z.string().optional(),

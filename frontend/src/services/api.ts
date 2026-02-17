@@ -235,6 +235,8 @@ export const usersAPI = {
   bulkDelete: (data: { userIds: string[]; forceDeleteAdmin?: boolean }) => api.post('/users/bulk-delete', data),
   reassignTenant: (id: string, tenantId: string) => api.put(`/users/${id}/tenant`, { tenantId }),
   resetPassword: (id: string, data: any) => api.post(`/users/${id}/reset-password`, data),
+  changePassword: (id: string, data: { currentPassword: string; newPassword: string }) =>
+    api.post(`/users/${id}/change-password`, data),
   importCSV: (data: { csvData: any[], userType: string }) => api.post('/users/import-csv', data),
   getCSVTemplate: (userType: string) => api.get(`/users/csv-template?userType=${userType}`),
 }

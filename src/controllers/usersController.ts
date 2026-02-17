@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
+import bcrypt from 'bcrypt';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
 import { AuditLogService } from '../services/AuditLogService';
@@ -376,6 +377,7 @@ export class UsersController {
       const authReq = req as AuthenticatedRequest;
       const requesterRole = authReq.user?.role;
       const requesterIsSuperAdmin = requesterRole === 'SUPER_ADMIN';
+      const requesterIsSelf = authReq.user?.id === id;
 
       log.info('User update requested', { userId: id });
 
@@ -388,6 +390,34 @@ export class UsersController {
         log.warn('User update failed: user not found', { userId: id });
         sendNotFound(res, 'User not found');
         return;
+      }
+
+      const passwordChangeRequested = typeof data.password === 'string' && data.password.length > 0;
+      let hashedPassword: string | null = null;
+
+      if (passwordChangeRequested) {
+        if (!requesterIsSelf) {
+          log.warn('User update blocked: password update for another user attempted via generic update endpoint', {
+            requesterId: authReq.user?.id,
+            targetUserId: id
+          });
+          errorResponse(res, 'Use reset password endpoint to change another user password', ErrorCode.ACCESS_DENIED, 403);
+          return;
+        }
+
+        const currentPassword = typeof data.currentPassword === 'string' ? data.currentPassword : '';
+        if (!currentPassword) {
+          errorResponse(res, 'Current password is required', ErrorCode.VALIDATION_ERROR, 400);
+          return;
+        }
+
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, currentUser.password);
+        if (!isCurrentPasswordValid) {
+          errorResponse(res, 'Current password is incorrect', ErrorCode.VALIDATION_ERROR, 400);
+          return;
+        }
+
+        hashedPassword = await bcrypt.hash(data.password!, 10);
       }
 
       // Guardrails for SUPER_ADMIN account management.
@@ -432,6 +462,7 @@ export class UsersController {
       if (data.pronouns !== undefined) userData.pronouns = data.pronouns ?? undefined;
       if (data.gender !== undefined) userData.gender = data.gender ?? undefined;
       if (data.isActive !== undefined) userData.isActive = data.isActive;
+      if (hashedPassword) userData.password = hashedPassword;
 
       // Add role-specific fields for User model
       if (data.role === 'JUDGE') {
@@ -574,6 +605,9 @@ export class UsersController {
 
         const userUpdateData: Prisma.UserUpdateInput = {
           ...(userData as Prisma.UserUpdateInput),
+          ...(hashedPassword
+            ? { sessionVersion: { increment: 1 } }
+            : {}),
           ...(roleChanged || targetRole === 'JUDGE' || targetRole === 'CONTESTANT'
             ? {
                 judgeId: nextJudgeId,

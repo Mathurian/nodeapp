@@ -81,9 +81,9 @@ const ProfilePage: React.FC = () => {
   const changePasswordMutation = useMutation(
     async (data: { currentPassword: string; newPassword: string }) => {
       if (!user?.id) throw new Error('User not found')
-      const response = await usersAPI.update(user.id, {
+      const response = await usersAPI.changePassword(user.id, {
         currentPassword: data.currentPassword,
-        password: data.newPassword,
+        newPassword: data.newPassword,
       })
       return response.data
     },

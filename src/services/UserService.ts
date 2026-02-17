@@ -46,6 +46,8 @@ export interface UpdateUserDTO {
   name?: string;
   email?: string;
   preferredName?: string;
+  currentPassword?: string;
+  password?: string;
   role?: string | UserRole;
   isActive?: boolean;
   phone?: string;
