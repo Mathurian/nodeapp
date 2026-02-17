@@ -37,14 +37,17 @@ ExecStart=
 ExecStart=/usr/bin/node dist/server.js
 EOF
 
-if [ -f "$NGINX_ENABLED" ]; then
-  sudo sed -i 's|root /var/www/event-manager/frontend/dist;|root /opt/event-manager/current/frontend/dist;|g' "$NGINX_ENABLED"
-  sudo sed -i 's|root /var/www/event-manager;|root /var/lib/event-manager;|g' "$NGINX_ENABLED"
-fi
-if [ -f "$NGINX_AVAILABLE" ]; then
-  sudo sed -i 's|root /var/www/event-manager/frontend/dist;|root /opt/event-manager/current/frontend/dist;|g' "$NGINX_AVAILABLE"
-  sudo sed -i 's|root /var/www/event-manager;|root /var/lib/event-manager;|g' "$NGINX_AVAILABLE"
-fi
+normalize_nginx_roots() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  # Normalize frontend and shared-data roots without relying on legacy paths.
+  sudo sed -i -E 's|root[[:space:]]+[^;]*/frontend/dist;|root /opt/event-manager/current/frontend/dist;|g' "$file"
+  sudo sed -i -E 's|root[[:space:]]+[^;]*/event-manager;|root /var/lib/event-manager;|g' "$file"
+}
+
+normalize_nginx_roots "$NGINX_ENABLED"
+normalize_nginx_roots "$NGINX_AVAILABLE"
 
 if [ -d /etc/nginx/backup-sites-enabled ]; then
   for f in /etc/nginx/sites-enabled/*.bak-*; do
@@ -61,4 +64,3 @@ sudo systemctl reload nginx
 echo "Activated release: $REL"
 systemctl is-active "$SERVICE_NAME"
 readlink -f "$CURRENT_LINK"
-

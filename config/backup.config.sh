@@ -4,7 +4,9 @@
 # Backup Configuration File
 #
 # Centralized configuration for all backup scripts.
-# Source this file in backup scripts: source /var/www/event-manager/config/backup.config.sh
+# Source this file in backup scripts:
+#   - Dev:  source /srv/event-manager/dev/config/backup.config.sh
+#   - Prod: source /opt/event-manager/current/config/backup.config.sh
 ################################################################################
 
 # Optional external override file (preferred for production tuning)
@@ -14,9 +16,19 @@ if [[ -r "$BACKUP_ENV_FILE" ]]; then
     source "$BACKUP_ENV_FILE"
 fi
 
+# Application root defaults to the script parent directory.
+# In production release dirs, use the stable /opt/event-manager/current symlink.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [[ "$DEFAULT_APP_DIR" == /opt/event-manager/releases/* ]]; then
+    DEFAULT_APP_DIR="/opt/event-manager/current"
+fi
+
+export APP_DIR="${APP_DIR:-$DEFAULT_APP_DIR}"
+
 # Optional runtime override generated from Super Admin UI backup settings.
 # This file is loaded after BACKUP_ENV_FILE and takes precedence when present.
-BACKUP_RUNTIME_ENV_FILE="${BACKUP_RUNTIME_ENV_FILE:-/var/www/event-manager/config/backup.runtime.env}"
+BACKUP_RUNTIME_ENV_FILE="${BACKUP_RUNTIME_ENV_FILE:-${APP_DIR}/config/backup.runtime.env}"
 if [[ -r "$BACKUP_RUNTIME_ENV_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$BACKUP_RUNTIME_ENV_FILE"
@@ -87,7 +99,6 @@ export VERIFY_BACKUPS="${VERIFY_BACKUPS:-true}"
 export VERIFY_CHECKSUM="${VERIFY_CHECKSUM:-true}"
 
 # Application settings
-export APP_DIR="${APP_DIR:-/var/www/event-manager}"
 export APP_UPLOADS_DIR="${APP_UPLOADS_DIR:-${APP_DIR}/uploads}"
 export APP_LOGS_DIR="${APP_LOGS_DIR:-${APP_DIR}/logs}"
 

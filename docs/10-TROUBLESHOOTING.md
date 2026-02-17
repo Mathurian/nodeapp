@@ -286,7 +286,7 @@ sudo systemctl restart event-manager.service
 **Solution**:
 ```bash
 # Confirm request logs show diverse client IPs after fixes
-tail -f /var/www/event-manager/logs/general/app-request-$(date +%F).log
+tail -f /opt/event-manager/current/logs/general/app-request-$(date +%F).log
 
 # If IPs are still proxy addresses, check upstream forwarding behavior:
 # - Upstream must append X-Forwarded-For, not replace it
@@ -464,13 +464,13 @@ sudo systemctl status event-manager
 sudo journalctl -u event-manager -n 50
 
 # Check .env file exists and is readable
-ls -la /var/www/event-manager/.env
+ls -la /opt/event-manager/current/.env
 
 # Verify Node.js path in service file
 which node
 
 # Check file permissions
-sudo chown -R www-data:www-data /var/www/event-manager
+sudo chown -R www-data:www-data /opt/event-manager/current
 ```
 
 ## Common Error Codes
@@ -524,7 +524,7 @@ When reporting issues, provide:
 
 ```bash
 # Application logs
-/var/www/event-manager/logs/event-manager.log
+/opt/event-manager/current/logs/event-manager.log
 
 # Systemd logs
 sudo journalctl -u event-manager

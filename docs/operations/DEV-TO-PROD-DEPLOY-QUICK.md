@@ -72,3 +72,36 @@ sudo scripts/deploy/rollback-release.sh <release_timestamp>
 - Dev service is separate (`event-manager-dev.service`, port `3002`).
 - Production service is `event-manager.service` (port `3000` behind nginx).
 
+## Command Reference (In Order)
+
+```bash
+# 1) Build backend + frontend in dev workspace
+cd /srv/event-manager/dev
+npm run build
+cd frontend
+npm run build
+cd ..
+
+# 2) Stage a production release artifact
+sudo scripts/deploy/stage-release.sh
+
+# 3) Read staged release timestamp
+RELEASE_TS="$(cat /opt/event-manager/.last_release_ts)"
+echo "$RELEASE_TS"
+
+# 4) Activate staged release in production
+sudo scripts/deploy/activate-release.sh "$RELEASE_TS"
+
+# 5) Validate production runtime
+systemctl is-active event-manager.service
+curl -sS http://127.0.0.1:3000/health
+readlink -f /opt/event-manager/current
+sudo nginx -t
+```
+
+```bash
+# Rollback reference (if needed)
+sudo scripts/deploy/rollback-release.sh
+# or
+sudo scripts/deploy/rollback-release.sh <release_timestamp>
+```

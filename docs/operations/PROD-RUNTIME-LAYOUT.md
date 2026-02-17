@@ -14,7 +14,7 @@ This deployment model separates development source code from the production runt
 ## Development Layout
 
 - Canonical dev path: `/srv/event-manager/dev`
-- Compatibility symlink: `/var/www/event-manager -> /srv/event-manager/dev`
+- Legacy `/opt/event-manager/current` path: removed (do not use)
 - Optional dev service: `event-manager-dev.service`
 - Dev env file: `/etc/event-manager/event-manager-dev.env`
 - Dev API port: `3002`

@@ -75,9 +75,10 @@ Production deployment guide for Event Manager covering all deployment methods an
 
 ```bash
 # Clone repository
-cd /var/www
-git clone <repository-url> event-manager
-cd event-manager
+sudo mkdir -p /opt/event-manager
+cd /opt/event-manager
+git clone <repository-url> current
+cd current
 
 # Install dependencies
 npm install --production
@@ -104,10 +105,10 @@ After=network.target postgresql.service redis.service
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/var/www/event-manager
+WorkingDirectory=/opt/event-manager/current
 Environment=NODE_ENV=production
-EnvironmentFile=/var/www/event-manager/.env
-ExecStart=/usr/bin/node /var/www/event-manager/dist/server.js
+EnvironmentFile=/opt/event-manager/current/.env
+ExecStart=/usr/bin/node /opt/event-manager/current/dist/server.js
 Restart=always
 RestartSec=10
 StandardOutput=syslog
@@ -414,10 +415,10 @@ SMTP_FROM=noreply@yourdomain.com
 
 # Logging
 LOG_LEVEL=info
-LOG_FILE=/var/www/event-manager/logs/event-manager.log
+LOG_FILE=/opt/event-manager/current/logs/event-manager.log
 
 # File Upload
-UPLOAD_DIR=/var/www/event-manager/uploads
+UPLOAD_DIR=/opt/event-manager/current/uploads
 MAX_FILE_SIZE=10485760
 
 # ClamAV
@@ -443,7 +444,7 @@ GRANT ALL PRIVILEGES ON DATABASE event_manager TO event_manager;
 \q
 
 # Run migrations
-cd /var/www/event-manager
+cd /opt/event-manager/current
 npx prisma migrate deploy
 ```
 
@@ -476,7 +477,7 @@ log_min_duration_statement = 1000  # Log slow queries (>1s)
 Create `/etc/logrotate.d/event-manager`:
 
 ```
-/var/www/event-manager/logs/*.log /var/www/event-manager/logs/*/*.log /var/log/backup-*.log /var/log/pitr-backup.log /var/log/recovery-test.log /var/log/event-manager-*.log {
+/opt/event-manager/current/logs/*.log /opt/event-manager/current/logs/*/*.log /var/log/backup-*.log /var/log/pitr-backup.log /var/log/recovery-test.log /var/log/event-manager-*.log {
     daily
     rotate 14
     size 25M
@@ -532,7 +533,7 @@ Use the built-in backup scripts and cron installer in this repository.
 ### Install Scheduled Backups and Cleanup
 
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 sudo ./scripts/setup-cron.sh
 ```
 
@@ -547,17 +548,17 @@ This installs `/etc/cron.d/event-manager-backup` with:
 ### Backup Rotation Tuning (Where It Is Set)
 
 Primary config:
-- `/var/www/event-manager/config/backup.config.sh`
+- `/opt/event-manager/current/config/backup.config.sh`
 
 Production override (recommended):
 - `/etc/event-manager/backup.env`
 - UI runtime override (auto-generated from Super Admin settings):
-- `/var/www/event-manager/config/backup.runtime.env`
+- `/opt/event-manager/current/config/backup.runtime.env`
 
 Install override template:
 ```bash
 sudo mkdir -p /etc/event-manager
-sudo cp /var/www/event-manager/config/backup.env.example /etc/event-manager/backup.env
+sudo cp /opt/event-manager/current/config/backup.env.example /etc/event-manager/backup.env
 sudo chmod 600 /etc/event-manager/backup.env
 ```
 
@@ -572,7 +573,7 @@ Key retention controls:
 Precedence order at runtime:
 1. `config/backup.config.sh` defaults
 2. `/etc/event-manager/backup.env` (manual file override)
-3. `/var/www/event-manager/config/backup.runtime.env` (Super Admin UI override)
+3. `/opt/event-manager/current/config/backup.runtime.env` (Super Admin UI override)
 
 Super Admin UI path:
 - `Settings -> Backup & Off-site Replication` (switch settings scope to `Global`)
@@ -582,7 +583,7 @@ Super Admin UI path:
 1. Create alert config:
 ```bash
 sudo mkdir -p /etc/event-manager
-sudo cp /var/www/event-manager/config/alerts.env.example /etc/event-manager/alerts.env
+sudo cp /opt/event-manager/current/config/alerts.env.example /etc/event-manager/alerts.env
 sudo chmod 600 /etc/event-manager/alerts.env
 ```
 

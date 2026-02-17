@@ -150,7 +150,7 @@ service_cpu_usage_percent                        # CPU usage
 1. Navigate to https://conmgr.com/monitoring/grafana/
 2. Login with admin credentials (default: admin/admin - change immediately!)
 3. Dashboard should auto-load as "Event Manager - Test & System Monitoring"
-4. If not visible, import from: `/var/www/event-manager/monitoring/grafana/dashboards/event-manager-monitoring.json`
+4. If not visible, import from: `/opt/event-manager/current/monitoring/grafana/dashboards/event-manager-monitoring.json`
 
 **Dashboard Features**:
 - **Test Results Over Time**: Real-time view of test pass/fail/skip rates
@@ -248,13 +248,13 @@ curl -X POST http://localhost:3000/api/monitoring/service-status \
 
 **Dashboard Import Instructions**:
 
-See detailed instructions at: `/var/www/event-manager/monitoring/grafana/dashboards/README.md`
+See detailed instructions at: `/opt/event-manager/current/monitoring/grafana/dashboards/README.md`
 
 Quick import via Grafana UI:
 1. Go to https://conmgr.com/monitoring/grafana/
 2. Login with credentials (default: admin/admin)
 3. Click "+" → "Import"
-4. Upload `/var/www/event-manager/monitoring/grafana/dashboards/event-manager-monitoring.json`
+4. Upload `/opt/event-manager/current/monitoring/grafana/dashboards/event-manager-monitoring.json`
 5. Select "Prometheus" as data source
 6. Click "Import"
 
@@ -391,19 +391,19 @@ curl http://conmgr.com/metrics | grep database
 
 **Start Production Server**:
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 ./scripts/start-production.sh
 ```
 
 **Stop Production Server**:
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 ./scripts/stop-production.sh
 ```
 
 **Check Service Status**:
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 ./scripts/status.sh
 ```
 
@@ -411,13 +411,13 @@ cd /var/www/event-manager
 
 **Start Development Servers**:
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 ./scripts/start-development.sh
 ```
 
 **Stop Development Servers**:
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 ./scripts/stop-development.sh
 ```
 
@@ -467,7 +467,7 @@ sudo journalctl -u prometheus -f
 
 **Run Migrations**:
 ```bash
-cd /var/www/event-manager
+cd /opt/event-manager/current
 npx prisma migrate deploy
 ```
 
@@ -525,24 +525,24 @@ gunzip -c /backup/event_manager_20241228.sql.gz | psql -U event_manager event_ma
 ### What to Backup
 
 1. **Database** - PostgreSQL data
-2. **Uploaded Files** - `/var/www/event-manager/uploads/`
+2. **Uploaded Files** - `/opt/event-manager/current/uploads/`
 3. **Configuration** - `.env` file, nginx configs
 4. **SSL Certificates** - If using Let's Encrypt
 5. **Grafana Dashboards** - `/var/lib/grafana`
 
 ### Backup Scripts
 
-Use the maintained scripts in `/var/www/event-manager/scripts`:
+Use the maintained scripts in `/opt/event-manager/current/scripts`:
 
 ```bash
 # Run immediate full backup
-sudo /var/www/event-manager/scripts/backup-full.sh
+sudo /opt/event-manager/current/scripts/backup-full.sh
 
 # Verify latest backup archive
-sudo /var/www/event-manager/scripts/backup-verify.sh
+sudo /opt/event-manager/current/scripts/backup-verify.sh
 
 # Prune expired local backup artifacts
-sudo /var/www/event-manager/scripts/backup-cleanup.sh
+sudo /opt/event-manager/current/scripts/backup-cleanup.sh
 ```
 
 ## Security Management
@@ -941,7 +941,7 @@ sudo apt update && sudo apt upgrade
 
 ```bash
 # Full system backup
-sudo /var/www/event-manager/scripts/backup-full.sh
+sudo /opt/event-manager/current/scripts/backup-full.sh
 
 # Review and rotate logs
 sudo journalctl --vacuum-time=30d

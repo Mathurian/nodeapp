@@ -4,6 +4,14 @@
 
 set -e
 
+# Resolve application root per environment.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -d /opt/event-manager/current ]; then
+    DEFAULT_APP_ROOT="/opt/event-manager/current"
+fi
+APP_ROOT="${APP_ROOT:-$DEFAULT_APP_ROOT}"
+
 echo "Installing Prometheus and Grafana natively..."
 
 # Update system
@@ -59,9 +67,9 @@ chown -R prometheus:prometheus /var/lib/prometheus /etc/prometheus || true
 chown -R grafana:grafana /var/lib/grafana || true
 
 # Copy Prometheus config
-if [ -f /var/www/event-manager/prometheus/prometheus.yml ]; then
+if [ -f "$APP_ROOT/prometheus/prometheus.yml" ]; then
     echo "Copying Prometheus configuration..."
-    cp /var/www/event-manager/prometheus/prometheus.yml /etc/prometheus/prometheus.yml
+    cp "$APP_ROOT/prometheus/prometheus.yml" /etc/prometheus/prometheus.yml
     chown prometheus:prometheus /etc/prometheus/prometheus.yml
 fi
 
@@ -86,16 +94,16 @@ if [ -f "$GRAFANA_INI" ]; then
 fi
 
 # Copy Grafana provisioning if it exists
-if [ -d /var/www/event-manager/grafana/provisioning ]; then
+if [ -d "$APP_ROOT/grafana/provisioning" ]; then
     echo "Copying Grafana provisioning files..."
-    cp -r /var/www/event-manager/grafana/provisioning/* /etc/grafana/provisioning/ 2>/dev/null || true
+    cp -r "$APP_ROOT/grafana/provisioning/"* /etc/grafana/provisioning/ 2>/dev/null || true
     chown -R grafana:grafana /etc/grafana/provisioning/ || true
 fi
 
 # Setup Prometheus systemd service
 echo "Setting up Prometheus systemd service..."
-if [ -f /var/www/event-manager/scripts/prometheus.service ]; then
-    cp /var/www/event-manager/scripts/prometheus.service /etc/systemd/system/prometheus.service
+if [ -f "$APP_ROOT/scripts/prometheus.service" ]; then
+    cp "$APP_ROOT/scripts/prometheus.service" /etc/systemd/system/prometheus.service
     # Adjust paths if using manual installation
     if [ -f /opt/prometheus/prometheus ]; then
         sed -i 's|/usr/bin/prometheus|/opt/prometheus/prometheus|' /etc/systemd/system/prometheus.service
@@ -121,5 +129,4 @@ echo "Access Grafana at: http://conmgr.com/monitoring/grafana/"
 echo "Access Prometheus at: http://conmgr.com/monitoring/prometheus/"
 echo ""
 echo "Default Grafana credentials: admin/admin (change on first login)"
-
 

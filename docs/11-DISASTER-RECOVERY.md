@@ -340,7 +340,7 @@ GET /api/dr/metrics/success-rate
 
 5. **Restore Files**:
    ```bash
-   tar -xzf files_2025-01-15.tar.gz -C /var/www/event-manager
+   tar -xzf files_2025-01-15.tar.gz -C /opt/event-manager/current
    ```
 
 6. **Verify Integrity**:

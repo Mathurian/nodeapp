@@ -814,7 +814,7 @@ describe('EmceeController', () => {
       const path = require('path');
 
       jest.spyOn(fs, 'createReadStream').mockReturnValue(mockFileStream);
-      jest.spyOn(path, 'join').mockReturnValue('/var/www/event-manager/uploads/emcee/script.pdf');
+      jest.spyOn(path, 'join').mockReturnValue('/opt/event-manager/current/uploads/emcee/script.pdf');
 
       await controller.serveScriptFile(mockReq as Request, mockRes as Response, mockNext);
 

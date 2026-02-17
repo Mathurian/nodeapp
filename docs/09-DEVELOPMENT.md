@@ -307,7 +307,7 @@ npx playwright show-report
 open playwright-report/index.html
 ```
 
-**Report Location**: `/var/www/event-manager/playwright-report/index.html`
+**Report Location**: `/opt/event-manager/current/playwright-report/index.html`
 
 **Features**:
 - Visual test results with pass/fail indicators
