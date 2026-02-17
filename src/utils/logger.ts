@@ -12,6 +12,7 @@ const LOG_DIRECTORY = env.get('LOG_DIRECTORY') ||
     ? path.join(os.tmpdir(), 'event-manager-test-logs')
     : path.join(__dirname, '../../logs'))
 const DISABLE_FILE_LOGGING = env.get('DISABLE_FILE_LOGGING') || env.isTest()
+const LOG_DUPLICATE_TO_GENERAL = env.get('LOG_DUPLICATE_TO_GENERAL') || false
 const LOG_LEVELS = {
   ERROR: 0,
   WARN: 1,
@@ -59,7 +60,7 @@ const ensureLogDirectory = async (category: string = 'default') => {
     const categoryLogDir = path.join(LOG_DIRECTORY, categoryFolder);
     await fs.mkdir(categoryLogDir, { recursive: true });
     
-    // Ensure general folder exists (for general log file)
+    // Ensure general folder exists
     const generalLogDir = path.join(LOG_DIRECTORY, 'general');
     await fs.mkdir(generalLogDir, { recursive: true });
   } catch (error) {
@@ -158,10 +159,6 @@ const writeToFile = async (level: string, category: string, message: string, met
     const categoryFolder = getCategoryFolder(category);
     const categoryLogDir = path.join(LOG_DIRECTORY, categoryFolder);
     
-    // Create category-specific log file in subfolder
-    const logFileName = `app-${category}-${logDate}.log`
-    const logFilePath = path.join(categoryLogDir, logFileName)
-    
     // Format log entry
     let logEntry = `[${timestamp}] [${level}] [${category.toUpperCase()}] ${message}`
 
@@ -172,14 +169,25 @@ const writeToFile = async (level: string, category: string, message: string, met
     
     logEntry += '\n'
     
-    // Append to category-specific file
+    // Default logger writes to the daily general stream only.
+    if (category.toLowerCase() === 'default') {
+      const generalLogDir = path.join(LOG_DIRECTORY, 'general');
+      const generalLogPath = path.join(generalLogDir, `app-${logDate}.log`);
+      await fs.appendFile(generalLogPath, logEntry, 'utf8');
+      return;
+    }
+
+    // Non-default loggers write category-specific files.
+    const logFileName = `app-${category}-${logDate}.log`
+    const logFilePath = path.join(categoryLogDir, logFileName)
     await fs.appendFile(logFilePath, logEntry, 'utf8')
-    
-    // Also write to general log file (for backward compatibility and overview)
-    const generalLogDir = path.join(LOG_DIRECTORY, 'general');
-    const generalLogFile = `app-${logDate}.log`
-    const generalLogPath = path.join(generalLogDir, generalLogFile)
-    await fs.appendFile(generalLogPath, logEntry, 'utf8')
+
+    // Optional duplication for operators who want a single aggregate stream.
+    if (LOG_DUPLICATE_TO_GENERAL) {
+      const generalLogDir = path.join(LOG_DIRECTORY, 'general');
+      const generalLogPath = path.join(generalLogDir, `app-${logDate}.log`);
+      await fs.appendFile(generalLogPath, logEntry, 'utf8');
+    }
     
   } catch (error: unknown) {
     // Fallback to console if file writing fails (don't throw in test environment)
@@ -311,4 +319,3 @@ export const logger = new Logger('default');
 // Export factory function as well
 export const createLogger = (category: string = 'default') => new Logger(category);
 export { createRequestLogger, refreshLogLevels, getLogLevel, LOG_DIRECTORY };
-

@@ -133,6 +133,7 @@ interface EnvironmentConfig {
   LOG_DATE_PATTERN: string;
   LOG_DIRECTORY?: string;
   DISABLE_FILE_LOGGING?: boolean;
+  LOG_DUPLICATE_TO_GENERAL?: boolean;
   LOG_DATABASE_QUERIES: boolean;
   LOG_SLOW_QUERIES: boolean;
   SLOW_QUERY_THRESHOLD_MS: number;
@@ -473,6 +474,7 @@ class EnvironmentConfiguration {
       LOG_DATE_PATTERN: getString('LOG_DATE_PATTERN', 'YYYY-MM-DD'),
       LOG_DIRECTORY: getString('LOG_DIRECTORY', ''),
       DISABLE_FILE_LOGGING: parseBoolean(process.env['DISABLE_FILE_LOGGING'], false),
+      LOG_DUPLICATE_TO_GENERAL: parseBoolean(process.env['LOG_DUPLICATE_TO_GENERAL'], false),
       LOG_DATABASE_QUERIES: parseBoolean(process.env['LOG_DATABASE_QUERIES'], false),
       LOG_SLOW_QUERIES: parseBoolean(process.env['LOG_SLOW_QUERIES'], true),
       SLOW_QUERY_THRESHOLD_MS: parseInt(process.env['SLOW_QUERY_THRESHOLD_MS'], 1000),
