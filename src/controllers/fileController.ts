@@ -105,9 +105,10 @@ export class FileController {
       const limit = parseInt(req.query['limit'] as string) || 50;
       const category = req.query['category'] as string | undefined;
       const eventId = req.query['eventId'] as string | undefined;
+      const tenantId = req.tenantId || req.user.tenantId;
 
       const skip = (page - 1) * limit;
-      const where: any = {};
+      const where: any = { tenantId };
 
       if (category) where.category = category;
       if (eventId) where.eventId = eventId;
@@ -262,12 +263,13 @@ export class FileController {
     }
   };
 
-  getFileStats = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getFileStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      if (!_req.user) {
+      if (!req.user) {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = req.tenantId || req.user.tenantId;
 
       const [
         totalFiles,
@@ -275,16 +277,19 @@ export class FileController {
         byCategory,
         recentUploads
       ] = await Promise.all([
-        this.prisma.file.count(),
+        this.prisma.file.count({ where: { tenantId } }),
         this.prisma.file.aggregate({
+          where: { tenantId },
           _sum: { size: true }
         }),
         this.prisma.file.groupBy({
+          where: { tenantId },
           by: ['category'],
           _count: { id: true },
           _sum: { size: true }
         }),
         this.prisma.file.findMany({
+          where: { tenantId },
           take: 10,
           orderBy: { uploadedAt: 'desc' },
           select: {

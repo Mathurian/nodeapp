@@ -91,8 +91,6 @@ router.use(authenticateToken);
  *       403:
  *         description: Forbidden - requires ADMIN or AUDITOR role
  */
-router.get('/', eventsLogController.listEventLogs);
-
 /**
  * @swagger
  * /api/events-log/{id}:
@@ -211,7 +209,8 @@ router.get('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogControll
  */
 router.post('/webhooks', requireRole(['SUPER_ADMIN', 'ADMIN']), eventsLogController.createWebhook);
 
-router.get('/:id', eventsLogController.getEventLog);
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR']), eventsLogController.listEventLogs);
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR']), eventsLogController.getEventLog);
 
 /**
  * @swagger

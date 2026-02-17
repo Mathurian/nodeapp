@@ -9,12 +9,12 @@ import {
   deleteLogFile
 } from '../controllers/logFilesController';
 
-// All log file routes require authentication and ADMIN/ORGANIZER/BOARD role
-// IMPORTANT: authenticateToken MUST run first to set req.user
-// requireRole checks req.user, so order is critical
+// All log file routes require authentication.
+// Read endpoints are available to operational roles, while destructive operations
+// are restricted to platform administrators.
 router.use(authenticateToken)
-// ADMIN has access to everything - requireRole handles this automatically
-router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']))
+const logReadRoles = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'];
+const logAdminRoles = ['SUPER_ADMIN', 'ADMIN'];
 
 /**
  * @swagger
@@ -28,7 +28,7 @@ router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']))
  *       200:
  *         description: Log files retrieved successfully
  */
-router.get('/', getLogFiles)
+router.get('/', requireRole(logReadRoles), getLogFiles)
 
 /**
  * @swagger
@@ -42,19 +42,19 @@ router.get('/', getLogFiles)
  *       200:
  *         description: Log files retrieved successfully
  */
-router.get('/files', getLogFiles)
+router.get('/files', requireRole(logReadRoles), getLogFiles)
 
 // Get contents of a specific log file
-router.get('/files/:filename', getLogFileContents)
+router.get('/files/:filename', requireRole(logReadRoles), getLogFileContents)
 
 // Download a log file
-router.get('/files/:filename/download', downloadLogFile)
+router.get('/files/:filename/download', requireRole(logReadRoles), downloadLogFile)
 
 // Delete a specific log file
-router.delete('/files/:filename', deleteLogFile)
+router.delete('/files/:filename', requireRole(logAdminRoles), deleteLogFile)
 
 // Cleanup old log files
-router.post('/cleanup', cleanupOldLogs)
+router.post('/cleanup', requireRole(logAdminRoles), cleanupOldLogs)
 
 export default router;
 

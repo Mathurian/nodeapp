@@ -3,7 +3,7 @@ import {
   getAllFiles,
   getFileStats
 } from '../controllers/fileController';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, requireRole } from '../middleware/auth';
 
 // Multer configuration available for future use
 // const storage = multer.diskStorage({
@@ -27,6 +27,7 @@ const router: Router = express.Router();
 
 // Apply authentication to all routes
 router.use(authenticateToken)
+const fileInventoryRoles = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'];
 
 /**
  * @swagger
@@ -40,7 +41,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Files retrieved successfully
  */
-router.get('/', getAllFiles)
+router.get('/', requireRole(fileInventoryRoles), getAllFiles)
 
 /**
  * @swagger
@@ -54,7 +55,7 @@ router.get('/', getAllFiles)
  *       200:
  *         description: File statistics retrieved successfully
  */
-router.get('/stats', getFileStats)
+router.get('/stats', requireRole(fileInventoryRoles), getFileStats)
 
 export default router;
 

@@ -4,6 +4,7 @@ import { BioService } from '../services/BioService';
 import { sendSuccess } from '../utils/responseHelpers';
 import fs from 'fs';
 import path from 'path';
+import prisma from '../config/database';
 
 export class BioController {
   private bioService: BioService;
@@ -70,8 +71,12 @@ export class BioController {
   getBioFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const filename = path.basename(req.params['filename'] || '');
+      const tenantId = req.tenantId || req.user?.tenantId;
       if (!filename) {
         return res.status(404).json({ success: false, message: 'Bio file not found' });
+      }
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: 'Tenant context required' });
       }
 
       const legacyPath = path.resolve(process.cwd(), 'uploads/bios', filename);
@@ -86,6 +91,65 @@ export class BioController {
           : null;
 
       if (!targetPath) {
+        return res.status(404).json({ success: false, message: 'Bio file not found' });
+      }
+
+      const pathCandidates = [
+        filename,
+        `/uploads/users/bios/${filename}`,
+        `uploads/users/bios/${filename}`,
+        `/uploads/bios/${filename}`,
+        `uploads/bios/${filename}`,
+        `/uploads/users/${filename}`,
+        `uploads/users/${filename}`
+      ];
+
+      const [fileRef, userRef, contestantRef, judgeRef] = await Promise.all([
+        prisma.file.findFirst({
+          where: {
+            tenantId,
+            OR: [
+              { filename },
+              { path: { in: pathCandidates } },
+              { path: { endsWith: `/users/bios/${filename}` } },
+              { path: { endsWith: `/bios/${filename}` } }
+            ]
+          },
+          select: { id: true }
+        }),
+        prisma.user.findFirst({
+          where: {
+            tenantId,
+            OR: [
+              ...pathCandidates.map((candidate) => ({ bio: { contains: candidate } })),
+              { imagePath: { in: pathCandidates } }
+            ]
+          },
+          select: { id: true }
+        }),
+        prisma.contestant.findFirst({
+          where: {
+            tenantId,
+            OR: [
+              ...pathCandidates.map((candidate) => ({ bio: { contains: candidate } })),
+              { imagePath: { in: pathCandidates } }
+            ]
+          },
+          select: { id: true }
+        }),
+        prisma.judge.findFirst({
+          where: {
+            tenantId,
+            OR: [
+              ...pathCandidates.map((candidate) => ({ bio: { contains: candidate } })),
+              { imagePath: { in: pathCandidates } }
+            ]
+          },
+          select: { id: true }
+        })
+      ]);
+
+      if (!fileRef && !userRef && !contestantRef && !judgeRef) {
         return res.status(404).json({ success: false, message: 'Bio file not found' });
       }
 

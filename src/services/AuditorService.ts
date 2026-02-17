@@ -362,10 +362,16 @@ export class AuditorService extends BaseService {
    * Reject an audit
    */
   async rejectAudit(categoryId: string, userId: string, reason: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { tenantId: true }
+    });
+
     // Record rejection as activity log
     const activityLog = await this.prisma.activityLog.create({
       data: {
         userId,
+        tenantId: category?.tenantId || null,
         action: 'AUDIT_REJECTED',
         resourceType: 'CATEGORY',
         resourceId: categoryId,

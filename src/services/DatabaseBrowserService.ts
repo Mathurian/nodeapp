@@ -11,10 +11,15 @@ export class DatabaseBrowserService extends BaseService {
     super();
   }
 
-  async getTables() {
+  private getPrismaClient(prismaClient?: PrismaClient): PrismaClient {
+    return prismaClient || this.prisma;
+  }
+
+  async getTables(prismaClient?: PrismaClient) {
+    const client = this.getPrismaClient(prismaClient);
     // Get list of tables from Prisma models
-    const allModels = Object.keys(this.prisma).filter(key =>
-      !key.startsWith('_') && !key.startsWith('$') && typeof (this.prisma as any)[key] === 'object'
+    const allModels = Object.keys(client).filter(key =>
+      !key.startsWith('_') && !key.startsWith('$') && typeof (client as any)[key] === 'object'
     );
 
     // Test each model to see if the table exists
@@ -22,7 +27,7 @@ export class DatabaseBrowserService extends BaseService {
     for (const modelName of allModels) {
       try {
         // Try to count - if it fails, table doesn't exist
-        await (this.prisma as any)[modelName].count();
+        await (client as any)[modelName].count();
         tables.push(modelName);
       } catch (error: unknown) {
         // Skip tables that don't exist in database
@@ -38,8 +43,14 @@ export class DatabaseBrowserService extends BaseService {
     return tables;
   }
 
-  async getTableData(tableName: string, page: number = 1, limit: number = 50) {
-    const model = (this.prisma as any)[tableName];
+  async getTableData(
+    tableName: string,
+    page: number = 1,
+    limit: number = 50,
+    prismaClient?: PrismaClient
+  ) {
+    const client = this.getPrismaClient(prismaClient);
+    const model = (client as any)[tableName];
     if (!model) {
       throw this.notFoundError('Table', tableName);
     }
@@ -81,8 +92,9 @@ export class DatabaseBrowserService extends BaseService {
     }
   }
 
-  async getTableSchema(tableName: string) {
-    const model = (this.prisma as any)[tableName];
+  async getTableSchema(tableName: string, prismaClient?: PrismaClient) {
+    const client = this.getPrismaClient(prismaClient);
+    const model = (client as any)[tableName];
     if (!model) {
       throw this.notFoundError('Table', tableName);
     }
@@ -98,8 +110,9 @@ export class DatabaseBrowserService extends BaseService {
    * Get a single record by ID
    * SUPER_ADMIN only
    */
-  async getRecord(tableName: string, recordId: string) {
-    const model = (this.prisma as any)[tableName];
+  async getRecord(tableName: string, recordId: string, prismaClient?: PrismaClient) {
+    const client = this.getPrismaClient(prismaClient);
+    const model = (client as any)[tableName];
     if (!model) {
       throw this.notFoundError('Table', tableName);
     }
@@ -131,9 +144,12 @@ export class DatabaseBrowserService extends BaseService {
     tableName: string,
     recordId: string,
     data: Record<string, unknown>,
-    userId: string
+    userId: string,
+    prismaClient?: PrismaClient,
+    tenantId?: string
   ) {
-    const model = (this.prisma as any)[tableName];
+    const client = this.getPrismaClient(prismaClient);
+    const model = (client as any)[tableName];
     if (!model) {
       throw this.notFoundError('Table', tableName);
     }
@@ -167,13 +183,14 @@ export class DatabaseBrowserService extends BaseService {
       });
 
       // Log the update action
-      await this.prisma.activityLog.create({
+      await client.activityLog.create({
         data: {
           action: 'DATABASE_RECORD_UPDATE',
           resourceType: 'DATABASE',
           resourceId: recordId,
           userId: userId,
           logLevel: 'INFO',
+          tenantId: tenantId || null,
           details: JSON.parse(JSON.stringify({
             table: tableName,
             recordId,
@@ -201,8 +218,15 @@ export class DatabaseBrowserService extends BaseService {
    * Delete a record by ID
    * SUPER_ADMIN only - all deletions are logged
    */
-  async deleteRecord(tableName: string, recordId: string, userId: string) {
-    const model = (this.prisma as any)[tableName];
+  async deleteRecord(
+    tableName: string,
+    recordId: string,
+    userId: string,
+    prismaClient?: PrismaClient,
+    tenantId?: string
+  ) {
+    const client = this.getPrismaClient(prismaClient);
+    const model = (client as any)[tableName];
     if (!model) {
       throw this.notFoundError('Table', tableName);
     }
@@ -230,13 +254,14 @@ export class DatabaseBrowserService extends BaseService {
       });
 
       // Log the deletion
-      await this.prisma.activityLog.create({
+      await client.activityLog.create({
         data: {
           action: 'DATABASE_RECORD_DELETE',
           resourceType: 'DATABASE',
           resourceId: recordId,
           userId: userId,
           logLevel: 'WARN',
+          tenantId: tenantId || null,
           details: JSON.parse(JSON.stringify({
             table: tableName,
             recordId,
@@ -265,9 +290,12 @@ export class DatabaseBrowserService extends BaseService {
   async createRecord(
     tableName: string,
     data: Record<string, unknown>,
-    userId: string
+    userId: string,
+    prismaClient?: PrismaClient,
+    tenantId?: string
   ) {
-    const model = (this.prisma as any)[tableName];
+    const client = this.getPrismaClient(prismaClient);
+    const model = (client as any)[tableName];
     if (!model) {
       throw this.notFoundError('Table', tableName);
     }
@@ -279,13 +307,14 @@ export class DatabaseBrowserService extends BaseService {
       });
 
       // Log the creation
-      await this.prisma.activityLog.create({
+      await client.activityLog.create({
         data: {
           action: 'DATABASE_RECORD_CREATE',
           resourceType: 'DATABASE',
           resourceId: newRecord.id,
           userId: userId,
           logLevel: 'INFO',
+          tenantId: tenantId || null,
           details: JSON.parse(JSON.stringify({
             table: tableName,
             recordId: newRecord.id,

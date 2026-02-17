@@ -54,8 +54,13 @@ const emceeScriptUpload = multer({
   }
 })
 
-// Script view endpoint - BEFORE auth middleware (allows signed URLs)
-router.get('/scripts/:scriptId/view', serveScriptFile)
+// Script view endpoint (authenticated)
+router.get(
+  '/scripts/:scriptId/view',
+  authenticateToken,
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']),
+  serveScriptFile
+)
 
 // Apply authentication to all other routes
 router.use(authenticateToken)

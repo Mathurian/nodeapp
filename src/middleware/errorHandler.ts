@@ -55,12 +55,14 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
             // Extract userName and userRole from request if available
             const userName: string | null = req.user?.name || null;
             const userRole: string | null = req.user?.role || null;
-            
+            const tenantId: string | null = (req as any).tenantId || req.user?.tenantId || null;
+
             await prisma.activityLog.create({
               data: {
                 userId: req.user!.id,
                 userName: userName,
                 userRole: userRole,
+                tenantId,
                 action: action,
                 resourceType: resourceType,
                 resourceId: finalResourceId,

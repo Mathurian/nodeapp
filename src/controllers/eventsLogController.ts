@@ -10,10 +10,15 @@ import { sendSuccess } from '../utils/responseHelpers';
 export const listEventLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { eventType, entityType, limit = 100, offset = 0 } = req.query;
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant context required' });
+      return;
+    }
 
     const logs = await prisma.eventLog.findMany({
       where: {
-        tenantId: req.tenantId,
+        tenantId,
         ...(eventType && { eventType: eventType as string }),
         ...(entityType && { entityType: entityType as string })
       },
@@ -24,7 +29,7 @@ export const listEventLogs = async (req: Request, res: Response, next: NextFunct
 
     const total = await prisma.eventLog.count({
       where: {
-        tenantId: req.tenantId,
+        tenantId,
         ...(eventType && { eventType: eventType as string }),
         ...(entityType && { entityType: entityType as string })
       }
@@ -38,9 +43,21 @@ export const listEventLogs = async (req: Request, res: Response, next: NextFunct
 
 export const getEventLog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const log = await prisma.eventLog.findUnique({
-      where: { id: req.params['id'] }
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant context required' });
+      return;
+    }
+    const log = await prisma.eventLog.findFirst({
+      where: {
+        id: req.params['id'],
+        tenantId
+      }
     });
+    if (!log) {
+      res.status(404).json({ success: false, error: 'Event log not found' });
+      return;
+    }
     sendSuccess(res, log);
   } catch (error) {
     return next(error);
@@ -49,8 +66,13 @@ export const getEventLog = async (req: Request, res: Response, next: NextFunctio
 
 export const listWebhooks = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant context required' });
+      return;
+    }
     const webhooks = await prisma.webhookConfig.findMany({
-      where: { tenantId: req.tenantId! }
+      where: { tenantId }
     });
     sendSuccess(res, webhooks);
   } catch (error) {
@@ -60,10 +82,15 @@ export const listWebhooks = async (req: Request, res: Response, next: NextFuncti
 
 export const createWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant context required' });
+      return;
+    }
     const webhook = await prisma.webhookConfig.create({
       data: {
         ...req.body,
-        tenantId: req.tenantId!
+        tenantId
       }
     });
     sendSuccess(res, webhook, 'Webhook created', 201);
@@ -74,11 +101,29 @@ export const createWebhook = async (req: Request, res: Response, next: NextFunct
 
 export const updateWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const webhook = await prisma.webhookConfig.update({
-      where: { id: req.params['id'] },
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant context required' });
+      return;
+    }
+    const webhook = await prisma.webhookConfig.updateMany({
+      where: {
+        id: req.params['id'],
+        tenantId
+      },
       data: req.body
     });
-    sendSuccess(res, webhook, 'Webhook updated');
+    if (webhook.count === 0) {
+      res.status(404).json({ success: false, error: 'Webhook not found' });
+      return;
+    }
+    const updatedWebhook = await prisma.webhookConfig.findFirst({
+      where: {
+        id: req.params['id'],
+        tenantId
+      }
+    });
+    sendSuccess(res, updatedWebhook, 'Webhook updated');
   } catch (error) {
     return next(error);
   }
@@ -86,9 +131,21 @@ export const updateWebhook = async (req: Request, res: Response, next: NextFunct
 
 export const deleteWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    await prisma.webhookConfig.delete({
-      where: { id: req.params['id'] }
+    const tenantId = req.tenantId || req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant context required' });
+      return;
+    }
+    const result = await prisma.webhookConfig.deleteMany({
+      where: {
+        id: req.params['id'],
+        tenantId
+      }
     });
+    if (result.count === 0) {
+      res.status(404).json({ success: false, error: 'Webhook not found' });
+      return;
+    }
     sendSuccess(res, null, 'Webhook deleted');
   } catch (error) {
     return next(error);

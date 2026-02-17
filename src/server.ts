@@ -38,6 +38,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
 import { tenantMiddleware } from './middleware/tenantMiddleware';
+import { authenticateToken } from './middleware/auth';
 // S4-2: Correlation ID middleware for request tracing
 import { correlationIdMiddleware, contextMiddleware } from './middleware/correlationId';
 
@@ -252,39 +253,176 @@ app.use('/api', (req: Request, res: Response, next: NextFunction) => {
 registerRoutes(app);
 
 /**
- * Serve uploaded files statically with security options
+ * Serve uploaded files with tenant-aware access checks.
+ * Only theme assets are public by design.
  */
-app.get('/uploads/bios/:filename', (req: Request, res: Response, next: NextFunction) => {
-  const filename = path.basename(req.params['filename'] || '');
-  if (!filename) return next();
+const uploadsRoot = path.resolve(__dirname, '../uploads');
 
-  const legacyPath = path.join(__dirname, '../uploads/bios', filename);
-  const userBioPath = path.join(__dirname, '../uploads/users/bios', filename);
-  const targetPath = fs.existsSync(legacyPath) ? legacyPath : userBioPath;
-
-  if (fs.existsSync(targetPath)) {
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.sendFile(targetPath);
-  }
-
-  return next();
-});
-
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-  dotfiles: 'deny', // Prevent access to dotfiles
-  index: false, // Disable directory listing
-  setHeaders: (res: Response, filePath: string) => {
-    // Set appropriate cache headers for uploaded files
-    if (filePath.match(/.(jpg|jpeg|png|gif|webp)$/i)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year for images
-    } else {
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for other files
+const normalizeUploadPath = (rawPath: string): string | null => {
+  try {
+    const decoded = decodeURIComponent(rawPath || '');
+    const normalized = path.posix.normalize(decoded).replace(/^\/+/, '');
+    if (!normalized || normalized.startsWith('..') || normalized.includes('\\')) {
+      return null;
     }
-    // Security headers
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return normalized;
+  } catch (_error) {
+    return null;
   }
-}));
+};
+
+const buildUploadPathCandidates = (relativePath: string): string[] => {
+  const normalized = relativePath.replace(/^\/+/, '');
+  const basename = path.posix.basename(normalized);
+  const candidates = new Set<string>([
+    normalized,
+    `/${normalized}`,
+    `uploads/${normalized}`,
+    `/uploads/${normalized}`,
+    basename
+  ]);
+  return Array.from(candidates);
+};
+
+const isUploadPathReferencedByTenant = async (tenantId: string, relativePath: string): Promise<boolean> => {
+  const pathCandidates = buildUploadPathCandidates(relativePath);
+  const basename = path.posix.basename(relativePath);
+
+  const dbFile = await prisma.file.findFirst({
+    where: {
+      tenantId,
+      OR: [
+        { path: { in: pathCandidates } },
+        { path: { endsWith: `/${relativePath}` } },
+        { filename: basename }
+      ]
+    },
+    select: { id: true }
+  });
+  if (dbFile) return true;
+
+  const [userRef, contestantRef, judgeRef, emceeRef] = await Promise.all([
+    prisma.user.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { imagePath: { in: pathCandidates } },
+          ...pathCandidates.map((candidate) => ({ bio: { contains: candidate } })),
+          ...pathCandidates.map((candidate) => ({ judgeBio: { contains: candidate } })),
+          ...pathCandidates.map((candidate) => ({ contestantBio: { contains: candidate } }))
+        ]
+      },
+      select: { id: true }
+    }),
+    prisma.contestant.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { imagePath: { in: pathCandidates } },
+          ...pathCandidates.map((candidate) => ({ bio: { contains: candidate } }))
+        ]
+      },
+      select: { id: true }
+    }),
+    prisma.judge.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { imagePath: { in: pathCandidates } },
+          ...pathCandidates.map((candidate) => ({ bio: { contains: candidate } }))
+        ]
+      },
+      select: { id: true }
+    }),
+    prisma.emceeScript.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { filePath: { in: pathCandidates } },
+          { filePath: { endsWith: `/${relativePath}` } }
+        ]
+      },
+      select: { id: true }
+    })
+  ]);
+
+  return Boolean(userRef || contestantRef || judgeRef || emceeRef);
+};
+
+app.get('/uploads/*', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rawPath = (req.params as Record<string, string>)['0'] || '';
+    let relativePath = normalizeUploadPath(rawPath);
+
+    if (!relativePath) {
+      return res.status(400).json({ success: false, error: 'Invalid file path' });
+    }
+
+    // Backward compatibility: historical theme files were stored as /uploads/<filename>.
+    if (!relativePath.includes('/')) {
+      const legacyThemeCandidate = path.resolve(uploadsRoot, 'theme', relativePath);
+      if (fs.existsSync(legacyThemeCandidate)) {
+        relativePath = `theme/${relativePath}`;
+      }
+    }
+
+    const absolutePath = path.resolve(uploadsRoot, relativePath);
+    if (!absolutePath.startsWith(`${uploadsRoot}${path.sep}`) && absolutePath !== uploadsRoot) {
+      return res.status(400).json({ success: false, error: 'Invalid file path' });
+    }
+
+    // Theme assets are intentionally public for pre-auth branding.
+    if (relativePath.startsWith('theme/')) {
+      if (!fs.existsSync(absolutePath)) {
+        return next();
+      }
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      return res.sendFile(absolutePath);
+    }
+
+    authenticateToken(req, res, (err?: unknown) => {
+      if (err) {
+        return next(err);
+      }
+
+      void (async () => {
+        if (res.headersSent) {
+          return;
+        }
+
+        if (!req.user) {
+          res.status(401).json({ success: false, error: 'Authentication required' });
+          return;
+        }
+
+        if (!fs.existsSync(absolutePath)) {
+          next();
+          return;
+        }
+
+        const tenantId = req.tenantId || req.user.tenantId;
+        if (!tenantId) {
+          res.status(400).json({ success: false, error: 'Tenant context required' });
+          return;
+        }
+
+        const hasAccess = await isUploadPathReferencedByTenant(tenantId, relativePath);
+        if (!hasAccess) {
+          res.status(403).json({ success: false, error: 'Access denied' });
+          return;
+        }
+
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.sendFile(absolutePath);
+      })().catch(next);
+    });
+    return;
+  } catch (error) {
+    return next(error);
+  }
+});
 
 /**
  * Socket.IO Setup

@@ -89,6 +89,11 @@ export class FileManagementController {
 
   getFilesWithFilters = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
+
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 50;
       const skip = (page - 1) * limit;
@@ -107,7 +112,7 @@ export class FileManagementController {
       const startDate = req.query['startDate'] as string | undefined;
       const endDate = req.query['endDate'] as string | undefined;
 
-      const where: Prisma.FileWhereInput = {};
+      const where: Prisma.FileWhereInput = { tenantId };
 
       if (category) where.category = category;
       if (eventId) where.eventId = eventId;
@@ -187,7 +192,8 @@ export class FileManagementController {
           // Bulk delete files
           const deleteResult = await this.prisma.file.deleteMany({
             where: {
-              id: { in: fileIds }
+              id: { in: fileIds },
+              tenantId: req.user!.tenantId
             }
           });
           result.processed = deleteResult.count;
@@ -208,7 +214,8 @@ export class FileManagementController {
 
           const updateResult = await this.prisma.file.updateMany({
             where: {
-              id: { in: fileIds }
+              id: { in: fileIds },
+              tenantId: req.user!.tenantId
             },
             data: updateData
           });
@@ -254,6 +261,10 @@ export class FileManagementController {
     try {
       const { query } = req.query;
       const limit = parseInt(req.query['limit'] as string) || 10;
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       if (!query || typeof query !== 'string') {
         return sendSuccess(res, [], 'query parameter is required');
@@ -262,6 +273,7 @@ export class FileManagementController {
       // Search for file suggestions based on filename and originalName
       const suggestions = await this.prisma.file.findMany({
         where: {
+          tenantId,
           OR: [
             { filename: { contains: query, mode: 'insensitive' } },
             { originalName: { contains: query, mode: 'insensitive' } }
@@ -290,10 +302,15 @@ export class FileManagementController {
     try {
       const days = parseInt(req.query['days'] as string) || 30;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       // Get files uploaded in the time range
       const files = await this.prisma.file.findMany({
         where: {
+          tenantId,
           uploadedAt: { gte: since }
         },
         select: {
@@ -367,12 +384,16 @@ export class FileManagementController {
 
   checkFileIntegrity = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { id } = req.params;
+      const { fileId } = req.params;
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       const file = await this.prisma.file.findFirst({
         where: {
-          id,
-          tenantId: req.user!.tenantId
+          id: fileId,
+          tenantId
         }
       });
 

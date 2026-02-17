@@ -16,9 +16,13 @@ export class DatabaseBrowserController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  getTables = async (_req: Request, res: Response, next: NextFunction) => {
+  private getScopedPrisma(req: Request): PrismaClient {
+    return (req.prisma as PrismaClient | undefined) || this.prisma;
+  }
+
+  getTables = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tables = await this.databaseBrowserService.getTables();
+      const tables = await this.databaseBrowserService.getTables(this.getScopedPrisma(req));
       return sendSuccess(res, tables);
     } catch (error) {
       return next(error);
@@ -32,7 +36,8 @@ export class DatabaseBrowserController {
       const result = await this.databaseBrowserService.getTableData(
         tableName!,
         page ? parseInt(page as string) : 1,
-        limit ? parseInt(limit as string) : 50
+        limit ? parseInt(limit as string) : 50,
+        this.getScopedPrisma(req)
       );
       return sendSuccess(res, result);
     } catch (error) {
@@ -43,7 +48,10 @@ export class DatabaseBrowserController {
   getTableSchema = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { tableName } = req.params;
-      const schema = await this.databaseBrowserService.getTableSchema(tableName!);
+      const schema = await this.databaseBrowserService.getTableSchema(
+        tableName!,
+        this.getScopedPrisma(req)
+      );
       return sendSuccess(res, schema);
     } catch (error) {
       return next(error);
@@ -62,12 +70,15 @@ export class DatabaseBrowserController {
         userAgent: req.get('user-agent')
       });
 
+      const prismaClient = this.getScopedPrisma(req);
+
       // Log the attempt
-      await this.prisma.activityLog.create({
+      await prismaClient.activityLog.create({
         data: {
           action: 'DATABASE_QUERY_ATTEMPT_BLOCKED',
           resourceType: 'DATABASE',
           userId: req.user?.id || null,
+          tenantId: req.tenantId || req.user?.tenantId || null,
           ipAddress: req.ip || null,
           userAgent: req.get('user-agent') || null,
           logLevel: 'WARN',
@@ -98,12 +109,15 @@ export class DatabaseBrowserController {
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = parseInt(req.query['limit'] as string) || 50;
       const skip = (page - 1) * limit;
+      const prismaClient = this.getScopedPrisma(req);
+      const whereClause = {
+        action: 'DATABASE_QUERY',
+        ...(req.tenantId ? { tenantId: req.tenantId } : {})
+      };
 
       const [queries, total]: any = await Promise.all([
-        this.prisma.activityLog.findMany({
-          where: {
-            action: 'DATABASE_QUERY'
-          },
+        prismaClient.activityLog.findMany({
+          where: whereClause as any,
           include: {
             user: {
               select: {
@@ -117,9 +131,7 @@ export class DatabaseBrowserController {
           take: limit,
           orderBy: { createdAt: 'desc' }
         } as any),
-        this.prisma.activityLog.count({
-          where: { action: 'DATABASE_QUERY' }
-        })
+        prismaClient.activityLog.count({ where: whereClause as any })
       ]);
 
       return sendSuccess(res, {
@@ -152,7 +164,11 @@ export class DatabaseBrowserController {
         });
       }
 
-      const record = await this.databaseBrowserService.getRecord(tableName, recordId);
+      const record = await this.databaseBrowserService.getRecord(
+        tableName,
+        recordId,
+        this.getScopedPrisma(req)
+      );
       return sendSuccess(res, record);
     } catch (error) {
       return next(error);
@@ -202,7 +218,9 @@ export class DatabaseBrowserController {
         tableName,
         recordId,
         data,
-        userId
+        userId,
+        this.getScopedPrisma(req),
+        req.tenantId || req.user?.tenantId
       );
 
       return sendSuccess(res, updatedRecord, 'Record updated successfully');
@@ -244,7 +262,9 @@ export class DatabaseBrowserController {
       const result = await this.databaseBrowserService.deleteRecord(
         tableName,
         recordId,
-        userId
+        userId,
+        this.getScopedPrisma(req),
+        req.tenantId || req.user?.tenantId
       );
 
       return sendSuccess(res, result, 'Record deleted successfully');
@@ -293,7 +313,9 @@ export class DatabaseBrowserController {
       const newRecord = await this.databaseBrowserService.createRecord(
         tableName,
         data,
-        userId
+        userId,
+        this.getScopedPrisma(req),
+        req.tenantId || req.user?.tenantId
       );
 
       return sendSuccess(res, newRecord, 'Record created successfully');

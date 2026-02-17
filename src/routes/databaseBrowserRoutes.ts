@@ -17,8 +17,9 @@ import {
 // All database browser routes require authentication
 router.use(authenticateToken);
 
-// Read-only routes - allow ADMIN and ORGANIZER
-const readOnlyRoles = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'];
+// Read-only routes are restricted to SUPER_ADMIN only.
+// Database browser exposes low-level table data and must not be tenant-operator accessible.
+const readOnlyRoles = ['SUPER_ADMIN'];
 
 /**
  * @swagger

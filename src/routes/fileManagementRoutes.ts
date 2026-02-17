@@ -30,7 +30,7 @@ router.use(authenticateToken)
 router.get('/files', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getFilesWithFilters)
 
 // File search and suggestions
-router.get('/files/search', getFileSearchSuggestions)
+router.get('/files/search', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getFileSearchSuggestions)
 
 // File analytics
 router.get('/files/analytics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getFileAnalytics)

@@ -739,7 +739,7 @@ export class SettingsController {
         return;
       }
 
-      const logoPath = `/uploads/${file.filename}`;
+      const logoPath = `/uploads/theme/${file.filename}`;
       await this.settingsService.updateSetting(
         'theme_logoPath',
         logoPath,
@@ -772,7 +772,7 @@ export class SettingsController {
         return;
       }
 
-      const faviconPath = `/uploads/${file.filename}`;
+      const faviconPath = `/uploads/theme/${file.filename}`;
       await this.settingsService.updateSetting(
         'theme_faviconPath',
         faviconPath,
