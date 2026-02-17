@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import { getHealthStatus, getDetailedMetrics } from '../controllers/databaseHealthController';
+import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -20,6 +21,6 @@ router.get('/database', getHealthStatus);
  * Get detailed database metrics
  * Requires authentication (admin only)
  */
-router.get('/database/metrics', getDetailedMetrics);
+router.get('/database/metrics', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN']), getDetailedMetrics);
 
 export default router;

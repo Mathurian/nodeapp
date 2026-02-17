@@ -231,7 +231,9 @@ export class EventsController {
       if (!id) {
         return sendBadRequest(res, 'Event ID is required');
       }
-      const event = await this.eventService.getEventById(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const event = await this.eventService.getEventById(id, tenantId, isSuperAdmin);
       return sendSuccess(res, event);
     } catch (error) {
       return next(error);
@@ -247,7 +249,9 @@ export class EventsController {
       if (!id) {
         return sendBadRequest(res, 'Event ID is required');
       }
-      const event = await this.eventService.getEventWithDetails(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const event = await this.eventService.getEventWithDetails(id, tenantId, isSuperAdmin);
       return sendSuccess(res, event);
     } catch (error) {
       return next(error);
@@ -257,9 +261,11 @@ export class EventsController {
   /**
    * Get upcoming events
    */
-  getUpcomingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getUpcomingEvents = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const events = await this.eventService.getUpcomingEvents();
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const events = await this.eventService.getUpcomingEvents(tenantId, isSuperAdmin);
       return sendSuccess(res, events);
     } catch (error) {
       return next(error);
@@ -269,9 +275,11 @@ export class EventsController {
   /**
    * Get ongoing events
    */
-  getOngoingEvents = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getOngoingEvents = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const events = await this.eventService.getOngoingEvents();
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const events = await this.eventService.getOngoingEvents(tenantId, isSuperAdmin);
       return sendSuccess(res, events);
     } catch (error) {
       return next(error);
@@ -281,9 +289,11 @@ export class EventsController {
   /**
    * Get past events
    */
-  getPastEvents = async (_req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+  getPastEvents = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const events = await this.eventService.getPastEvents();
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const events = await this.eventService.getPastEvents(tenantId, isSuperAdmin);
       return sendSuccess(res, events);
     } catch (error) {
       return next(error);
@@ -334,9 +344,11 @@ export class EventsController {
       }
 
       // Get old data for change tracking
-      const oldEvent = await this.eventService.getEventById(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const oldEvent = await this.eventService.getEventById(id, tenantId, isSuperAdmin);
 
-      const event = await this.eventService.updateEvent(id, req.body);
+      const event = await this.eventService.updateEvent(id, req.body, tenantId, isSuperAdmin);
 
       // Audit log: event update with change tracking
       try {
@@ -373,11 +385,13 @@ export class EventsController {
       }
 
       // Get event data before deletion for audit log
-      const event = await this.eventService.getEventById(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const event = await this.eventService.getEventById(id, tenantId, isSuperAdmin);
 
       // S4-3: Pass userId for deletedBy tracking
       const userId = req.user?.id;
-      await this.eventService.deleteEvent(id, userId);
+      await this.eventService.deleteEvent(id, userId, tenantId, isSuperAdmin);
 
       // Audit log: event deletion
       try {
@@ -411,7 +425,9 @@ export class EventsController {
         return sendBadRequest(res, 'Event ID is required');
       }
 
-      const restoredEvent = await this.eventService.restoreEvent(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const restoredEvent = await this.eventService.restoreEvent(id, tenantId, isSuperAdmin);
 
       // Audit log: event restoration
       try {
@@ -443,7 +459,9 @@ export class EventsController {
       if (!id) {
         return sendBadRequest(res, 'Event ID is required');
       }
-      const event = await this.eventService.archiveEvent(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const event = await this.eventService.archiveEvent(id, tenantId, isSuperAdmin);
 
       // Audit log: event archived
       try {
@@ -475,7 +493,9 @@ export class EventsController {
       if (!id) {
         return sendBadRequest(res, 'Event ID is required');
       }
-      const event = await this.eventService.unarchiveEvent(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const event = await this.eventService.unarchiveEvent(id, tenantId, isSuperAdmin);
 
       // Audit log: event unarchived
       try {
@@ -507,7 +527,9 @@ export class EventsController {
       if (!id) {
         return sendBadRequest(res, 'Event ID is required');
       }
-      const stats = await this.eventService.getEventStats(id);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const stats = await this.eventService.getEventStats(id, tenantId, isSuperAdmin);
       return sendSuccess(res, stats);
     } catch (error) {
       return next(error);
@@ -525,7 +547,9 @@ export class EventsController {
         return sendSuccess(res, []);
       }
 
-      const events = await this.eventService.searchEvents(q);
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const events = await this.eventService.searchEvents(q, tenantId, isSuperAdmin);
       return sendSuccess(res, events);
     } catch (error) {
       return next(error);

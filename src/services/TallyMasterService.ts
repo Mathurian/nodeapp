@@ -601,9 +601,12 @@ export class TallyMasterService extends BaseService {
         category.scores.length > 0 && category.scores.every((s) => (s as { isCertified?: boolean }).isCertified === true);
 
       let currentStep = 1;
-      const totalSteps = 4;
+      const totalSteps = 6;
       let statusLabel = 'Waiting for Judges';
       let statusColor = 'warning';
+      const hasBoardCertification = category.categoryCertifications?.some(
+        (c) => c.role === 'BOARD' || c.role === 'BOARD_MEMBER'
+      );
 
       if (allJudgesCertified && !category.totalsCertified) {
         currentStep = 2;
@@ -617,11 +620,11 @@ export class TallyMasterService extends BaseService {
         currentStep = 4;
         statusLabel = 'Ready for Auditor';
         statusColor = 'info';
-      } else if (category.categoryCertifications?.some((c) => c.role === 'AUDITOR') && !category.categoryCertifications?.some((c) => c.role === 'BOARD_MEMBER')) {
+      } else if (category.categoryCertifications?.some((c) => c.role === 'AUDITOR') && !hasBoardCertification) {
         currentStep = 5;
         statusLabel = 'Ready for Board';
         statusColor = 'success';
-      } else if (category.categoryCertifications?.some((c) => c.role === 'BOARD_MEMBER')) {
+      } else if (hasBoardCertification) {
         currentStep = 6;
         statusLabel = 'Fully Certified';
         statusColor = 'success';

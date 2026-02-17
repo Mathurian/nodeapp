@@ -30,10 +30,13 @@ export class BulkEventController {
         return;
       }
 
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+
       const result = await this.bulkOperationService.executeBulkOperation(
         async (eventId: string) => {
-          const event = await this.eventService.getEventById(eventId);
-          await this.eventService.updateEvent(eventId, { ...event, status } as any);
+          const event = await this.eventService.getEventById(eventId, tenantId, isSuperAdmin);
+          await this.eventService.updateEvent(eventId, { ...event, status } as any, tenantId, isSuperAdmin);
         },
         eventIds
       );
@@ -62,9 +65,12 @@ export class BulkEventController {
         return;
       }
 
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
+
       const result = await this.bulkOperationService.executeBulkOperation(
         async (eventId: string) => {
-          await this.eventService.deleteEvent(eventId);
+          await this.eventService.deleteEvent(eventId, req.user?.id, tenantId, isSuperAdmin);
         },
         eventIds
       );
@@ -94,10 +100,12 @@ export class BulkEventController {
       }
 
       const clonedEvents: any[] = [];
+      const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const isSuperAdmin = Boolean((req as any).isSuperAdmin);
 
       const result = await this.bulkOperationService.executeBulkOperation(
         async (eventId: string) => {
-          const event = await this.eventService.getEventById(eventId);
+          const event = await this.eventService.getEventById(eventId, tenantId, isSuperAdmin);
           const cloned = await this.eventService.createEvent({
             ...event,
             name: event.name + ' (Copy)',

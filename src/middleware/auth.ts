@@ -153,6 +153,33 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
+    const normalizedUserRole = String(user.role).trim().toUpperCase();
+    const requestTenantId = (req as any).tenantId as string | undefined;
+
+    // Authenticated non-superadmins are always bound to their token tenant context.
+    // This prevents cross-tenant access if request tenant context is tampered.
+    if (
+      requestTenantId &&
+      normalizedUserRole !== 'SUPER_ADMIN' &&
+      requestTenantId !== decoded.tenantId &&
+      requestTenantId !== user.tenantId
+    ) {
+      logger.warn('Authentication blocked due to tenant context mismatch', {
+        userId: user.id,
+        role: user.role,
+        requestTenantId,
+        tokenTenantId: decoded.tenantId,
+        userTenantId: user.tenantId,
+        path: req.path,
+      });
+      res.status(403).json({
+        success: false,
+        error: 'Tenant context mismatch',
+        code: 'TENANT_CONTEXT_MISMATCH',
+      });
+      return;
+    }
+
     // SECURITY FIX #17: Improve session version tracking to prevent race conditions
     // Always fetch fresh session version from database when user is from cache
     // to prevent stale cached data from bypassing security checks
@@ -216,7 +243,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 
     // Set isSuperAdmin flag for tenant filtering bypass
     // SUPER_ADMIN role can see data across all tenants
-    const userRole = String(user.role).trim().toUpperCase();
+    const userRole = normalizedUserRole;
     (req as any).isSuperAdmin = (userRole === 'SUPER_ADMIN');
 
     // Recreate req.prisma with correct isSuperAdmin flag
@@ -370,10 +397,10 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
       return;
     }
 
-    // SUPER_ADMIN and ADMIN have access to EVERYTHING - always allow, no exceptions
-    // Check this FIRST before any other logic
+    const normalizedRoles = roles.map(r => String(r).trim().toUpperCase());
     const userRole = String(req.user.role).trim().toUpperCase();
-    if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
+    // SUPER_ADMIN has access to all routes.
+    if (userRole === 'SUPER_ADMIN') {
       // Log for debugging sensitive endpoints
       const isSensitiveEndpoint = req.path && (
         req.path.includes('/cache/') ||
@@ -381,7 +408,7 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
         req.path.includes('/backup/settings')
       );
       if (isSensitiveEndpoint) {
-        logger.info('requireRole: ✅ SUPER_ADMIN/ADMIN access granted (unconditional)', {
+        logger.info('requireRole: ✅ SUPER_ADMIN access granted (unconditional)', {
           userRole,
           path: req.path,
           email: req.user.email,
@@ -389,8 +416,17 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
           timestamp: new Date().toISOString()
         });
       }
-      next(); // SUPER_ADMIN and ADMIN always pass - never block, no matter what
+      next();
       return;
+    }
+
+    // ADMIN has broad platform access, but cannot satisfy SUPER_ADMIN-only routes.
+    if (userRole === 'ADMIN') {
+      const superAdminOnlyRoute = normalizedRoles.includes('SUPER_ADMIN') && !normalizedRoles.includes('ADMIN');
+      if (!superAdminOnlyRoute) {
+        next();
+        return;
+      }
     }
 
     // ORGANIZER access with resource scoping
@@ -435,7 +471,6 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
     }
 
     // Check if user role is in allowed roles (normalized comparison)
-    const normalizedRoles = roles.map(r => String(r).trim().toUpperCase());
     if (!normalizedRoles.includes(userRole)) {
       logger.warn('requireRole: Role check failed (403)', {
         userRole: req.user.role,

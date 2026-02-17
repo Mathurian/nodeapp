@@ -60,6 +60,22 @@ export const parseAllowedOrigins = (): string[] => {
 /**
  * CORS origin validation function
  */
+const normalizeOriginValue = (value: string): string | null => {
+  const trimmed = value.trim().replace(/\/$/, '');
+  if (!trimmed) return null;
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    // Backward compatibility for bare host entries in ALLOWED_ORIGINS.
+    try {
+      return new URL(`https://${trimmed}`).origin;
+    } catch {
+      return null;
+    }
+  }
+};
+
 export const isAllowedOrigin = (origin: string | undefined, allowedOrigins: string[]): boolean => {
   if (!origin) return true // Allow same-origin/no-origin requests
 
@@ -70,23 +86,26 @@ export const isAllowedOrigin = (origin: string | undefined, allowedOrigins: stri
     return true
   }
 
-  // Normalize origin (remove trailing slash, ensure protocol)
-  const normalizedOrigin = origin.trim().replace(/\/$/, '')
-  
-  // Also check protocol-agnostic match (http vs https)
-  const isAllowed = allowedOrigins.some(allowed => {
-    const normalizedAllowed = allowed.trim().replace(/\/$/, '')
-    const exactMatch = normalizedAllowed === normalizedOrigin
-    // Also allow http version if https is allowed, and vice versa (for same domain)
-    const protocolAgnosticMatch = normalizedAllowed.replace(/^https?:\/\//, '') === normalizedOrigin.replace(/^https?:\/\//, '')
-    return exactMatch || protocolAgnosticMatch || normalizedOrigin.startsWith(normalizedAllowed)
-  })
+  const normalizedOrigin = normalizeOriginValue(origin)
+  if (!normalizedOrigin) {
+    logger.warn('CORS rejection: invalid origin format', {
+      origin,
+      timestamp: new Date().toISOString(),
+    })
+    return false
+  }
+
+  const normalizedAllowedOrigins = allowedOrigins
+    .map(normalizeOriginValue)
+    .filter((value): value is string => !!value)
+
+  const isAllowed = normalizedAllowedOrigins.includes(normalizedOrigin)
 
   // Log CORS rejections for debugging
   if (!isAllowed) {
     logger.warn('CORS rejection', {
       origin: normalizedOrigin,
-      allowedOrigins,
+      allowedOrigins: normalizedAllowedOrigins,
       timestamp: new Date().toISOString(),
     })
   }

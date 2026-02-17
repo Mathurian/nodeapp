@@ -35,16 +35,21 @@ export const getAllPermissions = async (
 
     // Build where clause
     const whereClause: any = {};
+    const roleFilter = req.query['role'] as UserRole | undefined;
 
     // Non-SUPER_ADMIN users can only see their tenant's permissions
     if (!isSuperAdmin) {
       whereClause.tenantId = tenantId;
-      whereClause.role = { not: 'SUPER_ADMIN' };
-    }
-
-    // Optional role filter
-    const roleFilter = req.query['role'] as UserRole | undefined;
-    if (roleFilter) {
+      if (roleFilter) {
+        if (roleFilter === 'SUPER_ADMIN') {
+          return sendForbidden(res, 'Access to SUPER_ADMIN permissions is restricted');
+        }
+        whereClause.role = roleFilter;
+      } else {
+        whereClause.role = { not: 'SUPER_ADMIN' };
+      }
+    } else if (roleFilter) {
+      // SUPER_ADMIN can filter by any role, including SUPER_ADMIN
       whereClause.role = roleFilter;
     }
 

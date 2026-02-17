@@ -79,8 +79,9 @@ export class EventService extends BaseService {
   /**
    * Get cache key for event
    */
-  private getCacheKey(id: string): string {
-    return `event:${id}`;
+  private getCacheKey(id: string, tenantId?: string, isSuperAdmin: boolean = false): string {
+    const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+    return `event:${scope}:${id}`;
   }
 
   /**
@@ -95,7 +96,9 @@ export class EventService extends BaseService {
    */
   private async invalidateEventCache(id?: string): Promise<void> {
     if (id) {
-      await this.cacheService.del(this.getCacheKey(id));
+      await this.cacheService.invalidatePattern(`event:*:${id}`);
+      await this.cacheService.invalidatePattern(`event:details:*:${id}`);
+      await this.cacheService.invalidatePattern(`events:stats:*:${id}`);
     }
     // Invalidate all event list caches
     await this.cacheService.invalidatePattern('events:list:*');
@@ -153,10 +156,10 @@ export class EventService extends BaseService {
   /**
    * Get event by ID with caching
    */
-  async getEventById(id: string): Promise<Event> {
+  async getEventById(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
     try {
       // Try cache first
-      const cacheKey = this.getCacheKey(id);
+      const cacheKey = this.getCacheKey(id, tenantId, isSuperAdmin);
       const cached = await this.cacheService.get<Event>(cacheKey);
 
       if (cached) {
@@ -165,7 +168,7 @@ export class EventService extends BaseService {
       }
 
       // Fetch from database
-      const event = await this.eventRepo.findById(id);
+      const event = await this.eventRepo.findByIdScoped(id, tenantId, isSuperAdmin);
 
       if (!event) {
         throw this.notFoundError('Event', id);
@@ -184,16 +187,17 @@ export class EventService extends BaseService {
   /**
    * Get event with full details
    */
-  async getEventWithDetails(id: string): Promise<EventWithDetails> {
+  async getEventWithDetails(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<EventWithDetails> {
     try {
-      const cacheKey = `event:details:${id}`;
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `event:details:${scope}:${id}`;
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
         return cached as EventWithDetails;
       }
 
-      const event = await this.eventRepo.findEventWithDetails(id);
+      const event = await this.eventRepo.findEventWithDetails(id, tenantId, isSuperAdmin);
 
       if (!event) {
         throw new NotFoundError(`Event ${id} not found`);
@@ -211,7 +215,7 @@ export class EventService extends BaseService {
   /**
    * Get all events with filters
    */
-  async getAllEvents(filters?: EventFilters): Promise<Event[]> {
+  async getAllEvents(filters?: EventFilters, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
       const cacheKey = this.getListCacheKey(filters);
       const cached = await this.cacheService.get<Event[]>(cacheKey);
@@ -224,12 +228,12 @@ export class EventService extends BaseService {
 
       if (filters?.archived !== undefined) {
         events = filters.archived
-          ? await this.eventRepo.findArchivedEvents()
-          : await this.eventRepo.findActiveEvents();
+          ? await this.eventRepo.findArchivedEvents(filters.tenantId, isSuperAdmin)
+          : await this.eventRepo.findActiveEvents(filters.tenantId, isSuperAdmin);
       } else if (filters?.search) {
-        events = await this.eventRepo.searchEvents(filters.search);
+        events = await this.eventRepo.searchEvents(filters.search, filters.tenantId, isSuperAdmin);
       } else {
-        events = await this.eventRepo.findActiveEvents();
+        events = await this.eventRepo.findActiveEvents(filters?.tenantId, isSuperAdmin);
       }
 
       events = events.filter((event) => !event.deletedAt);
@@ -284,7 +288,8 @@ export class EventService extends BaseService {
    */
   async getAllEventsPaginated(
     filters?: EventFilters,
-    paginationOptions?: PaginationOptions
+    paginationOptions?: PaginationOptions,
+    isSuperAdmin: boolean = false
   ): Promise<PaginatedResponse<Event>> {
     try {
       // Build repository pagination options (use defaults from repository)
@@ -301,12 +306,12 @@ export class EventService extends BaseService {
 
       if (filters?.archived !== undefined) {
         result = filters.archived
-          ? await this.eventRepo.findArchivedEventsPaginated(repoPaginationOptions)
-          : await this.eventRepo.findActiveEventsPaginated(repoPaginationOptions);
+          ? await this.eventRepo.findArchivedEventsPaginated(repoPaginationOptions, filters.tenantId, isSuperAdmin)
+          : await this.eventRepo.findActiveEventsPaginated(repoPaginationOptions, filters.tenantId, isSuperAdmin);
       } else if (filters?.search) {
-        result = await this.eventRepo.searchEventsPaginated(filters.search, repoPaginationOptions);
+        result = await this.eventRepo.searchEventsPaginated(filters.search, repoPaginationOptions, filters.tenantId, isSuperAdmin);
       } else {
-        result = await this.eventRepo.findAllPaginated(repoPaginationOptions);
+        result = await this.eventRepo.findAllPaginated(repoPaginationOptions, filters?.tenantId, isSuperAdmin);
       }
 
       // Convert repository PaginatedResult to service PaginatedResponse
@@ -329,16 +334,17 @@ export class EventService extends BaseService {
   /**
    * Get upcoming events
    */
-  async getUpcomingEvents(): Promise<Event[]> {
+  async getUpcomingEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
-      const cacheKey = 'events:upcoming';
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:upcoming:${scope}`;
       const cached = await this.cacheService.get<Event[]>(cacheKey);
 
       if (cached) {
         return cached;
       }
 
-      const events = await this.eventRepo.findUpcomingEvents();
+      const events = await this.eventRepo.findUpcomingEvents(tenantId, isSuperAdmin);
 
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, events, 300);
@@ -352,16 +358,17 @@ export class EventService extends BaseService {
   /**
    * Get ongoing events
    */
-  async getOngoingEvents(): Promise<Event[]> {
+  async getOngoingEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
-      const cacheKey = 'events:ongoing';
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:ongoing:${scope}`;
       const cached = await this.cacheService.get<Event[]>(cacheKey);
 
       if (cached) {
         return cached;
       }
 
-      const events = await this.eventRepo.findOngoingEvents();
+      const events = await this.eventRepo.findOngoingEvents(tenantId, isSuperAdmin);
 
       // Cache for 2 minutes (more frequent updates for ongoing events)
       await this.cacheService.set(cacheKey, events, 120);
@@ -375,16 +382,17 @@ export class EventService extends BaseService {
   /**
    * Get past events
    */
-  async getPastEvents(): Promise<Event[]> {
+  async getPastEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
-      const cacheKey = 'events:past';
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:past:${scope}`;
       const cached = await this.cacheService.get<Event[]>(cacheKey);
 
       if (cached) {
         return cached;
       }
 
-      const events = await this.eventRepo.findPastEvents();
+      const events = await this.eventRepo.findPastEvents(tenantId, isSuperAdmin);
 
       // Cache for 1 hour (past events don't change)
       await this.cacheService.set(cacheKey, events, 3600);
@@ -398,7 +406,7 @@ export class EventService extends BaseService {
   /**
    * Update event
    */
-  async updateEvent(id: string, data: UpdateEventDto): Promise<Event> {
+  async updateEvent(id: string, data: UpdateEventDto, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
     try {
       // Check if event is locked
       const isLocked = await this.restrictionService.isLocked(id);
@@ -407,7 +415,7 @@ export class EventService extends BaseService {
       }
 
       // Verify event exists
-      await this.getEventById(id);
+      await this.getEventById(id, tenantId, isSuperAdmin);
 
       // Validate dates if provided
       if (data.startDate || data.endDate) {
@@ -454,9 +462,10 @@ export class EventService extends BaseService {
   /**
    * Archive event
    */
-  async archiveEvent(id: string): Promise<Event> {
+  async archiveEvent(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
     try {
-      const event = await this.eventRepo.archiveEvent(id);
+      await this.getEventById(id, tenantId, isSuperAdmin);
+      const event = await this.eventRepo.archiveEvent(id, tenantId, isSuperAdmin);
 
       // Invalidate caches
       await this.invalidateEventCache(id);
@@ -471,9 +480,10 @@ export class EventService extends BaseService {
   /**
    * Unarchive event
    */
-  async unarchiveEvent(id: string): Promise<Event> {
+  async unarchiveEvent(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
     try {
-      const event = await this.eventRepo.unarchiveEvent(id);
+      await this.getEventById(id, tenantId, isSuperAdmin);
+      const event = await this.eventRepo.unarchiveEvent(id, tenantId, isSuperAdmin);
 
       // Invalidate caches
       await this.invalidateEventCache(id);
@@ -489,7 +499,7 @@ export class EventService extends BaseService {
    * Delete event (soft delete)
    * S4-3: Soft delete with deletedBy tracking
    */
-  async deleteEvent(id: string, deletedBy?: string): Promise<void> {
+  async deleteEvent(id: string, deletedBy?: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<void> {
     try {
       // Check if event is locked
       const isLocked = await this.restrictionService.isLocked(id);
@@ -498,7 +508,7 @@ export class EventService extends BaseService {
       }
 
       // Verify event exists and get tenant for metrics
-      const event = await this.getEventById(id);
+      const event = await this.getEventById(id, tenantId, isSuperAdmin);
 
       // S4-3: Soft delete with deletedBy tracking
       await this.eventRepo.update(id, {
@@ -522,8 +532,11 @@ export class EventService extends BaseService {
    * Restore soft-deleted event
    * S4-3: Restore functionality
    */
-  async restoreEvent(id: string): Promise<Event> {
+  async restoreEvent(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
     try {
+      if (!isSuperAdmin && tenantId) {
+        await this.getEventById(id, tenantId, isSuperAdmin);
+      }
       // Update to restore (set deletedAt to null)
       const restoredEvent = await this.eventRepo.update(id, {
         deletedAt: null,
@@ -547,16 +560,17 @@ export class EventService extends BaseService {
   /**
    * Get event statistics
    */
-  async getEventStats(id: string): Promise<EventStats> {
+  async getEventStats(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<EventStats> {
     try {
-      const cacheKey = `events:stats:${id}`;
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:stats:${scope}:${id}`;
       const cached = await this.cacheService.get(cacheKey);
 
       if (cached) {
         return cached as EventStats;
       }
 
-      const stats = await this.eventRepo.getEventStats(id);
+      const stats = await this.eventRepo.getEventStats(id, tenantId, isSuperAdmin);
 
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, stats, 300);
@@ -570,16 +584,17 @@ export class EventService extends BaseService {
   /**
    * Search events
    */
-  async searchEvents(query: string): Promise<Event[]> {
+  async searchEvents(query: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
-      const cacheKey = `events:search:${query}`;
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:search:${scope}:${query}`;
       const cached = await this.cacheService.get<Event[]>(cacheKey);
 
       if (cached) {
         return cached;
       }
 
-      const events = await this.eventRepo.searchEvents(query);
+      const events = await this.eventRepo.searchEvents(query, tenantId, isSuperAdmin);
 
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, events, 300);
@@ -593,16 +608,17 @@ export class EventService extends BaseService {
   /**
    * Get events by date range
    */
-  async getEventsByDateRange(startDate: Date, endDate: Date): Promise<Event[]> {
+  async getEventsByDateRange(startDate: Date, endDate: Date, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
-      const cacheKey = `events:range:${startDate.toISOString()}:${endDate.toISOString()}`;
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:range:${scope}:${startDate.toISOString()}:${endDate.toISOString()}`;
       const cached = await this.cacheService.get<Event[]>(cacheKey);
 
       if (cached) {
         return cached;
       }
 
-      const events = await this.eventRepo.findEventsByDateRange(startDate, endDate);
+      const events = await this.eventRepo.findEventsByDateRange(startDate, endDate, tenantId, isSuperAdmin);
 
       // Cache for 10 minutes
       await this.cacheService.set(cacheKey, events, 600);
@@ -616,16 +632,17 @@ export class EventService extends BaseService {
   /**
    * Get events requiring attention
    */
-  async getEventsRequiringAttention(): Promise<Event[]> {
+  async getEventsRequiringAttention(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     try {
-      const cacheKey = 'events:attention';
+      const scope = isSuperAdmin ? 'superadmin' : (tenantId || 'tenant');
+      const cacheKey = `events:attention:${scope}`;
       const cached = await this.cacheService.get<Event[]>(cacheKey);
 
       if (cached) {
         return cached;
       }
 
-      const events = await this.eventRepo.getEventsRequiringAttention();
+      const events = await this.eventRepo.getEventsRequiringAttention(tenantId, isSuperAdmin);
 
       // Cache for 1 hour
       await this.cacheService.set(cacheKey, events, 3600);

@@ -319,15 +319,16 @@ export class AuthController {
     const log = createRequestLogger(req, 'auth');
 
     try {
-      const { token, newPassword } = req.body;
+      const { token, password, newPassword } = req.body;
+      const effectivePassword = password || newPassword;
 
-      if (!token || !newPassword) {
-        return sendBadRequest(res, 'Token and new password are required');
+      if (!token || !effectivePassword) {
+        return sendBadRequest(res, 'Token and password are required');
       }
 
       log.debug('Password reset attempt');
 
-      await this.authService.resetPassword(token, newPassword);
+      await this.authService.resetPassword(token, effectivePassword);
 
       // Audit log: password reset completion
       try {

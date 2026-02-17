@@ -280,10 +280,15 @@ export class ScoreRepository extends BaseRepository<Score> {
 
     const judgeStatus = await Promise.all(
       (contestData.contestJudges || []).map(async (contestJudge) => {
-        const scoreCount = await this.count({
-          judgeId: contestJudge.judgeId,
-          contestId,
-          tenantId
+        const scoreCount = await this.prisma.score.count({
+          where: {
+            judgeId: contestJudge.judgeId,
+            tenantId,
+            category: {
+              contestId,
+              tenantId
+            }
+          }
         });
 
         return {
@@ -309,14 +314,26 @@ export class ScoreRepository extends BaseRepository<Score> {
     tenantId: string;
     score: number;
   }>): Promise<number> {
-    return this.createMany(scores);
+    // contestId is accepted for caller convenience but Score model is category-scoped.
+    // Remove contestId before persistence to avoid invalid Prisma payload fields.
+    const normalizedScores = scores.map(({ contestId: _contestId, ...score }) => score);
+    return this.createMany(normalizedScores);
   }
 
   /**
    * Delete scores by contest (for cleanup)
    */
   async deleteByContest(contestId: string, tenantId: string): Promise<number> {
-    return this.deleteMany({ contestId, tenantId });
+    const result = await this.prisma.score.deleteMany({
+      where: {
+        tenantId,
+        category: {
+          contestId,
+          tenantId
+        }
+      }
+    });
+    return result.count;
   }
 
   /**

@@ -25,12 +25,32 @@ export class EventRepository extends BaseRepository<Event> {
     return 'event';
   }
 
+  private withTenantScope(
+    where: Record<string, unknown>,
+    tenantId?: string,
+    isSuperAdmin: boolean = false
+  ): Record<string, unknown> {
+    if (isSuperAdmin || !tenantId) {
+      return where;
+    }
+    return { ...where, tenantId };
+  }
+
+  /**
+   * Find event by ID with optional tenant scoping.
+   */
+  async findByIdScoped(eventId: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event | null> {
+    return this.prisma.event.findFirst({
+      where: this.withTenantScope({ id: eventId }, tenantId, isSuperAdmin)
+    });
+  }
+
   /**
    * Find active (non-archived) events
    */
-  async findActiveEvents(): Promise<Event[]> {
+  async findActiveEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     return this.findMany(
-      { archived: false, deletedAt: null },
+      this.withTenantScope({ archived: false, deletedAt: null }, tenantId, isSuperAdmin),
       { orderBy: { startDate: 'desc' } }
     );
   }
@@ -38,9 +58,9 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Find archived events
    */
-  async findArchivedEvents(): Promise<Event[]> {
+  async findArchivedEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     return this.findMany(
-      { archived: true, deletedAt: null },
+      this.withTenantScope({ archived: true, deletedAt: null }, tenantId, isSuperAdmin),
       { orderBy: { startDate: 'desc' } }
     );
   }
@@ -48,14 +68,14 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Find upcoming events
    */
-  async findUpcomingEvents(): Promise<Event[]> {
+  async findUpcomingEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     const now = new Date();
     return this.findMany(
-      {
+      this.withTenantScope({
         archived: false,
         deletedAt: null,
         startDate: { gte: now }
-      },
+      }, tenantId, isSuperAdmin),
       { orderBy: { startDate: 'asc' } }
     );
   }
@@ -63,27 +83,27 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Find ongoing events
    */
-  async findOngoingEvents(): Promise<Event[]> {
+  async findOngoingEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     const now = new Date();
-    return this.findMany({
+    return this.findMany(this.withTenantScope({
       archived: false,
       deletedAt: null,
       startDate: { lte: now },
       endDate: { gte: now }
-    });
+    }, tenantId, isSuperAdmin));
   }
 
   /**
    * Find past events
    */
-  async findPastEvents(): Promise<Event[]> {
+  async findPastEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     const now = new Date();
     return this.findMany(
-      {
+      this.withTenantScope({
         archived: false,
         deletedAt: null,
         endDate: { lt: now }
-      },
+      }, tenantId, isSuperAdmin),
       { orderBy: { endDate: 'desc' } }
     );
   }
@@ -91,9 +111,9 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Find event with full details
    */
-  async findEventWithDetails(eventId: string): Promise<EventWithRelations | null> {
-    return this.prisma.event.findUnique({
-      where: { id: eventId },
+  async findEventWithDetails(eventId: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<EventWithRelations | null> {
+    return this.prisma.event.findFirst({
+      where: this.withTenantScope({ id: eventId }, tenantId, isSuperAdmin),
       include: {
         contests: {
           include: {
@@ -148,8 +168,8 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Find events by date range
    */
-  async findEventsByDateRange(startDate: Date, endDate: Date): Promise<Event[]> {
-    return this.findMany({
+  async findEventsByDateRange(startDate: Date, endDate: Date, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
+    return this.findMany(this.withTenantScope({
       deletedAt: null,
       OR: [
         {
@@ -171,49 +191,61 @@ export class EventRepository extends BaseRepository<Event> {
           ]
         }
       ]
-    });
+    }, tenantId, isSuperAdmin));
   }
 
   /**
    * Search events by name
    */
-  async searchEvents(query: string): Promise<Event[]> {
-    return this.findMany({
+  async searchEvents(query: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
+    return this.findMany(this.withTenantScope({
       deletedAt: null,
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },
         { location: { contains: query, mode: 'insensitive' } }
       ]
-    });
+    }, tenantId, isSuperAdmin));
   }
 
   /**
    * Archive an event
    */
-  async archiveEvent(eventId: string): Promise<Event> {
+  async archiveEvent(eventId: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
+    if (!isSuperAdmin && tenantId) {
+      const found = await this.findByIdScoped(eventId, tenantId, false);
+      if (!found) {
+        throw new Error(`Event ${eventId} not found`);
+      }
+    }
     return this.update(eventId, { archived: true });
   }
 
   /**
    * Unarchive an event
    */
-  async unarchiveEvent(eventId: string): Promise<Event> {
+  async unarchiveEvent(eventId: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
+    if (!isSuperAdmin && tenantId) {
+      const found = await this.findByIdScoped(eventId, tenantId, false);
+      if (!found) {
+        throw new Error(`Event ${eventId} not found`);
+      }
+    }
     return this.update(eventId, { archived: false });
   }
 
   /**
    * Get event statistics
    */
-  async getEventStats(eventId: string): Promise<{
+  async getEventStats(eventId: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<{
     totalContests: number;
     totalCategories: number;
     totalContestants: number;
     totalJudges: number;
     totalScores: number;
   }> {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
+    const event = await this.prisma.event.findFirst({
+      where: this.withTenantScope({ id: eventId }, tenantId, isSuperAdmin),
       include: {
         contests: {
           include: {
@@ -282,12 +314,12 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Get events requiring attention (starting soon, no contests, etc.)
    */
-  async getEventsRequiringAttention(): Promise<Event[]> {
+  async getEventsRequiringAttention(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
     return this.prisma.event.findMany({
-      where: {
+      where: this.withTenantScope({
         archived: false,
         startDate: {
           lte: threeDaysFromNow,
@@ -296,23 +328,23 @@ export class EventRepository extends BaseRepository<Event> {
         contests: {
           none: {}
         }
-      }
+      }, tenantId, isSuperAdmin)
     });
   }
 
   /**
    * Find all events with pagination
    */
-  async findAllPaginated(options: PaginationOptions): Promise<PaginatedResult<Event>> {
-    return this.findManyPaginated({}, options);
+  async findAllPaginated(options: PaginationOptions, tenantId?: string, isSuperAdmin: boolean = false): Promise<PaginatedResult<Event>> {
+    return this.findManyPaginated(this.withTenantScope({}, tenantId, isSuperAdmin), options);
   }
 
   /**
    * Find active events with pagination
    */
-  async findActiveEventsPaginated(options: PaginationOptions): Promise<PaginatedResult<Event>> {
+  async findActiveEventsPaginated(options: PaginationOptions, tenantId?: string, isSuperAdmin: boolean = false): Promise<PaginatedResult<Event>> {
     return this.findManyPaginated(
-      { archived: false },
+      this.withTenantScope({ archived: false }, tenantId, isSuperAdmin),
       { ...options, orderBy: options.orderBy || { startDate: 'desc' } }
     );
   }
@@ -320,9 +352,9 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Find archived events with pagination
    */
-  async findArchivedEventsPaginated(options: PaginationOptions): Promise<PaginatedResult<Event>> {
+  async findArchivedEventsPaginated(options: PaginationOptions, tenantId?: string, isSuperAdmin: boolean = false): Promise<PaginatedResult<Event>> {
     return this.findManyPaginated(
-      { archived: true },
+      this.withTenantScope({ archived: true }, tenantId, isSuperAdmin),
       { ...options, orderBy: options.orderBy || { startDate: 'desc' } }
     );
   }
@@ -330,8 +362,14 @@ export class EventRepository extends BaseRepository<Event> {
   /**
    * Search events with pagination
    */
-  async searchEventsPaginated(query: string, options: PaginationOptions): Promise<PaginatedResult<Event>> {
+  async searchEventsPaginated(
+    query: string,
+    options: PaginationOptions,
+    tenantId?: string,
+    isSuperAdmin: boolean = false
+  ): Promise<PaginatedResult<Event>> {
     return this.findManyPaginated({
+      ...this.withTenantScope({}, tenantId, isSuperAdmin),
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },

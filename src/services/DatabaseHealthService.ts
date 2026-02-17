@@ -124,6 +124,16 @@ export class DatabaseHealthService extends BaseService {
 
     const avgDuration = metrics.averageDuration;
 
+    // Critical if average query time > 500ms
+    if (avgDuration > 500) {
+      return {
+        status: 'fail',
+        message: 'Average query duration critical',
+        value: `${avgDuration.toFixed(2)}ms`,
+        threshold: '500ms',
+      };
+    }
+
     // Warn if average query time > 200ms
     if (avgDuration > 200) {
       return {
@@ -131,16 +141,6 @@ export class DatabaseHealthService extends BaseService {
         message: 'Average query duration high',
         value: `${avgDuration.toFixed(2)}ms`,
         threshold: '200ms',
-      };
-    }
-
-    // Warn if average query time > 500ms
-    if (avgDuration > 500) {
-      return {
-        status: 'fail',
-        message: 'Average query duration critical',
-        value: `${avgDuration.toFixed(2)}ms`,
-        threshold: '500ms',
       };
     }
 

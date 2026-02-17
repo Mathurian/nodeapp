@@ -30,14 +30,14 @@ declare global {
 }
 
 /**
- * Static list of models that have tenantId field and require tenant filtering.
- * This replaces runtime field detection which doesn't work with Prisma Client.
- * Based on database schema analysis - 71 of 83 tables have tenantId.
+ * Static list of Prisma model delegates with tenantId field and required tenant filtering.
+ * IMPORTANT: values are normalized to lowercase because Prisma extension model names are
+ * normalized before lookup.
  */
-const TENANT_SCOPED_MODELS = [
+const TENANT_SCOPED_MODELS = new Set([
   'user', 'event', 'contest', 'category', 'score', 'assignment',
-  'judge', 'contestant', 'notification', 'auditLog', 'backup',
-  'tenant', 'roleAssignment', 'tallyMasterAssignment', 'auditorAssignment',
+  'judge', 'contestant', 'notification', 'auditLog',
+  'roleAssignment', 'tallyMasterAssignment', 'auditorAssignment',
   'categoryCertification', 'contestCertification', 'judgeCertification',
   'judgeContestantCertification', 'reviewContestantCertification',
   'reviewJudgeScoreCertification', 'categoryContestant', 'categoryJudge',
@@ -53,16 +53,26 @@ const TENANT_SCOPED_MODELS = [
   'drTestLog', 'emailLog', 'webhookConfig', 'webhookDelivery',
   'workflowTemplate', 'workflowInstance', 'workflowStep',
   'workflowStepExecution', 'workflowTransition', 'winnerSignature',
-  'criterion', 'report'
-];
+  'criterion', 'report',
+  // Missing tenant-scoped models discovered in schema parity review
+  'activityLog', 'certification', 'errorLog', 'eventLog',
+  'rolePermission', 'permissionAuditLog',
+  'scoreGovernanceRequest', 'scoreGovernanceApproval'
+].map(model => model.toLowerCase()));
 
 /**
  * Helper function to check if a model requires tenant filtering
  */
 function isTenantScopedModel(model: string): boolean {
   const modelLower = model.toLowerCase();
-  return TENANT_SCOPED_MODELS.includes(modelLower);
+  return TENANT_SCOPED_MODELS.has(modelLower);
 }
+
+type TokenTenantPayload = {
+  userId: string;
+  tenantId: string;
+  role?: string;
+};
 
 /**
  * Tenant identification strategies
@@ -134,10 +144,14 @@ export class TenantIdentifier {
    * Identify tenant from JWT token (if user is authenticated)
    * This decodes the JWT directly from the cookie, without requiring req.user to be set
    */
-  static fromToken(req: Request): string | null {
+  static fromTokenPayload(req: Request): TokenTenantPayload | null {
     // First check if user is already authenticated (req.user exists)
     if (req.user && 'tenantId' in req.user) {
-      return (req.user as { tenantId: string }).tenantId;
+      return {
+        userId: String((req.user as { id?: string }).id || ''),
+        tenantId: String((req.user as { tenantId: string }).tenantId),
+        role: String((req.user as { role?: string }).role || '')
+      };
     }
 
     // If req.user doesn't exist yet, try to decode JWT token directly
@@ -150,12 +164,21 @@ export class TenantIdentifier {
       const jwt = require('jsonwebtoken');
       const { jwtSecret } = require('../utils/config');
 
-      const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string };
-      return decoded.tenantId || null;
-    } catch (error) {
+      const decoded = jwt.verify(token, jwtSecret) as TokenTenantPayload;
+      if (!decoded?.tenantId) return null;
+      return decoded;
+    } catch (_error) {
       // Token invalid or expired - not an error, just means no tenant from token
       return null;
     }
+  }
+
+  /**
+   * Identify tenant from JWT token (if user is authenticated)
+   */
+  static fromToken(req: Request): string | null {
+    const payload = TenantIdentifier.fromTokenPayload(req);
+    return payload?.tenantId || null;
   }
 
   /**
@@ -181,34 +204,39 @@ export async function tenantMiddleware(
     let tenantIdOrSlug: string | null = null;
     let identificationMethod: string = 'unknown';
 
-    // Try different identification strategies in order of precedence
-    // 1. Header (highest priority - for API clients)
-    tenantIdOrSlug = TenantIdentifier.fromHeader(req);
-    if (tenantIdOrSlug) {
+    const tokenPayload = TenantIdentifier.fromTokenPayload(req);
+    const tokenTenant = tokenPayload?.tenantId || null;
+    const tokenRole = String(tokenPayload?.role || '').trim().toUpperCase();
+    const headerTenant = TenantIdentifier.fromHeader(req);
+
+    // 1) Authenticated requests: tenant is derived from token.
+    // Only SUPER_ADMIN may intentionally override via tenant header.
+    if (tokenTenant) {
+      tenantIdOrSlug = tokenTenant;
+      identificationMethod = 'token';
+      if (headerTenant && tokenRole === 'SUPER_ADMIN') {
+        tenantIdOrSlug = headerTenant;
+        identificationMethod = 'header_superadmin_override';
+      }
+      logger.info(`Tenant identified from JWT token: ${tokenTenant}`, {
+        path: req.path,
+        method: req.method,
+        hasCookie: !!req.cookies?.['access_token'],
+        hasHeaderTenant: !!headerTenant,
+        superAdminOverride: identificationMethod === 'header_superadmin_override'
+      });
+    } else if (headerTenant) {
+      // 2) Header (only when unauthenticated)
+      tenantIdOrSlug = headerTenant;
       identificationMethod = 'header';
       logger.debug(`Tenant identified from header: ${tenantIdOrSlug}`, { path: req.path });
-    }
-
-    // 2. JWT Token (for authenticated users) - HIGHEST PRIORITY for logged-in users
-    if (!tenantIdOrSlug) {
-      tenantIdOrSlug = TenantIdentifier.fromToken(req);
-      if (tenantIdOrSlug) {
-        identificationMethod = 'token';
-        logger.info(`Tenant identified from JWT token: ${tenantIdOrSlug}`, {
-          path: req.path,
-          method: req.method,
-          hasCookie: !!req.cookies?.['access_token']
-        });
-      } else {
-        // Log when token extraction fails
-        if (req.cookies?.['access_token']) {
-          logger.warn(`Failed to extract tenant from JWT token`, {
-            path: req.path,
-            method: req.method,
-            hasToken: true
-          });
-        }
-      }
+    } else if (req.cookies?.['access_token']) {
+      // Log when token extraction fails
+      logger.warn(`Failed to extract tenant from JWT token`, {
+        path: req.path,
+        method: req.method,
+        hasToken: true
+      });
     }
 
     // 3. Subdomain (for web access)
@@ -344,6 +372,26 @@ export async function tenantMiddleware(
       return;
     }
 
+    // Trust boundary enforcement:
+    // Non-superadmin authenticated requests must always resolve to their token tenant.
+    if (tokenTenant && tokenRole !== 'SUPER_ADMIN') {
+      const matchesTokenTenant = tenant.id === tokenTenant || tenant.slug === tokenTenant;
+      if (!matchesTokenTenant) {
+        logger.warn('Tenant context mismatch blocked', {
+          path: req.path,
+          method: req.method,
+          tokenTenant,
+          resolvedTenantId: tenant.id,
+          resolvedTenantSlug: tenant.slug
+        });
+        res.status(403).json({
+          error: 'Tenant context mismatch',
+          message: 'Authenticated tenant context does not match request tenant'
+        });
+        return;
+      }
+    }
+
     // Check if tenant is active
     if (!tenant.isActive) {
       logger.warn(`Tenant is inactive: ${tenant.id}`);
@@ -412,10 +460,21 @@ export async function optionalTenantMiddleware(
     // Try to identify tenant but don't fail if not found
     let tenantIdOrSlug: string | null = null;
 
-    tenantIdOrSlug = TenantIdentifier.fromHeader(req) ||
-                     TenantIdentifier.fromToken(req) ||
-                     TenantIdentifier.fromSubdomain(req) ||
-                     TenantIdentifier.fromQuery(req);
+    const tokenPayload = TenantIdentifier.fromTokenPayload(req);
+    const tokenTenant = tokenPayload?.tenantId || null;
+    const tokenRole = String(tokenPayload?.role || '').trim().toUpperCase();
+    const headerTenant = TenantIdentifier.fromHeader(req);
+
+    if (tokenTenant) {
+      tenantIdOrSlug = tokenTenant;
+      if (headerTenant && tokenRole === 'SUPER_ADMIN') {
+        tenantIdOrSlug = headerTenant;
+      }
+    } else {
+      tenantIdOrSlug = headerTenant ||
+                       TenantIdentifier.fromSubdomain(req) ||
+                       TenantIdentifier.fromQuery(req);
+    }
 
     if (tenantIdOrSlug) {
       const tenant = await prisma.tenant.findFirst({
