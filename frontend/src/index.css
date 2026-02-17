@@ -728,3 +728,27 @@
 ::-webkit-scrollbar-corner {
   @apply bg-gray-100 dark:bg-gray-800;
 }
+
+/* Keep Leaflet panes below app shell overlays/navigation */
+.login-locations-map {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+}
+
+.login-locations-map .leaflet-container {
+  z-index: 0;
+}
+
+.login-locations-map .leaflet-top,
+.login-locations-map .leaflet-bottom {
+  z-index: 2;
+}
+
+/* Keep map typography on app defaults (avoids browser font-visibility warnings on legacy stacks) */
+.login-locations-map,
+.login-locations-map .leaflet-container,
+.login-locations-map .leaflet-control,
+.login-locations-map .leaflet-tooltip {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}

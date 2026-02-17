@@ -314,16 +314,53 @@ export class EmailTemplateController {
 
       const rendered = emailTemplateService.renderTemplate(template, variables || {});
       const results = await Promise.allSettled(
-        finalRecipients.map((to) => this.emailService.sendEmail(to, rendered.subject, template.body || '', { html: rendered.html }))
+        finalRecipients.map((to) => this.emailService.sendEmail(to, rendered.subject, template.body || '', {
+          html: rendered.html,
+          template: template.name || undefined,
+          tenantId: req.user?.tenantId || undefined,
+          userId: req.user?.id,
+          variables: variables || {},
+        }))
       );
 
-      const sent = results.filter((r) => r.status === 'fulfilled').length;
-      const failed = results.length - sent;
+      let sent = 0;
+      let failed = 0;
+      let skipped = 0;
+      const skippedRecipients: string[] = [];
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          failed += 1;
+          continue;
+        }
+        if (!result.value.success) {
+          failed += 1;
+          continue;
+        }
+        const msg = String(result.value.message || '').toLowerCase();
+        if (msg.includes('skipped') || msg.includes('smtp disabled')) {
+          skipped += 1;
+          skippedRecipients.push(result.value.to);
+          continue;
+        }
+        sent += 1;
+      }
+
+      const message = skipped > 0
+        ? `Template send completed (${skipped} skipped because SMTP is disabled)`
+        : 'Template send completed';
 
       sendSuccess(
         res,
-        { templateId: id, totalRecipients: finalRecipients.length, sent, failed },
-        'Template send completed'
+        {
+          templateId: id,
+          totalRecipients: finalRecipients.length,
+          sent,
+          failed,
+          skipped,
+          skippedRecipients
+        },
+        message
       );
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send template';

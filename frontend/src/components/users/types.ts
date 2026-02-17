@@ -71,6 +71,7 @@ export interface RoleInfo {
 }
 
 export const ROLES: RoleInfo[] = [
+  { value: 'SUPER_ADMIN', label: 'Super Admin', color: 'bg-violet-100 text-violet-800' },
   { value: 'ADMIN', label: 'Admin', color: 'bg-red-100 text-red-800' },
   { value: 'ORGANIZER', label: 'Organizer', color: 'bg-purple-100 text-purple-800' },
   { value: 'JUDGE', label: 'Judge', color: 'bg-blue-100 text-blue-800' },

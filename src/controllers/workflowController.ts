@@ -21,6 +21,7 @@ interface LegacyWorkflowBody {
   trigger?: string;
   isDefault?: boolean;
   isActive?: boolean;
+  config?: Record<string, unknown>;
   steps?: Array<Record<string, unknown>>;
   actions?: LegacyWorkflowAction[];
 }
@@ -36,6 +37,7 @@ const normalizeTemplatePayload = (
   type: string;
   isDefault?: boolean;
   isActive?: boolean;
+  config?: Record<string, unknown>;
   steps: any[];
 } => {
   const normalizedType = body.type || body.trigger || 'custom';
@@ -49,6 +51,7 @@ const normalizeTemplatePayload = (
       type: normalizedType,
       isDefault: body.isDefault,
       isActive: body.isActive,
+      config: body.config,
       steps: body.steps,
     };
   }
@@ -62,6 +65,7 @@ const normalizeTemplatePayload = (
       type: normalizedType,
       isDefault: body.isDefault,
       isActive: body.isActive,
+      config: body.config,
       steps: [
         {
           name: body.trigger ? `${body.trigger} Actions` : 'Workflow Actions',
@@ -82,6 +86,7 @@ const normalizeTemplatePayload = (
     type: normalizedType,
     isDefault: body.isDefault,
     isActive: body.isActive,
+    config: body.config,
     steps: [],
   };
 };

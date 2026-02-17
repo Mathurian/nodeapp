@@ -49,6 +49,8 @@ const UserFilters: React.FC<UserFiltersProps> = ({
   isSuperAdmin,
   tenants,
 }) => {
+  const visibleRoles = isSuperAdmin ? ROLES : ROLES.filter((role) => role.value !== 'SUPER_ADMIN')
+
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6 space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -75,7 +77,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({
           aria-label="Filter by role"
         >
           <option value="">All Roles</option>
-          {ROLES.map((role) => (
+          {visibleRoles.map((role) => (
             <option key={role.value} value={role.value}>
               {role.label}
             </option>

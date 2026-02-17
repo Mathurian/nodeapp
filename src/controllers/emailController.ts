@@ -51,9 +51,14 @@ export class EmailController {
 
       const skip = (page - 1) * limit;
       const where: any = {};
+      const isSuperAdmin = req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN';
+      const tenantId = req.tenantId || req.user?.tenantId;
 
       if (type) where.type = type;
       if (eventId) where.eventId = eventId;
+      if (!isSuperAdmin && tenantId) {
+        where.tenantId = tenantId;
+      }
 
       const [templates, total] = await Promise.all([
         this.prisma.emailTemplate.findMany({
@@ -179,7 +184,10 @@ export class EmailController {
       const status = req.query['status'] as string | undefined;
 
       const where: any = {};
+      const isSuperAdmin = req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN';
+      const tenantId = req.tenantId || req.user?.tenantId;
       if (status) where.status = status;
+      if (!isSuperAdmin && tenantId) where.tenantId = tenantId;
 
       const logs = await this.prisma.emailLog.findMany({
         where,
@@ -250,8 +258,16 @@ export class EmailController {
 
       const skip = (page - 1) * limit;
       const where: any = {};
+      const isSuperAdmin = req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN';
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const requestedTenantId = req.query['tenantId'] as string | undefined;
 
       if (status) where.status = status;
+      if (isSuperAdmin) {
+        if (requestedTenantId) where.tenantId = requestedTenantId;
+      } else if (tenantId) {
+        where.tenantId = tenantId;
+      }
 
       const [logs, total] = await Promise.all([
         this.prisma.emailLog.findMany({
@@ -318,7 +334,10 @@ export class EmailController {
 
       // Get all users with the specified role
       const users = await this.prisma.user.findMany({
-        where: { role: { in: roles } as any },
+        where: {
+          role: { in: roles } as any,
+          tenantId: req.tenantId || req.user?.tenantId
+        },
         select: { email: true }
       });
 

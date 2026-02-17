@@ -14,6 +14,7 @@ import {
   TrashIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
+  ArrowPathIcon,
   XMarkIcon,
   CheckIcon,
   ArchiveBoxIcon,
@@ -202,6 +203,40 @@ const EventsPage: React.FC = () => {
     }
   )
 
+  const archiveMutation = useMutation(
+    async (id: string) => {
+      const response = await eventsAPI.archive(id)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('events')
+        toast.success('Event archived successfully!')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to archive event'
+        toast.error(`Error archiving event: ${errorMessage}`)
+      },
+    }
+  )
+
+  const unarchiveMutation = useMutation(
+    async (id: string) => {
+      const response = await eventsAPI.unarchive(id)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('events')
+        toast.success('Event reactivated successfully!')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to reactivate event'
+        toast.error(`Error reactivating event: ${errorMessage}`)
+      },
+    }
+  )
+
   const resetForm = () => {
     reset({
       name: '',
@@ -234,6 +269,16 @@ const EventsPage: React.FC = () => {
 
   const handleDelete = (event: Event) => {
     setConfirmDelete({ isOpen: true, event })
+  }
+
+  const handleArchive = (event: Event) => {
+    if (!confirm(`Archive "${event.name}"? You can restore it later.`)) return
+    archiveMutation.mutate(event.id)
+  }
+
+  const handleUnarchive = (event: Event) => {
+    if (!confirm(`Reactivate "${event.name}"?`)) return
+    unarchiveMutation.mutate(event.id)
   }
 
   const executeDelete = () => {
@@ -427,22 +472,41 @@ const EventsPage: React.FC = () => {
                     <TrophyIcon className="h-4 w-4 mr-1" />
                     View Contests
                   </button>
-                  {canManageEvents && !event.archived && (
+                  {canManageEvents && (
                     <>
-                      <button
-                        onClick={() => handleEdit(event)}
-                        className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
-                      >
-                        <PencilIcon className="h-4 w-4 mr-1" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(event)}
-                        className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
-                      >
-                        <TrashIcon className="h-4 w-4 mr-1" />
-                        Delete
-                      </button>
+                      {event.archived ? (
+                        <button
+                          onClick={() => handleUnarchive(event)}
+                          className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                        >
+                          <ArrowPathIcon className="h-4 w-4 mr-1" />
+                          Reactivate
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(event)}
+                            className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
+                          >
+                            <PencilIcon className="h-4 w-4 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleArchive(event)}
+                            className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                          >
+                            <ArchiveBoxIcon className="h-4 w-4 mr-1" />
+                            Archive
+                          </button>
+                          <button
+                            onClick={() => handleDelete(event)}
+                            className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-1" />
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>

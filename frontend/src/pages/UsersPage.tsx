@@ -679,6 +679,7 @@ const UsersPage: React.FC = () => {
           selectedBioFile={selectedBioFile}
           onBioFileSelect={setSelectedBioFile}
           isSubmitting={createMutation.isLoading || updateMutation.isLoading}
+          currentUserRole={currentUser?.role}
           onSubmit={handleSubmit}
           onClose={resetForm}
         />

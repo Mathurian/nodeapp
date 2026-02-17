@@ -53,6 +53,7 @@ import ScheduledBackupService from './services/scheduledBackupService';
 import { BusinessMetricsCollector } from './services/BusinessMetricsCollector';
 import { ServiceMonitor } from './services/ServiceMonitor';
 import { ActiveSessionTracker } from './services/ActiveSessionTracker';
+import WorkflowSchedulerService from './services/workflowSchedulerService';
 import { container } from './config/container';
 
 // Controllers
@@ -95,6 +96,7 @@ initMetrics();
  * Initialize Services
  */
 const scheduledBackupService = new ScheduledBackupService(prisma);
+const workflowSchedulerService = new WorkflowSchedulerService();
 let businessMetricsCollector: BusinessMetricsCollector | null = null;
 let serviceMonitor: ServiceMonitor | null = null;
 let activeSessionTracker: ActiveSessionTracker | null = null;
@@ -524,6 +526,14 @@ const startServer = async (): Promise<void> => {
         backupLogger.error('Failed to start scheduled backup service', { error: errorMessage });
       }
 
+      try {
+        await workflowSchedulerService.start(60000);
+        appLogger.info('Workflow scheduler started (60s interval)');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        appLogger.error('Failed to start workflow scheduler', { error: errorMessage });
+      }
+
       // Start business metrics collector
       try {
         businessMetricsCollector = container.resolve(BusinessMetricsCollector);
@@ -576,6 +586,8 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
     // Stop scheduled services
     await scheduledBackupService.stop();
     backupLogger.info('Scheduled backup service stopped');
+    workflowSchedulerService.stop();
+    appLogger.info('Workflow scheduler stopped');
 
     // Stop business metrics collector
     if (businessMetricsCollector) {

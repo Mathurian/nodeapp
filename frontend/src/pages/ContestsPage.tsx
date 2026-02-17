@@ -13,6 +13,7 @@ import {
   PencilIcon,
   TrashIcon,
   MagnifyingGlassIcon,
+  ArrowPathIcon,
   XMarkIcon,
   CheckIcon,
   ArchiveBoxIcon,
@@ -270,6 +271,40 @@ const ContestsPage: React.FC = () => {
     }
   )
 
+  const archiveMutation = useMutation(
+    async (id: string) => {
+      const response = await contestsAPI.archive(id)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('contests')
+        toast.success('Contest archived successfully!')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to archive contest'
+        toast.error(`Error archiving contest: ${errorMessage}`)
+      },
+    }
+  )
+
+  const reactivateMutation = useMutation(
+    async (id: string) => {
+      const response = await contestsAPI.reactivate(id)
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('contests')
+        toast.success('Contest reactivated successfully!')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to reactivate contest'
+        toast.error(`Error reactivating contest: ${errorMessage}`)
+      },
+    }
+  )
+
   const resetForm = () => {
     reset({ eventId: '', name: '', description: '', scoringType: '' })
     setEditingContest(null)
@@ -299,6 +334,16 @@ const ContestsPage: React.FC = () => {
 
   const handleDelete = (contest: Contest) => {
     setConfirmDelete({ isOpen: true, contest })
+  }
+
+  const handleArchive = (contest: Contest) => {
+    if (!confirm(`Archive "${contest.name}"? You can restore it later.`)) return
+    archiveMutation.mutate(contest.id)
+  }
+
+  const handleReactivate = (contest: Contest) => {
+    if (!confirm(`Reactivate "${contest.name}"?`)) return
+    reactivateMutation.mutate(contest.id)
   }
 
   const executeDelete = () => {
@@ -527,22 +572,41 @@ const ContestsPage: React.FC = () => {
                     <ListBulletIcon className="h-4 w-4 mr-1" />
                     View Categories
                   </button>
-                  {canManageContests && !contest.archived && (
+                  {canManageContests && (
                     <>
-                      <button
-                        onClick={() => handleEdit(contest)}
-                        className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
-                      >
-                        <PencilIcon className="h-4 w-4 mr-1" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(contest)}
-                        className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
-                      >
-                        <TrashIcon className="h-4 w-4 mr-1" />
-                        Delete
-                      </button>
+                      {contest.archived ? (
+                        <button
+                          onClick={() => handleReactivate(contest)}
+                          className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                        >
+                          <ArrowPathIcon className="h-4 w-4 mr-1" />
+                          Reactivate
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(contest)}
+                            className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
+                          >
+                            <PencilIcon className="h-4 w-4 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleArchive(contest)}
+                            className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                          >
+                            <ArchiveBoxIcon className="h-4 w-4 mr-1" />
+                            Archive
+                          </button>
+                          <button
+                            onClick={() => handleDelete(contest)}
+                            className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-1" />
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>

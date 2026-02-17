@@ -161,7 +161,11 @@ const EmailTemplatesPage: React.FC = () => {
       })
       const payload = response.data?.data || response.data
       setError(null)
-      alert(`Template send completed. Sent: ${payload?.sent ?? 0}, Failed: ${payload?.failed ?? 0}`)
+      const sent = Number(payload?.sent ?? 0)
+      const failed = Number(payload?.failed ?? 0)
+      const skipped = Number(payload?.skipped ?? 0)
+      const summary = `Template send completed. Sent: ${sent}, Failed: ${failed}, Skipped: ${skipped}`
+      alert(skipped > 0 ? `${summary}\nSMTP is disabled for this environment, so skipped emails were not delivered.` : summary)
       setShowSendModal(null)
       setSendRecipients('')
       setSendRoles([])

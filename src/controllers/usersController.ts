@@ -163,6 +163,9 @@ export class UsersController {
     const log = createRequestLogger(req, 'users');
     try {
       const data: CreateUserDTO = req.body;
+      const authReq = req as AuthenticatedRequest;
+      const requesterRole = authReq.user?.role;
+      const requesterIsSuperAdmin = requesterRole === 'SUPER_ADMIN';
 
       log.info('User creation requested', {
         email: data.email,
@@ -185,15 +188,26 @@ export class UsersController {
         return;
       }
 
-      // Validate role
-      const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
+      // Validate role. Creating SUPER_ADMIN is restricted to SUPER_ADMIN requestors only.
+      const validRoles = requesterIsSuperAdmin
+        ? ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+        : ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
       if (!validRoles.includes(data.role)) {
         log.warn('User creation failed: invalid role', { role: data.role });
         errorResponse(res, 'Invalid role', ErrorCode.VALIDATION_ERROR, 400, { field: 'role', validRoles });
         return;
       }
 
-      const authReq = req as AuthenticatedRequest;
+      if (data.role === 'SUPER_ADMIN' && !requesterIsSuperAdmin) {
+        log.warn('User creation blocked: non-super-admin attempted SUPER_ADMIN creation', {
+          requesterRole,
+          requesterId: authReq.user?.id,
+          email: data.email
+        });
+        errorResponse(res, 'Only SUPER_ADMIN users can create SUPER_ADMIN accounts', ErrorCode.ACCESS_DENIED, 403);
+        return;
+      }
+
       const tenantId = authReq.tenantId || authReq.user?.tenantId;
       if (!tenantId) {
         errorResponse(res, 'Tenant context is required to create users', ErrorCode.VALIDATION_ERROR, 400);
@@ -359,6 +373,9 @@ export class UsersController {
     try {
       const id = req.params['id']!;
       const data: UpdateUserDTO = req.body;
+      const authReq = req as AuthenticatedRequest;
+      const requesterRole = authReq.user?.role;
+      const requesterIsSuperAdmin = requesterRole === 'SUPER_ADMIN';
 
       log.info('User update requested', { userId: id });
 
@@ -370,6 +387,26 @@ export class UsersController {
       if (!currentUser) {
         log.warn('User update failed: user not found', { userId: id });
         sendNotFound(res, 'User not found');
+        return;
+      }
+
+      // Guardrails for SUPER_ADMIN account management.
+      if (currentUser.role === 'SUPER_ADMIN' && !requesterIsSuperAdmin) {
+        log.warn('User update blocked: non-super-admin attempted to modify SUPER_ADMIN account', {
+          requesterRole,
+          requesterId: authReq.user?.id,
+          targetUserId: id
+        });
+        errorResponse(res, 'Only SUPER_ADMIN users can modify SUPER_ADMIN accounts', ErrorCode.ACCESS_DENIED, 403);
+        return;
+      }
+      if (data.role === 'SUPER_ADMIN' && !requesterIsSuperAdmin) {
+        log.warn('User update blocked: non-super-admin attempted SUPER_ADMIN role assignment', {
+          requesterRole,
+          requesterId: authReq.user?.id,
+          targetUserId: id
+        });
+        errorResponse(res, 'Only SUPER_ADMIN users can assign SUPER_ADMIN role', ErrorCode.ACCESS_DENIED, 403);
         return;
       }
 

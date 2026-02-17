@@ -55,6 +55,8 @@ export interface UserFormProps {
   onCancelBioUpload?: () => void
   /** Whether form is submitting */
   isSubmitting: boolean
+  /** Current authenticated user role (used for role assignment restrictions) */
+  currentUserRole?: string
   /** Callback when form is submitted with validated data */
   onSubmit: (data: UserFormData) => void
   /** Callback when form is closed/reset */
@@ -100,6 +102,7 @@ const UserForm: React.FC<UserFormProps> = ({
   onCancelImageUpload,
   onCancelBioUpload,
   isSubmitting,
+  currentUserRole,
   onSubmit,
   onClose,
 }) => {
@@ -115,6 +118,7 @@ const UserForm: React.FC<UserFormProps> = ({
     formState: { errors },
     setError,
     reset,
+    setValue,
     watch,
   } = useForm<UserFormFields>({
     resolver: zodResolver(userFormSchema),
@@ -153,6 +157,16 @@ const UserForm: React.FC<UserFormProps> = ({
   }, [defaultValues, reset])
 
   const watchedRole = watch('role')
+  const canAssignSuperAdmin = currentUserRole === 'SUPER_ADMIN'
+  const visibleRoles = canAssignSuperAdmin
+    ? ROLES
+    : ROLES.filter((role) => role.value !== 'SUPER_ADMIN')
+
+  useEffect(() => {
+    if (!canAssignSuperAdmin && watchedRole === 'SUPER_ADMIN') {
+      setValue('role', 'ADMIN', { shouldValidate: true, shouldDirty: true })
+    }
+  }, [canAssignSuperAdmin, watchedRole, setValue])
 
   const handleFormSubmit = (data: UserFormFields) => {
     // Password required for new users
@@ -442,7 +456,7 @@ const UserForm: React.FC<UserFormProps> = ({
                 className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
                 aria-invalid={errors.role ? 'true' : undefined}
               >
-                {ROLES.map((role) => (
+                {visibleRoles.map((role) => (
                   <option key={role.value} value={role.value}>
                     {role.label}
                   </option>

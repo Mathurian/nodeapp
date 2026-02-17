@@ -34,6 +34,8 @@ export interface EmailOptions {
   html?: string;
   template?: string;
   variables?: Record<string, string | number | boolean>;
+  tenantId?: string;
+  userId?: string;
   attachments?: Array<{
     filename: string;
     path?: string;
@@ -57,6 +59,18 @@ export interface BulkEmailResult {
   messageId?: string;
   response?: string;
   error?: string;
+}
+
+interface SmtpRuntimeConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+  fromName: string;
+  source: 'env' | 'settings';
 }
 
 @injectable()
@@ -186,20 +200,52 @@ export class EmailService extends BaseService {
    * Send email with retry logic
    */
   async sendEmail(to: string, subject: string, body: string, options?: Partial<EmailOptions>): Promise<EmailSendResult> {
-    const smtpEnabled = env.get('SMTP_ENABLED');
+    const smtpConfig = await this.resolveSmtpRuntimeConfig(options?.tenantId);
 
-    if (!smtpEnabled) {
-      logger.info(`Email would be sent to ${to} (SMTP disabled)`);
+    if (!smtpConfig.enabled) {
+      logger.info(`Email would be sent to ${to} (SMTP disabled)`, { tenantId: options?.tenantId || null });
+      await this.logEmail(
+        to,
+        subject,
+        'SKIPPED',
+        null,
+        'SMTP disabled',
+        smtpConfig.from,
+        options?.template,
+        options?.variables as Record<string, unknown>,
+        options?.tenantId,
+        options?.userId
+      );
       return { success: true, to, subject, message: 'Email skipped (SMTP disabled)' };
     }
 
-    if (!this.transporter) {
-      // Try to reinitialize
-      await this.initializeTransporter();
+    if (!smtpConfig.host || !smtpConfig.from) {
+      throw this.badRequestError('SMTP settings are incomplete. Please configure host and from address.');
+    }
 
+    let transporter: Transporter | null = null;
+    if (smtpConfig.source === 'env') {
+      if (!this.transporter) {
+        // Try to reinitialize
+        await this.initializeTransporter();
+      }
       if (!this.transporter) {
         throw this.badRequestError('Email service not available - SMTP transporter not configured');
       }
+      transporter = this.transporter;
+    } else {
+      const transportOptions: Record<string, unknown> = {
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+      };
+      if (smtpConfig.user) {
+        transportOptions['auth'] = {
+          user: smtpConfig.user,
+          pass: smtpConfig.pass,
+        };
+      }
+      transporter = nodemailer.createTransport(transportOptions);
     }
 
     let html = options?.html || body;
@@ -210,7 +256,7 @@ export class EmailService extends BaseService {
     }
 
     const mailOptions = {
-      from: env.get('SMTP_FROM'),
+      from: smtpConfig.from,
       to,
       subject,
       text: body,
@@ -225,7 +271,7 @@ export class EmailService extends BaseService {
       try {
         // S4-1: Execute send through circuit breaker
         const info = await this.circuitBreaker.execute(async () => {
-          return await this.transporter!.sendMail(mailOptions);
+          return await transporter!.sendMail(mailOptions);
         });
 
         // Log successful email with enhanced tracking
@@ -235,9 +281,11 @@ export class EmailService extends BaseService {
           'SENT',
           info.messageId,
           null,
-          env.get('SMTP_FROM'),
+          smtpConfig.from,
           options?.template,
-          options?.variables as Record<string, string | number | boolean>
+          options?.variables as Record<string, string | number | boolean>,
+          options?.tenantId,
+          options?.userId
         );
 
         logger.info(`Email sent successfully to ${to}`, { attempt, maxRetries: this.maxRetries });
@@ -263,9 +311,11 @@ export class EmailService extends BaseService {
             'FAILED',
             null,
             'Circuit breaker OPEN - SMTP service unavailable',
-            env.get('SMTP_FROM'),
+            smtpConfig.from,
             options?.template,
-            options?.variables as Record<string, unknown>
+            options?.variables as Record<string, unknown>,
+            options?.tenantId,
+            options?.userId
           );
 
           throw this.badRequestError('Email service temporarily unavailable - please try again later');
@@ -287,9 +337,11 @@ export class EmailService extends BaseService {
       'FAILED',
       null,
       String(lastError),
-      env.get('SMTP_FROM'),
+      smtpConfig.from,
       options?.template,
-      options?.variables as Record<string, unknown>
+      options?.variables as Record<string, unknown>,
+      options?.tenantId,
+      options?.userId
     );
 
     // Log email sending failure to ErrorLogService
@@ -303,7 +355,7 @@ export class EmailService extends BaseService {
           subject,
           template: options?.template,
           attempts: this.maxRetries,
-          smtpHost: env.get('SMTP_HOST'),
+          smtpHost: smtpConfig.host,
         }
       );
     } catch (logError) {
@@ -313,18 +365,97 @@ export class EmailService extends BaseService {
     throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   }
 
+  private parseBool(value: string | undefined, defaultValue = false): boolean {
+    if (value == null || value === '') return defaultValue;
+    const normalized = String(value).trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+  }
+
+  private async resolveSmtpRuntimeConfig(tenantId?: string): Promise<SmtpRuntimeConfig> {
+    const envConfig: SmtpRuntimeConfig = {
+      enabled: env.get('SMTP_ENABLED'),
+      host: String(env.get('SMTP_HOST') || ''),
+      port: Number(env.get('SMTP_PORT') || 587),
+      secure: Boolean(env.get('SMTP_SECURE')),
+      user: String(env.get('SMTP_USER') || ''),
+      pass: String(env.get('SMTP_PASS') || ''),
+      from: String(env.get('SMTP_FROM') || ''),
+      fromName: String(env.get('SMTP_FROM_NAME') || ''),
+      source: 'env',
+    };
+
+    if (!tenantId) return envConfig;
+
+    const keys = [
+      'email_enabled', 'smtp_enabled',
+      'email_smtp_host', 'email_smtpHost', 'smtp_host',
+      'email_smtp_port', 'email_smtpPort', 'smtp_port',
+      'email_smtp_secure', 'email_smtpSecure', 'email_secure',
+      'email_smtp_user', 'email_smtpUser', 'smtp_user',
+      'email_smtp_pass', 'email_smtpPassword', 'smtp_password',
+      'email_from_address', 'email_fromEmail', 'smtp_from',
+      'email_from_name', 'email_fromName',
+    ];
+
+    const [globalRows, tenantRows] = await Promise.all([
+      this.prisma.systemSetting.findMany({
+        where: { tenantId: null, key: { in: keys } },
+        select: { key: true, value: true },
+      }),
+      this.prisma.systemSetting.findMany({
+        where: { tenantId, key: { in: keys } },
+        select: { key: true, value: true },
+      }),
+    ]);
+
+    if (tenantRows.length === 0 && globalRows.length === 0) {
+      return envConfig;
+    }
+
+    const map: Record<string, string> = {};
+    for (const row of globalRows) map[row.key] = row.value;
+    for (const row of tenantRows) map[row.key] = row.value;
+
+    const pick = (...aliases: string[]): string | undefined => {
+      for (const alias of aliases) {
+        const value = map[alias];
+        if (value != null && value !== '') return value;
+      }
+      return undefined;
+    };
+
+    const settingsEnabled = this.parseBool(
+      pick('email_enabled', 'smtp_enabled'),
+      envConfig.enabled
+    );
+
+    return {
+      enabled: settingsEnabled,
+      host: pick('email_smtp_host', 'email_smtpHost', 'smtp_host') || envConfig.host,
+      port: Number(pick('email_smtp_port', 'email_smtpPort', 'smtp_port') || envConfig.port),
+      secure: this.parseBool(pick('email_smtp_secure', 'email_smtpSecure', 'email_secure'), envConfig.secure),
+      user: pick('email_smtp_user', 'email_smtpUser', 'smtp_user') || envConfig.user,
+      pass: pick('email_smtp_pass', 'email_smtpPassword', 'smtp_password') || envConfig.pass,
+      from: pick('email_from_address', 'email_fromEmail', 'smtp_from') || envConfig.from,
+      fromName: pick('email_from_name', 'email_fromName') || envConfig.fromName,
+      source: 'settings',
+    };
+  }
+
   /**
    * Log email delivery to database
    */
   private async logEmail(
     to: string,
     subject: string,
-    status: 'SENT' | 'FAILED' | 'PENDING',
+    status: 'SENT' | 'FAILED' | 'PENDING' | 'SKIPPED',
     messageId: string | null = null,
     errorMessage: string | null = null,
     from?: string,
     template?: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    tenantId?: string,
+    userId?: string
   ): Promise<void> {
     try {
       await this.prisma.emailLog.create({
@@ -337,6 +468,8 @@ export class EmailService extends BaseService {
           from: from || env.get('SMTP_FROM'),
           template: template || null,
           metadata: metadata ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+          tenantId: tenantId || null,
+          userId: userId || null,
           sentAt: new Date()
         }
       });

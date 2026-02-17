@@ -30,8 +30,10 @@ interface WorkflowTemplate {
   description?: string
   type: string
   isActive: boolean
+  config?: Record<string, unknown>
   createdAt: string
   steps: WorkflowStep[]
+  winnerUnlock: WinnerUnlockSettings
 }
 
 interface WorkflowInstance {
@@ -50,6 +52,15 @@ interface WorkflowForm {
   type: string
   isActive: boolean
   steps: WorkflowStep[]
+  winnerUnlock: WinnerUnlockSettings
+}
+
+interface WinnerUnlockSettings {
+  enabled: boolean
+  contestId: string
+  mode: 'trigger' | 'scheduled'
+  triggerEvent: string
+  unlockAt: string
 }
 
 const EMPTY_STEP = (order: number): WorkflowStep => ({
@@ -67,6 +78,13 @@ const EMPTY_FORM: WorkflowForm = {
   type: 'custom',
   isActive: true,
   steps: [EMPTY_STEP(1)],
+  winnerUnlock: {
+    enabled: false,
+    contestId: '',
+    mode: 'trigger',
+    triggerEvent: 'certification.approved',
+    unlockAt: '',
+  },
 }
 
 const ROLE_OPTIONS: WorkflowRole[] = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT']
@@ -81,9 +99,26 @@ const WORKFLOW_TRIGGER_TYPES = [
   { value: 'certification.approved', label: 'Certification Approved' },
   { value: 'certification.rejected', label: 'Certification Rejected' },
   { value: 'assignment.created', label: 'Assignment Created' },
+  { value: 'winners.unlock.time', label: 'Winners Unlock (Scheduled Time)' },
 ]
 
+const toDateTimeLocal = (value?: string): string => {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const shifted = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000)
+  return shifted.toISOString().slice(0, 16)
+}
+
 const parseTemplate = (raw: any): WorkflowTemplate => {
+  const config = raw?.config && typeof raw.config === 'object' && !Array.isArray(raw.config)
+    ? raw.config as Record<string, unknown>
+    : {}
+  const winnerUnlockRaw = config['winnerUnlock']
+  const winnerUnlockObject = winnerUnlockRaw && typeof winnerUnlockRaw === 'object' && !Array.isArray(winnerUnlockRaw)
+    ? winnerUnlockRaw as Record<string, unknown>
+    : {}
+
   const parsedSteps: WorkflowStep[] = Array.isArray(raw?.steps)
     ? raw.steps
     : Array.isArray(raw?.config?.steps)
@@ -96,6 +131,7 @@ const parseTemplate = (raw: any): WorkflowTemplate => {
     description: raw.description || '',
     type: raw.type || 'custom',
     isActive: Boolean(raw.isActive),
+    config,
     createdAt: raw.createdAt,
     steps: parsedSteps
       .map((step: any, index: number) => ({
@@ -108,6 +144,15 @@ const parseTemplate = (raw: any): WorkflowTemplate => {
         autoAdvance: Boolean(step.autoAdvance),
       }))
       .sort((a: WorkflowStep, b: WorkflowStep) => a.stepOrder - b.stepOrder),
+    winnerUnlock: {
+      enabled: winnerUnlockObject['enabled'] === true,
+      contestId: typeof winnerUnlockObject['contestId'] === 'string' ? winnerUnlockObject['contestId'] : '',
+      mode: winnerUnlockObject['mode'] === 'scheduled' ? 'scheduled' : 'trigger',
+      triggerEvent: typeof winnerUnlockObject['triggerEvent'] === 'string'
+        ? winnerUnlockObject['triggerEvent']
+        : 'certification.approved',
+      unlockAt: toDateTimeLocal(typeof winnerUnlockObject['unlockAt'] === 'string' ? winnerUnlockObject['unlockAt'] : ''),
+    },
   }
 }
 
@@ -123,12 +168,25 @@ const buildPayload = (form: WorkflowForm) => {
     }))
     .filter((step) => step.name.length > 0)
 
+  const winnerUnlock = form.winnerUnlock.enabled
+    ? {
+        enabled: true,
+        contestId: form.winnerUnlock.contestId.trim(),
+        mode: form.winnerUnlock.mode,
+        triggerEvent: form.winnerUnlock.mode === 'trigger' ? form.winnerUnlock.triggerEvent : undefined,
+        unlockAt: form.winnerUnlock.mode === 'scheduled' && form.winnerUnlock.unlockAt
+          ? new Date(form.winnerUnlock.unlockAt).toISOString()
+          : undefined,
+      }
+    : null
+
   return {
     name: form.name.trim(),
     description: form.description.trim(),
     type: form.type.trim() || 'custom',
     isActive: form.isActive,
     steps,
+    ...(winnerUnlock ? { config: { winnerUnlock } } : {}),
   }
 }
 
@@ -188,6 +246,9 @@ const WorkflowManagementPage: React.FC = () => {
             stepOrder: index + 1,
           }))
         : [EMPTY_STEP(1)],
+      winnerUnlock: {
+        ...(workflow.winnerUnlock || EMPTY_FORM.winnerUnlock),
+      },
     })
     setIsModalOpen(true)
   }
@@ -203,6 +264,28 @@ const WorkflowManagementPage: React.FC = () => {
     if (!payload.name) {
       setError('Workflow name is required')
       return
+    }
+    if (form.winnerUnlock.enabled) {
+      if (!form.winnerUnlock.contestId.trim()) {
+        setError('Winner unlock automation requires a contest ID')
+        return
+      }
+      if (form.winnerUnlock.mode === 'scheduled') {
+        if (!form.winnerUnlock.unlockAt) {
+          setError('Scheduled winner unlock requires an unlock date/time')
+          return
+        }
+        if (form.type !== 'winners.unlock.time') {
+          setError('Set workflow type to "Winners Unlock (Scheduled Time)" for scheduled unlock automation')
+          return
+        }
+      } else if (form.type === 'winners.unlock.time') {
+        setError('Scheduled unlock workflow type requires "Scheduled time" mode')
+        return
+      } else if (form.winnerUnlock.triggerEvent && form.type !== form.winnerUnlock.triggerEvent) {
+        setError('For trigger-based winner unlock, workflow type must match the selected trigger event')
+        return
+      }
     }
 
     try {
@@ -480,6 +563,21 @@ const WorkflowManagementPage: React.FC = () => {
                   </div>
                 </div>
 
+                {workflow.winnerUnlock.enabled && (
+                  <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-100">
+                    <div className="font-semibold">Winners Unlock Automation</div>
+                    <div className="mt-1">Contest ID: {workflow.winnerUnlock.contestId}</div>
+                    <div>
+                      Mode: {workflow.winnerUnlock.mode === 'scheduled' ? 'Scheduled time' : 'Trigger-based'}
+                    </div>
+                    {workflow.winnerUnlock.mode === 'scheduled' ? (
+                      <div>Unlock at: {workflow.winnerUnlock.unlockAt || 'Not set'}</div>
+                    ) : (
+                      <div>Trigger event: {workflow.winnerUnlock.triggerEvent || workflow.type}</div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => executeWorkflow(workflow.id)}
@@ -528,7 +626,16 @@ const WorkflowManagementPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                   <select
                     value={form.type}
-                    onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}
+                    onChange={(e) => {
+                      const nextType = e.target.value
+                      setForm((prev) => ({
+                        ...prev,
+                        type: nextType,
+                        winnerUnlock: prev.winnerUnlock.enabled && prev.winnerUnlock.mode === 'trigger'
+                          ? { ...prev.winnerUnlock, triggerEvent: nextType }
+                          : prev.winnerUnlock,
+                      }))
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     {WORKFLOW_TRIGGER_TYPES.map((trigger) => (
@@ -561,6 +668,120 @@ const WorkflowManagementPage: React.FC = () => {
                 <label htmlFor="workflow-active" className="text-sm text-gray-700 dark:text-gray-300">
                   Active
                 </label>
+              </div>
+
+              <div className="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-4 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-indigo-900 dark:text-indigo-100">
+                  <input
+                    type="checkbox"
+                    checked={form.winnerUnlock.enabled}
+                    onChange={(e) => setForm((prev) => ({
+                      ...prev,
+                      winnerUnlock: {
+                        ...prev.winnerUnlock,
+                        enabled: e.target.checked,
+                      },
+                    }))}
+                  />
+                  Enable winners unlock automation
+                </label>
+                <p className="text-xs text-indigo-800 dark:text-indigo-200">
+                  Automatically publish winners when trigger/time requirements are satisfied.
+                </p>
+
+                {form.winnerUnlock.enabled && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                        Contest ID
+                      </label>
+                      <input
+                        type="text"
+                        value={form.winnerUnlock.contestId}
+                        onChange={(e) => setForm((prev) => ({
+                          ...prev,
+                          winnerUnlock: {
+                            ...prev.winnerUnlock,
+                            contestId: e.target.value,
+                          },
+                        }))}
+                        placeholder="Contest ID to unlock"
+                        className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                        Mode
+                      </label>
+                      <select
+                        value={form.winnerUnlock.mode}
+                        onChange={(e) => {
+                          const mode = e.target.value as 'trigger' | 'scheduled'
+                          setForm((prev) => ({
+                            ...prev,
+                            type: mode === 'scheduled'
+                              ? 'winners.unlock.time'
+                              : (prev.type === 'winners.unlock.time' ? 'certification.approved' : prev.type),
+                            winnerUnlock: {
+                              ...prev.winnerUnlock,
+                              mode,
+                            },
+                          }))
+                        }}
+                        className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      >
+                        <option value="trigger">Trigger-based unlock</option>
+                        <option value="scheduled">Scheduled time unlock</option>
+                      </select>
+                    </div>
+
+                    {form.winnerUnlock.mode === 'trigger' ? (
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                          Trigger Event
+                        </label>
+                        <select
+                          value={form.winnerUnlock.triggerEvent}
+                          onChange={(e) => setForm((prev) => ({
+                            ...prev,
+                            type: e.target.value,
+                            winnerUnlock: {
+                              ...prev.winnerUnlock,
+                              triggerEvent: e.target.value,
+                            },
+                          }))}
+                          className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        >
+                          {WORKFLOW_TRIGGER_TYPES
+                            .filter((trigger) => trigger.value !== 'custom' && trigger.value !== 'winners.unlock.time')
+                            .map((trigger) => (
+                              <option key={trigger.value} value={trigger.value}>{trigger.label}</option>
+                            ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                          Unlock Date / Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={form.winnerUnlock.unlockAt}
+                          onChange={(e) => setForm((prev) => ({
+                            ...prev,
+                            type: 'winners.unlock.time',
+                            winnerUnlock: {
+                              ...prev.winnerUnlock,
+                              unlockAt: e.target.value,
+                            },
+                          }))}
+                          className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

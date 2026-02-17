@@ -113,6 +113,8 @@ export const eventsAPI = {
   getById: (id: string) => api.get(`/events/${id}`),
   create: (data: any) => api.post('/events', data),
   update: (id: string, data: any) => api.put(`/events/${id}`, data),
+  archive: (id: string) => api.post(`/events/${id}/archive`),
+  unarchive: (id: string) => api.post(`/events/${id}/unarchive`),
   delete: (id: string) => api.delete(`/events/${id}`),
 }
 
@@ -132,6 +134,8 @@ export const contestsAPI = {
     }
   },
   update: (id: string, data: any) => api.put(`/contests/${id}`, data),
+  archive: (id: string) => api.post(`/contests/${id}/archive`),
+  reactivate: (id: string) => api.post(`/contests/${id}/reactivate`),
   delete: (id: string) => api.delete(`/contests/${id}`),
   getOlympicScoringValidation: (id: string) => api.get(`/contests/${id}/olympic-scoring-validation`),
   getMinimumWinningScore: (id: string) => api.get(`/contests/${id}/minimum-winning-score`),

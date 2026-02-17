@@ -48,11 +48,48 @@ const isPrivateIp = (ip: string): boolean => {
   );
 };
 
-const normalizeIp = (rawIp?: string | null): string => {
+const stripQuotes = (value: string): string => value.replace(/^"(.*)"$/, '$1');
+
+const normalizeForwardedIpToken = (value: string): string => {
+  let ip = stripQuotes(value.trim());
+  if (!ip) return '';
+
+  if (ip.toLowerCase().startsWith('for=')) {
+    ip = stripQuotes(ip.slice(4).trim());
+  }
+
+  if (ip.startsWith('[')) {
+    const endIdx = ip.indexOf(']');
+    if (endIdx > 0) {
+      ip = ip.slice(1, endIdx);
+    }
+  }
+
+  if (ip.toLowerCase().startsWith('::ffff:')) {
+    ip = ip.slice(7);
+  }
+
+  if (/^\d+\.\d+\.\d+\.\d+:\d+$/.test(ip)) {
+    ip = ip.replace(/:\d+$/, '');
+  }
+
+  if (ip.includes('%')) {
+    ip = ip.split('%')[0] || ip;
+  }
+
+  if (ip.toLowerCase() === 'unknown') {
+    return '';
+  }
+
+  return ip.trim();
+};
+
+export const normalizeIpAddress = (rawIp?: string | null): string => {
   if (!rawIp) return '';
   const trimmed = rawIp.trim();
   if (!trimmed) return '';
-  return trimmed.split(',')[0]!.trim();
+  const firstToken = trimmed.split(',')[0] || '';
+  return normalizeForwardedIpToken(firstToken);
 };
 
 const parseNumber = (value: unknown): number | undefined => {
@@ -65,7 +102,7 @@ const parseNumber = (value: unknown): number | undefined => {
 };
 
 export const getGeoLocationForIp = async (rawIp?: string | null): Promise<GeoLocationResult> => {
-  const ip = normalizeIp(rawIp);
+  const ip = normalizeIpAddress(rawIp);
   if (!ip) {
     return { ip: '', source: 'invalid' };
   }

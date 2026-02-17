@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getAllEvents, getEventById, createEvent, updateEvent, deleteEvent, restoreEvent } from '../controllers/eventsController';
+import { getAllEvents, getEventById, createEvent, updateEvent, deleteEvent, restoreEvent, archiveEvent, unarchiveEvent } from '../controllers/eventsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { validate, createEventSchema, updateEventSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';
@@ -93,6 +93,8 @@ router.get('/:id', getEventById);
  */
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createEventSchema), logActivity('CREATE_EVENT', 'EVENT'), createEvent);
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateEventSchema), logActivity('UPDATE_EVENT', 'EVENT'), updateEvent);
+router.post('/:id/archive', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ARCHIVE_EVENT', 'EVENT'), archiveEvent);
+router.post('/:id/unarchive', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UNARCHIVE_EVENT', 'EVENT'), unarchiveEvent);
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT', 'EVENT'), deleteEvent);
 // S4-3: Restore soft-deleted events
 router.post('/:id/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_EVENT', 'EVENT'), restoreEvent);

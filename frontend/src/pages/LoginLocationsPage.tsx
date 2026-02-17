@@ -189,7 +189,10 @@ const LoginLocationsPage: React.FC = () => {
       const response = await adminAPI.getLoginLocations({ days, limit: 400 })
       return response.data.data as LoginLocationsResponse
     },
-    { enabled: canView }
+    {
+      enabled: canView,
+      keepPreviousData: true,
+    }
   )
 
   const filteredLocations = useMemo(() => {
@@ -274,7 +277,7 @@ const LoginLocationsPage: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    if (!canView || isLoading || isError || leafletError || leafletMapRef.current) return
+    if (!canView || leafletError || leafletMapRef.current) return
 
     let cancelled = false
 
@@ -320,7 +323,7 @@ const LoginLocationsPage: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [canView, isLoading, isError, leafletError])
+  }, [canView, leafletError])
 
   useEffect(() => {
     return () => {
@@ -336,6 +339,8 @@ const LoginLocationsPage: React.FC = () => {
     if (!leafletReady || !leafletMapRef.current || !leafletLayerRef.current) return
     const L = (window as any).L
     if (!L) return
+
+    leafletMapRef.current.invalidateSize()
 
     const layer = leafletLayerRef.current
     layer.clearLayers()
@@ -373,6 +378,13 @@ const LoginLocationsPage: React.FC = () => {
       leafletMapRef.current.setView([20, 0], 2)
     }
   }, [leafletReady, mapPoints])
+
+  useEffect(() => {
+    if (!leafletReady || !leafletMapRef.current) return
+    window.requestAnimationFrame(() => {
+      leafletMapRef.current?.invalidateSize()
+    })
+  }, [leafletReady, days])
 
   const applyZoomAtPoint = (targetZoom: number, centerX: number, centerY: number) => {
     const nextZoom = clamp(targetZoom, 1, 8)
@@ -517,9 +529,7 @@ const LoginLocationsPage: React.FC = () => {
             />
           </div>
 
-          {isLoading ? (
-            <div className="flex h-[420px] items-center justify-center text-gray-500 dark:text-gray-400">Loading login locations...</div>
-          ) : isError ? (
+          {isError && !data ? (
             <div className="flex h-[420px] items-center justify-center text-rose-600 dark:text-rose-300">Failed to load login locations.</div>
           ) : leafletError ? (
             <div ref={mapWrapperRef} className="relative h-[500px] w-full overflow-hidden rounded-lg border border-gray-200 bg-gradient-to-b from-slate-100 via-sky-100 to-slate-200 p-2 dark:border-gray-700 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
@@ -639,8 +649,8 @@ const LoginLocationsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="relative h-[500px] w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="absolute right-3 top-3 z-[1000] flex items-center gap-1 rounded-md border border-gray-300 bg-white/90 p-1 shadow dark:border-gray-600 dark:bg-gray-800/90">
+            <div className="login-locations-map relative isolate h-[500px] w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-md border border-gray-300 bg-white/90 p-1 shadow dark:border-gray-600 dark:bg-gray-800/90">
                 <button
                   type="button"
                   onClick={() => {
@@ -654,8 +664,13 @@ const LoginLocationsPage: React.FC = () => {
                 </button>
               </div>
               {!leafletReady && (
-                <div className="absolute inset-0 z-[900] flex items-center justify-center bg-white/80 text-sm text-gray-700 dark:bg-gray-900/80 dark:text-gray-200">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 text-sm text-gray-700 dark:bg-gray-900/80 dark:text-gray-200">
                   Loading interactive map...
+                </div>
+              )}
+              {isFetching && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 text-sm text-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
+                  Refreshing map data...
                 </div>
               )}
               <div ref={leafletMapContainerRef} className="h-full w-full" />

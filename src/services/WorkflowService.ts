@@ -17,6 +17,7 @@ export interface WorkflowTemplateInput {
   type?: string;
   isDefault?: boolean;
   isActive?: boolean;
+  config?: Record<string, unknown>;
   steps: WorkflowStepInput[];
 }
 
@@ -47,6 +48,14 @@ const STATUS_CANCELLED = 'cancelled';
 const EXECUTION_PENDING = 'pending';
 const EXECUTION_IN_PROGRESS = 'in_progress';
 const EXECUTION_COMPLETED = 'completed';
+
+interface WinnerUnlockConfig {
+  enabled: boolean;
+  contestId?: string;
+  mode?: 'trigger' | 'scheduled';
+  triggerEvent?: string;
+  unlockAt?: string;
+}
 
 export class WorkflowService {
   private static async initializeDefaultsForTenant(tenantId: string): Promise<void> {
@@ -118,6 +127,140 @@ export class WorkflowService {
     return new Map(steps.map((step) => [step.id, step]));
   }
 
+  private static parseWinnerUnlockConfig(config: Prisma.JsonValue | null | undefined): WinnerUnlockConfig | null {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+    const winnerUnlockRaw = (config as Record<string, unknown>)['winnerUnlock'];
+    if (!winnerUnlockRaw || typeof winnerUnlockRaw !== 'object' || Array.isArray(winnerUnlockRaw)) return null;
+
+    const winnerUnlock = winnerUnlockRaw as Record<string, unknown>;
+    return {
+      enabled: winnerUnlock['enabled'] === true,
+      contestId: typeof winnerUnlock['contestId'] === 'string' ? winnerUnlock['contestId'] : undefined,
+      mode: winnerUnlock['mode'] === 'scheduled' ? 'scheduled' : 'trigger',
+      triggerEvent: typeof winnerUnlock['triggerEvent'] === 'string' ? winnerUnlock['triggerEvent'] : undefined,
+      unlockAt: typeof winnerUnlock['unlockAt'] === 'string' ? winnerUnlock['unlockAt'] : undefined,
+    };
+  }
+
+  private static async publishWinnersIfEligible(
+    contestId: string,
+    tenantId: string,
+    context: { source: string; templateId?: string; eventType?: string }
+  ): Promise<boolean> {
+    const contest = await prisma.contest.findFirst({
+      where: { id: contestId, tenantId },
+      select: {
+        id: true,
+        name: true,
+        winnersPublished: true,
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            categoryCertifications: {
+              where: { role: 'BOARD', tenantId },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!contest || contest.winnersPublished || contest.categories.length === 0) return false;
+
+    const missingApprovals = contest.categories.filter((category) => category.categoryCertifications.length === 0);
+    if (missingApprovals.length > 0) return false;
+
+    await prisma.contest.update({
+      where: { id: contestId },
+      data: {
+        winnersPublished: true,
+        publishedAt: new Date(),
+        publishedBy: 'workflow-system',
+      },
+    });
+
+    logger.info('Workflow auto-published winners', {
+      contestId,
+      contestName: contest.name,
+      tenantId,
+      templateId: context.templateId,
+      source: context.source,
+      eventType: context.eventType,
+    });
+
+    return true;
+  }
+
+  private static async maybeTriggerWinnerUnlockFromConfig(
+    config: Prisma.JsonValue | null | undefined,
+    tenantId: string,
+    eventType: string,
+    payload: Record<string, unknown>,
+    options?: { now?: Date; source?: string; templateId?: string }
+  ): Promise<boolean> {
+    const winnerUnlock = this.parseWinnerUnlockConfig(config);
+    if (!winnerUnlock?.enabled) return false;
+
+    const mode = winnerUnlock.mode || 'trigger';
+    if (mode === 'trigger') {
+      if (winnerUnlock.triggerEvent && winnerUnlock.triggerEvent !== eventType) return false;
+    } else {
+      const unlockAt = winnerUnlock.unlockAt ? new Date(winnerUnlock.unlockAt) : null;
+      if (!unlockAt || Number.isNaN(unlockAt.getTime())) return false;
+      const now = options?.now || new Date();
+      if (unlockAt.getTime() > now.getTime()) return false;
+    }
+
+    const contestIdFromPayload =
+      (typeof payload['contestId'] === 'string' && payload['contestId']) ||
+      (typeof payload['entityId'] === 'string' && payload['entityId']) ||
+      '';
+    const contestId = winnerUnlock.contestId || contestIdFromPayload;
+    if (!contestId) return false;
+
+    return this.publishWinnersIfEligible(contestId, tenantId, {
+      source: options?.source || 'workflow-automation',
+      templateId: options?.templateId,
+      eventType,
+    });
+  }
+
+  static async runScheduledWinnerUnlocks(now: Date = new Date()): Promise<number> {
+    try {
+      const templates = await prisma.workflowTemplate.findMany({
+        where: {
+          isActive: true,
+          type: 'winners.unlock.time',
+          tenantId: { not: null },
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          config: true,
+        },
+      });
+
+      let publishedCount = 0;
+      for (const template of templates) {
+        if (!template.tenantId) continue;
+        const didPublish = await this.maybeTriggerWinnerUnlockFromConfig(
+          template.config,
+          template.tenantId,
+          'winners.unlock.time',
+          {},
+          { now, source: 'workflow-scheduler', templateId: template.id }
+        );
+        if (didPublish) publishedCount += 1;
+      }
+
+      return publishedCount;
+    } catch (error) {
+      logger.error('Error running scheduled winner unlock workflows', { error });
+      return 0;
+    }
+  }
+
   /**
    * Create workflow template
    */
@@ -134,6 +277,12 @@ export class WorkflowService {
       }
 
       const normalizedSteps = this.normalizeStepInput(steps);
+      const baseConfig = (
+        templateData.config &&
+        typeof templateData.config === 'object' &&
+        !Array.isArray(templateData.config)
+      ) ? (templateData.config as Record<string, unknown>) : {};
+      const templateConfig = ({ ...baseConfig, steps: normalizedSteps } as unknown as Prisma.InputJsonValue);
 
       const result = await prisma.$transaction(async (tx) => {
         const createdTemplate = await tx.workflowTemplate.create({
@@ -144,7 +293,7 @@ export class WorkflowService {
             type: templateData.type || 'custom',
             isDefault: templateData.isDefault ?? false,
             isActive: templateData.isActive ?? true,
-            config: ({ steps: normalizedSteps } as unknown as Prisma.InputJsonValue),
+            config: templateConfig,
           }
         });
 
@@ -265,6 +414,22 @@ export class WorkflowService {
 
       const result = await prisma.$transaction(async (tx) => {
         const nextSteps = Array.isArray(data.steps) ? this.normalizeStepInput(data.steps) : null;
+        const existingConfig = (
+          existing.config &&
+          typeof existing.config === 'object' &&
+          !Array.isArray(existing.config)
+        ) ? (existing.config as Record<string, unknown>) : {};
+        const incomingConfig = (
+          data.config &&
+          typeof data.config === 'object' &&
+          !Array.isArray(data.config)
+        ) ? (data.config as Record<string, unknown>) : null;
+        const nextConfig = (incomingConfig || nextSteps)
+          ? ({
+              ...(incomingConfig || existingConfig),
+              ...(nextSteps ? { steps: nextSteps } : {}),
+            } as Prisma.InputJsonValue)
+          : undefined;
         const updatedTemplate = await tx.workflowTemplate.update({
           where: { id },
           data: {
@@ -273,9 +438,7 @@ export class WorkflowService {
             type: data.type,
             isActive: data.isActive,
             isDefault: data.isDefault,
-            ...(nextSteps
-              ? { config: ({ steps: nextSteps } as unknown as Prisma.InputJsonValue) }
-              : {}),
+            ...(nextConfig ? { config: nextConfig } : {}),
           }
         });
 
@@ -436,7 +599,7 @@ export class WorkflowService {
           isActive: true,
           type: eventType,
         },
-        select: { id: true },
+        select: { id: true, config: true },
       });
 
       if (templates.length === 0) return 0;
@@ -479,6 +642,13 @@ export class WorkflowService {
         });
         if (existing) continue;
         await this.startWorkflow(template.id, tenantId, entityType, entityId);
+        await this.maybeTriggerWinnerUnlockFromConfig(
+          template.config,
+          tenantId,
+          eventType,
+          payload,
+          { source: 'workflow-event', templateId: template.id }
+        );
         started += 1;
       }
       return started;

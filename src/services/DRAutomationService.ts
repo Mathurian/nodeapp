@@ -63,7 +63,7 @@ export interface BackupScheduleInput {
   tenantId?: string;
   name: string;
   backupType?: string;
-  frequency: string;
+  frequency?: string;
   enabled?: boolean;
   retentionDays?: number;
   targets?: string[];
@@ -223,14 +223,15 @@ export class DRAutomationService {
    */
   static async createBackupSchedule(input: BackupScheduleInput): Promise<BackupSchedule> {
     try {
-      const nextRunAt = this.calculateNextRun(input.frequency);
+      const normalizedFrequency = this.normalizeFrequency(input.frequency);
+      const nextRunAt = this.calculateNextRun(normalizedFrequency);
 
       const schedule = await prisma.backupSchedule.create({
         data: {
           tenantId: input.tenantId,
           name: input.name,
           backupType: input.backupType || 'full',
-          frequency: input.frequency,
+          frequency: normalizedFrequency,
           enabled: input.enabled !== false,
           retentionDays: input.retentionDays || 30,
           targets: input.targets || [],
@@ -256,7 +257,9 @@ export class DRAutomationService {
       const updateData: Partial<BackupScheduleInput> & { nextRunAt?: Date } = { ...input };
 
       if (input.frequency) {
-        updateData.nextRunAt = this.calculateNextRun(input.frequency);
+        const normalizedFrequency = this.normalizeFrequency(input.frequency);
+        updateData.frequency = normalizedFrequency;
+        updateData.nextRunAt = this.calculateNextRun(normalizedFrequency);
       }
 
       const schedule = await prisma.backupSchedule.update({
@@ -819,11 +822,11 @@ export class DRAutomationService {
   /**
    * Calculate next run time based on frequency
    */
-  private static calculateNextRun(frequency: string): Date {
+  private static calculateNextRun(frequency?: string): Date {
     const now = new Date();
 
     // Handle simple frequencies
-    const lowerFreq = frequency.toLowerCase();
+    const lowerFreq = this.normalizeFrequency(frequency).toLowerCase();
 
     if (lowerFreq === 'hourly' || lowerFreq === '1 hour') {
       return new Date(now.getTime() + 60 * 60 * 1000);
@@ -837,6 +840,21 @@ export class DRAutomationService {
 
     // Default to daily
     return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  /**
+   * Normalize schedule frequencies to a safe supported value.
+   */
+  private static normalizeFrequency(frequency?: string): string {
+    const value = String(frequency || '').trim().toLowerCase();
+
+    if (!value) return 'daily';
+    if (value === 'hourly' || value === '1 hour') return 'hourly';
+    if (value === 'daily' || value === '1 day') return 'daily';
+    if (value === 'weekly' || value === '1 week') return 'weekly';
+    if (value === 'monthly' || value === '1 month') return 'monthly';
+
+    return 'daily';
   }
 
   /**

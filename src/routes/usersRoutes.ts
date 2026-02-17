@@ -172,7 +172,7 @@ router.get('/:id', getUserById)
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [ADMIN, ORGANIZER, JUDGE, CONTESTANT, BOARD, EMCEE, TALLY_MASTER, AUDITOR]
+ *                 enum: [SUPER_ADMIN, ADMIN, ORGANIZER, JUDGE, CONTESTANT, BOARD, EMCEE, TALLY_MASTER, AUDITOR]
  *     responses:
  *       201:
  *         description: User created successfully

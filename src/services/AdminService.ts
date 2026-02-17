@@ -7,7 +7,7 @@ import { createLogger } from '../utils/logger';
 import { PaginationOptions, PaginatedResponse, createPaginatedResponse } from '../utils/pagination';
 import { env } from '../config/env';
 import { CacheService } from './CacheService';
-import { getGeoLocationForIp } from '../utils/ipGeolocation';
+import { getGeoLocationForIp, normalizeIpAddress } from '../utils/ipGeolocation';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
@@ -467,10 +467,7 @@ export class AdminService extends BaseService {
   }
 
   private normalizeIpAddress(rawIp?: string | null): string {
-    if (!rawIp) return '';
-    const trimmed = rawIp.trim();
-    if (!trimmed) return '';
-    return trimmed.split(',')[0]!.trim();
+    return normalizeIpAddress(rawIp);
   }
 
   async getLoginLocations(params: {

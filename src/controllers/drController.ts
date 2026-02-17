@@ -4,9 +4,35 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { DRAutomationService } from '../services/DRAutomationService';
-import { sendSuccess } from '../utils/responseHelpers';
+import { DRAutomationService, type BackupScheduleInput } from '../services/DRAutomationService';
+import { sendError, sendSuccess } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
+
+const normalizeBackupType = (backupType?: unknown, legacyType?: unknown): string => {
+  const direct = String(backupType || '').trim().toLowerCase();
+  if (direct) {
+    if (direct === 'full' || direct === 'schema' || direct === 'data') return direct;
+    if (direct === 'backup_restore') return 'schema';
+    if (direct === 'data_replication') return 'data';
+    if (direct === 'failover') return 'full';
+  }
+
+  const legacy = String(legacyType || '').trim().toUpperCase();
+  if (legacy === 'BACKUP_RESTORE') return 'schema';
+  if (legacy === 'DATA_REPLICATION') return 'data';
+  if (legacy === 'FAILOVER') return 'full';
+
+  return 'full';
+};
+
+const normalizeFrequency = (frequency?: unknown, backupFrequency?: unknown): string => {
+  const value = String(frequency ?? backupFrequency ?? '').trim().toLowerCase();
+  if (value === 'hourly' || value === '1 hour') return 'hourly';
+  if (value === 'daily' || value === '1 day') return 'daily';
+  if (value === 'weekly' || value === '1 week') return 'weekly';
+  if (value === 'monthly' || value === '1 month') return 'monthly';
+  return 'daily';
+};
 
 /**
  * Get DR configuration
@@ -40,8 +66,29 @@ export const updateDRConfig = async (req: Request, res: Response, next: NextFunc
 export const createBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const tenantId = req.tenantId;
+    const raw = req.body || {};
+    const name = String(raw.name || '').trim();
+
+    if (!name) {
+      sendError(res, 'Plan name is required', 400);
+      return;
+    }
+
+    const retentionDays = Number(raw.retentionDays ?? 30);
+    if (!Number.isFinite(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
+      sendError(res, 'retentionDays must be between 1 and 3650', 400);
+      return;
+    }
+
     const schedule = await DRAutomationService.createBackupSchedule({
-      ...req.body,
+      name,
+      backupType: normalizeBackupType(raw.backupType, raw.type),
+      frequency: normalizeFrequency(raw.frequency, raw.backupFrequency),
+      enabled: raw.enabled !== false,
+      retentionDays,
+      targets: Array.isArray(raw.targets) ? raw.targets : [],
+      compression: raw.compression !== false,
+      encryption: Boolean(raw.encryption),
       tenantId
     });
     sendSuccess(res, schedule, 'Backup schedule created successfully', 201);
@@ -56,7 +103,41 @@ export const createBackupSchedule = async (req: Request, res: Response, next: Ne
 export const updateBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = getRequiredParam(req, 'id');
-    const schedule = await DRAutomationService.updateBackupSchedule(id, req.body);
+    const raw = req.body || {};
+    const updateData: Partial<BackupScheduleInput> = {};
+
+    if (raw.name !== undefined) {
+      const name = String(raw.name || '').trim();
+      if (!name) {
+        sendError(res, 'Plan name cannot be empty', 400);
+        return;
+      }
+      updateData.name = name;
+    }
+
+    if (raw.backupType !== undefined || raw.type !== undefined) {
+      updateData.backupType = normalizeBackupType(raw.backupType, raw.type);
+    }
+
+    if (raw.frequency !== undefined || raw.backupFrequency !== undefined) {
+      updateData.frequency = normalizeFrequency(raw.frequency, raw.backupFrequency);
+    }
+
+    if (raw.enabled !== undefined) updateData.enabled = Boolean(raw.enabled);
+    if (raw.targets !== undefined) updateData.targets = Array.isArray(raw.targets) ? raw.targets : [];
+    if (raw.compression !== undefined) updateData.compression = Boolean(raw.compression);
+    if (raw.encryption !== undefined) updateData.encryption = Boolean(raw.encryption);
+
+    if (raw.retentionDays !== undefined) {
+      const retentionDays = Number(raw.retentionDays);
+      if (!Number.isFinite(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
+        sendError(res, 'retentionDays must be between 1 and 3650', 400);
+        return;
+      }
+      updateData.retentionDays = retentionDays;
+    }
+
+    const schedule = await DRAutomationService.updateBackupSchedule(id, updateData);
     sendSuccess(res, schedule, 'Backup schedule updated successfully');
   } catch (error) {
     return next(error);
@@ -162,7 +243,11 @@ export const verifyBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const executeBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { scheduleId } = req.body;
+    const scheduleId = String(req.body?.scheduleId || req.body?.planId || '').trim();
+    if (!scheduleId) {
+      sendError(res, 'scheduleId is required', 400);
+      return;
+    }
     const result = await DRAutomationService.executeBackup(scheduleId);
 
     if (result.success) {
@@ -180,7 +265,27 @@ export const executeBackup = async (req: Request, res: Response, next: NextFunct
  */
 export const executeDRTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { backupId, testType } = req.body;
+    let backupId = String(req.body?.backupId || '').trim();
+    const testType = String(req.body?.testType || 'restore');
+
+    // Backward compatibility with legacy DR UI that sends planId/scheduleId.
+    if (!backupId) {
+      const scheduleId = String(req.body?.scheduleId || req.body?.planId || '').trim();
+      if (scheduleId) {
+        const backupResult = await DRAutomationService.executeBackup(scheduleId);
+        if (!backupResult.success || !backupResult.backupId) {
+          res.status(500).json({ error: backupResult.error || 'Unable to prepare backup for DR test' });
+          return;
+        }
+        backupId = backupResult.backupId;
+      }
+    }
+
+    if (!backupId) {
+      sendError(res, 'backupId (or planId/scheduleId) is required', 400);
+      return;
+    }
+
     const result = await DRAutomationService.executeDRTest(backupId, testType);
     sendSuccess(res, result, 'DR test executed successfully');
   } catch (error) {

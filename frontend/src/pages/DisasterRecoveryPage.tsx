@@ -26,6 +26,18 @@ interface DRPlan {
   createdAt: string
 }
 
+type DRFrequency = 'hourly' | 'daily' | 'weekly' | 'monthly'
+
+interface NewDRPlanForm {
+  name: string
+  description: string
+  type: DRPlan['type']
+  priority: DRPlan['priority']
+  frequency: DRFrequency
+  rto: number
+  rpo: number
+}
+
 interface DRTest {
   id: string
   planId: string
@@ -44,11 +56,12 @@ const DisasterRecoveryPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [testingPlan, setTestingPlan] = useState<string | null>(null)
-  const [newPlan, setNewPlan] = useState({
+  const [newPlan, setNewPlan] = useState<NewDRPlanForm>({
     name: '',
     description: '',
-    type: 'BACKUP_RESTORE' as const,
-    priority: 'MEDIUM' as const,
+    type: 'BACKUP_RESTORE',
+    priority: 'MEDIUM',
+    frequency: 'daily',
     rto: 60,
     rpo: 30,
   })
@@ -63,7 +76,30 @@ const DisasterRecoveryPage: React.FC = () => {
       setLoading(true)
       const response = await api.get('/dr/schedules')
       const data = response.data?.data || response.data
-      setPlans(Array.isArray(data) ? data : [])
+      const normalizedPlans: DRPlan[] = Array.isArray(data)
+        ? data.map((row: any) => {
+            const backupType = String(row?.backupType || '').toLowerCase()
+            const mappedType: DRPlan['type'] =
+              backupType === 'data'
+                ? 'DATA_REPLICATION'
+                : backupType === 'schema'
+                  ? 'BACKUP_RESTORE'
+                  : 'FAILOVER'
+            return {
+              id: row.id,
+              name: row.name || 'Untitled plan',
+              description: row.description || `${String(row.frequency || 'daily').toUpperCase()} ${mappedType.replace('_', ' ')}`,
+              type: mappedType,
+              priority: (row.priority as DRPlan['priority']) || 'MEDIUM',
+              rto: Number(row.rto ?? 60),
+              rpo: Number(row.rpo ?? row.retentionDays ?? 30),
+              lastTested: row.lastRunAt || null,
+              status: row.enabled ? 'ACTIVE' : 'INACTIVE',
+              createdAt: row.createdAt || new Date().toISOString(),
+            }
+          })
+        : []
+      setPlans(normalizedPlans)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load DR plans')
     } finally {
@@ -83,13 +119,31 @@ const DisasterRecoveryPage: React.FC = () => {
 
   const createPlan = async () => {
     try {
-      await api.post('/dr/schedules', newPlan)
+      const backupType =
+        newPlan.type === 'DATA_REPLICATION'
+          ? 'data'
+          : newPlan.type === 'BACKUP_RESTORE'
+            ? 'schema'
+            : 'full'
+
+      await api.post('/dr/schedules', {
+        name: newPlan.name,
+        description: newPlan.description,
+        type: newPlan.type,
+        priority: newPlan.priority,
+        rto: newPlan.rto,
+        rpo: newPlan.rpo,
+        backupType,
+        frequency: newPlan.frequency,
+        retentionDays: Math.max(1, Number(newPlan.rpo) || 30),
+      })
       setShowCreateModal(false)
       setNewPlan({
         name: '',
         description: '',
         type: 'BACKUP_RESTORE',
         priority: 'MEDIUM',
+        frequency: 'daily',
         rto: 60,
         rpo: 30,
       })
@@ -388,6 +442,21 @@ const DisasterRecoveryPage: React.FC = () => {
                       <option value="LOW">Low</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    Backup Frequency
+                  </label>
+                  <select
+                    value={newPlan.frequency}
+                    onChange={(e) => setNewPlan({ ...newPlan, frequency: e.target.value as DRFrequency })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                  >
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
