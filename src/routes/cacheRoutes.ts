@@ -58,9 +58,11 @@ router.get('/keys', getCacheKeys)
 
 // Flush all cache
 router.post('/flush', flushCache)
+router.post('/clear', flushCache)
 
 // Delete specific cache key
 router.delete('/key/:key', deleteCacheKey)
+router.delete('/keys/:key', deleteCacheKey)
 
 // Delete cache keys by pattern
 router.post('/pattern', deleteCachePattern)

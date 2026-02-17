@@ -296,7 +296,7 @@ export class CacheService {
   /**
    * Get all cache keys with details
    */
-  async getAllKeys(): Promise<Array<{ key: string; ttl: number; size: number }>> {
+  async getAllKeys(): Promise<Array<{ key: string; ttl: number; size: number; type: string }>> {
     if (!this.isEnabled) {
       return [];
     }
@@ -305,14 +305,36 @@ export class CacheService {
       const keys = await this.redis.keys('*');
       const keysWithDetails = await Promise.all(
         keys.map(async (key) => {
-          const ttl = await this.redis.ttl(key);
-          const value = await this.redis.get(key);
-          const size = value ? Buffer.byteLength(value, 'utf8') : 0;
+          let ttl = -1;
+          let size = 0;
+          let type = 'unknown';
+
+          try {
+            ttl = await this.redis.ttl(key);
+          } catch (error) {
+            logger.warn('Failed to fetch cache key TTL', { key, error });
+          }
+
+          try {
+            type = await this.redis.type(key);
+          } catch (error) {
+            logger.warn('Failed to fetch cache key type', { key, error });
+          }
+
+          // Redis can store non-string keys (hash/set/zset/list/stream), so GET is unsafe here.
+          // MEMORY USAGE works across types; fallback to 0 when unavailable.
+          try {
+            const usage = await (this.redis as any).call('MEMORY', 'USAGE', key);
+            size = typeof usage === 'number' ? usage : parseInt(String(usage || '0'), 10) || 0;
+          } catch (_error) {
+            size = 0;
+          }
 
           return {
             key,
             ttl,
             size,
+            type,
           };
         })
       );
