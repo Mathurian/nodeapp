@@ -70,9 +70,11 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Extract tenant slug from URL (same logic as TenantContext)
-  const getTenantSlug = (): string => {
-    return extractTenantSlugFromPath(location.pathname) || 'default'
+  // Extract tenant slug from URL path when present.
+  // If no slug is present (e.g., tenant subdomain/custom domain access),
+  // let backend tenant middleware resolve tenant from host.
+  const getTenantSlug = (): string | null => {
+    return extractTenantSlugFromPath(location.pathname)
   }
 
   const fetchSettings = async () => {
@@ -84,7 +86,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
       // Fetch theme settings from public endpoint (no auth required)
       // Pass tenant slug to get tenant-specific theme settings
-      const response = await settingsAPI.getThemeSettings(undefined, slug)
+      const response = await settingsAPI.getThemeSettings(undefined, slug || undefined)
 
       // Handle response format: { success: true, data: { theme_primaryColor: '...', app_name: '...' } }
       const themeData = response.data?.data || response.data?.settings || response.data
