@@ -4,6 +4,7 @@ import { TenantProvider } from '../contexts/TenantContext'
 import { useAuth } from '../contexts/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
 import Layout from './Layout'
+import EnvironmentIndicator from './EnvironmentIndicator'
 import { lazyWithRetry } from '../utils/lazyWithRetry'
 import { isKnownRoute } from '../utils/routeSegments'
 import ResultsPage from '../pages/ResultsPage'
@@ -334,6 +335,7 @@ const TenantRouter: React.FC<TenantRouterProps> = ({ onOpenCommandPalette }) => 
   return (
     <TenantProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <EnvironmentIndicator />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             {/* Public routes - no authentication required */}
