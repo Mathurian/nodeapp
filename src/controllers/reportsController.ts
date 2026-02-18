@@ -429,7 +429,7 @@ export class ReportsController {
    */
   sendReportEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { reportId, recipients, subject, message, format } = req.body;
+      const { reportId, recipients, subject, message, format, html } = req.body;
       const userId = (req as any).user?.id || 'system';
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
@@ -441,9 +441,11 @@ export class ReportsController {
         recipients,
         subject,
         message,
+        html,
         reportData,
         format: format || 'pdf',
-        userId
+        userId,
+        tenantId
       });
 
       const responseMessage = dispatchSummary.skipped === dispatchSummary.total

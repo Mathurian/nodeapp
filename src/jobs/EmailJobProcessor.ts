@@ -29,6 +29,8 @@ export interface EmailJobData {
     data: Record<string, any>;
   };
   priority?: 'high' | 'normal' | 'low';
+  tenantId?: string;
+  userId?: string;
 }
 
 /**
@@ -86,7 +88,7 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
   async process(job: Job<EmailJobData>): Promise<any> {
     this.validate(job.data);
 
-    const { to, subject, html, text, template, attachments } = job.data;
+    const { to, subject, html, text, template, attachments, tenantId, userId } = job.data;
     // Note: from, cc, bcc are available in job.data but not currently used
 
     try {
@@ -140,6 +142,8 @@ export class EmailJobProcessor extends BaseJobProcessor<EmailJobData> {
               template: template?.name,
               variables: template?.data,
               attachments,
+              tenantId,
+              userId,
             }
           );
 

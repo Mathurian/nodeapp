@@ -531,7 +531,7 @@ export const reportsAPI = {
   exportPdf: (id: string) => api.post(`/reports/${id}/export/pdf`, {}, { responseType: 'blob' }),
   exportExcel: (id: string) => api.post(`/reports/${id}/export/excel`, {}, { responseType: 'blob' }),
   exportCsv: (id: string) => api.post(`/reports/${id}/export/csv`, {}, { responseType: 'blob' }),
-  sendEmail: (data: { reportId: string; recipients: string[]; subject?: string; message?: string }) =>
+  sendEmail: (data: { reportId: string; recipients: string[]; subject?: string; message?: string; html?: string }) =>
     api.post('/reports/send-email', data),
 }
 

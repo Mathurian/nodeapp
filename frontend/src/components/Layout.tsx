@@ -314,6 +314,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   }
 
   const isDarkMode = actualTheme === 'dark'
+  const socketStatusLabel = isConnected ? 'Live' : 'Connecting...'
 
   // Close desktop sidebar when clicking outside of it
   useEffect(() => {
@@ -486,7 +487,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                 <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                   <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
                   <span className="text-xs text-gray-600 dark:text-gray-300">
-                    {isConnected ? 'Live' : 'Connecting...'}
+                    {socketStatusLabel}
                   </span>
                 </div>
               </>
@@ -566,6 +567,21 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             </div>
           </div>
         </div>
+
+        {user && (
+          <div className="lg:hidden px-4 pb-3 flex flex-wrap gap-2">
+            <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+              <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">System</span>
+              <div className={`w-2 h-2 rounded-full ${systemStatus === 'Healthy' ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-xs text-gray-700 dark:text-gray-200">{systemStatus}</span>
+            </div>
+            <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+              <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">WebSocket</span>
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+              <span className="text-xs text-gray-600 dark:text-gray-300">{socketStatusLabel}</span>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions Panel */}
         {quickActionsOpen && (

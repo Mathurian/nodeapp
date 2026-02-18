@@ -31,6 +31,37 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Provide readable defaults for legacy/unclassified form fields in dark mode. */
+  .dark input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  .dark select,
+  .dark textarea {
+    color: rgb(243 244 246);
+    background-color: rgb(31 41 55);
+    border-color: rgb(75 85 99);
+  }
+
+  .dark input::placeholder,
+  .dark select::placeholder,
+  .dark textarea::placeholder {
+    color: rgb(156 163 175);
+  }
+
+  .dark table {
+    color: rgb(229 231 235);
+  }
+
+  .dark thead th {
+    color: rgb(156 163 175);
+  }
+
+  .dark input:-webkit-autofill,
+  .dark textarea:-webkit-autofill,
+  .dark select:-webkit-autofill {
+    -webkit-text-fill-color: rgb(243 244 246);
+    -webkit-box-shadow: 0 0 0 1000px rgb(31 41 55) inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 @layer components {

@@ -37,6 +37,14 @@ interface ReportDetail {
   data?: Record<string, any> | null
 }
 
+interface ReportEmailStyleConfig {
+  headerTitle: string
+  primaryColor: string
+  backgroundColor: string
+  textColor: string
+  footerText: string
+}
+
 const looksLikeHtml = (value: unknown): value is string =>
   typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)
 
@@ -47,6 +55,56 @@ const parseCsvRows = (value: string): string[][] => {
     .filter(Boolean)
     .slice(0, 26) // header + 25 rows
     .map((line) => line.split(',').map((cell) => cell.trim()))
+}
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const buildStyledReportEmailHtml = (
+  options: {
+    subject: string
+    reportTitle: string
+    message: string
+    generatedAt: string
+  },
+  style: ReportEmailStyleConfig
+): string => {
+  const safeSubject = escapeHtml(options.subject || 'Report Delivery')
+  const safeReportTitle = escapeHtml(options.reportTitle || 'Report')
+  const safeMessage = escapeHtml(options.message || '').replace(/\n/g, '<br />')
+  const safeGeneratedAt = escapeHtml(new Date(options.generatedAt).toLocaleString())
+  const safeFooter = escapeHtml(style.footerText || '')
+  const safeHeader = escapeHtml(style.headerTitle || 'Event Manager Report')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${safeSubject}</title>
+</head>
+<body style="margin:0;padding:0;background:${style.backgroundColor};font-family:Arial,sans-serif;color:${style.textColor};">
+  <div style="max-width:640px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+    <div style="background:${style.primaryColor};color:#ffffff;padding:16px 20px;">
+      <div style="font-size:18px;font-weight:700;">${safeHeader}</div>
+    </div>
+    <div style="padding:20px;">
+      <h2 style="margin:0 0 12px 0;color:${style.textColor};font-size:20px;">${safeReportTitle}</h2>
+      <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:${style.textColor};">${safeMessage || 'Please find the attached report.'}</p>
+      <p style="margin:0;color:#6b7280;font-size:12px;">Generated: ${safeGeneratedAt}</p>
+      <p style="margin:10px 0 0 0;color:#6b7280;font-size:12px;">The requested report is attached to this email.</p>
+    </div>
+    <div style="padding:14px 20px;background:#f9fafb;color:#6b7280;font-size:12px;">
+      ${safeFooter}
+    </div>
+  </div>
+</body>
+</html>`
 }
 
 const ReportsPage: React.FC = () => {
@@ -65,6 +123,14 @@ const ReportsPage: React.FC = () => {
   const [emailRecipients, setEmailRecipients] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailMessage, setEmailMessage] = useState('')
+  const [useStyledEmail, setUseStyledEmail] = useState(false)
+  const [emailStyle, setEmailStyle] = useState<ReportEmailStyleConfig>({
+    headerTitle: 'Event Manager Report',
+    primaryColor: '#2563eb',
+    backgroundColor: '#f3f4f6',
+    textColor: '#111827',
+    footerText: 'Sent from Event Manager',
+  })
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -163,6 +229,7 @@ const ReportsPage: React.FC = () => {
 
   const handleSend = async () => {
     if (!sendingReportId) return
+    const selectedReport = instances.find((instance) => instance.id === sendingReportId)
     const recipients = Array.from(new Set(emailRecipients
       .split(/[,\n;]+/)
       .map((v) => v.trim())
@@ -181,11 +248,24 @@ const ReportsPage: React.FC = () => {
     try {
       setIsSendingEmail(true)
       setError(null)
+      const trimmedSubject = emailSubject.trim()
+      const trimmedMessage = emailMessage.trim()
+      const reportLabel = selectedReport?.name || `${selectedReport?.type || 'Report'} report`
+      const html = useStyledEmail
+        ? buildStyledReportEmailHtml({
+            subject: trimmedSubject || `${reportLabel} delivery`,
+            reportTitle: reportLabel,
+            message: trimmedMessage || 'Please find the attached report.',
+            generatedAt: selectedReport?.generatedAt || new Date().toISOString(),
+          }, emailStyle)
+        : undefined
+
       const response = await reportsAPI.sendEmail({
         reportId: sendingReportId,
         recipients,
-        subject: emailSubject.trim() || undefined,
-        message: emailMessage.trim() || undefined,
+        subject: trimmedSubject || undefined,
+        message: trimmedMessage || undefined,
+        html,
       })
       const payload = response.data?.data || {}
       const sent = Number(payload.sent ?? 0)
@@ -197,6 +277,7 @@ const ReportsPage: React.FC = () => {
       setEmailRecipients('')
       setEmailSubject('')
       setEmailMessage('')
+      setUseStyledEmail(false)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to send report email')
     } finally {
@@ -405,6 +486,67 @@ const ReportsPage: React.FC = () => {
                 placeholder="Optional message shown in the email body"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
               />
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={useStyledEmail}
+                    onChange={(e) => setUseStyledEmail(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 rounded"
+                  />
+                  Apply custom report email styling
+                </label>
+
+                {useStyledEmail && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
+                      <input
+                        type="text"
+                        value={emailStyle.headerTitle}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, headerTitle: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer text</label>
+                      <input
+                        type="text"
+                        value={emailStyle.footerText}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, footerText: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary color</label>
+                      <input
+                        type="color"
+                        value={emailStyle.primaryColor}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, primaryColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background color</label>
+                      <input
+                        type="color"
+                        value={emailStyle.backgroundColor}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, backgroundColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text color</label>
+                      <input
+                        type="color"
+                        value={emailStyle.textColor}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, textColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
               <textarea
                 rows={4}
                 value={emailRecipients}
@@ -426,6 +568,7 @@ const ReportsPage: React.FC = () => {
                     setEmailRecipients('')
                     setEmailSubject('')
                     setEmailMessage('')
+                    setUseStyledEmail(false)
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
                 >

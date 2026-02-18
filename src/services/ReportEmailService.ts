@@ -15,9 +15,11 @@ export interface EmailReportDTO {
   recipients: string[];
   subject?: string;
   message?: string;
+  html?: string;
   reportData: ReportData;
   format: ExportFormat;
   userId: string;
+  tenantId: string;
 }
 
 export interface EmailTemplate {
@@ -47,7 +49,7 @@ export class ReportEmailService extends BaseService {
    */
   async sendReportEmail(data: EmailReportDTO): Promise<ReportEmailDispatchSummary> {
     try {
-      this.validateRequired(data as unknown as Record<string, unknown>, ['recipients', 'reportData', 'format', 'userId']);
+      this.validateRequired(data as unknown as Record<string, unknown>, ['recipients', 'reportData', 'format', 'userId', 'tenantId']);
 
       // Validate email addresses
       const invalidEmails = data.recipients.filter(email => !this.isValidEmail(email));
@@ -67,7 +69,7 @@ export class ReportEmailService extends BaseService {
         reportType: data.reportData.metadata?.reportType || 'Report',
         message: data.message || 'Please find the attached report.',
         generatedAt: data.reportData.metadata?.generatedAt || new Date().toISOString()
-      });
+      }, data.html);
 
       // Log email attempt
       this.logInfo('Report email prepared', {
@@ -89,6 +91,8 @@ export class ReportEmailService extends BaseService {
             emailTemplate.text,
             {
               html: emailTemplate.html,
+              tenantId: data.tenantId,
+              userId: data.userId,
               attachments: [{
                 filename,
                 content: buffer
@@ -151,14 +155,17 @@ export class ReportEmailService extends BaseService {
   /**
    * Render email template with variables
    */
-  private renderEmailTemplate(variables: {
-    reportType: string;
-    message: string;
-    generatedAt: string;
-  }): EmailTemplate {
+  private renderEmailTemplate(
+    variables: {
+      reportType: string;
+      message: string;
+      generatedAt: string;
+    },
+    customHtml?: string
+  ): EmailTemplate {
     const subject = `${variables.reportType} - Generated ${new Date(variables.generatedAt).toLocaleDateString()}`;
 
-    const html = `
+    const html = customHtml || `
       <!DOCTYPE html>
       <html>
       <head>
@@ -264,7 +271,7 @@ Please do not reply to this email.
         reportType: data.reportData.metadata?.reportType || 'Report',
         message: data.message || 'Please find the attached report.',
         generatedAt: data.reportData.metadata?.generatedAt || new Date().toISOString()
-      });
+      }, data.html);
 
       const subject = data.subject || emailTemplate.subject;
 
@@ -277,6 +284,8 @@ Please do not reply to this email.
           subject,
           text: emailTemplate.text,
           html: emailTemplate.html,
+          tenantId: data.tenantId,
+          userId: data.userId,
           attachments: [{
             filename,
             content: buffer
