@@ -63,6 +63,9 @@ const ReportsPage: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewText, setPreviewText] = useState<string | null>(null)
   const [emailRecipients, setEmailRecipients] = useState('')
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailMessage, setEmailMessage] = useState('')
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -160,22 +163,44 @@ const ReportsPage: React.FC = () => {
 
   const handleSend = async () => {
     if (!sendingReportId) return
-    const recipients = emailRecipients
-      .split(/[,\n]/)
+    const recipients = Array.from(new Set(emailRecipients
+      .split(/[,\n;]+/)
       .map((v) => v.trim())
-      .filter(Boolean)
+      .filter(Boolean)))
     if (recipients.length === 0) {
       setError('Enter at least one email recipient')
       return
     }
+
+    const invalidRecipients = recipients.filter((recipient) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))
+    if (invalidRecipients.length > 0) {
+      setError(`Invalid email address(es): ${invalidRecipients.join(', ')}`)
+      return
+    }
+
     try {
+      setIsSendingEmail(true)
       setError(null)
-      await reportsAPI.sendEmail({ reportId: sendingReportId, recipients })
-      setMessage('Report email request completed')
+      const response = await reportsAPI.sendEmail({
+        reportId: sendingReportId,
+        recipients,
+        subject: emailSubject.trim() || undefined,
+        message: emailMessage.trim() || undefined,
+      })
+      const payload = response.data?.data || {}
+      const sent = Number(payload.sent ?? 0)
+      const failed = Number(payload.failed ?? 0)
+      const skipped = Number(payload.skipped ?? 0)
+      const responseMessage = response.data?.message || 'Report email request completed'
+      setMessage(`${responseMessage} (Sent: ${sent}, Skipped: ${skipped}, Failed: ${failed})`)
       setSendingReportId(null)
       setEmailRecipients('')
+      setEmailSubject('')
+      setEmailMessage('')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to send report email')
+    } finally {
+      setIsSendingEmail(false)
     }
   }
 
@@ -366,6 +391,20 @@ const ReportsPage: React.FC = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Report</h3>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Optional custom subject"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              />
+              <textarea
+                rows={3}
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                placeholder="Optional message shown in the email body"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              />
               <textarea
                 rows={4}
                 value={emailRecipients}
@@ -374,10 +413,22 @@ const ReportsPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
               />
               <div className="flex gap-3">
-                <button onClick={handleSend} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                  Send
+                <button
+                  onClick={handleSend}
+                  disabled={isSendingEmail}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {isSendingEmail ? 'Sending...' : 'Send'}
                 </button>
-                <button onClick={() => setSendingReportId(null)} className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                <button
+                  onClick={() => {
+                    setSendingReportId(null)
+                    setEmailRecipients('')
+                    setEmailSubject('')
+                    setEmailMessage('')
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                >
                   Cancel
                 </button>
               </div>

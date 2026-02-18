@@ -65,6 +65,7 @@ Use these scripts from repo root:
    - `sudo scripts/deploy/stage-release.sh`
 2. Activate a release:
    - `sudo scripts/deploy/activate-release.sh <release_timestamp>`
+   - Optional retention override: `sudo RETAIN_RELEASES=8 scripts/deploy/activate-release.sh <release_timestamp>`
 3. Roll back to prior release (auto-select previous):
    - `sudo scripts/deploy/rollback-release.sh`
 4. Roll back to explicit release:
@@ -73,6 +74,12 @@ Use these scripts from repo root:
 For a concise operator runbook, see:
 
 - `docs/operations/DEV-TO-PROD-DEPLOY-QUICK.md`
+
+### Release Retention
+
+- `activate-release.sh` prunes old release directories after a successful activation.
+- Default retention is `10` releases.
+- Override per activation with `RETAIN_RELEASES=<count>`.
 
 ## Validation
 

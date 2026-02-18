@@ -158,7 +158,7 @@ const DisasterRecoveryPage: React.FC = () => {
   }
 
   const testPlan = async (planId: string) => {
-    if (!confirm('Are you sure you want to test this DR plan? This may affect system availability.')) {
+    if (!confirm('Run DR test for this plan? This performs an automated recovery simulation (backup + restore/integrity checks) and does not trigger live failover.')) {
       return
     }
     try {
@@ -291,6 +291,7 @@ const DisasterRecoveryPage: React.FC = () => {
               <p className="font-semibold">What this page does</p>
               <p>Disaster recovery plans define how backups are created, tested, and restored so your team can recover from outages or data loss.</p>
               <p>Use each plan’s RTO/RPO values to set expected recovery time and acceptable data loss window.</p>
+              <p><strong>Test Plan</strong> runs an automated simulation against backup artifacts to verify recoverability; it records outcomes in Recent DR Tests.</p>
             </div>
           </div>
         </div>
@@ -365,6 +366,9 @@ const DisasterRecoveryPage: React.FC = () => {
                   {deletingPlanId === plan.id ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
+              <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Test Plan validates backup recovery procedures in simulation mode; use Failover only for a real cutover event.
+              </p>
             </div>
           ))}
         </div>

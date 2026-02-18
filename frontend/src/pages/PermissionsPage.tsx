@@ -268,9 +268,8 @@ const PermissionsPage: React.FC = () => {
 
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <StatsCard icon={ShieldCheckIcon} value={stats.totalPermissions} label="Total Permissions" color="blue" />
-            <StatsCard icon={CheckCircleIcon} value={stats.allowedCount} label="Allowed" color="green" />
             <StatsCard icon={XCircleIcon} value={stats.deniedCount} label="Denied" color="red" />
             <StatsCard icon={FunnelIcon} value={Object.keys(stats.permissionsByRole).length} label="Roles" color="indigo" />
           </div>

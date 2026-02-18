@@ -17,6 +17,52 @@ interface EmailTemplateOption {
   body: string
 }
 
+interface EmailStyleConfig {
+  headerTitle: string
+  primaryColor: string
+  backgroundColor: string
+  textColor: string
+  footerText: string
+}
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const buildStyledEmailHtml = (subject: string, content: string, style: EmailStyleConfig): string => {
+  const safeSubject = escapeHtml(subject || 'Email')
+  const safeContent = escapeHtml(content || '').replace(/\n/g, '<br />')
+  const safeFooter = escapeHtml(style.footerText || '')
+  const safeHeader = escapeHtml(style.headerTitle || 'Event Manager Update')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${safeSubject}</title>
+</head>
+<body style="margin:0;padding:0;background:${style.backgroundColor};font-family:Arial,sans-serif;color:${style.textColor};">
+  <div style="max-width:640px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+    <div style="background:${style.primaryColor};color:#ffffff;padding:16px 20px;">
+      <div style="font-size:18px;font-weight:700;">${safeHeader}</div>
+    </div>
+    <div style="padding:20px;">
+      <h2 style="margin:0 0 14px 0;color:${style.textColor};font-size:20px;">${safeSubject}</h2>
+      <div style="font-size:14px;line-height:1.6;color:${style.textColor};">${safeContent}</div>
+    </div>
+    <div style="padding:14px 20px;background:#f9fafb;color:#6b7280;font-size:12px;">
+      ${safeFooter}
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
   const location = useLocation()
@@ -41,6 +87,14 @@ const BulkOperationsPage: React.FC = () => {
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateOption[]>([])
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState('')
   const [loadingTemplates, setLoadingTemplates] = useState(false)
+  const [useStyledEmail, setUseStyledEmail] = useState(false)
+  const [emailStyle, setEmailStyle] = useState<EmailStyleConfig>({
+    headerTitle: 'Event Manager Update',
+    primaryColor: '#2563eb',
+    backgroundColor: '#f3f4f6',
+    textColor: '#111827',
+    footerText: 'Sent from Event Manager',
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -125,13 +179,21 @@ const BulkOperationsPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
+      const html = useStyledEmail
+        ? buildStyledEmailHtml(emailData.subject, emailData.content, emailStyle)
+        : undefined
 
       if (recipientMode === 'roles') {
         if (emailData.roles.length === 0) {
           setError('Select at least one role')
           return
         }
-        const response = await emailAPI.sendByRole(emailData)
+        const response = await emailAPI.sendByRole({
+          roles: emailData.roles,
+          subject: emailData.subject,
+          body: emailData.content,
+          html,
+        })
         const payload = response.data?.data || {}
         const sent = Number(payload.sent ?? 0)
         const failed = Number(payload.failed ?? 0)
@@ -153,7 +215,8 @@ const BulkOperationsPage: React.FC = () => {
         const response = await emailAPI.sendMultiple({
           recipients: uniqueRecipients,
           subject: emailData.subject,
-          content: emailData.content,
+          body: emailData.content,
+          html,
         })
         const payload = response.data?.data || {}
         const sent = Number(payload.sent ?? 0)
@@ -453,6 +516,68 @@ const BulkOperationsPage: React.FC = () => {
                   rows={10}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
                 />
+              </div>
+
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={useStyledEmail}
+                    onChange={(e) => setUseStyledEmail(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                  Apply custom email styling
+                </label>
+
+                {useStyledEmail && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
+                      <input
+                        type="text"
+                        value={emailStyle.headerTitle}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, headerTitle: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer text</label>
+                      <input
+                        type="text"
+                        value={emailStyle.footerText}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, footerText: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary color</label>
+                      <input
+                        type="color"
+                        value={emailStyle.primaryColor}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, primaryColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background color</label>
+                      <input
+                        type="color"
+                        value={emailStyle.backgroundColor}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, backgroundColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text color</label>
+                      <input
+                        type="color"
+                        value={emailStyle.textColor}
+                        onChange={(e) => setEmailStyle({ ...emailStyle, textColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

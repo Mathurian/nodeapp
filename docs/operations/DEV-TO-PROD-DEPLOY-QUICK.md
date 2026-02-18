@@ -85,6 +85,9 @@ sudo scripts/deploy/rollback-release.sh <release_timestamp>
 - Dev service is separate (`event-manager-dev.service`, port `3002`).
 - Production service is `event-manager.service` (port `3000` behind nginx).
 - Deploy scripts do not copy `/srv/event-manager/dev/.env` into prod. Manage `/etc/event-manager/event-manager.env` directly.
+- Release retention is automatic in `activate-release.sh`.
+  Set `RETAIN_RELEASES` (default `10`) to keep only the most recent release directories:
+  `sudo RETAIN_RELEASES=8 scripts/deploy/activate-release.sh "$RELEASE_TS"`.
 
 ## Command Reference (In Order)
 
@@ -104,7 +107,8 @@ RELEASE_TS="$(cat /opt/event-manager/.last_release_ts)"
 echo "$RELEASE_TS"
 
 # 4) Activate staged release in production
-sudo scripts/deploy/activate-release.sh "$RELEASE_TS"
+# Optional: override retention count for this activation (default keeps 10)
+sudo RETAIN_RELEASES=10 scripts/deploy/activate-release.sh "$RELEASE_TS"
 
 # 5) Validate production runtime
 systemctl is-active event-manager.service

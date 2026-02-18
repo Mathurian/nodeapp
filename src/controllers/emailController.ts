@@ -345,7 +345,7 @@ export class EmailController {
 
   sendMultipleEmails = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { recipients, subject, body } = req.body;
+      const { recipients, subject, body, html } = req.body;
 
       if (!Array.isArray(recipients) || recipients.length === 0) {
         return sendBadRequest(res, 'Recipients array is required');
@@ -357,6 +357,7 @@ export class EmailController {
       const results = await Promise.allSettled(
         recipients.map(async (to: string) => {
           return this.emailService.sendEmail(to, subject, body, {
+            html,
             tenantId: req.tenantId || req.user?.tenantId,
             userId: req.user?.id,
           });
@@ -381,7 +382,7 @@ export class EmailController {
 
   sendEmailByRole = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-      const { roles, subject, body } = req.body;
+      const { roles, subject, body, html } = req.body;
 
       if (!Array.isArray(roles) || roles.length === 0) {
         return sendBadRequest(res, 'At least one role is required');
@@ -403,6 +404,7 @@ export class EmailController {
       // Send email to all users
       const results = await Promise.allSettled(
         users.map(user => this.emailService.sendEmail(user.email, subject, body, {
+          html,
           tenantId: req.tenantId || req.user?.tenantId,
           userId: req.user?.id,
         }))

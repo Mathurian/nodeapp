@@ -26,6 +26,13 @@ export interface EmailTemplate {
   text: string;
 }
 
+export interface ReportEmailDispatchSummary {
+  total: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+}
+
 @injectable()
 export class ReportEmailService extends BaseService {
   constructor(
@@ -38,7 +45,7 @@ export class ReportEmailService extends BaseService {
   /**
    * Send report via email
    */
-  async sendReportEmail(data: EmailReportDTO): Promise<void> {
+  async sendReportEmail(data: EmailReportDTO): Promise<ReportEmailDispatchSummary> {
     try {
       this.validateRequired(data as unknown as Record<string, unknown>, ['recipients', 'reportData', 'format', 'userId']);
 
@@ -92,21 +99,49 @@ export class ReportEmailService extends BaseService {
       );
 
       // Log results
-      const successCount = emailResults.filter(r => r.status === 'fulfilled').length;
-      const failureCount = emailResults.length - successCount;
+      let sentCount = 0;
+      let failedCount = 0;
+      let skippedCount = 0;
+
+      for (const result of emailResults) {
+        if (result.status === 'rejected') {
+          failedCount += 1;
+          continue;
+        }
+
+        const payload = result.value || {};
+        const message = String(payload.message || '').toLowerCase();
+        const explicitlySkipped = message.includes('smtp disabled') || message.includes('skipped');
+
+        if (explicitlySkipped) {
+          skippedCount += 1;
+        } else if (payload.success === false) {
+          failedCount += 1;
+        } else {
+          sentCount += 1;
+        }
+      }
 
       this.logInfo('Report emails sent', {
         total: data.recipients.length,
-        success: successCount,
-        failed: failureCount,
+        success: sentCount,
+        failed: failedCount,
+        skipped: skippedCount,
         format: data.format,
         filename
       });
 
-      // If all failed, throw error
-      if (successCount === 0 && data.recipients.length > 0) {
+      // If all attempts failed (not skipped), throw error.
+      if (sentCount === 0 && failedCount === data.recipients.length && data.recipients.length > 0) {
         throw new Error('Failed to send report email to all recipients');
       }
+
+      return {
+        total: data.recipients.length,
+        sent: sentCount,
+        failed: failedCount,
+        skipped: skippedCount
+      };
 
     } catch (error) {
       this.handleError(error, { method: 'sendReportEmail', recipients: data.recipients });

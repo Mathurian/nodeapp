@@ -225,6 +225,22 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     }
   )
 
+  const { data: systemStatus = 'Unknown' } = useQuery<string>(
+    ['system-status-health'],
+    async () => {
+      const response = await fetch('/health', { credentials: 'include' })
+      if (!response.ok) return 'Degraded'
+      const payload = await response.json().catch(() => ({}))
+      return String(payload?.status || '').toUpperCase() === 'OK' ? 'Healthy' : 'Degraded'
+    },
+    {
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchIntervalInBackground: true,
+      retry: false,
+    }
+  )
+
   const appName = themeSettings?.app_name || themeSettings?.appName || DEFAULT_APP_BASELINE.appName
   const logoPath = themeSettings?.theme_logoPath || themeSettings?.logoPath
 
@@ -459,12 +475,21 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
             {/* Connection Status - Only show if user is logged in */}
             {user && (
-              <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
-                <span className="text-xs text-gray-600 dark:text-gray-300">
-                  {isConnected ? 'Live' : 'Connecting...'}
-                </span>
-              </div>
+              <>
+                <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">System Status</span>
+                  <div className={`w-2 h-2 rounded-full ${systemStatus === 'Healthy' ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-xs text-gray-700 dark:text-gray-200">
+                    {systemStatus}
+                  </span>
+                </div>
+                <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+                  <span className="text-xs text-gray-600 dark:text-gray-300">
+                    {isConnected ? 'Live' : 'Connecting...'}
+                  </span>
+                </div>
+              </>
             )}
 
             {/* Profile Menu */}

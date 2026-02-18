@@ -9,7 +9,7 @@ import { container } from 'tsyringe';
 import { ReportGenerationService } from '../services/ReportGenerationService';
 import { ReportExportService } from '../services/ReportExportService';
 import { ReportTemplateService } from '../services/ReportTemplateService';
-import { ReportEmailService } from '../services/ReportEmailService';
+import { ReportEmailService, ReportEmailDispatchSummary } from '../services/ReportEmailService';
 import { ReportInstanceService } from '../services/ReportInstanceService';
 import { sendUnauthorized } from '../utils/responseHelpers';
 
@@ -437,7 +437,7 @@ export class ReportsController {
       // SECURITY: Validate tenant access to report
       const reportData = await this.getReportData(reportId, tenantId, userRole);
 
-      await this.emailService.sendReportEmail({
+      const dispatchSummary: ReportEmailDispatchSummary = await this.emailService.sendReportEmail({
         recipients,
         subject,
         message,
@@ -446,7 +446,16 @@ export class ReportsController {
         userId
       });
 
-      res.json({ message: 'Report emailed successfully' });
+      const responseMessage = dispatchSummary.skipped === dispatchSummary.total
+        ? 'Report email skipped because SMTP is disabled for this environment'
+        : dispatchSummary.failed > 0
+          ? 'Report email processed with partial failures'
+          : 'Report emailed successfully';
+
+      res.json({
+        message: responseMessage,
+        data: dispatchSummary
+      });
     } catch (error) {
       return next(error);
     }

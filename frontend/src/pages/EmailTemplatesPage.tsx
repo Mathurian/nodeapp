@@ -18,6 +18,16 @@ interface EmailTemplate {
   body: string
   variables: string[]
   type: 'NOTIFICATION' | 'WELCOME' | 'REMINDER' | 'REPORT' | 'CUSTOM'
+  headerHtml?: string | null
+  footerHtml?: string | null
+  logoUrl?: string | null
+  backgroundColor?: string | null
+  primaryColor?: string | null
+  textColor?: string | null
+  fontFamily?: string | null
+  fontSize?: string | null
+  borderRadius?: string | null
+  padding?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -45,11 +55,31 @@ const EmailTemplatesPage: React.FC = () => {
     subject: string
     body: string
     type: 'NOTIFICATION' | 'WELCOME' | 'REMINDER' | 'REPORT' | 'CUSTOM'
+    headerHtml: string
+    footerHtml: string
+    logoUrl: string
+    backgroundColor: string
+    primaryColor: string
+    textColor: string
+    fontFamily: string
+    fontSize: string
+    borderRadius: string
+    padding: string
   }>({
     name: '',
     subject: '',
     body: '',
     type: 'CUSTOM',
+    headerHtml: '',
+    footerHtml: '',
+    logoUrl: '',
+    backgroundColor: '#f5f5f5',
+    primaryColor: '#007bff',
+    textColor: '#333333',
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '14px',
+    borderRadius: '4px',
+    padding: '20px',
   })
 
   useEffect(() => {
@@ -77,6 +107,16 @@ const EmailTemplatesPage: React.FC = () => {
                     }
                   })()
                 : [],
+            headerHtml: template.headerHtml || '',
+            footerHtml: template.footerHtml || '',
+            logoUrl: template.logoUrl || '',
+            backgroundColor: template.backgroundColor || '#f5f5f5',
+            primaryColor: template.primaryColor || '#007bff',
+            textColor: template.textColor || '#333333',
+            fontFamily: template.fontFamily || 'Arial, sans-serif',
+            fontSize: template.fontSize || '14px',
+            borderRadius: template.borderRadius || '4px',
+            padding: template.padding || '20px',
           }))
         : []
       setTemplates(mapped)
@@ -181,6 +221,16 @@ const EmailTemplatesPage: React.FC = () => {
       subject: '',
       body: '',
       type: 'CUSTOM',
+      headerHtml: '',
+      footerHtml: '',
+      logoUrl: '',
+      backgroundColor: '#f5f5f5',
+      primaryColor: '#007bff',
+      textColor: '#333333',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '14px',
+      borderRadius: '4px',
+      padding: '20px',
     })
   }
 
@@ -191,6 +241,16 @@ const EmailTemplatesPage: React.FC = () => {
       subject: template.subject,
       body: template.body,
       type: template.type,
+      headerHtml: template.headerHtml || '',
+      footerHtml: template.footerHtml || '',
+      logoUrl: template.logoUrl || '',
+      backgroundColor: template.backgroundColor || '#f5f5f5',
+      primaryColor: template.primaryColor || '#007bff',
+      textColor: template.textColor || '#333333',
+      fontFamily: template.fontFamily || 'Arial, sans-serif',
+      fontSize: template.fontSize || '14px',
+      borderRadius: template.borderRadius || '4px',
+      padding: template.padding || '20px',
     })
     setShowModal(true)
   }
@@ -410,6 +470,111 @@ const EmailTemplatesPage: React.FC = () => {
                     rows={10}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white font-mono text-sm"
                   />
+                </div>
+
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Look &amp; Feel</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary Color</label>
+                      <input
+                        type="color"
+                        value={formData.primaryColor}
+                        onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background Color</label>
+                      <input
+                        type="color"
+                        value={formData.backgroundColor}
+                        onChange={(e) => setFormData({ ...formData, backgroundColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text Color</label>
+                      <input
+                        type="color"
+                        value={formData.textColor}
+                        onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
+                        className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Logo URL</label>
+                      <input
+                        type="url"
+                        value={formData.logoUrl}
+                        onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Font Family</label>
+                      <input
+                        type="text"
+                        value={formData.fontFamily}
+                        onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        placeholder="Arial, sans-serif"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Font Size</label>
+                      <input
+                        type="text"
+                        value={formData.fontSize}
+                        onChange={(e) => setFormData({ ...formData, fontSize: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        placeholder="14px"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Border Radius</label>
+                      <input
+                        type="text"
+                        value={formData.borderRadius}
+                        onChange={(e) => setFormData({ ...formData, borderRadius: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        placeholder="4px"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Padding</label>
+                      <input
+                        type="text"
+                        value={formData.padding}
+                        onChange={(e) => setFormData({ ...formData, padding: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        placeholder="20px"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header HTML (optional)</label>
+                    <textarea
+                      value={formData.headerHtml}
+                      onChange={(e) => setFormData({ ...formData, headerHtml: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white font-mono"
+                      placeholder="<h1>Event Manager Updates</h1>"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer HTML (optional)</label>
+                    <textarea
+                      value={formData.footerHtml}
+                      onChange={(e) => setFormData({ ...formData, footerHtml: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white font-mono"
+                      placeholder="<p>Questions? Reply to this email.</p>"
+                    />
+                  </div>
                 </div>
 
                 <div>

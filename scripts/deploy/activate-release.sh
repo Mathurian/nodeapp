@@ -7,6 +7,7 @@ SERVICE_NAME="${SERVICE_NAME:-event-manager.service}"
 NGINX_ENABLED="${NGINX_ENABLED:-/etc/nginx/sites-enabled/event-manager}"
 NGINX_AVAILABLE="${NGINX_AVAILABLE:-/etc/nginx/sites-available/event-manager}"
 ENV_FILE="${ENV_FILE:-/etc/event-manager/event-manager.env}"
+RETAIN_RELEASES="${RETAIN_RELEASES:-10}"
 
 if [ "${1:-}" = "" ]; then
   echo "Usage: sudo $0 <release-timestamp>"
@@ -46,6 +47,39 @@ normalize_nginx_roots() {
   sudo sed -i -E 's|root[[:space:]]+[^;]*/event-manager;|root /var/lib/event-manager;|g' "$file"
 }
 
+prune_old_releases() {
+  if ! [[ "$RETAIN_RELEASES" =~ ^[0-9]+$ ]]; then
+    echo "Skipping release pruning: RETAIN_RELEASES must be a positive integer (current: $RETAIN_RELEASES)"
+    return 0
+  fi
+
+  if [ "$RETAIN_RELEASES" -lt 1 ]; then
+    echo "Skipping release pruning: RETAIN_RELEASES=$RETAIN_RELEASES"
+    return 0
+  fi
+
+  local current_target
+  current_target="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
+  mapfile -t releases < <(ls -1dt "$RELEASES_DIR"/* 2>/dev/null || true)
+
+  if [ "${#releases[@]}" -le "$RETAIN_RELEASES" ]; then
+    return 0
+  fi
+
+  local index=0
+  for rel in "${releases[@]}"; do
+    index=$((index + 1))
+    if [ "$index" -le "$RETAIN_RELEASES" ]; then
+      continue
+    fi
+    if [ -n "$current_target" ] && [ "$rel" = "$current_target" ]; then
+      continue
+    fi
+    sudo rm -rf "$rel"
+    echo "Pruned old release: $rel"
+  done
+}
+
 normalize_nginx_roots "$NGINX_ENABLED"
 normalize_nginx_roots "$NGINX_AVAILABLE"
 
@@ -60,6 +94,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart "$SERVICE_NAME"
 sudo nginx -t
 sudo systemctl reload nginx
+prune_old_releases
 
 echo "Activated release: $REL"
 systemctl is-active "$SERVICE_NAME"
