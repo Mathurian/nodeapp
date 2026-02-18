@@ -35,6 +35,16 @@ The `event-manager.service` unit runs from:
 - `ExecStart=/usr/bin/node dist/server.js`
 - `EnvironmentFile=/etc/event-manager/event-manager.env`
 
+### Initial env setup (one-time)
+
+```bash
+sudo install -d -m 750 /etc/event-manager
+sudo cp /srv/event-manager/dev/.env.example /etc/event-manager/event-manager.env
+sudo chown root:www-data /etc/event-manager/event-manager.env
+sudo chmod 640 /etc/event-manager/event-manager.env
+sudoedit /etc/event-manager/event-manager.env
+```
+
 Automated backup/alert cron jobs execute from:
 
 - `/opt/event-manager/current/scripts/*`

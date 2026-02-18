@@ -17,6 +17,18 @@ if [ ! -d "$APP_ROOT" ]; then
   exit 1
 fi
 
+if [ ! -f "$ENV_DIR/event-manager.env" ]; then
+  echo "Missing production env file: $ENV_DIR/event-manager.env"
+  echo "Create it once and keep it managed separately from the dev workspace."
+  echo "Example:"
+  echo "  sudo install -d -m 750 $ENV_DIR"
+  echo "  sudo cp $APP_ROOT/.env.example $ENV_DIR/event-manager.env"
+  echo "  sudo chown root:www-data $ENV_DIR/event-manager.env"
+  echo "  sudo chmod 640 $ENV_DIR/event-manager.env"
+  echo "  sudoedit $ENV_DIR/event-manager.env"
+  exit 1
+fi
+
 TS="$(date +%Y%m%d%H%M%S)"
 REL="$RELEASES_DIR/$TS"
 
@@ -56,12 +68,6 @@ sudo rsync -a "$APP_ROOT/logs/" "$LOG_DIR/"
 
 if [ -f "$APP_ROOT/config/backup.runtime.env" ]; then
   sudo cp "$APP_ROOT/config/backup.runtime.env" "$SHARED_DIR/config/backup.runtime.env"
-fi
-if [ -f "$APP_ROOT/.env" ]; then
-  sudo install -d -m 750 "$ENV_DIR"
-  sudo cp "$APP_ROOT/.env" "$ENV_DIR/event-manager.env"
-  sudo chown root:www-data "$ENV_DIR/event-manager.env"
-  sudo chmod 640 "$ENV_DIR/event-manager.env"
 fi
 
 sudo chown -R www-data:www-data "$SHARED_DIR" "$LOG_DIR"

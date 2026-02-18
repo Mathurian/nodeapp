@@ -7,6 +7,19 @@ This is the fastest safe path to deploy from the dev workspace to production.
 - Dev workspace: `/srv/event-manager/dev`
 - Prod releases: `/opt/event-manager/releases/<timestamp>`
 - Active prod symlink: `/opt/event-manager/current`
+- Prod service env file: `/etc/event-manager/event-manager.env`
+
+## 0) One-Time Prod Env Bootstrap
+
+Create the production env file once, then maintain it in `/etc/event-manager` (not in the dev workspace):
+
+```bash
+sudo install -d -m 750 /etc/event-manager
+sudo cp /srv/event-manager/dev/.env.example /etc/event-manager/event-manager.env
+sudo chown root:www-data /etc/event-manager/event-manager.env
+sudo chmod 640 /etc/event-manager/event-manager.env
+sudoedit /etc/event-manager/event-manager.env
+```
 
 ## 1) Build In Dev Workspace
 
@@ -71,6 +84,7 @@ sudo scripts/deploy/rollback-release.sh <release_timestamp>
 - Production runs independently from the dev workspace.
 - Dev service is separate (`event-manager-dev.service`, port `3002`).
 - Production service is `event-manager.service` (port `3000` behind nginx).
+- Deploy scripts do not copy `/srv/event-manager/dev/.env` into prod. Manage `/etc/event-manager/event-manager.env` directly.
 
 ## Command Reference (In Order)
 
