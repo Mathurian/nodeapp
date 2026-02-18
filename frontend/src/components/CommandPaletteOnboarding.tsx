@@ -3,7 +3,7 @@
  * First-time user tutorial for command palette features
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import {
   CommandLineIcon,
@@ -75,6 +75,7 @@ const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [hasShownAfterLogin, setHasShownAfterLogin] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     // Only show onboarding after successful login
@@ -133,7 +134,7 @@ const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({
 
   return (
     <Transition show={isOpen} as={React.Fragment}>
-      <Dialog onClose={handleSkip} className="relative z-50">
+      <Dialog onClose={handleSkip} className="relative z-50" initialFocus={closeButtonRef}>
         {/* Backdrop */}
         <Transition.Child
           as={React.Fragment}
@@ -161,6 +162,7 @@ const CommandPaletteOnboarding: React.FC<CommandPaletteOnboardingProps> = ({
             <Dialog.Panel className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-800 p-8 shadow-2xl">
               {/* Close button */}
               <button
+                ref={closeButtonRef}
                 onClick={handleSkip}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >

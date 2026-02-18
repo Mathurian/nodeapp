@@ -120,6 +120,15 @@ const TenantManagementPage: React.FC = () => {
     }
   }
 
+  const handleTenantSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (editingTenant) {
+      await updateTenant()
+      return
+    }
+    await createTenant()
+  }
+
   const toggleTenant = async (id: string, isActive: boolean) => {
     try {
       await api.put(`/tenants/${id}`, { isActive: !isActive })
@@ -384,7 +393,7 @@ const TenantManagementPage: React.FC = () => {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 {editingTenant ? 'Edit Tenant' : 'Create Tenant'}
               </h3>
-              <div className="space-y-4">
+              <form id="tenant-management-form" className="space-y-4" onSubmit={handleTenantSubmit}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Tenant Name
@@ -592,15 +601,17 @@ const TenantManagementPage: React.FC = () => {
                     />
                   </div>
                 </div>
-              </div>
+              </form>
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={editingTenant ? updateTenant : createTenant}
+                  type="submit"
+                  form="tenant-management-form"
                   className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                 >
                   {editingTenant ? 'Update' : 'Create'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowModal(false)
                     setEditingTenant(null)
