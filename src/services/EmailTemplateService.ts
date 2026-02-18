@@ -1,5 +1,6 @@
 import { PrismaClient, EmailTemplate, Prisma } from '@prisma/client';
 import { createLogger as loggerFactory } from '../utils/logger';
+import { buildBrandedEmailDocument, ensureReadableTextColor, escapeHtml, looksLikeHtml } from '../utils/emailHtml';
 
 const logger = loggerFactory('EmailTemplateService');
 
@@ -272,98 +273,47 @@ export class EmailTemplateService {
    * Build complete HTML email with template styling
    */
   private buildHtmlEmail(template: EmailTemplate, body: string): string {
-    const backgroundColor = template.backgroundColor || '#f5f5f5';
-    const primaryColor = template.primaryColor || '#007bff';
-    const textColor = template.textColor || '#333333';
-    const fontFamily = template.fontFamily || 'Arial, sans-serif';
+    const primaryColor = template.primaryColor || '#2563eb';
+    const pageBackgroundColor = template.backgroundColor || '#eef2f7';
+    const contentBackgroundColor = '#ffffff';
+    const resolvedTextColor = ensureReadableTextColor(contentBackgroundColor, template.textColor || '#111827');
+    const fontFamily = template.fontFamily || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
     const fontSize = template.fontSize || '14px';
-    const borderColor = template.borderColor || '#dddddd';
-    const borderWidth = template.borderWidth || '1px';
-    const borderRadius = template.borderRadius || '4px';
+    const borderRadius = template.borderRadius || '8px';
     const padding = template.padding || '20px';
+    const safeTemplateName = escapeHtml(template.name || 'Event Manager');
+    const safeSubject = template.subject || safeTemplateName;
 
-    let html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${template.subject}</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: ${backgroundColor};
-      font-family: ${fontFamily};
-      font-size: ${fontSize};
-      color: ${textColor};
-    }
-    .email-container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-      border: ${borderWidth} solid ${borderColor};
-      border-radius: ${borderRadius};
-    }
-    .email-header {
-      padding: ${padding};
-      background-color: ${primaryColor};
-      color: #ffffff;
-      text-align: center;
-      border-top-left-radius: ${borderRadius};
-      border-top-right-radius: ${borderRadius};
-    }
-    .email-body {
-      padding: ${padding};
-    }
-    .email-footer {
-      padding: ${padding};
-      background-color: #f9f9f9;
-      text-align: center;
-      font-size: 12px;
-      color: #666666;
-      border-bottom-left-radius: ${borderRadius};
-      border-bottom-right-radius: ${borderRadius};
-    }
-    .logo {
-      max-width: 200px;
-      height: auto;
-    }
-    a {
-      color: ${primaryColor};
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-`;
+    const hasHtmlBody = looksLikeHtml(body || '');
+    const bodyHtml = hasHtmlBody
+      ? body
+      : `<p style="margin:0;font-size:${fontSize};line-height:1.65;color:${resolvedTextColor};">${escapeHtml(body || '').replace(/\r?\n/g, '<br />')}</p>`;
 
-    // Add header
-    if (template.headerHtml) {
-      html += `    <div class="email-header">\n${template.headerHtml}\n    </div>\n`;
-    } else if (template.logoUrl) {
-      html += `    <div class="email-header">\n      <img src="${template.logoUrl}" alt="Logo" class="logo" />\n    </div>\n`;
-    }
+    const headerHtml = template.headerHtml
+      ? template.headerHtml
+      : template.logoUrl
+        ? `<img src="${escapeHtml(template.logoUrl)}" alt="${safeTemplateName}" style="max-width:200px;height:auto;display:inline-block;" />`
+        : `<div style="font-size:22px;line-height:1.3;font-weight:700;">${safeTemplateName}</div>`;
 
-    // Add body
-    html += `    <div class="email-body">\n${body}\n    </div>\n`;
+    const footerHtml = template.footerHtml
+      ? template.footerHtml
+      : `<p style="margin:0;">&copy; ${new Date().getFullYear()} Event Manager. All rights reserved.</p>`;
 
-    // Add footer
-    if (template.footerHtml) {
-      html += `    <div class="email-footer">\n${template.footerHtml}\n    </div>\n`;
-    } else {
-      html += `    <div class="email-footer">\n      <p>© ${new Date().getFullYear()} Event Manager. All rights reserved.</p>\n    </div>\n`;
-    }
-
-    html += `  </div>
-</body>
-</html>`;
-
-    return html;
+    return buildBrandedEmailDocument({
+      appName: 'Event Manager',
+      subject: safeSubject,
+      previewText: safeSubject,
+      headerHtml,
+      title: safeSubject,
+      bodyHtml: `<div style="font-family:${fontFamily};font-size:${fontSize};line-height:1.65;color:${resolvedTextColor};padding:${padding};background-color:${contentBackgroundColor};">${bodyHtml}</div>`,
+      footerHtml,
+      primaryColor,
+      pageBackgroundColor,
+      contentBackgroundColor,
+      textColor: resolvedTextColor,
+      fontFamily,
+      borderRadius,
+    });
   }
 
   /**

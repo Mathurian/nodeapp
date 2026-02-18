@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { emailAPI } from '../services/api'
 import {
+  DEFAULT_EMAIL_STYLE,
+  EMAIL_STYLE_PRESETS,
+  getEmailContrastStatus,
+} from '../utils/emailHtml'
+import {
   EnvelopeIcon,
   PlusIcon,
   PencilIcon,
@@ -50,6 +55,7 @@ const EmailTemplatesPage: React.FC = () => {
   const [sendRoles, setSendRoles] = useState<string[]>([])
   const [sendVariables, setSendVariables] = useState('{}')
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null)
+  const [stylePreset, setStylePreset] = useState<string>('default')
   const [formData, setFormData] = useState<{
     name: string
     subject: string
@@ -73,9 +79,9 @@ const EmailTemplatesPage: React.FC = () => {
     headerHtml: '',
     footerHtml: '',
     logoUrl: '',
-    backgroundColor: '#f5f5f5',
-    primaryColor: '#007bff',
-    textColor: '#333333',
+    backgroundColor: DEFAULT_EMAIL_STYLE.backgroundColor,
+    primaryColor: DEFAULT_EMAIL_STYLE.primaryColor,
+    textColor: DEFAULT_EMAIL_STYLE.textColor,
     fontFamily: 'Arial, sans-serif',
     fontSize: '14px',
     borderRadius: '4px',
@@ -110,9 +116,9 @@ const EmailTemplatesPage: React.FC = () => {
             headerHtml: template.headerHtml || '',
             footerHtml: template.footerHtml || '',
             logoUrl: template.logoUrl || '',
-            backgroundColor: template.backgroundColor || '#f5f5f5',
-            primaryColor: template.primaryColor || '#007bff',
-            textColor: template.textColor || '#333333',
+            backgroundColor: template.backgroundColor || DEFAULT_EMAIL_STYLE.backgroundColor,
+            primaryColor: template.primaryColor || DEFAULT_EMAIL_STYLE.primaryColor,
+            textColor: template.textColor || DEFAULT_EMAIL_STYLE.textColor,
             fontFamily: template.fontFamily || 'Arial, sans-serif',
             fontSize: template.fontSize || '14px',
             borderRadius: template.borderRadius || '4px',
@@ -216,6 +222,7 @@ const EmailTemplatesPage: React.FC = () => {
   }
 
   const resetForm = () => {
+    setStylePreset('default')
     setFormData({
       name: '',
       subject: '',
@@ -224,9 +231,9 @@ const EmailTemplatesPage: React.FC = () => {
       headerHtml: '',
       footerHtml: '',
       logoUrl: '',
-      backgroundColor: '#f5f5f5',
-      primaryColor: '#007bff',
-      textColor: '#333333',
+      backgroundColor: DEFAULT_EMAIL_STYLE.backgroundColor,
+      primaryColor: DEFAULT_EMAIL_STYLE.primaryColor,
+      textColor: DEFAULT_EMAIL_STYLE.textColor,
       fontFamily: 'Arial, sans-serif',
       fontSize: '14px',
       borderRadius: '4px',
@@ -235,6 +242,7 @@ const EmailTemplatesPage: React.FC = () => {
   }
 
   const openEditModal = (template: EmailTemplate) => {
+    setStylePreset('custom')
     setEditingTemplate(template)
     setFormData({
       name: template.name,
@@ -244,9 +252,9 @@ const EmailTemplatesPage: React.FC = () => {
       headerHtml: template.headerHtml || '',
       footerHtml: template.footerHtml || '',
       logoUrl: template.logoUrl || '',
-      backgroundColor: template.backgroundColor || '#f5f5f5',
-      primaryColor: template.primaryColor || '#007bff',
-      textColor: template.textColor || '#333333',
+      backgroundColor: template.backgroundColor || DEFAULT_EMAIL_STYLE.backgroundColor,
+      primaryColor: template.primaryColor || DEFAULT_EMAIL_STYLE.primaryColor,
+      textColor: template.textColor || DEFAULT_EMAIL_STYLE.textColor,
       fontFamily: template.fontFamily || 'Arial, sans-serif',
       fontSize: template.fontSize || '14px',
       borderRadius: template.borderRadius || '4px',
@@ -254,6 +262,29 @@ const EmailTemplatesPage: React.FC = () => {
     })
     setShowModal(true)
   }
+
+  const applyStylePreset = (presetId: string) => {
+    setStylePreset(presetId)
+    const preset = EMAIL_STYLE_PRESETS.find((item) => item.id === presetId)
+    if (!preset) {
+      return
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      primaryColor: preset.style.primaryColor,
+      backgroundColor: preset.style.backgroundColor,
+      textColor: preset.style.textColor,
+    }))
+  }
+
+  const styleContrast = getEmailContrastStatus({
+    headerTitle: formData.name || DEFAULT_EMAIL_STYLE.headerTitle,
+    primaryColor: formData.primaryColor,
+    backgroundColor: formData.backgroundColor,
+    textColor: formData.textColor,
+    footerText: formData.footerHtml || DEFAULT_EMAIL_STYLE.footerText,
+  })
 
   const availableVariables = [
     '{{name}}',
@@ -474,13 +505,43 @@ const EmailTemplatesPage: React.FC = () => {
 
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Look &amp; Feel</p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[180px] flex-1">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
+                      <select
+                        value={stylePreset}
+                        onChange={(e) => applyStylePreset(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                      >
+                        {EMAIL_STYLE_PRESETS.map((preset) => (
+                          <option key={preset.id} value={preset.id}>{preset.label}</option>
+                        ))}
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => applyStylePreset('default')}
+                      className="px-3 py-2 text-xs rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    >
+                      Reset style
+                    </button>
+                  </div>
+                  {!styleContrast.passes && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Text contrast is low on light backgrounds ({styleContrast.ratio.toFixed(2)}:1). Recommended text color: {styleContrast.recommendedTextColor}.
+                    </p>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary Color</label>
                       <input
                         type="color"
                         value={formData.primaryColor}
-                        onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                        onChange={(e) => {
+                          setStylePreset('custom')
+                          setFormData({ ...formData, primaryColor: e.target.value })
+                        }}
                         className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                       />
                     </div>
@@ -489,7 +550,10 @@ const EmailTemplatesPage: React.FC = () => {
                       <input
                         type="color"
                         value={formData.backgroundColor}
-                        onChange={(e) => setFormData({ ...formData, backgroundColor: e.target.value })}
+                        onChange={(e) => {
+                          setStylePreset('custom')
+                          setFormData({ ...formData, backgroundColor: e.target.value })
+                        }}
                         className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                       />
                     </div>
@@ -498,7 +562,10 @@ const EmailTemplatesPage: React.FC = () => {
                       <input
                         type="color"
                         value={formData.textColor}
-                        onChange={(e) => setFormData({ ...formData, textColor: e.target.value })}
+                        onChange={(e) => {
+                          setStylePreset('custom')
+                          setFormData({ ...formData, textColor: e.target.value })
+                        }}
                         className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                       />
                     </div>

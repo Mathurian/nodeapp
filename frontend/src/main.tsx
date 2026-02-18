@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-const SW_RECOVERY_KEY = 'event-manager-sw-recovery-v2'
+const SW_RECOVERY_KEY = 'event-manager-sw-recovery-v3'
 
 const renderApp = () => {
   ReactDOM.createRoot(document.getElementById('root')!).render(

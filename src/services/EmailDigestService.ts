@@ -103,12 +103,18 @@ export class EmailDigestService {
 
     // Generate HTML email
     const html = this.generateDigestHTML(user.name, grouped, frequency);
+    const text = this.generateDigestText(user.name, grouped, frequency);
 
     // Send email - EmailService expects 3 separate arguments
     await this.emailService.sendEmail(
       user.email,
       `Your ${frequency} notification digest`,
-      html
+      text,
+      {
+        html,
+        tenantId,
+        userId,
+      }
     );
 
     // Update digest record
@@ -337,6 +343,38 @@ export class EmailDigestService {
     }
 
     return 'Just now';
+  }
+
+  /**
+   * Generate plaintext fallback for digest email clients
+   */
+  private generateDigestText(
+    userName: string | null,
+    grouped: Map<string, DigestNotification[]>,
+    frequency: string
+  ): string {
+    const totalCount = Array.from(grouped.values()).reduce((sum, arr) => sum + arr.length, 0);
+
+    const lines: string[] = [
+      `Hi ${userName || 'there'},`,
+      '',
+      `Here is your ${frequency} notification digest.`,
+      `You have ${totalCount} new notification${totalCount === 1 ? '' : 's'}.`,
+      '',
+    ];
+
+    grouped.forEach((notifications, type) => {
+      lines.push(`${type} (${notifications.length})`);
+      notifications.forEach((notification) => {
+        lines.push(`- ${notification.title}: ${notification.message}`);
+      });
+      lines.push('');
+    });
+
+    lines.push(`View notifications: ${env.get('FRONTEND_URL')}/notifications`);
+    lines.push(`Manage preferences: ${env.get('FRONTEND_URL')}/settings/notifications`);
+
+    return lines.join('\n').trim();
   }
 
   /**

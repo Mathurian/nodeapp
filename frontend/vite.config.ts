@@ -15,6 +15,10 @@ export default defineConfig({
       template: 'treemap' // sunburst, treemap, network
     }) as any,
     VitePWA({
+      // Service worker registration is intentionally disabled.
+      // This app is server-backed and stale SW manifests have caused 404 precache failures
+      // during rolling releases when old chunk hashes are no longer available.
+      injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {

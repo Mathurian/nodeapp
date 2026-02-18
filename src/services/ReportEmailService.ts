@@ -10,6 +10,7 @@ import { ReportExportService, ExportFormat } from './ReportExportService';
 import { EmailService } from './EmailService';
 import queueService from './QueueService';
 import { EmailJobData } from '../jobs/EmailJobProcessor';
+import { buildBrandedEmailDocument, escapeHtml, looksLikeHtml } from '../utils/emailHtml';
 
 export interface EmailReportDTO {
   recipients: string[];
@@ -163,39 +164,47 @@ export class ReportEmailService extends BaseService {
     },
     customHtml?: string
   ): EmailTemplate {
-    const subject = `${variables.reportType} - Generated ${new Date(variables.generatedAt).toLocaleDateString()}`;
+    const generatedDate = new Date(variables.generatedAt);
+    const generatedAtLabel = Number.isNaN(generatedDate.getTime())
+      ? variables.generatedAt
+      : generatedDate.toLocaleString();
+    const generatedOnLabel = Number.isNaN(generatedDate.getTime())
+      ? new Date().toLocaleDateString()
+      : generatedDate.toLocaleDateString();
+    const subject = `${variables.reportType} - Generated ${generatedOnLabel}`;
 
-    const html = customHtml || `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; }
-          .content { padding: 20px; background-color: #f9fafb; }
-          .footer { padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
-          .button { display: inline-block; padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>${variables.reportType}</h1>
-          </div>
-          <div class="content">
-            <p>${variables.message}</p>
-            <p><strong>Generated:</strong> ${new Date(variables.generatedAt).toLocaleString()}</p>
-            <p>The report is attached to this email.</p>
-          </div>
-          <div class="footer">
-            <p>This is an automated message from the Event Manager System.</p>
-            <p>Please do not reply to this email.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const messageWithBreaks = escapeHtml(variables.message || 'Please find the attached report.')
+      .replace(/\r?\n/g, '<br />');
+
+    const defaultHtml = buildBrandedEmailDocument({
+      appName: 'Event Manager',
+      subject,
+      previewText: `${variables.reportType} is ready`,
+      headerTitle: 'Event Manager Report',
+      title: variables.reportType,
+      primaryColor: '#2563eb',
+      bodyHtml: `
+        <p style="margin:0 0 12px 0;">${messageWithBreaks}</p>
+        <p style="margin:0 0 12px 0;"><strong>Generated:</strong> ${escapeHtml(generatedAtLabel)}</p>
+        <p style="margin:0;">The requested report is attached to this email.</p>
+      `,
+      footerText: 'This is an automated Event Manager message. Please do not reply to this email.',
+    });
+
+    const html = customHtml
+      ? (looksLikeHtml(customHtml)
+        ? customHtml
+        : buildBrandedEmailDocument({
+            appName: 'Event Manager',
+            subject,
+            previewText: `${variables.reportType} is ready`,
+            headerTitle: 'Event Manager Report',
+            title: variables.reportType,
+            primaryColor: '#2563eb',
+            bodyText: customHtml,
+            footerText: 'This is an automated Event Manager message. Please do not reply to this email.',
+          }))
+      : defaultHtml;
 
     const text = `
 ${variables.reportType}

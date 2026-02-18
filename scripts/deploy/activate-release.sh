@@ -47,6 +47,58 @@ normalize_nginx_roots() {
   sudo sed -i -E 's|root[[:space:]]+[^;]*/event-manager;|root /var/lib/event-manager;|g' "$file"
 }
 
+normalize_nginx_pwa_cache_headers() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  local marker="# PWA entry files must not be long-term cached"
+  if sudo grep -qF "$marker" "$file"; then
+    return 0
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+
+  sudo awk -v marker="$marker" '
+    BEGIN { inserted = 0 }
+    /# Cache control for hashed frontend assets/ && inserted == 0 {
+      print "    " marker
+      print "    location = /sw.js {"
+      print "        try_files $uri =404;"
+      print "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+      print "        add_header Pragma \"no-cache\" always;"
+      print "        add_header Expires \"0\" always;"
+      print "    }"
+      print ""
+      print "    location = /service-worker.js {"
+      print "        try_files $uri =404;"
+      print "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+      print "        add_header Pragma \"no-cache\" always;"
+      print "        add_header Expires \"0\" always;"
+      print "    }"
+      print ""
+      print "    location = /registerSW.js {"
+      print "        try_files $uri =404;"
+      print "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+      print "        add_header Pragma \"no-cache\" always;"
+      print "        add_header Expires \"0\" always;"
+      print "    }"
+      print ""
+      print "    location = /manifest.webmanifest {"
+      print "        try_files $uri =404;"
+      print "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+      print "        add_header Pragma \"no-cache\" always;"
+      print "        add_header Expires \"0\" always;"
+      print "    }"
+      print ""
+      inserted = 1
+    }
+    { print }
+  ' "$file" > "$tmp"
+
+  sudo mv "$tmp" "$file"
+}
+
 prune_old_releases() {
   if ! [[ "$RETAIN_RELEASES" =~ ^[0-9]+$ ]]; then
     echo "Skipping release pruning: RETAIN_RELEASES must be a positive integer (current: $RETAIN_RELEASES)"
@@ -82,6 +134,8 @@ prune_old_releases() {
 
 normalize_nginx_roots "$NGINX_ENABLED"
 normalize_nginx_roots "$NGINX_AVAILABLE"
+normalize_nginx_pwa_cache_headers "$NGINX_ENABLED"
+normalize_nginx_pwa_cache_headers "$NGINX_AVAILABLE"
 
 if [ -d /etc/nginx/backup-sites-enabled ]; then
   for f in /etc/nginx/sites-enabled/*.bak-*; do

@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { reportsAPI, api } from '../services/api'
 import {
+  DEFAULT_EMAIL_STYLE,
+  EMAIL_STYLE_PRESETS,
+  buildBrandedEmailHtml,
+  getEmailContrastStatus,
+  normalizeEmailStyle,
+  type EmailStyleConfig,
+} from '../utils/emailHtml'
+import {
   ChartBarIcon,
   DocumentArrowDownIcon,
   CalendarIcon,
@@ -37,14 +45,6 @@ interface ReportDetail {
   data?: Record<string, any> | null
 }
 
-interface ReportEmailStyleConfig {
-  headerTitle: string
-  primaryColor: string
-  backgroundColor: string
-  textColor: string
-  footerText: string
-}
-
 const looksLikeHtml = (value: unknown): value is string =>
   typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)
 
@@ -55,56 +55,6 @@ const parseCsvRows = (value: string): string[][] => {
     .filter(Boolean)
     .slice(0, 26) // header + 25 rows
     .map((line) => line.split(',').map((cell) => cell.trim()))
-}
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
-const buildStyledReportEmailHtml = (
-  options: {
-    subject: string
-    reportTitle: string
-    message: string
-    generatedAt: string
-  },
-  style: ReportEmailStyleConfig
-): string => {
-  const safeSubject = escapeHtml(options.subject || 'Report Delivery')
-  const safeReportTitle = escapeHtml(options.reportTitle || 'Report')
-  const safeMessage = escapeHtml(options.message || '').replace(/\n/g, '<br />')
-  const safeGeneratedAt = escapeHtml(new Date(options.generatedAt).toLocaleString())
-  const safeFooter = escapeHtml(style.footerText || '')
-  const safeHeader = escapeHtml(style.headerTitle || 'Event Manager Report')
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${safeSubject}</title>
-</head>
-<body style="margin:0;padding:0;background:${style.backgroundColor};font-family:Arial,sans-serif;color:${style.textColor};">
-  <div style="max-width:640px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-    <div style="background:${style.primaryColor};color:#ffffff;padding:16px 20px;">
-      <div style="font-size:18px;font-weight:700;">${safeHeader}</div>
-    </div>
-    <div style="padding:20px;">
-      <h2 style="margin:0 0 12px 0;color:${style.textColor};font-size:20px;">${safeReportTitle}</h2>
-      <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:${style.textColor};">${safeMessage || 'Please find the attached report.'}</p>
-      <p style="margin:0;color:#6b7280;font-size:12px;">Generated: ${safeGeneratedAt}</p>
-      <p style="margin:10px 0 0 0;color:#6b7280;font-size:12px;">The requested report is attached to this email.</p>
-    </div>
-    <div style="padding:14px 20px;background:#f9fafb;color:#6b7280;font-size:12px;">
-      ${safeFooter}
-    </div>
-  </div>
-</body>
-</html>`
 }
 
 const ReportsPage: React.FC = () => {
@@ -124,12 +74,10 @@ const ReportsPage: React.FC = () => {
   const [emailSubject, setEmailSubject] = useState('')
   const [emailMessage, setEmailMessage] = useState('')
   const [useStyledEmail, setUseStyledEmail] = useState(false)
-  const [emailStyle, setEmailStyle] = useState<ReportEmailStyleConfig>({
+  const [emailStylePreset, setEmailStylePreset] = useState<string>('default')
+  const [emailStyle, setEmailStyle] = useState<EmailStyleConfig>({
+    ...DEFAULT_EMAIL_STYLE,
     headerTitle: 'Event Manager Report',
-    primaryColor: '#2563eb',
-    backgroundColor: '#f3f4f6',
-    textColor: '#111827',
-    footerText: 'Sent from Event Manager',
   })
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -137,6 +85,7 @@ const ReportsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const csvRows = previewText ? parseCsvRows(previewText) : []
+  const styleContrast = getEmailContrastStatus(emailStyle)
 
   const loadOptions = async () => {
     const [eventResponse, contestResponse] = await Promise.all([
@@ -251,13 +200,21 @@ const ReportsPage: React.FC = () => {
       const trimmedSubject = emailSubject.trim()
       const trimmedMessage = emailMessage.trim()
       const reportLabel = selectedReport?.name || `${selectedReport?.type || 'Report'} report`
+      const generatedAt = selectedReport?.generatedAt || new Date().toISOString()
+      const normalizedStyle = normalizeEmailStyle(emailStyle)
       const html = useStyledEmail
-        ? buildStyledReportEmailHtml({
+        ? buildBrandedEmailHtml({
             subject: trimmedSubject || `${reportLabel} delivery`,
-            reportTitle: reportLabel,
+            title: reportLabel,
             message: trimmedMessage || 'Please find the attached report.',
-            generatedAt: selectedReport?.generatedAt || new Date().toISOString(),
-          }, emailStyle)
+            preheader: `${reportLabel} delivery`,
+            note: 'The requested report is attached to this email.',
+            detailRows: [
+              { label: 'Generated', value: new Date(generatedAt).toLocaleString() },
+              { label: 'Report', value: reportLabel },
+            ],
+            style: normalizedStyle,
+          })
         : undefined
 
       const response = await reportsAPI.sendEmail({
@@ -283,6 +240,22 @@ const ReportsPage: React.FC = () => {
     } finally {
       setIsSendingEmail(false)
     }
+  }
+
+  const applyEmailStylePreset = (presetId: string) => {
+    setEmailStylePreset(presetId)
+    const preset = EMAIL_STYLE_PRESETS.find((item) => item.id === presetId)
+    if (preset) {
+      setEmailStyle({
+        ...preset.style,
+        headerTitle: 'Event Manager Report',
+      })
+    }
+  }
+
+  const updateEmailStyle = (patch: Partial<EmailStyleConfig>) => {
+    setEmailStyle((prev) => ({ ...prev, ...patch }))
+    setEmailStylePreset('custom')
   }
 
   const handleView = async (id: string) => {
@@ -498,13 +471,41 @@ const ReportsPage: React.FC = () => {
                 </label>
 
                 {useStyledEmail && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="min-w-[180px] flex-1">
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
+                        <select
+                          value={emailStylePreset}
+                          onChange={(e) => applyEmailStylePreset(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                        >
+                          {EMAIL_STYLE_PRESETS.map((preset) => (
+                            <option key={preset.id} value={preset.id}>{preset.label}</option>
+                          ))}
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => applyEmailStylePreset('default')}
+                        className="px-3 py-2 text-xs rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      >
+                        Reset style
+                      </button>
+                    </div>
+                    {!styleContrast.passes && (
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Text contrast is low on light backgrounds ({styleContrast.ratio.toFixed(2)}:1). Recommended text color: {styleContrast.recommendedTextColor}.
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
                       <input
                         type="text"
                         value={emailStyle.headerTitle}
-                        onChange={(e) => setEmailStyle({ ...emailStyle, headerTitle: e.target.value })}
+                        onChange={(e) => updateEmailStyle({ headerTitle: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
                       />
                     </div>
@@ -513,7 +514,7 @@ const ReportsPage: React.FC = () => {
                       <input
                         type="text"
                         value={emailStyle.footerText}
-                        onChange={(e) => setEmailStyle({ ...emailStyle, footerText: e.target.value })}
+                        onChange={(e) => updateEmailStyle({ footerText: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
                       />
                     </div>
@@ -522,7 +523,7 @@ const ReportsPage: React.FC = () => {
                       <input
                         type="color"
                         value={emailStyle.primaryColor}
-                        onChange={(e) => setEmailStyle({ ...emailStyle, primaryColor: e.target.value })}
+                        onChange={(e) => updateEmailStyle({ primaryColor: e.target.value })}
                         className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
                       />
                     </div>
@@ -531,7 +532,7 @@ const ReportsPage: React.FC = () => {
                       <input
                         type="color"
                         value={emailStyle.backgroundColor}
-                        onChange={(e) => setEmailStyle({ ...emailStyle, backgroundColor: e.target.value })}
+                        onChange={(e) => updateEmailStyle({ backgroundColor: e.target.value })}
                         className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
                       />
                     </div>
@@ -540,10 +541,11 @@ const ReportsPage: React.FC = () => {
                       <input
                         type="color"
                         value={emailStyle.textColor}
-                        onChange={(e) => setEmailStyle({ ...emailStyle, textColor: e.target.value })}
+                        onChange={(e) => updateEmailStyle({ textColor: e.target.value })}
                         className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
                       />
                     </div>
+                  </div>
                   </div>
                 )}
               </div>

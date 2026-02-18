@@ -6,6 +6,7 @@ import { env } from '../config/env';
 import { templateRenderer } from '../utils/templateRenderer';
 import { ErrorLogService } from './ErrorLogService';
 import { createLogger } from '../utils/logger';
+import { extractPlainTextFromHtml, looksLikeHtml, prepareOutboundEmailHtml } from '../utils/emailHtml';
 // S4-1: Circuit breaker for email service resilience
 import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
 
@@ -244,6 +245,20 @@ export class EmailService extends BaseService {
     }
   }
 
+  private resolveTextBody(rawBody: string, htmlBody: string, subject: string): string {
+    const trimmedRaw = String(rawBody || '').trim();
+
+    if (trimmedRaw && !looksLikeHtml(trimmedRaw)) {
+      return trimmedRaw;
+    }
+
+    if (trimmedRaw && looksLikeHtml(trimmedRaw)) {
+      return extractPlainTextFromHtml(trimmedRaw) || subject;
+    }
+
+    return extractPlainTextFromHtml(htmlBody) || subject;
+  }
+
   /**
    * Send email with retry logic
    */
@@ -311,11 +326,22 @@ export class EmailService extends BaseService {
       html = await this.renderTemplate(options.template, options.variables);
     }
 
+    html = prepareOutboundEmailHtml(html, {
+      subject,
+      fallbackText: body,
+      previewText: subject,
+      appName: env.get('APP_NAME'),
+      headerTitle: env.get('APP_NAME'),
+      footerText: `Sent from ${env.get('APP_NAME') || 'Event Manager'}`,
+    });
+
+    const textBody = this.resolveTextBody(body, html, subject);
+
     const mailOptions = {
       from: smtpConfig.from,
       to,
       subject,
-      text: body,
+      text: textBody,
       html,
       attachments: options?.attachments || []
     };
