@@ -102,12 +102,12 @@ const CategoriesPage: React.FC = () => {
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
-    defaultValues: { contestId: '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' },
+    defaultValues: { contestId: contestId || '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, formState: { errors } } = form
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedContestFilter, setSelectedContestFilter] = useState<string>('')
+  const [selectedContestFilter, setSelectedContestFilter] = useState<string>(contestId || '')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [criterionDrafts, setCriterionDrafts] = useState<CriterionDraft[]>([])
@@ -121,6 +121,10 @@ const CategoriesPage: React.FC = () => {
 
   // Check permissions
   const canManageCategories = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+
+  useEffect(() => {
+    setSelectedContestFilter(contestId || '')
+  }, [contestId])
 
   // Debug logging
   useEffect(() => {
@@ -166,9 +170,11 @@ const CategoriesPage: React.FC = () => {
 
   // Fetch categories
   const { data: categories = [], isLoading, error: categoriesError } = useQuery<Category[]>(
-    'categories',
+    ['categories', contestId || 'all'],
     async () => {
-      const response = await categoriesAPI.getAll()
+      const response = contestId
+        ? await categoriesAPI.getByContest(contestId)
+        : await categoriesAPI.getAll()
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
@@ -231,7 +237,15 @@ const CategoriesPage: React.FC = () => {
   )
 
   const resetForm = () => {
-    reset({ contestId: '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' })
+    reset({
+      contestId: contestId || '',
+      name: '',
+      description: '',
+      scoreCap: '',
+      timeLimit: '',
+      contestantMin: '',
+      contestantMax: '',
+    })
     setEditingCategory(null)
     setCriterionDrafts([])
     setExistingCriteria([])
@@ -367,12 +381,13 @@ const CategoriesPage: React.FC = () => {
   }
 
   // Filter categories
+  const activeContestFilter = contestId || selectedContestFilter
   const filteredCategories = Array.isArray(categories) ? categories.filter((category) => {
     const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       category.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       category.contest?.name.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesContest = selectedContestFilter ? category.contestId === selectedContestFilter : true
+    const matchesContest = activeContestFilter ? category.contestId === activeContestFilter : true
 
     return matchesSearch && matchesContest
   }) : []
@@ -433,19 +448,20 @@ const CategoriesPage: React.FC = () => {
               />
             </div>
 
-            {/* Contest Filter */}
-            <select
-              value={selectedContestFilter}
-              onChange={(e) => setSelectedContestFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Contests</option>
-              {contests?.map((contest) => (
-                <option key={contest.id} value={contest.id}>
-                  {contest.name}
-                </option>
-              ))}
-            </select>
+            {!contestId && (
+              <select
+                value={selectedContestFilter}
+                onChange={(e) => setSelectedContestFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Contests</option>
+                {contests?.map((contest) => (
+                  <option key={contest.id} value={contest.id}>
+                    {contest.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </Card>
 
@@ -581,7 +597,7 @@ const CategoriesPage: React.FC = () => {
                   </label>
                   <select
                     {...register('contestId')}
-                    disabled={Boolean(editingCategory)}
+                    disabled={Boolean(editingCategory) || Boolean(contestId)}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.contestId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     aria-invalid={errors.contestId ? 'true' : undefined}
                   >

@@ -73,14 +73,16 @@ const PublicLandingPage: React.FC = () => {
   useEffect(() => {
     ;(async () => {
       try {
-        const response = await settingsAPI.getPublicSettings(slug || 'default')
+        const response = await settingsAPI.getPublicSettings(slug || undefined)
         const data = response.data?.data || response.data || {}
         setAppName(data.appName || DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(data.appDescription || DEFAULT_APP_BASELINE.appDescription)
-        const themeResponse = await settingsAPI.getThemeSettings(undefined, 'default')
+        const themeResponse = await settingsAPI.getThemeSettings(undefined, slug || undefined)
         const themeData = themeResponse.data?.data || themeResponse.data || {}
         setAppName(themeData.app_name || themeData.appName || data.appName || DEFAULT_APP_BASELINE.appName)
+        setAppSubtitle(themeData.app_subtitle || themeData.appSubtitle || data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
+        setAppDescription(themeData.app_description || themeData.appDescription || data.appDescription || DEFAULT_APP_BASELINE.appDescription)
         setLogoPath(themeData.theme_logoPath || themeData.logoPath || null)
         setFaviconPath(themeData.theme_faviconPath || themeData.faviconPath || null)
       } catch {
