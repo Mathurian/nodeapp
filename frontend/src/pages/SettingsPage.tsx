@@ -223,7 +223,7 @@ const SettingsPage: React.FC = () => {
   const faviconInputRef = useRef<HTMLInputElement>(null)
 
   const [activeSection, setActiveSection] = useState<string>('general')
-  const [expandedSections, setExpandedSections] = useState<string[]>(['general'])
+  const [expandedSections, setExpandedSections] = useState<string[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [gcsUploadFileName, setGcsUploadFileName] = useState<string>('')

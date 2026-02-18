@@ -16,7 +16,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
   const { buildPath } = useTenant()
   const location = useLocation()
   const allowedNavigationIds = useAllowedNavigationIds()
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Navigation']))
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
 
   const navigationSections = NAV_SECTIONS
 
@@ -39,7 +39,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
   const filteredSections = navigationSections
 
   useEffect(() => {
-    setExpandedSections(new Set(['Navigation']))
+    setExpandedSections(new Set())
   }, [location.pathname])
 
   return (
@@ -91,7 +91,7 @@ const AccordionNav: React.FC<AccordionNavProps> = ({ className = '', onNavigate 
                         key={item.href}
                         to={fullPath}
                         onClick={() => {
-                          setExpandedSections(new Set(['Navigation']))
+                          setExpandedSections(new Set())
                           onNavigate?.()
                         }}
                         className={`flex items-center space-x-3 px-4 py-2 pl-12 text-sm transition-colors ${

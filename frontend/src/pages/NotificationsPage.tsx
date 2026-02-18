@@ -55,6 +55,13 @@ const NotificationsPage: React.FC = () => {
     systemAlerts: true,
   })
 
+  const refreshNotificationQueries = () => {
+    queryClient.invalidateQueries('notifications')
+    queryClient.invalidateQueries('sent-notifications')
+    queryClient.invalidateQueries('deleted-notifications')
+    queryClient.invalidateQueries(['notifications-unread-count', user?.id, user?.tenantId])
+  }
+
   // Fetch received notifications with proper error handling
   const { data: notifications = [], isLoading: notificationsLoading, error: notificationsError } = useQuery<Notification[]>(
     'notifications',
@@ -122,7 +129,7 @@ const NotificationsPage: React.FC = () => {
   const markAsRead = async (id: string) => {
     try {
       await api.put(`/notifications/${id}/read`)
-      queryClient.invalidateQueries('notifications')
+      refreshNotificationQueries()
     } catch (err: any) {
       console.error('Failed to mark notification as read:', err)
     }
@@ -131,7 +138,7 @@ const NotificationsPage: React.FC = () => {
   const markAllAsRead = async () => {
     try {
       await api.put('/notifications/read-all')
-      queryClient.invalidateQueries('notifications')
+      refreshNotificationQueries()
     } catch (err: any) {
       console.error('Failed to mark all as read:', err)
     }
@@ -140,8 +147,7 @@ const NotificationsPage: React.FC = () => {
   const deleteNotification = async (id: string) => {
     try {
       await api.delete(`/notifications/${id}`)
-      queryClient.invalidateQueries('notifications')
-      queryClient.invalidateQueries('deleted-notifications')
+      refreshNotificationQueries()
     } catch (err: any) {
       console.error('Failed to delete notification:', err)
     }
@@ -150,8 +156,7 @@ const NotificationsPage: React.FC = () => {
   const restoreNotification = async (id: string) => {
     try {
       await api.put(`/notifications/${id}/restore`)
-      queryClient.invalidateQueries('notifications')
-      queryClient.invalidateQueries('deleted-notifications')
+      refreshNotificationQueries()
     } catch (err: any) {
       console.error('Failed to restore notification:', err)
     }
@@ -466,7 +471,7 @@ const NotificationsPage: React.FC = () => {
       <SendNotificationModal
         isOpen={isSendModalOpen}
         onClose={() => setIsSendModalOpen(false)}
-        onSuccess={() => queryClient.invalidateQueries('notifications')}
+        onSuccess={refreshNotificationQueries}
       />
     </div>
   )
