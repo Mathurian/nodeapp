@@ -16,9 +16,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui';
+import { safeFormatDate } from '../utils/dateUtils';
 
 const ROLES: UserRole[] = [
   'SUPER_ADMIN',
@@ -75,13 +75,8 @@ const PermissionAuditLogPage: React.FC = () => {
   const totalPages = Math.ceil(total / limit);
 
   // Format date
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), 'MMM dd, yyyy HH:mm:ss');
-    } catch {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) =>
+    safeFormatDate(dateString, 'MMM dd, yyyy HH:mm:ss', dateString);
 
   // Get value change display
   const getValueChangeDisplay = (log: PermissionAuditLog) => {

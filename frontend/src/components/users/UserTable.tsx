@@ -6,10 +6,10 @@ import {
   ArrowsRightLeftIcon,
   UsersIcon,
 } from '@heroicons/react/24/outline'
-import { format, parseISO } from 'date-fns'
 import { User, getRoleInfo } from './types'
 import { ResponsiveTable, getOptimisticRowClass } from '../ui'
 import { UserTableSkeleton } from '../ui/SkeletonPatterns'
+import { safeFormatDate } from '../../utils/dateUtils'
 
 /** Extended User type with optimistic state flags */
 interface OptimisticUser extends User {
@@ -253,7 +253,7 @@ const UserTable: React.FC<UserTableProps> = ({
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                 {user.lastLoginAt
-                  ? format(parseISO(user.lastLoginAt), 'MMM d, yyyy')
+                  ? safeFormatDate(user.lastLoginAt, 'MMM d, yyyy')
                   : 'Never'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

@@ -13,9 +13,9 @@ import {
   PaperAirplaneIcon,
   ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { SendNotificationModal } from '../components/SendNotificationModal'
 import { Button, Card, PageHeader } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface Notification {
   id: string
@@ -420,7 +420,7 @@ const NotificationsPage: React.FC = () => {
                           {notification.message}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                          {format(new Date(notification.createdAt), 'MMM d, yyyy h:mm a')}
+                          {safeFormatDate(notification.createdAt, 'MMM d, yyyy h:mm a')}
                         </p>
                       </div>
                     </div>

@@ -3,6 +3,9 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('Navigation');
 
+const hasNavRoleAccess = (itemRoles: string[], userRole: string): boolean => {
+  return itemRoles.includes(userRole) || (userRole === 'SUPER_ADMIN' && itemRoles.includes('ADMIN'));
+};
 
 // Define navigation structure based on roles
 const getNavigationItems = (userRole: string): any[] => {
@@ -87,6 +90,27 @@ const getNavigationItems = (userRole: string): any[] => {
         path: '/settings',
         icon: 'Cog6ToothIcon',
         roles: ['ADMIN', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'templates',
+        label: 'Templates',
+        path: '/templates',
+        icon: 'DocumentTextIcon',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
+      },
+      {
+        id: 'permissions',
+        label: 'Permissions',
+        path: '/permissions',
+        icon: 'ShieldCheckIcon',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
+      },
+      {
+        id: 'tenants',
+        label: 'Tenants',
+        path: '/tenants',
+        icon: 'BuildingOfficeIcon',
+        roles: ['SUPER_ADMIN', 'ADMIN']
       },
       {
         id: 'login-locations',
@@ -309,13 +333,14 @@ const getNavigationItems = (userRole: string): any[] => {
   // Combine base items with role-specific items
   const allItems = [...baseItems];
 
-  const roleItems = roleSpecificItems[userRole as keyof typeof roleSpecificItems];
+  const roleKey = (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') ? 'ORGANIZER' : userRole;
+  const roleItems = roleSpecificItems[roleKey as keyof typeof roleSpecificItems];
   if (roleItems) {
     allItems.push(...roleItems);
   }
 
   // Filter items based on user role
-  return allItems.filter((item) => item.roles.includes(userRole))
+  return allItems.filter((item) => hasNavRoleAccess(item.roles, userRole))
 }
 
 // Get navigation permissions for a specific route
@@ -330,14 +355,17 @@ const getRoutePermissions = (route: string, userRole: string): { allowed: boolea
     }
   }
 
+  const allowed = hasNavRoleAccess(item.roles, userRole);
   return {
-    allowed: item.roles.includes(userRole),
-    reason: item.roles.includes(userRole) ? 'Access granted' : 'Insufficient permissions'
+    allowed,
+    reason: allowed ? 'Access granted' : 'Insufficient permissions'
   }
 }
 
 // Check if user can access a specific feature
 const canAccessFeature = (feature: string, userRole: string): boolean => {
+  if (userRole === 'SUPER_ADMIN') return true;
+
   const featurePermissions: Record<string, string[]> = {
     'CREATE_EVENT': ['ADMIN', 'ORGANIZER', 'BOARD'],
     'EDIT_EVENT': ['ADMIN', 'ORGANIZER', 'BOARD'],

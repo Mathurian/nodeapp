@@ -1602,81 +1602,115 @@ export class UsersController {
   getBulkUploadTemplate = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const log = createRequestLogger(req, 'users');
-      
-      log.debug('Generating universal bulk upload template');
+      const rawUserType = String(req.query['userType'] || req.params['userType'] || 'UNIVERSAL').toUpperCase();
+      const userType = rawUserType === 'JUDGE' || rawUserType === 'CONTESTANT' ? rawUserType : 'UNIVERSAL';
 
-      // Universal CSV template with all possible fields
-      // Include instructions as comments at the top
-      const instructions = [
+      const commonInstructions = [
         '# Bulk User Upload Template',
-        '# Instructions:',
-        '# - Required fields for ALL users: name, email, password, role',
-        '# - Role must be one of: SUPER_ADMIN, ADMIN, ORGANIZER, JUDGE, CONTESTANT, TALLY_MASTER, AUDITOR, BOARD, EMCEE',
-        '# - Use unique email addresses. Existing users are not updated by this import.',
-        '# - contestId/categoryId must be real IDs from your tenant (UI: Assignments or API: /api/contests, /api/categories).',
-        '# - JUDGE-specific fields: judgeNumber, judgeLevel, isHeadJudge (true/false)',
-        '# - CONTESTANT-specific fields: contestantNumber, age, parentGuardian, parentPhone, school, grade',
-        '# - Optional fields for all: bio, phone, address, preferredName, pronouns, gender',
-        '# - Assignment fields: contestId (assign to all categories in contest), categoryId (assign to specific category)',
-        '#   - For JUDGE: If contestId provided, assigns to all categories. If categoryId provided, assigns to that category.',
-        '#   - For CONTESTANT: If categoryId provided, assigns to that category. If contestId provided, assigns to all categories.',
-        '# - If both contestId and categoryId are provided, categoryId takes precedence for assignment.',
-        '# - Leave fields empty if not applicable',
-        '# - You may leave contestId and categoryId empty for users that should not be assigned during import',
-        '# - Remove these instruction lines (starting with #) before uploading',
+        '# Required columns for every row: name, email, password, role',
+        '# Allowed roles: ADMIN, ORGANIZER, JUDGE, CONTESTANT, EMCEE, TALLY_MASTER, AUDITOR, BOARD',
+        '# Existing users are not updated. Duplicate emails are skipped.',
+        '# contestId/categoryId must be valid IDs from your tenant.',
+        '# If both contestId and categoryId are provided, categoryId takes precedence.',
+        '# Comment rows that start with # are ignored during import.',
+      ];
+
+      let headers: string[] = [];
+      let exampleRows: string[][] = [];
+
+      if (userType === 'JUDGE') {
+        headers = [
+          'name',
+          'email',
+          'password',
+          'role',
+          'preferredName',
+          'pronouns',
+          'gender',
+          'phone',
+          'address',
+          'bio',
+          'judgeNumber',
+          'judgeLevel',
+          'isHeadJudge',
+          'contestId',
+          'categoryId'
+        ];
+        exampleRows = [
+          ['John Judge', 'judge1@example.com', 'SecurePass123!', 'JUDGE', 'John', 'he/him', 'male', '555-0100', '', 'Lead judge profile', 'J001', 'EXPERT', 'false', 'contest_id_here', ''],
+          ['Jamie Judge', 'judge2@example.com', 'SecurePass123!', 'JUDGE', '', 'they/them', '', '555-0101', '', '', 'J002', 'INTERMEDIATE', 'true', '', 'category_id_here'],
+        ];
+        commonInstructions.push('# Judge template: role should stay JUDGE, judgeLevel can be BEGINNER/INTERMEDIATE/EXPERT');
+      } else if (userType === 'CONTESTANT') {
+        headers = [
+          'name',
+          'email',
+          'password',
+          'role',
+          'preferredName',
+          'pronouns',
+          'gender',
+          'phone',
+          'address',
+          'bio',
+          'contestantNumber',
+          'age',
+          'parentGuardian',
+          'parentPhone',
+          'school',
+          'grade',
+          'contestId',
+          'categoryId'
+        ];
+        exampleRows = [
+          ['Connie Contestant', 'contestant1@example.com', 'SecurePass123!', 'CONTESTANT', 'Connie', 'she/her', 'female', '555-0200', '123 Main St', 'Performer profile', 'C001', '15', 'Parent Name', '555-0201', 'Central High', '10', '', 'category_id_here'],
+          ['Casey Contestant', 'contestant2@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0202', '', '', 'C002', '16', '', '', '', '', 'contest_id_here', ''],
+        ];
+        commonInstructions.push('# Contestant template: role should stay CONTESTANT.');
+      } else {
+        headers = [
+          'name',
+          'email',
+          'password',
+          'role',
+          'preferredName',
+          'pronouns',
+          'gender',
+          'phone',
+          'address',
+          'bio',
+          'judgeNumber',
+          'judgeLevel',
+          'isHeadJudge',
+          'contestantNumber',
+          'age',
+          'parentGuardian',
+          'parentPhone',
+          'school',
+          'grade',
+          'contestId',
+          'categoryId'
+        ];
+        exampleRows = [
+          ['John Judge', 'judge1@example.com', 'SecurePass123!', 'JUDGE', '', '', '', '555-0001', '', 'Experienced judge', 'J001', 'EXPERT', 'false', '', '', '', '', '', '', 'contest_id_here', ''],
+          ['Connie Contestant', 'contestant1@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0002', '123 Main St', 'Performer profile', '', '', '', 'C001', '15', 'Parent Name', '555-0003', 'Central High', '10', '', 'category_id_here'],
+          ['Alex Admin', 'admin1@example.com', 'SecurePass123!', 'ADMIN', '', '', '', '555-0004', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ];
+        commonInstructions.push('# Universal template supports mixed roles in one file.');
+      }
+
+      const csvContent = [
+        ...commonInstructions,
         '#',
-        '# Example:',
-        '# name,email,password,role,preferredName,pronouns,gender,phone,address,bio,judgeNumber,judgeLevel,isHeadJudge,contestantNumber,age,parentGuardian,parentPhone,school,grade,contestId,categoryId',
-        '# John Judge,judge1@example.com,SecurePass123!,JUDGE,,,,555-0001,,Experienced judge,J001,EXPERT,false,,,,,,,,contest-id-here,',
-        '# Connie Contestant,contestant1@example.com,SecurePass123!,CONTESTANT,,,,555-0002,123 Main St,Performer profile,,,,C001,15,Parent Name,555-0003,Central High,10,,category-id-here',
-        '#',
+        headers.join(','),
+        ...exampleRows.map((row) => row.join(','))
       ].join('\n');
 
-      // Define all possible CSV headers
-      const headers = [
-        'name',
-        'email', 
-        'password',
-        'role',
-        'preferredName',
-        'pronouns',
-        'gender',
-        'phone',
-        'address',
-        'bio',
-        'judgeNumber',
-        'judgeLevel',
-        'isHeadJudge',
-        'contestantNumber',
-        'age',
-        'parentGuardian',
-        'parentPhone',
-        'school',
-        'grade',
-        'contestId',
-        'categoryId'
-      ];
-
-      // Create example rows for different roles
-      const exampleRows = [
-        // Judge example with assignment
-        ['John Doe', 'judge@example.com', 'SecurePass123!', 'JUDGE', '', '', '', '555-0001', '', 'Experienced judge', 'J001', 'EXPERT', 'false', '', '', '', '', '', '', 'cm_contest_abc123', ''],
-        // Contestant example with assignment
-        ['Jane Smith', 'contestant@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0002', '123 Main St', 'Great student', '', '', '', 'C001', '15', 'Parent Name', '555-0003', 'High School', '10', '', 'cm_category_xyz789'],
-        // Admin example (no assignments)
-        ['Admin User', 'admin@example.com', 'SecurePass123!', 'ADMIN', '', '', '', '555-0004', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-      ];
-
-      // Build CSV content
-      const csvContent = instructions + '\n' +
-        headers.join(',') + '\n' +
-        exampleRows.map(row => row.join(',')).join('\n');
-
-      // Set response headers for CSV download
+      const filename = `bulk-upload-template-${userType.toLowerCase()}.csv`;
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="bulk-upload-template-universal.csv"');
-      
-      log.info('Universal bulk upload template generated');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      log.info('Bulk upload template generated', { userType, filename });
       res.send(csvContent);
     } catch (error) {
       const log = createRequestLogger(req, 'users');

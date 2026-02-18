@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery } from 'react-query'
 import { adminAPI } from '../services/api'
-import { format } from 'date-fns'
+import { safeFormatDate } from '../utils/dateUtils'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface AuditLogEntry {
@@ -95,7 +95,9 @@ const AuditorAuditLogPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{format(new Date(log.createdAt), 'MMM d, yyyy h:mm a')}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                        {safeFormatDate(log.createdAt, 'MMM d, yyyy h:mm a')}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{log.user?.name || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{log.user?.role || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{log.action}</td>

@@ -7,8 +7,10 @@ import {
   TrophyIcon,
   CheckCircleIcon,
   EnvelopeIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { safeLocaleString } from '../utils/dateUtils'
 
 type ReportType = 'event' | 'contest' | 'system'
 type ExportFormat = 'pdf' | 'excel' | 'csv'
@@ -56,6 +58,7 @@ const ReportsPage: React.FC = () => {
   const [instances, setInstances] = useState<ReportInstance[]>([])
   const [sendingReportId, setSendingReportId] = useState<string | null>(null)
   const [viewingReport, setViewingReport] = useState<ReportDetail | null>(null)
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null)
   const [isLoadingView, setIsLoadingView] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewText, setPreviewText] = useState<string | null>(null)
@@ -208,6 +211,32 @@ const ReportsPage: React.FC = () => {
     }
   }
 
+  const handleDeleteReport = async (id: string) => {
+    if (!window.confirm('Delete this generated report? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      setDeletingReportId(id)
+      setError(null)
+      await reportsAPI.delete(id)
+      if (viewingReport?.id === id) {
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl)
+          setPreviewUrl(null)
+        }
+        setPreviewText(null)
+        setViewingReport(null)
+      }
+      setMessage('Report deleted successfully')
+      await loadInstances()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete report')
+    } finally {
+      setDeletingReportId(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -300,7 +329,7 @@ const ReportsPage: React.FC = () => {
                         {instance.name || `${instance.type} report`}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3">
-                        <span className="flex items-center"><CalendarIcon className="h-4 w-4 mr-1" />{new Date(instance.generatedAt).toLocaleString()}</span>
+                        <span className="flex items-center"><CalendarIcon className="h-4 w-4 mr-1" />{safeLocaleString(instance.generatedAt)}</span>
                         <span className="flex items-center"><TrophyIcon className="h-4 w-4 mr-1" />{instance.type}</span>
                         <span className="flex items-center"><CheckCircleIcon className="h-4 w-4 mr-1" />{instance.format || 'N/A'}</span>
                       </div>
@@ -316,6 +345,14 @@ const ReportsPage: React.FC = () => {
                       >
                         <EnvelopeIcon className="h-4 w-4 mr-1" />
                         Email
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReport(instance.id)}
+                        disabled={deletingReportId === instance.id}
+                        className="px-3 py-1 text-xs rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60 flex items-center"
+                      >
+                        <TrashIcon className="h-4 w-4 mr-1" />
+                        {deletingReportId === instance.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </div>
@@ -355,7 +392,7 @@ const ReportsPage: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{viewingReport.name || 'Report Preview'}</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {viewingReport.type} • {new Date(viewingReport.generatedAt).toLocaleString()}
+                    {viewingReport.type} • {safeLocaleString(viewingReport.generatedAt)}
                   </p>
                 </div>
                 <button
@@ -454,7 +491,7 @@ const ReportsPage: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4">
                       <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <div><dt className="text-gray-500">Type</dt><dd className="font-medium">{viewingReport.type}</dd></div>
-                        <div><dt className="text-gray-500">Generated</dt><dd className="font-medium">{new Date(viewingReport.generatedAt).toLocaleString()}</dd></div>
+                        <div><dt className="text-gray-500">Generated</dt><dd className="font-medium">{safeLocaleString(viewingReport.generatedAt)}</dd></div>
                         <div><dt className="text-gray-500">Format</dt><dd className="font-medium">{viewingReport.format || 'N/A'}</dd></div>
                         <div><dt className="text-gray-500">Name</dt><dd className="font-medium">{viewingReport.name}</dd></div>
                       </dl>

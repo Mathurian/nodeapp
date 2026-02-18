@@ -9,8 +9,56 @@ import { DynamicPermissionService } from '../services/DynamicPermissionService';
 import { UserRole } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { sendSuccess, sendError, sendForbidden } from '../utils/responseHelpers';
+import { PERMISSIONS } from '../middleware/permissions';
 
 const logger = createLogger('permissions');
+
+const buildFallbackPermissions = (
+  tenantId: string,
+  createdBy: string,
+  roleFilter?: UserRole,
+  excludeSuperAdmin = false
+) => {
+  const now = new Date();
+  const rows: Array<{
+    id: string;
+    role: UserRole;
+    resource: string;
+    operation: string;
+    allowed: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string;
+    tenantId: string;
+  }> = [];
+
+  for (const [roleKey, tokens] of Object.entries(PERMISSIONS)) {
+    const role = roleKey as UserRole;
+    if (excludeSuperAdmin && role === 'SUPER_ADMIN') continue;
+    if (roleFilter && role !== roleFilter) continue;
+
+    for (const token of tokens) {
+      const raw = String(token || '').trim();
+      if (!raw) continue;
+      const [resource, operation] = raw === '*' ? ['*', '*'] : raw.split(':');
+      if (!resource || !operation) continue;
+
+      rows.push({
+        id: `fallback-${tenantId}-${role}-${resource}-${operation}`,
+        role,
+        resource,
+        operation,
+        allowed: true,
+        createdAt: now,
+        updatedAt: now,
+        createdBy,
+        tenantId,
+      });
+    }
+  }
+
+  return rows;
+};
 
 /**
  * Get all permissions (optionally filtered by role)
@@ -25,6 +73,7 @@ export const getAllPermissions = async (
   try {
     const isSuperAdmin = (req as any).isSuperAdmin;
     const tenantId = (req as any).tenantId;
+    const effectiveTenantId = tenantId || req.user?.tenantId;
 
     if (!req.user) {
       return sendForbidden(res, 'Authentication required');
@@ -39,7 +88,10 @@ export const getAllPermissions = async (
 
     // Non-SUPER_ADMIN users can only see their tenant's permissions
     if (!isSuperAdmin) {
-      whereClause.tenantId = tenantId;
+      if (!effectiveTenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
+      whereClause.tenantId = effectiveTenantId;
       if (roleFilter) {
         if (roleFilter === 'SUPER_ADMIN') {
           return sendForbidden(res, 'Access to SUPER_ADMIN permissions is restricted');
@@ -74,9 +126,9 @@ export const getAllPermissions = async (
       ]
     });
 
-    // Bootstrap defaults for tenant-scoped admins/organizers if table is empty.
-    if (!isSuperAdmin && permissions.length === 0 && tenantId && req.user?.id) {
-      await service.initializeDefaultsForTenant(tenantId, req.user.id);
+    // Bootstrap defaults when no dynamic rows exist yet.
+    if (permissions.length === 0 && effectiveTenantId && req.user?.id) {
+      await service.initializeDefaultsForTenant(effectiveTenantId, req.user.id);
       permissions = await prisma.rolePermission.findMany({
         where: whereClause,
         select: {
@@ -98,10 +150,21 @@ export const getAllPermissions = async (
       });
     }
 
+    // Final fallback: synthesize matrix from static permissions if DB remains empty.
+    if (permissions.length === 0 && effectiveTenantId && req.user?.id) {
+      permissions = buildFallbackPermissions(
+        effectiveTenantId,
+        req.user.id,
+        roleFilter,
+        !isSuperAdmin
+      );
+    }
+
     logger.info('Fetched all permissions', {
       userId: req.user.id,
       role: req.user.role,
       isSuperAdmin,
+      tenantId: effectiveTenantId,
       count: permissions.length,
       roleFilter
     });
@@ -126,6 +189,7 @@ export const getPermissionStats = async (
   try {
     const isSuperAdmin = (req as any).isSuperAdmin;
     const tenantId = (req as any).tenantId;
+    const effectiveTenantId = tenantId || req.user?.tenantId;
 
     if (!req.user) {
       return sendForbidden(res, 'Authentication required');
@@ -134,8 +198,11 @@ export const getPermissionStats = async (
     const service = container.resolve(DynamicPermissionService);
 
     // Ensure tenant has initial permission rows for GUI stats.
-    if (!isSuperAdmin && tenantId && req.user?.id) {
-      await service.initializeDefaultsForTenant(tenantId, req.user.id);
+    if (!effectiveTenantId) {
+      return sendError(res, 'Tenant context is required', 400);
+    }
+    if (req.user?.id) {
+      await service.initializeDefaultsForTenant(effectiveTenantId, req.user.id);
     }
 
     // For SUPER_ADMIN, we need to aggregate stats across all tenants
@@ -150,14 +217,19 @@ export const getPermissionStats = async (
         }
       });
 
+      const fallbackPermissions = allPermissions.length === 0 && effectiveTenantId && req.user?.id
+        ? buildFallbackPermissions(effectiveTenantId, req.user.id)
+        : [];
+      const statSource = allPermissions.length > 0 ? allPermissions : fallbackPermissions;
+
       const stats = {
-        totalPermissions: allPermissions.length,
+        totalPermissions: statSource.length,
         permissionsByRole: {} as Record<string, number>,
         allowedCount: 0,
         deniedCount: 0
       };
 
-      allPermissions.forEach((perm: any) => {
+      statSource.forEach((perm: any) => {
         stats.permissionsByRole[perm.role] = (stats.permissionsByRole[perm.role] || 0) + 1;
         if (perm.allowed) {
           stats.allowedCount++;
@@ -169,7 +241,21 @@ export const getPermissionStats = async (
       return sendSuccess(res, stats, 'Permission statistics retrieved successfully');
     } else {
       // Non-SUPER_ADMIN: use service with tenant filtering
-      const stats = await service.getPermissionStats(tenantId);
+      let stats = await service.getPermissionStats(effectiveTenantId);
+      if (stats.totalPermissions === 0 && req.user?.id) {
+        const fallback = buildFallbackPermissions(effectiveTenantId, req.user.id, undefined, true);
+        const permissionsByRole: Record<string, number> = {};
+        for (const row of fallback) {
+          permissionsByRole[row.role] = (permissionsByRole[row.role] || 0) + 1;
+        }
+        stats = {
+          ...stats,
+          totalPermissions: fallback.length,
+          allowedCount: fallback.length,
+          deniedCount: 0,
+          permissionsByRole,
+        };
+      }
       return sendSuccess(res, stats, 'Permission statistics retrieved successfully');
     }
   } catch (error) {

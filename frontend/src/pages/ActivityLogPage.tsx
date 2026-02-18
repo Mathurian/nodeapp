@@ -11,9 +11,9 @@ import {
   XMarkIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
-import { format, parseISO } from 'date-fns'
 import type { AuditLog, AuditLogFilters } from '../types/activity.types'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 const ActivityLogPage: React.FC = () => {
   const { user } = useAuth()
@@ -329,9 +329,9 @@ const ActivityLogPage: React.FC = () => {
                   {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        <div>{format(parseISO(log.timestamp), 'MMM d, yyyy')}</div>
+                        <div>{safeFormatDate(log.timestamp, 'MMM d, yyyy')}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {format(parseISO(log.timestamp), 'HH:mm:ss')}
+                          {safeFormatDate(log.timestamp, 'HH:mm:ss')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
+import { safeFormatDate } from '../utils/dateUtils'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
 interface Event {
@@ -474,7 +475,7 @@ const ResultsPage: React.FC = () => {
         'Total Score': winner.totalScore,
         'Score Cap': winner.category.scoreCap || 'N/A',
         'Certified': winner.isCertified ? 'Yes' : 'No',
-        'Certified At': winner.certifiedAt ? format(new Date(winner.certifiedAt), 'PPpp') : 'N/A',
+        'Certified At': winner.certifiedAt ? safeFormatDate(winner.certifiedAt, 'PPpp', 'N/A') : 'N/A',
       }))
 
       // Create winners worksheet

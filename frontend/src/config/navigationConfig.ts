@@ -69,7 +69,6 @@ export const NAV_SECTIONS: AppNavSection[] = [
       { id: 'events', name: 'All Events', href: '/events', icon: CalendarIcon, roles: ADMIN_ROLES, description: 'Manage events', keywords: ['event', 'calendar'], priority: 95 },
       { id: 'contests', name: 'Contests', href: '/contests', icon: TrophyIcon, roles: ADMIN_ROLES, description: 'Manage contests', keywords: ['competition', 'tournament'], priority: 90 },
       { id: 'categories', name: 'Categories', href: '/categories', icon: DocumentTextIcon, roles: ADMIN_ROLES, description: 'Manage categories', keywords: ['division', 'class'], priority: 85 },
-      { id: 'templates', name: 'Templates', href: '/templates', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'event-templates', name: 'Event Templates', href: '/event-templates', icon: DocumentDuplicateIcon, roles: ADMIN_ROLES },
       { id: 'archive', name: 'Archive', href: '/archive', icon: ArchiveBoxIcon, roles: ADMIN_ROLES },
       { id: 'category-types', name: 'Category Types', href: '/category-types', icon: DocumentTextIcon, roles: ADMIN_ROLES },
@@ -119,7 +118,9 @@ export const NAV_SECTIONS: AppNavSection[] = [
     items: [
       { id: 'admin', name: 'Admin Dashboard', href: '/admin', icon: CogIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'settings', name: 'Settings', href: '/settings', icon: CogIcon, roles: ADMIN_ROLES, shortcut: 'Cmd+,', priority: 55 },
+      { id: 'templates', name: 'Templates', href: '/templates', icon: DocumentDuplicateIcon, roles: ADMIN_ROLES },
       { id: 'permissions', name: 'Permissions', href: '/permissions', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'] },
+      { id: 'tenants', name: 'Tenants', href: '/tenants', icon: ServerIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
       { id: 'database', name: 'Database Browser', href: '/database', icon: ServerIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'cache', name: 'Cache Management', href: '/cache', icon: ServerIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'logs', name: 'Log Viewer', href: '/logs', icon: DocumentTextIcon, roles: ADMIN_ONLY_ROLES },
@@ -153,7 +154,6 @@ export const NAV_SECTIONS: AppNavSection[] = [
       { id: 'custom-fields', name: 'Custom Fields', href: '/custom-fields', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'files', name: 'File Management', href: '/files', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'mfa', name: 'Multi-Factor Auth', href: '/mfa', icon: ShieldCheckIcon, roles: ADMIN_ROLES },
-      { id: 'tenants', name: 'Tenants', href: '/tenants', icon: ServerIcon, roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
 ]

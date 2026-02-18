@@ -13,6 +13,19 @@ import { sendValidationError } from '../utils/responseHelpers';
  */
 type ValidationTarget = 'body' | 'query' | 'params';
 const userRoleSchema = z.nativeEnum(UserRole);
+const legacyHexIdSchema = z.string().regex(/^[a-f0-9]{32}$/i);
+const compatIdSchema = z
+  .string()
+  .trim()
+  .min(1, 'ID is required')
+  .max(64, 'ID is too long')
+  .refine(
+    (value) =>
+      z.string().cuid().safeParse(value).success ||
+      z.string().uuid().safeParse(value).success ||
+      legacyHexIdSchema.safeParse(value).success,
+    'Invalid ID format'
+  );
 
 /**
  * Validate request using Zod schema
@@ -327,12 +340,12 @@ export const updateCategorySchema = z.object({
  * Notification creation schema
  */
 export const createNotificationSchema = z.object({
-  userIds: z.array(z.string().cuid('Invalid user ID format')).min(1, 'At least one user ID required'),
+  userIds: z.array(compatIdSchema).min(1, 'At least one user ID required'),
   title: z.string().min(1, 'Title is required').max(200),
   message: z.string().min(1, 'Message is required').max(5000),
   type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
   link: z.string().max(500).optional(),
-  targetTenantId: z.union([z.string().cuid('Invalid tenant ID format'), z.null()]).optional()
+  targetTenantId: z.union([compatIdSchema, z.null()]).optional()
 });
 
 /**
@@ -344,7 +357,7 @@ export const broadcastNotificationSchema = z.object({
   message: z.string().min(1, 'Message is required').max(5000),
   type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
   link: z.string().max(500).optional(),
-  targetTenantId: z.union([z.string().cuid('Invalid tenant ID format'), z.null()]).optional()
+  targetTenantId: z.union([compatIdSchema, z.null()]).optional()
 });
 
 /**

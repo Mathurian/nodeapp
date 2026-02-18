@@ -7,8 +7,8 @@ import {
   EyeIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface FileItem {
   id: string
@@ -350,7 +350,7 @@ const FileManagementPage: React.FC = () => {
                         {formatSize(file.size)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                        {format(new Date(file.createdAt), 'MMM d, yyyy')}
+                        {safeFormatDate(file.createdAt, 'MMM d, yyyy')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">

@@ -6,6 +6,14 @@
 import { injectable } from 'tsyringe';
 import { PrismaClient, Notification, NotificationType, Prisma } from '@prisma/client';
 
+const normalizeNotificationType = (type: unknown): NotificationType => {
+  const normalized = String(type ?? 'INFO').trim().toUpperCase();
+  if (normalized === 'INFO' || normalized === 'SUCCESS' || normalized === 'WARNING' || normalized === 'ERROR' || normalized === 'SYSTEM') {
+    return normalized as NotificationType;
+  }
+  return 'INFO';
+};
+
 export interface CreateNotificationDTO {
   tenantId: string;
   userId: string;
@@ -34,11 +42,12 @@ export class NotificationRepository {
    * Create a new notification
    */
   async create(data: CreateNotificationDTO): Promise<Notification> {
+    const normalizedType = normalizeNotificationType(data.type);
     return this.prisma.notification.create({
       data: {
         tenantId: data.tenantId,
         userId: data.userId,
-        type: data.type,
+        type: normalizedType,
         title: data.title,
         message: data.message,
         link: data.link,
@@ -52,6 +61,7 @@ export class NotificationRepository {
    * Create notifications for multiple users (broadcast)
    */
   async createMany(userIds: string[], notification: Omit<CreateNotificationDTO, 'userId'>): Promise<number> {
+    const normalizedType = normalizeNotificationType(notification.type);
     console.log('[NOTIFICATION_REPO] createMany called:', {
       userCount: userIds.length,
       userIds,
@@ -61,7 +71,7 @@ export class NotificationRepository {
     const data = userIds.map((userId) => ({
       tenantId: notification.tenantId,
       userId,
-      type: notification.type,
+      type: normalizedType,
       title: notification.title,
       message: notification.message,
       link: notification.link || undefined,

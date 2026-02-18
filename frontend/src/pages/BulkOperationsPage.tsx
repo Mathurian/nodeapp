@@ -10,6 +10,13 @@ import {
 } from '@heroicons/react/24/outline'
 import { Card, PageHeader } from '../components/ui'
 
+interface EmailTemplateOption {
+  id: string
+  name: string
+  subject: string
+  body: string
+}
+
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
   const location = useLocation()
@@ -31,6 +38,9 @@ const BulkOperationsPage: React.FC = () => {
     subject: '',
     content: '',
   })
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplateOption[]>([])
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState('')
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -45,6 +55,40 @@ const BulkOperationsPage: React.FC = () => {
     }
   }, [isSendEmailRoute])
 
+  useEffect(() => {
+    if (activeTab !== 'email') {
+      return
+    }
+
+    const loadTemplates = async () => {
+      try {
+        setLoadingTemplates(true)
+        const response = await emailAPI.getTemplates()
+        const payload = response.data?.data || response.data || []
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload.templates)
+            ? payload.templates
+            : []
+        const normalizedTemplates: EmailTemplateOption[] = rows
+          .filter((row: any) => row?.id)
+          .map((row: any) => ({
+            id: String(row.id),
+            name: String(row.name || 'Untitled template'),
+            subject: String(row.subject || ''),
+            body: String(row.body || row.textBody || row.htmlBody || ''),
+          }))
+        setEmailTemplates(normalizedTemplates)
+      } catch {
+        setEmailTemplates([])
+      } finally {
+        setLoadingTemplates(false)
+      }
+    }
+
+    void loadTemplates()
+  }, [activeTab])
+
   const handleImport = async () => {
     if (!file) {
       setError('Please select a file')
@@ -54,24 +98,17 @@ const BulkOperationsPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      const reader = new FileReader()
-      reader.onload = async (e) => {
-        const text = e.target?.result as string
-        const lines = text.split('\n')
-        const headers = lines[0].split(',')
-        const csvData = lines.slice(1).map(line => {
-          const values = line.split(',')
-          return headers.reduce((obj: any, header, index) => {
-            obj[header.trim()] = values[index]?.trim()
-            return obj
-          }, {})
-        })
+      const response = await usersAPI.importCSV(file)
+      const payload = response.data?.data || {}
+      const failed = Number(payload.failed ?? 0)
+      const errors = Array.isArray(payload.errors) ? payload.errors : []
 
-        await usersAPI.importCSV({ csvData, userType })
-        setSuccess(`Successfully imported ${csvData.length} users`)
-        setFile(null)
+      setSuccess(response.data?.message || 'Bulk upload completed')
+      setFile(null)
+
+      if (failed > 0 && errors.length > 0) {
+        setError(errors.slice(0, 3).join(' | '))
       }
-      reader.readAsText(file)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to import users')
     } finally {
@@ -127,6 +164,7 @@ const BulkOperationsPage: React.FC = () => {
       }
 
       setEmailData({ roles: [], recipientsText: '', subject: '', content: '' })
+      setSelectedEmailTemplateId('')
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to send email')
     } finally {
@@ -141,6 +179,24 @@ const BulkOperationsPage: React.FC = () => {
         ? emailData.roles.filter(r => r !== role)
         : [...emailData.roles, role],
     })
+  }
+
+  const applyEmailTemplate = (templateId: string) => {
+    setSelectedEmailTemplateId(templateId)
+    if (!templateId) {
+      return
+    }
+
+    const selected = emailTemplates.find((template) => template.id === templateId)
+    if (!selected) {
+      return
+    }
+
+    setEmailData((prev) => ({
+      ...prev,
+      subject: selected.subject,
+      content: selected.body,
+    }))
   }
 
   const downloadTemplate = async () => {
@@ -275,8 +331,8 @@ const BulkOperationsPage: React.FC = () => {
 
               <div className="p-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> CSV file must include headers. Download the template to see the required format.
-                  Duplicate emails will be skipped.
+                  <strong>Note:</strong> Download the template for your selected user type. The file must include the header row and `role` column.
+                  Comment lines that start with `#` are allowed.
                 </p>
               </div>
             </div>
@@ -290,6 +346,24 @@ const BulkOperationsPage: React.FC = () => {
               Send Email
             </h2>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  Email Template
+                </label>
+                <select
+                  value={selectedEmailTemplateId}
+                  onChange={(e) => applyEmailTemplate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                >
+                  <option value="">{loadingTemplates ? 'Loading templates...' : 'Custom email (no template)'}</option>
+                  {emailTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Recipient Mode

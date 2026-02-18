@@ -15,10 +15,10 @@ import {
   ArrowTrendingUpIcon,
   BellIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { StatCardSkeleton, ActivityItemSkeleton, TableRowSkeleton } from '../components/ui/SkeletonPatterns'
 import { Card, PageHeader, ResponsiveTable, StatsCard } from '../components/ui'
+import { safeFormatDate, safeLocaleDateString } from '../utils/dateUtils'
 
 interface DashboardStats {
   totalUsers: number
@@ -361,7 +361,7 @@ const DashboardPage: React.FC = () => {
                     <div key={event.id} className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
                       <p className="font-medium text-gray-900 dark:text-white">{event.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {event.startDate ? format(new Date(event.startDate), 'PP') : 'N/A'} - {event.endDate ? format(new Date(event.endDate), 'PP') : 'N/A'}
+                        {safeFormatDate(event.startDate, 'PP', 'N/A')} - {safeFormatDate(event.endDate, 'PP', 'N/A')}
                       </p>
                     </div>
                   ))}
@@ -496,7 +496,7 @@ const DashboardPage: React.FC = () => {
                             {tenant.planType || 'free'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {new Date(tenant.createdAt).toLocaleDateString()}
+                            {safeLocaleDateString(tenant.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <Link
@@ -604,7 +604,7 @@ const DashboardPage: React.FC = () => {
                         </div>
                         <div className="ml-4 flex-shrink-0">
                           <p className="text-xs text-gray-500 dark:text-gray-500">
-                            {format(new Date(activity.createdAt), 'MMM d, h:mm a')}
+                            {safeFormatDate(activity.createdAt, 'MMM d, h:mm a')}
                           </p>
                         </div>
                       </div>

@@ -12,7 +12,7 @@ import {
   XCircleIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface Deduction {
   id: string
@@ -520,7 +520,7 @@ const DeductionsPage: React.FC = () => {
                           {deduction.reason}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                          {format(new Date(deduction.createdAt), 'MMM d, h:mm a')}
+                          {safeFormatDate(deduction.createdAt, 'MMM d, h:mm a')}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                           {deduction.approvalState

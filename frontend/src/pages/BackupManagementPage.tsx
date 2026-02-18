@@ -11,8 +11,8 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface Backup {
   id: string
@@ -325,7 +325,7 @@ const BackupManagementPage: React.FC = () => {
                         {formatSize(backup.size)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                        {format(new Date(backup.createdAt), 'MMM d, yyyy h:mm a')}
+                        {safeFormatDate(backup.createdAt, 'MMM d, yyyy h:mm a')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex gap-2">

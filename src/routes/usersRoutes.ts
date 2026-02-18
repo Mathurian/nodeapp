@@ -225,7 +225,7 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
 })
 
 // CSV Import routes
-router.post('/import-csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
+router.post('/import-csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), csvUpload.single('file'), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
 
 // User management routes
 router.put('/:id/last-login', updateLastLogin)

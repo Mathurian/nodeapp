@@ -20,10 +20,10 @@ import {
   ArchiveBoxIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline'
-import { format, parseISO } from 'date-fns'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import { EventCardSkeleton } from '../components/ui/SkeletonPatterns'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface Event {
   id: string
@@ -452,8 +452,8 @@ const EventsPage: React.FC = () => {
                   <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                     <CalendarIcon className="h-4 w-4 mr-2" />
                     <span>
-                      {format(parseISO(event.startDate), 'MMM d, yyyy')} -{' '}
-                      {format(parseISO(event.endDate), 'MMM d, yyyy')}
+                      {safeFormatDate(event.startDate, 'MMM d, yyyy')} -{' '}
+                      {safeFormatDate(event.endDate, 'MMM d, yyyy')}
                     </span>
                   </div>
                   {event._count && (

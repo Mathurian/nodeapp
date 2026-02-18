@@ -9,9 +9,10 @@ import {
   ClockIcon,
   PlayIcon,
   DocumentTextIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { ResponsiveTable } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface DRPlan {
   id: string
@@ -54,8 +55,10 @@ const DisasterRecoveryPage: React.FC = () => {
   const [tests, setTests] = useState<DRTest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [testingPlan, setTestingPlan] = useState<string | null>(null)
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null)
   const [newPlan, setNewPlan] = useState<NewDRPlanForm>({
     name: '',
     description: '',
@@ -138,6 +141,7 @@ const DisasterRecoveryPage: React.FC = () => {
         retentionDays: Math.max(1, Number(newPlan.rpo) || 30),
       })
       setShowCreateModal(false)
+      setSuccess('Disaster recovery plan created successfully')
       setNewPlan({
         name: '',
         description: '',
@@ -160,6 +164,7 @@ const DisasterRecoveryPage: React.FC = () => {
     try {
       setTestingPlan(planId)
       await api.post('/dr/test/execute', { planId })
+      setSuccess('DR test started successfully')
       await fetchTests()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to test DR plan')
@@ -177,6 +182,24 @@ const DisasterRecoveryPage: React.FC = () => {
       alert('Failover initiated successfully')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to execute failover')
+    }
+  }
+
+  const deletePlan = async (planId: string) => {
+    if (!confirm('Delete this DR plan? This action cannot be undone.')) {
+      return
+    }
+    try {
+      setDeletingPlanId(planId)
+      setError(null)
+      await api.delete(`/dr/schedules/${planId}`)
+      setSuccess('Disaster recovery plan deleted successfully')
+      await fetchPlans()
+      await fetchTests()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete DR plan')
+    } finally {
+      setDeletingPlanId(null)
     }
   }
 
@@ -255,6 +278,22 @@ const DisasterRecoveryPage: React.FC = () => {
             <p className="text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+            <p className="text-green-800 dark:text-green-200">{success}</p>
+          </div>
+        )}
+
+        <div className="mb-6 p-4 rounded-lg border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
+          <div className="flex items-start gap-3">
+            <DocumentTextIcon className="h-5 w-5 mt-0.5 text-blue-700 dark:text-blue-300" />
+            <div className="text-sm text-blue-900 dark:text-blue-100 space-y-1">
+              <p className="font-semibold">What this page does</p>
+              <p>Disaster recovery plans define how backups are created, tested, and restored so your team can recover from outages or data loss.</p>
+              <p>Use each plan’s RTO/RPO values to set expected recovery time and acceptable data loss window.</p>
+            </div>
+          </div>
+        </div>
 
         {/* DR Plans */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -295,7 +334,7 @@ const DisasterRecoveryPage: React.FC = () => {
 
               {plan.lastTested && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500 mb-4">
-                  Last tested: {format(new Date(plan.lastTested), 'MMM d, yyyy h:mm a')}
+                  Last tested: {safeFormatDate(plan.lastTested, 'MMM d, yyyy h:mm a')}
                 </p>
               )}
 
@@ -317,6 +356,14 @@ const DisasterRecoveryPage: React.FC = () => {
                     Failover
                   </button>
                 )}
+                <button
+                  onClick={() => deletePlan(plan.id)}
+                  disabled={deletingPlanId === plan.id}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-60 inline-flex items-center gap-2"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  {deletingPlanId === plan.id ? 'Deleting...' : 'Delete'}
+                </button>
               </div>
             </div>
           ))}
@@ -367,10 +414,10 @@ const DisasterRecoveryPage: React.FC = () => {
                         {test.plan.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                        {format(new Date(test.startedAt), 'MMM d, h:mm a')}
+                        {safeFormatDate(test.startedAt, 'MMM d, h:mm a')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                        {test.completedAt ? format(new Date(test.completedAt), 'MMM d, h:mm a') : '-'}
+                        {test.completedAt ? safeFormatDate(test.completedAt, 'MMM d, h:mm a') : '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                         {test.notes || '-'}

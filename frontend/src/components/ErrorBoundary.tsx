@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
+import { extractTenantSlugFromPath } from '../utils/routeSegments'
 
 interface Props {
   children: ReactNode
@@ -11,6 +12,11 @@ interface State {
   errorInfo: ErrorInfo | null
 }
 const UPDATE_RECOVERY_NOTICE_KEY = 'app:update-recovery-notice'
+
+const getRecoveryHomePath = (): string => {
+  const tenantSlug = extractTenantSlugFromPath(window.location.pathname)
+  return tenantSlug ? `/${tenantSlug}/dashboard` : '/dashboard'
+}
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -152,7 +158,7 @@ class ErrorBoundary extends Component<Props, State> {
                 Try Again
               </button>
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={() => window.location.href = getRecoveryHomePath()}
                 className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Go Home

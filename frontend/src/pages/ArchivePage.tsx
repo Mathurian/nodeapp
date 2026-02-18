@@ -10,8 +10,8 @@ import {
   EyeIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface ArchivedItem {
   id: string
@@ -206,7 +206,7 @@ const ArchivePage: React.FC = () => {
                         {item.reason || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-                        {format(new Date(item.archivedAt), 'MMM d, yyyy')}
+                        {safeFormatDate(item.archivedAt, 'MMM d, yyyy')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
@@ -275,7 +275,7 @@ const ArchivePage: React.FC = () => {
                     Archive Information
                   </h3>
                   <div className="space-y-1 text-sm text-yellow-800 dark:text-yellow-300">
-                    <p><span className="font-medium">Archived:</span> {format(new Date(viewingItem.archivedAt), 'PPP p')}</p>
+                    <p><span className="font-medium">Archived:</span> {safeFormatDate(viewingItem.archivedAt, 'PPP p')}</p>
                     {viewingItem.reason && (
                       <p><span className="font-medium">Reason:</span> {viewingItem.reason}</p>
                     )}
@@ -321,7 +321,7 @@ const ArchivePage: React.FC = () => {
                                 Start Date
                               </label>
                               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
-                                {format(new Date(viewingItem.originalData.startDate), 'PPP')}
+                                {safeFormatDate(viewingItem.originalData.startDate, 'PPP')}
                               </div>
                             </div>
                           )}
@@ -331,7 +331,7 @@ const ArchivePage: React.FC = () => {
                                 End Date
                               </label>
                               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
-                                {format(new Date(viewingItem.originalData.endDate), 'PPP')}
+                                {safeFormatDate(viewingItem.originalData.endDate, 'PPP')}
                               </div>
                             </div>
                           )}
@@ -370,7 +370,7 @@ const ArchivePage: React.FC = () => {
                             <div>
                               <span className="text-gray-500 dark:text-gray-400">Created:</span>
                               <span className="ml-2 text-gray-900 dark:text-white">
-                                {format(new Date(viewingItem.originalData.createdAt), 'PPP')}
+                                {safeFormatDate(viewingItem.originalData.createdAt, 'PPP')}
                               </span>
                             </div>
                           )}
@@ -378,7 +378,7 @@ const ArchivePage: React.FC = () => {
                             <div>
                               <span className="text-gray-500 dark:text-gray-400">Updated:</span>
                               <span className="ml-2 text-gray-900 dark:text-white">
-                                {format(new Date(viewingItem.originalData.updatedAt), 'PPP')}
+                                {safeFormatDate(viewingItem.originalData.updatedAt, 'PPP')}
                               </span>
                             </div>
                           )}

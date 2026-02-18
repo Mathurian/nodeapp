@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from 'react-query'
-import { format } from 'date-fns'
 import {
   GlobeAltIcon,
   ArrowPathIcon,
@@ -9,6 +8,7 @@ import {
 import { adminAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Card, PageHeader, Button, ResponsiveTable } from '../components/ui'
+import { safeFormatDate } from '../utils/dateUtils'
 
 interface LoginLocationTenantSummary {
   tenantId: string;
@@ -707,7 +707,7 @@ const LoginLocationsPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">{item.visitEvents}</td>
                       <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
-                        {format(new Date(item.lastSeenAt), 'PPpp')}
+                        {safeFormatDate(item.lastSeenAt, 'PPpp')}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">
                         {item.tenantCount > 0 ? tenantLabel : data?.scope === 'tenant' ? (user?.tenant?.name || 'Current tenant') : 'Unknown'}
@@ -729,7 +729,7 @@ const LoginLocationsPage: React.FC = () => {
         </Card>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Generated: {data ? format(new Date(data.generatedAt), 'PPpp') : 'n/a'}
+          Generated: {data ? safeFormatDate(data.generatedAt, 'PPpp', 'n/a') : 'n/a'}
         </p>
       </div>
     </div>
