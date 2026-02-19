@@ -27,6 +27,8 @@
     "test:e2e:comprehensive": "playwright test tests/e2e/comprehensive",
     "test:e2e:workflows": "playwright test tests/e2e/*workflow*.spec.ts",
     "audit:tenant-segregation": "bash scripts/ops/tenant-segregation-audit.sh",
+    "audit:tenant-matrix": "node scripts/ops/generate-tenant-enforcement-matrix.js",
+    "audit:tenant-fk-consistency": "bash scripts/ops/audit-tenant-fk-consistency.sh",
     "deploy:preflight:tenant-segregation": "bash scripts/deploy/preflight-tenant-segregation.sh",
     "test:tenant-scopes": "node scripts/verify-tenant-scoped-models.js",
     "test:frontend": "cd frontend && npm run test",

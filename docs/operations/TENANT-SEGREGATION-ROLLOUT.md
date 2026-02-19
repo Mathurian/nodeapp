@@ -21,6 +21,32 @@ Default fallback values (if env keys are missing):
 - `utils/prisma` is a compatibility re-export only and must not instantiate its own Prisma client.
 - EventBus publish calls in services/controllers/events must propagate `tenantId` in payload or metadata.
 
+## Phase 0 Inventory Artifact
+
+Generate and review the live source inventory before each segregation phase change:
+
+```bash
+cd /srv/event-manager/dev
+npm run audit:tenant-matrix
+```
+
+Output file:
+
+- `docs/operations/TENANT-ENFORCEMENT-MATRIX.md`
+
+## Phase 3 Integrity Hardening
+
+Migration `20260219082000_add_tenant_fk_consistency_triggers` adds write-time
+tenant consistency triggers for parent/child FK relations where both tables
+carry `tenantId`.
+
+Run a mismatch audit before enabling enforcement in higher environments:
+
+```bash
+cd /srv/event-manager/dev
+npm run audit:tenant-fk-consistency
+```
+
 ## Safe Rollout Sequence
 
 1. Deploy code with `TENANT_SEGREGATION_MODE=audit` in production.
