@@ -66,6 +66,30 @@ fi
 echo "No blocked tenant fallback patterns found."
 
 echo
+echo "Checking Prisma compat layer does not instantiate standalone client..."
+if rg -n "new PrismaClient\\(" src/utils/prisma.ts >/dev/null 2>&1; then
+  echo "ERROR: src/utils/prisma.ts must remain a compatibility re-export and not create a new Prisma client."
+  exit 1
+fi
+echo "Prisma compat layer check passed."
+
+echo
+echo "Checking context-aware Prisma proxy guardrails..."
+if ! rg -q "getRequestContext" src/config/database.ts; then
+  echo "ERROR: src/config/database.ts is missing getRequestContext integration."
+  exit 1
+fi
+if ! rg -q "requestPrisma" src/config/database.ts; then
+  echo "ERROR: src/config/database.ts is missing requestPrisma proxy resolution."
+  exit 1
+fi
+if ! rg -q "requestPrisma" src/middleware/correlationId.ts; then
+  echo "ERROR: correlation request context is missing requestPrisma propagation."
+  exit 1
+fi
+echo "Context-aware Prisma proxy guardrails passed."
+
+echo
 echo "Checking for direct global prisma imports in request layer..."
 request_layer_prisma_imports="$(
   rg -n "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" src/controllers src/routes || true

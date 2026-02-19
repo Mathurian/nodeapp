@@ -8,6 +8,7 @@ import { container } from 'tsyringe';
 import { env } from './env';
 import { createLogger } from '../utils/logger';
 import { setupQueryMonitoring } from '../middleware/queryMonitoring';
+import { getRequestContext } from '../middleware/correlationId';
 // S4-3: Import soft delete middleware
 import { registerSoftDeleteMiddleware } from '../middleware/prisma/softDelete';
 
@@ -56,11 +57,30 @@ const prismaClientSingleton = () => {
  * Singleton Prisma Client Instance
  * Prevents multiple instances in development (hot reload)
  */
-export const prisma = globalThis.prisma ?? prismaClientSingleton();
+const rootPrisma = globalThis.prisma ?? prismaClientSingleton();
 
 if (!env.isProduction()) {
-  globalThis.prisma = prisma;
+  globalThis.prisma = rootPrisma;
 }
+
+const resolveRequestScopedPrisma = (): PrismaClient => {
+  const context = getRequestContext();
+  return context?.requestPrisma || rootPrisma;
+};
+
+const contextAwarePrisma = new Proxy(rootPrisma as PrismaClient, {
+  get(_target: PrismaClient, prop: string | symbol) {
+    const activeClient = resolveRequestScopedPrisma();
+    const value = Reflect.get(activeClient as unknown as object, prop);
+    if (typeof value === 'function') {
+      return value.bind(activeClient);
+    }
+    return value;
+  },
+}) as PrismaClient;
+
+export const prisma = contextAwarePrisma;
+export const rawPrisma = rootPrisma;
 
 /**
  * Test database connection

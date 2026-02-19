@@ -13,6 +13,14 @@ Default fallback values (if env keys are missing):
 - `TENANT_DEFAULT_IDS=default_tenant,default-tenant`
 - `TENANT_DEFAULT_SLUGS=default`
 
+## Runtime Guardrails
+
+- `config/database` now exports a context-aware Prisma proxy:
+  - inside API request context, global Prisma imports resolve to request-scoped `req.prisma`
+  - outside request context (jobs/ops), Prisma resolves to the root client
+- `utils/prisma` is a compatibility re-export only and must not instantiate its own Prisma client.
+- EventBus publish calls in services/controllers/events must propagate `tenantId` in payload or metadata.
+
 ## Safe Rollout Sequence
 
 1. Deploy code with `TENANT_SEGREGATION_MODE=audit` in production.
@@ -39,3 +47,5 @@ sudo bash scripts/deploy/preflight-tenant-segregation.sh
 - `enforce` should be treated as a controlled change window.
 - For each deploy, run standard health checks and login checks after activation.
 - `preflight-tenant-segregation.sh` now fails if blocked fallback patterns are found in runtime code.
+- `preflight-tenant-segregation.sh` now also fails if `src/utils/prisma.ts` creates a standalone Prisma client.
+- `preflight-tenant-segregation.sh` validates that context-aware Prisma proxy hooks remain in `config/database` and `correlationId` middleware.

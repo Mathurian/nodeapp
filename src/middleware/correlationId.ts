@@ -9,6 +9,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { AsyncLocalStorage } from 'async_hooks';
+import type { PrismaClient } from '@prisma/client';
 
 /**
  * Request Context - Available in all async operations via AsyncLocalStorage
@@ -18,6 +19,8 @@ export interface RequestContext {
   correlationId: string;
   userId?: string;
   tenantId?: string;
+  isSuperAdmin?: boolean;
+  requestPrisma?: PrismaClient;
   userEmail?: string;
   userName?: string;
 }
@@ -86,6 +89,8 @@ export const contextMiddleware = (
     correlationId: req.correlationId || req.id || uuidv4(),
     userId: (req as any).user?.id,
     tenantId: (req as any).tenantId,
+    isSuperAdmin: (req as any).isSuperAdmin,
+    requestPrisma: (req as any).prisma,
     userEmail: (req as any).user?.email,
     userName: (req as any).user?.name,
   };
@@ -163,6 +168,8 @@ export const runWithContext = async <T>(
     correlationId: context.correlationId || context.requestId || uuidv4(),
     userId: context.userId,
     tenantId: context.tenantId,
+    isSuperAdmin: context.isSuperAdmin,
+    requestPrisma: context.requestPrisma,
     userEmail: context.userEmail,
     userName: context.userName,
   };

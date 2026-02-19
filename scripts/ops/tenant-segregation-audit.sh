@@ -53,6 +53,16 @@ scan_and_count \
   "src"
 
 scan_and_count \
+  "Legacy standalone Prisma client instantiation in compat layer (should be 0)" \
+  "new PrismaClient\\(" \
+  "src/utils/prisma.ts"
+
+scan_and_count \
+  "Context-aware Prisma proxy guardrails (expected findings > 0)" \
+  "getRequestContext|requestPrisma|new Proxy\\(" \
+  "src/config/database.ts src/middleware/correlationId.ts"
+
+scan_and_count \
   "Direct global prisma imports (manual review needed)" \
   "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" \
   "src"

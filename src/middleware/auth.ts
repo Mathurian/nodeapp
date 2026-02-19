@@ -243,13 +243,6 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 
     req.user = user;
 
-    updateRequestContext({
-      userId: user.id,
-      tenantId: user.tenantId,
-      userEmail: user.email,
-      userName: user.name,
-    });
-
     // Set isSuperAdmin flag for tenant filtering bypass
     // SUPER_ADMIN role can see data across all tenants
     const userRole = normalizedUserRole;
@@ -290,6 +283,15 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     if ((req as any).isSuperAdmin && (req as any).tenantId) {
       (req as any).prisma = createTenantPrismaClient((req as any).tenantId, true);
     }
+
+    updateRequestContext({
+      userId: user.id,
+      tenantId: req.tenantId || user.tenantId,
+      isSuperAdmin: (req as any).isSuperAdmin,
+      requestPrisma: (req as any).prisma,
+      userEmail: user.email,
+      userName: user.name,
+    });
 
     // Enhanced logging for admin access to sensitive endpoints
     const isSensitiveEndpoint = req.path && (
