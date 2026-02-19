@@ -2,6 +2,10 @@
 
 This runbook describes how to roll out full tenant segregation safely.
 
+For the production change-window command sequence (including rollback), use:
+
+- `docs/operations/TENANT-SEGREGATION-PROD-CUTOVER-CHECKLIST.md`
+
 ## Policy Modes
 
 - `TENANT_SEGREGATION_MODE=off`: checks disabled.
