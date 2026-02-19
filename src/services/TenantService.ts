@@ -6,7 +6,7 @@
  */
 
 import prisma from '../config/database';
-import { Prisma, UserRole, Tenant } from '@prisma/client';
+import { Prisma, PrismaClient, UserRole, Tenant } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
@@ -14,6 +14,7 @@ import { container } from 'tsyringe';
 import { EmailService } from './EmailService';
 import { env } from '../config/env';
 import { isDefaultTenant } from '../utils/tenantSegregationPolicy';
+import { resolveTenantDbRlsMode, withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 export interface CreateTenantInput {
   name: string;
@@ -57,6 +58,22 @@ export interface TenantUsageStats {
 }
 
 export class TenantService {
+  private static async withSystemDbContext<T>(
+    operation: (db: PrismaClient) => Promise<T>,
+    options?: { transactional?: boolean }
+  ): Promise<T> {
+    const mode = resolveTenantDbRlsMode();
+    if (options?.transactional && mode !== 'enforce') {
+      return prisma.$transaction(async tx => operation(tx as PrismaClient));
+    }
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId: null, isSuperAdmin: true, mode },
+      async tx => operation(tx)
+    );
+  }
+
   private static normalizeOptionalString(value: unknown): string | undefined {
     if (typeof value !== 'string') return undefined;
     const trimmed = value.trim();
@@ -99,58 +116,57 @@ export class TenantService {
    */
   static async createTenant(input: CreateTenantInput): Promise<{ tenant: Tenant; adminUser: { id: string; name: string; email: string; role: UserRole } }> {
     try {
-      const name = (input.name || '').trim();
-      const slug = (input.slug || '').trim();
-      const adminName = (input.adminName || '').trim();
-      const adminEmail = (input.adminEmail || '').trim().toLowerCase();
-      const adminPassword = input.adminPassword || '';
-      const domain = TenantService.normalizeOptionalString(input.domain);
-      const maxUsers = TenantService.normalizeOptionalInt(input.maxUsers);
-      const maxEvents = TenantService.normalizeOptionalInt(input.maxEvents);
-      const maxStorage = TenantService.normalizeOptionalBigInt(input.maxStorage);
+      return this.withSystemDbContext(async db => {
+        const name = (input.name || '').trim();
+        const slug = (input.slug || '').trim();
+        const adminName = (input.adminName || '').trim();
+        const adminEmail = (input.adminEmail || '').trim().toLowerCase();
+        const adminPassword = input.adminPassword || '';
+        const domain = TenantService.normalizeOptionalString(input.domain);
+        const maxUsers = TenantService.normalizeOptionalInt(input.maxUsers);
+        const maxEvents = TenantService.normalizeOptionalInt(input.maxEvents);
+        const maxStorage = TenantService.normalizeOptionalBigInt(input.maxStorage);
 
-      if (!name) throw new Error('Tenant name is required');
-      if (!slug) throw new Error('Tenant slug is required');
-      if (!adminName) throw new Error('Admin name is required');
-      if (!adminEmail) throw new Error('Admin email is required');
-      if (!adminPassword) throw new Error('Admin password is required');
+        if (!name) throw new Error('Tenant name is required');
+        if (!slug) throw new Error('Tenant slug is required');
+        if (!adminName) throw new Error('Admin name is required');
+        if (!adminEmail) throw new Error('Admin email is required');
+        if (!adminPassword) throw new Error('Admin password is required');
 
-      // Validate slug is unique
-      const existingSlug = await prisma.tenant.findUnique({
-        where: { slug },
-      });
-
-      if (existingSlug) {
-        throw new Error(`Tenant with slug '${slug}' already exists`);
-      }
-
-      // Validate domain is unique (if provided)
-      if (domain) {
-        const existingDomain = await prisma.tenant.findUnique({
-          where: { domain },
+        // Validate slug is unique
+        const existingSlug = await db.tenant.findUnique({
+          where: { slug },
         });
 
-        if (existingDomain) {
-          throw new Error(`Tenant with domain '${domain}' already exists`);
+        if (existingSlug) {
+          throw new Error(`Tenant with slug '${slug}' already exists`);
         }
-      }
 
-      // Validate admin email is not already used
-      const existingEmail = await prisma.user.findFirst({
-        where: { email: adminEmail },
-      });
+        // Validate domain is unique (if provided)
+        if (domain) {
+          const existingDomain = await db.tenant.findUnique({
+            where: { domain },
+          });
 
-      if (existingEmail) {
-        throw new Error(`User with email '${adminEmail}' already exists`);
-      }
+          if (existingDomain) {
+            throw new Error(`Tenant with domain '${domain}' already exists`);
+          }
+        }
 
-      // Create tenant and admin user in a transaction
-      const result = await prisma.$transaction(async (tx) => {
+        // Validate admin email is not already used
+        const existingEmail = await db.user.findFirst({
+          where: { email: adminEmail },
+        });
+
+        if (existingEmail) {
+          throw new Error(`User with email '${adminEmail}' already exists`);
+        }
+
         const planType = input.planType || 'free';
         const isUnlimitedPlan = planType === 'enterprise' || planType === 'internal';
 
         // Create tenant
-        const tenant = await tx.tenant.create({
+        const tenant = await db.tenant.create({
           data: {
             name,
             slug,
@@ -169,7 +185,7 @@ export class TenantService {
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
         // Create admin user
-        const adminUser = await tx.user.create({
+        const adminUser = await db.user.create({
           data: {
             tenantId: tenant.id,
             name: adminName,
@@ -183,9 +199,7 @@ export class TenantService {
         logger.info(`Tenant created: ${tenant.slug} (${tenant.id}) with admin user ${adminUser.email}`);
 
         return { tenant, adminUser };
-      });
-
-      return result;
+      }, { transactional: true });
     } catch (error) {
       logger.error('Error creating tenant:', error);
       throw error;
@@ -197,9 +211,11 @@ export class TenantService {
    */
   static async getTenantById(tenantId: string): Promise<Tenant | null> {
     try {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-      });
+      const tenant = await this.withSystemDbContext(async db =>
+        db.tenant.findUnique({
+          where: { id: tenantId },
+        })
+      );
 
       if (!tenant) {
         throw new Error(`Tenant not found: ${tenantId}`);
@@ -217,9 +233,11 @@ export class TenantService {
    */
   static async getTenantBySlug(slug: string): Promise<Tenant | null> {
     try {
-      const tenant = await prisma.tenant.findUnique({
-        where: { slug },
-      });
+      const tenant = await this.withSystemDbContext(async db =>
+        db.tenant.findUnique({
+          where: { slug },
+        })
+      );
 
       if (!tenant) {
         throw new Error(`Tenant not found: ${slug}`);
@@ -261,15 +279,17 @@ export class TenantService {
         ];
       }
 
-      const [tenants, total] = await Promise.all([
-        prisma.tenant.findMany({
-          where,
-          skip: params?.skip || 0,
-          take: params?.take || 50,
-          orderBy: { createdAt: 'desc' },
-        }),
-        prisma.tenant.count({ where }),
-      ]);
+      const [tenants, total] = await this.withSystemDbContext(async db =>
+        Promise.all([
+          db.tenant.findMany({
+            where,
+            skip: params?.skip || 0,
+            take: params?.take || 50,
+            orderBy: { createdAt: 'desc' },
+          }),
+          db.tenant.count({ where }),
+        ])
+      );
 
       return { tenants, total };
     } catch (error) {
@@ -284,10 +304,14 @@ export class TenantService {
   static async updateTenant(tenantId: string, input: UpdateTenantInput): Promise<Tenant> {
     try {
       const updateData: Prisma.TenantUpdateInput = {};
+      const normalizedSlug = input.slug !== undefined ? String(input.slug).trim() : undefined;
+      const normalizedDomain = input.domain !== undefined
+        ? this.normalizeOptionalString(input.domain) ?? null
+        : undefined;
 
       if (input.name !== undefined) updateData.name = String(input.name).trim();
-      if (input.slug !== undefined) updateData.slug = String(input.slug).trim();
-      if (input.domain !== undefined) updateData.domain = this.normalizeOptionalString(input.domain) ?? null;
+      if (normalizedSlug !== undefined) updateData.slug = normalizedSlug;
+      if (normalizedDomain !== undefined) updateData.domain = normalizedDomain;
       if (input.isActive !== undefined) updateData.isActive = Boolean(input.isActive);
       if (input.planType !== undefined) updateData.planType = String(input.planType);
       if (input.subscriptionStatus !== undefined) updateData.subscriptionStatus = String(input.subscriptionStatus);
@@ -309,37 +333,43 @@ export class TenantService {
       if (input.settings !== undefined) updateData.settings = input.settings;
 
       // Validate slug uniqueness if changing
-      if (typeof updateData.slug === 'string' && updateData.slug.length > 0) {
-        const existingSlug = await prisma.tenant.findFirst({
-          where: {
-            slug: updateData.slug,
-            NOT: { id: tenantId },
-          },
-        });
+      if (typeof normalizedSlug === 'string' && normalizedSlug.length > 0) {
+        const existingSlug = await this.withSystemDbContext(async db =>
+          db.tenant.findFirst({
+            where: {
+              slug: normalizedSlug,
+              NOT: { id: tenantId },
+            },
+          })
+        );
 
         if (existingSlug) {
-          throw new Error(`Tenant with slug '${updateData.slug}' already exists`);
+          throw new Error(`Tenant with slug '${normalizedSlug}' already exists`);
         }
       }
 
       // Validate domain uniqueness if changing
-      if (typeof updateData.domain === 'string' && updateData.domain.length > 0) {
-        const existingDomain = await prisma.tenant.findFirst({
-          where: {
-            domain: updateData.domain,
-            NOT: { id: tenantId },
-          },
-        });
+      if (typeof normalizedDomain === 'string' && normalizedDomain.length > 0) {
+        const existingDomain = await this.withSystemDbContext(async db =>
+          db.tenant.findFirst({
+            where: {
+              domain: normalizedDomain,
+              NOT: { id: tenantId },
+            },
+          })
+        );
 
         if (existingDomain) {
-          throw new Error(`Tenant with domain '${updateData.domain}' already exists`);
+          throw new Error(`Tenant with domain '${normalizedDomain}' already exists`);
         }
       }
 
-      const tenant = await prisma.tenant.update({
-        where: { id: tenantId },
-        data: updateData,
-      });
+      const tenant = await this.withSystemDbContext(async db =>
+        db.tenant.update({
+          where: { id: tenantId },
+          data: updateData,
+        })
+      );
 
       logger.info(`Tenant updated: ${tenant.slug} (${tenant.id})`);
 
@@ -355,10 +385,12 @@ export class TenantService {
    */
   static async activateTenant(tenantId: string): Promise<Tenant> {
     try {
-      const tenant = await prisma.tenant.update({
-        where: { id: tenantId },
-        data: { isActive: true },
-      });
+      const tenant = await this.withSystemDbContext(async db =>
+        db.tenant.update({
+          where: { id: tenantId },
+          data: { isActive: true },
+        })
+      );
 
       logger.info(`Tenant activated: ${tenant.slug} (${tenant.id})`);
 
@@ -374,10 +406,12 @@ export class TenantService {
    */
   static async deactivateTenant(tenantId: string): Promise<Tenant> {
     try {
-      const tenant = await prisma.tenant.update({
-        where: { id: tenantId },
-        data: { isActive: false },
-      });
+      const tenant = await this.withSystemDbContext(async db =>
+        db.tenant.update({
+          where: { id: tenantId },
+          data: { isActive: false },
+        })
+      );
 
       logger.info(`Tenant deactivated: ${tenant.slug} (${tenant.id})`);
 
@@ -396,24 +430,22 @@ export class TenantService {
     hard: boolean = false
   ): Promise<{ mode: 'hard_deleted' | 'deactivated'; reason?: string }> {
     try {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { id: true, slug: true, name: true }
-      });
+      return this.withSystemDbContext(async db => {
+        const tenant = await db.tenant.findUnique({
+          where: { id: tenantId },
+          select: { id: true, slug: true, name: true }
+        });
 
-      if (!tenant) {
-        throw new Error('Tenant not found');
-      }
+        if (!tenant) {
+          throw new Error('Tenant not found');
+        }
 
-      if (isDefaultTenant(tenant.id, tenant.slug)) {
-        throw new Error('Cannot delete the default tenant');
-      }
+        if (isDefaultTenant(tenant.id, tenant.slug)) {
+          throw new Error('Cannot delete the default tenant');
+        }
 
-      if (hard) {
-        // Hard delete must remove all tenant-scoped data first because most tables
-        // are not directly FK-cascaded from tenants.
-        await prisma.$transaction(async (tx) => {
-          const tenantTables = await tx.$queryRaw<Array<{ table_name: string }>>`
+        if (hard) {
+          const tenantTables = await db.$queryRaw<Array<{ table_name: string }>>`
             SELECT table_name
             FROM information_schema.columns
             WHERE table_schema = 'public'
@@ -437,7 +469,7 @@ export class TenantService {
             for (let i = pending.length - 1; i >= 0; i -= 1) {
               const table = pending[i];
               try {
-                await tx.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "tenantId" = $1`, tenantId);
+                await db.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "tenantId" = $1`, tenantId);
                 pending.splice(i, 1);
                 progress = true;
               } catch (error) {
@@ -453,18 +485,20 @@ export class TenantService {
             }
           }
 
-          await tx.tenant.delete({
+          await db.tenant.delete({
             where: { id: tenantId },
           });
-        });
 
-        logger.warn(`Tenant hard deleted: ${tenantId}`);
-        return { mode: 'hard_deleted' };
-      } else {
-        // Soft delete - just deactivate
-        await this.deactivateTenant(tenantId);
-        return { mode: 'deactivated' };
-      }
+          logger.warn(`Tenant hard deleted: ${tenantId}`);
+          return { mode: 'hard_deleted' as const };
+        }
+
+        await db.tenant.update({
+          where: { id: tenantId },
+          data: { isActive: false },
+        });
+        return { mode: 'deactivated' as const };
+      }, { transactional: true });
     } catch (error) {
       logger.error('Error deleting tenant:', error);
       throw error;
@@ -476,48 +510,50 @@ export class TenantService {
    */
   static async getTenantUsage(tenantId: string): Promise<TenantUsageStats> {
     try {
-      // Get category IDs for tenant first
-      const categories = await prisma.category.findMany({
-        where: { tenantId },
-        select: { id: true }
+      return this.withSystemDbContext(async db => {
+        // Get category IDs for tenant first
+        const categories = await db.category.findMany({
+          where: { tenantId },
+          select: { id: true }
+        });
+        const categoryIds = categories.map(c => c.id);
+
+        const [usersCount, eventsCount, contestsCount, categoriesCount, scoresCount] = await Promise.all([
+          db.user.count({ where: { tenantId } }),
+          db.event.count({ where: { tenantId } }),
+          db.contest.count({ where: { tenantId } }),
+          db.category.count({ where: { tenantId } }),
+          db.score.count({ where: { categoryId: { in: categoryIds } } }),
+        ]);
+
+        // Get last activity (most recent audit log)
+        const lastAudit = await db.auditLog.findFirst({
+          where: { tenantId },
+          orderBy: { timestamp: 'desc' },
+          select: { timestamp: true },
+        });
+
+        // Calculate storage used (simplified - sum of file sizes)
+        const files = await db.file.findMany({
+          where: {
+            tenantId
+          },
+          select: { size: true },
+        });
+
+        const storageUsed = BigInt(files.reduce((sum, file) => sum + file.size, 0));
+
+        return {
+          tenantId,
+          usersCount,
+          eventsCount,
+          contestsCount,
+          categoriesCount,
+          scoresCount,
+          storageUsed,
+          lastActivity: lastAudit?.timestamp,
+        };
       });
-      const categoryIds = categories.map(c => c.id);
-
-      const [usersCount, eventsCount, contestsCount, categoriesCount, scoresCount] = await Promise.all([
-        prisma.user.count({ where: { tenantId } }),
-        prisma.event.count({ where: { tenantId } }),
-        prisma.contest.count({ where: { tenantId } }),
-        prisma.category.count({ where: { tenantId } }),
-        prisma.score.count({ where: { categoryId: { in: categoryIds } } }),
-      ]);
-
-      // Get last activity (most recent audit log)
-      const lastAudit = await prisma.auditLog.findFirst({
-        where: { tenantId },
-        orderBy: { timestamp: 'desc' },
-        select: { timestamp: true },
-      });
-
-      // Calculate storage used (simplified - sum of file sizes)
-      const files = await prisma.file.findMany({
-        where: {
-          tenantId
-        },
-        select: { size: true },
-      });
-
-      const storageUsed = BigInt(files.reduce((sum, file) => sum + file.size, 0));
-
-      return {
-        tenantId,
-        usersCount,
-        eventsCount,
-        contestsCount,
-        categoriesCount,
-        scoresCount,
-        storageUsed,
-        lastActivity: lastAudit?.timestamp,
-      };
     } catch (error) {
       logger.error('Error fetching tenant usage:', error);
       throw error;
@@ -534,78 +570,80 @@ export class TenantService {
     role: string
   ): Promise<{ user: { id: string; name: string; email: string; role: UserRole }; invitationUrl: string }> {
     try {
-      // Check if user already exists in this tenant
-      const existingUser = await prisma.user.findFirst({
-        where: { tenantId, email },
-      });
+      return this.withSystemDbContext(async db => {
+        // Check if user already exists in this tenant
+        const existingUser = await db.user.findFirst({
+          where: { tenantId, email },
+        });
 
-      if (existingUser) {
-        throw new Error(`User with email '${email}' already exists in this tenant`);
-      }
-
-      // Check tenant user limit
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-      });
-
-      if (tenant?.maxUsers) {
-        const currentUserCount = await prisma.user.count({ where: { tenantId } });
-        if (currentUserCount >= tenant.maxUsers) {
-          throw new Error('Tenant user limit reached');
+        if (existingUser) {
+          throw new Error(`User with email '${email}' already exists in this tenant`);
         }
-      }
 
-      // Create an unusable placeholder password until registration is completed
-      const placeholderPassword = `${Math.random().toString(36).slice(-10)}${Math.random().toString(36).slice(-10)}`;
-      const hashedPassword = await bcrypt.hash(placeholderPassword, 10);
+        // Check tenant user limit
+        const tenant = await db.tenant.findUnique({
+          where: { id: tenantId },
+        });
 
-      // Create user
-      const user = await prisma.user.create({
-        data: {
-          tenantId,
-          email,
-          name,
-          password: hashedPassword,
-          role: role as UserRole,
-          isActive: false, // Requires email confirmation
-        },
-      });
-
-      logger.info(`User invited to tenant ${tenantId}: ${email}`);
-
-      const tenantWithSlug = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { name: true, slug: true },
-      });
-      const token = this.buildInviteRegistrationToken({ userId: user.id, tenantId, email: user.email });
-      const appUrl = env.get('APP_URL') || env.get('FRONTEND_URL') || 'http://localhost:3000';
-      const registrationUrl = `${appUrl}${tenantWithSlug?.slug ? `/${tenantWithSlug.slug}` : ''}/register?invite=${encodeURIComponent(token)}`;
-      const loginUrl = `${appUrl}${tenantWithSlug?.slug ? `/${tenantWithSlug.slug}` : ''}/login`;
-
-      // Send invitation email with registration completion URL
-      try {
-        const emailService = container.resolve(EmailService);
-        await emailService.sendInvitationEmail(
-          email,
-          name,
-          tenantWithSlug?.name || 'Event Manager',
-          role,
-          registrationUrl,
-          loginUrl,
-          {
-            registrationUrl,
-            loginUrl
+        if (tenant?.maxUsers) {
+          const currentUserCount = await db.user.count({ where: { tenantId } });
+          if (currentUserCount >= tenant.maxUsers) {
+            throw new Error('Tenant user limit reached');
           }
-        );
+        }
 
-        logger.info(`Invitation email sent to ${email}`);
-      } catch (emailError) {
-        // Log email error but don't fail the user creation
-        logger.error('Failed to send invitation email', { error: emailError, email });
-        // User is still created, they just won't receive the email
-      }
+        // Create an unusable placeholder password until registration is completed
+        const placeholderPassword = `${Math.random().toString(36).slice(-10)}${Math.random().toString(36).slice(-10)}`;
+        const hashedPassword = await bcrypt.hash(placeholderPassword, 10);
 
-      return { user, invitationUrl: registrationUrl };
+        // Create user
+        const user = await db.user.create({
+          data: {
+            tenantId,
+            email,
+            name,
+            password: hashedPassword,
+            role: role as UserRole,
+            isActive: false, // Requires email confirmation
+          },
+        });
+
+        logger.info(`User invited to tenant ${tenantId}: ${email}`);
+
+        const tenantWithSlug = await db.tenant.findUnique({
+          where: { id: tenantId },
+          select: { name: true, slug: true },
+        });
+        const token = this.buildInviteRegistrationToken({ userId: user.id, tenantId, email: user.email });
+        const appUrl = env.get('APP_URL') || env.get('FRONTEND_URL') || 'http://localhost:3000';
+        const registrationUrl = `${appUrl}${tenantWithSlug?.slug ? `/${tenantWithSlug.slug}` : ''}/register?invite=${encodeURIComponent(token)}`;
+        const loginUrl = `${appUrl}${tenantWithSlug?.slug ? `/${tenantWithSlug.slug}` : ''}/login`;
+
+        // Send invitation email with registration completion URL
+        try {
+          const emailService = container.resolve(EmailService);
+          await emailService.sendInvitationEmail(
+            email,
+            name,
+            tenantWithSlug?.name || 'Event Manager',
+            role,
+            registrationUrl,
+            loginUrl,
+            {
+              registrationUrl,
+              loginUrl
+            }
+          );
+
+          logger.info(`Invitation email sent to ${email}`);
+        } catch (emailError) {
+          // Log email error but don't fail the user creation
+          logger.error('Failed to send invitation email', { error: emailError, email });
+          // User is still created, they just won't receive the email
+        }
+
+        return { user, invitationUrl: registrationUrl };
+      });
     } catch (error) {
       logger.error('Error inviting user:', error);
       throw error;
@@ -621,9 +659,11 @@ export class TenantService {
     storage: { current: bigint; max: bigint | null; exceeded: boolean };
   }> {
     try {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-      });
+      const tenant = await this.withSystemDbContext(async db =>
+        db.tenant.findUnique({
+          where: { id: tenantId },
+        })
+      );
 
       if (!tenant) {
         throw new Error(`Tenant not found: ${tenantId}`);

@@ -3,12 +3,24 @@ import { AppEvent, AppEventType, EventHandler } from '../EventBusService';
 import { createLogger } from '../../utils/logger';
 import { Contestant } from '@prisma/client';
 import { resolveEventTenantId } from '../../utils/tenantContext';
+import { withTenantDbRlsContext } from '../../utils/prismaRlsContext';
 
 type ContestantWithUsers = Contestant & {
   users: Array<{ id: string }>;
 };
 
 const logger = createLogger('NotificationHandler');
+
+async function withEventTenantDb<T>(
+  tenantId: string,
+  operation: (db: typeof prisma) => Promise<T>
+): Promise<T> {
+  return withTenantDbRlsContext(
+    prisma,
+    { tenantId, isSuperAdmin: false },
+    async tx => operation(tx as unknown as typeof prisma)
+  );
+}
 
 async function resolveNotificationTenantId(
   event: AppEvent,
@@ -99,15 +111,17 @@ async function handleAssignmentCreated(event: AppEvent) {
     return;
   }
 
-  await prisma.notification.create({
-    data: {
-      tenantId,
-      userId,
-      type: 'INFO',
-      title: 'New Assignment',
-      message: `You have been assigned as ${assignmentType} for ${contestName} - ${categoryName}`,
-      link: `/assignments`,
-    },
+  await withEventTenantDb(tenantId, async (db) => {
+    await db.notification.create({
+      data: {
+        tenantId,
+        userId,
+        type: 'INFO',
+        title: 'New Assignment',
+        message: `You have been assigned as ${assignmentType} for ${contestName} - ${categoryName}`,
+        link: `/assignments`,
+      },
+    });
   });
 
   logger.debug('Assignment notification created', { userId });
@@ -127,25 +141,29 @@ async function handleScoreSubmitted(event: AppEvent) {
   }
 
   // Find contestant's user account
-  const contestant = await prisma.contestant.findFirst({
-    where: { id: contestantId, tenantId },
-    include: { users: true },
-  }) as ContestantWithUsers | null;
+  const contestant = await withEventTenantDb(tenantId, async (db) => (
+    db.contestant.findFirst({
+      where: { id: contestantId, tenantId },
+      include: { users: true },
+    }) as Promise<ContestantWithUsers | null>
+  ));
 
   if (contestant?.users && contestant.users.length > 0) {
     const user = contestant.users[0]; // Get first associated user
     if (!user) {
       return;
     }
-    await prisma.notification.create({
-      data: {
-        tenantId,
-        userId: user.id,
-        type: 'SUCCESS',
-        title: 'Score Received',
-        message: `${judgeName} has submitted a score of ${score} for ${categoryName}`,
-        link: `/results`,
-      },
+    await withEventTenantDb(tenantId, async (db) => {
+      await db.notification.create({
+        data: {
+          tenantId,
+          userId: user.id,
+          type: 'SUCCESS',
+          title: 'Score Received',
+          message: `${judgeName} has submitted a score of ${score} for ${categoryName}`,
+          link: `/results`,
+        },
+      });
     });
 
     logger.debug('Score notification created', { userId: user.id });
@@ -166,10 +184,12 @@ async function handleScoresFinalized(event: AppEvent) {
   }
 
   // Get all contestants for this category
-  const contestants = await prisma.contestant.findMany({
-    where: { id: { in: contestantIds }, tenantId },
-    include: { users: true },
-  }) as ContestantWithUsers[];
+  const contestants = await withEventTenantDb(tenantId, async (db) => (
+    db.contestant.findMany({
+      where: { id: { in: contestantIds }, tenantId },
+      include: { users: true },
+    }) as Promise<ContestantWithUsers[]>
+  ));
 
   // Create notifications for all contestants
   const notifications = contestants
@@ -184,7 +204,9 @@ async function handleScoresFinalized(event: AppEvent) {
     }));
 
   if (notifications.length > 0) {
-    await prisma.notification.createMany({ data: notifications });
+    await withEventTenantDb(tenantId, async (db) => {
+      await db.notification.createMany({ data: notifications });
+    });
     logger.debug('Finalized score notifications created', { count: notifications.length });
   }
 }
@@ -204,15 +226,17 @@ async function handleCertificationUpdate(event: AppEvent) {
 
   const isApproved = event.type === AppEventType.CERTIFICATION_APPROVED;
 
-  await prisma.notification.create({
-    data: {
-      tenantId,
-      userId,
-      type: isApproved ? 'SUCCESS' : 'WARNING',
-      title: `Certification ${isApproved ? 'Approved' : 'Rejected'}`,
-      message: message || `Your certification for ${categoryName} has been ${isApproved ? 'approved' : 'rejected'}`,
-      link: `/certifications`,
-    },
+  await withEventTenantDb(tenantId, async (db) => {
+    await db.notification.create({
+      data: {
+        tenantId,
+        userId,
+        type: isApproved ? 'SUCCESS' : 'WARNING',
+        title: `Certification ${isApproved ? 'Approved' : 'Rejected'}`,
+        message: message || `Your certification for ${categoryName} has been ${isApproved ? 'approved' : 'rejected'}`,
+        link: `/certifications`,
+      },
+    });
   });
 
   logger.debug('Certification notification created', { userId, status });
@@ -230,13 +254,15 @@ async function handleContestCertified(event: AppEvent) {
   }
 
   // Notify all admins and organizers
-  const adminsAndOrganizers = await prisma.user.findMany({
-    where: {
-      tenantId,
-      role: { in: ['ADMIN', 'ORGANIZER', 'BOARD'] },
-      isActive: true,
-    },
-  });
+  const adminsAndOrganizers = await withEventTenantDb(tenantId, async (db) => (
+    db.user.findMany({
+      where: {
+        tenantId,
+        role: { in: ['ADMIN', 'ORGANIZER', 'BOARD'] },
+        isActive: true,
+      },
+    })
+  ));
 
   const notifications = adminsAndOrganizers.map((user) => ({
     tenantId,
@@ -248,7 +274,9 @@ async function handleContestCertified(event: AppEvent) {
   }));
 
   if (notifications.length > 0) {
-    await prisma.notification.createMany({ data: notifications });
+    await withEventTenantDb(tenantId, async (db) => {
+      await db.notification.createMany({ data: notifications });
+    });
     logger.debug('Contest certification notifications created', { count: notifications.length });
   }
 }

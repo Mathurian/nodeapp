@@ -22,7 +22,7 @@ Default fallback values (if env keys are missing):
 - Background/event paths must set explicit DB RLS session context using `withTenantDbRlsContext`:
   - tenant-scoped execution: `{ tenantId, isSuperAdmin: false }`
   - system/global execution: `{ tenantId: null, isSuperAdmin: true }`
-  - current covered runtime paths include report jobs, workflow scheduler/automation, webhook delivery/event handling, email digest processing, backup monitoring, and scheduled backups.
+  - current covered runtime paths include report jobs, workflow scheduler/automation, webhook delivery/event handling, email digest processing, backup monitoring, scheduled backups, tenant-management service operations, and EventBus service handlers (audit, notifications, statistics).
 - `utils/prisma` is a compatibility re-export only and must not instantiate its own Prisma client.
 - EventBus publish calls in services/controllers/events must propagate `tenantId` in payload or metadata.
 - Segregation violations are exported as Prometheus counter `tenant_segregation_violations_total` with labels:
@@ -122,6 +122,9 @@ npm run audit:tenant-prisma-imports
 
 # Segregation violation alert poller (for cron/systemd timer)
 npm run ops:tenant-segregation-alerts
+
+# Super admin explicit tenant-scope smoke (validates global vs scoped admin DB access)
+bash scripts/uat/super-admin-tenant-scope-smoke.sh
 
 # Production preflight (env + route hardening + fallback blocker + audit)
 sudo bash scripts/deploy/preflight-tenant-segregation.sh

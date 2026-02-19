@@ -1,13 +1,13 @@
 # Tenant Enforcement Matrix
 
-Generated: 2026-02-19T08:00:29.382Z
+Generated: 2026-02-19T18:05:30.451Z
 Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 
 ## Summary
 
 - Endpoint entries discovered (v1/direct mounts): 655
 - Route modules with no active mount in routes config: 1
-- DB-touching files discovered: 157
+- DB-touching files discovered: 158
 - Prisma models: 88
 - Tenant-scoped required models: 64
 - Tenant-scoped optional models: 12
@@ -782,6 +782,7 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 - `scripts/init-production-db.js`
 - `scripts/invalidate-sessions.ts`
 - `scripts/migrate-permissions.ts`
+- `scripts/ops/tenant-prisma-import-guard.sh`
 - `scripts/ops/tenant-segregation-audit.sh`
 - `scripts/seed-rate-limit-configs.ts`
 - `scripts/validate-permissions.ts`
@@ -974,7 +975,6 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 - `src/middleware/errorHandler.ts`
 - `src/middleware/prisma/softDelete.ts`
 - `src/middleware/softDelete.ts`
-- `src/middleware/tenantMiddleware.ts`
 - `src/repositories/DeductionRepository.ts`
 - `src/repositories/NotificationPreferenceRepository.ts`
 - `src/repositories/SearchRepository.ts`

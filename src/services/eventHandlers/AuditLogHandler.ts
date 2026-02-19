@@ -2,8 +2,20 @@ import prisma from '../../config/database';
 import { AppEvent, AppEventType, EventHandler } from '../EventBusService';
 import { createLogger } from '../../utils/logger';
 import { resolveEventTenantId } from '../../utils/tenantContext';
+import { withTenantDbRlsContext } from '../../utils/prismaRlsContext';
 
 const logger = createLogger('AuditLogHandler');
+
+async function withEventTenantDb<T>(
+  tenantId: string,
+  operation: (db: typeof prisma) => Promise<T>
+): Promise<T> {
+  return withTenantDbRlsContext(
+    prisma,
+    { tenantId, isSuperAdmin: false },
+    async tx => operation(tx as unknown as typeof prisma)
+  );
+}
 
 /**
  * Audit Log Handler
@@ -48,18 +60,20 @@ export class AuditLogHandler {
       }
 
       // Create audit log entry
-      await prisma.auditLog.create({
-        data: {
-          tenantId,
-          userId: event.metadata.userId || 'system',
-          action: event.type,
-          entityType: extractEntityType(event.type),
-          entityId: extractEntityId(event.payload) || 'unknown',
-          changes: JSON.stringify(event.payload),
-          ipAddress: event.metadata.source,
-          userAgent: null, // Would need to pass from request if available
-          timestamp: event.metadata.timestamp,
-        },
+      await withEventTenantDb(tenantId, async (db) => {
+        await db.auditLog.create({
+          data: {
+            tenantId,
+            userId: event.metadata.userId || 'system',
+            action: event.type,
+            entityType: extractEntityType(event.type),
+            entityId: extractEntityId(event.payload) || 'unknown',
+            changes: JSON.stringify(event.payload),
+            ipAddress: event.metadata.source,
+            userAgent: null, // Would need to pass from request if available
+            timestamp: event.metadata.timestamp,
+          },
+        });
       });
 
       logger.debug('Audit log created', { type: event.type });

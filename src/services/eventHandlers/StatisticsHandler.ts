@@ -1,8 +1,21 @@
 import prisma from '../../config/database';
 import { AppEvent, AppEventType, EventHandler } from '../EventBusService';
 import { createLogger } from '../../utils/logger';
+import { resolveEventTenantId } from '../../utils/tenantContext';
+import { withTenantDbRlsContext } from '../../utils/prismaRlsContext';
 
 const logger = createLogger('StatisticsHandler');
+
+async function withEventTenantDb<T>(
+  tenantId: string,
+  operation: (db: typeof prisma) => Promise<T>
+): Promise<T> {
+  return withTenantDbRlsContext(
+    prisma,
+    { tenantId, isSuperAdmin: false },
+    async tx => operation(tx as unknown as typeof prisma)
+  );
+}
 
 /**
  * Statistics Handler
@@ -50,20 +63,27 @@ async function trackUserLogin(event: AppEvent) {
   const { userId, ipAddress: _ipAddress } = event.payload;
 
   if (!userId) return;
+  const tenantId = resolveEventTenantId(event);
+  if (!tenantId) {
+    logger.warn('Skipping login statistics update due to missing tenant context', { userId });
+    return;
+  }
 
   try {
     // Update user's last login timestamp
-    await prisma.user.update({
-      where: { id: userId },
-      data: { lastLoginAt: event.metadata.timestamp },
+    await withEventTenantDb(tenantId, async (db) => {
+      await db.user.update({
+        where: { id: userId },
+        data: { lastLoginAt: event.metadata.timestamp },
+      });
     });
 
     // Could also track login analytics in a separate table
     // For now, we just update the user record
 
-    logger.debug('User login tracked', { userId });
+    logger.debug('User login tracked', { userId, tenantId });
   } catch (error) {
-    logger.error('Failed to track user login', { error, userId });
+    logger.error('Failed to track user login', { error, userId, tenantId });
   }
 }
 

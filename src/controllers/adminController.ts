@@ -18,6 +18,25 @@ export class AdminController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private getAdminDatabaseScope(req: Request): { tenantId?: string; isSuperAdmin: boolean; forceTenantScope: boolean } {
+    const tenantOverrideHeader =
+      req.get('X-Tenant-ID') ||
+      req.get('x-tenant-id') ||
+      req.get('X-Tenant-Slug') ||
+      req.get('x-tenant-slug');
+    const tenantId = req.tenantId || req.user?.tenantId;
+    const userTenantId = req.user?.tenantId;
+    const isSuperAdmin = req.isSuperAdmin === true || req.user?.role === 'SUPER_ADMIN';
+    const forceTenantScope = Boolean(
+      isSuperAdmin &&
+      tenantOverrideHeader &&
+      tenantId &&
+      String(tenantId) !== String(userTenantId || '')
+    );
+
+    return { tenantId, isSuperAdmin, forceTenantScope };
+  }
+
   getDashboard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Pass tenant context for tenant-scoped stats
@@ -60,9 +79,9 @@ export class AdminController {
     }
   };
 
-  getDatabaseTables = async (_req: Request, res: Response, next: NextFunction) => {
+  getDatabaseTables = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tables = await this.adminService.getDatabaseTables();
+      const tables = await this.adminService.getDatabaseTables(this.getAdminDatabaseScope(req));
       return sendSuccess(res, tables);
     } catch (error) {
       return next(error);
@@ -88,7 +107,8 @@ export class AdminController {
         parseInt(page as string),
         parseInt(limit as string),
         orderBy as string | undefined,
-        orderDirection as string
+        orderDirection as string,
+        this.getAdminDatabaseScope(req)
       );
       return sendSuccess(res, data);
     } catch (error) {

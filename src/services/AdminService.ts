@@ -8,6 +8,7 @@ import { PaginationOptions, PaginatedResponse, createPaginatedResponse } from '.
 import { env } from '../config/env';
 import { CacheService } from './CacheService';
 import { getGeoLocationForIp, normalizeIpAddress } from '../utils/ipGeolocation';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const execAsync = promisify(exec);
 const log = createLogger('admin-service');
@@ -194,6 +195,12 @@ export interface TableDataResponse {
   rowCount: number;
 }
 
+export interface AdminDatabaseScope {
+  tenantId?: string;
+  isSuperAdmin?: boolean;
+  forceTenantScope?: boolean;
+}
+
 @injectable()
 export class AdminService extends BaseService {
   private startTime: number;
@@ -201,6 +208,45 @@ export class AdminService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
     this.startTime = Date.now();
+  }
+
+  private shouldApplyTenantScope(scope?: AdminDatabaseScope): boolean {
+    return Boolean(scope?.forceTenantScope && scope?.tenantId);
+  }
+
+  private async withDatabaseScope<T>(
+    scope: AdminDatabaseScope | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    const tenantId = String(scope?.tenantId || '').trim();
+    const forceTenantScope = this.shouldApplyTenantScope(scope);
+    const isSuperAdmin = Boolean(scope?.isSuperAdmin);
+
+    return withTenantDbRlsContext(
+      this.prisma,
+      {
+        tenantId: forceTenantScope ? tenantId : null,
+        isSuperAdmin: forceTenantScope ? false : isSuperAdmin
+      },
+      async tx => operation(tx as PrismaClient)
+    );
+  }
+
+  private async tableHasTenantIdColumn(tableName: string, prismaClient: PrismaClient = this.prisma): Promise<boolean> {
+    const result = await prismaClient.$queryRawUnsafe<Array<{ has_column: boolean }>>(
+      `
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = $1
+            AND column_name = 'tenantId'
+        ) AS has_column
+      `,
+      tableName
+    );
+
+    return Boolean(result[0]?.has_column);
   }
 
   async getDashboardStats(tenantId?: string): Promise<DashboardStats> {
@@ -669,45 +715,56 @@ export class AdminService extends BaseService {
     };
   }
 
-  async getDatabaseTables(): Promise<TableWithCount[]> {
+  async getDatabaseTables(scope?: AdminDatabaseScope): Promise<TableWithCount[]> {
     try {
-      // Use Prisma to query information_schema directly for all tables
-      const tables = await this.prisma.$queryRawUnsafe<TableInfo[]>(`
-        SELECT
-          table_name as name
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-          AND table_type = 'BASE TABLE'
-        ORDER BY table_name;
-      `);
+      return await this.withDatabaseScope(scope, async (db) => {
+        // Use Prisma to query information_schema directly for all tables
+        const tables = await db.$queryRawUnsafe<TableInfo[]>(`
+          SELECT
+            table_name as name
+          FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+          ORDER BY table_name;
+        `);
 
-      // Get row counts for each table
-      const tablesWithCounts = await Promise.all(
-        tables.map(async (table): Promise<TableWithCount> => {
-          try {
-            const result = await this.prisma.$queryRawUnsafe<RowCountResult[]>(
-              `SELECT COUNT(*) as count FROM "${table.name}"`
-            );
-            const rowCount = result[0]?.count ? Number(result[0].count) : 0;
-            
-            return {
-              name: table.name,
-              rowCount: rowCount,
-              size: 'N/A' // Could be calculated separately if needed
-            };
-          } catch (error) {
-            // If table doesn't exist or query fails, return 0
-            log.warn(`Error getting row count for table ${table.name}`, { error: (error as Error).message });
-            return {
-              name: table.name,
-              rowCount: 0,
-              size: 'N/A'
-            };
-          }
-        })
-      );
+        // Get row counts for each table
+        const tablesWithCounts = await Promise.all(
+          tables.map(async (table): Promise<TableWithCount> => {
+            try {
+              const applyTenantFilter =
+                this.shouldApplyTenantScope(scope) &&
+                await this.tableHasTenantIdColumn(table.name, db);
 
-      return tablesWithCounts;
+              const result = applyTenantFilter
+                ? await db.$queryRawUnsafe<RowCountResult[]>(
+                    `SELECT COUNT(*) as count FROM "${table.name}" WHERE "tenantId" = $1`,
+                    scope?.tenantId
+                  )
+                : await db.$queryRawUnsafe<RowCountResult[]>(
+                    `SELECT COUNT(*) as count FROM "${table.name}"`
+                  );
+              const rowCount = result[0]?.count ? Number(result[0].count) : 0;
+
+              return {
+                name: table.name,
+                rowCount: rowCount,
+                size: 'N/A' // Could be calculated separately if needed
+              };
+            } catch (error) {
+              // If table doesn't exist or query fails, return 0
+              log.warn(`Error getting row count for table ${table.name}`, { error: (error as Error).message });
+              return {
+                name: table.name,
+                rowCount: 0,
+                size: 'N/A'
+              };
+            }
+          })
+        );
+
+        return tablesWithCounts;
+      });
     } catch (error) {
       log.error('Error getting database tables', { error: (error as Error).message });
       // Fallback: return Prisma model names with row counts
@@ -718,29 +775,40 @@ export class AdminService extends BaseService {
         'criteria', 'deductions', 'comments', 'system_settings', 'backup_settings'
       ];
       
-      const tablesWithCounts = await Promise.all(
-        fallbackTables.map(async (tableName): Promise<TableWithCount> => {
-          try {
-            const result = await this.prisma.$queryRawUnsafe<RowCountResult[]>(
-              `SELECT COUNT(*) as count FROM "${tableName}"`
-            );
-            const rowCount = result[0]?.count ? Number(result[0].count) : 0;
-            return {
-              name: tableName,
-              rowCount: rowCount,
-              size: 'N/A'
-            };
-          } catch {
-            return {
-              name: tableName,
-              rowCount: 0,
-              size: 'N/A'
-            };
-          }
-        })
-      );
-      
-      return tablesWithCounts;
+      return this.withDatabaseScope(scope, async (db) => {
+        const tablesWithCounts = await Promise.all(
+          fallbackTables.map(async (tableName): Promise<TableWithCount> => {
+            try {
+              const applyTenantFilter =
+                this.shouldApplyTenantScope(scope) &&
+                await this.tableHasTenantIdColumn(tableName, db);
+
+              const result = applyTenantFilter
+                ? await db.$queryRawUnsafe<RowCountResult[]>(
+                    `SELECT COUNT(*) as count FROM "${tableName}" WHERE "tenantId" = $1`,
+                    scope?.tenantId
+                  )
+                : await db.$queryRawUnsafe<RowCountResult[]>(
+                    `SELECT COUNT(*) as count FROM "${tableName}"`
+                  );
+              const rowCount = result[0]?.count ? Number(result[0].count) : 0;
+              return {
+                name: tableName,
+                rowCount: rowCount,
+                size: 'N/A'
+              };
+            } catch {
+              return {
+                name: tableName,
+                rowCount: 0,
+                size: 'N/A'
+              };
+            }
+          })
+        );
+
+        return tablesWithCounts;
+      });
     }
   }
 
@@ -824,7 +892,8 @@ export class AdminService extends BaseService {
     page: number = 1,
     limit: number = 50,
     orderBy?: string,
-    orderDirection: string = 'asc'
+    orderDirection: string = 'asc',
+    scope?: AdminDatabaseScope
   ): Promise<TableDataResponse> {
     try {
       // Validate table name to prevent SQL injection
@@ -833,11 +902,25 @@ export class AdminService extends BaseService {
       }
 
       const offset = (page - 1) * limit;
+      const applyTenantFilter =
+        this.shouldApplyTenantScope(scope) &&
+        await this.tableHasTenantIdColumn(tableName);
+      const tenantId = String(scope?.tenantId || '').trim();
+      const whereClause = applyTenantFilter ? 'WHERE "tenantId" = $1' : '';
 
       // Get total row count
-      const countResult = await this.prisma.$queryRawUnsafe<RowCountResult[]>(
-        `SELECT COUNT(*) as count FROM "${tableName}"`
-      );
+      const countResult = applyTenantFilter
+        ? await this.withDatabaseScope(scope, async (db) => (
+            db.$queryRawUnsafe<RowCountResult[]>(
+              `SELECT COUNT(*) as count FROM "${tableName}" ${whereClause}`,
+              tenantId
+            )
+          ))
+        : await this.withDatabaseScope(scope, async (db) => (
+            db.$queryRawUnsafe<RowCountResult[]>(
+              `SELECT COUNT(*) as count FROM "${tableName}"`
+            )
+          ));
       const totalRows = Number(countResult[0]?.count || 0);
 
       // Build ORDER BY clause
@@ -847,10 +930,23 @@ export class AdminService extends BaseService {
         orderByClause = `ORDER BY "${orderBy}" ${direction}`;
       }
 
-      // Get table data - use parameterized query for limit/offset
-      const rows = await this.prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
-        `SELECT * FROM "${tableName}" ${orderByClause} LIMIT ${limit} OFFSET ${offset}`
-      );
+      // Get table data - use parameterized query for tenant scope/limit/offset
+      const rows = applyTenantFilter
+        ? await this.withDatabaseScope(scope, async (db) => (
+            db.$queryRawUnsafe<Array<Record<string, unknown>>>(
+              `SELECT * FROM "${tableName}" ${whereClause} ${orderByClause} LIMIT $2 OFFSET $3`,
+              tenantId,
+              limit,
+              offset
+            )
+          ))
+        : await this.withDatabaseScope(scope, async (db) => (
+            db.$queryRawUnsafe<Array<Record<string, unknown>>>(
+              `SELECT * FROM "${tableName}" ${orderByClause} LIMIT $1 OFFSET $2`,
+              limit,
+              offset
+            )
+          ));
 
       // Get column names from first row or from table structure
       const columns = rows.length > 0 ? Object.keys(rows[0]!) : [];

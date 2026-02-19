@@ -331,7 +331,28 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     // Tenant middleware runs before auth, so it created req.prisma with isSuperAdmin=false
     // Now that we know the user's role, recreate it if needed
     if ((req as any).isSuperAdmin && (req as any).tenantId) {
-      (req as any).prisma = createTenantPrismaClient((req as any).tenantId, true);
+      const tenantOverrideHeader =
+        req.get('X-Tenant-ID') ||
+        req.get('x-tenant-id') ||
+        req.get('X-Tenant-Slug') ||
+        req.get('x-tenant-slug');
+      const overrideRequestsScopedMode =
+        Boolean(tenantOverrideHeader) &&
+        String((req as any).tenantId || '') !== String(user.tenantId || '');
+
+      // Identity endpoints must always resolve the authenticated principal record,
+      // which belongs to the token tenant for super-admin users.
+      const requestPath = String(req.path || '');
+      const requestUrl = String(req.originalUrl || '');
+      const isIdentityEndpoint =
+        /\/api\/v1\/auth\/(profile|permissions)(\/|$)/.test(requestUrl) ||
+        /^\/(profile|permissions)(\/|$)/.test(requestPath);
+
+      const forceTenantScope = overrideRequestsScopedMode && !isIdentityEndpoint;
+
+      (req as any).prisma = createTenantPrismaClient((req as any).tenantId, true, {
+        forceTenantScope
+      });
     }
 
     updateRequestContext({

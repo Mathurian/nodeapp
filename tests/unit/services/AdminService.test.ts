@@ -40,6 +40,7 @@ describe('AdminService', () => {
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
     adminService = new AdminService(prismaMock as unknown as PrismaClient);
+    prismaMock.tenant.findMany.mockResolvedValue([{ id: 'tenant-1' }] as any);
     jest.clearAllMocks();
   });
 
@@ -397,6 +398,40 @@ describe('AdminService', () => {
       await expect(adminService.getTableData('users; DELETE FROM users')).rejects.toThrow(
         'Invalid table name'
       );
+    });
+
+    it('should apply tenant filter when super admin is explicitly tenant-scoped', async () => {
+      const scopedRows = [
+        { id: 'scoped-user-1', tenantId: 'tenant-scope-1', email: 'scoped@example.com' },
+      ];
+
+      prismaMock.$queryRawUnsafe
+        .mockResolvedValueOnce([{ has_column: true }]) // tableHasTenantIdColumn
+        .mockResolvedValueOnce([{ count: BigInt(1) }]) // scoped count
+        .mockResolvedValueOnce(scopedRows as any); // scoped rows
+
+      const result = await adminService.getTableData(
+        'users',
+        1,
+        50,
+        undefined,
+        'asc',
+        {
+          tenantId: 'tenant-scope-1',
+          isSuperAdmin: true,
+          forceTenantScope: true
+        }
+      );
+
+      expect(result.rowCount).toBe(1);
+      expect(result.rows).toEqual(scopedRows);
+
+      const countSql = String(prismaMock.$queryRawUnsafe.mock.calls[1]?.[0] || '');
+      const rowsSql = String(prismaMock.$queryRawUnsafe.mock.calls[2]?.[0] || '');
+      expect(countSql).toContain('WHERE "tenantId" = $1');
+      expect(rowsSql).toContain('WHERE "tenantId" = $1');
+      expect(prismaMock.$queryRawUnsafe.mock.calls[1]?.[1]).toBe('tenant-scope-1');
+      expect(prismaMock.$queryRawUnsafe.mock.calls[2]?.[1]).toBe('tenant-scope-1');
     });
   });
 

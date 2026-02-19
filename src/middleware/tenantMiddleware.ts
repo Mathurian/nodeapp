@@ -453,17 +453,20 @@ export async function tenantMiddleware(
       req.isSuperAdmin = false;
     }
 
-    // Create tenant-aware Prisma client
-    // For Super Admin, this returns the global client without tenant filtering
-    // For other users, this returns a client with automatic tenant filtering
-    req.prisma = createTenantPrismaClient(tenant.id, req.isSuperAdmin);
+    // Create tenant-aware Prisma client.
+    // SUPER_ADMIN runs globally by default, but a tenant header override forces tenant scope.
+    const forceSuperAdminTenantScope = req.isSuperAdmin && identificationMethod === 'header_superadmin_override';
+    req.prisma = createTenantPrismaClient(tenant.id, req.isSuperAdmin, {
+      forceTenantScope: forceSuperAdminTenantScope
+    });
 
     // Log tenant identification (info level for debugging)
     logger.info(`Tenant identified: ${tenant.slug} (${tenant.id}) via ${identificationMethod}`, {
       path: req.path,
       method: req.method,
       user: req.user ? (req.user as any).email : 'not authenticated yet',
-      isSuperAdmin: req.isSuperAdmin
+      isSuperAdmin: req.isSuperAdmin,
+      superAdminTenantScoped: forceSuperAdminTenantScope
     });
 
     next();
@@ -568,13 +571,19 @@ export function superAdminOnly(
  *
  * This extension automatically adds tenantId filters to all Prisma queries
  */
-export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean = false) {
+export function createTenantPrismaClient(
+  tenantId: string,
+  isSuperAdmin: boolean = false,
+  options: { forceTenantScope?: boolean } = {}
+) {
   const basePrisma = rawPrisma;
   const tenantDbRlsMode = resolveTenantDbRlsMode();
   const tenantRlsEnabled = tenantDbRlsMode === 'enforce';
+  const forceTenantScope = options.forceTenantScope === true;
+  const superAdminBypass = isSuperAdmin && !forceTenantScope;
 
   // Fast path for SUPER_ADMIN when DB-level RLS runtime context is disabled.
-  if (isSuperAdmin && !tenantRlsEnabled) {
+  if (superAdminBypass && !tenantRlsEnabled) {
     return basePrisma;
   }
 
@@ -590,7 +599,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
       basePrisma,
       {
         tenantId,
-        isSuperAdmin,
+        isSuperAdmin: superAdminBypass,
         mode: tenantDbRlsMode,
       },
       async tx => operation(tx as any)
@@ -619,7 +628,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
     });
 
   const requiresTenantFilter = (model: string): boolean =>
-    !isSuperAdmin && isTenantScopedModel(model);
+    !superAdminBypass && isTenantScopedModel(model);
 
   const recordSegregationViolationMode = tenantRlsEnabled ? 'enforce' : 'audit';
 

@@ -5,15 +5,19 @@
 
 import 'reflect-metadata';
 import { BulkOperationService, BulkOperationResult, BulkOperationOptions } from '../../../src/services/BulkOperationService';
+import prisma from '../../../src/config/database';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
 // Mock the database module
-const mockPrisma = mockDeep<PrismaClient>();
-jest.mock('../../../src/config/database', () => ({
-  __esModule: true,
-  default: mockPrisma
-}));
+jest.mock('../../../src/config/database', () => {
+  const { mockDeep } = require('jest-mock-extended');
+  return {
+    __esModule: true,
+    default: mockDeep()
+  };
+});
+const mockPrisma = prisma as unknown as DeepMockProxy<PrismaClient>;
 
 describe('BulkOperationService', () => {
   let service: BulkOperationService;
