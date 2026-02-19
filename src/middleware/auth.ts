@@ -10,7 +10,7 @@ import { createLogger } from '../utils/logger';
 import { createTenantPrismaClient } from './tenantMiddleware';
 import { updateRequestContext } from './correlationId';
 import { evaluateDefaultTenantAccess } from '../utils/tenantSegregationPolicy';
-import { recordTenantSegregationViolationMetric } from '../utils/tenantSegregationMetrics';
+import { recordTenantSegregationViolation } from '../utils/tenantSegregationMetrics';
 
 const logger = createLogger('auth');
 
@@ -167,6 +167,21 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       requestTenantId !== decoded.tenantId &&
       requestTenantId !== user.tenantId
     ) {
+      recordTenantSegregationViolation(
+        'TENANT_CONTEXT_MISMATCH',
+        'auth',
+        'enforce',
+        'blocked',
+        {
+          userId: user.id,
+          role: user.role,
+          requestTenantId,
+          tokenTenantId: decoded.tenantId,
+          userTenantId: user.tenantId,
+          path: req.path,
+          method: req.method,
+        }
+      );
       logger.warn('Authentication blocked due to tenant context mismatch', {
         userId: user.id,
         role: user.role,
@@ -259,11 +274,20 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     });
 
     if (!defaultTenantAccess.allowed && defaultTenantAccess.enforced) {
-      recordTenantSegregationViolationMetric(
+      recordTenantSegregationViolation(
         defaultTenantAccess.code || 'DEFAULT_TENANT_RESTRICTED',
         'auth',
         defaultTenantAccess.mode,
-        'blocked'
+        'blocked',
+        {
+          userId: user.id,
+          role: userRole,
+          tenantId: req.tenantId || user.tenantId,
+          tenantSlug: (req as any).tenant?.slug,
+          path: req.originalUrl || req.path,
+          method: req.method,
+          reason: defaultTenantAccess.reason,
+        }
       );
 
       logger.warn('authenticateToken: blocked non-super-admin access to default tenant', {
@@ -286,11 +310,20 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     }
 
     if (defaultTenantAccess.code === 'DEFAULT_TENANT_RESTRICTED' && defaultTenantAccess.mode === 'audit') {
-      recordTenantSegregationViolationMetric(
+      recordTenantSegregationViolation(
         defaultTenantAccess.code,
         'auth',
         defaultTenantAccess.mode,
-        'audit_only'
+        'audit_only',
+        {
+          userId: user.id,
+          role: userRole,
+          tenantId: req.tenantId || user.tenantId,
+          tenantSlug: (req as any).tenant?.slug,
+          path: req.originalUrl || req.path,
+          method: req.method,
+          reason: defaultTenantAccess.reason,
+        }
       );
     }
 

@@ -59,26 +59,38 @@ redact_url() {
 }
 
 resolve_database_url() {
-  if [ -n "${DATABASE_URL:-}" ]; then
-    printf '%s' "$DATABASE_URL"
-    return
-  fi
-
   if [ -n "${PRISMA_BASELINE_DATABASE_URL:-}" ]; then
     printf '%s' "$PRISMA_BASELINE_DATABASE_URL"
     return
   fi
 
+  if [ -n "${MIGRATION_DATABASE_URL:-}" ]; then
+    printf '%s' "$MIGRATION_DATABASE_URL"
+    return
+  fi
+
+  if [ -n "${DATABASE_URL:-}" ]; then
+    printf '%s' "$DATABASE_URL"
+    return
+  fi
+
   if [ -f "$ENV_FILE" ]; then
-    local from_file
-    from_file="$(extract_env_value "DATABASE_URL" "$ENV_FILE" || true)"
-    if [ -n "$from_file" ]; then
-      printf '%s' "$from_file"
+    local migration_url
+    migration_url="$(extract_env_value "MIGRATION_DATABASE_URL" "$ENV_FILE" || true)"
+    if [ -n "$migration_url" ]; then
+      printf '%s' "$migration_url"
+      return
+    fi
+
+    local database_url
+    database_url="$(extract_env_value "DATABASE_URL" "$ENV_FILE" || true)"
+    if [ -n "$database_url" ]; then
+      printf '%s' "$database_url"
       return
     fi
   fi
 
-  echo "Unable to resolve DATABASE_URL. Set DATABASE_URL or PRISMA_BASELINE_DATABASE_URL, or provide ENV_FILE with DATABASE_URL." >&2
+  echo "Unable to resolve database URL. Set PRISMA_BASELINE_DATABASE_URL, MIGRATION_DATABASE_URL, DATABASE_URL, or provide ENV_FILE with one of those keys." >&2
   exit 1
 }
 

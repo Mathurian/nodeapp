@@ -16,6 +16,7 @@ Tenant segregation rollout env keys (in `event-manager.env`):
 - `TENANT_SEGREGATION_MODE` (`off|audit|enforce`)
 - `TENANT_DEFAULT_IDS` (comma-separated tenant IDs treated as default/system)
 - `TENANT_DEFAULT_SLUGS` (comma-separated tenant slugs treated as default/system)
+- Optional migration/admin DB URL: `MIGRATION_DATABASE_URL` (keep runtime `DATABASE_URL` least-privileged)
 
 ## Development Layout
 
@@ -54,6 +55,7 @@ sudoedit /etc/event-manager/event-manager.env
 Automated backup/alert cron jobs execute from:
 
 - `/opt/event-manager/current/scripts/*`
+- Include tenant segregation metric polling via `scripts/ops/tenant-segregation-alerts.sh` (recommended every 1-5 minutes)
 
 Nginx serves frontend assets from:
 

@@ -2,20 +2,35 @@ import { container } from 'tsyringe';
 import { MetricsService } from '../services/MetricsService';
 import { createLogger } from './logger';
 
-type SegregationViolationCode =
+export type SegregationViolationCode =
   | 'DEFAULT_TENANT_RESTRICTED'
   | 'TENANT_SCOPE_VIOLATION'
   | 'TENANT_CONTEXT_MISMATCH';
 
-type SegregationViolationLayer =
+export type SegregationViolationLayer =
   | 'auth'
   | 'tenant_middleware'
   | 'service'
   | 'route'
   | 'policy';
 
-type SegregationViolationMode = 'off' | 'audit' | 'enforce' | 'n/a';
-type SegregationViolationOutcome = 'blocked' | 'allowed' | 'audit_only';
+export type SegregationViolationMode = 'off' | 'audit' | 'enforce' | 'n/a';
+export type SegregationViolationOutcome = 'blocked' | 'allowed' | 'audit_only';
+
+export interface SegregationViolationContext {
+  userId?: string;
+  role?: string;
+  tenantId?: string;
+  requestTenantId?: string;
+  tokenTenantId?: string;
+  userTenantId?: string;
+  tenantSlug?: string;
+  path?: string;
+  method?: string;
+  model?: string;
+  operation?: string;
+  reason?: string;
+}
 
 const log = createLogger('tenant-segregation-metrics');
 
@@ -53,3 +68,27 @@ export const recordTenantSegregationViolationMetric = (
   metricsService.recordTenantSegregationViolation(code, layer, mode, outcome);
 };
 
+export const recordTenantSegregationViolation = (
+  code: SegregationViolationCode,
+  layer: SegregationViolationLayer,
+  mode: SegregationViolationMode,
+  outcome: SegregationViolationOutcome,
+  context: SegregationViolationContext = {}
+): void => {
+  recordTenantSegregationViolationMetric(code, layer, mode, outcome);
+
+  const logMethod =
+    outcome === 'blocked'
+      ? 'warn'
+      : outcome === 'audit_only'
+        ? 'warn'
+        : 'info';
+
+  log[logMethod]('Tenant segregation violation', {
+    code,
+    layer,
+    mode,
+    outcome,
+    ...context,
+  });
+};

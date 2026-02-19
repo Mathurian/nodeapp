@@ -1,0 +1,29 @@
+# Baseline allowlist for direct global Prisma imports.
+# Keep this list minimal. New entries should be reviewed as potential tenant-scope bypass risk.
+src/controllers/backupController.ts
+src/controllers/testRunnerController.ts
+src/jobs/ReportJobProcessor.ts
+src/middleware/auth.ts
+src/middleware/errorHandler.ts
+src/middleware/softDelete.ts
+src/repositories/DeductionRepository.ts
+src/repositories/NotificationPreferenceRepository.ts
+src/repositories/SearchRepository.ts
+src/repositories/TemplateRepository.ts
+src/routes/healthRoutes.ts
+src/routes/publicTenantRoutes.ts
+src/routes/settingsRoutes.ts
+src/services/BackupMonitoringService.ts
+src/services/BulkOperationService.ts
+src/services/CategoryTypeService.ts
+src/services/DRAutomationService.ts
+src/services/DatabaseHealthService.ts
+src/services/DeductionService.ts
+src/services/EmailDigestService.ts
+src/services/FeatureFlagService.ts
+src/services/HealthCheckService.ts
+src/services/TenantService.ts
+src/services/UserFieldVisibilityService.ts
+src/services/WebhookDeliveryService.ts
+src/services/WorkflowService.ts
+src/utils/ensureDefaultTenant.ts

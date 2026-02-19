@@ -6,11 +6,11 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import prisma from '../config/database';
+import prisma, { rawPrisma } from '../config/database';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
-import { recordTenantSegregationViolationMetric } from '../utils/tenantSegregationMetrics';
+import { recordTenantSegregationViolation } from '../utils/tenantSegregationMetrics';
 
 // Extend Express Request type to include tenant context
 declare global {
@@ -389,11 +389,19 @@ export async function tenantMiddleware(
     if (tokenTenant && tokenRole !== 'SUPER_ADMIN') {
       const matchesTokenTenant = tenant.id === tokenTenant || tenant.slug === tokenTenant;
       if (!matchesTokenTenant) {
-        recordTenantSegregationViolationMetric(
+        recordTenantSegregationViolation(
           'TENANT_CONTEXT_MISMATCH',
           'tenant_middleware',
           'enforce',
-          'blocked'
+          'blocked',
+          {
+            tenantId: tenant.id,
+            requestTenantId: tenantIdOrSlug || undefined,
+            tokenTenantId: tokenTenant,
+            tenantSlug: tenant.slug,
+            path: req.path,
+            method: req.method,
+          }
         );
 
         logger.warn('Tenant context mismatch blocked', {
@@ -560,9 +568,11 @@ export function superAdminOnly(
  * This extension automatically adds tenantId filters to all Prisma queries
  */
 export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean = false) {
+  const basePrisma = rawPrisma;
+
   // If super admin, return regular client without tenant filtering
   if (isSuperAdmin) {
-    return prisma;
+    return basePrisma;
   }
 
   // Define types for Prisma extension parameters
@@ -574,7 +584,9 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
 
   const getModelDelegate = (model: string): any => {
     const normalizedModelName = model ? model[0]?.toLowerCase() + model.slice(1) : model;
-    return (prisma as any)[normalizedModelName] || (prisma as any)[model] || (prisma as any)[String(model || '').toLowerCase()];
+    return (basePrisma as any)[normalizedModelName]
+      || (basePrisma as any)[model]
+      || (basePrisma as any)[String(model || '').toLowerCase()];
   };
 
   const extractTenantConstraints = (where: unknown): string[] => {
@@ -606,20 +618,44 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
   const hasTenantConstraintInWhere = (where: unknown): boolean =>
     extractTenantConstraints(where).length > 0;
 
-  const assertTenantConstraintMatches = (where: unknown): void => {
+  const safeWhereKeys = (where: unknown): string => {
+    if (!where || typeof where !== 'object') {
+      return 'none';
+    }
+    return Object.keys(where as Record<string, unknown>).sort().join(',');
+  };
+
+  const assertTenantConstraintMatches = (model: string, operation: string, where: unknown): void => {
     const constraints = extractTenantConstraints(where);
     if (constraints.length === 0) {
       return;
     }
     const mismatch = constraints.find(constraintTenantId => constraintTenantId !== tenantId);
     if (mismatch) {
+      recordTenantSegregationViolation(
+        'TENANT_CONTEXT_MISMATCH',
+        'service',
+        'enforce',
+        'blocked',
+        {
+          tenantId,
+          requestTenantId: mismatch,
+          model,
+          operation,
+          reason: `where_keys=${safeWhereKeys(where)}`,
+        }
+      );
       const err = new Error('Tenant context mismatch');
       (err as any).code = 'TENANT_CONTEXT_MISMATCH';
       throw err;
     }
   };
 
-  const ensureRecordBelongsToTenant = async (model: string, where: unknown): Promise<void> => {
+  const ensureRecordBelongsToTenant = async (
+    model: string,
+    operation: string,
+    where: unknown
+  ): Promise<void> => {
     const delegate = getModelDelegate(model);
     if (!delegate?.findFirst) {
       return;
@@ -631,6 +667,18 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
     });
 
     if (!existing) {
+      recordTenantSegregationViolation(
+        'TENANT_SCOPE_VIOLATION',
+        'service',
+        'enforce',
+        'blocked',
+        {
+          tenantId,
+          model,
+          operation,
+          reason: `where_keys=${safeWhereKeys(where)}`,
+        }
+      );
       const err = new Error('Record not found');
       (err as any).code = 'P2025';
       throw err;
@@ -638,7 +686,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
   };
 
   // Return Prisma client with tenant filtering middleware
-  return prisma.$extends({
+  return basePrisma.$extends({
     query: {
       // Add tenant filter to all models that have tenantId
       $allModels: {
@@ -657,7 +705,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async findUnique({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            assertTenantConstraintMatches(args['where']);
+            assertTenantConstraintMatches(model, 'findUnique', args['where']);
             if (!hasTenantConstraintInWhere(args['where'])) {
               const delegate = getModelDelegate(model);
               if (delegate?.findFirst) {
@@ -672,7 +720,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async findUniqueOrThrow({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            assertTenantConstraintMatches(args['where']);
+            assertTenantConstraintMatches(model, 'findUniqueOrThrow', args['where']);
             if (!hasTenantConstraintInWhere(args['where'])) {
               const delegate = getModelDelegate(model);
               if (delegate?.findFirst) {
@@ -725,9 +773,9 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async update({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            assertTenantConstraintMatches(args['where']);
+            assertTenantConstraintMatches(model, 'update', args['where']);
             if (!hasTenantConstraintInWhere(args['where'])) {
-              await ensureRecordBelongsToTenant(model, args['where']);
+              await ensureRecordBelongsToTenant(model, 'update', args['where']);
             }
           }
           return query(args);
@@ -742,7 +790,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
           if (isTenantScopedModel(model)) {
             args['create'] = { ...(args['create'] as Record<string, unknown>), tenantId };
 
-            assertTenantConstraintMatches(args['where']);
+            assertTenantConstraintMatches(model, 'upsert', args['where']);
 
             if (!hasTenantConstraintInWhere(args['where'])) {
               const delegate = getModelDelegate(model);
@@ -769,9 +817,9 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async delete({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            assertTenantConstraintMatches(args['where']);
+            assertTenantConstraintMatches(model, 'delete', args['where']);
             if (!hasTenantConstraintInWhere(args['where'])) {
-              await ensureRecordBelongsToTenant(model, args['where']);
+              await ensureRecordBelongsToTenant(model, 'delete', args['where']);
             }
           }
           return query(args);
@@ -784,7 +832,7 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
       },
     },
-  }) as typeof prisma;
+  }) as typeof basePrisma;
 }
 
 export default tenantMiddleware;

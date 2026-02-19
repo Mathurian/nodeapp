@@ -54,6 +54,10 @@ echo "Running source audit..."
 bash scripts/ops/tenant-segregation-audit.sh
 
 echo
+echo "Running Prisma import guard..."
+bash scripts/ops/tenant-prisma-import-guard.sh
+
+echo
 echo "Checking for blocked tenant fallback patterns in runtime code..."
 blocked_fallbacks="$(rg -n "default_tenant|default-tenant|tenantId\\s*\\|\\|\\s*['\\\"]default['\\\"]" \
   src/controllers src/services src/routes src/middleware \

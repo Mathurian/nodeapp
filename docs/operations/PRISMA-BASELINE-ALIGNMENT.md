@@ -23,6 +23,13 @@ incomplete and `prisma migrate deploy` fails with `P3005`.
 
 If drift exists, the script aborts and does not baseline.
 
+The script resolves DB connection in this order:
+
+1. `PRISMA_BASELINE_DATABASE_URL`
+2. `MIGRATION_DATABASE_URL`
+3. `DATABASE_URL`
+4. Same keys from `ENV_FILE` (default: repo `.env`)
+
 ## Commands
 
 ### Dev dry run (recommended first)
@@ -32,6 +39,9 @@ cd /srv/event-manager/dev
 ENV_FILE=/etc/event-manager/event-manager-dev.env \
 bash scripts/deploy/prisma-baseline-align.sh
 ```
+
+If runtime now uses a least-privileged DB role, keep
+`MIGRATION_DATABASE_URL` in the env file pointing to the migration/admin role.
 
 ### Dev apply
 
@@ -75,3 +85,11 @@ Expected result:
 - Keep using standard deploy SOP after baseline (`stage-release.sh` -> `activate-release.sh`).
 - After alignment, schema changes should flow through migration files and
   `prisma migrate deploy`.
+- For DB-level RLS enforcement, ensure runtime connections do not use superuser
+  roles. Provision a least-privileged app role:
+
+```bash
+cd /srv/event-manager/dev
+ENV_FILE=/etc/event-manager/event-manager-dev.env \
+bash scripts/ops/provision-app-db-role.sh
+```

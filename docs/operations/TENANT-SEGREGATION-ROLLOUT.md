@@ -29,6 +29,8 @@ Default fallback values (if env keys are missing):
 CI guardrails:
 
 - `npm run test:tenant-guardrails` (runs segregation audit + tenant-model parity check)
+- `npm run audit:tenant-prisma-imports` (fails if new direct global Prisma imports bypass reviewed allowlist)
+- `npm run ops:tenant-segregation-alerts` (checks `tenant_segregation_violations_total` and emits alerts on deltas)
 
 ## Phase 0 Inventory Artifact
 
@@ -56,6 +58,30 @@ cd /srv/event-manager/dev
 npm run audit:tenant-fk-consistency
 ```
 
+## Phase 4 RLS Shadow Mode
+
+Migration `20260219093000_add_tenant_rls_shadow_mode` enables RLS policies on
+tenant-owned tables with a safe default:
+
+- default session mode (`app.tenant_rls_mode`) is treated as `off`
+- policies become enforcing only when session mode is explicitly set to `enforce`
+
+Migration `20260219095000_force_tenant_rls_on_tenant_tables` forces RLS for
+tenant-owned tables so owner-role connections do not bypass policies.
+
+Important:
+
+- Runtime DB role must not be `SUPERUSER`, otherwise PostgreSQL bypasses RLS.
+- Provision/verify least-privileged runtime role before RLS enforce rollout.
+- Keep `MIGRATION_DATABASE_URL` configured for migration/admin tasks after runtime role hardening.
+
+Validate Dev behavior in shadow mode:
+
+```bash
+cd /srv/event-manager/dev
+npm run audit:tenant-rls-shadow
+```
+
 ## Safe Rollout Sequence
 
 1. Deploy code with `TENANT_SEGREGATION_MODE=audit` in production.
@@ -64,6 +90,18 @@ npm run audit:tenant-fk-consistency
 4. Flip production env to `TENANT_SEGREGATION_MODE=enforce`.
 5. Restart service and run smoke tests.
 
+## Phase 6 Verification
+
+Run a request-scope spoofing smoke test with a non-super-admin account:
+
+```bash
+cd /srv/event-manager/dev
+EMAIL=tenant-admin@example.com PASSWORD='your-password' TENANT=tenant-slug \
+  bash scripts/uat/tenant-segregation-scope-smoke.sh
+```
+
+Expected: `SMOKE_RESULT=PASS` and a `tenant spoof ignored` check.
+
 ## Commands
 
 ```bash
@@ -71,6 +109,12 @@ cd /srv/event-manager/dev
 
 # Static code audit for segregation risks
 npm run audit:tenant-segregation
+
+# Prisma import baseline guardrail
+npm run audit:tenant-prisma-imports
+
+# Segregation violation alert poller (for cron/systemd timer)
+npm run ops:tenant-segregation-alerts
 
 # Production preflight (env + route hardening + fallback blocker + audit)
 sudo bash scripts/deploy/preflight-tenant-segregation.sh
@@ -84,3 +128,5 @@ sudo bash scripts/deploy/preflight-tenant-segregation.sh
 - `preflight-tenant-segregation.sh` now fails if blocked fallback patterns are found in runtime code.
 - `preflight-tenant-segregation.sh` now also fails if `src/utils/prisma.ts` creates a standalone Prisma client.
 - `preflight-tenant-segregation.sh` validates that context-aware Prisma proxy hooks remain in `config/database` and `correlationId` middleware.
+- Direct global Prisma imports are guardrailed by `scripts/ops/tenant-global-prisma-import-allowlist.txt`; update deliberately during reviewed refactors only.
+- Schedule `scripts/ops/tenant-segregation-alerts.sh` every 1-5 minutes to alert on violation spikes during audit/enforce rollout.
