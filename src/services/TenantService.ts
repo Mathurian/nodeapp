@@ -13,6 +13,7 @@ import { logger } from '../utils/logger';
 import { container } from 'tsyringe';
 import { EmailService } from './EmailService';
 import { env } from '../config/env';
+import { isDefaultTenant } from '../utils/tenantSegregationPolicy';
 
 export interface CreateTenantInput {
   name: string;
@@ -404,7 +405,7 @@ export class TenantService {
         throw new Error('Tenant not found');
       }
 
-      if (tenant.id === 'default-tenant' || tenant.id === 'default_tenant' || tenant.slug === 'default') {
+      if (isDefaultTenant(tenant.id, tenant.slug)) {
         throw new Error('Cannot delete the default tenant');
       }
 

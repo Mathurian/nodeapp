@@ -22,6 +22,7 @@ import { PrismaClient, Prisma, User, Judge, Contestant, FileCategory } from '@pr
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 import { FILE_SIZE } from '../config/constants';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -71,13 +72,17 @@ export class UsersController {
 
       // SUPER_ADMIN can see all users across all tenants, others filtered by tenant
       const isSuperAdmin = authReq.user?.role === 'SUPER_ADMIN';
-      const tenantId = authReq.tenantId || authReq.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(authReq);
 
       // Build Prisma where clause for database-level filtering
       const where: any = {};
 
       // Tenant filter
       if (!isSuperAdmin) {
+        if (!tenantId) {
+          errorResponse(res, 'Tenant context is required to list users', ErrorCode.VALIDATION_ERROR, 400);
+          return;
+        }
         where.tenantId = tenantId;
       } else if (queryTenantId && typeof queryTenantId === 'string') {
         // SUPER_ADMIN can filter by specific tenant via query parameter
@@ -636,16 +641,20 @@ export class UsersController {
       // Audit log: user update with change tracking
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || 'default_tenant';
-        await auditLogService.logEntityChange({
-          action: 'user.updated',
-          entityType: 'User',
-          entityId: id,
-          oldData: currentUser,
-          newData: user,
-          req,
-          tenantId
-        });
+        const tenantId = resolveRequestTenantId(req) || currentUser.tenantId;
+        if (tenantId) {
+          await auditLogService.logEntityChange({
+            action: 'user.updated',
+            entityType: 'User',
+            entityId: id,
+            oldData: currentUser,
+            newData: user,
+            req,
+            tenantId
+          });
+        } else {
+          log.warn('Skipping user update audit: missing tenant context', { userId: id });
+        }
       } catch (auditError) {
         log.error('Failed to log user update audit', { error: auditError });
       }
@@ -724,14 +733,18 @@ export class UsersController {
       // Audit log: admin password reset
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || 'default_tenant';
-        await auditLogService.logAuth({
-          action: 'password_reset',
-          userId: id,
-          req,
-          tenantId: tenantId,
-          metadata: { action_type: 'admin_reset', reset_by: req.user?.id }
-        });
+        const tenantId = resolveRequestTenantId(req);
+        if (tenantId) {
+          await auditLogService.logAuth({
+            action: 'password_reset',
+            userId: id,
+            req,
+            tenantId,
+            metadata: { action_type: 'admin_reset', reset_by: req.user?.id }
+          });
+        } else {
+          log.warn('Skipping password reset audit: missing tenant context', { userId: id });
+        }
       } catch (auditError) {
         log.error('Failed to log password reset audit', { error: auditError });
       }
@@ -925,7 +938,7 @@ export class UsersController {
       // Sync linked role record image path so role-specific screens display uploaded images.
       const currentUser = await this.prisma.user.findUnique({
         where: { id },
-        select: { role: true, judgeId: true, contestantId: true }
+        select: { role: true, judgeId: true, contestantId: true, tenantId: true }
       });
       if (currentUser?.role === 'JUDGE' && currentUser.judgeId) {
         await this.prisma.judge.update({
@@ -941,29 +954,34 @@ export class UsersController {
 
       // Mirror uploads into files table so File Management has a complete index.
       try {
-        const fileCategory: FileCategory =
-          currentUser?.role === 'JUDGE'
-            ? 'JUDGE_IMAGE'
-            : currentUser?.role === 'CONTESTANT'
-              ? 'CONTESTANT_IMAGE'
-              : 'OTHER';
-        await this.prisma.file.create({
-          data: {
-            tenantId: authReq.user?.tenantId || 'default_tenant',
-            filename: authReq.file.filename,
-            originalName: authReq.file.originalname,
-            mimeType: authReq.file.mimetype,
-            size: authReq.file.size,
-            path: authReq.file.path || `uploads/users/${authReq.file.filename}`,
-            category: fileCategory,
-            uploadedBy: requestingUserId || id,
-            isPublic: true,
-            metadata: JSON.stringify({
-              source: 'user_image_upload',
-              userId: id
-            })
-          }
-        });
+        const fileTenantId = resolveRequestTenantId(authReq) || currentUser?.tenantId || null;
+        if (!fileTenantId) {
+          log.warn('Skipping user image file index: missing tenant context', { userId: id });
+        } else {
+          const fileCategory: FileCategory =
+            currentUser?.role === 'JUDGE'
+              ? 'JUDGE_IMAGE'
+              : currentUser?.role === 'CONTESTANT'
+                ? 'CONTESTANT_IMAGE'
+                : 'OTHER';
+          await this.prisma.file.create({
+            data: {
+              tenantId: fileTenantId,
+              filename: authReq.file.filename,
+              originalName: authReq.file.originalname,
+              mimeType: authReq.file.mimetype,
+              size: authReq.file.size,
+              path: authReq.file.path || `uploads/users/${authReq.file.filename}`,
+              category: fileCategory,
+              uploadedBy: requestingUserId || id,
+              isPublic: true,
+              metadata: JSON.stringify({
+                source: 'user_image_upload',
+                userId: id
+              })
+            }
+          });
+        }
       } catch (fileIndexError) {
         log.warn('Unable to index user image in files table', {
           userId: id,
@@ -1183,23 +1201,28 @@ export class UsersController {
 
       // Mirror bio uploads into files table for File Management and reporting discoverability.
       try {
-        await this.prisma.file.create({
-          data: {
-            tenantId: authReq.user?.tenantId || 'default_tenant',
-            filename: authReq.file.filename,
-            originalName: authReq.file.originalname,
-            mimeType: authReq.file.mimetype,
-            size: authReq.file.size,
-            path: authReq.file.path || `uploads/users/bios/${authReq.file.filename}`,
-            category: 'DOCUMENT',
-            uploadedBy: requestingUserId || id,
-            isPublic: true,
-            metadata: JSON.stringify({
-              source: 'user_bio_upload',
-              userId: id
-            })
-          }
-        });
+        const fileTenantId = resolveRequestTenantId(authReq) || currentUser.tenantId || null;
+        if (!fileTenantId) {
+          log.warn('Skipping user bio file index: missing tenant context', { userId: id });
+        } else {
+          await this.prisma.file.create({
+            data: {
+              tenantId: fileTenantId,
+              filename: authReq.file.filename,
+              originalName: authReq.file.originalname,
+              mimeType: authReq.file.mimetype,
+              size: authReq.file.size,
+              path: authReq.file.path || `uploads/users/bios/${authReq.file.filename}`,
+              category: 'DOCUMENT',
+              uploadedBy: requestingUserId || id,
+              isPublic: true,
+              metadata: JSON.stringify({
+                source: 'user_bio_upload',
+                userId: id
+              })
+            }
+          });
+        }
       } catch (fileIndexError) {
         log.warn('Unable to index user bio file in files table', {
           userId: id,

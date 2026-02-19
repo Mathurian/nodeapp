@@ -16,6 +16,7 @@ import {
 } from '../controllers/scoreFileController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 const router: Router = express.Router();
 
@@ -38,7 +39,11 @@ const SCORE_FILE_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const scoreFileStorage = multer.diskStorage({
   destination: (req, _file, cb) => {
-    const tenantId = req.user?.tenantId || req.tenantId || 'default_tenant';
+    const tenantId = resolveRequestTenantId(req);
+    if (!tenantId) {
+      cb(new Error('Tenant context is required for score file upload destination'), '');
+      return;
+    }
     const dir = path.join(process.cwd(), 'uploads', tenantId, 'score-files');
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);

@@ -24,6 +24,7 @@ import { requireAuthAndTenant } from '../utils/requestValidation';
 import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { resolveBioFromCandidates } from '../utils/bioResolver';
 import { applyCertificationStage, refreshJudgeStage } from '../utils/certificationPipeline';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -36,11 +37,8 @@ export class ScoringController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
-  private getEffectiveTenantId(req: Request): string {
-    if (req.user?.role === 'SUPER_ADMIN') {
-      return ((req.query['tenantId'] as string | undefined) || req.tenantId || req.user.tenantId || 'default_tenant');
-    }
-    return (req.tenantId || req.user?.tenantId || 'default_tenant');
+  private getEffectiveTenantId(req: Request): string | null {
+    return resolveRequestTenantId(req, { allowSuperAdminQueryOverride: true });
   }
 
   /**
@@ -53,6 +51,10 @@ export class ScoringController {
       const categoryId = req.params['categoryId']!;
       const contestantId = req.query['contestantId'] as string | undefined;
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const userRole = req.user?.role;
       const userId = req.user?.id;
 
@@ -141,6 +143,10 @@ export class ScoringController {
       });
 
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const newScore = await this.scoringService.submitScore(data, req.user.id, tenantId);
 
       log.info('Score submitted successfully', { scoreId: newScore.id });
@@ -190,6 +196,10 @@ export class ScoringController {
       log.info('Score update requested', { scoreId });
 
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const userRole = req.user?.role;
 
       const existingScore = await this.prisma.score.findFirst({
@@ -423,6 +433,10 @@ export class ScoringController {
     try {
       const scoreId = req.params['scoreId']!;
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const userRole = req.user?.role;
 
       log.info('Score deletion requested', { scoreId });
@@ -565,6 +579,10 @@ export class ScoringController {
       log.info('Score certification requested', { scoreId, certifiedBy: req.user.id });
 
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const certifiedScore = await this.scoringService.certifyScore(scoreId, req.user.id, tenantId);
 
       log.info('Score certified successfully', { scoreId });
@@ -611,11 +629,16 @@ export class ScoringController {
       }
 
       log.info('Category scores certification requested', { categoryId, certifiedBy: req.user.id });
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
 
       const result = await this.scoringService.certifyScores(
         categoryId,
         req.user.id,
-        this.getEffectiveTenantId(req),
+        tenantId,
         {
           userRole: req.user.role,
           judgeId: req.user.judgeId ?? req.user.judge?.id ?? null
@@ -678,7 +701,13 @@ export class ScoringController {
 
       log.info('Score unsigned requested', { scoreId });
 
-      const unsignedScore = await this.scoringService.unsignScore(scoreId, this.getEffectiveTenantId(req));
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
+
+      const unsignedScore = await this.scoringService.unsignScore(scoreId, tenantId);
 
       log.info('Score unsigned successfully', { scoreId });
       sendSuccess(res, unsignedScore);
@@ -703,7 +732,13 @@ export class ScoringController {
 
       log.debug('Fetching scores by judge', { judgeId });
 
-      const scores = await this.scoringService.getScoresByJudge(judgeId, this.getEffectiveTenantId(req));
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
+
+      const scores = await this.scoringService.getScoresByJudge(judgeId, tenantId);
 
       log.info('Scores by judge retrieved successfully', { judgeId, count: scores.length });
       sendSuccess(res, scores);
@@ -727,6 +762,10 @@ export class ScoringController {
 
       const contestantId = req.params['contestantId']!;
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const userRole = req.user.role;
       const userId = req.user.id;
 
@@ -780,6 +819,10 @@ export class ScoringController {
 
       const contestId = req.params['contestId']!;
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const userRole = req.user.role;
       const userId = req.user.id;
 
@@ -881,6 +924,10 @@ export class ScoringController {
       }
 
       const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        sendBadRequest(res, 'Tenant context is required');
+        return;
+      }
       const userRole = String(req.user.role || '').toUpperCase();
       const contestId = req.query['contestId'] as string | undefined;
 

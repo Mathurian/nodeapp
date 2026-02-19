@@ -17,6 +17,7 @@ import { createRequestLogger } from '../utils/logger';
 import { env } from '../config/env';
 import jwt from 'jsonwebtoken';
 import { jwtSecret } from '../utils/config';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class AuthController {
   private authService: AuthService;
@@ -158,14 +159,18 @@ export class AuthController {
         // Audit log: failed login attempt
         try {
           const auditLogService = container.resolve(AuditLogService);
-          const tenantId = req.tenantId || 'default_tenant';
-          await auditLogService.logAuth({
-            action: 'failed_login',
-            userName: req.body?.email,
-            req,
-            tenantId: tenantId,
-            metadata: { reason: 'Invalid credentials' }
-          });
+          const tenantId = resolveRequestTenantId(req);
+          if (tenantId) {
+            await auditLogService.logAuth({
+              action: 'failed_login',
+              userName: req.body?.email,
+              req,
+              tenantId,
+              metadata: { reason: 'Invalid credentials' }
+            });
+          } else {
+            log.warn('Skipping failed login audit: missing tenant context', { email: req.body?.email });
+          }
         } catch (auditError) {
           log.error('Failed to log failed login audit', { error: auditError });
         }
@@ -176,14 +181,18 @@ export class AuthController {
         // Audit log: failed login attempt (inactive account)
         try {
           const auditLogService = container.resolve(AuditLogService);
-          const tenantId = req.tenantId || 'default_tenant';
-          await auditLogService.logAuth({
-            action: 'failed_login',
-            userName: req.body?.email,
-            req,
-            tenantId: tenantId,
-            metadata: { reason: 'Account is inactive' }
-          });
+          const tenantId = resolveRequestTenantId(req);
+          if (tenantId) {
+            await auditLogService.logAuth({
+              action: 'failed_login',
+              userName: req.body?.email,
+              req,
+              tenantId,
+              metadata: { reason: 'Account is inactive' }
+            });
+          } else {
+            log.warn('Skipping failed login audit: missing tenant context', { email: req.body?.email });
+          }
         } catch (auditError) {
           log.error('Failed to log failed login audit', { error: auditError });
         }
@@ -288,14 +297,18 @@ export class AuthController {
       // Audit log: password reset request
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || 'default_tenant';
-        await auditLogService.logAuth({
-          action: 'password_reset',
-          userName: email,
-          req,
-          tenantId: tenantId,
-          metadata: { action_type: 'request' }
-        });
+        const tenantId = resolveRequestTenantId(req);
+        if (tenantId) {
+          await auditLogService.logAuth({
+            action: 'password_reset',
+            userName: email,
+            req,
+            tenantId,
+            metadata: { action_type: 'request' }
+          });
+        } else {
+          log.warn('Skipping password reset request audit: missing tenant context', { email });
+        }
       } catch (auditError) {
         log.error('Failed to log password reset request audit', { error: auditError });
       }
@@ -345,13 +358,17 @@ export class AuthController {
       // Audit log: password reset completion
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || 'default_tenant';
-        await auditLogService.logAuth({
-          action: 'password_reset',
-          req,
-          tenantId: tenantId,
-          metadata: { action_type: 'completion' }
-        });
+        const tenantId = resolveRequestTenantId(req);
+        if (tenantId) {
+          await auditLogService.logAuth({
+            action: 'password_reset',
+            req,
+            tenantId,
+            metadata: { action_type: 'completion' }
+          });
+        } else {
+          log.warn('Skipping password reset completion audit: missing tenant context');
+        }
       } catch (auditError) {
         log.error('Failed to log password reset completion audit', { error: auditError });
       }
@@ -428,15 +445,19 @@ export class AuthController {
       // Audit log: password change
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || 'default_tenant';
-        await auditLogService.logAuth({
-          action: 'password_reset',
-          userId: userId,
-          userName: req.user?.name || req.user?.email,
-          req,
-          tenantId: tenantId,
-          metadata: { action_type: 'change', initiated_by_user: true }
-        });
+        const tenantId = resolveRequestTenantId(req);
+        if (tenantId) {
+          await auditLogService.logAuth({
+            action: 'password_reset',
+            userId: userId,
+            userName: req.user?.name || req.user?.email,
+            req,
+            tenantId,
+            metadata: { action_type: 'change', initiated_by_user: true }
+          });
+        } else {
+          log.warn('Skipping password change audit: missing tenant context', { userId });
+        }
       } catch (auditError) {
         log.error('Failed to log password change audit', { error: auditError });
       }
@@ -503,15 +524,19 @@ export class AuthController {
         // Audit log: logout
         try {
           const auditLogService = container.resolve(AuditLogService);
-          const finalTenantId = tenantId || 'default_tenant';
-          await auditLogService.logAuth({
-            action: 'logout',
-            userId: userId,
-            userName: userEmail,
-            req,
-            tenantId: finalTenantId,
-            metadata: { role: userRole }
-          });
+          const finalTenantId = tenantId || resolveRequestTenantId(req);
+          if (finalTenantId) {
+            await auditLogService.logAuth({
+              action: 'logout',
+              userId: userId,
+              userName: userEmail,
+              req,
+              tenantId: finalTenantId,
+              metadata: { role: userRole }
+            });
+          } else {
+            log.warn('Skipping logout audit: missing tenant context', { userId });
+          }
         } catch (auditError) {
           log.error('Failed to log logout audit', { error: auditError });
         }
@@ -562,7 +587,12 @@ export class AuthController {
       });
 
       // Track active session after full authentication completion
-      this.sessionTracker.trackLogin(result.user.id, result.user.tenantId || req.tenantId || 'default_tenant', userAgent);
+      const sessionTenantId = result.user.tenantId || req.tenantId;
+      if (sessionTenantId) {
+        this.sessionTracker.trackLogin(result.user.id, sessionTenantId, userAgent);
+      } else {
+        log.warn('Skipping MFA session tracking: missing tenant context', { userId: result.user.id });
+      }
 
       return sendSuccess(res, { user: result.user }, 'MFA verification successful');
     } catch (error: unknown) {

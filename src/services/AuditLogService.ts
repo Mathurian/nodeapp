@@ -2,6 +2,7 @@ import { injectable, inject } from 'tsyringe';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { Request } from 'express';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 interface AuditLogEntry {
   action: string;
@@ -101,10 +102,15 @@ export class AuditLogService extends BaseService {
     entityId: string | undefined,
     req: Request,
     changes?: Record<string, unknown>,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    tenantIdOverride?: string
   ): Promise<AuditLogWithDetails> {
-    const user = (req as Request & { user?: { id: string; name?: string }; tenantId?: string }).user;
-    const tenantId = (req as Request & { tenantId?: string }).tenantId || 'default_tenant';
+    const user = (req as Request & { user?: { id: string; name?: string; email?: string } }).user;
+    const tenantId = tenantIdOverride || resolveRequestTenantId(req);
+    if (!tenantId) {
+      this.logWarn('Skipping audit log: missing tenant context', { action, entityType, entityId, path: req.path });
+      throw this.createBadRequestError('Tenant context is required for audit logging');
+    }
 
     return await this.log({
       action,
@@ -139,7 +145,9 @@ export class AuditLogService extends BaseService {
       params.entityType,
       params.entityId,
       params.req,
-      changes
+      changes,
+      undefined,
+      params.tenantId
     );
   }
 
@@ -184,7 +192,8 @@ export class AuditLogService extends BaseService {
       params.fileId,
       params.req,
       undefined,
-      { fileName: params.fileName, ...params.metadata }
+      { fileName: params.fileName, ...params.metadata },
+      params.tenantId
     );
   }
 

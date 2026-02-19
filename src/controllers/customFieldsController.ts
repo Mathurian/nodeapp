@@ -8,6 +8,7 @@ import { CustomFieldService, CustomFieldType } from '../services/CustomFieldServ
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { getRequiredParam } from '../utils/routeHelpers';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -21,6 +22,18 @@ const logger = createLogger('CustomFieldsController');
 const customFieldService = new CustomFieldService(prisma);
 
 const VALID_FIELD_TYPES: CustomFieldType[] = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOLEAN', 'TEXT_AREA', 'EMAIL', 'PHONE', 'URL'];
+
+const getTenantIdOrRespond = (req: AuthenticatedRequest, res: Response): string | null => {
+  const tenantId = resolveRequestTenantId(req);
+  if (!tenantId) {
+    res.status(400).json({
+      success: false,
+      message: 'Tenant context is required'
+    });
+    return null;
+  }
+  return tenantId;
+};
 
 /**
  * Create custom field
@@ -60,8 +73,13 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
+
     const field = await customFieldService.createCustomField({
-      tenantId: authReq.user?.tenantId || 'default',
+      tenantId,
       name,
       key,
       type,
@@ -97,7 +115,10 @@ export const getAllCustomFields = async (req: Request, res: Response): Promise<v
   try {
     const authReq = req as AuthenticatedRequest;
     const activeOnly = authReq.query['activeOnly'] !== 'false';
-    const tenantId = authReq.user?.tenantId || 'default';
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
     // Get all custom fields by querying each entity type
     const entityTypes = ['EVENT', 'CONTEST', 'CATEGORY', 'USER', 'CONTESTANT'];
@@ -171,8 +192,12 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
     const authReq = req as AuthenticatedRequest;
     const entityType = getRequiredParam(req, 'entityType');
     const activeOnly = authReq.query['activeOnly'] !== 'false';
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
-    const fields = await customFieldService.getCustomFieldsByEntityType(entityType, authReq.user?.tenantId || 'default', activeOnly);
+    const fields = await customFieldService.getCustomFieldsByEntityType(entityType, tenantId, activeOnly);
 
     res.json({
       success: true,
@@ -196,8 +221,12 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
   try {
     const authReq = req as AuthenticatedRequest;
     const id = getRequiredParam(req, 'id');
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
-    const field = await customFieldService.getCustomFieldById(id, authReq.user?.tenantId || 'default');
+    const field = await customFieldService.getCustomFieldById(id, tenantId);
 
     if (!field) {
       res.status(404).json({
@@ -230,8 +259,12 @@ export const updateCustomField = async (req: Request, res: Response): Promise<vo
     const authReq = req as AuthenticatedRequest;
     const id = getRequiredParam(req, 'id');
     const updateData = authReq.body;
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
-    const field = await customFieldService.updateCustomField(id, authReq.user?.tenantId || 'default', updateData);
+    const field = await customFieldService.updateCustomField(id, tenantId, updateData);
 
     logger.info(`Custom field updated: ${id}`, { userId: authReq.user?.id });
 
@@ -257,8 +290,12 @@ export const deleteCustomField = async (req: Request, res: Response): Promise<vo
   try {
     const authReq = req as AuthenticatedRequest;
     const id = getRequiredParam(req, 'id');
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
-    await customFieldService.deleteCustomField(id, authReq.user?.tenantId || 'default');
+    await customFieldService.deleteCustomField(id, tenantId);
 
     logger.info(`Custom field deleted: ${id}`, { userId: authReq.user?.id });
 
@@ -284,6 +321,10 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
   try {
     const authReq = req as AuthenticatedRequest;
     const { customFieldId, entityId, value } = authReq.body;
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
     if (!customFieldId || !entityId) {
       res.status(400).json({
@@ -294,7 +335,7 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
     }
 
     // Get field for validation
-    const field = await customFieldService.getCustomFieldById(customFieldId, authReq.user?.tenantId || 'default');
+    const field = await customFieldService.getCustomFieldById(customFieldId, tenantId);
     if (!field) {
       res.status(404).json({
         success: false,
@@ -317,7 +358,7 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
       fieldId: customFieldId,
       entityId,
       value,
-      tenantId: authReq.user?.tenantId || 'default'
+      tenantId
     });
 
     res.json({
@@ -342,6 +383,10 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
   try {
     const authReq = req as AuthenticatedRequest;
     const { entityId, values } = authReq.body;
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
     if (!entityId || !values) {
       res.status(400).json({
@@ -351,7 +396,7 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
       return;
     }
 
-    await customFieldService.bulkSetCustomFieldValues(entityId, authReq.user?.tenantId || 'default', values);
+    await customFieldService.bulkSetCustomFieldValues(entityId, tenantId, values);
 
     res.json({
       success: true,
@@ -376,6 +421,10 @@ export const getCustomFieldValues = async (req: Request, res: Response): Promise
     const authReq = req as AuthenticatedRequest;
     const entityId = getRequiredParam(req, 'entityId');
     const { entityType } = authReq.query;
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
     if (!entityType) {
       res.status(400).json({
@@ -385,7 +434,7 @@ export const getCustomFieldValues = async (req: Request, res: Response): Promise
       return;
     }
 
-    const values = await customFieldService.getCustomFieldValues(entityId, entityType as string, authReq.user?.tenantId || 'default');
+    const values = await customFieldService.getCustomFieldValues(entityId, entityType as string, tenantId);
 
     res.json({
       success: true,
@@ -409,8 +458,12 @@ export const deleteCustomFieldValue = async (req: Request, res: Response): Promi
   try {
     const authReq = req as AuthenticatedRequest;
     const { customFieldId, entityId } = authReq.params;
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
-    await customFieldService.deleteCustomFieldValue(customFieldId!, entityId!, authReq.user?.tenantId || 'default');
+    await customFieldService.deleteCustomFieldValue(customFieldId!, entityId!, tenantId);
 
     res.json({
       success: true,
@@ -434,6 +487,10 @@ export const reorderCustomFields = async (req: Request, res: Response): Promise<
   try {
     const authReq = req as AuthenticatedRequest;
     const { fieldIds, entityType } = authReq.body;
+    const tenantId = getTenantIdOrRespond(authReq, res);
+    if (!tenantId) {
+      return;
+    }
 
     if (!fieldIds || !entityType) {
       res.status(400).json({
@@ -443,7 +500,7 @@ export const reorderCustomFields = async (req: Request, res: Response): Promise<
       return;
     }
 
-    await customFieldService.reorderCustomFields(fieldIds, entityType, authReq.user?.tenantId || 'default');
+    await customFieldService.reorderCustomFields(fieldIds, entityType, tenantId);
 
     res.json({
       success: true,

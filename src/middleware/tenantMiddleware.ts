@@ -9,6 +9,7 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
 
 // Extend Express Request type to include tenant context
 declare global {
@@ -285,12 +286,12 @@ export async function tenantMiddleware(
     // This enables login from neutral URLs (no subdomain/header) while still
     // supporting cross-tenant user lookup in AuthService
     if (!tenantIdOrSlug) {
+      const segregationConfig = getTenantSegregationConfig();
+      const defaultTenantIdFilters = segregationConfig.defaultTenantIds.map((id) => ({ id }));
+      const defaultTenantSlugFilters = segregationConfig.defaultTenantSlugs.map((slug) => ({ slug }));
       const defaultTenant = await prisma.tenant.findFirst({
         where: {
-          OR: [
-            { id: 'default_tenant' },
-            { slug: 'default' }
-          ],
+          OR: [...defaultTenantIdFilters, ...defaultTenantSlugFilters],
           isActive: true
         }
       });

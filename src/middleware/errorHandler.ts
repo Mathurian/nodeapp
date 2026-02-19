@@ -20,6 +20,7 @@ import {
 import { getRequestContext } from './correlationId';
 // Import standardized API response types
 import { ApiErrorResponse } from '../types/ApiResponse';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 const logger = createLogger('ErrorHandler');
 
@@ -195,7 +196,7 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
   setImmediate(async () => {
     try {
       const errorLogService = container.resolve(ErrorLogService);
-      const tenantId = (req as any).tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req) || undefined;
 
       // Create error object with stack trace
       const errorObj = new Error(error.message || 'Unknown error');

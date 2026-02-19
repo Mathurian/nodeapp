@@ -5,6 +5,7 @@ import { sendSuccess } from '../utils/responseHelpers';
 import fs from 'fs';
 import path from 'path';
 import prisma from '../config/database';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class BioController {
   private bioService: BioService;
@@ -16,7 +17,10 @@ export class BioController {
   getContestantBios = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, contestId, categoryId } = req.query;
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: 'Tenant context required' });
+      }
 
       const contestants = await this.bioService.getContestantBios({
         eventId: eventId as string,
@@ -33,7 +37,10 @@ export class BioController {
   getJudgeBios = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { eventId, contestId, categoryId } = req.query;
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: 'Tenant context required' });
+      }
 
       const judges = await this.bioService.getJudgeBios({
         eventId: eventId as string,
@@ -53,7 +60,10 @@ export class BioController {
         return sendSuccess(res, { contests: [], contestants: [], judges: [], allUsers: [] });
       }
 
-      const tenantId = req.tenantId || req.user.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: 'Tenant context required' });
+      }
       const { contestId } = req.query;
       const directory = await this.bioService.getBioDirectory(
         req.user.id,

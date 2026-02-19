@@ -5,6 +5,7 @@
 
 import { prisma } from '../config/database';
 import { createLogger } from './logger';
+import { getTenantSegregationConfig } from './tenantSegregationPolicy';
 
 const logger = createLogger('default');
 
@@ -14,9 +15,13 @@ const logger = createLogger('default');
  */
 export async function ensureDefaultTenant(): Promise<void> {
   try {
+    const segregationConfig = getTenantSegregationConfig();
+    const defaultTenantId = segregationConfig.defaultTenantIds[0] || 'default';
+    const defaultTenantSlug = segregationConfig.defaultTenantSlugs[0] || 'default';
+
     // Check if default tenant exists
     let tenant = await prisma.tenant.findUnique({
-      where: { id: 'default_tenant' }
+      where: { id: defaultTenantId }
     });
 
     if (!tenant) {
@@ -24,16 +29,16 @@ export async function ensureDefaultTenant(): Promise<void> {
 
       // Try to find by slug as well
       tenant = await prisma.tenant.findUnique({
-        where: { slug: 'default' }
+        where: { slug: defaultTenantSlug }
       });
 
       if (!tenant) {
         // Create the default tenant
         tenant = await prisma.tenant.create({
           data: {
-            id: 'default_tenant',
+            id: defaultTenantId,
             name: 'Default Organization',
-            slug: 'default',
+            slug: defaultTenantSlug,
             domain: null,
             isActive: true,
             planType: 'enterprise',

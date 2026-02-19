@@ -5,7 +5,7 @@ import { buildBrandedEmailDocument, ensureReadableTextColor, escapeHtml, looksLi
 const logger = loggerFactory('EmailTemplateService');
 
 export interface CreateEmailTemplateDTO {
-  tenantId?: string;
+  tenantId: string;
   name: string;
   subject: string;
   body: string;
@@ -67,9 +67,12 @@ export class EmailTemplateService {
    */
   async createEmailTemplate(data: CreateEmailTemplateDTO): Promise<EmailTemplate> {
     try {
+      if (!data.tenantId) {
+        throw new Error('Tenant context is required to create an email template');
+      }
       const template = await this.prisma.emailTemplate.create({
         data: {
-          tenantId: data.tenantId || 'default_tenant',
+          tenantId: data.tenantId,
           name: data.name,
           subject: data.subject,
           body: data.body,

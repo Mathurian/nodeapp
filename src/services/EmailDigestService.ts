@@ -407,9 +407,14 @@ export class EmailDigestService {
         select: { tenantId: true }
       });
 
+      if (!user?.tenantId) {
+        logger.warn('Skipping digest record create: missing tenant context', { userId, frequency });
+        return;
+      }
+
       await prisma.notificationDigest.create({
         data: {
-          tenantId: user?.tenantId || 'default_tenant',
+          tenantId: user.tenantId,
           userId,
           frequency,
           lastSentAt: new Date(),

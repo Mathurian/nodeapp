@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { UploadService } from '../services/UploadService';
 import { successResponse } from '../utils/responseHelpers';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 /**
  * Upload Controller
@@ -24,7 +25,11 @@ export class UploadController {
   ): Promise<void> => {
     try {
       const userId = req.user?.id || '';
-      const tenantId = req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        res.status(400).json({ success: false, message: 'Tenant context is required' });
+        return;
+      }
       const { category, eventId, contestId, categoryId } = req.body;
       const file = await this.uploadService.processUploadedFile(req.file!, userId, {
         category: category as any,
@@ -49,7 +54,11 @@ export class UploadController {
   ): Promise<void> => {
     try {
       const userId = req.user?.id || '';
-      const tenantId = req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        res.status(400).json({ success: false, message: 'Tenant context is required' });
+        return;
+      }
       const { eventId, contestId, categoryId } = req.body;
       const image = await this.uploadService.processUploadedFile(req.file!, userId, {
         category: 'CONTESTANT_IMAGE' as any, // Default for images

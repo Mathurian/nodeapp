@@ -674,7 +674,7 @@ export class SettingsController {
       let tenantId = this.getTenantIdForRead(req);
 
       // Allow unauthenticated users to specify tenantSlug for login page branding
-      // Check tenantSlug first as it's more specific than default_tenant fallback
+      // Check tenantSlug first because it is more specific than a generic tenant fallback
       const tenantSlug = req.query['tenantSlug'];
       if (tenantSlug && typeof tenantSlug === 'string') {
         const tenant = await this.settingsService.getTenantBySlug(tenantSlug);

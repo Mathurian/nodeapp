@@ -34,6 +34,9 @@ export class JudgeContestantCertificationService extends BaseService {
     if (!judgeId || !categoryId || !contestantId) {
       throw this.badRequestError('Judge ID, category ID, and contestant ID are required');
     }
+    if (!tenantId) {
+      throw this.badRequestError('Tenant context is required');
+    }
 
     const existing = await this.prisma.judgeContestantCertification.findFirst({
       where: { judgeId, categoryId, contestantId }
@@ -44,7 +47,7 @@ export class JudgeContestantCertificationService extends BaseService {
     }
 
     return await this.prisma.judgeContestantCertification.create({
-      data: { tenantId: tenantId || 'default_tenant', judgeId, categoryId, contestantId }
+      data: { tenantId, judgeId, categoryId, contestantId }
     });
   }
 

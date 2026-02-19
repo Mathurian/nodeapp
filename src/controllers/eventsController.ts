@@ -353,16 +353,19 @@ export class EventsController {
       // Audit log: event update with change tracking
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = (req as any).tenantId || 'default_tenant';
-        await auditLogService.logEntityChange({
-          action: 'event.updated',
-          entityType: 'Event',
-          entityId: id,
-          oldData: oldEvent,
-          newData: event,
-          req,
-          tenantId
-        });
+        if (tenantId) {
+          await auditLogService.logEntityChange({
+            action: 'event.updated',
+            entityType: 'Event',
+            entityId: id,
+            oldData: oldEvent,
+            newData: event,
+            req,
+            tenantId
+          });
+        } else {
+          logger.warn('Skipping event update audit: missing tenant context', { eventId: id });
+        }
       } catch (auditError) {
         logger.error('Failed to log event update audit', { error: auditError });
       }

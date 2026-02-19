@@ -6,6 +6,7 @@ import { exec } from 'child_process';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 import BackupTransferService, { BackupTarget } from './BackupTransferService';
+import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
 
 const logger = createLogger('ScheduledBackupService');
 
@@ -15,12 +16,14 @@ class ScheduledBackupService {
   private jobs: Map<string, ReturnType<typeof cron.schedule>>;
   private isRunning: boolean;
   private settingsRefreshInterval: NodeJS.Timeout | null;
+  private readonly systemTenantId: string;
 
   constructor(prismaClient: PrismaClient) {
     this.prisma = prismaClient;
     this.jobs = new Map();
     this.isRunning = false;
     this.settingsRefreshInterval = null;
+    this.systemTenantId = getTenantSegregationConfig().defaultTenantIds[0] || 'default';
   }
 
   async start() {
@@ -147,7 +150,7 @@ class ScheduledBackupService {
       // Create backup log entry
       const backupLog = await this.prisma.backupLog.create({
         data: {
-          tenantId: 'default_tenant',
+          tenantId: this.systemTenantId,
           type: baseType,
           location: filepath,
           size: 0,

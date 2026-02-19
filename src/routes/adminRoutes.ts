@@ -61,7 +61,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Database tables retrieved
  */
-router.get("/database/tables", requireRole(["SUPER_ADMIN", "ADMIN"]), getDatabaseTables)
+router.get("/database/tables", requireRole(["SUPER_ADMIN"]), getDatabaseTables)
 
 /**
  * @swagger
@@ -156,9 +156,9 @@ router.put('/settings/email', updateEmailSettings)
 router.get('/password-policy', getPasswordPolicy)
 router.put('/password-policy', updatePasswordPolicy)
 
-// Database browser routes (ADMIN only) - additional endpoints
-router.get('/database/tables/:tableName/structure', requireRole(['SUPER_ADMIN', 'ADMIN']), getTableStructure)
-router.get('/database/tables/:tableName/data', requireRole(['SUPER_ADMIN', 'ADMIN']), getTableData)
+// Legacy database browser routes (SUPER_ADMIN only)
+router.get('/database/tables/:tableName/structure', requireRole(['SUPER_ADMIN']), getTableStructure)
+router.get('/database/tables/:tableName/data', requireRole(['SUPER_ADMIN']), getTableData)
 
 export default router;
 

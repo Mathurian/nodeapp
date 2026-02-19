@@ -5,6 +5,7 @@ import { AuditLogService } from '../services/AuditLogService';
 import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized} from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 const logger = createLogger('FileController');
 
@@ -45,14 +46,18 @@ export class FileController {
       // Audit log: file download
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
-        await auditLogService.logFileAccess({
-          action: 'download',
-          fileName: filename!,
-          req,
-          tenantId: tenantId,
-          metadata: { filePath }
-        });
+        const tenantId = resolveRequestTenantId(req);
+        if (tenantId) {
+          await auditLogService.logFileAccess({
+            action: 'download',
+            fileName: filename!,
+            req,
+            tenantId,
+            metadata: { filePath }
+          });
+        } else {
+          logger.warn('Skipping file download audit: missing tenant context', { filename });
+        }
       } catch (auditError) {
         logger.error('Failed to log file download audit', { error: auditError });
       }
@@ -76,14 +81,18 @@ export class FileController {
       // Audit log: file deletion
       try {
         const auditLogService = container.resolve(AuditLogService);
-        const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
-        await auditLogService.logFileAccess({
-          action: 'delete',
-          fileName: filename!,
-          req,
-          tenantId: tenantId,
-          metadata: {}
-        });
+        const tenantId = resolveRequestTenantId(req);
+        if (tenantId) {
+          await auditLogService.logFileAccess({
+            action: 'delete',
+            fileName: filename!,
+            req,
+            tenantId,
+            metadata: {}
+          });
+        } else {
+          logger.warn('Skipping file delete audit: missing tenant context', { filename });
+        }
       } catch (auditError) {
         logger.error('Failed to log file deletion audit', { error: auditError });
       }

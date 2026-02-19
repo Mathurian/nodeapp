@@ -2,12 +2,45 @@ import prisma from '../../config/database';
 import { AppEvent, AppEventType, EventHandler } from '../EventBusService';
 import { createLogger } from '../../utils/logger';
 import { Contestant } from '@prisma/client';
+import { resolveEventTenantId } from '../../utils/tenantContext';
 
 type ContestantWithUsers = Contestant & {
   users: Array<{ id: string }>;
 };
 
 const logger = createLogger('NotificationHandler');
+
+async function resolveNotificationTenantId(
+  event: AppEvent,
+  options: { userId?: string; contestantId?: string } = {}
+): Promise<string | null> {
+  const fromEvent = resolveEventTenantId(event);
+  if (fromEvent) {
+    return fromEvent;
+  }
+
+  if (options.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: options.userId },
+      select: { tenantId: true }
+    });
+    if (user?.tenantId) {
+      return user.tenantId;
+    }
+  }
+
+  if (options.contestantId) {
+    const contestant = await prisma.contestant.findUnique({
+      where: { id: options.contestantId },
+      select: { tenantId: true }
+    });
+    if (contestant?.tenantId) {
+      return contestant.tenantId;
+    }
+  }
+
+  return null;
+}
 
 /**
  * Notification Handler
@@ -60,10 +93,15 @@ async function handleAssignmentCreated(event: AppEvent) {
   const { userId, assignmentType, contestName, categoryName } = event.payload;
 
   if (!userId) return;
+  const tenantId = await resolveNotificationTenantId(event, { userId });
+  if (!tenantId) {
+    logger.warn('Skipping assignment notification: missing tenant context', { userId });
+    return;
+  }
 
   await prisma.notification.create({
     data: {
-      tenantId: 'default_tenant',
+      tenantId,
       userId,
       type: 'INFO',
       title: 'New Assignment',
@@ -82,10 +120,15 @@ async function handleScoreSubmitted(event: AppEvent) {
   const { contestantId, judgeName, categoryName, score } = event.payload;
 
   if (!contestantId) return;
+  const tenantId = await resolveNotificationTenantId(event, { contestantId });
+  if (!tenantId) {
+    logger.warn('Skipping score notification: missing tenant context', { contestantId });
+    return;
+  }
 
   // Find contestant's user account
-  const contestant = await prisma.contestant.findUnique({
-    where: { id: contestantId },
+  const contestant = await prisma.contestant.findFirst({
+    where: { id: contestantId, tenantId },
     include: { users: true },
   }) as ContestantWithUsers | null;
 
@@ -96,7 +139,7 @@ async function handleScoreSubmitted(event: AppEvent) {
     }
     await prisma.notification.create({
       data: {
-        tenantId: 'default_tenant',
+        tenantId,
         userId: user.id,
         type: 'SUCCESS',
         title: 'Score Received',
@@ -116,10 +159,15 @@ async function handleScoresFinalized(event: AppEvent) {
   const { categoryId, categoryName, contestantIds } = event.payload;
 
   if (!contestantIds || contestantIds.length === 0) return;
+  const tenantId = await resolveNotificationTenantId(event);
+  if (!tenantId) {
+    logger.warn('Skipping finalized scores notifications: missing tenant context', { categoryId });
+    return;
+  }
 
   // Get all contestants for this category
   const contestants = await prisma.contestant.findMany({
-    where: { id: { in: contestantIds } },
+    where: { id: { in: contestantIds }, tenantId },
     include: { users: true },
   }) as ContestantWithUsers[];
 
@@ -127,7 +175,7 @@ async function handleScoresFinalized(event: AppEvent) {
   const notifications = contestants
     .filter((c) => c.users && c.users.length > 0)
     .map((contestant) => ({
-      tenantId: 'default_tenant',
+      tenantId,
       userId: contestant.users[0]?.id || '',
       type: 'SUCCESS' as const,
       title: 'Results Available',
@@ -148,12 +196,17 @@ async function handleCertificationUpdate(event: AppEvent) {
   const { userId, status, categoryName, message } = event.payload;
 
   if (!userId) return;
+  const tenantId = await resolveNotificationTenantId(event, { userId });
+  if (!tenantId) {
+    logger.warn('Skipping certification notification: missing tenant context', { userId, status });
+    return;
+  }
 
   const isApproved = event.type === AppEventType.CERTIFICATION_APPROVED;
 
   await prisma.notification.create({
     data: {
-      tenantId: 'default_tenant',
+      tenantId,
       userId,
       type: isApproved ? 'SUCCESS' : 'WARNING',
       title: `Certification ${isApproved ? 'Approved' : 'Rejected'}`,
@@ -170,17 +223,23 @@ async function handleCertificationUpdate(event: AppEvent) {
  */
 async function handleContestCertified(event: AppEvent) {
   const { contestId, contestName } = event.payload;
+  const tenantId = await resolveNotificationTenantId(event);
+  if (!tenantId) {
+    logger.warn('Skipping contest certification notifications: missing tenant context', { contestId });
+    return;
+  }
 
   // Notify all admins and organizers
   const adminsAndOrganizers = await prisma.user.findMany({
     where: {
+      tenantId,
       role: { in: ['ADMIN', 'ORGANIZER', 'BOARD'] },
       isActive: true,
     },
   });
 
   const notifications = adminsAndOrganizers.map((user) => ({
-    tenantId: 'default_tenant',
+    tenantId,
     userId: user.id,
     type: 'SUCCESS' as const,
     title: 'Contest Certified',

@@ -6,6 +6,7 @@ import { uploadFile, uploadImage, getFiles } from '../controllers/uploadControll
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 const router: Router = express.Router();
 
@@ -34,7 +35,11 @@ const SECURE_FILE_SIZE_LIMIT = 5 * 1024 * 1024;
 const storage = multer.diskStorage({
   destination: (req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     // Store files in tenant-specific directory for isolation
-    const tenantId = req.tenantId || req.user?.tenantId || 'default';
+    const tenantId = resolveRequestTenantId(req);
+    if (!tenantId) {
+      cb(new Error('Tenant context is required for file upload destination'), '');
+      return;
+    }
     const uploadPath = path.join(process.cwd(), 'uploads', tenantId);
     cb(null, uploadPath);
   },

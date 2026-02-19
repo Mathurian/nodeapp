@@ -26,6 +26,7 @@ import ExcelJS from 'exceljs';
  * Report Job Data Interface
  */
 export interface ReportJobData {
+  tenantId: string;
   reportType: 'event' | 'scoring' | 'audit' | 'custom';
   format: 'pdf' | 'csv' | 'xlsx' | 'html';
   parameters: {
@@ -90,6 +91,9 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
     if (!data.requestedBy) {
       throw new Error('Requested by user ID is required');
     }
+    if (!data.tenantId) {
+      throw new Error('Tenant ID is required');
+    }
 
     const validFormats = ['pdf', 'csv', 'xlsx', 'html'];
     if (!validFormats.includes(data.format)) {
@@ -103,7 +107,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   async process(job: Job<ReportJobData>): Promise<any> {
     this.validate(job.data);
 
-    const { reportType, format, parameters, requestedBy, notifyEmail } = job.data;
+    const { reportType, format, parameters, requestedBy, notifyEmail, tenantId } = job.data;
 
     try {
       // Ensure reports directory exists
@@ -134,7 +138,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       // Save report metadata to database
       const report = await prisma.report.create({
         data: {
-          tenantId: (job.data as any).tenantId || 'default_tenant',
+          tenantId,
           name: `${reportType} Report`,
           type: reportType,
           parameters: JSON.stringify(parameters),

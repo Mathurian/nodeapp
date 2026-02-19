@@ -31,6 +31,12 @@ npm run build
 cd ..
 ```
 
+Optional but recommended preflight before staging:
+
+```bash
+sudo bash scripts/deploy/preflight-tenant-segregation.sh
+```
+
 ## 2) Stage A Release Artifact
 
 ```bash
@@ -99,18 +105,21 @@ cd frontend
 npm run build
 cd ..
 
-# 2) Stage a production release artifact
+# 2) Run segregation preflight before staging
+sudo bash scripts/deploy/preflight-tenant-segregation.sh
+
+# 3) Stage a production release artifact
 sudo scripts/deploy/stage-release.sh
 
-# 3) Read staged release timestamp
+# 4) Read staged release timestamp
 RELEASE_TS="$(cat /opt/event-manager/.last_release_ts)"
 echo "$RELEASE_TS"
 
-# 4) Activate staged release in production
+# 5) Activate staged release in production
 # Optional: override retention count for this activation (default keeps 10)
 sudo RETAIN_RELEASES=10 scripts/deploy/activate-release.sh "$RELEASE_TS"
 
-# 5) Validate production runtime
+# 6) Validate production runtime
 systemctl is-active event-manager.service
 curl -sS http://127.0.0.1:3000/health
 readlink -f /opt/event-manager/current

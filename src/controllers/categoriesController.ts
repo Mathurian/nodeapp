@@ -8,6 +8,7 @@ import { container } from '../config/container';
 import { CategoryService } from '../services/CategoryService';
 import { sendSuccess, sendCreated, sendNoContent, sendError } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class CategoriesController {
   private categoryService: CategoryService;
@@ -369,7 +370,10 @@ export class CategoriesController {
       }
 
       // Add tenant filtering
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
       const criteria = await this.prisma.criterion.findMany({
         where: {
           categoryId,
@@ -401,7 +405,10 @@ export class CategoriesController {
       }
 
       // Verify category exists and belongs to tenant
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
       const category = await this.prisma.category.findFirst({
         where: {
           id: categoryId,
@@ -441,7 +448,10 @@ export class CategoriesController {
       const { name, maxScore } = req.body;
 
       // Add tenant filtering
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
       const existing = await this.prisma.criterion.findFirst({
         where: {
           id: criterionId,
@@ -479,7 +489,10 @@ export class CategoriesController {
       }
 
       // Add tenant filtering
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
       const criterion = await this.prisma.criterion.findFirst({
         where: {
           id: criterionId,
@@ -533,7 +546,10 @@ export class CategoriesController {
       }
 
       // CRITICAL FIX: Add tenant filtering to prevent deletion of other tenants' data
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
       const result = await this.prisma.category.deleteMany({
         where: {
           id: { in: categoryIds },
@@ -630,7 +646,10 @@ export class CategoriesController {
       }
 
       // CRITICAL FIX: Add tenant filtering to prevent deletion of other tenants' data
-      const tenantId = req.tenantId || req.user?.tenantId || 'default_tenant';
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
       const result = await this.prisma.criterion.deleteMany({
         where: {
           id: { in: criteriaIds },

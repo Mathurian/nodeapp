@@ -52,11 +52,14 @@ export class UploadService extends BaseService {
       eventId?: string;
       contestId?: string;
       categoryId?: string;
-      tenantId?: string;
+      tenantId: string;
     }
   ): Promise<FileInfo> {
     if (!file) {
       throw this.createBadRequestError('No file uploaded');
+    }
+    if (!options?.tenantId) {
+      throw this.createBadRequestError('Tenant context is required for file upload');
     }
 
     // Calculate checksum
@@ -78,7 +81,7 @@ export class UploadService extends BaseService {
         category: fileCategory,
         uploadedBy: userId,
         checksum,
-        tenantId: options?.tenantId || 'default_tenant',
+        tenantId: options.tenantId,
         eventId: options?.eventId,
         contestId: options?.contestId,
         categoryId: options?.categoryId

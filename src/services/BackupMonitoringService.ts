@@ -2,6 +2,7 @@ import { Prisma, BackupLog } from '@prisma/client';
 import { EventEmitter } from 'events';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
+import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
 
 const logger = createLogger('BackupMonitoringService');
 
@@ -49,9 +50,11 @@ export interface BackupHealthCheck {
 
 class BackupMonitoringService extends EventEmitter {
   private static instance: BackupMonitoringService;
+  private readonly systemTenantId: string;
 
   private constructor() {
     super();
+    this.systemTenantId = getTenantSegregationConfig().defaultTenantIds[0] || 'default';
   }
 
   public static getInstance(): BackupMonitoringService {
@@ -64,11 +67,12 @@ class BackupMonitoringService extends EventEmitter {
   /**
    * Log a backup execution
    */
-  async logBackup(data: BackupLogData, tenantId: string = 'default_tenant'): Promise<BackupLog> {
+  async logBackup(data: BackupLogData, tenantId?: string): Promise<BackupLog> {
     try {
+      const effectiveTenantId = tenantId || this.systemTenantId;
       const backupLog = await prisma.backupLog.create({
         data: {
-          tenantId,
+          tenantId: effectiveTenantId,
           type: data.type,
           status: data.status,
           startedAt: data.startedAt,

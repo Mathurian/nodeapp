@@ -11,6 +11,12 @@ This deployment model separates development source code from the production runt
 - Shared logs: `/var/log/event-manager`
 - Service env file: `/etc/event-manager/event-manager.env`
 
+Tenant segregation rollout env keys (in `event-manager.env`):
+
+- `TENANT_SEGREGATION_MODE` (`off|audit|enforce`)
+- `TENANT_DEFAULT_IDS` (comma-separated tenant IDs treated as default/system)
+- `TENANT_DEFAULT_SLUGS` (comma-separated tenant slugs treated as default/system)
+
 ## Development Layout
 
 - Canonical dev path: `/srv/event-manager/dev`
@@ -74,6 +80,11 @@ Use these scripts from repo root:
 For a concise operator runbook, see:
 
 - `docs/operations/DEV-TO-PROD-DEPLOY-QUICK.md`
+- `docs/operations/TENANT-SEGREGATION-ROLLOUT.md`
+
+Before staging a production release, run:
+
+- `sudo bash scripts/deploy/preflight-tenant-segregation.sh` (fails on blocked tenant fallback patterns)
 
 ### Release Retention
 

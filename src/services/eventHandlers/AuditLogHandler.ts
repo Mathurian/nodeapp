@@ -1,6 +1,7 @@
 import prisma from '../../config/database';
 import { AppEvent, AppEventType, EventHandler } from '../EventBusService';
 import { createLogger } from '../../utils/logger';
+import { resolveEventTenantId } from '../../utils/tenantContext';
 
 const logger = createLogger('AuditLogHandler');
 
@@ -40,10 +41,16 @@ export class AuditLogHandler {
         return; // Skip non-auditable events
       }
 
+      const tenantId = resolveEventTenantId(event);
+      if (!tenantId) {
+        logger.warn('Skipping event audit log due to missing tenant context', { eventType: event.type });
+        return;
+      }
+
       // Create audit log entry
       await prisma.auditLog.create({
         data: {
-          tenantId: (event.metadata as any)?.tenantId || (event.payload as any)?.tenantId || 'default_tenant',
+          tenantId,
           userId: event.metadata.userId || 'system',
           action: event.type,
           entityType: extractEntityType(event.type),

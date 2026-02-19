@@ -9,6 +9,7 @@ import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 import { createTenantPrismaClient } from './tenantMiddleware';
 import { updateRequestContext } from './correlationId';
+import { evaluateDefaultTenantAccess } from '../utils/tenantSegregationPolicy';
 
 const logger = createLogger('auth');
 
@@ -253,6 +254,35 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     // SUPER_ADMIN role can see data across all tenants
     const userRole = normalizedUserRole;
     (req as any).isSuperAdmin = (userRole === 'SUPER_ADMIN');
+
+    const defaultTenantAccess = evaluateDefaultTenantAccess({
+      userId: user.id,
+      role: userRole,
+      tenantId: req.tenantId || user.tenantId,
+      tenantSlug: (req as any).tenant?.slug,
+      method: req.method,
+      path: req.originalUrl || req.path,
+    });
+
+    if (!defaultTenantAccess.allowed && defaultTenantAccess.enforced) {
+      logger.warn('authenticateToken: blocked non-super-admin access to default tenant', {
+        userId: user.id,
+        email: user.email,
+        role: userRole,
+        tenantId: req.tenantId || user.tenantId,
+        tenantSlug: (req as any).tenant?.slug,
+        mode: defaultTenantAccess.mode,
+        path: req.originalUrl || req.path,
+      });
+
+      res.status(403).json({
+        success: false,
+        error: 'Access denied',
+        message: defaultTenantAccess.reason,
+        code: defaultTenantAccess.code,
+      });
+      return;
+    }
 
     // Recreate req.prisma with correct isSuperAdmin flag
     // Tenant middleware runs before auth, so it created req.prisma with isSuperAdmin=false
@@ -593,6 +623,19 @@ const optionalAuth = async (req: Request, _res: Response, next: NextFunction): P
     }
 
     if (user && user.isActive && user.sessionVersion === decoded.sessionVersion) {
+      const defaultTenantAccess = evaluateDefaultTenantAccess({
+        userId: user.id,
+        role: user.role,
+        tenantId: req.tenantId || user.tenantId,
+        tenantSlug: (req as any).tenant?.slug,
+        method: req.method,
+        path: req.originalUrl || req.path,
+      });
+
+      if (!defaultTenantAccess.allowed && defaultTenantAccess.enforced) {
+        return next();
+      }
+
       req.user = user;
 
       // Set isSuperAdmin flag for tenant filtering bypass

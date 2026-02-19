@@ -13,6 +13,7 @@ import { AppEvent, AppEventType } from './EventBusService';
 import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
 // S4-2: Correlation ID for request tracing
 import { getRequestContext } from '../middleware/correlationId';
+import { resolveEventTenantId } from '../utils/tenantContext';
 
 const logger = createLogger('WebhookDeliveryService');
 
@@ -81,11 +82,25 @@ export class WebhookDeliveryService {
   ): Promise<WebhookDeliveryResult> {
     try {
       logger.info(`Delivering webhook ${webhook.name} for event ${event.type}`);
+      const tenantId = resolveEventTenantId(event, (webhook as any).tenantId);
+      if (!tenantId) {
+        logger.warn('Skipping webhook delivery due to missing tenant context', {
+          webhookId: webhook.id,
+          webhookName: webhook.name,
+          eventType: event.type
+        });
+        return {
+          success: false,
+          deliveryId: 'not-created',
+          attemptCount: 0,
+          error: 'Tenant context is required for webhook delivery'
+        };
+      }
 
       // Create webhook delivery record
       const delivery = await prisma.webhookDelivery.create({
         data: {
-          tenantId: (webhook as any).tenantId || 'default_tenant',
+          tenantId,
           webhookId: webhook.id,
           eventId: event.metadata.correlationId || event.type || 'unknown',
           status: 'pending',
