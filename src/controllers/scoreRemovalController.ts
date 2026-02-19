@@ -25,6 +25,7 @@ export class ScoreRemovalController {
         reason,
         requestedBy: req.user.id,
         userRole: req.user.role,
+        boardRole: req.user.boardRole || null,
         tenantId: req.user.tenantId
       });
       return sendSuccess(res, request, 'Score removal request created. Awaiting co-signatures.');
@@ -75,7 +76,8 @@ export class ScoreRemovalController {
       const result = await this.scoreRemovalService.signRequest(id, req.user.tenantId, {
         signatureName,
         userId: req.user.id,
-        userRole: req.user.role
+        userRole: req.user.role,
+        boardRole: req.user.boardRole || null
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {

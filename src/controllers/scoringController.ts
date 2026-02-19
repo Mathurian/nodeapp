@@ -1088,12 +1088,14 @@ export class ScoringController {
           categoryId: categoryId!,
           role: 'TALLY_MASTER',
           userId: req.user.id,
+          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           tenantId: req.user.tenantId
         },
         update: {
           userId: req.user.id,
+          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           certifiedAt: new Date()
@@ -1176,12 +1178,14 @@ export class ScoringController {
           categoryId: categoryId!,
           role: 'AUDITOR',
           userId: req.user.id,
+          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           tenantId: req.user.tenantId
         },
         update: {
           userId: req.user.id,
+          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null,
           certifiedAt: new Date()
@@ -1288,6 +1292,7 @@ export class ScoringController {
             requestId: created.id,
             approvedById: req.user!.id,
             role: req.user!.role,
+            boardRoleSnapshot: req.user!.role === 'BOARD' ? (req.user!.boardRole || null) : null,
             isHeadJudge: false,
             tenantId: req.user!.tenantId
           }
@@ -1351,11 +1356,13 @@ export class ScoringController {
             requestId: deductionId!,
             approvedById: req.user!.id,
             role: req.user!.role,
+            boardRoleSnapshot: req.user!.role === 'BOARD' ? (req.user!.boardRole || null) : null,
             isHeadJudge: !!isHeadJudge,
             tenantId: req.user!.tenantId
           },
           update: {
             role: req.user!.role,
+            boardRoleSnapshot: req.user!.role === 'BOARD' ? (req.user!.boardRole || null) : null,
             isHeadJudge: !!isHeadJudge,
             approvedAt: new Date()
           }
@@ -1389,6 +1396,7 @@ export class ScoringController {
                 id: true,
                 approvedById: true,
                 role: true,
+                boardRoleSnapshot: true,
                 approvedAt: true
               },
               orderBy: { approvedAt: 'asc' }
@@ -1509,7 +1517,9 @@ export class ScoringController {
             requestedBy: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                role: true,
+                boardRole: true
               }
             },
             approvals: {
@@ -1517,6 +1527,7 @@ export class ScoringController {
                 id: true,
                 approvedById: true,
                 role: true,
+                boardRoleSnapshot: true,
                 approvedAt: true
               },
               orderBy: {

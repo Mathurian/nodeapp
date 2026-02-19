@@ -26,6 +26,8 @@ type UncertificationRequestWithRelations = Prisma.JudgeUncertificationRequestGet
       select: {
         id: true;
         name: true;
+        role: true;
+        boardRole: true;
       };
     };
   };
@@ -55,12 +57,14 @@ interface CreateUncertificationRequestData {
   reason: string;
   requestedBy: string;
   userRole: string;
+  boardRole?: string | null;
 }
 
 interface SignRequestData {
   signatureName: string;
   userId: string;
   userRole: string;
+  boardRole?: string | null;
 }
 
 @injectable()
@@ -82,14 +86,14 @@ export class JudgeUncertificationService extends BaseService {
             contest: { select: { id: true, name: true } }
           } as any
         },
-        requestedByUser: { select: { id: true, name: true } }
+        requestedByUser: { select: { id: true, name: true, role: true, boardRole: true } }
       },
       orderBy: { createdAt: 'desc' }
     }) as unknown as UncertificationRequestWithRelations[];
   }
 
   async createUncertificationRequest(data: CreateUncertificationRequestData): Promise<UncertificationRequestWithJudgeCategory> {
-    const { judgeId, categoryId, reason, requestedBy, userRole } = data;
+    const { judgeId, categoryId, reason, requestedBy, userRole, boardRole } = data;
 
     if (!judgeId || !categoryId || !reason) {
       throw this.badRequestError('Judge ID, category ID, and reason are required');
@@ -112,6 +116,7 @@ export class JudgeUncertificationService extends BaseService {
         categoryId,
         reason: reason.trim(),
         requestedBy,
+        requestedByBoardRoleSnapshot: userRole === 'BOARD' ? (boardRole?.trim() || null) : null,
         status: 'PENDING'
       },
       include: {
@@ -122,7 +127,7 @@ export class JudgeUncertificationService extends BaseService {
   }
 
   async signRequest(id: string, data: SignRequestData) {
-    const { signatureName, userId: _userId, userRole: _userRole } = data;
+    const { signatureName, userId, userRole, boardRole } = data;
 
     if (!signatureName) {
       throw this.badRequestError('Signature name is required');
@@ -143,6 +148,8 @@ export class JudgeUncertificationService extends BaseService {
     const signedAt = new Date();
     const updateData: Prisma.JudgeUncertificationRequestUpdateInput = {
       status: 'APPROVED',
+      approvedBy: userId,
+      approvedByBoardRoleSnapshot: userRole === 'BOARD' ? (boardRole?.trim() || null) : null,
       approvedAt: signedAt,
       requestedAt: signedAt,
     };

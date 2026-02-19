@@ -383,17 +383,23 @@ export class ScoreGovernanceService extends BaseService {
     const settings = await this.getSettings(normalized.tenantId)
     const requestId = randomUUID()
     const approvalId = randomUUID()
+    const requesterBoardRoleSnapshot = normalized.userRole === 'BOARD'
+      ? ((await this.prisma.user.findFirst({
+          where: { id: normalized.userId, tenantId: normalized.tenantId },
+          select: { boardRole: true }
+        }))?.boardRole || null)
+      : null
 
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`
         INSERT INTO "score_governance_requests" (
           "id","actionType","scopeType","targetCertificationLevel","eventId","contestId","categoryId","contestantId","judgeId","scoreId",
-          "reason","status","requestedById","requesterRole","initiatorTypedSignature","initiatorDrawnSignatureData","initiatorSignatureFilePath",
+          "reason","status","requestedById","requesterRole","requesterBoardRoleSnapshot","initiatorTypedSignature","initiatorDrawnSignatureData","initiatorSignatureFilePath",
           "requiredAdditionalApprovals","tenantId","createdAt","updatedAt"
         ) VALUES (
           ${requestId},${normalized.actionType},${normalized.scopeType},${normalized.targetCertificationLevel || null},${normalized.eventId || null},${normalized.contestId || null},
           ${normalized.categoryId || null},${normalized.contestantId || null},${normalized.judgeId || null},${normalized.scoreId || null},
-          ${normalized.reason.trim()},'PENDING'::"RequestStatus",${normalized.userId},${normalized.userRole},${normalized.signature.typedSignature || null},
+          ${normalized.reason.trim()},'PENDING'::"RequestStatus",${normalized.userId},${normalized.userRole},${requesterBoardRoleSnapshot},${normalized.signature.typedSignature || null},
           ${normalized.signature.drawnSignatureData || null},${normalized.signature.signatureFilePath || null},${settings.requiredAdditionalApprovals},${normalized.tenantId},
           NOW(),NOW()
         )
@@ -401,9 +407,9 @@ export class ScoreGovernanceService extends BaseService {
 
       await tx.$executeRaw`
         INSERT INTO "score_governance_approvals" (
-          "id","requestId","approvedById","approverRole","typedSignature","drawnSignatureData","signatureFilePath","tenantId","approvedAt"
+          "id","requestId","approvedById","approverRole","approverBoardRoleSnapshot","typedSignature","drawnSignatureData","signatureFilePath","tenantId","approvedAt"
         ) VALUES (
-          ${approvalId},${requestId},${normalized.userId},${normalized.userRole},${normalized.signature.typedSignature || null},
+          ${approvalId},${requestId},${normalized.userId},${normalized.userRole},${requesterBoardRoleSnapshot},${normalized.signature.typedSignature || null},
           ${normalized.signature.drawnSignatureData || null},${normalized.signature.signatureFilePath || null},${normalized.tenantId},NOW()
         )
       `
@@ -414,7 +420,7 @@ export class ScoreGovernanceService extends BaseService {
 
   private async getRequestById(id: string, tenantId: string) {
     const rows = await this.prisma.$queryRaw<any[]>`
-      SELECT r.*, u.name AS "requestedByName", u.email AS "requestedByEmail",
+      SELECT r.*, u.name AS "requestedByName", u.email AS "requestedByEmail", u."boardRole" AS "requestedByBoardRole",
              c.name AS "categoryName", co.name AS "contestName", ct.name AS "contestantName", ct."contestantNumber" AS "contestantNumber", j.name AS "judgeName"
       FROM "score_governance_requests" r
       LEFT JOIN "users" u ON u.id = r."requestedById"
@@ -429,7 +435,7 @@ export class ScoreGovernanceService extends BaseService {
     if (!rows[0]) throw this.notFoundError('Score governance request', id)
 
     const approvals = await this.prisma.$queryRaw<any[]>`
-      SELECT a.*, u.name AS "approvedByName", u.email AS "approvedByEmail"
+      SELECT a.*, u.name AS "approvedByName", u.email AS "approvedByEmail", u."boardRole" AS "approvedByBoardRole"
       FROM "score_governance_approvals" a
       LEFT JOIN "users" u ON u.id = a."approvedById"
       WHERE a."requestId" = ${id} AND a."tenantId" = ${tenantId}
@@ -438,8 +444,19 @@ export class ScoreGovernanceService extends BaseService {
 
     return {
       ...rows[0],
-      approvals,
-      requestedBy: rows[0].requestedByName ? { id: rows[0].requestedById, name: rows[0].requestedByName, email: rows[0].requestedByEmail, role: rows[0].requesterRole } : null,
+      approvals: approvals.map((approval) => ({
+        ...approval,
+        effectiveBoardRoleSnapshot: approval.approverBoardRoleSnapshot || approval.approvedByBoardRole || null
+      })),
+      requestedBy: rows[0].requestedByName
+        ? {
+            id: rows[0].requestedById,
+            name: rows[0].requestedByName,
+            email: rows[0].requestedByEmail,
+            role: rows[0].requesterRole,
+            boardRole: rows[0].requesterBoardRoleSnapshot || rows[0].requestedByBoardRole || null
+          }
+        : null,
       category: rows[0].categoryName ? { id: rows[0].categoryId, name: rows[0].categoryName } : null,
       contest: rows[0].contestName ? { id: rows[0].contestId, name: rows[0].contestName } : null,
       contestant: rows[0].contestantName ? { id: rows[0].contestantId, name: rows[0].contestantName, contestantNumber: rows[0].contestantNumber } : null,
@@ -461,7 +478,7 @@ export class ScoreGovernanceService extends BaseService {
     const whereClause = Prisma.join(conditions, ' AND ')
 
     const rows = await this.prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT r.*, u.name AS "requestedByName", u.email AS "requestedByEmail",
+      SELECT r.*, u.name AS "requestedByName", u.email AS "requestedByEmail", u."boardRole" AS "requestedByBoardRole",
              c.name AS "categoryName", co.name AS "contestName", ct.name AS "contestantName", ct."contestantNumber" AS "contestantNumber", j.name AS "judgeName"
       FROM "score_governance_requests" r
       LEFT JOIN "users" u ON u.id = r."requestedById"
@@ -476,7 +493,7 @@ export class ScoreGovernanceService extends BaseService {
     const requestIds = rows.map((r) => r.id)
     const approvals = requestIds.length > 0
       ? await this.prisma.$queryRaw<any[]>(Prisma.sql`
-          SELECT a.*, u.name AS "approvedByName", u.email AS "approvedByEmail"
+          SELECT a.*, u.name AS "approvedByName", u.email AS "approvedByEmail", u."boardRole" AS "approvedByBoardRole"
           FROM "score_governance_approvals" a
           LEFT JOIN "users" u ON u.id = a."approvedById"
           WHERE a."tenantId" = ${tenantId} AND a."requestId" IN (${Prisma.join(requestIds)})
@@ -493,8 +510,19 @@ export class ScoreGovernanceService extends BaseService {
 
     return rows.map((row) => ({
       ...row,
-      approvals: approvalsByRequest.get(row.id) || [],
-      requestedBy: row.requestedByName ? { id: row.requestedById, name: row.requestedByName, email: row.requestedByEmail, role: row.requesterRole } : null,
+      approvals: (approvalsByRequest.get(row.id) || []).map((approval) => ({
+        ...approval,
+        effectiveBoardRoleSnapshot: approval.approverBoardRoleSnapshot || approval.approvedByBoardRole || null
+      })),
+      requestedBy: row.requestedByName
+        ? {
+            id: row.requestedById,
+            name: row.requestedByName,
+            email: row.requestedByEmail,
+            role: row.requesterRole,
+            boardRole: row.requesterBoardRoleSnapshot || row.requestedByBoardRole || null
+          }
+        : null,
       category: row.categoryName ? { id: row.categoryId, name: row.categoryName } : null,
       contest: row.contestName ? { id: row.contestId, name: row.contestName } : null,
       contestant: row.contestantName ? { id: row.contestantId, name: row.contestantName, contestantNumber: row.contestantNumber } : null,
@@ -710,6 +738,12 @@ export class ScoreGovernanceService extends BaseService {
     if (!settings.approverRoles.includes(approverRole)) {
       throw this.forbiddenError(`Role ${approverRole} is not configured as a governance approver`)
     }
+    const approverBoardRoleSnapshot = approverRole === 'BOARD'
+      ? ((await this.prisma.user.findFirst({
+          where: { id: approverId, tenantId },
+          select: { boardRole: true }
+        }))?.boardRole || null)
+      : null
 
     let categoryIdToRefresh: string | null = null
 
@@ -724,12 +758,13 @@ export class ScoreGovernanceService extends BaseService {
 
       await tx.$executeRaw`
         INSERT INTO "score_governance_approvals" (
-          "id","requestId","approvedById","approverRole","typedSignature","drawnSignatureData","signatureFilePath","tenantId","approvedAt"
+          "id","requestId","approvedById","approverRole","approverBoardRoleSnapshot","typedSignature","drawnSignatureData","signatureFilePath","tenantId","approvedAt"
         ) VALUES (
-          ${randomUUID()},${id},${approverId},${approverRole},${signature.typedSignature || null},${signature.drawnSignatureData || null},${signature.signatureFilePath || null},${tenantId},NOW()
+          ${randomUUID()},${id},${approverId},${approverRole},${approverBoardRoleSnapshot},${signature.typedSignature || null},${signature.drawnSignatureData || null},${signature.signatureFilePath || null},${tenantId},NOW()
         )
         ON CONFLICT ("tenantId","requestId","approvedById") DO UPDATE
         SET "approverRole" = EXCLUDED."approverRole",
+            "approverBoardRoleSnapshot" = EXCLUDED."approverBoardRoleSnapshot",
             "typedSignature" = EXCLUDED."typedSignature",
             "drawnSignatureData" = EXCLUDED."drawnSignatureData",
             "signatureFilePath" = EXCLUDED."signatureFilePath",

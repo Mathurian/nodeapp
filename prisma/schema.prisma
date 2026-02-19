@@ -902,6 +902,7 @@ model CategoryCertification {
   role          String
   userId        String
   signatureName String?
+  boardRoleSnapshot String?
   certifiedAt   DateTime @default(now())
   comments      String?
   tenantId      String
@@ -931,6 +932,7 @@ model ContestCertification {
   contestId   String
   role        String
   userId      String
+  boardRoleSnapshot String?
   certifiedAt DateTime @default(now())
   comments    String?
   tenantId    String
@@ -995,6 +997,7 @@ model DeductionApproval {
   requestId    String
   approvedById String
   role         String
+  boardRoleSnapshot String?
   isHeadJudge  Boolean  @default(false)
   approvedAt   DateTime @default(now())
   tenantId     String
@@ -1282,10 +1285,13 @@ model JudgeUncertificationRequest {
   judgeId         String
   reason          String
   requestedBy     String?
+  requestedByBoardRoleSnapshot String?
   requestedAt     DateTime      @default(now())
   approvedBy      String?
+  approvedByBoardRoleSnapshot String?
   approvedAt      DateTime?
   rejectedBy      String?
+  rejectedByBoardRoleSnapshot String?
   rejectedAt      DateTime?
   rejectionReason String?
   createdAt       DateTime      @default(now())
@@ -1614,6 +1620,7 @@ model ScoreRemovalRequest {
   auditorSignedAt  DateTime?
   auditorSignedBy  String?
   boardSignature   String?
+  boardRoleSnapshot String?
   boardSignedAt    DateTime?
   boardSignedBy    String?
   createdAt        DateTime      @default(now())
@@ -1647,6 +1654,7 @@ model ScoreGovernanceRequest {
   status                      RequestStatus @default(PENDING)
   requestedById               String
   requesterRole               String
+  requesterBoardRoleSnapshot  String?
   initiatorTypedSignature     String?
   initiatorDrawnSignatureData String?
   initiatorSignatureFilePath  String?
@@ -1682,6 +1690,7 @@ model ScoreGovernanceApproval {
   requestId           String
   approvedById        String
   approverRole        String
+  approverBoardRoleSnapshot String?
   typedSignature      String?
   drawnSignatureData  String?
   signatureFilePath   String?

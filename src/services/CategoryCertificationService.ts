@@ -99,12 +99,20 @@ export class CategoryCertificationService extends BaseService {
       throw this.badRequestError('Category already certified for this role');
     }
 
+    const boardRoleSnapshot = userRole === 'BOARD'
+      ? ((await this.prisma.user.findFirst({
+          where: { id: userId, tenantId },
+          select: { boardRole: true }
+        }))?.boardRole || null)
+      : null;
+
     const created = await this.prisma.categoryCertification.create({
       data: {
         tenantId,
         categoryId,
         role: userRole,
-        userId
+        userId,
+        boardRoleSnapshot
       }
     });
 

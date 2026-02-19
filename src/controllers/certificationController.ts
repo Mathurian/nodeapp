@@ -320,11 +320,13 @@ export class CertificationController {
           categoryId: certification.categoryId,
           role: 'TALLY_MASTER',
           userId: req.user?.id || '',
+          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null
         },
         update: {
           userId: req.user?.id || '',
+          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           certifiedAt: new Date(),
           comments: comments || null
@@ -388,11 +390,13 @@ export class CertificationController {
           categoryId: certification.categoryId,
           role: 'AUDITOR',
           userId: req.user?.id || '',
+          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null
         },
         update: {
           userId: req.user?.id || '',
+          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           certifiedAt: new Date(),
           comments: comments || null
@@ -456,11 +460,13 @@ export class CertificationController {
           categoryId: certification.categoryId,
           role: 'BOARD',
           userId: req.user?.id || '',
+          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           comments: comments || null
         },
         update: {
           userId: req.user?.id || '',
+          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
           signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
           certifiedAt: new Date(),
           comments: comments || null

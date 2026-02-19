@@ -186,6 +186,12 @@ export class BoardService extends BaseService {
       throw this.notFoundError('Certification', certificationId);
     }
 
+    const actor = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: { role: true, boardRole: true }
+    });
+    const boardRoleSnapshot = actor?.role === 'BOARD' ? (actor.boardRole || null) : null;
+
     await applyCertificationStage({
       prisma: this.prisma,
       tenantId,
@@ -209,11 +215,13 @@ export class BoardService extends BaseService {
         categoryId: certification.categoryId,
         role: 'BOARD',
         userId,
+        boardRoleSnapshot,
         signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
         comments: signature?.comments || null
       },
       update: {
         userId,
+        boardRoleSnapshot,
         signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
         comments: signature?.comments || null,
         certifiedAt: new Date()

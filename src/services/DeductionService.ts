@@ -174,6 +174,7 @@ export class DeductionService extends BaseService {
 
     // Check if user is a head judge
     let isHeadJudge = false;
+    let boardRoleSnapshot: string | null = null;
     if (userRole === 'JUDGE') {
       const user = await prisma.user.findFirst({
         where: { id: approvedBy, tenantId },
@@ -183,6 +184,13 @@ export class DeductionService extends BaseService {
         isHeadJudge = user.judge.isHeadJudge;
       }
     }
+    if (userRole === 'BOARD') {
+      const user = await prisma.user.findFirst({
+        where: { id: approvedBy, tenantId },
+        select: { boardRole: true }
+      });
+      boardRoleSnapshot = user?.boardRole || null;
+    }
 
     // Create approval
     const approval = await this.deductionRepo.createApproval(
@@ -190,7 +198,8 @@ export class DeductionService extends BaseService {
       approvedBy,
       userRole,
       tenantId,
-      isHeadJudge
+      isHeadJudge,
+      boardRoleSnapshot
     );
 
     // Check if all required approvals are met

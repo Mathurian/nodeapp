@@ -538,7 +538,7 @@ export class WinnerService extends BaseService {
     // Get user details for signature name
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true },
+      select: { name: true, boardRole: true },
     });
 
     // SECURITY FIX #11: Use transaction to ensure atomic operations
@@ -549,6 +549,7 @@ export class WinnerService extends BaseService {
           categoryId,
           userId,
           role: userRole,
+          boardRoleSnapshot: userRole === 'BOARD' ? (user?.boardRole || null) : null,
           signatureName: user?.name || 'Unknown User',
           tenantId,
           comments: `Signed from IP: ${ipAddress || 'unknown'}, User-Agent: ${userAgent || 'unknown'}`,
@@ -628,7 +629,7 @@ export class WinnerService extends BaseService {
     // Get all certifications for this category
     const categoryCertifications = await this.prisma.categoryCertification.findMany({
       where: { categoryId, tenantId },
-      select: { role: true, userId: true, certifiedAt: true, signatureName: true },
+      select: { role: true, userId: true, certifiedAt: true, signatureName: true, boardRoleSnapshot: true },
     });
 
     const judgeCertifications = await this.prisma.judgeCertification.findMany({
@@ -726,6 +727,7 @@ export class WinnerService extends BaseService {
         select: {
           userId: true,
           signatureName: true,
+          boardRoleSnapshot: true,
           certifiedAt: true,
           comments: true,
           category: {
@@ -741,6 +743,7 @@ export class WinnerService extends BaseService {
         role,
         certified: !!certification,
         certifiedBy: certification?.signatureName || null,
+        boardRoleSnapshot: certification?.boardRoleSnapshot || null,
         certifiedAt: certification?.certifiedAt || null,
         userId: certification?.userId || null,
         comments: certification?.comments || null,
@@ -812,7 +815,7 @@ export class WinnerService extends BaseService {
     // Get user details
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true },
+      select: { name: true, boardRole: true },
     });
 
     // Verify there are scores to certify
@@ -835,6 +838,7 @@ export class WinnerService extends BaseService {
           categoryId,
           userId,
           role: userRole,
+          boardRoleSnapshot: userRole === 'BOARD' ? (user?.boardRole || null) : null,
           signatureName: user?.name || 'Unknown User',
           tenantId,
           comments: comments || `Certified by ${userRole}`,

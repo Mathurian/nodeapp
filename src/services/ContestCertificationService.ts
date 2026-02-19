@@ -71,12 +71,20 @@ export class ContestCertificationService extends BaseService {
       throw this.badRequestError('Contest already certified for this role');
     }
 
+    const boardRoleSnapshot = userRole === 'BOARD'
+      ? ((await this.prisma.user.findFirst({
+          where: { id: userId, tenantId },
+          select: { boardRole: true }
+        }))?.boardRole || null)
+      : null;
+
     return await this.prisma.contestCertification.create({
       data: {
         tenantId,
         contestId,
         role: userRole,
-        userId
+        userId,
+        boardRoleSnapshot
       }
     });
   }

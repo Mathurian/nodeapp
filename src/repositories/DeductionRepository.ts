@@ -77,7 +77,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           select: { id: true, name: true }
         },
         requestedBy: {
-          select: { id: true, name: true, email: true, role: true }
+          select: { id: true, name: true, email: true, role: true, boardRole: true }
         },
         approvals: {
           select: {
@@ -85,6 +85,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
             requestId: true,
             approvedById: true,
             role: true,
+            boardRoleSnapshot: true,
             isHeadJudge: true,
             approvedAt: true,
             tenantId: true
@@ -113,7 +114,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           select: { id: true, name: true }
         },
         requestedBy: {
-          select: { id: true, name: true, email: true, role: true }
+          select: { id: true, name: true, email: true, role: true, boardRole: true }
         },
         approvals: {
           select: {
@@ -121,6 +122,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
             requestId: true,
             approvedById: true,
             role: true,
+            boardRoleSnapshot: true,
             isHeadJudge: true,
             approvedAt: true,
             tenantId: true
@@ -153,7 +155,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
           select: { id: true, name: true }
         },
         requestedBy: {
-          select: { id: true, name: true, email: true, role: true }
+          select: { id: true, name: true, email: true, role: true, boardRole: true }
         },
         approvals: {
           select: {
@@ -161,6 +163,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
             requestId: true,
             approvedById: true,
             role: true,
+            boardRoleSnapshot: true,
             isHeadJudge: true,
             approvedAt: true,
             tenantId: true
@@ -201,7 +204,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
             select: { id: true, name: true }
           },
           requestedBy: {
-            select: { id: true, name: true, email: true, role: true }
+            select: { id: true, name: true, email: true, role: true, boardRole: true }
           },
           approvals: {
             select: {
@@ -209,6 +212,7 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
               requestId: true,
               approvedById: true,
               role: true,
+              boardRoleSnapshot: true,
               isHeadJudge: true,
               approvedAt: true,
               tenantId: true
@@ -245,13 +249,15 @@ export class DeductionRepository extends BaseRepository<DeductionRequest> {
     approvedById: string,
     role: string,
     tenantId: string,
-    isHeadJudge?: boolean
+    isHeadJudge?: boolean,
+    boardRoleSnapshot?: string | null
   ): Promise<DeductionApproval> {
     return prisma.deductionApproval.create({
       data: {
         requestId,
         approvedById,
         role,
+        boardRoleSnapshot: boardRoleSnapshot ?? null,
         tenantId,
         isHeadJudge: isHeadJudge || false
       }

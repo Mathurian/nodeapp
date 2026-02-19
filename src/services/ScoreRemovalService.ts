@@ -77,6 +77,7 @@ interface CreateScoreRemovalRequestDto {
   reason: string;
   requestedBy: string;
   userRole: string;
+  boardRole?: string | null;
   tenantId: string;
 }
 
@@ -84,6 +85,7 @@ interface SignRequestDto {
   signatureName: string;
   userId: string;
   userRole: string;
+  boardRole?: string | null;
 }
 
 @injectable()
@@ -117,6 +119,7 @@ export class ScoreRemovalService extends BaseService {
         categoryId: data.categoryId,
         reason: data.reason.trim(),
         requestedBy: data.requestedBy,
+        boardRoleSnapshot: data.userRole === 'BOARD' ? (data.boardRole?.trim() || null) : null,
         tenantId: data.tenantId,
         status: 'PENDING'
       },
@@ -140,7 +143,7 @@ export class ScoreRemovalService extends BaseService {
             contest: { select: { id: true, name: true } }
           } as any
         },
-        requestedByUser: { select: { id: true, name: true } }
+        requestedByUser: { select: { id: true, name: true, role: true, boardRole: true } }
       },
       orderBy: { createdAt: 'desc' }
     }) as unknown as ScoreRemovalRequestWithRelations[];
@@ -156,7 +159,7 @@ export class ScoreRemovalService extends BaseService {
             contest: { select: { id: true, name: true } }
           } as any
         },
-        requestedByUser: { select: { id: true, name: true } }
+        requestedByUser: { select: { id: true, name: true, role: true, boardRole: true } }
       }
     }) as ScoreRemovalRequestWithRelations | null;
 
@@ -192,6 +195,7 @@ export class ScoreRemovalService extends BaseService {
       updateData.tallySignedBy = data.userId;
     } else if (data.userRole === 'BOARD' && !request.boardSignature) {
       updateData.boardSignature = data.signatureName;
+      updateData.boardRoleSnapshot = data.boardRole?.trim() || null;
       updateData.boardSignedAt = signedAt;
       updateData.boardSignedBy = data.userId;
     } else {

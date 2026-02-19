@@ -41,7 +41,8 @@ export class JudgeUncertificationController {
         categoryId,
         reason,
         requestedBy: req.user.id,
-        userRole: req.user.role
+        userRole: req.user.role,
+        boardRole: req.user.boardRole || null
       });
       return sendSuccess(res, request, 'Uncertification request created. Awaiting co-signatures.');
     } catch (error) {
@@ -61,7 +62,8 @@ export class JudgeUncertificationController {
       const result = await this.judgeUncertificationService.signRequest(id!, {
         signatureName,
         userId: req.user.id,
-        userRole: req.user.role
+        userRole: req.user.role,
+        boardRole: req.user.boardRole || null
       });
       return sendSuccess(res, result, 'Request signed successfully');
     } catch (error) {
@@ -131,6 +133,7 @@ export class JudgeUncertificationController {
           categoryId,
           reason,
           requestedBy: req.user.id,
+          requestedByBoardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           status: 'PENDING'
         }
       });
@@ -168,6 +171,7 @@ export class JudgeUncertificationController {
         data: {
           status: 'APPROVED',
           approvedBy: req.user.id,
+          approvedByBoardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           approvedAt: new Date()
         }
       });
@@ -224,6 +228,7 @@ export class JudgeUncertificationController {
         data: {
           status: 'REJECTED',
           rejectedBy: req.user.id,
+          rejectedByBoardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
           rejectedAt: new Date(),
           rejectionReason: rejectionReason
         }

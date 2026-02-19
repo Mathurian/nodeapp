@@ -167,6 +167,12 @@ export class BoardCertificationService extends BaseService {
     comments?: string
   ): Promise<CategoryCertification> {
     try {
+      const actor = await this.prisma.user.findFirst({
+        where: { id: userId, tenantId },
+        select: { role: true, boardRole: true }
+      });
+      const boardRoleSnapshot = actor?.role === 'BOARD' ? (actor.boardRole || null) : null;
+
       // Get status to verify all prerequisites are met
       const status = await this.getBoardCertificationStatusInternal(categoryId, tenantId);
 
@@ -200,6 +206,7 @@ export class BoardCertificationService extends BaseService {
             role: 'BOARD',
             userId,
             tenantId,
+            boardRoleSnapshot,
             signatureName,
             comments,
             certifiedAt: new Date(),
