@@ -37,6 +37,14 @@ Optional but recommended preflight before staging:
 sudo bash scripts/deploy/preflight-tenant-segregation.sh
 ```
 
+If legacy field-configuration rows still exist, backfill them first
+(idempotent, safe to run every deployment):
+
+```bash
+ENV_FILE=/etc/event-manager/event-manager.env \
+bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply
+```
+
 If Prisma baseline has not been aligned for the target DB yet, run the dry-run
 check once before your release window:
 
@@ -114,20 +122,25 @@ npm run build
 cd ..
 
 # 2) Run segregation preflight before staging
+# Backfill deprecated legacy field-configuration rows first (idempotent)
+ENV_FILE=/etc/event-manager/event-manager.env \
+bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply
+
+# 3) Run segregation preflight before staging
 sudo bash scripts/deploy/preflight-tenant-segregation.sh
 
-# 3) Stage a production release artifact
+# 4) Stage a production release artifact
 sudo scripts/deploy/stage-release.sh
 
-# 4) Read staged release timestamp
+# 5) Read staged release timestamp
 RELEASE_TS="$(cat /opt/event-manager/.last_release_ts)"
 echo "$RELEASE_TS"
 
-# 5) Activate staged release in production
+# 6) Activate staged release in production
 # Optional: override retention count for this activation (default keeps 10)
 sudo RETAIN_RELEASES=10 scripts/deploy/activate-release.sh "$RELEASE_TS"
 
-# 6) Validate production runtime
+# 7) Validate production runtime
 systemctl is-active event-manager.service
 curl -sS http://127.0.0.1:3000/health
 readlink -f /opt/event-manager/current

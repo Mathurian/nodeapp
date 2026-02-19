@@ -96,6 +96,23 @@ describe('UserFieldVisibilityService', () => {
     expect(result.email).toEqual({ visible: true, required: true });
   });
 
+  it('falls back to legacy table when scoped system settings are not present', async () => {
+    systemSettingFindManySpy
+      .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce([] as any);
+    customFieldFindManySpy.mockResolvedValueOnce([] as any);
+    const legacySpy = jest
+      .spyOn(service as any, 'loadLegacyFieldVisibilityRows')
+      .mockResolvedValueOnce([
+        { fieldName: 'phone', isVisible: false, isRequired: true },
+      ]);
+
+    const result = await service.getFieldVisibilitySettings('tenant-legacy');
+
+    expect(result.phone).toEqual({ visible: false, required: true });
+    expect(legacySpy).toHaveBeenCalledWith('tenant-legacy');
+  });
+
   it('creates tenant-scoped visibility settings during update', async () => {
     systemSettingFindFirstSpy.mockResolvedValueOnce(null);
     systemSettingCreateSpy.mockResolvedValueOnce({ id: 's-1' } as any);

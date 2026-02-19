@@ -89,6 +89,7 @@ For a concise operator runbook, see:
 Before staging a production release, run:
 
 - `sudo bash scripts/deploy/preflight-tenant-segregation.sh` (fails on blocked tenant fallback patterns)
+- `ENV_FILE=/etc/event-manager/event-manager.env bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply` (idempotent legacy field-config backfill)
 
 ### Release Retention
 

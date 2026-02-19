@@ -15,6 +15,12 @@ interface FieldVisibilityConfig {
   [key: string]: FieldVisibility;
 }
 
+interface LegacyFieldVisibilityRow {
+  fieldName: string;
+  isVisible: boolean;
+  isRequired: boolean;
+}
+
 /**
  * Service for User Field Visibility management
  * Handles configuration of user field visibility and requirements
@@ -22,6 +28,120 @@ interface FieldVisibilityConfig {
 @injectable()
 export class UserFieldVisibilityService extends BaseService {
   private readonly keyPrefix = 'user_field_visibility_';
+
+  /**
+   * Transitional fallback only:
+   * - Reads from deprecated `user_field_configurations` table when scoped
+   *   `system_settings` rows do not exist yet.
+   * - Keeps behavior stable during controlled migration rollout.
+   */
+  private async loadLegacyFieldVisibilityRows(tenantId?: string | null): Promise<LegacyFieldVisibilityRow[]> {
+    const tableExistsResult = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'user_field_configurations'
+      ) AS "exists"
+    `;
+
+    if (!tableExistsResult[0]?.exists) {
+      return [];
+    }
+
+    const hasTenantColumnResult = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'user_field_configurations'
+          AND column_name = 'tenantId'
+      ) AS "exists"
+    `;
+
+    const hasOrderColumnResult = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'user_field_configurations'
+          AND column_name = 'order'
+      ) AS "exists"
+    `;
+
+    const hasTenantColumn = Boolean(hasTenantColumnResult[0]?.exists);
+    const hasOrderColumn = Boolean(hasOrderColumnResult[0]?.exists);
+    const scopedTenantId = this.normalizeTenantId(tenantId);
+
+    if (!hasTenantColumn) {
+      return hasOrderColumn
+        ? prisma.$queryRaw<LegacyFieldVisibilityRow[]>`
+            SELECT
+              "fieldName" AS "fieldName",
+              "isVisible" AS "isVisible",
+              "isRequired" AS "isRequired"
+            FROM user_field_configurations
+            ORDER BY "order" ASC, "fieldName" ASC
+          `
+        : prisma.$queryRaw<LegacyFieldVisibilityRow[]>`
+            SELECT
+              "fieldName" AS "fieldName",
+              "isVisible" AS "isVisible",
+              "isRequired" AS "isRequired"
+            FROM user_field_configurations
+            ORDER BY "fieldName" ASC
+          `;
+    }
+
+    if (!scopedTenantId) {
+      return hasOrderColumn
+        ? prisma.$queryRaw<LegacyFieldVisibilityRow[]>`
+            SELECT
+              "fieldName" AS "fieldName",
+              "isVisible" AS "isVisible",
+              "isRequired" AS "isRequired"
+            FROM user_field_configurations
+            WHERE "tenantId" IS NULL
+            ORDER BY "order" ASC, "fieldName" ASC
+          `
+        : prisma.$queryRaw<LegacyFieldVisibilityRow[]>`
+            SELECT
+              "fieldName" AS "fieldName",
+              "isVisible" AS "isVisible",
+              "isRequired" AS "isRequired"
+            FROM user_field_configurations
+            WHERE "tenantId" IS NULL
+            ORDER BY "fieldName" ASC
+          `;
+    }
+
+    return hasOrderColumn
+      ? prisma.$queryRaw<LegacyFieldVisibilityRow[]>`
+          SELECT
+            "fieldName" AS "fieldName",
+            "isVisible" AS "isVisible",
+            "isRequired" AS "isRequired"
+          FROM user_field_configurations
+          WHERE "tenantId" = ${scopedTenantId}
+             OR "tenantId" IS NULL
+          ORDER BY
+            CASE WHEN "tenantId" = ${scopedTenantId} THEN 0 ELSE 1 END,
+            "order" ASC,
+            "fieldName" ASC
+        `
+      : prisma.$queryRaw<LegacyFieldVisibilityRow[]>`
+          SELECT
+            "fieldName" AS "fieldName",
+            "isVisible" AS "isVisible",
+            "isRequired" AS "isRequired"
+          FROM user_field_configurations
+          WHERE "tenantId" = ${scopedTenantId}
+             OR "tenantId" IS NULL
+          ORDER BY
+            CASE WHEN "tenantId" = ${scopedTenantId} THEN 0 ELSE 1 END,
+            "fieldName" ASC
+        `;
+  }
 
   private normalizeTenantId(tenantId?: string | null): string | null {
     if (!tenantId || typeof tenantId !== 'string') {
@@ -102,6 +222,18 @@ export class UserFieldVisibilityService extends BaseService {
 
     this.applyVisibilitySettings(fieldVisibility, globalSettings);
     this.applyVisibilitySettings(fieldVisibility, tenantSettings);
+
+    // Controlled deprecation fallback:
+    // if no scoped system settings exist yet, hydrate from legacy table.
+    if (globalSettings.length === 0 && tenantSettings.length === 0) {
+      const legacyRows = await this.loadLegacyFieldVisibilityRows(scopedTenantId);
+      legacyRows.forEach((row) => {
+        fieldVisibility[row.fieldName] = {
+          visible: row.isVisible,
+          required: row.isRequired,
+        };
+      });
+    }
 
     // Add custom fields for USER entity type in the active tenant scope.
     const customFields = scopedTenantId

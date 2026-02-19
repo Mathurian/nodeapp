@@ -73,6 +73,10 @@ echo "  TENANT_DEFAULT_IDS=$ids"
 echo "  TENANT_DEFAULT_SLUGS=$slugs"
 
 echo
+echo "Checking legacy field-configuration migration status..."
+ENV_FILE="$ENV_FILE" bash scripts/ops/migrate-legacy-user-field-configurations.sh --check --enforce-clean
+
+echo
 echo "Running source audit..."
 bash scripts/ops/tenant-segregation-audit.sh
 
@@ -128,7 +132,7 @@ request_layer_prisma_imports="$(
   rg -n "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" src/controllers src/routes || true
 )"
 if [ -n "$request_layer_prisma_imports" ]; then
-  filtered_request_layer_imports="$(printf '%s\n' "$request_layer_prisma_imports" | rg -v "src/routes/publicTenantRoutes.ts|src/routes/settingsRoutes.ts|src/routes/healthRoutes.ts|src/controllers/backupController.ts|src/controllers/testRunnerController.ts" || true)"
+  filtered_request_layer_imports="$(printf '%s\n' "$request_layer_prisma_imports" | rg -v "src/routes/publicTenantRoutes.ts|src/routes/healthRoutes.ts|src/controllers/backupController.ts|src/controllers/testRunnerController.ts" || true)"
   if [ -n "$filtered_request_layer_imports" ]; then
     echo "ERROR: request-layer files must not import global prisma directly:"
     echo "$filtered_request_layer_imports"

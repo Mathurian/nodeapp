@@ -89,7 +89,7 @@ request_layer_prisma_imports="$(
   rg -n "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" src/controllers src/routes || true
 )"
 if [ -n "$request_layer_prisma_imports" ]; then
-  filtered_request_layer_imports="$(printf '%s\n' "$request_layer_prisma_imports" | rg -v "src/routes/publicTenantRoutes.ts|src/routes/settingsRoutes.ts|src/routes/healthRoutes.ts|src/controllers/backupController.ts|src/controllers/testRunnerController.ts" || true)"
+  filtered_request_layer_imports="$(printf '%s\n' "$request_layer_prisma_imports" | rg -v "src/routes/publicTenantRoutes.ts|src/routes/healthRoutes.ts|src/controllers/backupController.ts|src/controllers/testRunnerController.ts" || true)"
   if [ -n "$filtered_request_layer_imports" ]; then
     echo "$filtered_request_layer_imports"
     count="$(printf '%s\n' "$filtered_request_layer_imports" | wc -l | tr -d ' ')"

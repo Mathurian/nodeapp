@@ -87,6 +87,27 @@ cd /srv/event-manager/dev
 npm run audit:tenant-rls-shadow
 ```
 
+## Legacy Field-Config Deprecation
+
+Legacy table `user_field_configurations` is deprecated in favor of tenant-aware
+`system_settings` keys (`user_field_visibility_*`).
+
+Run this idempotent migration before release activation:
+
+```bash
+cd /srv/event-manager/dev
+ENV_FILE=/etc/event-manager/event-manager.env \
+  bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply
+```
+
+Validation-only (fails when pending rows/conflicts remain):
+
+```bash
+cd /srv/event-manager/dev
+ENV_FILE=/etc/event-manager/event-manager.env \
+  bash scripts/ops/migrate-legacy-user-field-configurations.sh --check --enforce-clean
+```
+
 ## Safe Rollout Sequence
 
 1. Deploy code with `TENANT_SEGREGATION_MODE=audit` in production.
@@ -123,6 +144,10 @@ npm run audit:tenant-prisma-imports
 # Segregation violation alert poller (for cron/systemd timer)
 npm run ops:tenant-segregation-alerts
 
+# Backfill deprecated legacy field-configuration rows into system_settings (idempotent)
+ENV_FILE=/etc/event-manager/event-manager.env \
+  bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply
+
 # Super admin explicit tenant-scope smoke (validates global vs scoped admin DB access)
 bash scripts/uat/super-admin-tenant-scope-smoke.sh
 
@@ -141,3 +166,4 @@ sudo bash scripts/deploy/preflight-tenant-segregation.sh
 - `preflight-tenant-segregation.sh` executes `tenant-rls-shadow-check.sh` automatically when `TENANT_DB_RLS_MODE=enforce`.
 - Direct global Prisma imports are guardrailed by `scripts/ops/tenant-global-prisma-import-allowlist.txt`; update deliberately during reviewed refactors only.
 - Schedule `scripts/ops/tenant-segregation-alerts.sh` every 1-5 minutes to alert on violation spikes during audit/enforce rollout.
+- `preflight-tenant-segregation.sh` now enforces clean legacy field-configuration migration state (no pending backfill/conflicts).

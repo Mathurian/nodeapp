@@ -1,6 +1,6 @@
 # Tenant Enforcement Matrix
 
-Generated: 2026-02-19T19:09:12.917Z
+Generated: 2026-02-19T19:30:15.874Z
 Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 
 ## Summary

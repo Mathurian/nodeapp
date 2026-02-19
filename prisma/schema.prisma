@@ -1774,6 +1774,10 @@ model ThemeSetting {
   @@map("theme_settings")
 }
 
+/// @deprecated
+/// Legacy table retained for controlled migration only.
+/// Active runtime path uses tenant-aware `system_settings` keys:
+/// `user_field_visibility_<fieldName>`.
 model UserFieldConfiguration {
   id         String  @id @default(cuid())
   fieldName  String  @unique
