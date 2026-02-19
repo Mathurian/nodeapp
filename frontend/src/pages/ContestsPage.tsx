@@ -108,7 +108,9 @@ const ContestsPage: React.FC = () => {
 
   // Debug logging
   useEffect(() => {
-    console.log('ContestsPage - User role:', user?.role, 'Can manage:', canManageContests)
+    if (import.meta.env.DEV) {
+      console.log('ContestsPage - User role:', user?.role, 'Can manage:', canManageContests)
+    }
   }, [user?.role, canManageContests])
 
   // Fetch events for dropdowns

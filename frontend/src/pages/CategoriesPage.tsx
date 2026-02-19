@@ -128,7 +128,9 @@ const CategoriesPage: React.FC = () => {
 
   // Debug logging
   useEffect(() => {
-    console.log('CategoriesPage - User role:', user?.role, 'Can manage:', canManageCategories)
+    if (import.meta.env.DEV) {
+      console.log('CategoriesPage - User role:', user?.role, 'Can manage:', canManageCategories)
+    }
   }, [user?.role, canManageCategories])
 
   // Fetch contests for dropdowns

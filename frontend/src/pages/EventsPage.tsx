@@ -111,7 +111,9 @@ const EventsPage: React.FC = () => {
 
   // Debug logging
   useEffect(() => {
-    console.log('EventsPage - User role:', user?.role, 'Can manage:', canManageEvents)
+    if (import.meta.env.DEV) {
+      console.log('EventsPage - User role:', user?.role, 'Can manage:', canManageEvents)
+    }
   }, [user?.role, canManageEvents])
 
   // Fetch events
