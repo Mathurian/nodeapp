@@ -7,6 +7,7 @@
 import axios from 'axios';
 import * as crypto from 'crypto';
 import prisma from '../config/database';
+import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { AppEvent, AppEventType } from './EventBusService';
 // S4-1: Circuit breaker for webhook delivery resilience
@@ -14,6 +15,7 @@ import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker'
 // S4-2: Correlation ID for request tracing
 import { getRequestContext } from '../middleware/correlationId';
 import { resolveEventTenantId } from '../utils/tenantContext';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('WebhookDeliveryService');
 
@@ -42,6 +44,27 @@ export interface WebhookDeliveryResult {
  * Webhook Delivery Service
  */
 export class WebhookDeliveryService {
+  private static async withDbContext<T>(
+    options: { tenantId?: string | null; isSuperAdmin?: boolean },
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    const tenantId = options.tenantId || null;
+    const isSuperAdmin = options.isSuperAdmin ?? !tenantId;
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId, isSuperAdmin },
+      async tx => operation(tx)
+    );
+  }
+
+  private static async withTenantDbContext<T>(
+    tenantId: string,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    return this.withDbContext({ tenantId, isSuperAdmin: false }, operation);
+  }
+
   // S4-1: Circuit breaker for webhook endpoints (per-webhook URL)
   private static circuitBreakers = new Map<string, CircuitBreaker>();
 
@@ -98,32 +121,36 @@ export class WebhookDeliveryService {
       }
 
       // Create webhook delivery record
-      const delivery = await prisma.webhookDelivery.create({
-        data: {
-          tenantId,
-          webhookId: webhook.id,
-          eventId: event.metadata.correlationId || event.type || 'unknown',
-          status: 'pending',
-          attemptCount: 0
-        }
-      });
+      const delivery = await this.withTenantDbContext(tenantId, async db =>
+        db.webhookDelivery.create({
+          data: {
+            tenantId,
+            webhookId: webhook.id,
+            eventId: event.metadata.correlationId || event.type || 'unknown',
+            status: 'pending',
+            attemptCount: 0
+          }
+        })
+      );
 
       // Attempt delivery with retries
       const result = await this.deliverWithRetry(webhook, event, delivery.id);
 
       // Update delivery record
-      await prisma.webhookDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: result.success ? 'success' : 'failed',
-          attemptCount: result.attemptCount,
-          lastAttemptAt: new Date(),
-          responseStatus: result.responseStatus,
-          responseBody: result.responseBody
-            ? result.responseBody.substring(0, 1000)
-            : null
-        }
-      });
+      await this.withTenantDbContext(tenantId, async db =>
+        db.webhookDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: result.success ? 'success' : 'failed',
+            attemptCount: result.attemptCount,
+            lastAttemptAt: new Date(),
+            responseStatus: result.responseStatus,
+            responseBody: result.responseBody
+              ? result.responseBody.substring(0, 1000)
+              : null
+          }
+        })
+      );
 
       return result;
     } catch (error: unknown) {
@@ -343,14 +370,20 @@ export class WebhookDeliveryService {
    */
   static async getDeliveryHistory(
     webhookId: string,
-    limit: number = 50
+    limit: number = 50,
+    tenantId?: string
   ): Promise<any[]> {
     try {
-      return await prisma.webhookDelivery.findMany({
-        where: { webhookId },
-        orderBy: { createdAt: 'desc' },
-        take: limit
-      });
+      return await this.withDbContext({ tenantId, isSuperAdmin: !tenantId }, async db =>
+        db.webhookDelivery.findMany({
+          where: {
+            webhookId,
+            ...(tenantId && { tenantId })
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit
+        })
+      );
     } catch (error) {
       logger.error('Error getting webhook delivery history:', error);
       throw error;
@@ -360,16 +393,19 @@ export class WebhookDeliveryService {
   /**
    * Get webhook statistics
    */
-  static async getWebhookStats(webhookId: string, days: number = 7): Promise<any> {
+  static async getWebhookStats(webhookId: string, days: number = 7, tenantId?: string): Promise<any> {
     try {
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      const deliveries = await prisma.webhookDelivery.findMany({
-        where: {
-          webhookId,
-          createdAt: { gte: since }
-        }
-      });
+      const deliveries = await this.withDbContext({ tenantId, isSuperAdmin: !tenantId }, async db =>
+        db.webhookDelivery.findMany({
+          where: {
+            webhookId,
+            ...(tenantId && { tenantId }),
+            createdAt: { gte: since }
+          }
+        })
+      );
 
       const total = deliveries.length;
       const successful = deliveries.filter((d) => d.status === 'success').length;
@@ -403,65 +439,74 @@ export class WebhookDeliveryService {
   /**
    * Retry failed webhook delivery
    */
-  static async retryDelivery(deliveryId: string): Promise<WebhookDeliveryResult> {
+  static async retryDelivery(deliveryId: string, tenantId?: string): Promise<WebhookDeliveryResult> {
     try {
-      const delivery = await prisma.webhookDelivery.findUnique({
-        where: { id: deliveryId },
-        // include removed - no webhook relation
-      });
+      return await this.withDbContext({ tenantId, isSuperAdmin: !tenantId }, async db => {
+        const delivery = await db.webhookDelivery.findUnique({
+          where: { id: deliveryId },
+          // include removed - no webhook relation
+        });
 
-      if (!delivery) {
-        throw new Error(`Webhook delivery ${deliveryId} not found`);
-      }
-
-      if (delivery.status === 'success') {
-        throw new Error('Cannot retry successful delivery');
-      }
-
-      // Get the webhook config
-      const webhook = await prisma.webhookConfig.findUnique({
-        where: { id: delivery.webhookId }
-      });
-
-      if (!webhook) {
-        throw new Error(`Webhook config ${delivery.webhookId} not found`);
-      }
-
-      // Get event from EventLog
-      const eventLog = await prisma.eventLog.findFirst({
-        where: { id: delivery.eventId }
-      });
-
-      if (!eventLog) {
-        throw new Error(`Event log ${delivery.eventId} not found`);
-      }
-
-      // Reconstruct event
-      const event: AppEvent = {
-        type: eventLog.eventType as AppEventType,
-        payload: eventLog.payload as any,
-        metadata: {
-          source: eventLog.source,
-          correlationId: eventLog.correlationId || undefined,
-          ...(eventLog.metadata as any)
+        if (!delivery) {
+          throw new Error(`Webhook delivery ${deliveryId} not found`);
         }
-      };
 
-      // Retry delivery
-      logger.info(`Retrying webhook delivery ${deliveryId}`);
-      // Cast webhook from Prisma to WebhookConfig
-      const webhookConfig: WebhookConfig = {
-        id: webhook.id,
-        name: webhook.name,
-        url: webhook.url,
-        events: Array.isArray(webhook.events) ? webhook.events as string[] : [],
-        enabled: webhook.enabled,
-        secret: webhook.secret || undefined,
-        headers: webhook.headers as Record<string, string> | undefined,
-        retryAttempts: webhook.retryAttempts,
-        timeout: webhook.timeout
-      };
-      return await this.deliver(webhookConfig, event);
+        if (tenantId && delivery.tenantId !== tenantId) {
+          throw new Error(`Webhook delivery ${deliveryId} not found`);
+        }
+
+        if (delivery.status === 'success') {
+          throw new Error('Cannot retry successful delivery');
+        }
+
+        // Get the webhook config
+        const webhook = await db.webhookConfig.findUnique({
+          where: { id: delivery.webhookId },
+        });
+
+        if (!webhook || (tenantId && webhook.tenantId !== tenantId)) {
+          throw new Error(`Webhook config ${delivery.webhookId} not found`);
+        }
+
+        // Get event from EventLog
+        const eventLog = await db.eventLog.findFirst({
+          where: {
+            id: delivery.eventId,
+            ...(tenantId && { tenantId })
+          }
+        });
+
+        if (!eventLog) {
+          throw new Error(`Event log ${delivery.eventId} not found`);
+        }
+
+        // Reconstruct event
+        const event: AppEvent = {
+          type: eventLog.eventType as AppEventType,
+          payload: eventLog.payload as any,
+          metadata: {
+            source: eventLog.source,
+            correlationId: eventLog.correlationId || undefined,
+            ...(eventLog.metadata as any)
+          }
+        };
+
+        // Retry delivery
+        logger.info(`Retrying webhook delivery ${deliveryId}`);
+        // Cast webhook from Prisma to WebhookConfig
+        const webhookConfig: WebhookConfig = {
+          id: webhook.id,
+          name: webhook.name,
+          url: webhook.url,
+          events: Array.isArray(webhook.events) ? webhook.events as string[] : [],
+          enabled: webhook.enabled,
+          secret: webhook.secret || undefined,
+          headers: webhook.headers as Record<string, string> | undefined,
+          retryAttempts: webhook.retryAttempts,
+          timeout: webhook.timeout
+        };
+        return this.deliver(webhookConfig, event);
+      });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(`Error retrying webhook delivery ${deliveryId}:`, { error: errorMessage });

@@ -10,6 +10,8 @@ import { EmailService } from './EmailService';
 import prisma from '../config/database';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
+import { PrismaClient } from '@prisma/client';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('EmailDigestService');
 
@@ -27,8 +29,6 @@ export class EmailDigestService {
   constructor(
     @inject(NotificationRepository)
     private notificationRepository: NotificationRepository,
-    @inject(NotificationPreferenceRepository)
-    private preferenceRepository: NotificationPreferenceRepository,
     @inject(EmailService)
     private emailService: EmailService
   ) {}
@@ -51,7 +51,9 @@ export class EmailDigestService {
    * Send digest to users based on frequency
    */
   private async sendDigests(frequency: string): Promise<number> {
-    const preferences = await this.preferenceRepository.getUsersForDigest(frequency);
+    const preferences = await this.withSystemDbContext(async db =>
+      new NotificationPreferenceRepository(db).getUsersForDigest(frequency)
+    );
     let sentCount = 0;
 
     for (const preference of preferences) {
@@ -89,10 +91,12 @@ export class EmailDigestService {
     }
 
     // Get user details
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, name: true },
-    });
+    const user = await this.withTenantDbContext(tenantId, async db =>
+      db.user.findFirst({
+        where: { id: userId, tenantId },
+        select: { email: true, name: true },
+      })
+    );
 
     if (!user || !user.email) {
       return false;
@@ -118,7 +122,7 @@ export class EmailDigestService {
     );
 
     // Update digest record
-    await this.updateDigestRecord(userId, frequency);
+    await this.updateDigestRecord(userId, frequency, tenantId);
 
     return true;
   }
@@ -380,47 +384,43 @@ export class EmailDigestService {
   /**
    * Update digest record
    */
-  private async updateDigestRecord(userId: string, frequency: string): Promise<void> {
+  private async updateDigestRecord(userId: string, frequency: string, tenantId: string): Promise<void> {
     const nextSendAt = this.getNextSendTime(frequency);
 
     // Find existing digest record
-    const existing = await prisma.notificationDigest.findFirst({
-      where: {
-        userId,
-        frequency,
-      },
-    });
+    const existing = await this.withTenantDbContext(tenantId, async db =>
+      db.notificationDigest.findFirst({
+        where: {
+          userId,
+          tenantId,
+          frequency,
+        },
+      })
+    );
 
     if (existing) {
       // Update existing record
-      await prisma.notificationDigest.update({
-        where: { id: existing.id },
-        data: {
-          lastSentAt: new Date(),
-          nextSendAt,
-        },
-      });
+      await this.withTenantDbContext(tenantId, async db =>
+        db.notificationDigest.update({
+          where: { id: existing.id },
+          data: {
+            lastSentAt: new Date(),
+            nextSendAt,
+          },
+        })
+      );
     } else {
-      // Create new record - get tenantId from user
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { tenantId: true }
-      });
-
-      if (!user?.tenantId) {
-        logger.warn('Skipping digest record create: missing tenant context', { userId, frequency });
-        return;
-      }
-
-      await prisma.notificationDigest.create({
-        data: {
-          tenantId: user.tenantId,
-          userId,
-          frequency,
-          lastSentAt: new Date(),
-          nextSendAt,
-        },
-      });
+      await this.withTenantDbContext(tenantId, async db =>
+        db.notificationDigest.create({
+          data: {
+            tenantId,
+            userId,
+            frequency,
+            lastSentAt: new Date(),
+            nextSendAt,
+          },
+        })
+      );
     }
   }
 
@@ -453,15 +453,38 @@ export class EmailDigestService {
   /**
    * Get digests that are due to be sent
    */
-  async getDueDigests(): Promise<Array<{ userId: string; frequency: string }>> {
-    const digests = await prisma.notificationDigest.findMany({
-      where: {
-        nextSendAt: {
-          lte: new Date(),
+  async getDueDigests(): Promise<Array<{ userId: string; frequency: string; tenantId: string }>> {
+    const digests = await this.withSystemDbContext(async db =>
+      db.notificationDigest.findMany({
+        where: {
+          nextSendAt: {
+            lte: new Date(),
+          },
         },
-      },
-    });
+      })
+    );
 
-    return digests.map((d) => ({ userId: d.userId, frequency: d.frequency }));
+    return digests.map((d) => ({ userId: d.userId, frequency: d.frequency, tenantId: d.tenantId }));
+  }
+
+  private async withTenantDbContext<T>(
+    tenantId: string,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId, isSuperAdmin: false },
+      async tx => operation(tx)
+    );
+  }
+
+  private async withSystemDbContext<T>(
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId: null, isSuperAdmin: true },
+      async tx => operation(tx)
+    );
   }
 }

@@ -1,8 +1,9 @@
-import { Prisma, BackupLog } from '@prisma/client';
+import { Prisma, BackupLog, PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('BackupMonitoringService');
 
@@ -57,6 +58,31 @@ class BackupMonitoringService extends EventEmitter {
     this.systemTenantId = getTenantSegregationConfig().defaultTenantIds[0] || 'default';
   }
 
+  private async withSystemDbContext<T>(
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId: null, isSuperAdmin: true },
+      async tx => operation(tx)
+    );
+  }
+
+  private async withOptionalTenantDbContext<T>(
+    tenantId: string | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    if (!tenantId) {
+      return this.withSystemDbContext(operation);
+    }
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId, isSuperAdmin: false },
+      async tx => operation(tx)
+    );
+  }
+
   public static getInstance(): BackupMonitoringService {
     if (!BackupMonitoringService.instance) {
       BackupMonitoringService.instance = new BackupMonitoringService();
@@ -70,20 +96,22 @@ class BackupMonitoringService extends EventEmitter {
   async logBackup(data: BackupLogData, tenantId?: string): Promise<BackupLog> {
     try {
       const effectiveTenantId = tenantId || this.systemTenantId;
-      const backupLog = await prisma.backupLog.create({
-        data: {
-          tenantId: effectiveTenantId,
-          type: data.type,
-          status: data.status,
-          startedAt: data.startedAt,
-          completedAt: data.completedAt,
-          duration: data.duration,
-          size: data.size ? BigInt(data.size) : null,
-          location: data.location,
-          errorMessage: data.errorMessage,
-          metadata: data.metadata || {},
-        },
-      });
+      const backupLog = await this.withOptionalTenantDbContext(tenantId, async db =>
+        db.backupLog.create({
+          data: {
+            tenantId: effectiveTenantId,
+            type: data.type,
+            status: data.status,
+            startedAt: data.startedAt,
+            completedAt: data.completedAt,
+            duration: data.duration,
+            size: data.size ? BigInt(data.size) : null,
+            location: data.location,
+            errorMessage: data.errorMessage,
+            metadata: data.metadata || {},
+          },
+        })
+      );
 
       // Emit event for real-time monitoring
       this.emit('backup:logged', backupLog);
@@ -117,10 +145,12 @@ class BackupMonitoringService extends EventEmitter {
       if (data.errorMessage) updateData.errorMessage = data.errorMessage;
       if (data.metadata) updateData.metadata = data.metadata;
 
-      const backupLog = await prisma.backupLog.update({
-        where: { id },
-        data: updateData,
-      });
+      const backupLog = await this.withSystemDbContext(async db =>
+        db.backupLog.update({
+          where: { id },
+          data: updateData,
+        })
+      );
 
       this.emit('backup:updated', backupLog);
       return backupLog;
@@ -152,15 +182,17 @@ class BackupMonitoringService extends EventEmitter {
       if (endDate) where.startedAt.lte = endDate;
     }
 
-    const [backups, total] = await Promise.all([
-      prisma.backupLog.findMany({
-        where,
-        orderBy: { startedAt: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.backupLog.count({ where }),
-    ]);
+    const [backups, total] = await this.withSystemDbContext(async db =>
+      Promise.all([
+        db.backupLog.findMany({
+          where,
+          orderBy: { startedAt: 'desc' },
+          take: limit,
+          skip: offset,
+        }),
+        db.backupLog.count({ where }),
+      ])
+    );
 
     return { backups, total };
   }
@@ -171,10 +203,12 @@ class BackupMonitoringService extends EventEmitter {
   async getLatestBackup(type?: string): Promise<BackupLog | null> {
     const where = type ? { type } : {};
 
-    return prisma.backupLog.findFirst({
-      where,
-      orderBy: { startedAt: 'desc' },
-    });
+    return this.withSystemDbContext(async db =>
+      db.backupLog.findFirst({
+        where,
+        orderBy: { startedAt: 'desc' },
+      })
+    );
   }
 
   /**
@@ -184,13 +218,15 @@ class BackupMonitoringService extends EventEmitter {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const backups = await prisma.backupLog.findMany({
-      where: {
-        startedAt: {
-          gte: startDate,
+    const backups = await this.withSystemDbContext(async db =>
+      db.backupLog.findMany({
+        where: {
+          startedAt: {
+            gte: startDate,
+          },
         },
-      },
-    });
+      })
+    );
 
     const totalBackups = backups.length;
     const successfulBackups = backups.filter((b) => b.status === 'success').length;
@@ -289,15 +325,17 @@ class BackupMonitoringService extends EventEmitter {
     }
 
     // Check recent failures
-    const recentBackups = await prisma.backupLog.findMany({
-      where: {
-        startedAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+    const recentBackups = await this.withSystemDbContext(async db =>
+      db.backupLog.findMany({
+        where: {
+          startedAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          },
         },
-      },
-      orderBy: { startedAt: 'desc' },
-      take: 10,
-    });
+        orderBy: { startedAt: 'desc' },
+        take: 10,
+      })
+    );
 
     const recentFailures = recentBackups.filter((b) => b.status === 'failed').length;
     if (recentFailures > 2) {
@@ -326,14 +364,16 @@ class BackupMonitoringService extends EventEmitter {
       });
 
       // Check if this is a repeated failure
-      const recentFailures = await prisma.backupLog.count({
-        where: {
-          status: 'failed',
-          startedAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+      const recentFailures = await this.withSystemDbContext(async db =>
+        db.backupLog.count({
+          where: {
+            status: 'failed',
+            startedAt: {
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+            },
           },
-        },
-      });
+        })
+      );
 
       if (recentFailures >= 3) {
         logger.error('CRITICAL: Multiple backup failures detected', { failures: recentFailures });
@@ -351,13 +391,15 @@ class BackupMonitoringService extends EventEmitter {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-    const result = await prisma.backupLog.deleteMany({
-      where: {
-        createdAt: {
-          lt: cutoffDate,
+    const result = await this.withSystemDbContext(async db =>
+      db.backupLog.deleteMany({
+        where: {
+          createdAt: {
+            lt: cutoffDate,
+          },
         },
-      },
-    });
+      })
+    );
 
     return result.count;
   }
@@ -369,22 +411,24 @@ class BackupMonitoringService extends EventEmitter {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const backups = await prisma.backupLog.findMany({
-      where: {
-        startedAt: {
-          gte: startDate,
+    const backups = await this.withSystemDbContext(async db =>
+      db.backupLog.findMany({
+        where: {
+          startedAt: {
+            gte: startDate,
+          },
+          status: 'success',
+          size: {
+            not: null,
+          },
         },
-        status: 'success',
-        size: {
-          not: null,
+        orderBy: { startedAt: 'asc' },
+        select: {
+          startedAt: true,
+          size: true,
         },
-      },
-      orderBy: { startedAt: 'asc' },
-      select: {
-        startedAt: true,
-        size: true,
-      },
-    });
+      })
+    );
 
     return backups.map((b) => ({
       date: b.startedAt.toISOString().split('T')[0] || '',
@@ -403,15 +447,17 @@ class BackupMonitoringService extends EventEmitter {
       deviation: number;
     };
   }> {
-    const recentBackups = await prisma.backupLog.findMany({
-      where: {
-        type: 'full',
-        status: 'success',
-        size: { not: null },
-      },
-      orderBy: { startedAt: 'desc' },
-      take: 10,
-    });
+    const recentBackups = await this.withSystemDbContext(async db =>
+      db.backupLog.findMany({
+        where: {
+          type: 'full',
+          status: 'success',
+          size: { not: null },
+        },
+        orderBy: { startedAt: 'desc' },
+        take: 10,
+      })
+    );
 
     if (recentBackups.length < 5) {
       return { hasAnomaly: false };

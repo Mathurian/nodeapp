@@ -7,6 +7,7 @@ import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 import BackupTransferService, { BackupTarget } from './BackupTransferService';
 import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('ScheduledBackupService');
 
@@ -24,6 +25,16 @@ class ScheduledBackupService {
     this.isRunning = false;
     this.settingsRefreshInterval = null;
     this.systemTenantId = getTenantSegregationConfig().defaultTenantIds[0] || 'default';
+  }
+
+  private async withSystemDbContext<T>(
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    return withTenantDbRlsContext(
+      this.prisma,
+      { tenantId: null, isSuperAdmin: true },
+      async tx => operation(tx)
+    );
   }
 
   async start() {
@@ -74,7 +85,7 @@ class ScheduledBackupService {
         return;
       }
 
-      const settings = await this.prisma.backupSetting.findMany()
+      const settings = await this.withSystemDbContext(async db => db.backupSetting.findMany())
       for (const setting of settings) {
         if (setting.enabled) {
           await this.scheduleBackup(setting)
@@ -148,21 +159,23 @@ class ScheduledBackupService {
       }
 
       // Create backup log entry
-      const backupLog = await this.prisma.backupLog.create({
-        data: {
-          tenantId: this.systemTenantId,
-          type: baseType,
-          location: filepath,
-          size: 0,
-          status: 'running',
-          startedAt: new Date(),
-          errorMessage: null,
-          metadata: {
-            scheduled: true,
-            deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+      const backupLog = await this.withSystemDbContext(async db =>
+        db.backupLog.create({
+          data: {
+            tenantId: this.systemTenantId,
+            type: baseType,
+            location: filepath,
+            size: 0,
+            status: 'running',
+            startedAt: new Date(),
+            errorMessage: null,
+            metadata: {
+              scheduled: true,
+              deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+            }
           }
-        }
-      })
+        })
+      )
 
       // Parse DATABASE_URL to extract connection details
       const dbUrl = new URL(env.get('DATABASE_URL'));
@@ -185,15 +198,17 @@ class ScheduledBackupService {
           command = `PGPASSWORD="${password}" pg_dump --data-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
           break
         default:
-          await this.prisma.backupLog.update({
-            where: { id: backupLog.id },
-            data: {
-              status: 'failed',
-              errorMessage: 'Invalid backup type',
-              completedAt: new Date(),
-              duration: 0
-            }
-          })
+          await this.withSystemDbContext(async db =>
+            db.backupLog.update({
+              where: { id: backupLog.id },
+              data: {
+                status: 'failed',
+                errorMessage: 'Invalid backup type',
+                completedAt: new Date(),
+                duration: 0
+              }
+            })
+          )
           return
       }
 
@@ -201,15 +216,17 @@ class ScheduledBackupService {
         if (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Scheduled backup error', { error: errorMessage })
-          await this.prisma.backupLog.update({
-            where: { id: backupLog.id },
-            data: {
-              status: 'failed',
-              errorMessage: errorMessage,
-              completedAt: new Date(),
-              duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000)
-            }
-          })
+          await this.withSystemDbContext(async db =>
+            db.backupLog.update({
+              where: { id: backupLog.id },
+              data: {
+                status: 'failed',
+                errorMessage: errorMessage,
+                completedAt: new Date(),
+                duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000)
+              }
+            })
+          )
           return
         }
 
@@ -220,10 +237,12 @@ class ScheduledBackupService {
         let remoteResults: Array<{ targetId: string; targetName: string; success: boolean; error?: string }> = []
 
         if (isRemoteMode) {
-          const targets = await this.prisma.backupTarget.findMany({
-            where: { enabled: true, tenantId: null },
-            orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }]
-          });
+          const targets = await this.withSystemDbContext(async db =>
+            db.backupTarget.findMany({
+              where: { enabled: true, tenantId: null },
+              orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }]
+            })
+          );
           if (targets.length === 0) {
             finalStatus = 'failed'
             finalError = 'No enabled off-site backup targets configured.'
@@ -254,21 +273,23 @@ class ScheduledBackupService {
           }
         }
 
-        await this.prisma.backupLog.update({
-          where: { id: backupLog.id },
-          data: {
-            status: finalStatus,
-            size: stats.size,
-            errorMessage: finalError,
-            completedAt: new Date(),
-            duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000),
-            metadata: {
-              scheduled: true,
-              deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
-              remoteResults,
+        await this.withSystemDbContext(async db =>
+          db.backupLog.update({
+            where: { id: backupLog.id },
+            data: {
+              status: finalStatus,
+              size: stats.size,
+              errorMessage: finalError,
+              completedAt: new Date(),
+              duration: Math.floor((Date.now() - backupLog.startedAt.getTime()) / 1000),
+              metadata: {
+                scheduled: true,
+                deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+                remoteResults,
+              }
             }
-          }
-        })
+          })
+        )
 
         if (isRemoteMode) {
           try {
@@ -297,15 +318,17 @@ class ScheduledBackupService {
       cutoffDate.setDate(cutoffDate.getDate() - setting.retentionDays)
 
       // Find old backup files
-      const oldBackups = await this.prisma.backupLog.findMany({
-        where: {
-          type: setting.backupType,
-          createdAt: {
-            lt: cutoffDate
-          },
-          status: 'success'
-        }
-      })
+      const oldBackups = await this.withSystemDbContext(async db =>
+        db.backupLog.findMany({
+          where: {
+            type: setting.backupType,
+            createdAt: {
+              lt: cutoffDate
+            },
+            status: 'success'
+          }
+        })
+      )
 
       for (const backup of oldBackups) {
         // Delete physical file if it exists
@@ -314,9 +337,11 @@ class ScheduledBackupService {
         }
 
         // Delete database record
-        await this.prisma.backupLog.delete({
-          where: { id: backup.id }
-        })
+        await this.withSystemDbContext(async db =>
+          db.backupLog.delete({
+            where: { id: backup.id }
+          })
+        )
 
         logger.info(`Cleaned up old backup`, { location: backup.location })
       }
@@ -344,9 +369,11 @@ class ScheduledBackupService {
   // Method to manually trigger a backup (for testing/debugging)
   async runManualBackup(settingId: string): Promise<{success: boolean, message?: string, error?: string}> {
     try {
-      const setting = await this.prisma.backupSetting.findUnique({
-        where: { id: settingId }
-      })
+      const setting = await this.withSystemDbContext(async db =>
+        db.backupSetting.findUnique({
+          where: { id: settingId }
+        })
+      )
 
       if (!setting) {
         throw new Error('Backup setting not found')

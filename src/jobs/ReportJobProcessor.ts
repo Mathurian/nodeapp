@@ -3,7 +3,8 @@ import { BaseJobProcessor } from './BaseJobProcessor';
 import queueService from '../services/QueueService';
 import { Logger } from '../utils/logger';
 import prisma from '../config/database';
-import { Event, Score, Prisma, Contest, Category } from '@prisma/client';
+import { Event, Score, Prisma, Contest, Category, PrismaClient } from '@prisma/client';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 type EventWithContests = Event & {
   contests: (Contest & {
@@ -118,7 +119,7 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
 
       // Fetch data for report
       this.logger.info('Fetching report data', { reportType, parameters });
-      const data = await this.fetchReportData(reportType, parameters);
+      const data = await this.fetchReportData(reportType, parameters, tenantId);
 
       await job.updateProgress(40);
 
@@ -136,18 +137,20 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       const fileSize = stats.size;
 
       // Save report metadata to database
-      const report = await prisma.report.create({
-        data: {
-          tenantId,
-          name: `${reportType} Report`,
-          type: reportType,
-          parameters: JSON.stringify(parameters),
-          format,
-          filePath: filePath || '',
-          fileSize: fileSize || 0,
-          generatedBy: requestedBy
-        },
-      });
+      const report = await this.withTenantDbContext(tenantId, async (db) =>
+        db.report.create({
+          data: {
+            tenantId,
+            name: `${reportType} Report`,
+            type: reportType,
+            parameters: JSON.stringify(parameters),
+            format,
+            filePath: filePath || '',
+            fileSize: fileSize || 0,
+            generatedBy: requestedBy
+          },
+        })
+      );
 
       await job.updateProgress(90);
 
@@ -191,40 +194,57 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
    */
   private async fetchReportData(
     reportType: string,
-    parameters: Record<string, any>
+    parameters: Record<string, any>,
+    tenantId: string
   ): Promise<any> {
     switch (reportType) {
       case 'event':
-        return await this.fetchEventReportData(parameters);
+        return await this.fetchEventReportData(parameters, tenantId);
       case 'scoring':
-        return await this.fetchScoringReportData(parameters);
+        return await this.fetchScoringReportData(parameters, tenantId);
       case 'audit':
-        return await this.fetchAuditReportData(parameters);
+        return await this.fetchAuditReportData(parameters, tenantId);
       default:
         throw new Error(`Unknown report type: ${reportType}`);
     }
   }
 
+  private async withTenantDbContext<T>(
+    tenantId: string,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId, isSuperAdmin: false },
+      async tx => operation(tx)
+    );
+  }
+
   /**
    * Fetch event report data
    */
-  private async fetchEventReportData(parameters: Record<string, any>) {
+  private async fetchEventReportData(parameters: Record<string, any>, tenantId: string) {
     const { eventId } = parameters;
 
     if (!eventId) {
       throw new Error('Event ID is required for event report');
     }
 
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        contests: {
-          include: {
-            categories: true,
+    const event = await this.withTenantDbContext(tenantId, async (db) =>
+      db.event.findFirst({
+        where: {
+          id: eventId,
+          tenantId
+        },
+        include: {
+          contests: {
+            include: {
+              categories: true,
+            },
           },
         },
-      },
-    }) as EventWithContests | null;
+      })
+    ) as EventWithContests | null;
 
     if (!event) {
       throw new Error(`Event not found: ${eventId}`);
@@ -236,38 +256,43 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Fetch scoring report data
    */
-  private async fetchScoringReportData(parameters: Record<string, any>) {
+  private async fetchScoringReportData(parameters: Record<string, any>, tenantId: string) {
     const { categoryId } = parameters;
 
     if (!categoryId) {
       throw new Error('Category ID is required for scoring report');
     }
 
-    const scores = await prisma.score.findMany({
-      where: { categoryId },
-      include: {
-        judge: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const scores = await this.withTenantDbContext(tenantId, async (db) =>
+      db.score.findMany({
+        where: {
+          categoryId,
+          tenantId,
+        },
+        include: {
+          judge: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          contestant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          criterion: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        contestant: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        criterion: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    }) as ScoreWithRelations[];
+        orderBy: { createdAt: 'desc' },
+      })
+    ) as ScoreWithRelations[];
 
     return scores;
   }
@@ -275,7 +300,10 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
   /**
    * Fetch audit report data
    */
-  private async fetchAuditReportData(parameters: Record<string, string | number | boolean | undefined>) {
+  private async fetchAuditReportData(
+    parameters: Record<string, string | number | boolean | undefined>,
+    tenantId: string
+  ) {
     const { startDate, endDate, userId } = parameters;
 
     const where: Prisma.ActivityLogWhereInput = {};
@@ -298,11 +326,15 @@ export class ReportJobProcessor extends BaseJobProcessor<ReportJobData> {
       where.userId = typeof userId === 'string' ? userId : String(userId);
     }
 
-    const logs = await prisma.activityLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: 10000, // Limit to prevent memory issues
-    });
+    where.tenantId = tenantId;
+
+    const logs = await this.withTenantDbContext(tenantId, async (db) =>
+      db.activityLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 10000, // Limit to prevent memory issues
+      })
+    );
 
     return logs;
   }

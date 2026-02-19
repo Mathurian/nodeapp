@@ -7,6 +7,7 @@ import prisma from '../config/database';
 import { Prisma, PrismaClient, WorkflowInstance, WorkflowStep } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import EventBusService, { AppEventType } from './EventBusService';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('WorkflowService');
 
@@ -58,6 +59,37 @@ interface WinnerUnlockConfig {
 }
 
 export class WorkflowService {
+  private static async withOptionalTenantDbContext<T>(
+    tenantId: string,
+    client: PrismaClient | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    if (client) {
+      return operation(client);
+    }
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId, isSuperAdmin: false },
+      async tx => operation(tx)
+    );
+  }
+
+  private static async withOptionalSystemDbContext<T>(
+    client: PrismaClient | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    if (client) {
+      return operation(client);
+    }
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId: null, isSuperAdmin: true },
+      async tx => operation(tx)
+    );
+  }
+
   private static async initializeDefaultsForTenant(tenantId: string, client?: PrismaClient): Promise<void> {
     const db = client || prisma;
     const existingCount = await db.workflowTemplate.count({ where: { tenantId } });
@@ -233,31 +265,37 @@ export class WorkflowService {
 
   static async runScheduledWinnerUnlocks(now: Date = new Date(), client?: PrismaClient): Promise<number> {
     try {
-      const db = client || prisma;
-      const templates = await db.workflowTemplate.findMany({
-        where: {
-          isActive: true,
-          type: 'winners.unlock.time',
-          tenantId: { not: null },
-        },
-        select: {
-          id: true,
-          tenantId: true,
-          config: true,
-        },
-      });
+      const templates = await this.withOptionalSystemDbContext(client, async db =>
+        db.workflowTemplate.findMany({
+          where: {
+            isActive: true,
+            type: 'winners.unlock.time',
+            tenantId: { not: null },
+          },
+          select: {
+            id: true,
+            tenantId: true,
+            config: true,
+          },
+        })
+      );
 
       let publishedCount = 0;
       for (const template of templates) {
-        if (!template.tenantId) continue;
-        const didPublish = await this.maybeTriggerWinnerUnlockFromConfig(
-          template.config,
-          template.tenantId,
-          'winners.unlock.time',
-          {},
-          { now, source: 'workflow-scheduler', templateId: template.id },
-          db
+        const templateTenantId = template.tenantId;
+        if (!templateTenantId) continue;
+
+        const didPublish = await this.withOptionalTenantDbContext(templateTenantId, client, async db =>
+          this.maybeTriggerWinnerUnlockFromConfig(
+            template.config,
+            templateTenantId,
+            'winners.unlock.time',
+            {},
+            { now, source: 'workflow-scheduler', templateId: template.id },
+            db
+          )
         );
+
         if (didPublish) publishedCount += 1;
       }
 
@@ -608,67 +646,68 @@ export class WorkflowService {
     client?: PrismaClient
   ): Promise<number> {
     try {
-      const db = client || prisma;
-      const templates = await db.workflowTemplate.findMany({
-        where: {
-          tenantId,
-          isActive: true,
-          type: eventType,
-        },
-        select: { id: true, config: true },
-      });
-
-      if (templates.length === 0) return 0;
-
-      const entityId =
-        String(
-          payload['entityId'] ||
-          payload['categoryId'] ||
-          payload['contestId'] ||
-          payload['eventId'] ||
-          payload['scoreId'] ||
-          payload['assignmentId'] ||
-          payload['userId'] ||
-          payload['id'] ||
-          `${eventType}-${Date.now()}`
-        );
-
-      const lowerType = eventType.toLowerCase();
-      const entityType =
-        lowerType.startsWith('event.') ? 'EVENT'
-        : lowerType.startsWith('contest.') ? 'CONTEST'
-        : lowerType.startsWith('category.') ? 'CATEGORY'
-        : lowerType.startsWith('score.') ? 'SCORE'
-        : lowerType.startsWith('assignment.') ? 'ASSIGNMENT'
-        : lowerType.startsWith('certification.') ? 'CERTIFICATION'
-        : lowerType.startsWith('user.') ? 'USER'
-        : 'SYSTEM';
-
-      let started = 0;
-      for (const template of templates) {
-        const existing = await db.workflowInstance.findFirst({
+      return this.withOptionalTenantDbContext(tenantId, client, async db => {
+        const templates = await db.workflowTemplate.findMany({
           where: {
             tenantId,
-            templateId: template.id,
-            entityId,
-            entityType,
-            status: STATUS_ACTIVE,
+            isActive: true,
+            type: eventType,
           },
-          select: { id: true },
+          select: { id: true, config: true },
         });
-        if (existing) continue;
-        await this.startWorkflow(template.id, tenantId, entityType, entityId, db);
-        await this.maybeTriggerWinnerUnlockFromConfig(
-          template.config,
-          tenantId,
-          eventType,
-          payload,
-          { source: 'workflow-event', templateId: template.id },
-          db
-        );
-        started += 1;
-      }
-      return started;
+
+        if (templates.length === 0) return 0;
+
+        const entityId =
+          String(
+            payload['entityId'] ||
+            payload['categoryId'] ||
+            payload['contestId'] ||
+            payload['eventId'] ||
+            payload['scoreId'] ||
+            payload['assignmentId'] ||
+            payload['userId'] ||
+            payload['id'] ||
+            `${eventType}-${Date.now()}`
+          );
+
+        const lowerType = eventType.toLowerCase();
+        const entityType =
+          lowerType.startsWith('event.') ? 'EVENT'
+          : lowerType.startsWith('contest.') ? 'CONTEST'
+          : lowerType.startsWith('category.') ? 'CATEGORY'
+          : lowerType.startsWith('score.') ? 'SCORE'
+          : lowerType.startsWith('assignment.') ? 'ASSIGNMENT'
+          : lowerType.startsWith('certification.') ? 'CERTIFICATION'
+          : lowerType.startsWith('user.') ? 'USER'
+          : 'SYSTEM';
+
+        let started = 0;
+        for (const template of templates) {
+          const existing = await db.workflowInstance.findFirst({
+            where: {
+              tenantId,
+              templateId: template.id,
+              entityId,
+              entityType,
+              status: STATUS_ACTIVE,
+            },
+            select: { id: true },
+          });
+          if (existing) continue;
+          await this.startWorkflow(template.id, tenantId, entityType, entityId, db);
+          await this.maybeTriggerWinnerUnlockFromConfig(
+            template.config,
+            tenantId,
+            eventType,
+            payload,
+            { source: 'workflow-event', templateId: template.id },
+            db
+          );
+          started += 1;
+        }
+        return started;
+      });
     } catch (error) {
       logger.error('Error auto-starting workflow for event', { eventType, tenantId, error });
       return 0;

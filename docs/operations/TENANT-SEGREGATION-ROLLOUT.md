@@ -19,6 +19,10 @@ Default fallback values (if env keys are missing):
 - `config/database` now exports a context-aware Prisma proxy:
   - inside API request context, global Prisma imports resolve to request-scoped `req.prisma`
   - outside request context (jobs/ops), Prisma resolves to the root client
+- Background/event paths must set explicit DB RLS session context using `withTenantDbRlsContext`:
+  - tenant-scoped execution: `{ tenantId, isSuperAdmin: false }`
+  - system/global execution: `{ tenantId: null, isSuperAdmin: true }`
+  - current covered runtime paths include report jobs, workflow scheduler/automation, webhook delivery/event handling, email digest processing, backup monitoring, and scheduled backups.
 - `utils/prisma` is a compatibility re-export only and must not instantiate its own Prisma client.
 - EventBus publish calls in services/controllers/events must propagate `tenantId` in payload or metadata.
 - Segregation violations are exported as Prometheus counter `tenant_segregation_violations_total` with labels:
