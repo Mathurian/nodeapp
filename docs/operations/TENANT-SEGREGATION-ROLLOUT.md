@@ -20,6 +20,15 @@ Default fallback values (if env keys are missing):
   - outside request context (jobs/ops), Prisma resolves to the root client
 - `utils/prisma` is a compatibility re-export only and must not instantiate its own Prisma client.
 - EventBus publish calls in services/controllers/events must propagate `tenantId` in payload or metadata.
+- Segregation violations are exported as Prometheus counter `tenant_segregation_violations_total` with labels:
+  - `code` (`DEFAULT_TENANT_RESTRICTED|TENANT_SCOPE_VIOLATION|TENANT_CONTEXT_MISMATCH`)
+  - `layer` (`auth|tenant_middleware|service|route|policy`)
+  - `mode` (`off|audit|enforce|n/a`)
+  - `outcome` (`blocked|allowed|audit_only`)
+
+CI guardrails:
+
+- `npm run test:tenant-guardrails` (runs segregation audit + tenant-model parity check)
 
 ## Phase 0 Inventory Artifact
 

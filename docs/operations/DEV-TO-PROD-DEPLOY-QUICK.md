@@ -37,6 +37,14 @@ Optional but recommended preflight before staging:
 sudo bash scripts/deploy/preflight-tenant-segregation.sh
 ```
 
+If Prisma baseline has not been aligned for the target DB yet, run the dry-run
+check once before your release window:
+
+```bash
+ENV_FILE=/etc/event-manager/event-manager.env \
+bash scripts/deploy/prisma-baseline-align.sh
+```
+
 ## 2) Stage A Release Artifact
 
 ```bash

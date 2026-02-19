@@ -81,6 +81,7 @@ For a concise operator runbook, see:
 
 - `docs/operations/DEV-TO-PROD-DEPLOY-QUICK.md`
 - `docs/operations/TENANT-SEGREGATION-ROLLOUT.md`
+- `docs/operations/PRISMA-BASELINE-ALIGNMENT.md`
 
 Before staging a production release, run:
 

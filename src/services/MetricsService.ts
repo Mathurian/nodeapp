@@ -26,6 +26,8 @@ export class MetricsService {
   private softDeleteRestores: Counter<string>;
   // S4-4: Correlation ID tracking
   private requestsWithCorrelationId: Counter<string>;
+  // Tenant segregation violation tracking
+  private tenantSegregationViolations: Counter<string>;
   // Test execution metrics
   private testRunsTotal: Counter<string>;
   private testPassTotal: Counter<string>;
@@ -156,6 +158,13 @@ export class MetricsService {
       name: 'requests_with_correlation_id_total',
       help: 'Total number of requests with correlation ID',
       labelNames: ['has_correlation_id'],
+      registers: [this.register],
+    });
+
+    this.tenantSegregationViolations = new Counter({
+      name: 'tenant_segregation_violations_total',
+      help: 'Total number of tenant segregation policy violations or denials',
+      labelNames: ['code', 'layer', 'mode', 'outcome'],
       registers: [this.register],
     });
 
@@ -457,6 +466,23 @@ export class MetricsService {
   }
 
   /**
+   * Record tenant segregation policy violation/denial event
+   */
+  recordTenantSegregationViolation(
+    code: 'DEFAULT_TENANT_RESTRICTED' | 'TENANT_SCOPE_VIOLATION' | 'TENANT_CONTEXT_MISMATCH',
+    layer: 'auth' | 'tenant_middleware' | 'service' | 'route' | 'policy',
+    mode: 'off' | 'audit' | 'enforce' | 'n/a',
+    outcome: 'blocked' | 'allowed' | 'audit_only'
+  ): void {
+    this.tenantSegregationViolations.inc({
+      code,
+      layer,
+      mode,
+      outcome,
+    });
+  }
+
+  /**
    * Record test run start
    */
   recordTestRunStart(suite: string, type: 'unit' | 'integration' | 'e2e'): void {
@@ -589,4 +615,3 @@ export class MetricsService {
 }
 
 export default MetricsService;
-

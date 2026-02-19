@@ -10,6 +10,7 @@ import { createLogger } from '../utils/logger';
 import { createTenantPrismaClient } from './tenantMiddleware';
 import { updateRequestContext } from './correlationId';
 import { evaluateDefaultTenantAccess } from '../utils/tenantSegregationPolicy';
+import { recordTenantSegregationViolationMetric } from '../utils/tenantSegregationMetrics';
 
 const logger = createLogger('auth');
 
@@ -258,6 +259,13 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     });
 
     if (!defaultTenantAccess.allowed && defaultTenantAccess.enforced) {
+      recordTenantSegregationViolationMetric(
+        defaultTenantAccess.code || 'DEFAULT_TENANT_RESTRICTED',
+        'auth',
+        defaultTenantAccess.mode,
+        'blocked'
+      );
+
       logger.warn('authenticateToken: blocked non-super-admin access to default tenant', {
         userId: user.id,
         email: user.email,
@@ -275,6 +283,15 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         code: defaultTenantAccess.code,
       });
       return;
+    }
+
+    if (defaultTenantAccess.code === 'DEFAULT_TENANT_RESTRICTED' && defaultTenantAccess.mode === 'audit') {
+      recordTenantSegregationViolationMetric(
+        defaultTenantAccess.code,
+        'auth',
+        defaultTenantAccess.mode,
+        'audit_only'
+      );
     }
 
     // Recreate req.prisma with correct isSuperAdmin flag

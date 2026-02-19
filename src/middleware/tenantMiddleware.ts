@@ -10,6 +10,7 @@ import prisma from '../config/database';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
+import { recordTenantSegregationViolationMetric } from '../utils/tenantSegregationMetrics';
 
 // Extend Express Request type to include tenant context
 declare global {
@@ -388,6 +389,13 @@ export async function tenantMiddleware(
     if (tokenTenant && tokenRole !== 'SUPER_ADMIN') {
       const matchesTokenTenant = tenant.id === tokenTenant || tenant.slug === tokenTenant;
       if (!matchesTokenTenant) {
+        recordTenantSegregationViolationMetric(
+          'TENANT_CONTEXT_MISMATCH',
+          'tenant_middleware',
+          'enforce',
+          'blocked'
+        );
+
         logger.warn('Tenant context mismatch blocked', {
           path: req.path,
           method: req.method,
