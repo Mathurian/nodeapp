@@ -19,6 +19,11 @@ interface ScoreRemovalRequest {
 
 const BoardScoreRemovalPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const debugLog = (...args: unknown[]) => {
+    if (import.meta.env.DEV) {
+      console.log(...args)
+    }
+  }
   const [selectedRequest, setSelectedRequest] = useState<ScoreRemovalRequest | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -55,7 +60,7 @@ const BoardScoreRemovalPage: React.FC = () => {
 
   const approveMutation = useMutation(
     async (requestId: string) => {
-      console.log('Approving score removal request:', requestId)
+      debugLog('Approving score removal request:', requestId)
       return { success: true }
     },
     {
@@ -72,7 +77,7 @@ const BoardScoreRemovalPage: React.FC = () => {
 
   const rejectMutation = useMutation(
     async ({ requestId, reason }: { requestId: string; reason: string }) => {
-      console.log('Rejecting score removal request:', requestId, reason)
+      debugLog('Rejecting score removal request:', requestId, reason)
       return { success: true }
     },
     {

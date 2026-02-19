@@ -72,6 +72,12 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const { user } = useAuth()
 
+  const debugLog = (...args: unknown[]) => {
+    if (import.meta.env.DEV) {
+      console.log(...args)
+    }
+  }
+
   useEffect(() => {
     // Only connect if user is authenticated
     if (user) {
@@ -85,7 +91,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
       newSocket.on('connect', () => {
         setIsConnected(true)
-        console.log('WebSocket connected to server')
+        debugLog('WebSocket connected to server')
 
         // Join user-specific room
         newSocket.emit('join_user_room', { userId: user.id })
@@ -96,7 +102,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
       newSocket.on('disconnect', (reason) => {
         setIsConnected(false)
-        console.log('WebSocket disconnected from server:', reason)
+        debugLog('WebSocket disconnected from server:', reason)
       })
 
       newSocket.on('connect_error', (error) => {
@@ -110,7 +116,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       })
 
       newSocket.on('score_update', (scoreData: ScoreUpdate) => {
-        console.log('Score update received:', scoreData)
+        debugLog('Score update received:', scoreData)
         
         // Add notification
         const notification: NotificationData = {
@@ -135,7 +141,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       })
 
       newSocket.on('certification_update', (certData: CertificationUpdate) => {
-        console.log('Certification update received:', certData)
+        debugLog('Certification update received:', certData)
 
         const notification: NotificationData = {
           id: `cert_${certData.id}`,
@@ -158,7 +164,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       })
 
       newSocket.on('system_notification', (notification: NotificationData) => {
-        console.log('System notification received:', notification)
+        debugLog('System notification received:', notification)
         setNotifications(prev => [notification, ...prev])
 
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -170,7 +176,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       })
 
       newSocket.on('event_update', (eventData: any) => {
-        console.log('Event update received:', eventData)
+        debugLog('Event update received:', eventData)
         
         const notification: NotificationData = {
           id: `event_${eventData.id}`,
