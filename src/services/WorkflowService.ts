@@ -4,7 +4,7 @@
  */
 
 import prisma from '../config/database';
-import { Prisma, WorkflowInstance, WorkflowStep } from '@prisma/client';
+import { Prisma, PrismaClient, WorkflowInstance, WorkflowStep } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import EventBusService, { AppEventType } from './EventBusService';
 
@@ -58,8 +58,9 @@ interface WinnerUnlockConfig {
 }
 
 export class WorkflowService {
-  private static async initializeDefaultsForTenant(tenantId: string): Promise<void> {
-    const existingCount = await prisma.workflowTemplate.count({ where: { tenantId } });
+  private static async initializeDefaultsForTenant(tenantId: string, client?: PrismaClient): Promise<void> {
+    const db = client || prisma;
+    const existingCount = await db.workflowTemplate.count({ where: { tenantId } });
     if (existingCount > 0) return;
 
     const defaults: WorkflowTemplateInput[] = [
@@ -94,7 +95,7 @@ export class WorkflowService {
     ];
 
     for (const template of defaults) {
-      await this.createTemplate(template);
+      await this.createTemplate(template, db);
     }
   }
 
@@ -119,8 +120,9 @@ export class WorkflowService {
     };
   }
 
-  private static async getStepMap(templateId: string, tenantId: string): Promise<Map<string, WorkflowStep>> {
-    const steps = await prisma.workflowStep.findMany({
+  private static async getStepMap(templateId: string, tenantId: string, client?: PrismaClient): Promise<Map<string, WorkflowStep>> {
+    const db = client || prisma;
+    const steps = await db.workflowStep.findMany({
       where: { templateId, tenantId },
       orderBy: { stepOrder: 'asc' },
     });
@@ -145,9 +147,11 @@ export class WorkflowService {
   private static async publishWinnersIfEligible(
     contestId: string,
     tenantId: string,
-    context: { source: string; templateId?: string; eventType?: string }
+    context: { source: string; templateId?: string; eventType?: string },
+    client?: PrismaClient
   ): Promise<boolean> {
-    const contest = await prisma.contest.findFirst({
+    const db = client || prisma;
+    const contest = await db.contest.findFirst({
       where: { id: contestId, tenantId },
       select: {
         id: true,
@@ -171,7 +175,7 @@ export class WorkflowService {
     const missingApprovals = contest.categories.filter((category) => category.categoryCertifications.length === 0);
     if (missingApprovals.length > 0) return false;
 
-    await prisma.contest.update({
+    await db.contest.update({
       where: { id: contestId },
       data: {
         winnersPublished: true,
@@ -197,7 +201,8 @@ export class WorkflowService {
     tenantId: string,
     eventType: string,
     payload: Record<string, unknown>,
-    options?: { now?: Date; source?: string; templateId?: string }
+    options?: { now?: Date; source?: string; templateId?: string },
+    client?: PrismaClient
   ): Promise<boolean> {
     const winnerUnlock = this.parseWinnerUnlockConfig(config);
     if (!winnerUnlock?.enabled) return false;
@@ -223,12 +228,13 @@ export class WorkflowService {
       source: options?.source || 'workflow-automation',
       templateId: options?.templateId,
       eventType,
-    });
+    }, client);
   }
 
-  static async runScheduledWinnerUnlocks(now: Date = new Date()): Promise<number> {
+  static async runScheduledWinnerUnlocks(now: Date = new Date(), client?: PrismaClient): Promise<number> {
     try {
-      const templates = await prisma.workflowTemplate.findMany({
+      const db = client || prisma;
+      const templates = await db.workflowTemplate.findMany({
         where: {
           isActive: true,
           type: 'winners.unlock.time',
@@ -249,7 +255,8 @@ export class WorkflowService {
           template.tenantId,
           'winners.unlock.time',
           {},
-          { now, source: 'workflow-scheduler', templateId: template.id }
+          { now, source: 'workflow-scheduler', templateId: template.id },
+          db
         );
         if (didPublish) publishedCount += 1;
       }
@@ -264,8 +271,9 @@ export class WorkflowService {
   /**
    * Create workflow template
    */
-  static async createTemplate(input: WorkflowTemplateInput): Promise<WorkflowTemplateView> {
+  static async createTemplate(input: WorkflowTemplateInput, client?: PrismaClient): Promise<WorkflowTemplateView> {
     try {
+      const db = client || prisma;
       const { steps = [], ...templateData } = input;
       const normalizedTenantId = templateData.tenantId?.trim();
       if (!normalizedTenantId) {
@@ -284,7 +292,7 @@ export class WorkflowService {
       ) ? (templateData.config as Record<string, unknown>) : {};
       const templateConfig = ({ ...baseConfig, steps: normalizedSteps } as unknown as Prisma.InputJsonValue);
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await db.$transaction(async (tx) => {
         const createdTemplate = await tx.workflowTemplate.create({
           data: {
             tenantId: normalizedTenantId || null,
@@ -334,15 +342,16 @@ export class WorkflowService {
   /**
    * Get workflow template by ID
    */
-  static async getTemplate(id: string, tenantId: string): Promise<WorkflowTemplateView | null> {
+  static async getTemplate(id: string, tenantId: string, client?: PrismaClient): Promise<WorkflowTemplateView | null> {
     try {
-      const template = await prisma.workflowTemplate.findFirst({
+      const db = client || prisma;
+      const template = await db.workflowTemplate.findFirst({
         where: { id, tenantId }
       });
       if (!template) {
         return null;
       }
-      const steps = await prisma.workflowStep.findMany({
+      const steps = await db.workflowStep.findMany({
         where: { templateId: id, tenantId },
         orderBy: { stepOrder: 'asc' },
       });
@@ -356,9 +365,10 @@ export class WorkflowService {
   /**
    * List workflow templates
    */
-  static async listTemplates(tenantId: string, type?: string): Promise<WorkflowTemplateView[]> {
+  static async listTemplates(tenantId: string, type?: string, client?: PrismaClient): Promise<WorkflowTemplateView[]> {
     try {
-      let templates = await prisma.workflowTemplate.findMany({
+      const db = client || prisma;
+      let templates = await db.workflowTemplate.findMany({
         where: {
           tenantId,
           ...(type ? { type } : {})
@@ -367,8 +377,8 @@ export class WorkflowService {
       });
 
       if (templates.length === 0) {
-        await this.initializeDefaultsForTenant(tenantId);
-        templates = await prisma.workflowTemplate.findMany({
+        await this.initializeDefaultsForTenant(tenantId, db);
+        templates = await db.workflowTemplate.findMany({
           where: {
             tenantId,
             ...(type ? { type } : {})
@@ -377,7 +387,7 @@ export class WorkflowService {
         });
       }
 
-      const steps = await prisma.workflowStep.findMany({
+      const steps = await db.workflowStep.findMany({
         where: {
           tenantId,
           templateId: { in: templates.map((t) => t.id) },
@@ -405,14 +415,15 @@ export class WorkflowService {
   /**
    * Update workflow template
    */
-  static async updateTemplate(id: string, tenantId: string, data: Partial<WorkflowTemplateInput>): Promise<WorkflowTemplateView> {
+  static async updateTemplate(id: string, tenantId: string, data: Partial<WorkflowTemplateInput>, client?: PrismaClient): Promise<WorkflowTemplateView> {
     try {
-      const existing = await prisma.workflowTemplate.findFirst({ where: { id, tenantId } });
+      const db = client || prisma;
+      const existing = await db.workflowTemplate.findFirst({ where: { id, tenantId } });
       if (!existing) {
         throw new Error(`Workflow template ${id} not found`);
       }
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await db.$transaction(async (tx) => {
         const nextSteps = Array.isArray(data.steps) ? this.normalizeStepInput(data.steps) : null;
         const existingConfig = (
           existing.config &&
@@ -483,9 +494,10 @@ export class WorkflowService {
   /**
    * Delete workflow template
    */
-  static async deleteTemplate(id: string, tenantId: string): Promise<void> {
+  static async deleteTemplate(id: string, tenantId: string, client?: PrismaClient): Promise<void> {
     try {
-      await prisma.$transaction(async (tx) => {
+      const db = client || prisma;
+      await db.$transaction(async (tx) => {
         const instances = await tx.workflowInstance.findMany({
           where: { templateId: id, tenantId },
           select: { id: true },
@@ -517,10 +529,12 @@ export class WorkflowService {
     workflowId: string,
     tenantId: string,
     entityType: string,
-    entityId: string
+    entityId: string,
+    client?: PrismaClient
   ): Promise<WorkflowInstance> {
     try {
-      const template = await prisma.workflowTemplate.findFirst({
+      const db = client || prisma;
+      const template = await db.workflowTemplate.findFirst({
         where: {
           id: workflowId,
           tenantId,
@@ -532,14 +546,14 @@ export class WorkflowService {
         throw new Error(`Workflow template ${workflowId} not found or inactive`);
       }
 
-      const steps = await prisma.workflowStep.findMany({
+      const steps = await db.workflowStep.findMany({
         where: { templateId: workflowId, tenantId },
         orderBy: { stepOrder: 'asc' },
       });
 
       const firstStep = steps[0];
 
-      const instance = await prisma.workflowInstance.create({
+      const instance = await db.workflowInstance.create({
         data: {
           templateId: workflowId,
           tenantId,
@@ -551,7 +565,7 @@ export class WorkflowService {
       });
 
       if (steps.length > 0) {
-        await prisma.workflowStepExecution.createMany({
+        await db.workflowStepExecution.createMany({
           data: steps.map((step, index) => ({
             instanceId: instance.id,
             stepId: step.id,
@@ -567,8 +581,8 @@ export class WorkflowService {
       try {
         await EventBusService.publish(
           AppEventType.USER_CREATED,
-          { workflowId: instance.id, entityType, entityId },
-          { source: 'WorkflowService' }
+          { workflowId: instance.id, entityType, entityId, tenantId },
+          { source: 'WorkflowService', tenantId }
         );
       } catch (publishError) {
         logger.warn('Workflow started but event publish failed', {
@@ -590,10 +604,12 @@ export class WorkflowService {
   static async autoStartForEvent(
     eventType: string,
     tenantId: string,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
+    client?: PrismaClient
   ): Promise<number> {
     try {
-      const templates = await prisma.workflowTemplate.findMany({
+      const db = client || prisma;
+      const templates = await db.workflowTemplate.findMany({
         where: {
           tenantId,
           isActive: true,
@@ -630,7 +646,7 @@ export class WorkflowService {
 
       let started = 0;
       for (const template of templates) {
-        const existing = await prisma.workflowInstance.findFirst({
+        const existing = await db.workflowInstance.findFirst({
           where: {
             tenantId,
             templateId: template.id,
@@ -641,13 +657,14 @@ export class WorkflowService {
           select: { id: true },
         });
         if (existing) continue;
-        await this.startWorkflow(template.id, tenantId, entityType, entityId);
+        await this.startWorkflow(template.id, tenantId, entityType, entityId, db);
         await this.maybeTriggerWinnerUnlockFromConfig(
           template.config,
           tenantId,
           eventType,
           payload,
-          { source: 'workflow-event', templateId: template.id }
+          { source: 'workflow-event', templateId: template.id },
+          db
         );
         started += 1;
       }
@@ -667,10 +684,12 @@ export class WorkflowService {
     userId: string,
     userRole: string | undefined,
     approvalStatus: 'approved' | 'rejected',
-    comments?: string
+    comments?: string,
+    client?: PrismaClient
   ): Promise<WorkflowInstanceView> {
     try {
-      const instance = await prisma.workflowInstance.findFirst({
+      const db = client || prisma;
+      const instance = await db.workflowInstance.findFirst({
         where: { id: instanceId, tenantId }
       });
 
@@ -686,7 +705,7 @@ export class WorkflowService {
         throw new Error(`Workflow instance ${instanceId} does not have a current step`);
       }
 
-      const stepMap = await this.getStepMap(instance.templateId, tenantId);
+      const stepMap = await this.getStepMap(instance.templateId, tenantId, db);
       const currentStep = stepMap.get(instance.currentStepId);
       if (!currentStep) {
         throw new Error(`Current workflow step ${instance.currentStepId} not found`);
@@ -697,7 +716,7 @@ export class WorkflowService {
         throw new Error(`Role ${userRole || 'UNKNOWN'} is not allowed to advance this step`);
       }
 
-      await prisma.workflowStepExecution.updateMany({
+      await db.workflowStepExecution.updateMany({
         where: {
           instanceId,
           stepId: currentStep.id,
@@ -713,7 +732,7 @@ export class WorkflowService {
       });
 
       if (approvalStatus === 'rejected') {
-        await prisma.workflowInstance.update({
+        await db.workflowInstance.update({
           where: { id: instanceId },
           data: {
             status: STATUS_CANCELLED,
@@ -722,7 +741,7 @@ export class WorkflowService {
           }
         });
         logger.info(`Workflow ${instanceId} rejected`);
-        return this.getInstance(instanceId, tenantId);
+        return this.getInstance(instanceId, tenantId, db);
       }
 
       const orderedSteps = Array.from(stepMap.values()).sort((a, b) => a.stepOrder - b.stepOrder);
@@ -730,7 +749,7 @@ export class WorkflowService {
       const nextStep = currentStepIndex >= 0 ? orderedSteps[currentStepIndex + 1] : null;
 
       if (!nextStep) {
-        await prisma.workflowInstance.update({
+        await db.workflowInstance.update({
           where: { id: instanceId },
           data: {
             status: STATUS_COMPLETED,
@@ -739,10 +758,10 @@ export class WorkflowService {
           }
         });
         logger.info(`Workflow ${instanceId} completed`);
-        return this.getInstance(instanceId, tenantId);
+        return this.getInstance(instanceId, tenantId, db);
       }
 
-      await prisma.workflowStepExecution.updateMany({
+      await db.workflowStepExecution.updateMany({
         where: {
           instanceId,
           stepId: nextStep.id,
@@ -754,13 +773,13 @@ export class WorkflowService {
         }
       });
 
-      await prisma.workflowInstance.update({
+      await db.workflowInstance.update({
         where: { id: instanceId },
         data: { currentStepId: nextStep.id, status: STATUS_ACTIVE }
       });
 
       logger.info(`Workflow ${instanceId} advanced to step ${nextStep.id}`);
-      return this.getInstance(instanceId, tenantId);
+      return this.getInstance(instanceId, tenantId, db);
     } catch (error) {
       logger.error('Error advancing workflow:', error);
       throw error;
@@ -770,9 +789,10 @@ export class WorkflowService {
   /**
    * Get workflow instance
    */
-  static async getInstance(id: string, tenantId: string): Promise<WorkflowInstanceView> {
+  static async getInstance(id: string, tenantId: string, client?: PrismaClient): Promise<WorkflowInstanceView> {
     try {
-      const instance = await prisma.workflowInstance.findFirst({
+      const db = client || prisma;
+      const instance = await db.workflowInstance.findFirst({
         where: { id, tenantId }
       });
       if (!instance) {
@@ -781,11 +801,11 @@ export class WorkflowService {
 
       const [currentStep, steps] = await Promise.all([
         instance.currentStepId
-          ? prisma.workflowStep.findFirst({
+          ? db.workflowStep.findFirst({
               where: { id: instance.currentStepId, tenantId },
             })
           : null,
-        prisma.workflowStepExecution.findMany({
+        db.workflowStepExecution.findMany({
           where: { instanceId: id, tenantId },
           orderBy: { startedAt: 'asc' },
         }),
@@ -808,10 +828,12 @@ export class WorkflowService {
   static async listInstancesForEntity(
     tenantId: string,
     entityType: string,
-    entityId: string
+    entityId: string,
+    client?: PrismaClient
   ): Promise<Prisma.WorkflowInstanceGetPayload<{}>[]> {
     try {
-      return await prisma.workflowInstance.findMany({
+      const db = client || prisma;
+      return await db.workflowInstance.findMany({
         where: { tenantId, entityType, entityId },
         orderBy: { startedAt: 'desc' }
       });

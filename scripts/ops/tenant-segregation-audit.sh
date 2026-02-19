@@ -54,13 +54,49 @@ scan_and_count \
 
 scan_and_count \
   "Direct global prisma imports (manual review needed)" \
-  "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/config/database'|import\\s+prisma\\s+from\\s+'\\.{1,2}/config/database'" \
+  "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" \
   "src"
+
+print_section "Direct global prisma imports in request layer (controllers/routes)"
+request_layer_prisma_imports="$(
+  rg -n "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" src/controllers src/routes || true
+)"
+if [ -n "$request_layer_prisma_imports" ]; then
+  filtered_request_layer_imports="$(printf '%s\n' "$request_layer_prisma_imports" | rg -v "src/routes/publicTenantRoutes.ts|src/routes/settingsRoutes.ts|src/routes/healthRoutes.ts|src/controllers/backupController.ts|src/controllers/testRunnerController.ts" || true)"
+  if [ -n "$filtered_request_layer_imports" ]; then
+    echo "$filtered_request_layer_imports"
+    count="$(printf '%s\n' "$filtered_request_layer_imports" | wc -l | tr -d ' ')"
+    echo "findings: $count"
+  else
+    echo "0 findings"
+  fi
+else
+  echo "0 findings"
+fi
 
 scan_and_count \
   "Legacy admin DB routes still permitting ADMIN (should be SUPER_ADMIN-only)" \
   "database/tables.*requireRole\\(\\['SUPER_ADMIN',\\s*'ADMIN'\\]\\)|database/tables.*requireRole\\(\\[\"SUPER_ADMIN\",\\s*\"ADMIN\"\\]\\)" \
   "src/routes/adminRoutes.ts"
+
+print_section "EventBus publish calls missing tenantId in call block"
+missing_publish_calls="$(
+  rg -n "^[[:space:]]*await[[:space:]]+EventBusService\\.publish\\(" src/services src/controllers src/events 2>/dev/null | \
+  while IFS=: read -r file line _; do
+    block="$(sed -n "${line},$((line+14))p" "$file")"
+    if ! printf '%s\n' "$block" | rg -q "tenantId"; then
+      printf '%s:%s\n' "$file" "$line"
+    fi
+  done
+)"
+
+if [ -n "$missing_publish_calls" ]; then
+  echo "$missing_publish_calls"
+  count="$(printf '%s\n' "$missing_publish_calls" | wc -l | tr -d ' ')"
+  echo "findings: $count"
+else
+  echo "0 findings"
+fi
 
 echo
 echo "Audit complete."

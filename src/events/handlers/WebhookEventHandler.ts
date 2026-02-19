@@ -7,13 +7,14 @@ import prisma from '../../config/database';
 import { AppEvent } from '../../services/EventBusService';
 import { createLogger } from '../../utils/logger';
 import WebhookDeliveryService from '../../services/WebhookDeliveryService';
+import { resolveEventTenantId } from '../../utils/tenantContext';
 
 const logger = createLogger('WebhookEventHandler');
 
 export class WebhookEventHandler {
   static async handle(event: AppEvent): Promise<void> {
     try {
-      const tenantId = event.payload?.tenantId || event.metadata?.tenantId;
+      const tenantId = resolveEventTenantId(event);
       if (!tenantId) return;
 
       // Find webhooks configured for this event type

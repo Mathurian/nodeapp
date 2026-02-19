@@ -4,17 +4,27 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import prisma from '../config/database';
 import { sendSuccess } from '../utils/responseHelpers';
+import { resolveRequestTenantId } from '../utils/tenantContext';
+
+const getRequestPrisma = (req: Request, res: Response) => {
+  if (!req.prisma) {
+    res.status(500).json({ success: false, error: 'Tenant database context unavailable' });
+    return null;
+  }
+  return req.prisma;
+};
 
 export const listEventLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { eventType, entityType, limit = 100, offset = 0 } = req.query;
-    const tenantId = req.tenantId || req.user?.tenantId;
+    const tenantId = resolveRequestTenantId(req);
     if (!tenantId) {
       res.status(400).json({ success: false, error: 'Tenant context required' });
       return;
     }
+    const prisma = getRequestPrisma(req, res);
+    if (!prisma) return;
 
     const logs = await prisma.eventLog.findMany({
       where: {
@@ -43,11 +53,13 @@ export const listEventLogs = async (req: Request, res: Response, next: NextFunct
 
 export const getEventLog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tenantId = req.tenantId || req.user?.tenantId;
+    const tenantId = resolveRequestTenantId(req);
     if (!tenantId) {
       res.status(400).json({ success: false, error: 'Tenant context required' });
       return;
     }
+    const prisma = getRequestPrisma(req, res);
+    if (!prisma) return;
     const log = await prisma.eventLog.findFirst({
       where: {
         id: req.params['id'],
@@ -66,11 +78,13 @@ export const getEventLog = async (req: Request, res: Response, next: NextFunctio
 
 export const listWebhooks = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tenantId = req.tenantId || req.user?.tenantId;
+    const tenantId = resolveRequestTenantId(req);
     if (!tenantId) {
       res.status(400).json({ success: false, error: 'Tenant context required' });
       return;
     }
+    const prisma = getRequestPrisma(req, res);
+    if (!prisma) return;
     const webhooks = await prisma.webhookConfig.findMany({
       where: { tenantId }
     });
@@ -82,11 +96,13 @@ export const listWebhooks = async (req: Request, res: Response, next: NextFuncti
 
 export const createWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tenantId = req.tenantId || req.user?.tenantId;
+    const tenantId = resolveRequestTenantId(req);
     if (!tenantId) {
       res.status(400).json({ success: false, error: 'Tenant context required' });
       return;
     }
+    const prisma = getRequestPrisma(req, res);
+    if (!prisma) return;
     const webhook = await prisma.webhookConfig.create({
       data: {
         ...req.body,
@@ -101,11 +117,13 @@ export const createWebhook = async (req: Request, res: Response, next: NextFunct
 
 export const updateWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tenantId = req.tenantId || req.user?.tenantId;
+    const tenantId = resolveRequestTenantId(req);
     if (!tenantId) {
       res.status(400).json({ success: false, error: 'Tenant context required' });
       return;
     }
+    const prisma = getRequestPrisma(req, res);
+    if (!prisma) return;
     const webhook = await prisma.webhookConfig.updateMany({
       where: {
         id: req.params['id'],
@@ -131,11 +149,13 @@ export const updateWebhook = async (req: Request, res: Response, next: NextFunct
 
 export const deleteWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tenantId = req.tenantId || req.user?.tenantId;
+    const tenantId = resolveRequestTenantId(req);
     if (!tenantId) {
       res.status(400).json({ success: false, error: 'Tenant context required' });
       return;
     }
+    const prisma = getRequestPrisma(req, res);
+    if (!prisma) return;
     const result = await prisma.webhookConfig.deleteMany({
       where: {
         id: req.params['id'],

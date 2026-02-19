@@ -12,12 +12,19 @@ import {
 } from '../controllers/reportsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import prisma from '../utils/prisma';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('ReportsRoutes');
 
 const router = express.Router();
+
+const getRequestPrisma = (req: express.Request, res: express.Response) => {
+  if (!req.prisma) {
+    res.status(500).json({ error: 'Database context not initialized' });
+    return null;
+  }
+  return req.prisma;
+};
 
 // Apply authentication to all routes
 router.use(authenticateToken);
@@ -92,7 +99,10 @@ router.post('/send-email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BO
 router.get('/:id/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'JUDGE']), async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
-    const reportInstance = await prisma.reportInstance.findUnique({
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
+    const reportInstance = await requestPrisma.reportInstance.findUnique({
       where: { id }
     });
 

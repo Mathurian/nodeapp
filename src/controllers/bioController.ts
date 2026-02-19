@@ -4,7 +4,6 @@ import { BioService } from '../services/BioService';
 import { sendSuccess } from '../utils/responseHelpers';
 import fs from 'fs';
 import path from 'path';
-import prisma from '../config/database';
 import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class BioController {
@@ -88,6 +87,9 @@ export class BioController {
       if (!tenantId) {
         return res.status(400).json({ success: false, message: 'Tenant context required' });
       }
+      if (!req.prisma) {
+        return res.status(500).json({ success: false, message: 'Tenant database context unavailable' });
+      }
 
       const legacyPath = path.resolve(process.cwd(), 'uploads/bios', filename);
       const userBioPath = path.resolve(process.cwd(), 'uploads/users/bios', filename);
@@ -115,7 +117,7 @@ export class BioController {
       ];
 
       const [fileRef, userRef, contestantRef, judgeRef] = await Promise.all([
-        prisma.file.findFirst({
+        req.prisma.file.findFirst({
           where: {
             tenantId,
             OR: [
@@ -127,7 +129,7 @@ export class BioController {
           },
           select: { id: true }
         }),
-        prisma.user.findFirst({
+        req.prisma.user.findFirst({
           where: {
             tenantId,
             OR: [
@@ -137,7 +139,7 @@ export class BioController {
           },
           select: { id: true }
         }),
-        prisma.contestant.findFirst({
+        req.prisma.contestant.findFirst({
           where: {
             tenantId,
             OR: [
@@ -147,7 +149,7 @@ export class BioController {
           },
           select: { id: true }
         }),
-        prisma.judge.findFirst({
+        req.prisma.judge.findFirst({
           where: {
             tenantId,
             OR: [

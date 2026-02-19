@@ -66,6 +66,39 @@ fi
 echo "No blocked tenant fallback patterns found."
 
 echo
+echo "Checking for direct global prisma imports in request layer..."
+request_layer_prisma_imports="$(
+  rg -n "import\\s+\\{?\\s*prisma\\s*\\}?\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'|import\\s+prisma\\s+from\\s+'\\.{1,2}/(config/database|utils/prisma)'" src/controllers src/routes || true
+)"
+if [ -n "$request_layer_prisma_imports" ]; then
+  filtered_request_layer_imports="$(printf '%s\n' "$request_layer_prisma_imports" | rg -v "src/routes/publicTenantRoutes.ts|src/routes/settingsRoutes.ts|src/routes/healthRoutes.ts|src/controllers/backupController.ts|src/controllers/testRunnerController.ts" || true)"
+  if [ -n "$filtered_request_layer_imports" ]; then
+    echo "ERROR: request-layer files must not import global prisma directly:"
+    echo "$filtered_request_layer_imports"
+    exit 1
+  fi
+fi
+echo "No blocked request-layer global prisma imports found."
+
+echo
+echo "Checking EventBus publish calls for tenantId propagation..."
+missing_publish_calls="$(
+  rg -n "^[[:space:]]*await[[:space:]]+EventBusService\\.publish\\(" src/services src/controllers src/events 2>/dev/null | \
+  while IFS=: read -r file line _; do
+    block="$(sed -n "${line},$((line+14))p" "$file")"
+    if ! printf '%s\n' "$block" | rg -q "tenantId"; then
+      printf '%s:%s\n' "$file" "$line"
+    fi
+  done
+)"
+if [ -n "$missing_publish_calls" ]; then
+  echo "ERROR: EventBus publish calls missing tenantId propagation:"
+  echo "$missing_publish_calls"
+  exit 1
+fi
+echo "All EventBus publish calls include tenantId in call block."
+
+echo
 echo "Verifying legacy admin database route hardening..."
 if rg -n "database/tables.*requireRole\\(\\['SUPER_ADMIN',\\s*'ADMIN'\\]\\)|database/tables.*requireRole\\(\\[\"SUPER_ADMIN\",\\s*\"ADMIN\"\\]\\)" src/routes/adminRoutes.ts >/dev/null 2>&1; then
   echo "ERROR: legacy admin database routes still allow ADMIN."

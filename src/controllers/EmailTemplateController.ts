@@ -1,20 +1,36 @@
 import { Request, Response } from 'express';
-import prisma from '../config/database';
 import { EmailTemplateService } from '../services/EmailTemplateService';
 import { EmailService } from '../services/EmailService';
 import { container } from 'tsyringe';
 import { createLogger as loggerFactory } from '../utils/logger';
 import { sendSuccess, sendError , sendUnauthorized} from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 const logger = loggerFactory('EmailTemplateController');
-const emailTemplateService = new EmailTemplateService(prisma);
 
 export class EmailTemplateController {
   private emailService: EmailService;
 
   constructor() {
     this.emailService = container.resolve(EmailService);
+  }
+
+  private resolveTenantId(req: Request, res: Response): string | null {
+    const tenantId = resolveRequestTenantId(req);
+    if (!tenantId) {
+      sendError(res, 'Tenant context is required', 400);
+      return null;
+    }
+    return tenantId;
+  }
+
+  private getEmailTemplateService(req: Request, res: Response): EmailTemplateService | null {
+    if (!req.prisma) {
+      sendError(res, 'Tenant database context unavailable', 500);
+      return null;
+    }
+    return new EmailTemplateService(req.prisma);
   }
 
   /**
@@ -27,10 +43,14 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getAllEmailTemplates(req.user.tenantId, eventId as string | undefined);
+      const templates = await emailTemplateService.getAllEmailTemplates(tenantId, eventId as string | undefined);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: unknown) {
@@ -50,10 +70,14 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const id = getRequiredParam(req, 'id');
 
-      const template = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
+      const template = await emailTemplateService.getEmailTemplateById(id, tenantId);
 
       if (!template) {
         sendError(res, 'Email template not found', 404);
@@ -78,11 +102,15 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const type = getRequiredParam(req, 'type');
       const { eventId } = req.query;
 
-      const templates = await emailTemplateService.getEmailTemplatesByType(type, req.user.tenantId, eventId as string | undefined);
+      const templates = await emailTemplateService.getEmailTemplatesByType(type, tenantId, eventId as string | undefined);
 
       sendSuccess(res, templates, 'Email templates retrieved successfully');
     } catch (error: unknown) {
@@ -102,6 +130,10 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const data = req.body;
       const userId = req.user?.id;
@@ -117,7 +149,7 @@ export class EmailTemplateController {
       }
 
       data.createdBy = userId;
-      data.tenantId = req.user.tenantId;
+      data.tenantId = tenantId;
 
       const template = await emailTemplateService.createEmailTemplate(data);
 
@@ -139,17 +171,21 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const id = getRequiredParam(req, 'id');
       const data = req.body;
 
-      const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
+      const existing = await emailTemplateService.getEmailTemplateById(id, tenantId);
       if (!existing) {
         sendError(res, 'Email template not found', 404);
         return;
       }
 
-      const template = await emailTemplateService.updateEmailTemplate(id, req.user.tenantId, data);
+      const template = await emailTemplateService.updateEmailTemplate(id, tenantId, data);
 
       sendSuccess(res, template, 'Email template updated successfully');
     } catch (error: unknown) {
@@ -169,16 +205,20 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const id = getRequiredParam(req, 'id');
 
-      const existing = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
+      const existing = await emailTemplateService.getEmailTemplateById(id, tenantId);
       if (!existing) {
         sendError(res, 'Email template not found', 404);
         return;
       }
 
-      await emailTemplateService.deleteEmailTemplate(id, req.user.tenantId);
+      await emailTemplateService.deleteEmailTemplate(id, tenantId);
 
       sendSuccess(res, null, 'Email template deleted successfully');
     } catch (error: unknown) {
@@ -198,6 +238,10 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const id = getRequiredParam(req, 'id');
       const userId = req.user?.id;
@@ -207,7 +251,7 @@ export class EmailTemplateController {
         return;
       }
 
-      const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, req.user.tenantId);
+      const cloned = await emailTemplateService.cloneEmailTemplate(id, userId, tenantId);
 
       sendSuccess(res, cloned, 'Email template cloned successfully', 201);
     } catch (error: unknown) {
@@ -227,11 +271,15 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
 
       const id = getRequiredParam(req, 'id');
       const { variables } = req.body;
 
-      const preview = await emailTemplateService.previewEmailTemplate(id, req.user.tenantId, variables);
+      const preview = await emailTemplateService.previewEmailTemplate(id, tenantId, variables);
 
       sendSuccess(res, preview, 'Email template preview generated successfully');
     } catch (error: unknown) {
@@ -247,6 +295,8 @@ export class EmailTemplateController {
    */
   async getAvailableVariables(req: Request, res: Response): Promise<void> {
     try {
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
       const type = getRequiredParam(req, 'type');
 
       const variables = emailTemplateService.getAvailableVariables(type);
@@ -269,6 +319,15 @@ export class EmailTemplateController {
         sendUnauthorized(res);
         return;
       }
+      const tenantId = this.resolveTenantId(req, res);
+      if (!tenantId) return;
+      const emailTemplateService = this.getEmailTemplateService(req, res);
+      if (!emailTemplateService) return;
+      const prismaClient = req.prisma;
+      if (!prismaClient) {
+        sendError(res, 'Tenant database context unavailable', 500);
+        return;
+      }
 
       const id = getRequiredParam(req, 'id');
       const { recipients, roles, variables } = req.body as {
@@ -277,7 +336,7 @@ export class EmailTemplateController {
         variables?: Record<string, string>;
       };
 
-      const template = await emailTemplateService.getEmailTemplateById(id, req.user.tenantId);
+      const template = await emailTemplateService.getEmailTemplateById(id, tenantId);
       if (!template) {
         sendError(res, 'Email template not found', 404);
         return;
@@ -293,9 +352,9 @@ export class EmailTemplateController {
       }
 
       if (Array.isArray(roles) && roles.length > 0) {
-        const usersByRole = await prisma.user.findMany({
+        const usersByRole = await prismaClient.user.findMany({
           where: {
-            tenantId: req.user.tenantId,
+            tenantId,
             role: { in: roles as any[] },
             isActive: true,
           },
@@ -317,7 +376,7 @@ export class EmailTemplateController {
         finalRecipients.map((to) => this.emailService.sendEmail(to, rendered.subject, template.body || '', {
           html: rendered.html,
           template: template.name || undefined,
-          tenantId: req.user?.tenantId || undefined,
+          tenantId,
           userId: req.user?.id,
           variables: variables || {},
         }))

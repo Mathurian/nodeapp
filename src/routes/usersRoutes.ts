@@ -17,9 +17,16 @@ import {
 import {
   logActivity
 } from '../middleware/errorHandler';
-import { prisma } from '../utils/prisma';
 
 const router: Router = express.Router();
+
+const getRequestPrisma = (req: express.Request, res: express.Response) => {
+  if (!req.prisma) {
+    res.status(500).json({ error: 'Database context not initialized' });
+    return null;
+  }
+  return req.prisma;
+};
 
 // Configure multer for user image uploads
 const userImageStorage = multer.diskStorage({
@@ -193,6 +200,8 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
   try {
     const { id } = req.params
     const { currentPassword, newPassword } = req.body
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current and new password are required' })
@@ -201,7 +210,7 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await requestPrisma.user.findUnique({ where: { id } })
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     const ok = await bcrypt.compare(currentPassword, user.password)
@@ -213,7 +222,7 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
 
     const hashed = await bcrypt.hash(newPassword, 10)
     // Increment session version to invalidate all existing sessions
-    await prisma.user.update({ 
+    await requestPrisma.user.update({
       where: { id }, 
       data: { 
         password: hashed,
@@ -277,25 +286,27 @@ router.put('/:id/tenant', requireRole(['SUPER_ADMIN']), logActivity('REASSIGN_US
   try {
     const { id } = req.params
     const { tenantId } = req.body
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
 
     if (!tenantId) {
       return res.status(400).json({ success: false, message: 'tenantId is required' })
     }
 
     // Verify tenant exists
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } })
+    const tenant = await requestPrisma.tenant.findUnique({ where: { id: tenantId } })
     if (!tenant) {
       return res.status(404).json({ success: false, message: 'Tenant not found' })
     }
 
     // Get user to verify it exists
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await requestPrisma.user.findUnique({ where: { id } })
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' })
     }
 
     // Update user's tenant
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await requestPrisma.user.update({
       where: { id },
       data: { tenantId },
       select: {

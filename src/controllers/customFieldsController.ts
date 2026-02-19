@@ -5,7 +5,6 @@
 
 import { Request, Response } from 'express';
 import { CustomFieldService, CustomFieldType } from '../services/CustomFieldService';
-import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
 import { getRequiredParam } from '../utils/routeHelpers';
 import { resolveRequestTenantId } from '../utils/tenantContext';
@@ -19,7 +18,6 @@ type AuthenticatedRequest = Request & {
 };
 
 const logger = createLogger('CustomFieldsController');
-const customFieldService = new CustomFieldService(prisma);
 
 const VALID_FIELD_TYPES: CustomFieldType[] = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOLEAN', 'TEXT_AREA', 'EMAIL', 'PHONE', 'URL'];
 
@@ -33,6 +31,17 @@ const getTenantIdOrRespond = (req: AuthenticatedRequest, res: Response): string 
     return null;
   }
   return tenantId;
+};
+
+const getCustomFieldService = (req: Request, res: Response): CustomFieldService | null => {
+  if (!req.prisma) {
+    res.status(500).json({
+      success: false,
+      message: 'Tenant database context unavailable'
+    });
+    return null;
+  }
+  return new CustomFieldService(req.prisma);
 };
 
 /**
@@ -77,6 +86,10 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
     if (!tenantId) {
       return;
     }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
+      return;
+    }
 
     const field = await customFieldService.createCustomField({
       tenantId,
@@ -117,6 +130,10 @@ export const getAllCustomFields = async (req: Request, res: Response): Promise<v
     const activeOnly = authReq.query['activeOnly'] !== 'false';
     const tenantId = getTenantIdOrRespond(authReq, res);
     if (!tenantId) {
+      return;
+    }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
       return;
     }
 
@@ -196,6 +213,10 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
     if (!tenantId) {
       return;
     }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
+      return;
+    }
 
     const fields = await customFieldService.getCustomFieldsByEntityType(entityType, tenantId, activeOnly);
 
@@ -223,6 +244,10 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
     const id = getRequiredParam(req, 'id');
     const tenantId = getTenantIdOrRespond(authReq, res);
     if (!tenantId) {
+      return;
+    }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
       return;
     }
 
@@ -263,6 +288,10 @@ export const updateCustomField = async (req: Request, res: Response): Promise<vo
     if (!tenantId) {
       return;
     }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
+      return;
+    }
 
     const field = await customFieldService.updateCustomField(id, tenantId, updateData);
 
@@ -294,6 +323,10 @@ export const deleteCustomField = async (req: Request, res: Response): Promise<vo
     if (!tenantId) {
       return;
     }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
+      return;
+    }
 
     await customFieldService.deleteCustomField(id, tenantId);
 
@@ -323,6 +356,10 @@ export const setCustomFieldValue = async (req: Request, res: Response): Promise<
     const { customFieldId, entityId, value } = authReq.body;
     const tenantId = getTenantIdOrRespond(authReq, res);
     if (!tenantId) {
+      return;
+    }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
       return;
     }
 
@@ -387,6 +424,10 @@ export const bulkSetCustomFieldValues = async (req: Request, res: Response): Pro
     if (!tenantId) {
       return;
     }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
+      return;
+    }
 
     if (!entityId || !values) {
       res.status(400).json({
@@ -423,6 +464,10 @@ export const getCustomFieldValues = async (req: Request, res: Response): Promise
     const { entityType } = authReq.query;
     const tenantId = getTenantIdOrRespond(authReq, res);
     if (!tenantId) {
+      return;
+    }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
       return;
     }
 
@@ -462,6 +507,10 @@ export const deleteCustomFieldValue = async (req: Request, res: Response): Promi
     if (!tenantId) {
       return;
     }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
+      return;
+    }
 
     await customFieldService.deleteCustomFieldValue(customFieldId!, entityId!, tenantId);
 
@@ -489,6 +538,10 @@ export const reorderCustomFields = async (req: Request, res: Response): Promise<
     const { fieldIds, entityType } = authReq.body;
     const tenantId = getTenantIdOrRespond(authReq, res);
     if (!tenantId) {
+      return;
+    }
+    const customFieldService = getCustomFieldService(authReq, res);
+    if (!customFieldService) {
       return;
     }
 

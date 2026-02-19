@@ -6,19 +6,23 @@
 import prisma from '../../config/database';
 import { AppEvent } from '../../services/EventBusService';
 import { createLogger } from '../../utils/logger';
+import { resolveEventTenantId } from '../../utils/tenantContext';
 
 const logger = createLogger('AuditEventHandler');
 
 export class AuditEventHandler {
   static async handle(event: AppEvent): Promise<void> {
     try {
-      // Extract tenant and user from payload
-      const tenantId = event.payload?.tenantId || event.metadata?.tenantId;
+      const tenantId = resolveEventTenantId(event);
+      if (!tenantId) {
+        logger.warn(`Skipping event audit log due to missing tenant context: ${event.type}`);
+        return;
+      }
       const userId = event.metadata?.userId || event.payload?.userId;
 
       await prisma.eventLog.create({
         data: {
-          tenantId: tenantId || null,
+          tenantId,
           eventType: event.type,
           entityType: event.payload?.entityType,
           entityId: event.payload?.entityId,

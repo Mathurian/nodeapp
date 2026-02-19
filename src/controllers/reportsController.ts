@@ -6,6 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
+import { PrismaClient } from '@prisma/client';
 import { ReportGenerationService } from '../services/ReportGenerationService';
 import { ReportExportService } from '../services/ReportExportService';
 import { ReportTemplateService } from '../services/ReportTemplateService';
@@ -29,6 +30,14 @@ export class ReportsController {
     this.templateService = container.resolve(ReportTemplateService);
     this.emailService = container.resolve(ReportEmailService);
     this.instanceService = container.resolve(ReportInstanceService);
+  }
+
+  private getRequestPrisma(req: Request, res: Response): PrismaClient | null {
+    if (!req.prisma) {
+      res.status(500).json({ error: 'Database context not initialized' });
+      return null;
+    }
+    return req.prisma;
   }
 
   /**
@@ -127,15 +136,14 @@ export class ReportsController {
       const userId = (req as any).user?.id;
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
-
-      // Get Prisma client for authorization checks
-      const prisma = require('../config/database').default;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       let reportData;
       let reportName = 'Generated Report';
       if (type === 'event' && eventId) {
         // SECURITY: Verify user has access to this event
-        const event = await prisma.event.findFirst({
+        const event = await requestPrisma.event.findFirst({
           where: {
             id: eventId,
             // SUPER_ADMIN can access all events, others must match tenantId
@@ -155,7 +163,7 @@ export class ReportsController {
         reportName = 'Event Summary Report';
       } else if (type === 'contest' && contestId) {
         // SECURITY: Verify user has access to this contest
-        const contest = await prisma.contest.findFirst({
+        const contest = await requestPrisma.contest.findFirst({
           where: {
             id: contestId,
             // SUPER_ADMIN can access all contests, others must match tenantId
@@ -212,12 +220,11 @@ export class ReportsController {
       const userId = (req as any).user?.id;
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
-
-      // Get Prisma client for authorization checks
-      const prisma = require('../config/database').default;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Verify user has access to this contest
-      const contest = await prisma.contest.findFirst({
+      const contest = await requestPrisma.contest.findFirst({
         where: {
           id: contestId,
           // SUPER_ADMIN can access all contests, others must match tenantId
@@ -254,14 +261,13 @@ export class ReportsController {
       const { type, format, startDate, endDate } = req.query;
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
-
-      // Get Prisma client for tenant filtering
-      const prisma = require('../config/database').default;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Build tenant filter - SUPER_ADMIN sees all, others see only their tenant
       const tenantFilter = userRole === 'SUPER_ADMIN' ? {} : { tenantId };
 
-      const instances = await prisma.reportInstance.findMany({
+      const instances = await requestPrisma.reportInstance.findMany({
         where: {
           ...tenantFilter,
           ...(type && { type: type as string }),
@@ -295,12 +301,11 @@ export class ReportsController {
       }
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
-
-      // Get Prisma client for authorization checks
-      const prisma = require('../config/database').default;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Verify user has access to this report instance
-      const instance = await prisma.reportInstance.findFirst({
+      const instance = await requestPrisma.reportInstance.findFirst({
         where: {
           id,
           // SUPER_ADMIN can delete any instance, others must match tenantId
@@ -336,9 +341,11 @@ export class ReportsController {
       }
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(id, tenantId, userRole);
+      const reportData = await this.getReportData(requestPrisma, id, tenantId, userRole);
 
       const buffer = await this.exportService.exportReport(reportData, 'pdf');
 
@@ -363,9 +370,11 @@ export class ReportsController {
       }
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(id, tenantId, userRole);
+      const reportData = await this.getReportData(requestPrisma, id, tenantId, userRole);
 
       const buffer = await this.exportService.exportReport(reportData, 'excel');
 
@@ -390,9 +399,11 @@ export class ReportsController {
       }
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(id, tenantId, userRole);
+      const reportData = await this.getReportData(requestPrisma, id, tenantId, userRole);
 
       const buffer = await this.exportService.exportReport(reportData, 'csv');
 
@@ -408,8 +419,7 @@ export class ReportsController {
    * Helper to get report data from instance ID
    * SECURITY FIX: Now validates tenant access to report instances
    */
-  private async getReportData(instanceId: string, tenantId: string, userRole: string): Promise<any> {
-    const prisma = require('../config/database').default;
+  private async getReportData(prisma: PrismaClient, instanceId: string, tenantId: string, userRole: string): Promise<any> {
     const instance = await prisma.reportInstance.findFirst({
       where: {
         id: instanceId,
@@ -433,9 +443,11 @@ export class ReportsController {
       const userId = (req as any).user?.id || 'system';
       const tenantId = (req as any).user?.tenantId;
       const userRole = (req as any).user?.role;
+      const requestPrisma = this.getRequestPrisma(req, res);
+      if (!requestPrisma) return;
 
       // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(reportId, tenantId, userRole);
+      const reportData = await this.getReportData(requestPrisma, reportId, tenantId, userRole);
 
       const dispatchSummary: ReportEmailDispatchSummary = await this.emailService.sendReportEmail({
         recipients,

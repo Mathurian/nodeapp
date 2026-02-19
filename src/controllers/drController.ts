@@ -34,13 +34,26 @@ const normalizeFrequency = (frequency?: unknown, backupFrequency?: unknown): str
   return 'daily';
 };
 
+const getRequestPrisma = (req: Request, res: Response) => {
+  if (!req.prisma) {
+    res.status(500).json({
+      success: false,
+      error: 'Database context not initialized',
+    });
+    return null;
+  }
+  return req.prisma;
+};
+
 /**
  * Get DR configuration
  */
 export const getDRConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
-    const config = await DRAutomationService.getDRConfig(tenantId);
+    const config = await DRAutomationService.getDRConfig(tenantId, requestPrisma);
     sendSuccess(res, config);
   } catch (error) {
     return next(error);
@@ -52,8 +65,10 @@ export const getDRConfig = async (req: Request, res: Response, next: NextFunctio
  */
 export const updateDRConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
-    const config = await DRAutomationService.updateDRConfig(id, req.body);
+    const config = await DRAutomationService.updateDRConfig(id, req.body, requestPrisma);
     sendSuccess(res, config, 'DR configuration updated successfully');
   } catch (error) {
     return next(error);
@@ -65,6 +80,8 @@ export const updateDRConfig = async (req: Request, res: Response, next: NextFunc
  */
 export const createBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
     const raw = req.body || {};
     const name = String(raw.name || '').trim();
@@ -90,7 +107,7 @@ export const createBackupSchedule = async (req: Request, res: Response, next: Ne
       compression: raw.compression !== false,
       encryption: Boolean(raw.encryption),
       tenantId
-    });
+    }, requestPrisma);
     sendSuccess(res, schedule, 'Backup schedule created successfully', 201);
   } catch (error) {
     return next(error);
@@ -102,6 +119,8 @@ export const createBackupSchedule = async (req: Request, res: Response, next: Ne
  */
 export const updateBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
     const raw = req.body || {};
     const updateData: Partial<BackupScheduleInput> = {};
@@ -137,7 +156,7 @@ export const updateBackupSchedule = async (req: Request, res: Response, next: Ne
       updateData.retentionDays = retentionDays;
     }
 
-    const schedule = await DRAutomationService.updateBackupSchedule(id, updateData);
+    const schedule = await DRAutomationService.updateBackupSchedule(id, updateData, requestPrisma);
     sendSuccess(res, schedule, 'Backup schedule updated successfully');
   } catch (error) {
     return next(error);
@@ -149,8 +168,10 @@ export const updateBackupSchedule = async (req: Request, res: Response, next: Ne
  */
 export const deleteBackupSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
-    await DRAutomationService.deleteBackupSchedule(id);
+    await DRAutomationService.deleteBackupSchedule(id, requestPrisma);
     sendSuccess(res, null, 'Backup schedule deleted successfully');
   } catch (error) {
     return next(error);
@@ -162,8 +183,10 @@ export const deleteBackupSchedule = async (req: Request, res: Response, next: Ne
  */
 export const listBackupSchedules = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
-    const schedules = await DRAutomationService.listBackupSchedules(tenantId);
+    const schedules = await DRAutomationService.listBackupSchedules(tenantId, requestPrisma);
     sendSuccess(res, schedules);
   } catch (error) {
     return next(error);
@@ -175,11 +198,13 @@ export const listBackupSchedules = async (req: Request, res: Response, next: Nex
  */
 export const createBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
     const target = await DRAutomationService.createBackupTarget({
       ...req.body,
       tenantId
-    });
+    }, requestPrisma);
     sendSuccess(res, target, 'Backup target created successfully', 201);
   } catch (error) {
     return next(error);
@@ -191,8 +216,10 @@ export const createBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const updateBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
-    const target = await DRAutomationService.updateBackupTarget(id, req.body);
+    const target = await DRAutomationService.updateBackupTarget(id, req.body, requestPrisma);
     sendSuccess(res, target, 'Backup target updated successfully');
   } catch (error) {
     return next(error);
@@ -204,8 +231,10 @@ export const updateBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const deleteBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
-    await DRAutomationService.deleteBackupTarget(id);
+    await DRAutomationService.deleteBackupTarget(id, requestPrisma);
     sendSuccess(res, null, 'Backup target deleted successfully');
   } catch (error) {
     return next(error);
@@ -217,8 +246,10 @@ export const deleteBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const listBackupTargets = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
-    const targets = await DRAutomationService.listBackupTargets(tenantId);
+    const targets = await DRAutomationService.listBackupTargets(tenantId, requestPrisma);
     sendSuccess(res, targets);
   } catch (error) {
     return next(error);
@@ -230,8 +261,10 @@ export const listBackupTargets = async (req: Request, res: Response, next: NextF
  */
 export const verifyBackupTarget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
-    const verified = await DRAutomationService.verifyBackupTarget(id);
+    const verified = await DRAutomationService.verifyBackupTarget(id, requestPrisma);
     sendSuccess(res, { verified }, verified ? 'Backup target verified successfully' : 'Backup target verification failed');
   } catch (error) {
     return next(error);
@@ -243,12 +276,14 @@ export const verifyBackupTarget = async (req: Request, res: Response, next: Next
  */
 export const executeBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const scheduleId = String(req.body?.scheduleId || req.body?.planId || '').trim();
     if (!scheduleId) {
       sendError(res, 'scheduleId is required', 400);
       return;
     }
-    const result = await DRAutomationService.executeBackup(scheduleId);
+    const result = await DRAutomationService.executeBackup(scheduleId, requestPrisma);
 
     if (result.success) {
       sendSuccess(res, result, 'Backup executed successfully');
@@ -265,6 +300,8 @@ export const executeBackup = async (req: Request, res: Response, next: NextFunct
  */
 export const executeDRTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     let backupId = String(req.body?.backupId || '').trim();
     const testType = String(req.body?.testType || 'restore');
 
@@ -272,7 +309,7 @@ export const executeDRTest = async (req: Request, res: Response, next: NextFunct
     if (!backupId) {
       const scheduleId = String(req.body?.scheduleId || req.body?.planId || '').trim();
       if (scheduleId) {
-        const backupResult = await DRAutomationService.executeBackup(scheduleId);
+        const backupResult = await DRAutomationService.executeBackup(scheduleId, requestPrisma);
         if (!backupResult.success || !backupResult.backupId) {
           res.status(500).json({ error: backupResult.error || 'Unable to prepare backup for DR test' });
           return;
@@ -286,7 +323,7 @@ export const executeDRTest = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const result = await DRAutomationService.executeDRTest(backupId, testType);
+    const result = await DRAutomationService.executeDRTest(backupId, testType, requestPrisma);
     sendSuccess(res, result, 'DR test executed successfully');
   } catch (error) {
     return next(error);
@@ -298,12 +335,15 @@ export const executeDRTest = async (req: Request, res: Response, next: NextFunct
  */
 export const getDRMetrics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
     const { metricType, days } = req.query;
     const metrics = await DRAutomationService.getDRMetrics(
       tenantId,
       metricType as string | undefined,
-      days ? parseInt(days as string) : 30
+      days ? parseInt(days as string) : 30,
+      requestPrisma
     );
     sendSuccess(res, metrics);
   } catch (error) {
@@ -316,8 +356,10 @@ export const getDRMetrics = async (req: Request, res: Response, next: NextFuncti
  */
 export const getDRDashboard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
-    const dashboard = await DRAutomationService.getDRDashboard(tenantId);
+    const dashboard = await DRAutomationService.getDRDashboard(tenantId, requestPrisma);
     sendSuccess(res, dashboard);
   } catch (error) {
     return next(error);
@@ -329,8 +371,10 @@ export const getDRDashboard = async (req: Request, res: Response, next: NextFunc
  */
 export const checkRTORPO = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
     const tenantId = req.tenantId;
-    const violations = await DRAutomationService.checkRTORPOViolations(tenantId);
+    const violations = await DRAutomationService.checkRTORPOViolations(tenantId, requestPrisma);
     sendSuccess(res, violations);
   } catch (error) {
     return next(error);

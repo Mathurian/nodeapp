@@ -10,7 +10,7 @@
  */
 
 import prisma from '../config/database';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -159,16 +159,17 @@ export class DRAutomationService {
   /**
    * Get or create DR configuration for a tenant
    */
-  static async getDRConfig(tenantId?: string): Promise<DRConfig> {
+  static async getDRConfig(tenantId?: string, client?: PrismaClient): Promise<DRConfig> {
     try {
-      let config = await prisma.drConfig.findFirst({
+      const db = client || prisma;
+      let config = await db.drConfig.findFirst({
         where: tenantId ? { tenantId } : {},
         orderBy: { createdAt: 'desc' }
       });
 
       if (!config) {
         // Create default config
-        config = await prisma.drConfig.create({
+        config = await db.drConfig.create({
           data: {
             tenantId,
             backupFrequency: 'daily',
@@ -195,9 +196,10 @@ export class DRAutomationService {
   /**
    * Update DR configuration
    */
-  static async updateDRConfig(id: string, input: DRConfigInput): Promise<DRConfig> {
+  static async updateDRConfig(id: string, input: DRConfigInput, client?: PrismaClient): Promise<DRConfig> {
     try {
-      const config = await prisma.drConfig.update({
+      const db = client || prisma;
+      const config = await db.drConfig.update({
         where: { id },
         data: input
       });
@@ -207,8 +209,8 @@ export class DRAutomationService {
       // Emit event
       await EventBusService.publish(
         AppEventType.BACKUP_COMPLETED,
-        { configId: id, changes: input },
-        { source: 'DRAutomationService' }
+        { configId: id, changes: input, tenantId: config.tenantId || undefined },
+        { source: 'DRAutomationService', tenantId: config.tenantId || undefined }
       );
 
       return config;
@@ -221,12 +223,13 @@ export class DRAutomationService {
   /**
    * Create backup schedule
    */
-  static async createBackupSchedule(input: BackupScheduleInput): Promise<BackupSchedule> {
+  static async createBackupSchedule(input: BackupScheduleInput, client?: PrismaClient): Promise<BackupSchedule> {
     try {
+      const db = client || prisma;
       const normalizedFrequency = this.normalizeFrequency(input.frequency);
       const nextRunAt = this.calculateNextRun(normalizedFrequency);
 
-      const schedule = await prisma.backupSchedule.create({
+      const schedule = await db.backupSchedule.create({
         data: {
           tenantId: input.tenantId,
           name: input.name,
@@ -252,8 +255,9 @@ export class DRAutomationService {
   /**
    * Update backup schedule
    */
-  static async updateBackupSchedule(id: string, input: Partial<BackupScheduleInput>): Promise<BackupSchedule> {
+  static async updateBackupSchedule(id: string, input: Partial<BackupScheduleInput>, client?: PrismaClient): Promise<BackupSchedule> {
     try {
+      const db = client || prisma;
       const updateData: Partial<BackupScheduleInput> & { nextRunAt?: Date } = { ...input };
 
       if (input.frequency) {
@@ -262,7 +266,7 @@ export class DRAutomationService {
         updateData.nextRunAt = this.calculateNextRun(normalizedFrequency);
       }
 
-      const schedule = await prisma.backupSchedule.update({
+      const schedule = await db.backupSchedule.update({
         where: { id },
         data: updateData
       });
@@ -278,9 +282,10 @@ export class DRAutomationService {
   /**
    * Delete backup schedule
    */
-  static async deleteBackupSchedule(id: string): Promise<void> {
+  static async deleteBackupSchedule(id: string, client?: PrismaClient): Promise<void> {
     try {
-      await prisma.backupSchedule.delete({ where: { id } });
+      const db = client || prisma;
+      await db.backupSchedule.delete({ where: { id } });
       logger.info(`Deleted backup schedule ${id}`);
     } catch (error) {
       logger.error('Error deleting backup schedule:', error);
@@ -291,9 +296,10 @@ export class DRAutomationService {
   /**
    * List backup schedules
    */
-  static async listBackupSchedules(tenantId?: string): Promise<BackupSchedule[]> {
+  static async listBackupSchedules(tenantId?: string, client?: PrismaClient): Promise<BackupSchedule[]> {
     try {
-      return await prisma.backupSchedule.findMany({
+      const db = client || prisma;
+      return await db.backupSchedule.findMany({
         where: tenantId ? { tenantId } : {},
         orderBy: { createdAt: 'desc' }
       });
@@ -306,9 +312,10 @@ export class DRAutomationService {
   /**
    * Create backup target
    */
-  static async createBackupTarget(input: BackupTargetInput): Promise<BackupTarget> {
+  static async createBackupTarget(input: BackupTargetInput, client?: PrismaClient): Promise<BackupTarget> {
     try {
-      const target = await prisma.backupTarget.create({
+      const db = client || prisma;
+      const target = await db.backupTarget.create({
         data: {
           tenantId: input.tenantId,
           name: input.name,
@@ -330,9 +337,10 @@ export class DRAutomationService {
   /**
    * Update backup target
    */
-  static async updateBackupTarget(id: string, input: Partial<BackupTargetInput>): Promise<BackupTarget> {
+  static async updateBackupTarget(id: string, input: Partial<BackupTargetInput>, client?: PrismaClient): Promise<BackupTarget> {
     try {
-      const target = await prisma.backupTarget.update({
+      const db = client || prisma;
+      const target = await db.backupTarget.update({
         where: { id },
         data: input as any
       });
@@ -348,9 +356,10 @@ export class DRAutomationService {
   /**
    * Delete backup target
    */
-  static async deleteBackupTarget(id: string): Promise<void> {
+  static async deleteBackupTarget(id: string, client?: PrismaClient): Promise<void> {
     try {
-      await prisma.backupTarget.delete({ where: { id } });
+      const db = client || prisma;
+      await db.backupTarget.delete({ where: { id } });
       logger.info(`Deleted backup target ${id}`);
     } catch (error) {
       logger.error('Error deleting backup target:', error);
@@ -361,9 +370,10 @@ export class DRAutomationService {
   /**
    * List backup targets
    */
-  static async listBackupTargets(tenantId?: string): Promise<BackupTarget[]> {
+  static async listBackupTargets(tenantId?: string, client?: PrismaClient): Promise<BackupTarget[]> {
     try {
-      return await prisma.backupTarget.findMany({
+      const db = client || prisma;
+      return await db.backupTarget.findMany({
         where: tenantId ? { tenantId } : {},
         orderBy: { priority: 'desc' }
       });
@@ -376,9 +386,10 @@ export class DRAutomationService {
   /**
    * Verify backup target connectivity
    */
-  static async verifyBackupTarget(id: string): Promise<boolean> {
+  static async verifyBackupTarget(id: string, client?: PrismaClient): Promise<boolean> {
     try {
-      const target = await prisma.backupTarget.findUnique({ where: { id } });
+      const db = client || prisma;
+      const target = await db.backupTarget.findUnique({ where: { id } });
       if (!target) {
         throw new Error(`Backup target ${id} not found`);
       }
@@ -394,7 +405,7 @@ export class DRAutomationService {
       };
       const verified = await BackupTransferService.testConnection(targetForTransfer);
 
-      await prisma.backupTarget.update({
+      await db.backupTarget.update({
         where: { id },
         data: {
           verified,
@@ -407,7 +418,8 @@ export class DRAutomationService {
     } catch (error) {
       logger.error('Error verifying backup target:', error);
 
-      await prisma.backupTarget.update({
+      const db = client || prisma;
+      await db.backupTarget.update({
         where: { id },
         data: {
           verified: false,
@@ -422,11 +434,12 @@ export class DRAutomationService {
   /**
    * Execute backup
    */
-  static async executeBackup(scheduleId: string): Promise<BackupResult> {
+  static async executeBackup(scheduleId: string, client?: PrismaClient): Promise<BackupResult> {
     const startTime = Date.now();
+    const db = client || prisma;
 
     try {
-      const schedule = await prisma.backupSchedule.findUnique({
+      const schedule = await db.backupSchedule.findUnique({
         where: { id: scheduleId }
       });
 
@@ -437,7 +450,7 @@ export class DRAutomationService {
       logger.info(`Starting backup for schedule: ${schedule.name}`);
 
       // Update schedule status
-      await prisma.backupSchedule.update({
+      await db.backupSchedule.update({
         where: { id: scheduleId },
         data: { lastRunAt: new Date() }
       });
@@ -492,7 +505,7 @@ export class DRAutomationService {
       const duration = Math.floor((Date.now() - startTime) / 1000);
 
       // Create backup log
-      const backupLog = await prisma.backupLog.create({
+      const backupLog = await db.backupLog.create({
         data: {
           tenantId: schedule.tenantId!,
           type: schedule.backupType,
@@ -512,7 +525,7 @@ export class DRAutomationService {
       });
 
       // Update schedule
-      await prisma.backupSchedule.update({
+      await db.backupSchedule.update({
         where: { id: scheduleId },
         data: {
           lastStatus: 'success',
@@ -522,25 +535,25 @@ export class DRAutomationService {
 
       // Replicate to targets
       if (schedule.targets && Array.isArray(schedule.targets) && schedule.targets.length > 0) {
-        await this.replicateToTargets(backupLog.id, filepath, schedule.targets as string[]);
+        await this.replicateToTargets(backupLog.id, filepath, schedule.targets as string[], db);
       }
 
       // Record metric
       await this.recordMetric(schedule.tenantId, 'backup_duration', duration, 'seconds', {
         scheduleId: schedule.id,
         backupType: schedule.backupType
-      });
+      }, db);
 
       await this.recordMetric(schedule.tenantId, 'backup_size', size, 'bytes', {
         scheduleId: schedule.id,
         backupType: schedule.backupType
-      });
+      }, db);
 
       // Emit event
       await EventBusService.publish(
         AppEventType.BACKUP_COMPLETED,
-        { backupId: backupLog.id, scheduleId: schedule.id, size, duration },
-        { source: 'DRAutomationService' }
+        { backupId: backupLog.id, scheduleId: schedule.id, size, duration, tenantId: schedule.tenantId || undefined },
+        { source: 'DRAutomationService', tenantId: schedule.tenantId || undefined }
       );
 
       logger.info(`Backup completed successfully: ${filename} (${size} bytes, ${duration}s)`);
@@ -559,7 +572,7 @@ export class DRAutomationService {
       logger.error('Backup failed:', error);
 
       // Update schedule
-      await prisma.backupSchedule.update({
+      await db.backupSchedule.update({
         where: { id: scheduleId },
         data: {
           lastStatus: 'failed',
@@ -578,18 +591,19 @@ export class DRAutomationService {
   /**
    * Execute DR test
    */
-  static async executeDRTest(backupId: string, testType: string = 'restore'): Promise<DRTestResult> {
+  static async executeDRTest(backupId: string, testType: string = 'restore', client?: PrismaClient): Promise<DRTestResult> {
     const startTime = Date.now();
+    const db = client || prisma;
 
     try {
-      const backup = await prisma.backupLog.findUnique({ where: { id: backupId } });
+      const backup = await db.backupLog.findUnique({ where: { id: backupId } });
       if (!backup) {
         throw new Error(`Backup ${backupId} not found`);
       }
 
       logger.info(`Starting DR test (${testType}) for backup ${backupId}`);
 
-      const testLog = await prisma.drTestLog.create({
+      const testLog = await db.drTestLog.create({
         data: {
           tenantId: backup.tenantId,
           testType,
@@ -643,7 +657,7 @@ export class DRAutomationService {
 
       const duration = Math.floor((Date.now() - startTime) / 1000);
 
-      await prisma.drTestLog.update({
+      await db.drTestLog.update({
         where: { id: testLog.id },
         data: {
           status: success ? 'success' : 'failed',
@@ -669,11 +683,12 @@ export class DRAutomationService {
   /**
    * Get DR metrics
    */
-  static async getDRMetrics(tenantId?: string, metricType?: string, days: number = 30): Promise<DRMetric[]> {
+  static async getDRMetrics(tenantId?: string, metricType?: string, days: number = 30, client?: PrismaClient): Promise<DRMetric[]> {
     try {
+      const db = client || prisma;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      return await prisma.drMetric.findMany({
+      return await db.drMetric.findMany({
         where: {
           ...(tenantId && { tenantId }),
           ...(metricType && { metricType }),
@@ -690,8 +705,9 @@ export class DRAutomationService {
   /**
    * Get DR dashboard summary
    */
-  static async getDRDashboard(tenantId?: string): Promise<DRDashboard> {
+  static async getDRDashboard(tenantId?: string, client?: PrismaClient): Promise<DRDashboard> {
     try {
+      const db = client || prisma;
       const [
         config,
         schedules,
@@ -700,20 +716,20 @@ export class DRAutomationService {
         recentTests,
         metrics
       ] = await Promise.all([
-        this.getDRConfig(tenantId),
-        this.listBackupSchedules(tenantId),
-        this.listBackupTargets(tenantId),
-        prisma.backupLog.findMany({
+        this.getDRConfig(tenantId, db),
+        this.listBackupSchedules(tenantId, db),
+        this.listBackupTargets(tenantId, db),
+        db.backupLog.findMany({
           where: tenantId ? { tenantId } : {},
           orderBy: { startedAt: 'desc' },
           take: 10
         }),
-        prisma.drTestLog.findMany({
+        db.drTestLog.findMany({
           where: tenantId ? { tenantId } : {},
           orderBy: { startedAt: 'desc' },
           take: 10
         }),
-        this.getDRMetrics(tenantId, undefined, 7)
+        this.getDRMetrics(tenantId, undefined, 7, db)
       ]);
 
       // Calculate statistics
@@ -778,12 +794,13 @@ export class DRAutomationService {
   /**
    * Check for RTO/RPO violations
    */
-  static async checkRTORPOViolations(tenantId?: string): Promise<RTORPOViolationCheck> {
+  static async checkRTORPOViolations(tenantId?: string, client?: PrismaClient): Promise<RTORPOViolationCheck> {
     try {
-      const config = await this.getDRConfig(tenantId);
+      const db = client || prisma;
+      const config = await this.getDRConfig(tenantId, db);
 
       // Check RPO (time since last successful backup)
-      const lastBackup = await prisma.backupLog.findFirst({
+      const lastBackup = await db.backupLog.findFirst({
         where: {
           ...(tenantId && { tenantId }),
           status: 'success'
@@ -799,7 +816,7 @@ export class DRAutomationService {
         await this.recordMetric(tenantId, 'rpo_violation', 1, 'count', {
           lastBackup: lastBackup?.completedAt,
           rpoMinutes: config.rpoMinutes
-        });
+        }, db);
       }
 
       return {
@@ -860,9 +877,15 @@ export class DRAutomationService {
   /**
    * Replicate backup to multiple targets
    */
-  private static async replicateToTargets(_backupId: string, filepath: string, targetIds: string[]): Promise<void> {
+  private static async replicateToTargets(
+    _backupId: string,
+    filepath: string,
+    targetIds: string[],
+    client?: PrismaClient
+  ): Promise<void> {
     try {
-      const targets = await prisma.backupTarget.findMany({
+      const db = client || prisma;
+      const targets = await db.backupTarget.findMany({
         where: {
           id: { in: targetIds },
           enabled: true
@@ -913,10 +936,12 @@ export class DRAutomationService {
     metricType: string,
     value: number,
     unit: string,
-    metadata?: Prisma.InputJsonValue
+    metadata?: Prisma.InputJsonValue,
+    client?: PrismaClient
   ): Promise<void> {
     try {
-      await prisma.drMetric.create({
+      const db = client || prisma;
+      await db.drMetric.create({
         data: {
           tenantId: tenantId || null,
           metricType,

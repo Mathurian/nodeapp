@@ -91,6 +91,17 @@ const normalizeTemplatePayload = (
   };
 };
 
+const getRequestPrisma = (req: Request, res: Response) => {
+  if (!req.prisma) {
+    res.status(500).json({
+      success: false,
+      error: 'Database context not initialized',
+    });
+    return null;
+  }
+  return req.prisma;
+};
+
 export const createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.tenantId) {
@@ -110,10 +121,13 @@ export const createTemplate = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const template = await WorkflowService.createTemplate({
       ...input,
       name: input.name as string,
-    });
+    }, requestPrisma);
     sendSuccess(res, template, 'Workflow template created', 201);
   } catch (error) {
     return next(error);
@@ -122,7 +136,10 @@ export const createTemplate = async (req: Request, res: Response, next: NextFunc
 
 export const getTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const template = await WorkflowService.getTemplate(req.params['id']!, req.tenantId!);
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
+    const template = await WorkflowService.getTemplate(req.params['id']!, req.tenantId!, requestPrisma);
     sendSuccess(res, template);
   } catch (error) {
     return next(error);
@@ -131,8 +148,11 @@ export const getTemplate = async (req: Request, res: Response, next: NextFunctio
 
 export const listTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const { type } = req.query;
-    const templates = await WorkflowService.listTemplates(req.tenantId!, type as string);
+    const templates = await WorkflowService.listTemplates(req.tenantId!, type as string, requestPrisma);
     sendSuccess(res, templates);
   } catch (error) {
     return next(error);
@@ -141,9 +161,12 @@ export const listTemplates = async (req: Request, res: Response, next: NextFunct
 
 export const updateTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const id = getRequiredParam(req, 'id');
     const payload = normalizeTemplatePayload(req.body as LegacyWorkflowBody, req.tenantId!);
-    const template = await WorkflowService.updateTemplate(id, req.tenantId!, payload);
+    const template = await WorkflowService.updateTemplate(id, req.tenantId!, payload, requestPrisma);
     sendSuccess(res, template, 'Workflow template updated');
   } catch (error) {
     return next(error);
@@ -152,8 +175,11 @@ export const updateTemplate = async (req: Request, res: Response, next: NextFunc
 
 export const deleteTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const id = getRequiredParam(req, 'id');
-    await WorkflowService.deleteTemplate(id, req.tenantId!);
+    await WorkflowService.deleteTemplate(id, req.tenantId!, requestPrisma);
     sendSuccess(res, null, 'Workflow template deleted');
   } catch (error) {
     return next(error);
@@ -162,6 +188,9 @@ export const deleteTemplate = async (req: Request, res: Response, next: NextFunc
 
 export const startWorkflow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const { templateId, entityType, entityId } = req.body;
     if (!templateId || !entityType || !entityId) {
       res.status(400).json({
@@ -171,7 +200,7 @@ export const startWorkflow = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const instance = await WorkflowService.startWorkflow(templateId, req.tenantId!, entityType, entityId);
+    const instance = await WorkflowService.startWorkflow(templateId, req.tenantId!, entityType, entityId, requestPrisma);
     sendSuccess(res, instance, 'Workflow started', 201);
   } catch (error) {
     return next(error);
@@ -180,6 +209,9 @@ export const startWorkflow = async (req: Request, res: Response, next: NextFunct
 
 export const advanceWorkflow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const id = getRequiredParam(req, 'id');
     const { approvalStatus, comments } = req.body;
     const userId = (req as any).user?.id;
@@ -199,7 +231,7 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    const instance = await WorkflowService.advanceWorkflow(id, req.tenantId!, userId, userRole, approvalStatus, comments);
+    const instance = await WorkflowService.advanceWorkflow(id, req.tenantId!, userId, userRole, approvalStatus, comments, requestPrisma);
     sendSuccess(res, instance, 'Workflow advanced');
   } catch (error) {
     return next(error);
@@ -208,7 +240,10 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
 
 export const getInstance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const instance = await WorkflowService.getInstance(req.params['id']!, req.tenantId!);
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
+    const instance = await WorkflowService.getInstance(req.params['id']!, req.tenantId!, requestPrisma);
     sendSuccess(res, instance);
   } catch (error) {
     return next(error);
@@ -217,8 +252,11 @@ export const getInstance = async (req: Request, res: Response, next: NextFunctio
 
 export const listInstancesForEntity = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
     const { entityType, entityId } = req.params;
-    const instances = await WorkflowService.listInstancesForEntity(req.tenantId!, entityType!, entityId!);
+    const instances = await WorkflowService.listInstancesForEntity(req.tenantId!, entityType!, entityId!, requestPrisma);
     sendSuccess(res, instances);
   } catch (error) {
     return next(error);

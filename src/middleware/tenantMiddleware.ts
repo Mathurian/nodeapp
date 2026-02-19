@@ -564,6 +564,71 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
     query: (args: Record<string, unknown>) => Promise<unknown>;
   };
 
+  const getModelDelegate = (model: string): any => {
+    const normalizedModelName = model ? model[0]?.toLowerCase() + model.slice(1) : model;
+    return (prisma as any)[normalizedModelName] || (prisma as any)[model] || (prisma as any)[String(model || '').toLowerCase()];
+  };
+
+  const extractTenantConstraints = (where: unknown): string[] => {
+    if (!where || typeof where !== 'object') {
+      return [];
+    }
+
+    const whereObj = where as Record<string, unknown>;
+    const tenantConstraints: string[] = [];
+
+    const directTenantId = whereObj['tenantId'];
+    if (typeof directTenantId === 'string' && directTenantId.trim().length > 0) {
+      tenantConstraints.push(directTenantId);
+    }
+
+    for (const [key, value] of Object.entries(whereObj)) {
+      if (!key.startsWith('tenantId_') || !value || typeof value !== 'object') {
+        continue;
+      }
+      const nestedTenantId = (value as Record<string, unknown>)['tenantId'];
+      if (typeof nestedTenantId === 'string' && nestedTenantId.trim().length > 0) {
+        tenantConstraints.push(nestedTenantId);
+      }
+    }
+
+    return tenantConstraints;
+  };
+
+  const hasTenantConstraintInWhere = (where: unknown): boolean =>
+    extractTenantConstraints(where).length > 0;
+
+  const assertTenantConstraintMatches = (where: unknown): void => {
+    const constraints = extractTenantConstraints(where);
+    if (constraints.length === 0) {
+      return;
+    }
+    const mismatch = constraints.find(constraintTenantId => constraintTenantId !== tenantId);
+    if (mismatch) {
+      const err = new Error('Tenant context mismatch');
+      (err as any).code = 'TENANT_CONTEXT_MISMATCH';
+      throw err;
+    }
+  };
+
+  const ensureRecordBelongsToTenant = async (model: string, where: unknown): Promise<void> => {
+    const delegate = getModelDelegate(model);
+    if (!delegate?.findFirst) {
+      return;
+    }
+
+    const existing = await delegate.findFirst({
+      where: { ...(where as Record<string, unknown> || {}), tenantId },
+      select: { id: true }
+    });
+
+    if (!existing) {
+      const err = new Error('Record not found');
+      (err as any).code = 'P2025';
+      throw err;
+    }
+  };
+
   // Return Prisma client with tenant filtering middleware
   return prisma.$extends({
     query: {
@@ -584,13 +649,39 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async findUnique({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
+            assertTenantConstraintMatches(args['where']);
+            if (!hasTenantConstraintInWhere(args['where'])) {
+              const delegate = getModelDelegate(model);
+              if (delegate?.findFirst) {
+                return delegate.findFirst({
+                  ...(args as Record<string, unknown>),
+                  where: { ...(args['where'] as Record<string, unknown> || {}), tenantId }
+                });
+              }
+            }
           }
           return query(args);
         },
         async findUniqueOrThrow({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
+            assertTenantConstraintMatches(args['where']);
+            if (!hasTenantConstraintInWhere(args['where'])) {
+              const delegate = getModelDelegate(model);
+              if (delegate?.findFirst) {
+                const record = await delegate.findFirst({
+                  ...(args as Record<string, unknown>),
+                  where: { ...(args['where'] as Record<string, unknown> || {}), tenantId }
+                });
+
+                if (!record) {
+                  const err = new Error('Record not found');
+                  (err as any).code = 'P2025';
+                  throw err;
+                }
+
+                return record;
+              }
+            }
           }
           return query(args);
         },
@@ -626,7 +717,10 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async update({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
+            assertTenantConstraintMatches(args['where']);
+            if (!hasTenantConstraintInWhere(args['where'])) {
+              await ensureRecordBelongsToTenant(model, args['where']);
+            }
           }
           return query(args);
         },
@@ -638,14 +732,39 @@ export function createTenantPrismaClient(tenantId: string, isSuperAdmin: boolean
         },
         async upsert({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
             args['create'] = { ...(args['create'] as Record<string, unknown>), tenantId };
+
+            assertTenantConstraintMatches(args['where']);
+
+            if (!hasTenantConstraintInWhere(args['where'])) {
+              const delegate = getModelDelegate(model);
+              if (delegate?.findFirst && delegate?.update && delegate?.create) {
+                const existing = await delegate.findFirst({
+                  where: { ...(args['where'] as Record<string, unknown> || {}), tenantId },
+                  select: { id: true }
+                });
+
+                if (existing) {
+                  return delegate.update({
+                    where: args['where'],
+                    data: args['update']
+                  });
+                }
+
+                return delegate.create({
+                  data: args['create']
+                });
+              }
+            }
           }
           return query(args);
         },
         async delete({ model, args, query }: PrismaExtensionParams) {
           if (isTenantScopedModel(model)) {
-            args['where'] = { ...(args['where'] as Record<string, unknown>), tenantId };
+            assertTenantConstraintMatches(args['where']);
+            if (!hasTenantConstraintInWhere(args['where'])) {
+              await ensureRecordBelongsToTenant(model, args['where']);
+            }
           }
           return query(args);
         },
