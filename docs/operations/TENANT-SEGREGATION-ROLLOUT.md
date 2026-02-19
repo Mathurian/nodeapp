@@ -7,6 +7,7 @@ This runbook describes how to roll out full tenant segregation safely.
 - `TENANT_SEGREGATION_MODE=off`: checks disabled.
 - `TENANT_SEGREGATION_MODE=audit`: violations logged, requests still allowed.
 - `TENANT_SEGREGATION_MODE=enforce`: non-`SUPER_ADMIN` access to default tenant is blocked.
+- `TENANT_DB_RLS_MODE=off|enforce`: request-scoped DB session RLS context (`app.*`) for PostgreSQL policy enforcement.
 
 Default fallback values (if env keys are missing):
 
@@ -87,8 +88,10 @@ npm run audit:tenant-rls-shadow
 1. Deploy code with `TENANT_SEGREGATION_MODE=audit` in production.
 2. Run audit and observe logs for `DEFAULT_TENANT_RESTRICTED`.
 3. Resolve any remaining default-tenant non-super-admin accounts/flows.
-4. Flip production env to `TENANT_SEGREGATION_MODE=enforce`.
-5. Restart service and run smoke tests.
+4. Set `TENANT_DB_RLS_MODE=off` initially while validating app-layer guardrails.
+5. Flip production env to `TENANT_SEGREGATION_MODE=enforce`.
+6. Run smoke/UAT and violation alerts; then flip `TENANT_DB_RLS_MODE=enforce`.
+7. Restart service and rerun smoke tests.
 
 ## Phase 6 Verification
 
@@ -128,5 +131,6 @@ sudo bash scripts/deploy/preflight-tenant-segregation.sh
 - `preflight-tenant-segregation.sh` now fails if blocked fallback patterns are found in runtime code.
 - `preflight-tenant-segregation.sh` now also fails if `src/utils/prisma.ts` creates a standalone Prisma client.
 - `preflight-tenant-segregation.sh` validates that context-aware Prisma proxy hooks remain in `config/database` and `correlationId` middleware.
+- `preflight-tenant-segregation.sh` executes `tenant-rls-shadow-check.sh` automatically when `TENANT_DB_RLS_MODE=enforce`.
 - Direct global Prisma imports are guardrailed by `scripts/ops/tenant-global-prisma-import-allowlist.txt`; update deliberately during reviewed refactors only.
 - Schedule `scripts/ops/tenant-segregation-alerts.sh` every 1-5 minutes to alert on violation spikes during audit/enforce rollout.

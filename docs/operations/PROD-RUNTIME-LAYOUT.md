@@ -14,6 +14,7 @@ This deployment model separates development source code from the production runt
 Tenant segregation rollout env keys (in `event-manager.env`):
 
 - `TENANT_SEGREGATION_MODE` (`off|audit|enforce`)
+- `TENANT_DB_RLS_MODE` (`off|enforce`) for request-scoped PostgreSQL RLS session context
 - `TENANT_DEFAULT_IDS` (comma-separated tenant IDs treated as default/system)
 - `TENANT_DEFAULT_SLUGS` (comma-separated tenant slugs treated as default/system)
 - Optional migration/admin DB URL: `MIGRATION_DATABASE_URL` (keep runtime `DATABASE_URL` least-privileged)

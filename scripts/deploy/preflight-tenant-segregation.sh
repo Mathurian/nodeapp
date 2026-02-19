@@ -4,10 +4,27 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-/srv/event-manager/dev}"
 ENV_FILE="${ENV_FILE:-/etc/event-manager/event-manager.env}"
 
-if ! command -v rg >/dev/null 2>&1; then
+RG_BIN="${RG_BIN:-$(command -v rg || true)}"
+if [ -z "$RG_BIN" ]; then
+  for candidate in \
+    /usr/bin/rg \
+    /usr/local/bin/rg \
+    /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path/rg
+  do
+    if [ -x "$candidate" ]; then
+      RG_BIN="$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "$RG_BIN" ]; then
   echo "ripgrep (rg) is required."
   exit 1
 fi
+
+rg() {
+  "$RG_BIN" "$@"
+}
 
 if [ ! -d "$APP_ROOT" ]; then
   echo "App root not found: $APP_ROOT"
@@ -26,15 +43,20 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 mode_line="$(grep -E '^TENANT_SEGREGATION_MODE=' "$ENV_FILE" || true)"
+db_rls_mode_line="$(grep -E '^TENANT_DB_RLS_MODE=' "$ENV_FILE" || true)"
 ids_line="$(grep -E '^TENANT_DEFAULT_IDS=' "$ENV_FILE" || true)"
 slugs_line="$(grep -E '^TENANT_DEFAULT_SLUGS=' "$ENV_FILE" || true)"
 
 mode="${mode_line#TENANT_SEGREGATION_MODE=}"
+db_rls_mode="${db_rls_mode_line#TENANT_DB_RLS_MODE=}"
 ids="${ids_line#TENANT_DEFAULT_IDS=}"
 slugs="${slugs_line#TENANT_DEFAULT_SLUGS=}"
 
 if [ -z "$mode_line" ]; then
   mode="audit (implicit default)"
+fi
+if [ -z "$db_rls_mode_line" ]; then
+  db_rls_mode="off (implicit default)"
 fi
 if [ -z "$ids_line" ]; then
   ids="default_tenant,default-tenant (implicit default)"
@@ -46,6 +68,7 @@ fi
 echo
 echo "Runtime policy from $ENV_FILE"
 echo "  TENANT_SEGREGATION_MODE=$mode"
+echo "  TENANT_DB_RLS_MODE=$db_rls_mode"
 echo "  TENANT_DEFAULT_IDS=$ids"
 echo "  TENANT_DEFAULT_SLUGS=$slugs"
 
@@ -92,6 +115,12 @@ if ! rg -q "requestPrisma" src/middleware/correlationId.ts; then
   exit 1
 fi
 echo "Context-aware Prisma proxy guardrails passed."
+
+if [ "$db_rls_mode" = "enforce" ]; then
+  echo
+  echo "Running tenant RLS shadow check because TENANT_DB_RLS_MODE=enforce..."
+  ENV_FILE="$ENV_FILE" bash scripts/ops/tenant-rls-shadow-check.sh
+fi
 
 echo
 echo "Checking for direct global prisma imports in request layer..."

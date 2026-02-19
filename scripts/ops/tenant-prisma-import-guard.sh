@@ -1,10 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if ! command -v rg >/dev/null 2>&1; then
+RG_BIN="${RG_BIN:-$(command -v rg || true)}"
+if [ -z "$RG_BIN" ]; then
+  for candidate in \
+    /usr/bin/rg \
+    /usr/local/bin/rg \
+    /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path/rg
+  do
+    if [ -x "$candidate" ]; then
+      RG_BIN="$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "$RG_BIN" ]; then
   echo "ripgrep (rg) is required."
   exit 1
 fi
+
+rg() {
+  "$RG_BIN" "$@"
+}
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ALLOWLIST_FILE="${ROOT_DIR}/scripts/ops/tenant-global-prisma-import-allowlist.txt"
