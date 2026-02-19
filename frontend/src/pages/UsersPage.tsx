@@ -424,6 +424,7 @@ const UsersPage: React.FC = () => {
       email: user.email,
       password: '',
       role: user.role,
+      boardRole: user.boardRole || '',
       gender: user.gender || '',
       pronouns: user.pronouns || '',
       phone: user.phone || '',

@@ -7,6 +7,7 @@ const createUserBaseSchema = z.object({
   password: passwordSchema,
   confirmPassword: z.string(),
   role: z.enum(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'JUDGE', 'CONTESTANT', 'EMCEE']),
+  boardRole: optionalString,
   isActive: z.boolean().default(true),
   phone: optionalString,
   address: optionalString,

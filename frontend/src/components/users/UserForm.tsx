@@ -70,6 +70,7 @@ const userFormSchema = z.object({
   email: emailSchema,
   password: z.string().optional(),
   role: z.string().min(1, 'Role is required'),
+  boardRole: z.string().max(100, 'Board role must be 100 characters or fewer').optional(),
   gender: z.string().optional(),
   pronouns: z.string().optional(),
   phone: z.string().optional(),
@@ -128,6 +129,7 @@ const UserForm: React.FC<UserFormProps> = ({
       email: defaultValues?.email ?? '',
       password: '',
       role: defaultValues?.role ?? 'CONTESTANT',
+      boardRole: defaultValues?.boardRole ?? '',
       gender: defaultValues?.gender ?? '',
       pronouns: defaultValues?.pronouns ?? '',
       phone: defaultValues?.phone ?? '',
@@ -146,6 +148,7 @@ const UserForm: React.FC<UserFormProps> = ({
         email: defaultValues.email ?? '',
         password: '',
         role: defaultValues.role ?? 'CONTESTANT',
+        boardRole: defaultValues.boardRole ?? '',
         gender: defaultValues.gender ?? '',
         pronouns: defaultValues.pronouns ?? '',
         phone: defaultValues.phone ?? '',
@@ -167,6 +170,12 @@ const UserForm: React.FC<UserFormProps> = ({
       setValue('role', 'ADMIN', { shouldValidate: true, shouldDirty: true })
     }
   }, [canAssignSuperAdmin, watchedRole, setValue])
+
+  useEffect(() => {
+    if (watchedRole !== 'BOARD') {
+      setValue('boardRole', '')
+    }
+  }, [watchedRole, setValue])
 
   const handleFormSubmit = (data: UserFormFields) => {
     // Password required for new users
@@ -490,6 +499,22 @@ const UserForm: React.FC<UserFormProps> = ({
                 placeholder="e.g., 1, 2, 3..."
                 min={1}
               />
+            </div>
+          )}
+
+          {watchedRole === 'BOARD' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Board Role
+              </label>
+              <input
+                type="text"
+                {...register('boardRole')}
+                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.boardRole ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
+                placeholder="e.g., President, Treasurer, Secretary"
+                aria-invalid={errors.boardRole ? 'true' : undefined}
+              />
+              {errors.boardRole && <p className="mt-1 text-xs text-red-600" role="alert">{errors.boardRole.message}</p>}
             </div>
           )}
 

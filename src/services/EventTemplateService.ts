@@ -82,7 +82,7 @@ export interface TemplateResponse {
 }
 
 export interface TemplateWithCreatorResponse extends TemplateResponse {
-  creator: UserCreatorInfo;
+  creator: UserCreatorInfo | null;
   updatedAt: Date;
 }
 

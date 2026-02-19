@@ -14,6 +14,7 @@ interface User {
   preferredName?: string
   email: string
   role: string
+  boardRole?: string | null
   phone?: string
   gender?: string
   pronouns?: string

@@ -37,7 +37,7 @@ export interface ScoreFileInfo {
   fileType: string;
   filePath: string;
   fileSize: number;
-  uploadedById: string;
+  uploadedById: string | null;
   status: string;
   notes: string | null;
   metadata?: {

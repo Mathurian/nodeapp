@@ -8,6 +8,7 @@ export interface User {
   preferredName: string | null
   email: string
   role: string
+  boardRole?: string | null
   gender: string | null
   pronouns?: string | null
   phone: string | null
@@ -35,6 +36,7 @@ export interface UserFormData {
   email: string
   password: string
   role: string
+  boardRole?: string
   gender: string
   pronouns: string
   phone: string

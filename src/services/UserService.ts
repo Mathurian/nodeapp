@@ -24,6 +24,7 @@ export interface CreateUserDTO {
   password: string;
   preferredName?: string;
   role: string | UserRole;
+  boardRole?: string;
   gender?: string;
   pronouns?: string;
   phone?: string;
@@ -47,6 +48,7 @@ export interface UpdateUserDTO {
   email?: string;
   preferredName?: string;
   role?: string | UserRole;
+  boardRole?: string | null;
   isActive?: boolean;
   phone?: string;
   address?: string;
@@ -392,6 +394,7 @@ export class UserService extends BaseService {
         password: hashedPassword,
         preferredName: data.preferredName,
         role: data.role,
+        boardRole: data.role === 'BOARD' ? (data.boardRole?.trim() || null) : null,
         isActive: true,
         gender: data.gender,
         pronouns: data.pronouns,
@@ -450,8 +453,16 @@ export class UserService extends BaseService {
         }
       }
 
+      const normalizedData: UpdateUserDTO = { ...data };
+      if (normalizedData.boardRole !== undefined) {
+        normalizedData.boardRole = normalizedData.boardRole?.trim() || null;
+      }
+      if (normalizedData.role && normalizedData.role !== 'BOARD' && normalizedData.boardRole === undefined) {
+        normalizedData.boardRole = null;
+      }
+
       // Update user
-      const updatedUser = await this.userRepository.update(userId, data as Partial<User>);
+      const updatedUser = await this.userRepository.update(userId, normalizedData as Partial<User>);
 
       this.logInfo('User updated', { userId, name: updatedUser.name });
 

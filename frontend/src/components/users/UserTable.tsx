@@ -211,6 +211,11 @@ const UserTable: React.FC<UserTableProps> = ({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 {renderRoleBadge(user.role)}
+                {user.role === 'BOARD' && user.boardRole && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {user.boardRole}
+                  </div>
+                )}
               </td>
               {isSuperAdmin && (
                 <td className="px-6 py-4 whitespace-nowrap">

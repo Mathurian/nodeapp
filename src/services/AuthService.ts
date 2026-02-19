@@ -35,6 +35,7 @@ type UserBasic = Prisma.UserGetPayload<{
     email: true;
     password: true;
     role: true;
+    boardRole: true;
     sessionVersion: true;
     isActive: true;
     judgeId: true;
@@ -80,6 +81,7 @@ interface UserProfile {
   preferredName: string | null;
   email: string;
   role: string;
+  boardRole: string | null;
   sessionVersion: number;
   permissions: string[];
   hasAdminAccess: boolean;
@@ -303,6 +305,7 @@ export class AuthService {
         email: true,
         password: true,
         role: true,
+        boardRole: true,
         sessionVersion: true,
         isActive: true,
         judgeId: true,
@@ -350,6 +353,7 @@ export class AuthService {
             email: true,
             password: true,
             role: true,
+            boardRole: true,
             sessionVersion: true,
             isActive: true,
             judgeId: true,
@@ -511,6 +515,7 @@ export class AuthService {
           preferredName: user.preferredName,
           email: user.email,
           role: user.role,
+          boardRole: user.boardRole,
           sessionVersion: user.sessionVersion,
           permissions: [],
           hasAdminAccess: false,
@@ -596,6 +601,7 @@ export class AuthService {
         preferredName: user.preferredName,
         email: user.email,
         role: user.role,
+        boardRole: user.boardRole,
         sessionVersion: user.sessionVersion,
         permissions,
         hasAdminAccess,
@@ -710,6 +716,7 @@ export class AuthService {
         preferredName: true,
         email: true,
         role: true,
+        boardRole: true,
         sessionVersion: true,
         isActive: true,
         judgeId: true,
@@ -818,6 +825,7 @@ export class AuthService {
         preferredName: true,
         email: true,
         role: true,
+        boardRole: true,
         sessionVersion: true,
         judgeId: true,
         contestantId: true,
@@ -848,6 +856,7 @@ export class AuthService {
       preferredName: user.preferredName,
       email: user.email,
       role: user.role,
+      boardRole: user.boardRole,
       sessionVersion: user.sessionVersion,
       permissions,
       hasAdminAccess,

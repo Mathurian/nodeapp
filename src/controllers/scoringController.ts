@@ -1372,8 +1372,9 @@ export class ScoringController {
         });
 
         const approverIds = new Set(approvals.map((a) => a.approvedById));
-        const hasInitiator = approverIds.has(deduction.requestedById);
-        const additionalApprovals = Array.from(approverIds).filter((id) => id !== deduction.requestedById).length;
+        const requestedById = deduction.requestedById;
+        const hasInitiator = requestedById ? approverIds.has(requestedById) : false;
+        const additionalApprovals = Array.from(approverIds).filter((id) => requestedById ? id !== requestedById : true).length;
 
         const shouldApprove = hasInitiator && additionalApprovals >= 2;
 

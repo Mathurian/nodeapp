@@ -50,6 +50,14 @@ export class UsersController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private normalizeOptionalString(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
   /**
    * Get all users with relations
    */
@@ -232,6 +240,7 @@ export class UsersController {
         email: data.email,
         password: data.password,
         role: data.role,
+        boardRole: this.normalizeOptionalString(data.boardRole),
         preferredName: data.preferredName ?? undefined,
         gender: data.gender ?? undefined,
         pronouns: data.pronouns ?? undefined,
@@ -250,6 +259,8 @@ export class UsersController {
         userData.contestantNumber = data.contestantNumber ?? undefined;
         userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
         userData['contestantSchool'] = data.school ?? undefined;
+      } else if (data.role !== 'BOARD') {
+        userData.boardRole = undefined;
       }
 
       const user = await this.userService.createUser(userData as CreateUserDTO);
@@ -437,6 +448,9 @@ export class UsersController {
       if (data.name !== undefined) userData.name = data.name;
       if (data.email !== undefined) userData.email = data.email;
       if (data.role !== undefined) userData.role = data.role;
+      if (data.boardRole !== undefined) {
+        userData.boardRole = this.normalizeOptionalString(data.boardRole) ?? null;
+      }
       if (data.phone !== undefined) userData.phone = data.phone ?? undefined;
       if (data.address !== undefined) userData.address = data.address ?? undefined;
       if (data.city !== undefined) userData.city = data.city ?? undefined;
@@ -457,6 +471,10 @@ export class UsersController {
         if (data.contestantNumber !== undefined) userData.contestantNumber = data.contestantNumber ?? undefined;
         if (data.age !== undefined) userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
         if (data.school !== undefined) userData['contestantSchool'] = data.school ?? undefined;
+      } else if (data.role === 'BOARD') {
+        if (data.boardRole !== undefined) {
+          userData.boardRole = this.normalizeOptionalString(data.boardRole) ?? null;
+        }
       }
 
       const targetRole = (data.role || currentUser.role) as User['role'];
@@ -478,6 +496,9 @@ export class UsersController {
           (userData as Record<string, string | number | boolean | null | undefined>)['contestantNumber'] = null;
           (userData as Record<string, string | number | boolean | null | undefined>)['contestantAge'] = null;
           (userData as Record<string, string | number | boolean | null | undefined>)['contestantSchool'] = null;
+        }
+        if (targetRole !== 'BOARD') {
+          userData.boardRole = null;
         }
       }
 
@@ -1047,6 +1068,10 @@ export class UsersController {
             log.debug('Updated contestant record', { contestantId: currentUser.contestantId });
           }
         }
+      } else if (currentUser.role === 'BOARD') {
+        if (roleFieldsData['boardRole'] !== undefined) {
+          updateData.boardRole = this.normalizeOptionalString(roleFieldsData['boardRole']) ?? null;
+        }
       }
 
       // Update user record if there are changes
@@ -1282,6 +1307,9 @@ export class UsersController {
                 case 'role':
                   userData['role'] = value.toUpperCase();
                   break;
+                case 'boardrole':
+                  userData['boardRole'] = value;
+                  break;
                 case 'preferredname':
                   userData['preferredName'] = value;
                   break;
@@ -1378,6 +1406,7 @@ export class UsersController {
             email: userData['email'] as string,
             password: userData['password'] as string,
             role: userData['role'] as string,
+            boardRole: this.normalizeOptionalString(userData['boardRole']),
             preferredName: (userData['preferredName'] as string | undefined) ?? undefined,
             gender: (userData['gender'] as string | undefined) ?? undefined,
             pronouns: (userData['pronouns'] as string | undefined) ?? undefined,
@@ -1396,6 +1425,8 @@ export class UsersController {
             createUserData['contestantNumber'] = (userData['contestantNumber'] as number | undefined) ?? undefined;
             createUserData['contestantAge'] = userData['age'] ? parseInt(String(userData['age'])) : undefined;
             createUserData['contestantSchool'] = (userData['school'] as string | undefined) ?? undefined;
+          } else if (userData['role'] !== 'BOARD') {
+            createUserData.boardRole = undefined;
           }
 
           // Create user
@@ -1609,6 +1640,7 @@ export class UsersController {
         '# Bulk User Upload Template',
         '# Required columns for every row: name, email, password, role',
         '# Allowed roles: ADMIN, ORGANIZER, JUDGE, CONTESTANT, EMCEE, TALLY_MASTER, AUDITOR, BOARD',
+        '# boardRole is optional and only used when role is BOARD.',
         '# Existing users are not updated. Duplicate emails are skipped.',
         '# contestId/categoryId must be valid IDs from your tenant.',
         '# If both contestId and categoryId are provided, categoryId takes precedence.',
@@ -1624,6 +1656,7 @@ export class UsersController {
           'email',
           'password',
           'role',
+          'boardRole',
           'preferredName',
           'pronouns',
           'gender',
@@ -1637,8 +1670,8 @@ export class UsersController {
           'categoryId'
         ];
         exampleRows = [
-          ['John Judge', 'judge1@example.com', 'SecurePass123!', 'JUDGE', 'John', 'he/him', 'male', '555-0100', '', 'Lead judge profile', 'J001', 'EXPERT', 'false', 'contest_id_here', ''],
-          ['Jamie Judge', 'judge2@example.com', 'SecurePass123!', 'JUDGE', '', 'they/them', '', '555-0101', '', '', 'J002', 'INTERMEDIATE', 'true', '', 'category_id_here'],
+          ['John Judge', 'judge1@example.com', 'SecurePass123!', 'JUDGE', '', 'John', 'he/him', 'male', '555-0100', '', 'Lead judge profile', 'J001', 'EXPERT', 'false', 'contest_id_here', ''],
+          ['Jamie Judge', 'judge2@example.com', 'SecurePass123!', 'JUDGE', '', '', 'they/them', '', '555-0101', '', '', 'J002', 'INTERMEDIATE', 'true', '', 'category_id_here'],
         ];
         commonInstructions.push('# Judge template: role should stay JUDGE, judgeLevel can be BEGINNER/INTERMEDIATE/EXPERT');
       } else if (userType === 'CONTESTANT') {
@@ -1647,6 +1680,7 @@ export class UsersController {
           'email',
           'password',
           'role',
+          'boardRole',
           'preferredName',
           'pronouns',
           'gender',
@@ -1663,8 +1697,8 @@ export class UsersController {
           'categoryId'
         ];
         exampleRows = [
-          ['Connie Contestant', 'contestant1@example.com', 'SecurePass123!', 'CONTESTANT', 'Connie', 'she/her', 'female', '555-0200', '123 Main St', 'Performer profile', 'C001', '15', 'Parent Name', '555-0201', 'Central High', '10', '', 'category_id_here'],
-          ['Casey Contestant', 'contestant2@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0202', '', '', 'C002', '16', '', '', '', '', 'contest_id_here', ''],
+          ['Connie Contestant', 'contestant1@example.com', 'SecurePass123!', 'CONTESTANT', '', 'Connie', 'she/her', 'female', '555-0200', '123 Main St', 'Performer profile', 'C001', '15', 'Parent Name', '555-0201', 'Central High', '10', '', 'category_id_here'],
+          ['Casey Contestant', 'contestant2@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '', '555-0202', '', '', 'C002', '16', '', '', '', '', 'contest_id_here', ''],
         ];
         commonInstructions.push('# Contestant template: role should stay CONTESTANT.');
       } else {
@@ -1673,6 +1707,7 @@ export class UsersController {
           'email',
           'password',
           'role',
+          'boardRole',
           'preferredName',
           'pronouns',
           'gender',
@@ -1692,9 +1727,10 @@ export class UsersController {
           'categoryId'
         ];
         exampleRows = [
-          ['John Judge', 'judge1@example.com', 'SecurePass123!', 'JUDGE', '', '', '', '555-0001', '', 'Experienced judge', 'J001', 'EXPERT', 'false', '', '', '', '', '', '', 'contest_id_here', ''],
-          ['Connie Contestant', 'contestant1@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '555-0002', '123 Main St', 'Performer profile', '', '', '', 'C001', '15', 'Parent Name', '555-0003', 'Central High', '10', '', 'category_id_here'],
-          ['Alex Admin', 'admin1@example.com', 'SecurePass123!', 'ADMIN', '', '', '', '555-0004', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+          ['John Judge', 'judge1@example.com', 'SecurePass123!', 'JUDGE', '', '', '', '', '555-0001', '', 'Experienced judge', 'J001', 'EXPERT', 'false', '', '', '', '', '', '', 'contest_id_here', ''],
+          ['Connie Contestant', 'contestant1@example.com', 'SecurePass123!', 'CONTESTANT', '', '', '', '', '555-0002', '123 Main St', 'Performer profile', '', '', '', 'C001', '15', 'Parent Name', '555-0003', 'Central High', '10', '', 'category_id_here'],
+          ['Bailey Board', 'board1@example.com', 'SecurePass123!', 'BOARD', 'Treasurer', '', '', '', '555-0004', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+          ['Alex Admin', 'admin1@example.com', 'SecurePass123!', 'ADMIN', '', '', '', '', '555-0005', '', '', '', '', '', '', '', '', '', '', '', '', ''],
         ];
         commonInstructions.push('# Universal template supports mixed roles in one file.');
       }

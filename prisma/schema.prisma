@@ -311,6 +311,7 @@ model User {
   email                 String
   password              String
   role                  UserRole
+  boardRole             String?
   gender                String?
   pronouns              String?
   judgeId               String?
