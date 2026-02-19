@@ -42,9 +42,11 @@ import {
 import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
-import prisma from '../config/database';
+import { resolveRequestTenantId } from '../utils/tenantContext';
+import { UserFieldVisibilityService } from '../services/UserFieldVisibilityService';
 
 const router: Router = express.Router();
+const userFieldVisibilityService = new UserFieldVisibilityService();
 
 // Configure multer for theme uploads (logo and favicon)
 const themeStorage = multer.diskStorage({
@@ -217,12 +219,35 @@ router.get('/alerts/scoring-workflow/candidates', requireRole(['SUPER_ADMIN', 'A
 // Database connection info (read-only, masked)
 router.get('/database-connection-info', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getDatabaseConnectionInfo)
 
-// Field configuration routes (for user field visibility settings)
-router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+const isSuperAdmin = (req: express.Request): boolean =>
+  String(req.user?.role || '').trim().toUpperCase() === 'SUPER_ADMIN';
+
+const resolveFieldConfigTenantScope = (req: express.Request): string | null => {
+  if (isSuperAdmin(req) && req.query['global'] === 'true') {
+    return null;
+  }
+  return resolveRequestTenantId(req, { allowSuperAdminQueryOverride: true });
+};
+
+const toFieldConfigRows = (settings: Record<string, any>): Array<{
+  fieldName: string;
+  isVisible: boolean;
+  isRequired: boolean;
+  order: number;
+}> =>
+  Object.entries(settings).map(([fieldName, config], index) => ({
+    fieldName,
+    isVisible: Boolean(config?.visible),
+    isRequired: Boolean(config?.required),
+    order: index + 1,
+  }));
+
+// Field configuration routes (tenant-scoped via system settings)
+router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const configurations = await prisma.userFieldConfiguration.findMany({
-      orderBy: { order: 'asc' }
-    });
+    const tenantId = resolveFieldConfigTenantScope(req);
+    const settings = await userFieldVisibilityService.getFieldVisibilitySettings(tenantId);
+    const configurations = toFieldConfigRows(settings);
 
     res.json({
       success: true,
@@ -237,10 +262,20 @@ router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANI
 
 router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const fieldName = req.params['fieldName'];
-    const configuration = await prisma.userFieldConfiguration.findUnique({
-      where: { fieldName }
-    });
+    const fieldName = String(req.params['fieldName'] || '').trim();
+    if (!fieldName) {
+      res.status(400).json({
+        success: false,
+        error: 'fieldName is required',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const tenantId = resolveFieldConfigTenantScope(req);
+    const settings = await userFieldVisibilityService.getFieldVisibilitySettings(tenantId);
+    const configurations = toFieldConfigRows(settings);
+    const configuration = configurations.find((item) => item.fieldName === fieldName);
 
     if (!configuration) {
       res.status(404).json({
@@ -264,7 +299,7 @@ router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
 
 router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const fieldName = req.params['fieldName'];
+    const fieldName = String(req.params['fieldName'] || '').trim();
     if (!fieldName) {
       res.status(400).json({
         success: false,
@@ -274,26 +309,28 @@ router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
       return;
     }
 
-    const { isVisible, isRequired, order } = req.body;
+    const isVisible = req.body?.isVisible;
+    const isRequired = req.body?.isRequired;
+    if (typeof isVisible !== 'boolean') {
+      res.status(400).json({
+        success: false,
+        error: 'isVisible must be a boolean',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
 
-    const configuration = await prisma.userFieldConfiguration.upsert({
-      where: { fieldName },
-      update: {
-        isVisible: isVisible !== undefined ? isVisible : undefined,
-        isRequired: isRequired !== undefined ? isRequired : undefined,
-        order: order !== undefined ? order : undefined,
-      },
-      create: {
-        fieldName,
-        isVisible: isVisible ?? true,
-        isRequired: isRequired ?? false,
-        order: order ?? 0,
-      }
-    });
+    const tenantId = resolveFieldConfigTenantScope(req);
+    const userId = req.user?.id;
+    await userFieldVisibilityService.updateFieldVisibility(fieldName, isVisible, isRequired, userId, tenantId);
 
     res.json({
       success: true,
-      data: configuration,
+      data: {
+        fieldName,
+        isVisible,
+        isRequired: Boolean(isRequired),
+      },
       message: 'Field configuration updated successfully',
       timestamp: new Date().toISOString()
     });
@@ -315,24 +352,28 @@ router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'O
       return;
     }
 
-    const results = await Promise.all(
-      configurations.map((config: any) =>
-        prisma.userFieldConfiguration.upsert({
-          where: { fieldName: config.fieldName },
-          update: {
-            isVisible: config.isVisible !== undefined ? config.isVisible : undefined,
-            isRequired: config.isRequired !== undefined ? config.isRequired : undefined,
-            order: config.order !== undefined ? config.order : undefined,
-          },
-          create: {
-            fieldName: config.fieldName,
-            isVisible: config.isVisible ?? true,
-            isRequired: config.isRequired ?? false,
-            order: config.order ?? 0,
-          }
-        })
-      )
-    );
+    const tenantId = resolveFieldConfigTenantScope(req);
+    const userId = req.user?.id;
+    const results = await Promise.all(configurations.map(async (config: any) => {
+      const fieldName = String(config?.fieldName || '').trim();
+      if (!fieldName || typeof config?.isVisible !== 'boolean') {
+        throw new Error('Each configuration requires fieldName and boolean isVisible');
+      }
+
+      await userFieldVisibilityService.updateFieldVisibility(
+        fieldName,
+        config.isVisible,
+        config.isRequired,
+        userId,
+        tenantId
+      );
+
+      return {
+        fieldName,
+        isVisible: config.isVisible,
+        isRequired: Boolean(config.isRequired),
+      };
+    }));
 
     res.json({
       success: true,
@@ -345,29 +386,14 @@ router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'O
   }
 });
 
-router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    // Delete all existing configurations
-    await prisma.userFieldConfiguration.deleteMany({});
-
-    // Create default configurations for common user fields
-    const defaultFields = [
-      { fieldName: 'name', isVisible: true, isRequired: true, order: 1 },
-      { fieldName: 'preferredName', isVisible: true, isRequired: false, order: 2 },
-      { fieldName: 'email', isVisible: true, isRequired: true, order: 3 },
-      { fieldName: 'phone', isVisible: true, isRequired: false, order: 4 },
-      { fieldName: 'gender', isVisible: true, isRequired: false, order: 5 },
-      { fieldName: 'pronouns', isVisible: true, isRequired: false, order: 6 },
-      { fieldName: 'bio', isVisible: true, isRequired: false, order: 7 },
-    ];
-
-    const results = await prisma.userFieldConfiguration.createMany({
-      data: defaultFields
-    });
+    const tenantId = resolveFieldConfigTenantScope(req);
+    const result = await userFieldVisibilityService.resetFieldVisibility(tenantId);
 
     res.json({
       success: true,
-      data: results,
+      data: result,
       message: 'Field configurations reset to defaults',
       timestamp: new Date().toISOString()
     });

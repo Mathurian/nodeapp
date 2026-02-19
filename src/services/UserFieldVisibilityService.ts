@@ -21,6 +21,31 @@ interface FieldVisibilityConfig {
  */
 @injectable()
 export class UserFieldVisibilityService extends BaseService {
+  private readonly keyPrefix = 'user_field_visibility_';
+
+  private normalizeTenantId(tenantId?: string | null): string | null {
+    if (!tenantId || typeof tenantId !== 'string') {
+      return null;
+    }
+
+    const trimmed = tenantId.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private applyVisibilitySettings(
+    target: FieldVisibilityConfig,
+    settings: Array<{ key: string; value: string }>
+  ): void {
+    settings.forEach((setting) => {
+      const fieldName = setting.key.replace(this.keyPrefix, '');
+      try {
+        target[fieldName] = JSON.parse(setting.value);
+      } catch (_error) {
+        // Ignore malformed setting payloads and continue with defaults.
+      }
+    });
+  }
+
   /**
    * Get default field visibility configuration
    */
@@ -50,36 +75,47 @@ export class UserFieldVisibilityService extends BaseService {
   /**
    * Get field visibility settings
    */
-  async getFieldVisibilitySettings(): Promise<FieldVisibilityConfig> {
-    const settings = await prisma.systemSetting.findMany({
-      where: {
-        key: {
-          startsWith: 'user_field_visibility_',
+  async getFieldVisibilitySettings(tenantId?: string | null): Promise<FieldVisibilityConfig> {
+    const scopedTenantId = this.normalizeTenantId(tenantId);
+    const [globalSettings, tenantSettings] = await Promise.all([
+      prisma.systemSetting.findMany({
+        where: {
+          key: {
+            startsWith: this.keyPrefix,
+          },
+          tenantId: null,
         },
-      },
-    });
+      }),
+      scopedTenantId
+        ? prisma.systemSetting.findMany({
+            where: {
+              key: {
+                startsWith: this.keyPrefix,
+              },
+              tenantId: scopedTenantId,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
 
     const fieldVisibility = this.getDefaultFieldVisibility();
 
-    settings.forEach((setting: any) => {
-      const fieldName = setting.key.replace('user_field_visibility_', '');
-      try {
-        fieldVisibility[fieldName] = JSON.parse(setting.value);
-      } catch (e) {
-        // Silently skip invalid JSON
-      }
-    });
+    this.applyVisibilitySettings(fieldVisibility, globalSettings);
+    this.applyVisibilitySettings(fieldVisibility, tenantSettings);
 
-    // Add custom fields for USER entity type
-    const customFields = await prisma.customField.findMany({
-      where: {
-        entityType: 'USER',
-        active: true,
-      },
-      orderBy: {
-        order: 'asc',
-      },
-    });
+    // Add custom fields for USER entity type in the active tenant scope.
+    const customFields = scopedTenantId
+      ? await prisma.customField.findMany({
+          where: {
+            tenantId: scopedTenantId,
+            entityType: 'USER',
+            active: true,
+          },
+          orderBy: {
+            order: 'asc',
+          },
+        })
+      : [];
 
     // Add each custom field to the field visibility config
     customFields.forEach((field: any) => {
@@ -106,18 +142,25 @@ export class UserFieldVisibilityService extends BaseService {
   /**
    * Update field visibility
    */
-  async updateFieldVisibility(field: string, visible: boolean, required?: boolean, userId?: string) {
+  async updateFieldVisibility(
+    field: string,
+    visible: boolean,
+    required?: boolean,
+    userId?: string,
+    tenantId?: string | null
+  ) {
     this.validateRequired({ field, visible } as unknown as Record<string, unknown>, ['field', 'visible']);
 
     const value = JSON.stringify({ visible, required: required || false });
+    const scopedTenantId = this.normalizeTenantId(tenantId);
 
-    const key = `user_field_visibility_${field}`;
+    const key = `${this.keyPrefix}${field}`;
 
     // Check if setting exists
     const existing = await prisma.systemSetting.findFirst({
       where: {
         key,
-        tenantId: null,
+        tenantId: scopedTenantId,
       },
     });
 
@@ -138,7 +181,7 @@ export class UserFieldVisibilityService extends BaseService {
         data: {
           key,
           value: value,
-          tenantId: null,
+          tenantId: scopedTenantId,
           description: `Visibility setting for user field: ${field}`,
           category: 'user_fields',
           updatedBy: userId,
@@ -151,21 +194,27 @@ export class UserFieldVisibilityService extends BaseService {
       field,
       visible,
       required: required || false,
+      scope: scopedTenantId ? 'tenant' : 'global',
     };
   }
 
   /**
    * Reset field visibility to defaults
    */
-  async resetFieldVisibility() {
+  async resetFieldVisibility(tenantId?: string | null) {
+    const scopedTenantId = this.normalizeTenantId(tenantId);
     await prisma.systemSetting.deleteMany({
       where: {
         key: {
-          startsWith: 'user_field_visibility_',
+          startsWith: this.keyPrefix,
         },
+        tenantId: scopedTenantId,
       },
     });
 
-    return { message: 'Field visibility reset to defaults successfully' };
+    return {
+      message: 'Field visibility reset to defaults successfully',
+      scope: scopedTenantId ? 'tenant' : 'global',
+    };
   }
 }

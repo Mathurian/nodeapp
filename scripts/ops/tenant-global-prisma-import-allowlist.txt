@@ -12,7 +12,6 @@ src/repositories/SearchRepository.ts
 src/repositories/TemplateRepository.ts
 src/routes/healthRoutes.ts
 src/routes/publicTenantRoutes.ts
-src/routes/settingsRoutes.ts
 src/services/BackupMonitoringService.ts
 src/services/BulkOperationService.ts
 src/services/CategoryTypeService.ts

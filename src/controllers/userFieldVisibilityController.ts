@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { UserFieldVisibilityService } from '../services/UserFieldVisibilityService';
 import { createRequestLogger } from '../utils/logger';
+import { resolveRequestTenantId } from '../utils/tenantContext';
 
 /**
  * Controller for User Field Visibility management
@@ -14,13 +15,25 @@ export class UserFieldVisibilityController {
     this.userFieldVisibilityService = container.resolve(UserFieldVisibilityService);
   }
 
+  private isSuperAdmin(req: Request): boolean {
+    return String(req.user?.role || '').trim().toUpperCase() === 'SUPER_ADMIN';
+  }
+
+  private resolveTenantScope(req: Request): string | null {
+    if (this.isSuperAdmin(req) && req.query['global'] === 'true') {
+      return null;
+    }
+    return resolveRequestTenantId(req, { allowSuperAdminQueryOverride: true });
+  }
+
   /**
    * Get field visibility settings
    */
   getFieldVisibilitySettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'userfieldvisibility');
     try {
-      const settings = await this.userFieldVisibilityService.getFieldVisibilitySettings();
+      const tenantId = this.resolveTenantScope(req);
+      const settings = await this.userFieldVisibilityService.getFieldVisibilitySettings(tenantId);
       res.json(settings);
     } catch (error) {
       log.error('Get field visibility settings error:', error);
@@ -37,13 +50,14 @@ export class UserFieldVisibilityController {
       const { field } = req.params;
       const { visible, required } = req.body;
       const userId = req.user?.id;
+      const tenantId = this.resolveTenantScope(req);
 
       if (!field || typeof visible !== 'boolean') {
         res.status(400).json({ error: 'Field name and visible status are required' });
         return;
       }
 
-      const result = await this.userFieldVisibilityService.updateFieldVisibility(field, visible, required, userId);
+      const result = await this.userFieldVisibilityService.updateFieldVisibility(field, visible, required, userId, tenantId);
       res.json(result);
     } catch (error) {
       log.error('Update field visibility error:', error);
@@ -57,7 +71,8 @@ export class UserFieldVisibilityController {
   resetFieldVisibility = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'userfieldvisibility');
     try {
-      const result = await this.userFieldVisibilityService.resetFieldVisibility();
+      const tenantId = this.resolveTenantScope(req);
+      const result = await this.userFieldVisibilityService.resetFieldVisibility(tenantId);
       res.json(result);
     } catch (error) {
       log.error('Reset field visibility error:', error);

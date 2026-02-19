@@ -1,13 +1,13 @@
 # Tenant Enforcement Matrix
 
-Generated: 2026-02-19T18:05:30.451Z
+Generated: 2026-02-19T19:09:12.917Z
 Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 
 ## Summary
 
 - Endpoint entries discovered (v1/direct mounts): 655
 - Route modules with no active mount in routes config: 1
-- DB-touching files discovered: 158
+- DB-touching files discovered: 157
 - Prisma models: 88
 - Tenant-scoped required models: 64
 - Tenant-scoped optional models: 12
@@ -771,7 +771,6 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 - `src/routes/healthRoutes.ts`
 - `src/routes/publicTenantRoutes.ts`
 - `src/routes/reportsRoutes.ts`
-- `src/routes/settingsRoutes.ts`
 - `src/routes/usersRoutes.ts`
 
 ### scripts
@@ -981,7 +980,6 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 - `src/repositories/TemplateRepository.ts`
 - `src/routes/healthRoutes.ts`
 - `src/routes/publicTenantRoutes.ts`
-- `src/routes/settingsRoutes.ts`
 - `src/services/BackupMonitoringService.ts`
 - `src/services/BulkOperationService.ts`
 - `src/services/CategoryTypeService.ts`
