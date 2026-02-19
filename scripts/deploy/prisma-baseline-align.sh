@@ -6,6 +6,7 @@ SCHEMA_PATH="${SCHEMA_PATH:-${APP_ROOT}/prisma/schema.prisma}"
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-${APP_ROOT}/prisma/migrations}"
 ENV_FILE="${ENV_FILE:-${APP_ROOT}/.env}"
 APPLY="${APPLY:-0}"
+ALLOW_BASELINE_KNOWN_DRIFT="${ALLOW_BASELINE_KNOWN_DRIFT:-0}"
 
 if ! command -v psql >/dev/null 2>&1; then
   echo "psql is required."
@@ -124,13 +125,51 @@ DATABASE_URL="$DB_URL" npx prisma migrate diff \
 
 DRIFT_LINES="$(sed -E '/^\s*--/d;/^\s*$/d' "$DIFF_FILE")"
 if [ -n "$DRIFT_LINES" ]; then
-  echo "ERROR: drift detected between database and prisma/schema.prisma."
-  echo "Baseline aborted to avoid masking schema differences."
-  echo "First drift lines:"
-  printf '%s\n' "$DRIFT_LINES" | sed -n '1,40p'
-  exit 2
+  unknown_drift_lines=""
+  known_drift_count=0
+
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+
+    # Known production legacy drift pattern:
+    # tenant-scoped FK constraints with hashed names that are not represented
+    # in prisma/schema.prisma relation metadata.
+    if [[ "$line" =~ ^ALTER[[:space:]]+TABLE[[:space:]]+\"[^\"]+\"[[:space:]]+DROP[[:space:]]+CONSTRAINT[[:space:]]+\"fk_.*_tenant_[0-9a-f]{8}\"\;$ ]]; then
+      known_drift_count=$((known_drift_count + 1))
+      continue
+    fi
+
+    # Historical one-off default mismatch in production.
+    if [[ "$line" == 'ALTER TABLE "score_governance_requests" ALTER COLUMN "updatedAt" DROP DEFAULT;' ]]; then
+      known_drift_count=$((known_drift_count + 1))
+      continue
+    fi
+
+    unknown_drift_lines+="${line}"$'\n'
+  done <<< "$DRIFT_LINES"
+
+  if [ -n "$unknown_drift_lines" ]; then
+    echo "ERROR: drift detected between database and prisma/schema.prisma."
+    echo "Baseline aborted to avoid masking schema differences."
+    echo "First drift lines:"
+    printf '%s\n' "$unknown_drift_lines" | sed -n '1,40p'
+    exit 2
+  fi
+
+  if [ "$ALLOW_BASELINE_KNOWN_DRIFT" != "1" ]; then
+    echo "ERROR: known legacy drift detected (${known_drift_count} lines)."
+    echo "Baseline is blocked by default."
+    echo "Re-run with ALLOW_BASELINE_KNOWN_DRIFT=1 only after review."
+    echo "First drift lines:"
+    printf '%s\n' "$DRIFT_LINES" | sed -n '1,20p'
+    exit 2
+  fi
+
+  echo "Known legacy drift detected (${known_drift_count} lines)."
+  echo "Proceeding because ALLOW_BASELINE_KNOWN_DRIFT=1 was provided."
+else
+  echo "No drift detected."
 fi
-echo "No drift detected."
 
 echo
 echo "Step 3/5: collecting migrations and current baseline state..."

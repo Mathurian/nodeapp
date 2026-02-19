@@ -23,6 +23,14 @@ incomplete and `prisma migrate deploy` fails with `P3005`.
 
 If drift exists, the script aborts and does not baseline.
 
+Known exception path:
+
+- Some legacy environments can contain tenant FK constraint-name drift not
+  represented in Prisma relation metadata, plus one historical
+  `score_governance_requests.updatedAt` default mismatch.
+- For that reviewed case only, set `ALLOW_BASELINE_KNOWN_DRIFT=1` to proceed.
+- Any other drift still aborts.
+
 The script resolves DB connection in this order:
 
 1. `PRISMA_BASELINE_DATABASE_URL`
@@ -59,12 +67,30 @@ sudo ENV_FILE=/etc/event-manager/event-manager.env \
 bash scripts/deploy/prisma-baseline-align.sh
 ```
 
+If the dry run reports only known legacy drift and you have reviewed it:
+
+```bash
+cd /srv/event-manager/dev
+sudo ALLOW_BASELINE_KNOWN_DRIFT=1 \
+  ENV_FILE=/etc/event-manager/event-manager.env \
+  bash scripts/deploy/prisma-baseline-align.sh
+```
+
 ### Prod apply
 
 ```bash
 cd /srv/event-manager/dev
 sudo APPLY=1 ENV_FILE=/etc/event-manager/event-manager.env \
 bash scripts/deploy/prisma-baseline-align.sh
+```
+
+Known-legacy-drift apply:
+
+```bash
+cd /srv/event-manager/dev
+sudo ALLOW_BASELINE_KNOWN_DRIFT=1 APPLY=1 \
+  ENV_FILE=/etc/event-manager/event-manager.env \
+  bash scripts/deploy/prisma-baseline-align.sh
 ```
 
 ## Post-run verification
