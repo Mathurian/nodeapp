@@ -319,6 +319,38 @@ router.put('/:id/restore', authenticate, validate(idParamSchema, 'params'), asyn
 
 /**
  * @swagger
+ * /api/notifications/{id}/permanent:
+ *   delete:
+ *     summary: Permanently delete a soft-deleted notification
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification permanently deleted
+ */
+router.delete('/:id/permanent', authenticate, validate(idParamSchema, 'params'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const notificationService = container.resolve(NotificationService);
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const tenantId = req.user!.tenantId;
+    await notificationService.permanentlyDeleteNotification(id!, userId, tenantId);
+    res.json({ success: true });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * @swagger
  * /api/notifications/send:
  *   post:
  *     summary: Send notification to specific users

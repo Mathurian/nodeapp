@@ -8,6 +8,13 @@ const SW_MIGRATION_KEY = 'event-manager-sw-migration-version'
 const SW_MIGRATION_VERSION = '2026-02-pwa-reenable-v1'
 const PWA_ENABLED = import.meta.env.PROD && String(import.meta.env.VITE_PWA_ENABLED || 'true').toLowerCase() !== 'false'
 
+const isStandalonePwaContext = (): boolean => {
+  if (typeof window === 'undefined') return false
+  const mediaStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches === true
+  const iosStandalone = (window.navigator as any)?.standalone === true
+  return mediaStandalone || iosStandalone
+}
+
 const renderApp = () => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
@@ -52,6 +59,12 @@ const unregisterServiceWorkers = async (): Promise<void> => {
 
 const recoverFromStaleServiceWorker = async (): Promise<void> => {
   try {
+    // Installed PWAs should not repeatedly clear service workers/caches during startup,
+    // otherwise push subscription setup on iOS can stall.
+    if (isStandalonePwaContext()) {
+      return
+    }
+
     if (hasCompletedMigration()) {
       return
     }

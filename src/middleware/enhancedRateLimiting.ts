@@ -54,6 +54,15 @@ export function rateLimitMiddleware() {
         return;
       }
 
+      // Apply enhanced token-bucket limits only to authenticated API traffic.
+      // Unauthenticated endpoints are already protected by dedicated route-level
+      // limiters (public/auth), and using tenantId alone causes cross-user
+      // throttling on shared/default tenants.
+      if (!user?.id) {
+        next();
+        return;
+      }
+
       // Skip for admins if configured (check BEFORE expensive DB query)
       if (RATE_LIMIT_CONFIG.skipForAdmins && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')) {
         next();

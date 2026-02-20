@@ -444,6 +444,41 @@ const frontendDistPath = path.join(__dirname, '../frontend/dist');
 const frontendDistExists = fs.existsSync(frontendDistPath);
 
 if (frontendDistExists) {
+  const noCacheStaticFiles = new Set([
+    'sw.js',
+    'service-worker.js',
+    'push-sw.js',
+    'manifest.webmanifest',
+    'manifest.json',
+  ]);
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next();
+    }
+
+    const requestedFile = path.posix.basename(req.path);
+    if (!noCacheStaticFiles.has(requestedFile)) {
+      return next();
+    }
+
+    const absolutePath = path.resolve(frontendDistPath, requestedFile);
+    if (!absolutePath.startsWith(`${frontendDistPath}${path.sep}`) || !fs.existsSync(absolutePath)) {
+      return next();
+    }
+
+    // Service worker and web app manifest files must be revalidated so updates
+    // propagate reliably, especially on iOS installed PWAs.
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    if (requestedFile === 'sw.js' || requestedFile === 'service-worker.js') {
+      res.setHeader('Service-Worker-Allowed', '/');
+    }
+
+    return res.sendFile(absolutePath);
+  });
+
   // Serve static assets (JS, CSS, images, etc.)
   app.use(express.static(frontendDistPath, {
     maxAge: env.isProduction() ? '1y' : '0', // Cache in production

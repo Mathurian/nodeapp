@@ -284,7 +284,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
           <div className="fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20">
+        <div className="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20 safe-area-top safe-area-bottom safe-area-left safe-area-right">
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -294,7 +294,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="mx-auto max-w-3xl transform divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all">
+            <Dialog.Panel className="mx-auto max-w-3xl max-h-[calc(100dvh-2rem)] flex flex-col transform divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all">
               {/* Search Input */}
               <div className="relative">
                 <MagnifyingGlassIcon
@@ -313,7 +313,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
 
               {/* Results */}
               {displayedCommands.length > 0 && (
-                <div className="max-h-[28rem] overflow-y-auto py-2 scroll-smooth">
+                <div className="max-h-[min(28rem,60dvh)] overflow-y-auto py-2 scroll-smooth">
                   {Object.entries(groupedCommands).map(([groupName, commands]) => (
                     <div key={groupName} className="mb-1">
                       <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

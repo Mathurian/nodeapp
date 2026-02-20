@@ -406,9 +406,21 @@ export const listBackups = async (req: Request, res: Response, next: NextFunctio
  */
 export const downloadBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { backupId } = req.params;
-    const backup = await prisma.backupLog.findUnique({
-      where: { id: backupId }
+    const backupId = req.params['backupId'];
+    if (!backupId) {
+      res.status(400).json({ error: 'Backup identifier is required' });
+      return;
+    }
+
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+    const requestedTenantId = req.query['tenantId'] as string | undefined;
+    const effectiveTenantId = isSuperAdmin ? requestedTenantId : (req.tenantId || req.user?.tenantId);
+
+    const backup = await prisma.backupLog.findFirst({
+      where: {
+        id: backupId,
+        ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}),
+      },
     });
 
     if (!backup) {
@@ -432,10 +444,41 @@ export const downloadBackup = async (req: Request, res: Response, next: NextFunc
  */
 export const restoreBackup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const file = (req as any).file;
-    if (!file) {
-      res.status(400).json({ error: 'No backup file provided' });
-      return;
+    const uploadedFile = (req as any).file as Express.Multer.File | undefined;
+    let restorePath = uploadedFile?.path;
+    let removeUploadedFile = false;
+
+    if (restorePath) {
+      removeUploadedFile = true;
+    } else {
+      const backupId = req.params['backupId'];
+      if (!backupId) {
+        res.status(400).json({ error: 'No backup file provided' });
+        return;
+      }
+
+      const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+      const requestedTenantId = req.query['tenantId'] as string | undefined;
+      const effectiveTenantId = isSuperAdmin ? requestedTenantId : (req.tenantId || req.user?.tenantId);
+
+      const backup = await prisma.backupLog.findFirst({
+        where: {
+          id: backupId,
+          ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}),
+        },
+      });
+
+      if (!backup) {
+        res.status(404).json({ error: 'Backup not found' });
+        return;
+      }
+
+      if (!fs.existsSync(backup.location)) {
+        res.status(404).json({ error: 'Backup file not found' });
+        return;
+      }
+
+      restorePath = backup.location;
     }
 
     const dbUrl = new URL(env.get('DATABASE_URL'));
@@ -445,7 +488,7 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
     const username = dbUrl.username;
     const password = dbUrl.password || '';
 
-    const command = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f ${file.path}`;
+    const command = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f ${restorePath}`;
 
     exec(command, async (error, _stdout, _stderr) => {
       if (error) {
@@ -453,8 +496,9 @@ export const restoreBackup = async (req: Request, res: Response, next: NextFunct
         return;
       }
 
-      // Clean up uploaded file
-      fs.unlinkSync(file.path);
+      if (removeUploadedFile && restorePath && fs.existsSync(restorePath)) {
+        fs.unlinkSync(restorePath);
+      }
 
       sendSuccess(res, null, 'Backup restored successfully');
     });
@@ -474,15 +518,28 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const backupById = await prisma.backupLog.findUnique({
-      where: { id: backupIdOrFilename },
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+    const requestedTenantId = req.query['tenantId'] as string | undefined;
+    const effectiveTenantId = isSuperAdmin ? requestedTenantId : (req.tenantId || req.user?.tenantId);
+    const normalizedFilename = path.basename(backupIdOrFilename);
+    const fallbackPath = path.join('backups', normalizedFilename);
+
+    const backup = await prisma.backupLog.findFirst({
+      where: {
+        OR: [
+          { id: backupIdOrFilename },
+          { location: backupIdOrFilename },
+          { location: path.join('backups', normalizedFilename) },
+        ],
+        ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}),
+      },
     });
 
-    const backup = backupById || await prisma.backupLog.findFirst({
-      where: { OR: [{ location: backupIdOrFilename }, { location: path.join('backups', backupIdOrFilename) }] },
-    });
+    if (!isSuperAdmin && !backup) {
+      res.status(404).json({ error: 'Backup not found' });
+      return;
+    }
 
-    const fallbackPath = path.join('backups', backupIdOrFilename);
     const filepath = backup?.location || fallbackPath;
     const existedOnDisk = fs.existsSync(filepath);
 

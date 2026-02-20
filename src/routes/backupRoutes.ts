@@ -5,6 +5,7 @@ import {
   deleteBackup,
   restoreBackup,
   listBackups,
+  downloadBackup,
   getBackupSettings,
   createBackupSetting,
   updateBackupSetting,
@@ -19,6 +20,7 @@ import { logActivity } from '../middleware/errorHandler';
 const router: Router = express.Router();
 
 const upload = multer({ dest: 'temp/' })
+const BACKUP_OPERATOR_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'] as const
 
 // Apply authentication to all routes - MUST be first
 router.use(authenticateToken)
@@ -46,10 +48,12 @@ router.use(authenticateToken)
  *       201:
  *         description: Backup created successfully
  */
-router.get('/', requireRole(['SUPER_ADMIN']), listBackups)
-router.post('/', requireRole(['SUPER_ADMIN']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
-router.post('/create', requireRole(['SUPER_ADMIN']), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
-router.delete('/:id', requireRole(['SUPER_ADMIN']), logActivity('DELETE_BACKUP', 'BACKUP'), deleteBackup)
+router.get('/', requireRole([...BACKUP_OPERATOR_ROLES]), listBackups)
+router.post('/', requireRole([...BACKUP_OPERATOR_ROLES]), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
+router.post('/create', requireRole([...BACKUP_OPERATOR_ROLES]), logActivity('CREATE_BACKUP', 'BACKUP'), createBackup)
+router.get('/:backupId/download', requireRole([...BACKUP_OPERATOR_ROLES]), downloadBackup)
+router.delete('/:id', requireRole([...BACKUP_OPERATOR_ROLES]), logActivity('DELETE_BACKUP', 'BACKUP'), deleteBackup)
+router.post('/:backupId/restore', requireRole(['SUPER_ADMIN']), logActivity('RESTORE_BACKUP', 'BACKUP'), restoreBackup)
 
 /**
  * @swagger
@@ -74,6 +78,7 @@ router.delete('/:id', requireRole(['SUPER_ADMIN']), logActivity('DELETE_BACKUP',
  *         description: Backup restored successfully
  */
 router.post('/restore', requireRole(['SUPER_ADMIN']), upload.single('backup'), logActivity('RESTORE_BACKUP', 'BACKUP'), restoreBackup)
+router.post('/restore-from-file', requireRole(['SUPER_ADMIN']), upload.single('file'), logActivity('RESTORE_BACKUP', 'BACKUP'), restoreBackup)
 
 /**
  * @swagger

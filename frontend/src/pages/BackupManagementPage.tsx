@@ -41,6 +41,7 @@ const BackupManagementPage: React.FC = () => {
   const [backupDestination, setBackupDestination] = useState<'LOCAL' | 'OFF_SITE' | 'BOTH'>('LOCAL')
   const [showRestoreModal, setShowRestoreModal] = useState<Backup | null>(null)
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const canRestoreBackups = user?.role === 'SUPER_ADMIN'
 
   useEffect(() => {
     fetchBackups()
@@ -170,7 +171,7 @@ const BackupManagementPage: React.FC = () => {
         {/* Header */}
         <PageHeader
           title="Backup Management"
-          subtitle="Create, manage, and restore database backups"
+          subtitle={canRestoreBackups ? 'Create, manage, and restore database backups' : 'Create and manage database backups'}
         />
 
         {error && (
@@ -239,30 +240,32 @@ const BackupManagementPage: React.FC = () => {
         </Card>
 
         {/* Restore from File */}
-        <Card className="mb-8 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
-            Restore from File
-          </h2>
-          <div className="flex items-center gap-4">
-            <input
-              type="file"
-              accept=".sql,.dump"
-              onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
-              className="flex-1 text-gray-900 dark:text-white dark:text-white"
-            />
-            <button
-              onClick={restoreFromFile}
-              disabled={!restoreFile}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <CloudArrowUpIcon className="h-5 w-5 inline mr-2" />
-              Restore
-            </button>
-          </div>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-            Warning: Restoring will overwrite current database data
-          </p>
-        </Card>
+        {canRestoreBackups && (
+          <Card className="mb-8 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
+              Restore from File
+            </h2>
+            <div className="flex items-center gap-4">
+              <input
+                type="file"
+                accept=".sql,.dump"
+                onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                className="flex-1 text-gray-900 dark:text-white dark:text-white"
+              />
+              <button
+                onClick={restoreFromFile}
+                disabled={!restoreFile}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CloudArrowUpIcon className="h-5 w-5 inline mr-2" />
+                Restore
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
+              Warning: Restoring will overwrite current database data
+            </p>
+          </Card>
+        )}
 
         {/* Backup History */}
         <Card className="rounded-lg p-0 overflow-hidden">
@@ -338,13 +341,15 @@ const BackupManagementPage: React.FC = () => {
                               >
                                 <CloudArrowDownIcon className="h-5 w-5" />
                               </button>
-                              <button
-                                onClick={() => setShowRestoreModal(backup)}
-                                className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
-                                title="Restore"
-                              >
-                                <ArrowPathIcon className="h-5 w-5" />
-                              </button>
+                              {canRestoreBackups && (
+                                <button
+                                  onClick={() => setShowRestoreModal(backup)}
+                                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
+                                  title="Restore"
+                                >
+                                  <ArrowPathIcon className="h-5 w-5" />
+                                </button>
+                              )}
                             </>
                           )}
                           <button
@@ -365,7 +370,7 @@ const BackupManagementPage: React.FC = () => {
         </Card>
 
         {/* Restore Confirmation Modal */}
-        {showRestoreModal && (
+        {canRestoreBackups && showRestoreModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl mx-4 mx-4 p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">

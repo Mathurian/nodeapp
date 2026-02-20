@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
+import axios from 'axios'
 import { useAuth } from '../contexts/AuthContext'
 import api, { notificationPreferencesAPI } from '../services/api'
 import {
@@ -99,6 +100,10 @@ const toVapidUint8Array = (base64String: string): Uint8Array => {
 }
 
 const PUSH_OPERATION_TIMEOUT_MS = 15000
+const PUSH_SERVICE_WORKER_PATH = '/sw.js'
+const PUSH_SERVICE_WORKER_SCOPE = '/'
+const PUSH_SERVICE_WORKER_VERSION = '2026-02-20-ios-push-fix-2'
+const PUSH_SERVICE_WORKER_URL = `${PUSH_SERVICE_WORKER_PATH}?v=${PUSH_SERVICE_WORKER_VERSION}`
 
 const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null
@@ -112,6 +117,75 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMe
       clearTimeout(timeoutHandle)
     }
   }
+}
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
+const isCanonicalPushServiceWorkerRegistration = (registration: ServiceWorkerRegistration | null | undefined): boolean => {
+  if (!registration) return false
+
+  const workers = [registration.active, registration.waiting, registration.installing]
+  return workers.some(worker => {
+    const scriptUrl = worker?.scriptURL
+    if (!scriptUrl) return false
+
+    try {
+      return new URL(scriptUrl, window.location.origin).pathname === PUSH_SERVICE_WORKER_PATH
+    } catch {
+      return scriptUrl.endsWith(PUSH_SERVICE_WORKER_PATH)
+    }
+  })
+}
+
+const waitForServiceWorkerActivation = async (registration: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> => {
+  if (!isCanonicalPushServiceWorkerRegistration(registration)) {
+    throw new Error('Push service worker is not initialized for this app context.')
+  }
+
+  if (registration.active?.state === 'activated') {
+    return registration
+  }
+
+  const transitionalWorker = registration.installing || registration.waiting
+  if (transitionalWorker) {
+    await withTimeout(
+      new Promise<void>((resolve, reject) => {
+        let settled = false
+        const onStateChange = () => {
+          if (settled) return
+          if (transitionalWorker.state === 'activated') {
+            settled = true
+            transitionalWorker.removeEventListener('statechange', onStateChange)
+            resolve()
+            return
+          }
+          if (transitionalWorker.state === 'redundant') {
+            settled = true
+            transitionalWorker.removeEventListener('statechange', onStateChange)
+            // iOS/WebKit may mark an installing worker redundant while promoting
+            // another candidate to active; treat as recoverable and poll below.
+            resolve()
+          }
+        }
+
+        transitionalWorker.addEventListener('statechange', onStateChange)
+        onStateChange()
+      }),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out waiting for push service worker initialization.'
+    )
+  }
+
+  const activationDeadline = Date.now() + PUSH_OPERATION_TIMEOUT_MS
+  while (Date.now() < activationDeadline) {
+    const refreshed = await navigator.serviceWorker.getRegistration(PUSH_SERVICE_WORKER_SCOPE)
+    if (refreshed && isCanonicalPushServiceWorkerRegistration(refreshed) && refreshed.active) {
+      return refreshed
+    }
+    await sleep(250)
+  }
+
+  throw new Error('Timed out waiting for push service worker initialization.')
 }
 
 const uint8ArrayToBase64Url = (bytes: Uint8Array): string => {
@@ -146,22 +220,47 @@ const resolvePushServiceWorkerRegistration = async (): Promise<ServiceWorkerRegi
     throw new Error('This browser does not support service workers.')
   }
 
-  const existing = await navigator.serviceWorker.getRegistration()
-  if (existing) {
-    return existing
+  const existing = await navigator.serviceWorker.getRegistration(PUSH_SERVICE_WORKER_SCOPE)
+  if (existing && isCanonicalPushServiceWorkerRegistration(existing) && existing.active) {
+    // Keep this around as fallback if refresh registration fails.
   }
 
-  try {
-    await navigator.serviceWorker.register('/sw.js', { scope: '/' })
-  } catch {
-    // Best effort; ready check below will still fail with a clear timeout message.
-  }
-
-  return withTimeout(
-    navigator.serviceWorker.ready,
+  const registered = await withTimeout(
+    navigator.serviceWorker.register(PUSH_SERVICE_WORKER_URL, {
+      scope: PUSH_SERVICE_WORKER_SCOPE,
+      updateViaCache: 'none',
+    }),
     PUSH_OPERATION_TIMEOUT_MS,
-    'Timed out waiting for push service worker initialization.'
+    'Timed out while registering push service worker.'
   )
+
+  if (isCanonicalPushServiceWorkerRegistration(registered)) {
+    return waitForServiceWorkerActivation(registered)
+  }
+
+  const refreshed = await navigator.serviceWorker.getRegistration(PUSH_SERVICE_WORKER_SCOPE)
+  if (refreshed && isCanonicalPushServiceWorkerRegistration(refreshed)) {
+    return waitForServiceWorkerActivation(refreshed)
+  }
+
+  const retried = await withTimeout(
+    navigator.serviceWorker.register(PUSH_SERVICE_WORKER_URL, {
+      scope: PUSH_SERVICE_WORKER_SCOPE,
+      updateViaCache: 'none',
+    }),
+    PUSH_OPERATION_TIMEOUT_MS,
+    'Timed out while refreshing push service worker.'
+  )
+
+  if (isCanonicalPushServiceWorkerRegistration(retried)) {
+    return waitForServiceWorkerActivation(retried)
+  }
+
+  if (existing && isCanonicalPushServiceWorkerRegistration(existing)) {
+    return waitForServiceWorkerActivation(existing)
+  }
+
+  throw new Error('Push service worker failed to register for this app context. Reload the app and try again.')
 }
 
 const getPushSupport = (): { supported: boolean; reason?: string } => {
@@ -198,6 +297,51 @@ const getPushSupport = (): { supported: boolean; reason?: string } => {
   }
 
   return { supported: true }
+}
+
+const formatPushErrorMessage = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    const status = Number(error.response?.status || 0)
+    const responseData = error.response?.data as any
+    const serverMessage =
+      (typeof responseData?.error === 'string' && responseData.error) ||
+      (typeof responseData?.message === 'string' && responseData.message) ||
+      (typeof responseData?.data?.message === 'string' && responseData.data.message) ||
+      ''
+
+    if (status === 429) {
+      return 'Too many requests were sent. Please wait a minute and try enabling push again.'
+    }
+    if (serverMessage) {
+      return `Unable to update push notification subscription (${serverMessage}).`
+    }
+    if (status > 0) {
+      return `Unable to update push notification subscription (HTTP ${status}).`
+    }
+  }
+
+  const err = error as { name?: string; message?: string }
+  const name = String(err?.name || '').trim()
+  const message = String(err?.message || '').trim()
+  const lowerMessage = message.toLowerCase()
+  const code = String((error as any)?.code || '').trim()
+
+  if (name === 'NotAllowedError' || lowerMessage.includes('notallowederror')) {
+    return 'Push subscription was blocked by iOS. Close and reopen the installed app, then try enabling push again.'
+  }
+  if (name === 'InvalidStateError' || lowerMessage.includes('invalidstateerror')) {
+    return 'Push service worker is still initializing. Wait a few seconds and try again.'
+  }
+  if (name === 'AbortError' || lowerMessage.includes('aborterror')) {
+    return 'Push subscription setup was interrupted. Please try again.'
+  }
+  if (message) {
+    return `Unable to update push notification subscription (${message}).`
+  }
+  if (code) {
+    return `Unable to update push notification subscription (code: ${code}).`
+  }
+  return 'Unable to update push notification subscription.'
 }
 
 const NotificationsPage: React.FC = () => {
@@ -294,6 +438,20 @@ const NotificationsPage: React.FC = () => {
     }
   )
 
+  const { data: pushConfig } = useQuery<PushConfigResponse>(
+    'notification-push-config',
+    async () => {
+      const response = await notificationPreferencesAPI.getPushConfig()
+      return extractApiData<PushConfigResponse>(response.data)
+    },
+    {
+      retry: 1,
+      onError: (err) => console.error('Fetch push config failed:', err),
+      enabled: pushSupport.supported,
+      staleTime: 5 * 60 * 1000,
+    }
+  )
+
   useEffect(() => {
     if (preferences) {
       setLocalPreferences(preferences)
@@ -333,6 +491,18 @@ const NotificationsPage: React.FC = () => {
       refreshNotificationQueries()
     } catch (err: any) {
       console.error('Failed to restore notification:', err)
+    }
+  }
+
+  const permanentlyDeleteNotification = async (id: string) => {
+    if (!window.confirm('Permanently delete this notification? This action cannot be undone.')) {
+      return
+    }
+    try {
+      await api.delete(`/notifications/${id}/permanent`)
+      refreshNotificationQueries()
+    } catch (err: any) {
+      console.error('Failed to permanently delete notification:', err)
     }
   }
 
@@ -377,8 +547,15 @@ const NotificationsPage: React.FC = () => {
       return false
     }
 
-    const configResponse = await notificationPreferencesAPI.getPushConfig()
-    const config = extractApiData<PushConfigResponse>(configResponse.data)
+    let config = pushConfig
+    if (!config) {
+      const configResponse = await withTimeout(
+        notificationPreferencesAPI.getPushConfig(),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while loading push configuration.'
+      )
+      config = extractApiData<PushConfigResponse>(configResponse.data)
+    }
     if (!config.enabled || !config.publicKey) {
       setPushStatusMessage(config.reason || 'Push notifications are not configured.')
       return false
@@ -402,12 +579,47 @@ const NotificationsPage: React.FC = () => {
     }
 
     const registration = await resolvePushServiceWorkerRegistration()
-    let subscription = await withTimeout(
+    await withTimeout(
+      registration.update(),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while refreshing push service worker.'
+    ).catch(() => undefined)
+
+    let subscription: PushSubscription | null = await withTimeout(
       registration.pushManager.getSubscription(),
       PUSH_OPERATION_TIMEOUT_MS,
       'Timed out while reading existing push subscription.'
-    )
-    if (!subscription) {
+    ).catch(() => null)
+
+    if (subscription) {
+      const existingPayload = subscription.toJSON()
+      if (existingPayload.endpoint) {
+        const existingP256dh = extractPushKey(subscription, existingPayload.keys as Record<string, string> | undefined, 'p256dh')
+        const existingAuth = extractPushKey(subscription, existingPayload.keys as Record<string, string> | undefined, 'auth')
+        if (existingP256dh && existingAuth) {
+          await withTimeout(
+            notificationPreferencesAPI.upsertPushSubscription({
+              endpoint: existingPayload.endpoint,
+              expirationTime: existingPayload.expirationTime || null,
+              keys: { p256dh: existingP256dh, auth: existingAuth },
+            }),
+            PUSH_OPERATION_TIMEOUT_MS,
+            'Timed out while saving push subscription.'
+          )
+          setPushStatusMessage('Push notifications are enabled for this device.')
+          return true
+        }
+
+        await withTimeout(
+          subscription.unsubscribe(),
+          PUSH_OPERATION_TIMEOUT_MS,
+          'Timed out while clearing stale push subscription.'
+        ).catch(() => undefined)
+      }
+    }
+
+    subscription = null
+    try {
       subscription = await withTimeout(
         registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -416,6 +628,46 @@ const NotificationsPage: React.FC = () => {
         PUSH_OPERATION_TIMEOUT_MS,
         'Timed out while creating push subscription.'
       )
+    } catch (subscribeError: any) {
+      const recoveredSubscription = await withTimeout(
+        registration.pushManager.getSubscription(),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while reading existing push subscription.'
+      ).catch(() => null)
+
+      if (recoveredSubscription) {
+        subscription = recoveredSubscription
+      } else {
+        const name = String(subscribeError?.name || '')
+        const message = String(subscribeError?.message || '').toLowerCase()
+        const isRetriable = ['InvalidStateError', 'AbortError', 'NotAllowedError'].includes(name) || message.includes('timed out')
+        if (isRetriable) {
+          await sleep(500)
+          subscription = await withTimeout(
+            registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: toVapidUint8Array(config.publicKey) as unknown as BufferSource,
+            }),
+            PUSH_OPERATION_TIMEOUT_MS,
+            'Timed out while retrying push subscription.'
+          )
+        } else {
+          throw subscribeError
+        }
+      }
+    }
+
+    if (!subscription) {
+      subscription = await withTimeout(
+        registration.pushManager.getSubscription(),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while reading existing push subscription.'
+      )
+    }
+
+    if (!subscription) {
+      setPushStatusMessage('Unable to create a push subscription on this device.')
+      return false
     }
 
     const payload = subscription.toJSON()
@@ -500,12 +752,16 @@ const NotificationsPage: React.FC = () => {
       )
       queryClient.invalidateQueries('notification-preferences')
     } catch (err: any) {
-      console.error('Failed to update push subscription:', err)
+      console.error('Failed to update push subscription:', {
+        name: err?.name,
+        message: err?.message,
+        error: err,
+      })
       const timeoutError = typeof err?.message === 'string' && err.message.toLowerCase().includes('timed out')
       setPushStatusMessage(
         timeoutError
-          ? 'Push setup timed out. Please close and reopen the app, then try again.'
-          : 'Unable to update push notification subscription.'
+          ? (err.message || 'Push setup timed out. Please close and reopen the app, then try again.')
+          : formatPushErrorMessage(err)
       )
       setLocalPreferences(prev => ({ ...prev, pushEnabled: previousPushEnabled }))
     } finally {
@@ -570,7 +826,7 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <div className="cgr-page-container">
-      <div className="flex justify-between items-center mb-8">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <PageHeader title="Notifications" />
           <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -582,9 +838,9 @@ const NotificationsPage: React.FC = () => {
             }
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex w-full flex-wrap gap-2 sm:gap-3 lg:w-auto lg:justify-end">
           {canSendNotifications && (
-            <Button onClick={() => setIsSendModalOpen(true)}>
+            <Button onClick={() => setIsSendModalOpen(true)} className="w-full sm:w-auto">
               <PaperAirplaneIcon className="h-5 w-5" />
               Send Notification
             </Button>
@@ -595,12 +851,13 @@ const NotificationsPage: React.FC = () => {
               setShowPreferences(!showPreferences)
             }}
             variant="secondary"
+            className="w-full sm:w-auto"
           >
             <Cog6ToothIcon className="h-5 w-5" />
             Preferences
           </Button>
-          {filter !== 'sent' && notifications.some(n => !n.read) && (
-            <Button onClick={markAllAsRead} variant="primary">
+          {filter !== 'sent' && filter !== 'deleted' && notifications.some(n => !n.read) && (
+            <Button onClick={markAllAsRead} variant="primary" className="w-full sm:w-auto">
               <CheckCircleIcon className="h-5 w-5" />
               Mark All as Read
             </Button>
@@ -708,7 +965,7 @@ const NotificationsPage: React.FC = () => {
         </Card>
       )}
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setFilter('all')}
           className={`px-4 py-2 rounded-lg transition-colors ${
@@ -807,13 +1064,22 @@ const NotificationsPage: React.FC = () => {
                     </div>
                     <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                       {filter === 'deleted' ? (
-                        <button
-                          onClick={() => restoreNotification(notification.id)}
-                          className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
-                          title="Restore notification"
-                        >
-                          <ArrowUturnLeftIcon className="h-5 w-5" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => restoreNotification(notification.id)}
+                            className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
+                            title="Restore notification"
+                          >
+                            <ArrowUturnLeftIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => permanentlyDeleteNotification(notification.id)}
+                            className="p-2 text-red-700 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            title="Delete permanently"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </>
                       ) : (
                         <>
                           {filter !== 'sent' && !notification.read && (

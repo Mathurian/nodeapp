@@ -192,6 +192,17 @@ export class NotificationService {
   }
 
   /**
+   * Permanently delete a soft-deleted notification
+   */
+  async permanentlyDeleteNotification(id: string, userId: string, tenantId: string): Promise<void> {
+    await this.notificationRepository.permanentlyDelete(id, userId, tenantId);
+
+    if (this.io) {
+      this.io.to(`user:${userId}`).emit('notification:permanently-deleted', { id });
+    }
+  }
+
+  /**
    * Get deleted notifications for a user
    */
   async getDeletedNotifications(userId: string, tenantId: string, limit = 50, offset = 0): Promise<Notification[]> {

@@ -245,6 +245,24 @@ export class NotificationRepository {
   }
 
   /**
+   * Permanently delete a soft-deleted notification
+   */
+  async permanentlyDelete(id: string, userId: string, tenantId: string): Promise<void> {
+    const result = await this.prisma.notification.deleteMany({
+      where: {
+        id,
+        userId,
+        tenantId,
+        deletedAt: { not: null },
+      },
+    });
+
+    if (result.count === 0) {
+      throw new Error('Deleted notification not found');
+    }
+  }
+
+  /**
    * Get deleted notifications for a user
    */
   async findDeleted(userId: string, tenantId: string, limit?: number, offset?: number): Promise<Notification[]> {
