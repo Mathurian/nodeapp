@@ -148,6 +148,8 @@ app.use([
   '/api/v1/settings/theme',
   '/api/settings/public',
   '/api/v1/settings/public',
+  '/api/settings/pwa-manifest',
+  '/api/v1/settings/pwa-manifest',
   '/api/navigation',
   '/api/v1/navigation',
   '/api/tenants/slug',

@@ -6,6 +6,7 @@ import {
   getSettings,
   getAppName,
   getPublicSettings,
+  getPwaManifest,
   updateSettings,
   testSettings,
   updateJWTConfig,
@@ -110,6 +111,7 @@ router.get('/app-name', getAppName) // Public - app name is not sensitive
  *         description: Public settings retrieved
  */
 router.get('/public', getPublicSettings)
+router.get('/pwa-manifest', getPwaManifest)
 
 /**
  * @swagger

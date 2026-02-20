@@ -54,6 +54,8 @@ interface SystemSettingsContextType {
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined)
 const DYNAMIC_PRIMARY_STYLE_ID = 'dynamic-primary-theme'
 const CUSTOM_THEME_STYLE_ID = 'custom-theme-css'
+const DEFAULT_THEME_COLOR = '#6366f1'
+const DEFAULT_MANIFEST_PATH = '/api/v1/settings/pwa-manifest'
 const THEME_VARIABLES = [
   '--color-primary',
   '--color-secondary',
@@ -94,6 +96,31 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
     return extractTenantSlugFromPath(location.pathname)
   }
 
+  const updateManifestHref = (tenantSlug?: string | null) => {
+    const manifestHref = tenantSlug
+      ? `${DEFAULT_MANIFEST_PATH}?tenantSlug=${encodeURIComponent(tenantSlug)}`
+      : DEFAULT_MANIFEST_PATH
+
+    let manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement | null
+    if (!manifestLink) {
+      manifestLink = document.createElement('link')
+      manifestLink.rel = 'manifest'
+      document.head.appendChild(manifestLink)
+    }
+    manifestLink.href = manifestHref
+  }
+
+  const updateThemeColorMeta = (themeColor?: string | null) => {
+    const resolvedColor = themeColor || DEFAULT_THEME_COLOR
+    let themeColorMeta = document.querySelector("meta[name='theme-color']") as HTMLMetaElement | null
+    if (!themeColorMeta) {
+      themeColorMeta = document.createElement('meta')
+      themeColorMeta.name = 'theme-color'
+      document.head.appendChild(themeColorMeta)
+    }
+    themeColorMeta.content = resolvedColor
+  }
+
   const updateFavicon = (faviconPath?: string | null) => {
     const targetHref = faviconPath || '/favicon.ico'
     const faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
@@ -107,12 +134,25 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
     document.head.appendChild(newFavicon)
   }
 
+  const updateAppleTouchIcon = (iconPath?: string | null) => {
+    const targetHref = iconPath || '/pwa-192x192.png'
+    let appleTouchIconLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null
+    if (!appleTouchIconLink) {
+      appleTouchIconLink = document.createElement('link')
+      appleTouchIconLink.rel = 'apple-touch-icon'
+      document.head.appendChild(appleTouchIconLink)
+    }
+    appleTouchIconLink.href = targetHref
+  }
+
   const clearThemeSettings = () => {
     const root = document.documentElement
     THEME_VARIABLES.forEach((variableName) => root.style.removeProperty(variableName))
     document.getElementById(DYNAMIC_PRIMARY_STYLE_ID)?.remove()
     document.getElementById(CUSTOM_THEME_STYLE_ID)?.remove()
+    updateThemeColorMeta(null)
     updateFavicon(null)
+    updateAppleTouchIcon(null)
   }
 
   const fetchSettings = async () => {
@@ -122,6 +162,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       setError(null)
 
       const slug = getTenantSlug()
+      updateManifestHref(slug)
 
       // Fetch theme settings from public endpoint (no auth required)
       // Pass tenant slug to get tenant-specific theme settings
@@ -234,11 +275,17 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
     // Always force favicon to the current theme (or reset to default).
     updateFavicon(themeSettings.theme_faviconPath)
+    updateAppleTouchIcon(themeSettings.theme_logoPath || themeSettings.theme_faviconPath)
+    updateThemeColorMeta(themeSettings.theme_primaryColor)
   }
 
   useEffect(() => {
     fetchSettings()
   }, [location.pathname]) // Re-fetch settings when URL changes (tenant slug may have changed)
+
+  useEffect(() => {
+    updateManifestHref(getTenantSlug())
+  }, [location.pathname])
 
   useEffect(() => {
     const onThemeUpdate = () => {

@@ -70,6 +70,30 @@ export class SettingsController {
     return req.user?.tenantId || req.tenantId || null;
   }
 
+  private inferManifestIconType(iconPath: string): string {
+    const lowered = iconPath.toLowerCase();
+    if (lowered.endsWith('.svg')) return 'image/svg+xml';
+    if (lowered.endsWith('.png')) return 'image/png';
+    if (lowered.endsWith('.jpg') || lowered.endsWith('.jpeg')) return 'image/jpeg';
+    if (lowered.endsWith('.webp')) return 'image/webp';
+    if (lowered.endsWith('.gif')) return 'image/gif';
+    if (lowered.endsWith('.ico')) return 'image/x-icon';
+    return 'image/png';
+  }
+
+  private buildManifestBasePath(tenantSlug: string | null): string {
+    if (!tenantSlug) return '/';
+    return `/${tenantSlug.replace(/^\/+|\/+$/g, '')}/`;
+  }
+
+  private applyNoStoreTenantVaryHeaders(res: Response): void {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.vary('Host');
+    res.vary('X-Tenant-Slug');
+  }
+
   /**
    * Get all settings (tenant-aware with fallback to global)
    */
@@ -158,12 +182,85 @@ export class SettingsController {
       }
 
       const publicSettings = await this.settingsService.getPublicSettings(tenantId);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.vary('Host');
-      res.vary('X-Tenant-Slug');
+      this.applyNoStoreTenantVaryHeaders(res);
       res.json(publicSettings);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Get tenant-aware PWA manifest for runtime install metadata.
+   */
+  getPwaManifest = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      let tenantId = this.getTenantIdForRead(req);
+      let manifestTenantSlug: string | null = null;
+      const tenantSlug = req.query['tenantSlug'];
+      if (tenantSlug && typeof tenantSlug === 'string') {
+        const tenant = await this.settingsService.getTenantBySlug(tenantSlug);
+        if (tenant) {
+          tenantId = tenant.id;
+          manifestTenantSlug = tenant.slug;
+        }
+      }
+
+      const [publicSettings, themeSettings] = await Promise.all([
+        this.settingsService.getPublicSettings(tenantId),
+        this.settingsService.getThemeSettings(tenantId),
+      ]);
+
+      const appName = String(publicSettings.appName || themeSettings['app_name'] || 'ConMGR').trim() || 'ConMGR';
+      const appSubtitle = String(publicSettings.appSubtitle || themeSettings['app_subtitle'] || '').trim();
+      const description = String(publicSettings.appDescription || appSubtitle || 'Event management platform').trim();
+      const shortName = appName.length > 24 ? `${appName.slice(0, 21)}...` : appName;
+      const primaryColor = String(themeSettings['theme_primaryColor'] || '#6366f1').trim() || '#6366f1';
+      const basePath = this.buildManifestBasePath(manifestTenantSlug);
+
+      const brandedIconPath = String(
+        publicSettings.logoPath ||
+        publicSettings.faviconPath ||
+        themeSettings['theme_logoPath'] ||
+        themeSettings['theme_faviconPath'] ||
+        ''
+      ).trim();
+
+      const brandedIcons = brandedIconPath
+        ? [{
+            src: brandedIconPath,
+            type: this.inferManifestIconType(brandedIconPath),
+            purpose: 'any',
+          }]
+        : [];
+
+      const manifest = {
+        name: appName,
+        short_name: shortName,
+        description,
+        id: basePath,
+        theme_color: primaryColor,
+        background_color: '#ffffff',
+        display: 'standalone',
+        scope: basePath,
+        start_url: basePath,
+        orientation: 'any',
+        icons: [
+          ...brandedIcons,
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-maskable-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: '/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        prefer_related_applications: false,
+      };
+
+      this.applyNoStoreTenantVaryHeaders(res);
+      res.type('application/manifest+json');
+      res.status(200).json(manifest);
     } catch (error) {
       return next(error);
     }
@@ -697,11 +794,7 @@ export class SettingsController {
       }
 
       const themeSettings = await this.settingsService.getThemeSettings(tenantId);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.vary('Host');
-      res.vary('X-Tenant-Slug');
+      this.applyNoStoreTenantVaryHeaders(res);
       successResponse(res, themeSettings, 'Theme settings retrieved successfully');
     } catch (error) {
       return next(error);
@@ -1023,6 +1116,7 @@ export const getAllSettings = controller.getAllSettings;
 export const getSettings = controller.getSettings;
 export const getAppName = controller.getAppName;
 export const getPublicSettings = controller.getPublicSettings;
+export const getPwaManifest = controller.getPwaManifest;
 export const updateSettings = controller.updateSettings;
 export const testSettings = controller.testSettings;
 export const getLoggingLevels = controller.getLoggingLevels;
