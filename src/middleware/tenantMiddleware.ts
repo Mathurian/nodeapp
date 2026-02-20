@@ -635,8 +635,13 @@ export function createTenantPrismaClient(
   const buildViolationReason = (where: unknown): string =>
     `where_keys=${safeWhereKeys(where)};rls_mode=${tenantDbRlsMode}`;
 
-  const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-    !!value && typeof value === 'object' && !Array.isArray(value);
+  const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+  };
 
   /**
    * findUnique supports composite-unique aliases like `fieldA_fieldB`.

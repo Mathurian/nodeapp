@@ -158,10 +158,25 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
   },
 ]
 
+const PRIMARY_DASHBOARD_ITEM_ID = 'dashboard'
+
 const sortItemsByName = (items: AppNavItem[]): AppNavItem[] =>
   [...items].sort((a, b) => a.name.localeCompare(b.name))
 
+const sortNavigationSectionItems = (section: AppNavSection): AppNavItem[] => {
+  const sortedItems = sortItemsByName(section.items)
+
+  if (section.id !== 'navigation') {
+    return sortedItems
+  }
+
+  const dashboardItems = sortedItems.filter((item) => item.id === PRIMARY_DASHBOARD_ITEM_ID)
+  const nonDashboardItems = sortedItems.filter((item) => item.id !== PRIMARY_DASHBOARD_ITEM_ID)
+
+  return [...dashboardItems, ...nonDashboardItems]
+}
+
 export const NAV_SECTIONS: AppNavSection[] = NAV_SECTIONS_UNSORTED.map((section) => ({
   ...section,
-  items: sortItemsByName(section.items),
+  items: sortNavigationSectionItems(section),
 }))
