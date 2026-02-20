@@ -271,8 +271,9 @@ SQL
 }
 
 collect_metrics() {
-  "${PSQL_CMD[@]}" -X -At -v ON_ERROR_STOP=1 <<SQL
-$(prepare_work_tables_sql)
+  {
+    prepare_work_tables_sql
+    cat <<'SQL'
 SELECT 'DATABASE=' || current_database();
 SELECT 'LEGACY_TABLE_EXISTS=' || EXISTS (
   SELECT 1
@@ -292,11 +293,13 @@ SELECT 'DESIRED_ROWS=' || (SELECT count(*)::text FROM _desired_field_visibility_
 SELECT 'PENDING_INSERTS=' || (SELECT count(*)::text FROM _pending_field_visibility_settings);
 SELECT 'CONFLICTING_EXISTING=' || (SELECT count(*)::text FROM _conflicting_field_visibility_settings);
 SQL
+  } | "${PSQL_CMD[@]}" -X -At -v ON_ERROR_STOP=1
 }
 
 apply_backfill() {
-  "${PSQL_CMD[@]}" -X -At -v ON_ERROR_STOP=1 <<SQL
-$(prepare_work_tables_sql)
+  {
+    prepare_work_tables_sql
+    cat <<'SQL'
 WITH inserted AS (
   INSERT INTO system_settings (
     id,
@@ -322,6 +325,7 @@ WITH inserted AS (
 )
 SELECT 'INSERTED_ROWS=' || count(*)::text FROM inserted;
 SQL
+  } | "${PSQL_CMD[@]}" -X -At -v ON_ERROR_STOP=1
 }
 
 extract_metric() {

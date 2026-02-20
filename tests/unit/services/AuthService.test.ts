@@ -338,9 +338,9 @@ describe('AuthService', () => {
 
       const result = await service.getProfile('user-1');
 
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: 'user-1' }
-      });
+      }));
       expect(result).toMatchObject({
         id: mockUser.id,
         name: mockUser.name,

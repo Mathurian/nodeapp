@@ -18,6 +18,8 @@ import { ErrorLogService } from './ErrorLogService';
 import { MFAService } from './MFAService';
 import { SMSService } from './SMSService';
 import { env } from '../config/env';
+import { getRequestContext } from '../middleware/correlationId';
+import { createTenantPrismaClient } from '../middleware/tenantMiddleware';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('AuthService');
@@ -159,15 +161,38 @@ export class AuthService {
     });
   }
 
-  private async getSettingWithFallback(key: string, tenantId: string): Promise<string | null> {
-    const tenantSetting = await this.prisma.systemSetting.findFirst({
+  /**
+   * Pre-authentication flows (base /login, MFA completion, password reset) may run
+   * before the final user tenant context is known.
+   * Use super-admin scoped tenant Prisma for these flows to avoid accidental
+   * request-level tenant filtering conflicts.
+   */
+  private getAuthPrisma(): PrismaClient {
+    const context = getRequestContext();
+    if (!context?.requestPrisma) {
+      return this.prisma;
+    }
+
+    if (!context.tenantId) {
+      return this.prisma;
+    }
+
+    return createTenantPrismaClient(context.tenantId, true);
+  }
+
+  private async getSettingWithFallback(
+    key: string,
+    tenantId: string,
+    prismaClient: PrismaClient = this.prisma
+  ): Promise<string | null> {
+    const tenantSetting = await prismaClient.systemSetting.findFirst({
       where: { key, tenantId }
     });
     if (tenantSetting?.value !== undefined && tenantSetting?.value !== null) {
       return tenantSetting.value;
     }
 
-    const globalSetting = await this.prisma.systemSetting.findFirst({
+    const globalSetting = await prismaClient.systemSetting.findFirst({
       where: { key, tenantId: null }
     });
     return globalSetting?.value ?? null;
@@ -184,11 +209,11 @@ export class AuthService {
     return providers.length > 0 ? providers : ['TOTP'];
   }
 
-  private async getTenantMfaPolicy(tenantId: string): Promise<TenantMFAPolicy> {
+  private async getTenantMfaPolicy(tenantId: string, prismaClient: PrismaClient = this.prisma): Promise<TenantMFAPolicy> {
     const [newKey, legacyKey, providersRaw] = await Promise.all([
-      this.getSettingWithFallback('security_mfaEnabled', tenantId),
-      this.getSettingWithFallback('security_enableTwoFactor', tenantId),
-      this.getSettingWithFallback('security_mfaProviders', tenantId),
+      this.getSettingWithFallback('security_mfaEnabled', tenantId, prismaClient),
+      this.getSettingWithFallback('security_enableTwoFactor', tenantId, prismaClient),
+      this.getSettingWithFallback('security_mfaProviders', tenantId, prismaClient),
     ]);
 
     const enabledRaw = (newKey ?? legacyKey ?? 'false').toLowerCase();
@@ -230,8 +255,13 @@ export class AuthService {
    * @param historyLimit - Number of previous passwords to check (default: 5)
    * @returns true if password was used recently
    */
-  private async isPasswordInHistory(userId: string, newPassword: string, historyLimit: number = 5): Promise<boolean> {
-    const passwordHistories = await this.prisma.passwordHistory.findMany({
+  private async isPasswordInHistory(
+    userId: string,
+    newPassword: string,
+    historyLimit: number = 5,
+    prismaClient: PrismaClient = this.prisma
+  ): Promise<boolean> {
+    const passwordHistories = await prismaClient.passwordHistory.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: historyLimit
@@ -251,8 +281,12 @@ export class AuthService {
    * @param userId - User ID
    * @param hashedPassword - Hashed password to save
    */
-  private async savePasswordToHistory(userId: string, hashedPassword: string): Promise<void> {
-    await this.prisma.passwordHistory.create({
+  private async savePasswordToHistory(
+    userId: string,
+    hashedPassword: string,
+    prismaClient: PrismaClient = this.prisma
+  ): Promise<void> {
+    await prismaClient.passwordHistory.create({
       data: {
         userId,
         password: hashedPassword
@@ -260,14 +294,14 @@ export class AuthService {
     });
 
     // Keep only the last 10 password histories
-    const allHistories = await this.prisma.passwordHistory.findMany({
+    const allHistories = await prismaClient.passwordHistory.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       skip: 10
     });
 
     if (allHistories.length > 0) {
-      await this.prisma.passwordHistory.deleteMany({
+      await prismaClient.passwordHistory.deleteMany({
         where: {
           id: { in: allHistories.map(h => h.id) }
         }
@@ -280,6 +314,7 @@ export class AuthService {
    */
   async login(credentials: LoginCredentials, tenantId: string, ipAddress?: string, userAgent?: string): Promise<LoginResult> {
     const { email, password } = credentials;
+    const authPrisma = this.getAuthPrisma();
 
     if (!email || !password) {
       throw new Error('Email and password are required');
@@ -292,7 +327,7 @@ export class AuthService {
     // Find user with related data including tenant info and MFA fields
     // If logging in from default tenant context (e.g., /login without slug),
     // first try to find the user by email in any tenant
-    let user = await this.prisma.user.findFirst({
+    let user = await authPrisma.user.findFirst({
       where: {
         email,
         tenantId
@@ -332,7 +367,7 @@ export class AuthService {
     // This enables automatic tenant discovery based on email
     if (!user) {
       // First, check if we're using the default tenant
-      const defaultTenant = await this.prisma.tenant.findUnique({
+      const defaultTenant = await authPrisma.tenant.findUnique({
         where: { slug: 'default' },
         select: { id: true }
       });
@@ -340,7 +375,7 @@ export class AuthService {
       // Only do cross-tenant search if we're logging in from default tenant context
       // This prevents cross-tenant authentication when accessing tenant-specific URLs
       if (defaultTenant && tenantId === defaultTenant.id) {
-        const candidates = await this.prisma.user.findMany({
+        const candidates = await authPrisma.user.findMany({
           where: {
             email,
             isActive: true,
@@ -454,7 +489,7 @@ export class AuthService {
       throw new Error('Account is inactive');
     }
 
-    const tenantMfaPolicy = await this.getTenantMfaPolicy(user.tenantId);
+    const tenantMfaPolicy = await this.getTenantMfaPolicy(user.tenantId, authPrisma);
     const availableProviders = this.resolveAllowedMfaProviders(user, tenantMfaPolicy);
     const requiresTenantMfa = tenantMfaPolicy.enabled;
     const requiresMfaSetup = requiresTenantMfa && !user.mfaEnabled && !availableProviders.some((p) => p === 'SMS' || p === 'EMAIL');
@@ -486,7 +521,7 @@ export class AuthService {
 
       // Log MFA requirement
       try {
-        await this.prisma.activityLog.create({
+        await authPrisma.activityLog.create({
           data: {
             userId: user.id,
             userName: user.name,
@@ -542,7 +577,7 @@ export class AuthService {
     }
 
     // Update last login timestamp (only if MFA not required or after MFA verification)
-    await this.prisma.user.update({
+    await authPrisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() }
     });
@@ -572,7 +607,7 @@ export class AuthService {
 
     // Log login activity
     try {
-      await this.prisma.activityLog.create({
+      await authPrisma.activityLog.create({
         data: {
           userId: user.id,
           userName: user.name,
@@ -636,7 +671,8 @@ export class AuthService {
       throw new Error('Invalid MFA session');
     }
 
-    const user = await this.prisma.user.findUnique({
+    const authPrisma = this.getAuthPrisma();
+    const user = await authPrisma.user.findUnique({
       where: { id: payload.userId },
       select: {
         id: true,
@@ -653,7 +689,7 @@ export class AuthService {
       throw new Error('Invalid MFA session');
     }
 
-    const policy = await this.getTenantMfaPolicy(user.tenantId);
+    const policy = await this.getTenantMfaPolicy(user.tenantId, authPrisma);
     const allowed = this.resolveAllowedMfaProviders(user, policy);
     if (!allowed.includes(provider)) {
       throw new Error(`${provider} is not allowed by tenant MFA policy.`);
@@ -708,7 +744,8 @@ export class AuthService {
       throw new Error('Invalid MFA session');
     }
 
-    const user = await this.prisma.user.findUnique({
+    const authPrisma = this.getAuthPrisma();
+    const user = await authPrisma.user.findUnique({
       where: { id: payload.userId },
       select: {
         id: true,
@@ -741,7 +778,7 @@ export class AuthService {
       throw new Error('Invalid MFA session');
     }
 
-    const tenantMfaPolicy = await this.getTenantMfaPolicy(user.tenantId);
+    const tenantMfaPolicy = await this.getTenantMfaPolicy(user.tenantId, authPrisma);
     const allowedProviders = this.resolveAllowedMfaProviders(user, tenantMfaPolicy);
     const normalizedProvider = provider.toUpperCase() as 'TOTP' | 'SMS' | 'EMAIL';
     if (!allowedProviders.includes(normalizedProvider)) {
@@ -766,7 +803,7 @@ export class AuthService {
       this.mfaChallengeCache.del(key);
     }
 
-    await this.prisma.user.update({
+    await authPrisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() }
     });
@@ -786,10 +823,10 @@ export class AuthService {
     };
 
     const token = jwt.sign(fullPayload, JWT_SECRET as string, { expiresIn: tokenExpiresIn } as jwt.SignOptions);
-    const profile = await this.getProfile(user.id);
+    const profile = await this.getProfileWithClient(user.id, authPrisma);
 
     try {
-      await this.prisma.activityLog.create({
+      await authPrisma.activityLog.create({
         data: {
           userId: user.id,
           userName: user.name,
@@ -817,7 +854,11 @@ export class AuthService {
    * Get user profile by ID
    */
   async getProfile(userId: string): Promise<UserProfile> {
-    const user = await this.prisma.user.findUnique({
+    return this.getProfileWithClient(userId, this.prisma);
+  }
+
+  private async getProfileWithClient(userId: string, prismaClient: PrismaClient): Promise<UserProfile> {
+    const user = await prismaClient.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -928,7 +969,8 @@ export class AuthService {
    * Generate password reset token
    */
   async generatePasswordResetToken(email: string): Promise<string> {
-    const user: UserBasic | null = await this.prisma.user.findFirst({
+    const authPrisma = this.getAuthPrisma();
+    const user: UserBasic | null = await authPrisma.user.findFirst({
       where: { email }
     });
 
@@ -964,6 +1006,7 @@ export class AuthService {
    * Reset password using token
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
+    const authPrisma = this.getAuthPrisma();
     const userId = this.validatePasswordResetToken(token);
 
     if (!userId) {
@@ -971,7 +1014,7 @@ export class AuthService {
     }
 
     // Get user info for password similarity check
-    const user: UserBasic | null = await this.prisma.user.findUnique({
+    const user: UserBasic | null = await authPrisma.user.findUnique({
       where: { id: userId }
     });
 
@@ -994,13 +1037,13 @@ export class AuthService {
     }
 
     // P2-5: Check password history
-    if (await this.isPasswordInHistory(userId, newPassword, 5)) {
+    if (await this.isPasswordInHistory(userId, newPassword, 5, authPrisma)) {
       throw new Error('Password has been used recently. Please choose a different password');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await this.prisma.user.update({
+    await authPrisma.user.update({
       where: { id: userId },
       data: {
         password: hashedPassword,
@@ -1009,7 +1052,7 @@ export class AuthService {
     });
 
     // P2-5: Save password to history
-    await this.savePasswordToHistory(userId, hashedPassword);
+    await this.savePasswordToHistory(userId, hashedPassword, authPrisma);
 
     // Invalidate the token after use
     this.resetTokenCache.del(token);
@@ -1020,6 +1063,7 @@ export class AuthService {
    * Complete invitation-based registration (invite-only)
    */
   async completeInvitationRegistration(token: string, password: string): Promise<void> {
+    const authPrisma = this.getAuthPrisma();
     let payload: InvitationRegistrationTokenPayload;
 
     try {
@@ -1032,7 +1076,7 @@ export class AuthService {
       throw new Error('Invalid invitation token');
     }
 
-    const user = await this.prisma.user.findUnique({
+    const user = await authPrisma.user.findUnique({
       where: { id: payload.userId }
     });
 
@@ -1056,13 +1100,13 @@ export class AuthService {
       throw new Error('Password is too similar to your personal information');
     }
 
-    if (await this.isPasswordInHistory(user.id, password, 5)) {
+    if (await this.isPasswordInHistory(user.id, password, 5, authPrisma)) {
       throw new Error('Password has been used recently. Please choose a different password');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await this.prisma.user.update({
+    await authPrisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
@@ -1071,7 +1115,7 @@ export class AuthService {
       }
     });
 
-    await this.savePasswordToHistory(user.id, hashedPassword);
+    await this.savePasswordToHistory(user.id, hashedPassword, authPrisma);
     userCache.invalidate(user.id);
   }
 
