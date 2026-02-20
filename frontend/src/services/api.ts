@@ -364,9 +364,14 @@ export const backupAPI = {
 export const settingsAPI = {
   getAll: () => api.get('/settings'),
   getSettings: () => api.get('/settings/general'),
-  getPublicSettings: (tenantSlug?: string) => publicApi.get('/settings/public', {
-    headers: tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : undefined,
-  }),
+  getPublicSettings: (tenantSlug?: string) => {
+    if (tenantSlug) {
+      return publicApi.get(`/settings/public?tenantSlug=${encodeURIComponent(tenantSlug)}`, {
+        headers: { 'X-Tenant-Slug': tenantSlug },
+      });
+    }
+    return publicApi.get('/settings/public');
+  },
   getThemeSettings: (tenantId?: string, tenantSlug?: string) => {
     if (tenantId) return api.get(`/settings/theme?tenantId=${tenantId}`);
     if (tenantSlug) {

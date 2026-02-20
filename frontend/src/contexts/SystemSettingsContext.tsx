@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import api, { settingsAPI } from '../services/api'
+import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
+import { settingsAPI } from '../services/api'
 import { extractTenantSlugFromPath } from '../utils/routeSegments'
 
 interface SystemSettings {
@@ -51,6 +52,21 @@ interface SystemSettingsContextType {
 }
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined)
+const DYNAMIC_PRIMARY_STYLE_ID = 'dynamic-primary-theme'
+const CUSTOM_THEME_STYLE_ID = 'custom-theme-css'
+const THEME_VARIABLES = [
+  '--color-primary',
+  '--color-secondary',
+  '--color-accent',
+  '--color-success',
+  '--color-warning',
+  '--color-danger',
+  '--color-info',
+  '--bg-light',
+  '--bg-dark',
+  '--font-family',
+  '--font-size-base',
+] as const
 
 export const useSystemSettings = () => {
   const context = useContext(SystemSettingsContext)
@@ -69,6 +85,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
   const [settings, setSettings] = useState<SystemSettings>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const requestSequenceRef = useRef(0)
 
   // Extract tenant slug from URL path when present.
   // If no slug is present (e.g., tenant subdomain/custom domain access),
@@ -77,7 +94,29 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
     return extractTenantSlugFromPath(location.pathname)
   }
 
+  const updateFavicon = (faviconPath?: string | null) => {
+    const targetHref = faviconPath || '/favicon.ico'
+    const faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
+    if (faviconLink) {
+      faviconLink.href = targetHref
+      return
+    }
+    const newFavicon = document.createElement('link')
+    newFavicon.rel = 'icon'
+    newFavicon.href = targetHref
+    document.head.appendChild(newFavicon)
+  }
+
+  const clearThemeSettings = () => {
+    const root = document.documentElement
+    THEME_VARIABLES.forEach((variableName) => root.style.removeProperty(variableName))
+    document.getElementById(DYNAMIC_PRIMARY_STYLE_ID)?.remove()
+    document.getElementById(CUSTOM_THEME_STYLE_ID)?.remove()
+    updateFavicon(null)
+  }
+
   const fetchSettings = async () => {
+    const requestSequence = ++requestSequenceRef.current
     try {
       setIsLoading(true)
       setError(null)
@@ -91,15 +130,28 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       // Handle response format: { success: true, data: { theme_primaryColor: '...', app_name: '...' } }
       const themeData = response.data?.data || response.data?.settings || response.data
 
-      if (themeData) {
-        setSettings(themeData)
-        applyThemeSettings(themeData)
+      if (requestSequence !== requestSequenceRef.current) {
+        return
       }
+      const resolvedThemeData = (themeData && typeof themeData === 'object')
+        ? (themeData as SystemSettings)
+        : {}
+      setSettings(resolvedThemeData)
+      clearThemeSettings()
+      applyThemeSettings(resolvedThemeData)
     } catch (err: any) {
+      if (requestSequence !== requestSequenceRef.current) {
+        return
+      }
       console.error('Failed to load system settings:', err)
+      setSettings({})
+      clearThemeSettings()
+      document.title = DEFAULT_APP_BASELINE.appName
       setError(err.message || 'Failed to load settings')
     } finally {
-      setIsLoading(false)
+      if (requestSequence === requestSequenceRef.current) {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -115,10 +167,10 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
     if (themeSettings.theme_primaryColor) {
       root.style.setProperty('--color-primary', themeSettings.theme_primaryColor)
       const primary = themeSettings.theme_primaryColor
-      let dynamicStyle = document.getElementById('dynamic-primary-theme') as HTMLStyleElement | null
+      let dynamicStyle = document.getElementById(DYNAMIC_PRIMARY_STYLE_ID) as HTMLStyleElement | null
       if (!dynamicStyle) {
         dynamicStyle = document.createElement('style')
-        dynamicStyle.id = 'dynamic-primary-theme'
+        dynamicStyle.id = DYNAMIC_PRIMARY_STYLE_ID
         document.head.appendChild(dynamicStyle)
       }
       dynamicStyle.textContent = `
@@ -171,27 +223,17 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
     // Apply custom CSS if provided
     if (themeSettings.theme_customCSS) {
-      let customStyleTag = document.getElementById('custom-theme-css')
+      let customStyleTag = document.getElementById(CUSTOM_THEME_STYLE_ID)
       if (!customStyleTag) {
         customStyleTag = document.createElement('style')
-        customStyleTag.id = 'custom-theme-css'
+        customStyleTag.id = CUSTOM_THEME_STYLE_ID
         document.head.appendChild(customStyleTag)
       }
       customStyleTag.textContent = themeSettings.theme_customCSS
     }
 
-    // Update favicon if provided
-    if (themeSettings.theme_faviconPath) {
-      const faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement
-      if (faviconLink) {
-        faviconLink.href = themeSettings.theme_faviconPath
-      } else {
-        const newFavicon = document.createElement('link')
-        newFavicon.rel = 'icon'
-        newFavicon.href = themeSettings.theme_faviconPath
-        document.head.appendChild(newFavicon)
-      }
-    }
+    // Always force favicon to the current theme (or reset to default).
+    updateFavicon(themeSettings.theme_faviconPath)
   }
 
   useEffect(() => {

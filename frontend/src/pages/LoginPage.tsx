@@ -34,6 +34,16 @@ interface PublicSettings {
   contactEmail: string | null
 }
 
+const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
+  appName: DEFAULT_APP_BASELINE.appName,
+  appSubtitle: DEFAULT_APP_BASELINE.appSubtitle,
+  appDescription: DEFAULT_APP_BASELINE.appDescription,
+  showForgotPassword: true,
+  logoPath: null,
+  faviconPath: null,
+  contactEmail: DEFAULT_APP_BASELINE.contactEmail
+}
+
 const LoginPage: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>()
   const [showPassword, setShowPassword] = useState(false)
@@ -56,30 +66,31 @@ const LoginPage: React.FC = () => {
     defaultValues: { email: '', password: '' },
   })
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
-  const [settings, setSettings] = useState<PublicSettings>({
-    appName: DEFAULT_APP_BASELINE.appName,
-    appSubtitle: DEFAULT_APP_BASELINE.appSubtitle,
-    appDescription: DEFAULT_APP_BASELINE.appDescription,
-    showForgotPassword: true,
-    logoPath: null,
-    faviconPath: null,
-    contactEmail: DEFAULT_APP_BASELINE.contactEmail
-  })
+  const [settings, setSettings] = useState<PublicSettings>(DEFAULT_PUBLIC_SETTINGS)
   const { login, completeMfaLogin } = useAuth()
   const navigate = useNavigate()
   const helpBasePath = slug ? `/${slug}/help` : '/help'
   const installGuideHref = `${helpBasePath}/02-GETTING-STARTED#install-on-mobile-as-an-app-pwa`
 
+  useEffect(() => {
+    // Reset tenant branding immediately when switching between slug and default routes.
+    setTenantInfo(null)
+    setSettings({ ...DEFAULT_PUBLIC_SETTINGS })
+  }, [slug])
+
   // Load tenant info if slug is provided
   useEffect(() => {
+    let isCurrent = true
     const loadTenantInfo = async () => {
       const tenantSlug = slug || 'default'
       setIsTenantLoading(true)
 
       try {
         const response = await fetch(`/api/tenants/slug/${tenantSlug}`)
+        if (!isCurrent) return
         if (response.ok) {
           const data = await response.json()
+          if (!isCurrent) return
           const tenant = data.tenant || data
           setTenantInfo(tenant)
 
@@ -87,9 +98,9 @@ const LoginPage: React.FC = () => {
           if (tenant?.branding) {
             setSettings(prev => ({
               ...prev,
-              appName: tenant.branding.appName || tenant.name || prev.appName,
-              appSubtitle: tenant.branding.appSubtitle || prev.appSubtitle,
-              logoPath: tenant.branding.logoPath || prev.logoPath
+              appName: tenant.branding.appName || tenant.name || DEFAULT_APP_BASELINE.appName,
+              appSubtitle: tenant.branding.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle,
+              logoPath: tenant.branding.logoPath || null
             }))
           }
         } else if (response.status === 404 && slug) {
@@ -99,81 +110,96 @@ const LoginPage: React.FC = () => {
           return
         }
       } catch (err) {
-        console.error('Failed to load tenant info:', err)
+        if (isCurrent) {
+          console.error('Failed to load tenant info:', err)
+        }
       } finally {
-        setIsTenantLoading(false)
+        if (isCurrent) {
+          setIsTenantLoading(false)
+        }
       }
     }
 
     loadTenantInfo()
+    return () => {
+      isCurrent = false
+    }
   }, [slug, navigate])
 
   // Load theme settings (tenant-aware via slug)
   useEffect(() => {
+    let isCurrent = true
     const loadSettings = async () => {
       try {
         // Pass slug to get tenant-specific theme settings
         const response = await settingsAPI.getThemeSettings(undefined, slug || undefined)
         const data = response.data?.data || response.data
-        if (data) {
-          setSettings(prev => ({
-            ...prev,
-            appName: data.app_name || data.appName || prev.appName,
-            appSubtitle: data.app_subtitle || data.appSubtitle || prev.appSubtitle,
-            logoPath: data.theme_logoPath || data.logoPath || prev.logoPath,
-            faviconPath: data.theme_faviconPath || data.faviconPath || prev.faviconPath
-          }))
+        if (!isCurrent || !data) {
+          return
         }
+        setSettings(prev => ({
+          ...prev,
+          appName: data.app_name || data.appName || DEFAULT_APP_BASELINE.appName,
+          appSubtitle: data.app_subtitle || data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle,
+          logoPath: data.theme_logoPath || data.logoPath || null,
+          faviconPath: data.theme_faviconPath || data.faviconPath || null
+        }))
       } catch (err) {
-        console.error('Failed to load theme settings:', err)
+        if (isCurrent) {
+          console.error('Failed to load theme settings:', err)
+        }
       }
     }
     loadSettings()
+    return () => {
+      isCurrent = false
+    }
   }, [slug])
 
   useEffect(() => {
+    let isCurrent = true
     const loadPublicSettings = async () => {
       try {
-        const response = await fetch('/api/v1/settings/public', {
-          headers: slug ? { 'X-Tenant-Slug': slug } : undefined,
-          credentials: 'include',
-        })
-        if (!response.ok) return
-        const data = await response.json()
-        const payload = data.data || data
-        setSettings((prev) => ({
+        const response = await settingsAPI.getPublicSettings(slug || undefined)
+        const payload = response.data?.data || response.data || {}
+        if (!isCurrent) {
+          return
+        }
+        setSettings(prev => ({
           ...prev,
           appName: payload.appName || prev.appName,
           appSubtitle: payload.appSubtitle || prev.appSubtitle,
-          appDescription: payload.appDescription || prev.appDescription,
+          appDescription: payload.appDescription || DEFAULT_APP_BASELINE.appDescription,
           showForgotPassword: payload.showForgotPassword !== false,
           logoPath: payload.logoPath || prev.logoPath,
           faviconPath: payload.faviconPath || prev.faviconPath,
-          contactEmail: payload.contactEmail || prev.contactEmail,
+          contactEmail: payload.contactEmail || DEFAULT_APP_BASELINE.contactEmail,
         }))
       } catch (err) {
-        console.error('Failed to load public settings:', err)
+        if (isCurrent) {
+          console.error('Failed to load public settings:', err)
+        }
       }
     }
     loadPublicSettings()
+    return () => {
+      isCurrent = false
+    }
   }, [slug])
 
   // Update document title and favicon
   useEffect(() => {
     document.title = `${settings.appName} - Sign In`
-
-    // Update favicon if provided
-    if (settings.faviconPath) {
-      const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement
-      if (favicon) {
-        favicon.href = settings.faviconPath
-      } else {
-        const newFavicon = document.createElement('link')
-        newFavicon.rel = 'icon'
-        newFavicon.href = settings.faviconPath
-        document.head.appendChild(newFavicon)
-      }
+    const targetFavicon = settings.faviconPath || '/favicon.ico'
+    const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
+    if (favicon) {
+      favicon.href = targetFavicon
+      return
     }
+    const newFavicon = document.createElement('link')
+    newFavicon.rel = 'icon'
+    newFavicon.href = targetFavicon
+    document.head.appendChild(newFavicon)
   }, [settings.appName, settings.faviconPath])
 
   const getDefaultRouteForRole = (role?: string) => {

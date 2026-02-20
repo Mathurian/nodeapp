@@ -71,10 +71,12 @@ const PublicLandingPage: React.FC = () => {
   }, [basePath, navigate, user])
 
   useEffect(() => {
+    let isCurrent = true
     ;(async () => {
       try {
         const response = await settingsAPI.getPublicSettings(slug || undefined)
         const data = response.data?.data || response.data || {}
+        if (!isCurrent) return
         setAppName(data.appName || DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(data.appDescription || DEFAULT_APP_BASELINE.appDescription)
@@ -82,12 +84,14 @@ const PublicLandingPage: React.FC = () => {
         setFaviconPath(data.faviconPath || null)
         const themeResponse = await settingsAPI.getThemeSettings(undefined, slug || undefined)
         const themeData = themeResponse.data?.data || themeResponse.data || {}
+        if (!isCurrent) return
         setAppName(themeData.app_name || themeData.appName || data.appName || DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(themeData.app_subtitle || themeData.appSubtitle || data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(themeData.app_description || themeData.appDescription || data.appDescription || DEFAULT_APP_BASELINE.appDescription)
-        setLogoPath(themeData.theme_logoPath || themeData.logoPath || null)
-        setFaviconPath(themeData.theme_faviconPath || themeData.faviconPath || null)
+        setLogoPath(themeData.theme_logoPath || themeData.logoPath || data.logoPath || null)
+        setFaviconPath(themeData.theme_faviconPath || themeData.faviconPath || data.faviconPath || null)
       } catch {
+        if (!isCurrent) return
         setAppName(DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(DEFAULT_APP_BASELINE.appDescription)
@@ -95,19 +99,22 @@ const PublicLandingPage: React.FC = () => {
         setFaviconPath(null)
       }
     })()
+    return () => {
+      isCurrent = false
+    }
   }, [slug])
 
   useEffect(() => {
     document.title = appName
-    if (!faviconPath) return
+    const targetFavicon = faviconPath || '/favicon.ico'
     const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
     if (favicon) {
-      favicon.href = faviconPath
+      favicon.href = targetFavicon
       return
     }
     const icon = document.createElement('link')
     icon.rel = 'icon'
-    icon.href = faviconPath
+    icon.href = targetFavicon
     document.head.appendChild(icon)
   }, [appName, faviconPath])
 

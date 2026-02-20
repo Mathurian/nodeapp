@@ -148,8 +148,21 @@ export class SettingsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const tenantId = this.getTenantIdForRead(req);
+      let tenantId = this.getTenantIdForRead(req);
+      const tenantSlug = req.query['tenantSlug'];
+      if (tenantSlug && typeof tenantSlug === 'string') {
+        const tenant = await this.settingsService.getTenantBySlug(tenantSlug);
+        if (tenant) {
+          tenantId = tenant.id;
+        }
+      }
+
       const publicSettings = await this.settingsService.getPublicSettings(tenantId);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.vary('Host');
+      res.vary('X-Tenant-Slug');
       res.json(publicSettings);
     } catch (error) {
       return next(error);
@@ -684,6 +697,11 @@ export class SettingsController {
       }
 
       const themeSettings = await this.settingsService.getThemeSettings(tenantId);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.vary('Host');
+      res.vary('X-Tenant-Slug');
       successResponse(res, themeSettings, 'Theme settings retrieved successfully');
     } catch (error) {
       return next(error);
