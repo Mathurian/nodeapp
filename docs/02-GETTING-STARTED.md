@@ -12,6 +12,7 @@ This guide will help you install, configure, and run the Event Manager applicati
 - [Building for Production](#building-for-production)
 - [Creating First Admin User](#creating-first-admin-user)
 - [Initial Setup](#initial-setup)
+- [Install on Mobile as an App (PWA)](#install-on-mobile-as-an-app-pwa)
 - [Docker Setup (Alternative)](#docker-setup-alternative)
 
 ## Prerequisites
@@ -325,6 +326,36 @@ npm start
 3. **Check Frontend** (if running separately):
    - Open http://localhost:5173 or http://localhost:3000
    - You should see the login page
+
+## Install on Mobile as an App (PWA)
+
+You can install Event Manager on iOS and Android for faster access and an app-like experience.
+
+### Requirements
+
+- Open the site over `https` (required by browsers for app install).
+- Load the login page at least once so the browser can detect installability.
+
+### iPhone / iPad (Safari)
+
+1. Open the Event Manager login URL in Safari.
+2. Tap the Share button.
+3. Tap **Add to Home Screen**.
+4. Confirm the app name and tap **Add**.
+
+### Android (Chrome or Edge)
+
+1. Open the Event Manager login URL.
+2. If prompted, tap **Install app**.
+3. If not prompted, open the browser menu and tap **Install app** or **Add to Home screen**.
+4. Confirm to install.
+
+### If the install option does not appear
+
+- Confirm you are using `https` (not `http`).
+- Refresh the page and wait a few seconds.
+- Close and reopen the browser tab, then try again.
+- Ensure Private/Incognito mode is off.
 
 ## Creating First Admin User
 

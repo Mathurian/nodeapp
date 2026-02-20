@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
 import api, { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, EyeSlashIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline'
 import { FormProvider, FormInput, FormField } from '../components/form'
 import { loginSchema, LoginInput } from '../lib/validation'
 
@@ -67,6 +67,8 @@ const LoginPage: React.FC = () => {
   })
   const { login, completeMfaLogin } = useAuth()
   const navigate = useNavigate()
+  const helpBasePath = slug ? `/${slug}/help` : '/help'
+  const installGuideHref = `${helpBasePath}/02-GETTING-STARTED#install-on-mobile-as-an-app-pwa`
 
   // Load tenant info if slug is provided
   useEffect(() => {
@@ -349,6 +351,26 @@ const LoginPage: React.FC = () => {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-200 dark:border-gray-700">
+            <div className="mb-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+              <div className="flex items-start gap-3">
+                <DevicePhoneMobileIcon className="h-5 w-5 text-blue-600 dark:text-blue-300 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                    Did you know?
+                  </p>
+                  <p className="mt-1 text-sm text-blue-800 dark:text-blue-300">
+                    You can install {settings.appName} on your mobile device for quick access from your home screen.
+                  </p>
+                  <a
+                    href={installGuideHref}
+                    className="mt-2 inline-block text-sm font-medium text-blue-700 dark:text-blue-200 hover:underline"
+                  >
+                    View mobile install instructions
+                  </a>
+                </div>
+              </div>
+            </div>
+
             {!mfaPendingToken ? (
               <FormProvider form={form} onSubmit={onSubmit} className="space-y-6">
                 <FormInput
@@ -553,7 +575,7 @@ const LoginPage: React.FC = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 justify-center items-center text-sm">
                   <a
-                    href="/help"
+                    href={helpBasePath}
                     className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium"
                     aria-label="View help documentation"
                   >
