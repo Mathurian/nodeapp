@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { SettingsService } from '../services/SettingsService';
+import { createTenantPrismaClient } from '../middleware/tenantMiddleware';
 import { successResponse } from '../utils/responseHelpers';
 import { logger } from '../utils/logger';
 
@@ -94,6 +95,107 @@ export class SettingsController {
     res.vary('X-Tenant-Slug');
   }
 
+  private createGlobalReadPrisma(contextTenantId?: string | null) {
+    const safeTenantId = String(contextTenantId || '').trim();
+    if (!safeTenantId) {
+      throw new Error('Tenant context is required for global settings reads');
+    }
+    return createTenantPrismaClient(safeTenantId, true);
+  }
+
+  private async getTenantBySlugUnscoped(
+    slug: string,
+    contextTenantId?: string | null
+  ): Promise<{ id: string; name: string; slug: string } | null> {
+    const prisma = this.createGlobalReadPrisma(contextTenantId);
+    const tenant = await prisma.tenant.findUnique({
+      where: { slug },
+      select: { id: true, name: true, slug: true, isActive: true }
+    });
+    return tenant?.isActive ? { id: tenant.id, name: tenant.name, slug: tenant.slug } : null;
+  }
+
+  private async getSettingWithFallbackUnscoped(key: string, tenantId: string): Promise<string | null> {
+    const prisma = this.createGlobalReadPrisma(tenantId);
+    const tenantSetting = await prisma.systemSetting.findFirst({
+      where: { key, tenantId },
+      select: { value: true }
+    });
+    if (tenantSetting?.value) return tenantSetting.value;
+
+    const globalSetting = await prisma.systemSetting.findFirst({
+      where: { key, tenantId: null },
+      select: { value: true }
+    });
+
+    return globalSetting?.value || null;
+  }
+
+  private async getPublicSettingsUnscoped(tenantId: string): Promise<{
+    appName: string;
+    appSubtitle: string;
+    appDescription: string;
+    showForgotPassword: boolean;
+    logoPath: string | null;
+    faviconPath: string | null;
+    contactEmail: string | null;
+  }> {
+    const keys = [
+      'app_name',
+      'app_subtitle',
+      'app_description',
+      'show_forgot_password',
+      'theme_logoPath',
+      'theme_faviconPath',
+      'footer_contactEmail',
+    ] as const;
+
+    const map: Record<string, string | null> = {};
+    await Promise.all(
+      keys.map(async (key) => {
+        map[key] = await this.getSettingWithFallbackUnscoped(key, tenantId);
+      })
+    );
+
+    return {
+      appName: map['app_name'] || 'ConMGR',
+      appSubtitle: map['app_subtitle'] || '',
+      appDescription: map['app_description'] || 'Manage events, scoring, certifications, and reporting from one secure platform.',
+      showForgotPassword: (map['show_forgot_password'] || 'true') === 'true',
+      logoPath: map['theme_logoPath'] || null,
+      faviconPath: map['theme_faviconPath'] || null,
+      contactEmail: map['footer_contactEmail'] || null,
+    };
+  }
+
+  private async getThemeSettingsUnscoped(tenantId: string): Promise<Record<string, string>> {
+    const themeKeys = [
+      'theme_primaryColor',
+      'theme_secondaryColor',
+      'theme_logoPath',
+      'theme_faviconPath',
+      'app_name',
+      'app_subtitle'
+    ] as const;
+
+    const keyMap: Record<string, string> = {};
+    await Promise.all(
+      themeKeys.map(async (key) => {
+        const value = await this.getSettingWithFallbackUnscoped(key, tenantId);
+        if (value) keyMap[key] = value;
+      })
+    );
+
+    return {
+      theme_primaryColor: keyMap['theme_primaryColor'] || '#3b82f6',
+      theme_secondaryColor: keyMap['theme_secondaryColor'] || '#8b5cf6',
+      theme_logoPath: keyMap['theme_logoPath'] || '',
+      theme_faviconPath: keyMap['theme_faviconPath'] || '',
+      app_name: keyMap['app_name'] || 'ConMGR',
+      app_subtitle: keyMap['app_subtitle'] || '',
+    };
+  }
+
   /**
    * Get all settings (tenant-aware with fallback to global)
    */
@@ -173,15 +275,19 @@ export class SettingsController {
   ): Promise<void> => {
     try {
       let tenantId = this.getTenantIdForRead(req);
+      let tenantResolvedBySlug = false;
       const tenantSlug = req.query['tenantSlug'];
       if (tenantSlug && typeof tenantSlug === 'string') {
-        const tenant = await this.settingsService.getTenantBySlug(tenantSlug);
+        const tenant = await this.getTenantBySlugUnscoped(tenantSlug, tenantId);
         if (tenant) {
           tenantId = tenant.id;
+          tenantResolvedBySlug = true;
         }
       }
 
-      const publicSettings = await this.settingsService.getPublicSettings(tenantId);
+      const publicSettings = tenantResolvedBySlug
+        ? await this.getPublicSettingsUnscoped(String(tenantId))
+        : await this.settingsService.getPublicSettings(tenantId);
       this.applyNoStoreTenantVaryHeaders(res);
       res.json(publicSettings);
     } catch (error) {
@@ -200,19 +306,26 @@ export class SettingsController {
     try {
       let tenantId = this.getTenantIdForRead(req);
       let manifestTenantSlug: string | null = null;
+      let tenantResolvedBySlug = false;
       const tenantSlug = req.query['tenantSlug'];
       if (tenantSlug && typeof tenantSlug === 'string') {
-        const tenant = await this.settingsService.getTenantBySlug(tenantSlug);
+        const tenant = await this.getTenantBySlugUnscoped(tenantSlug, tenantId);
         if (tenant) {
           tenantId = tenant.id;
           manifestTenantSlug = tenant.slug;
+          tenantResolvedBySlug = true;
         }
       }
 
-      const [publicSettings, themeSettings] = await Promise.all([
-        this.settingsService.getPublicSettings(tenantId),
-        this.settingsService.getThemeSettings(tenantId),
-      ]);
+      const [publicSettings, themeSettings] = tenantResolvedBySlug
+        ? await Promise.all([
+            this.getPublicSettingsUnscoped(String(tenantId)),
+            this.getThemeSettingsUnscoped(String(tenantId)),
+          ])
+        : await Promise.all([
+            this.settingsService.getPublicSettings(tenantId),
+            this.settingsService.getThemeSettings(tenantId),
+          ]);
 
       const appName = String(publicSettings.appName || themeSettings['app_name'] || 'ConMGR').trim() || 'ConMGR';
       const appSubtitle = String(publicSettings.appSubtitle || themeSettings['app_subtitle'] || '').trim();
@@ -782,18 +895,22 @@ export class SettingsController {
   ): Promise<void> => {
     try {
       let tenantId = this.getTenantIdForRead(req);
+      let tenantResolvedBySlug = false;
 
       // Allow unauthenticated users to specify tenantSlug for login page branding
       // Check tenantSlug first because it is more specific than a generic tenant fallback
       const tenantSlug = req.query['tenantSlug'];
       if (tenantSlug && typeof tenantSlug === 'string') {
-        const tenant = await this.settingsService.getTenantBySlug(tenantSlug);
+        const tenant = await this.getTenantBySlugUnscoped(tenantSlug, tenantId);
         if (tenant) {
           tenantId = tenant.id;
+          tenantResolvedBySlug = true;
         }
       }
 
-      const themeSettings = await this.settingsService.getThemeSettings(tenantId);
+      const themeSettings = tenantResolvedBySlug
+        ? await this.getThemeSettingsUnscoped(String(tenantId))
+        : await this.settingsService.getThemeSettings(tenantId);
       this.applyNoStoreTenantVaryHeaders(res);
       successResponse(res, themeSettings, 'Theme settings retrieved successfully');
     } catch (error) {
