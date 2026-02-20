@@ -147,6 +147,8 @@ const LoginPage: React.FC = () => {
           appSubtitle: payload.appSubtitle || prev.appSubtitle,
           appDescription: payload.appDescription || prev.appDescription,
           showForgotPassword: payload.showForgotPassword !== false,
+          logoPath: payload.logoPath || prev.logoPath,
+          faviconPath: payload.faviconPath || prev.faviconPath,
           contactEmail: payload.contactEmail || prev.contactEmail,
         }))
       } catch (err) {

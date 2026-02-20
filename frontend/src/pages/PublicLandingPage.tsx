@@ -78,6 +78,8 @@ const PublicLandingPage: React.FC = () => {
         setAppName(data.appName || DEFAULT_APP_BASELINE.appName)
         setAppSubtitle(data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
         setAppDescription(data.appDescription || DEFAULT_APP_BASELINE.appDescription)
+        setLogoPath(data.logoPath || null)
+        setFaviconPath(data.faviconPath || null)
         const themeResponse = await settingsAPI.getThemeSettings(undefined, slug || undefined)
         const themeData = themeResponse.data?.data || themeResponse.data || {}
         setAppName(themeData.app_name || themeData.appName || data.appName || DEFAULT_APP_BASELINE.appName)

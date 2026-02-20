@@ -369,7 +369,11 @@ export const settingsAPI = {
   }),
   getThemeSettings: (tenantId?: string, tenantSlug?: string) => {
     if (tenantId) return api.get(`/settings/theme?tenantId=${tenantId}`);
-    if (tenantSlug) return publicApi.get(`/settings/theme?tenantSlug=${tenantSlug}`);
+    if (tenantSlug) {
+      return publicApi.get(`/settings/theme?tenantSlug=${encodeURIComponent(tenantSlug)}`, {
+        headers: { 'X-Tenant-Slug': tenantSlug },
+      });
+    }
     return publicApi.get('/settings/theme');
   },
   getAppName: () => publicApi.get('/settings/app-name'),
