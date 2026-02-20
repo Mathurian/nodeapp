@@ -8,6 +8,7 @@ src/middleware/errorHandler.ts
 src/middleware/softDelete.ts
 src/repositories/DeductionRepository.ts
 src/repositories/NotificationPreferenceRepository.ts
+src/repositories/PushSubscriptionRepository.ts
 src/repositories/SearchRepository.ts
 src/repositories/TemplateRepository.ts
 src/routes/healthRoutes.ts
