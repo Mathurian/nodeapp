@@ -12,7 +12,8 @@ const KNOWN_ROUTE_SEGMENTS = new Set([
 ])
 
 const RESERVED_NON_TENANT_PREFIXES = new Set([
-  'api', 'assets', 'uploads', 'socket.io', 'cdn-cgi', 'favicon.ico', 'robots.txt', 'manifest.webmanifest',
+  'api', 'assets', 'uploads', 'socket.io', 'cdn-cgi', 'favicon.ico', 'robots.txt',
+  'manifest.webmanifest', 'sw.js', 'service-worker.js', 'registerSW.js', 'offline.html',
 ])
 
 export const isKnownRoute = (segment: string): boolean => KNOWN_ROUTE_SEGMENTS.has(segment)

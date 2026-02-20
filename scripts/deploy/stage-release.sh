@@ -3,6 +3,7 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-/srv/event-manager/dev}"
 RELEASES_DIR="${RELEASES_DIR:-/opt/event-manager/releases}"
+CURRENT_LINK="${CURRENT_LINK:-/opt/event-manager/current}"
 SHARED_DIR="${SHARED_DIR:-/var/lib/event-manager}"
 LOG_DIR="${LOG_DIR:-/var/log/event-manager}"
 ENV_DIR="${ENV_DIR:-/etc/event-manager}"
@@ -15,6 +16,11 @@ fi
 if [ ! -d "$APP_ROOT" ]; then
   echo "App root not found: $APP_ROOT"
   exit 1
+fi
+
+if [ -x "$APP_ROOT/scripts/deploy/pwa-preflight.sh" ]; then
+  echo "Running PWA preflight..."
+  "$APP_ROOT/scripts/deploy/pwa-preflight.sh" "$APP_ROOT/frontend/dist"
 fi
 
 if [ ! -f "$ENV_DIR/event-manager.env" ]; then
@@ -31,6 +37,59 @@ fi
 
 TS="$(date +%Y%m%d%H%M%S)"
 REL="$RELEASES_DIR/$TS"
+PREVIOUS_RELEASE="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
+PREVIOUS_FRONTEND_DIST=""
+if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE/frontend/dist" ]; then
+  PREVIOUS_FRONTEND_DIST="$PREVIOUS_RELEASE/frontend/dist"
+fi
+
+copy_pwa_compat_assets_from_previous_release() {
+  local previous_dist="$1"
+  local target_dist="$2"
+
+  [ -n "$previous_dist" ] || return 0
+  [ -f "$previous_dist/sw.js" ] || return 0
+
+  local compat_paths
+  compat_paths="$(node - "$previous_dist/sw.js" <<'NODE'
+const fs = require('fs');
+const swPath = process.argv[2];
+if (!swPath || !fs.existsSync(swPath)) process.exit(0);
+
+const content = fs.readFileSync(swPath, 'utf8');
+const matches = new Set();
+const pattern = /"url":"([^"]+)"/g;
+let match;
+
+while ((match = pattern.exec(content)) !== null) {
+  const normalized = String(match[1] || '').replace(/^\/+/, '');
+  if (!normalized) continue;
+  if (normalized.startsWith('assets/') || normalized.startsWith('workbox-')) {
+    matches.add(normalized);
+  }
+}
+
+for (const filePath of Array.from(matches).sort()) {
+  process.stdout.write(`${filePath}\n`);
+}
+NODE
+)"
+
+  if [ -z "$compat_paths" ]; then
+    return 0
+  fi
+
+  echo "Copying previous-release PWA assets for rollout compatibility..."
+  while IFS= read -r relative_path; do
+    [ -n "$relative_path" ] || continue
+    local src="$previous_dist/$relative_path"
+    local dst="$target_dist/$relative_path"
+    if [ -f "$src" ] && [ ! -f "$dst" ]; then
+      sudo install -d -m 755 "$(dirname "$dst")"
+      sudo cp -p "$src" "$dst"
+    fi
+  done <<< "$compat_paths"
+}
 
 echo "Staging release: $REL"
 
@@ -39,6 +98,7 @@ sudo install -d -m 755 "$REL" "$REL/frontend" "$REL/src/templates" "$REL/config"
 sudo rsync -a --delete "$APP_ROOT/dist/" "$REL/dist/"
 sudo install -d -m 755 "$REL/dist/templates/print"
 sudo rsync -a --delete "$APP_ROOT/frontend/dist/" "$REL/frontend/dist/"
+copy_pwa_compat_assets_from_previous_release "$PREVIOUS_FRONTEND_DIST" "$REL/frontend/dist"
 sudo rsync -a --delete "$APP_ROOT/prisma/" "$REL/prisma/"
 sudo rsync -a --delete "$APP_ROOT/docs/" "$REL/docs/"
 sudo rsync -a --delete "$APP_ROOT/config/" "$REL/config/"

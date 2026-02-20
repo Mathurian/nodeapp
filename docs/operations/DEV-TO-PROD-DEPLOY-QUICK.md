@@ -27,8 +27,11 @@ sudoedit /etc/event-manager/event-manager.env
 cd /srv/event-manager/dev
 npm run build
 cd frontend
+# Optional emergency switch: disable service-worker registration in the built frontend.
+# export VITE_PWA_ENABLED=false
 npm run build
 cd ..
+bash scripts/deploy/pwa-preflight.sh
 ```
 
 Optional but recommended preflight before staging:
@@ -107,6 +110,7 @@ sudo scripts/deploy/rollback-release.sh <release_timestamp>
 - Dev service is separate (`event-manager-dev.service`, port `3002`).
 - Production service is `event-manager.service` (port `3000` behind nginx).
 - Deploy scripts do not copy `/srv/event-manager/dev/.env` into prod. Manage `/etc/event-manager/event-manager.env` directly.
+- Release staging carries forward prior hashed frontend assets referenced by the previous `sw.js` precache manifest. This prevents stale-client `bad-precaching-response` failures during rolling upgrades.
 - Release retention is automatic in `activate-release.sh`.
   Set `RETAIN_RELEASES` (default `10`) to keep only the most recent release directories:
   `sudo RETAIN_RELEASES=8 scripts/deploy/activate-release.sh "$RELEASE_TS"`.
@@ -126,21 +130,24 @@ cd ..
 ENV_FILE=/etc/event-manager/event-manager.env \
 bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply
 
-# 3) Run segregation preflight before staging
+# 3) Validate generated PWA assets/service-worker safety requirements
+bash scripts/deploy/pwa-preflight.sh
+
+# 4) Run segregation preflight before staging
 sudo bash scripts/deploy/preflight-tenant-segregation.sh
 
-# 4) Stage a production release artifact
+# 5) Stage a production release artifact
 sudo scripts/deploy/stage-release.sh
 
-# 5) Read staged release timestamp
+# 6) Read staged release timestamp
 RELEASE_TS="$(cat /opt/event-manager/.last_release_ts)"
 echo "$RELEASE_TS"
 
-# 6) Activate staged release in production
+# 7) Activate staged release in production
 # Optional: override retention count for this activation (default keeps 10)
 sudo RETAIN_RELEASES=10 scripts/deploy/activate-release.sh "$RELEASE_TS"
 
-# 7) Validate production runtime
+# 8) Validate production runtime
 systemctl is-active event-manager.service
 curl -sS http://127.0.0.1:3000/health
 readlink -f /opt/event-manager/current

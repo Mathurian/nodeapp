@@ -1,8 +1,10 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string
   readonly VITE_SOCKET_URL: string
+  readonly VITE_PWA_ENABLED?: string
   readonly DEV: boolean
   readonly PROD: boolean
   readonly MODE: string

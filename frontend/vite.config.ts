@@ -15,17 +15,24 @@ export default defineConfig({
       template: 'treemap' // sunburst, treemap, network
     }) as any,
     VitePWA({
-      // Service worker registration is intentionally disabled.
-      // This app is server-backed and stale SW manifests have caused 404 precache failures
-      // during rolling releases when old chunk hashes are no longer available.
+      // Registration is handled in app code (main.tsx) so we can run one-time
+      // stale-client migration logic before registering the current service worker.
       injectRegister: false,
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: [
+        'favicon.svg',
+        'offline.html',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'pwa-maskable-192x192.png',
+        'pwa-maskable-512x512.png'
+      ],
       manifest: {
         name: 'Event Manager',
         short_name: 'EventMgr',
         description: 'Professional event management system with scoring, judging, and reporting',
-        theme_color: '#3b82f6',
+        id: '/',
+        theme_color: '#6366f1',
         background_color: '#ffffff',
         display: 'standalone',
         scope: '/',
@@ -33,30 +40,47 @@ export default defineConfig({
         orientation: 'any',
         icons: [
           {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/pwa-maskable-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable'
           }
-        ]
+        ],
+        prefer_related_applications: false
       },
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        // Keep SPA route refreshes working under SW control.
+        // A dedicated offline document still remains available at `/offline.html`.
+        navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         // Never route API/file/socket navigations to SPA fallback.
         // This prevents `/api/...` links (like bio files) from being treated as tenant routes.
         navigateFallbackDenylist: [
           /^\/api\//,
           /^\/uploads\//,
-          /^\/socket\.io\//
+          /^\/socket\.io\//,
+          /^\/cdn-cgi\//
         ],
         runtimeCaching: [
           {

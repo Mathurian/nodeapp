@@ -72,6 +72,7 @@ Use these scripts from repo root:
 
 1. Stage release artifacts and runtime dependencies:
    - `sudo scripts/deploy/stage-release.sh`
+   - Includes prior-release PWA hash compatibility copy for assets/workbox referenced by the previous `sw.js` manifest.
 2. Activate a release:
    - `sudo scripts/deploy/activate-release.sh <release_timestamp>`
    - Optional retention override: `sudo RETAIN_RELEASES=8 scripts/deploy/activate-release.sh <release_timestamp>`
@@ -89,6 +90,7 @@ For a concise operator runbook, see:
 
 Before staging a production release, run:
 
+- `bash scripts/deploy/pwa-preflight.sh` (verifies generated SW/manifest/installability prerequisites and denylist protections)
 - `sudo bash scripts/deploy/preflight-tenant-segregation.sh` (fails on blocked tenant fallback patterns)
 - `ENV_FILE=/etc/event-manager/event-manager.env bash scripts/ops/migrate-legacy-user-field-configurations.sh --apply` (idempotent legacy field-config backfill)
 
