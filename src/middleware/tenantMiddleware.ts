@@ -635,8 +635,67 @@ export function createTenantPrismaClient(
   const buildViolationReason = (where: unknown): string =>
     `where_keys=${safeWhereKeys(where)};rls_mode=${tenantDbRlsMode}`;
 
+  const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    !!value && typeof value === 'object' && !Array.isArray(value);
+
+  /**
+   * findUnique supports composite-unique aliases like `fieldA_fieldB`.
+   * When we rewrite to findFirst for tenant scoping, those aliases are invalid.
+   * Expand them into plain field predicates so findFirst remains valid.
+   */
+  const normalizeWhereForFindFirst = (where: unknown): unknown => {
+    if (Array.isArray(where)) {
+      return where.map(normalizeWhereForFindFirst);
+    }
+
+    if (!isPlainObject(where)) {
+      return where;
+    }
+
+    const normalized: Record<string, unknown> = {};
+    for (const [key, rawValue] of Object.entries(where)) {
+      if (key === 'AND' || key === 'OR' || key === 'NOT') {
+        normalized[key] = normalizeWhereForFindFirst(rawValue);
+        continue;
+      }
+
+      if (
+        key.includes('_') &&
+        isPlainObject(rawValue)
+      ) {
+        const nestedEntries = Object.entries(rawValue);
+        const looksLikeCompositeUniqueAlias =
+          nestedEntries.length > 0 &&
+          nestedEntries.every(([nestedKey, nestedValue]) =>
+            !nestedKey.startsWith('$') &&
+            !nestedKey.includes('.') &&
+            (
+              nestedValue === null ||
+              typeof nestedValue === 'string' ||
+              typeof nestedValue === 'number' ||
+              typeof nestedValue === 'boolean' ||
+              nestedValue instanceof Date
+            )
+          );
+
+        if (looksLikeCompositeUniqueAlias) {
+          for (const [nestedKey, nestedValue] of nestedEntries) {
+            if (!(nestedKey in normalized)) {
+              normalized[nestedKey] = nestedValue;
+            }
+          }
+          continue;
+        }
+      }
+
+      normalized[key] = normalizeWhereForFindFirst(rawValue);
+    }
+
+    return normalized;
+  };
+
   const setTenantWhere = (where: unknown): Record<string, unknown> => ({
-    ...(where as Record<string, unknown> || {}),
+    ...(normalizeWhereForFindFirst(where) as Record<string, unknown> || {}),
     tenantId,
   });
 

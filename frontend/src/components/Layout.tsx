@@ -348,7 +348,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       </a>
 
       {/* Minimal Top Bar - Command Palette First */}
-      <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm safe-area-top safe-area-left safe-area-right">
         <div className="flex items-center justify-between px-4 lg:px-6 py-3 gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {/* Hamburger Menu for Mobile */}
@@ -671,7 +671,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
           />
 
           {/* Drawer */}
-          <div className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
+          <div className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto safe-area-top safe-area-left">
             {/* Drawer Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
