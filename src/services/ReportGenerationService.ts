@@ -359,7 +359,7 @@ export interface ReportData {
   categories?: CategoryWithScores[];
   scores?: JudgeScoreForReport[];
   winners?: ContestantScore[];
-  statistics?: SystemStatistics | JudgeStatistics;
+  statistics?: SystemStatistics | JudgeStatistics | Record<string, string | number>;
   metadata?: {
     generatedAt: string;
     generatedBy?: string;
@@ -603,10 +603,44 @@ export class ReportGenerationService extends BaseService {
         })
       );
 
+      const totalCategories = contestsWithWinners.reduce(
+        (sum, contest) => sum + (Array.isArray(contest.categories) ? contest.categories.length : 0),
+        0
+      );
+      const totalScores = contestsWithWinners.reduce(
+        (sum, contest) => sum + (Array.isArray(contest.categories)
+          ? contest.categories.reduce((categorySum, category) => categorySum + (Array.isArray(category.scores) ? category.scores.length : 0), 0)
+          : 0),
+        0
+      );
+      const uniqueContestants = new Set<string>();
+      contestsWithWinners.forEach((contest) => {
+        if (!Array.isArray(contest.categories)) return;
+        contest.categories.forEach((category) => {
+          if (!Array.isArray(category.scores)) return;
+          category.scores.forEach((score) => {
+            if (score.contestantId) {
+              uniqueContestants.add(score.contestantId);
+            }
+          });
+        });
+      });
+      const winnersCount = contestsWithWinners.reduce(
+        (sum, contest) => sum + (Array.isArray(contest.winners) ? contest.winners.length : 0),
+        0
+      );
+
       return {
         event: {
           ...event,
           contests: contestsWithWinners
+        },
+        statistics: {
+          totalContests: contestsWithWinners.length,
+          totalCategories,
+          totalScores,
+          uniqueContestants: uniqueContestants.size,
+          totalWinners: winnersCount,
         },
         metadata: {
           generatedAt: new Date().toISOString(),

@@ -25,6 +25,17 @@ interface EmailTemplateOption {
   body: string
 }
 
+const BULK_EMAIL_ROLE_OPTIONS = [
+  'ADMIN',
+  'AUDITOR',
+  'BOARD',
+  'CONTESTANT',
+  'EMCEE',
+  'JUDGE',
+  'ORGANIZER',
+  'TALLY_MASTER',
+]
+
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
   const location = useLocation()
@@ -38,7 +49,6 @@ const BulkOperationsPage: React.FC = () => {
   }, [isSendEmailRoute, location.search])
   const [activeTab, setActiveTab] = useState<'import' | 'email'>(desiredTab)
   const [file, setFile] = useState<File | null>(null)
-  const [userType, setUserType] = useState<'JUDGE' | 'CONTESTANT'>('CONTESTANT')
   const [recipientMode, setRecipientMode] = useState<'roles' | 'manual'>('roles')
   const [emailData, setEmailData] = useState({
     roles: [] as string[],
@@ -90,6 +100,7 @@ const BulkOperationsPage: React.FC = () => {
             subject: String(row.subject || ''),
             body: String(row.body || row.textBody || row.htmlBody || ''),
           }))
+          .sort((a, b) => a.name.localeCompare(b.name))
         setEmailTemplates(normalizedTemplates)
       } catch {
         setEmailTemplates([])
@@ -242,12 +253,12 @@ const BulkOperationsPage: React.FC = () => {
 
   const downloadTemplate = async () => {
     try {
-      const response = await usersAPI.getCSVTemplate(userType)
+      const response = await usersAPI.getCSVTemplate('UNIVERSAL')
       const blob = new Blob([response.data], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${userType.toLowerCase()}_import_template.csv`
+      a.download = 'users_import_template.csv'
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -326,20 +337,6 @@ const BulkOperationsPage: React.FC = () => {
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
-                  User Type
-                </label>
-                <select
-                  value={userType}
-                  onChange={(e) => setUserType(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
-                >
-                  <option value="CONTESTANT">Contestants</option>
-                  <option value="JUDGE">Judges</option>
-                </select>
-              </div>
-
-              <div>
                 <button
                   onClick={downloadTemplate}
                   className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
@@ -372,7 +369,7 @@ const BulkOperationsPage: React.FC = () => {
 
               <div className="p-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> Download the template for your selected user type. The file must include the header row and `role` column.
+                  <strong>Note:</strong> The template supports mixed roles in a single file. The CSV must include the header row and `role` column.
                   Comment lines that start with `#` are allowed.
                 </p>
               </div>
@@ -441,7 +438,7 @@ const BulkOperationsPage: React.FC = () => {
                     Select Recipient Roles
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].map((role) => (
+                    {BULK_EMAIL_ROLE_OPTIONS.map((role) => (
                       <label key={role} className="flex items-center gap-2">
                         <input
                           type="checkbox"

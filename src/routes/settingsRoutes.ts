@@ -39,7 +39,7 @@ import {
   updateScoringWorkflowAlertSettings,
   getScoringWorkflowAlertCandidates
 } from '../controllers/settingsController';
-import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth';
+import { authenticateToken, optionalAuth, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
 import { resolveRequestTenantId } from '../utils/tenantContext';
@@ -126,6 +126,8 @@ router.get('/backup/google-drive/oauth/callback', completeGoogleDriveOAuth)
 
 // Protected routes (require authentication)
 router.use(authenticateToken)
+const requireSettingsRead = requirePermission('settings:read')
+const requireSettingsWrite = requirePermission('settings:write')
 
 /**
  * @swagger
@@ -153,52 +155,54 @@ router.use(authenticateToken)
  *       200:
  *         description: Settings updated successfully
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getAllSettings)
-router.get('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSettings)
-router.put('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
-router.put('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
-router.post('/test/:type', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), testSettings)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getAllSettings)
+router.get('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getSettings)
+router.put('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
+router.put('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_SETTINGS', 'SETTINGS'), updateSettings)
+router.post('/test/:type', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, testSettings)
 
 // Logging settings
-router.get('/logging-levels', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getLoggingLevels)
-router.put('/logging-levels', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_LOGGING_LEVEL', 'SETTINGS'), updateLoggingLevel)
+router.get('/logging-levels', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getLoggingLevels)
+router.put('/logging-levels', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_LOGGING_LEVEL', 'SETTINGS'), updateLoggingLevel)
 
 // General settings
-router.get('/general', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getGeneralSettings)
+router.get('/general', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getGeneralSettings)
 
 // Security settings
-router.get('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSecuritySettings)
-router.put('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SECURITY_SETTINGS', 'SETTINGS'), updateSecuritySettings)
+router.get('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getSecuritySettings)
+router.put('/security', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_SECURITY_SETTINGS', 'SETTINGS'), updateSecuritySettings)
 
 // Backup settings
-router.get('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getBackupSettings)
-router.put('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_BACKUP_SETTINGS', 'SETTINGS'), updateBackupSettings)
-router.post('/backup/google-drive/oauth/start', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), startGoogleDriveOAuth)
-router.get('/backup/google-drive/oauth/status', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getGoogleDriveOAuthStatus)
-router.post('/backup/google-drive/oauth/disconnect', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), disconnectGoogleDriveOAuth)
-router.post('/backup/gcs/service-account', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), uploadGcsServiceAccount)
+router.get('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getBackupSettings)
+router.put('/backup', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_BACKUP_SETTINGS', 'SETTINGS'), updateBackupSettings)
+router.post('/backup/google-drive/oauth/start', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, startGoogleDriveOAuth)
+router.get('/backup/google-drive/oauth/status', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getGoogleDriveOAuthStatus)
+router.post('/backup/google-drive/oauth/disconnect', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, disconnectGoogleDriveOAuth)
+router.post('/backup/gcs/service-account', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, uploadGcsServiceAccount)
 
 // Email settings
-router.get('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getEmailSettings)
-router.put('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EMAIL_SETTINGS', 'SETTINGS'), updateEmailSettings)
+router.get('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getEmailSettings)
+router.put('/email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_EMAIL_SETTINGS', 'SETTINGS'), updateEmailSettings)
 
 // Password policy (update requires auth)
-router.put('/password-policy', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_PASSWORD_POLICY', 'SETTINGS'), updatePasswordPolicy)
+router.put('/password-policy', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_PASSWORD_POLICY', 'SETTINGS'), updatePasswordPolicy)
 
 // JWT configuration routes
-router.get('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getJWTConfig)
-router.put('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_JWT_CONFIG', 'SETTINGS'), updateJWTConfig)
+router.get('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getJWTConfig)
+router.put('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_JWT_CONFIG', 'SETTINGS'), updateJWTConfig)
 
 // Theme configuration routes - GET is public (for login page), PUT requires auth
-router.put('/theme', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_THEME_SETTINGS', 'SETTINGS'), updateThemeSettings)
+router.put('/theme', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_THEME_SETTINGS', 'SETTINGS'), updateThemeSettings)
 router.post('/theme/logo', 
   requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
+  requireSettingsWrite,
   themeUpload.single('logo'),
   logActivity('UPLOAD_THEME_LOGO', 'SETTINGS'), 
   uploadThemeLogo
 )
 router.post('/theme/favicon', 
   requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
+  requireSettingsWrite,
   themeUpload.single('favicon'),
   logActivity('UPLOAD_THEME_FAVICON', 'SETTINGS'), 
   uploadThemeFavicon
@@ -207,17 +211,17 @@ router.post('/theme/favicon',
 // Contestant visibility settings
 // Allow contestants to read, but only ADMIN/ORGANIZER can update
 router.get('/contestant-visibility', getContestantVisibilitySettings)
-router.put('/contestant-visibility', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_CONTESTANT_VISIBILITY_SETTINGS', 'SETTINGS'), updateContestantVisibilitySettings)
+router.put('/contestant-visibility', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireSettingsWrite, logActivity('UPDATE_CONTESTANT_VISIBILITY_SETTINGS', 'SETTINGS'), updateContestantVisibilitySettings)
 
 // Alert settings
-router.get('/alerts/system-health', requireRole(['SUPER_ADMIN']), getSystemHealthAlertSettings)
-router.put('/alerts/system-health', requireRole(['SUPER_ADMIN']), logActivity('UPDATE_SYSTEM_HEALTH_ALERT_SETTINGS', 'SETTINGS'), updateSystemHealthAlertSettings)
-router.get('/alerts/scoring-workflow', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getScoringWorkflowAlertSettings)
-router.put('/alerts/scoring-workflow', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SCORING_WORKFLOW_ALERT_SETTINGS', 'SETTINGS'), updateScoringWorkflowAlertSettings)
-router.get('/alerts/scoring-workflow/candidates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getScoringWorkflowAlertCandidates)
+router.get('/alerts/system-health', requireRole(['SUPER_ADMIN']), requireSettingsRead, getSystemHealthAlertSettings)
+router.put('/alerts/system-health', requireRole(['SUPER_ADMIN']), requireSettingsWrite, logActivity('UPDATE_SYSTEM_HEALTH_ALERT_SETTINGS', 'SETTINGS'), updateSystemHealthAlertSettings)
+router.get('/alerts/scoring-workflow', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getScoringWorkflowAlertSettings)
+router.put('/alerts/scoring-workflow', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_SCORING_WORKFLOW_ALERT_SETTINGS', 'SETTINGS'), updateScoringWorkflowAlertSettings)
+router.get('/alerts/scoring-workflow/candidates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getScoringWorkflowAlertCandidates)
 
 // Database connection info (read-only, masked)
-router.get('/database-connection-info', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getDatabaseConnectionInfo)
+router.get('/database-connection-info', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getDatabaseConnectionInfo)
 
 const isSuperAdmin = (req: express.Request): boolean =>
   String(req.user?.role || '').trim().toUpperCase() === 'SUPER_ADMIN';
@@ -243,7 +247,7 @@ const toFieldConfigRows = (settings: Record<string, any>): Array<{
   }));
 
 // Field configuration routes (tenant-scoped via system settings)
-router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireSettingsRead, async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const tenantId = resolveFieldConfigTenantScope(req);
     const settings = await userFieldVisibilityService.getFieldVisibilitySettings(tenantId);
@@ -260,7 +264,7 @@ router.get('/field-configurations', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANI
   }
 });
 
-router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireSettingsRead, async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const fieldName = String(req.params['fieldName'] || '').trim();
     if (!fieldName) {
@@ -297,7 +301,7 @@ router.get('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
   }
 });
 
-router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireSettingsWrite, logActivity('UPDATE_FIELD_CONFIGURATION', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const fieldName = String(req.params['fieldName'] || '').trim();
     if (!fieldName) {
@@ -339,7 +343,7 @@ router.put('/field-configurations/:fieldName', requireRole(['SUPER_ADMIN', 'ADMI
   }
 });
 
-router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('UPDATE_FIELD_CONFIGURATIONS_BULK', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireSettingsWrite, logActivity('UPDATE_FIELD_CONFIGURATIONS_BULK', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const { configurations } = req.body;
 
@@ -386,7 +390,7 @@ router.put('/field-configurations/bulk', requireRole(['SUPER_ADMIN', 'ADMIN', 'O
   }
 });
 
-router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.post('/field-configurations/reset', requireRole(['SUPER_ADMIN', 'ADMIN']), requireSettingsWrite, logActivity('RESET_FIELD_CONFIGURATIONS', 'SETTINGS'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
     const tenantId = resolveFieldConfigTenantScope(req);
     const result = await userFieldVisibilityService.resetFieldVisibility(tenantId);

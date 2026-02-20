@@ -517,7 +517,7 @@
     max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    @apply bg-background rounded-t-2xl sm:rounded-lg border shadow-lg;
+    @apply bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg;
   }
 
   /* Swipe Gesture Helpers */

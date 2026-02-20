@@ -39,7 +39,9 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   // Check role authorization if required
   if (requiredRole) {
     const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
-    const permissionSet = permissionSetFromList(permissionsPayload?.permissions || [])
+    const permissionSet = permissionsPayload
+      ? permissionSetFromList(permissionsPayload.permissions || [])
+      : null
     const policy = getPagePolicyByPath(location.pathname)
     const hasPolicyAccess = canAccessPageByPolicy(policy, user.role, permissionSet)
     const hasRequiredRole = allowedRoles.includes(user.role) || hasPolicyAccess

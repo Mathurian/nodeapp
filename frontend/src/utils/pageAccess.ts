@@ -2,6 +2,13 @@ import { PAGE_ACCESS_BY_ID, PAGE_ACCESS_BY_PATH, type PageAccessPolicy } from '.
 import { isKnownRoute } from './routeSegments'
 
 const normalizeRole = (role: string | undefined | null) => String(role || '').trim().toUpperCase()
+const isPlatformAdminRole = (normalizedRole: string): boolean =>
+  normalizedRole === 'SUPER_ADMIN' || normalizedRole === 'ADMIN'
+const isAdminPlaneRole = (normalizedRole: string): boolean =>
+  normalizedRole === 'SUPER_ADMIN' ||
+  normalizedRole === 'ADMIN' ||
+  normalizedRole === 'ORGANIZER' ||
+  normalizedRole === 'BOARD'
 
 const normalizePath = (path: string): string => {
   const [withoutQuery] = path.split('?')
@@ -63,6 +70,19 @@ export const canAccessPageByPolicy = (
   const normalizedRole = normalizeRole(role)
   const hasBaseRole = policy.baseRoles.includes(normalizedRole)
   if (policy.hardProtected) return hasBaseRole
+
+  const hasPermissionContext = Boolean(permissionSet && permissionSet.size > 0)
+  if (policy.allowCrudReadOverride && policy.resource && hasPermissionContext && isAdminPlaneRole(normalizedRole)) {
+    const hasResourceAccess = candidateResources(policy.resource)
+      .some((resource) => hasResourceReadPermission(permissionSet!, resource))
+
+    if (isPlatformAdminRole(normalizedRole)) {
+      return hasBaseRole || hasResourceAccess
+    }
+
+    return hasResourceAccess
+  }
+
   if (hasBaseRole) return true
   if (!policy.allowCrudReadOverride || !policy.resource || !permissionSet) return false
   return candidateResources(policy.resource).some((resource) => hasResourceReadPermission(permissionSet, resource))

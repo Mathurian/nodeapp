@@ -59,6 +59,24 @@ const RESOURCE_DESCRIPTIONS: Record<string, string> = {
   '*': 'Global wildcard permission',
 }
 
+const OPERATION_SORT_ORDER = ['*', 'read', 'create', 'update', 'delete', 'write']
+
+const sortOperations = (operations: string[]): string[] => {
+  return [...operations].sort((a, b) => {
+    const indexA = OPERATION_SORT_ORDER.indexOf(a)
+    const indexB = OPERATION_SORT_ORDER.indexOf(b)
+    if (indexA >= 0 && indexB >= 0) return indexA - indexB
+    if (indexA >= 0) return -1
+    if (indexB >= 0) return 1
+    return a.localeCompare(b)
+  })
+}
+
+const defaultOperationsForResource = (resource: string): string[] => {
+  if (resource === '*') return ['*']
+  return ['read', 'create', 'update', 'delete', 'write']
+}
+
 const describePermission = (resource: string, operation: string): string => {
   const mapped = RESOURCE_DESCRIPTIONS[resource]
   if (mapped) return mapped
@@ -143,20 +161,22 @@ const PermissionsPage: React.FC = () => {
   }, [permissions]);
 
   // Get unique resources and operations
-  const { resources, operations } = useMemo(() => {
-    if (!permissions) return { resources: new Set<string>(), operations: new Set<string>() };
+  const { resources, operationsByResource } = useMemo(() => {
+    if (!permissions) return { resources: new Set<string>(), operationsByResource: new Map<string, Set<string>>() };
 
     const resourcesSet = new Set<string>();
-    const operationsSet = new Set<string>();
+    const operationsMap = new Map<string, Set<string>>();
 
     permissions.forEach((perm) => {
       resourcesSet.add(perm.resource);
-      operationsSet.add(perm.operation);
+      const operations = operationsMap.get(perm.resource) || new Set<string>()
+      operations.add(perm.operation)
+      operationsMap.set(perm.resource, operations)
     });
 
     return {
       resources: resourcesSet,
-      operations: operationsSet,
+      operationsByResource: operationsMap,
     };
   }, [permissions]);
 
@@ -372,9 +392,11 @@ const PermissionsPage: React.FC = () => {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredResources.map((resource) => {
-                  const resourceOperations = Array.from(operations).filter((op) =>
-                    permissions?.some((p) => p.resource === resource && p.operation === op)
-                  );
+                  const operationSet = new Set<string>([
+                    ...defaultOperationsForResource(resource),
+                    ...(Array.from(operationsByResource.get(resource) || []))
+                  ])
+                  const resourceOperations = sortOperations(Array.from(operationSet))
 
                   return resourceOperations.map((operation, opIndex) => (
                     <tr

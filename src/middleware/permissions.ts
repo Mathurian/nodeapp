@@ -8,48 +8,20 @@
 
 import { container } from 'tsyringe';
 import { DynamicPermissionService } from '../services/DynamicPermissionService';
+import { DEFAULT_ROLE_PERMISSIONS } from '../config/defaultPermissions';
 
-// Hardcoded permission matrix for role-based access control (Fallback)
-const PERMISSIONS = {
-  SUPER_ADMIN: ["*"], // All permissions - SUPER_ADMIN has unrestricted access to EVERYTHING
-  ADMIN: ["*"], // All permissions - ADMIN has access to EVERYTHING
-  ORGANIZER: [
-    "events:*", "contests:*", "categories:*", "users:*", "reports:*",
-    "templates:*", "settings:*", "backup:*", "emcee:*", "category-types:*",
-    "assignments:*", "results:*", "contestants:*", "criteria:*", "approvals:*",
-    "tracker:*", "scores:read", "commentary:read", "profile:read"
-  ],
-  BOARD: [
-    "events:*", "contests:*", "categories:*", "results:*", "reports:*", "approvals:*",
-    "users:*", "settings:*", "emcee:*", "category-types:*",
-    "assignments:*", "scores:read", "contestants:*", "criteria:*", "tracker:*",
-    "commentary:read", "profile:read"
-  ],
-  JUDGE: [
-    "scores:write", "scores:read", "results:read", "commentary:write",
-    "events:read", "contests:read", "categories:read"
-  ],
-  CONTESTANT: [
-    "events:read", "contests:read", "categories:read", "results:read",
-    "scores:read", "commentary:read", "profile:read", "profile:write"
-  ],
-  EMCEE: [
-    "events:read", "contests:read", "categories:read", "results:read",
-    "scores:read", "announcements:write"
-  ],
-  TALLY_MASTER: [
-    "scores:*", "results:*", "events:read", "contests:read", "categories:read",
-    "reports:read", "tracker:*", "certifications:write"
-  ],
-  AUDITOR: [
-    "events:read", "contests:read", "categories:read", "results:read",
-    "scores:read", "reports:read", "activity-logs:read", "audit-logs:read", "tracker:*",
-    "approvals:write", "certifications:write"
-  ]
-}
+const PERMISSIONS = DEFAULT_ROLE_PERMISSIONS;
 
-// Feature flag - set to true to enable dynamic permissions
-const ENABLE_DYNAMIC_PERMISSIONS = process.env['ENABLE_DYNAMIC_PERMISSIONS'] === 'true';
+const parseBooleanEnv = (value: string | undefined, defaultValue: boolean): boolean => {
+  if (value == null) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return defaultValue;
+};
+
+// Dynamic permissions are enabled by default and can be explicitly disabled with ENABLE_DYNAMIC_PERMISSIONS=false.
+const ENABLE_DYNAMIC_PERMISSIONS = parseBooleanEnv(process.env['ENABLE_DYNAMIC_PERMISSIONS'], true);
 
 /**
  * Get permissions from either dynamic system or hardcoded fallback

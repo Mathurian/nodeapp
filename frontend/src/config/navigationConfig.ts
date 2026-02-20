@@ -47,7 +47,7 @@ export const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTEST
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
 export const ADMIN_ONLY_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
-export const NAV_SECTIONS: AppNavSection[] = [
+const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
   {
     id: 'navigation',
     name: 'Navigation',
@@ -157,3 +157,11 @@ export const NAV_SECTIONS: AppNavSection[] = [
     ],
   },
 ]
+
+const sortItemsByName = (items: AppNavItem[]): AppNavItem[] =>
+  [...items].sort((a, b) => a.name.localeCompare(b.name))
+
+export const NAV_SECTIONS: AppNavSection[] = NAV_SECTIONS_UNSORTED.map((section) => ({
+  ...section,
+  items: sortItemsByName(section.items),
+}))

@@ -64,8 +64,8 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
 
     it('should load from database if cache miss', async () => {
       const mockPerms = [
-        { resource: 'events', operation: 'read' },
-        { resource: 'scores', operation: 'write' }
+        { resource: 'events', operation: 'read', allowed: false },
+        { resource: 'profile', operation: 'write', allowed: true }
       ];
 
       mockCacheService.get.mockResolvedValue(null);
@@ -73,16 +73,19 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
 
       const result = await service.getPermissions(mockRole, mockTenantId);
 
-      expect(result).toEqual(['events:read', 'scores:write']);
+      expect(result).not.toContain('events:read');
+      expect(result).toContain('profile:write');
+      expect(result).toContain('scores:write');
       expect(mockPrisma.rolePermission.findMany).toHaveBeenCalledWith({
-        where: { role: mockRole, tenantId: mockTenantId, allowed: true },
-        select: { resource: true, operation: true }
+        where: { role: mockRole, tenantId: mockTenantId },
+        select: { resource: true, operation: true, allowed: true }
       });
     });
 
     it('should cache loaded permissions', async () => {
       const mockPerms = [
-        { resource: 'events', operation: 'read' }
+        { resource: 'events', operation: 'read', allowed: false },
+        { resource: 'profile', operation: 'write', allowed: true }
       ];
 
       mockCacheService.get.mockResolvedValue(null);
@@ -90,16 +93,21 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
 
       await service.getPermissions(mockRole, mockTenantId);
 
+      const cacheCall = mockCacheService.set.mock.calls[0];
+      expect(cacheCall[0]).toBe(`permissions:${mockTenantId}:${mockRole}`);
+      const cachedPermissions = JSON.parse(String(cacheCall[1]));
+      expect(cachedPermissions).not.toContain('events:read');
+      expect(cachedPermissions).toContain('profile:write');
       expect(mockCacheService.set).toHaveBeenCalledWith(
-        `permissions:${mockTenantId}:${mockRole}`,
-        JSON.stringify(['events:read']),
-        300 // TTL
+        expect.any(String),
+        expect.any(String),
+        300
       );
     });
 
     it('should handle wildcard operations', async () => {
       const mockPerms = [
-        { resource: 'events', operation: '*' }
+        { resource: 'events', operation: '*', allowed: true }
       ];
 
       mockCacheService.get.mockResolvedValue(null);
@@ -107,10 +115,10 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
 
       const result = await service.getPermissions(mockRole, mockTenantId);
 
-      expect(result).toEqual(['events:*']);
+      expect(result).toContain('events:*');
     });
 
-    it('should only return allowed permissions', async () => {
+    it('should load both allowed and denied overrides', async () => {
       mockCacheService.get.mockResolvedValue(null);
       mockPrisma.rolePermission.findMany.mockResolvedValue([] as any);
 
@@ -118,8 +126,9 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
 
       expect(mockPrisma.rolePermission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ allowed: true })
-        })
+          where: expect.objectContaining({ role: mockRole, tenantId: mockTenantId }),
+          select: expect.objectContaining({ allowed: true })
+        }),
       );
     });
   });
@@ -217,7 +226,7 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
           userRole: 'ADMIN',
           tenantId: mockTenantId
         })
-      ).rejects.toThrow('Only SUPER_ADMIN can grant SUPER_ADMIN permissions');
+      ).rejects.toThrow('Only SUPER_ADMIN can view or modify SUPER_ADMIN permissions');
     });
 
     it('should create audit log when updating permission', async () => {
@@ -500,7 +509,8 @@ describe('DynamicPermissionService - Dynamic Permissions Tests', () => {
 
       const result = await service.getPermissions(mockRole, mockTenantId);
 
-      expect(result).toEqual([]);
+      expect(result).toContain('scores:read');
+      expect(result).toContain('events:read');
     });
 
     it('should handle concurrent permission checks', async () => {

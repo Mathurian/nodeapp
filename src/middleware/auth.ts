@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '@prisma/client';
-import { isAdmin, hasPermission } from './permissions';
+import { isAdmin, hasPermissionAsync } from './permissions';
 import { jwtSecret } from '../utils/config';
 import prisma from '../config/database';
 import { userCache } from '../utils/cache';
@@ -618,30 +618,47 @@ const requireRole = (roles: string[]): ((req: Request, res: Response, next: Next
 };
 
 // Enhanced permission check using the permissions matrix
-const requirePermission = (action: string): ((req: Request, res: Response, next: NextFunction) => void) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
+const requirePermission = (action: string): ((req: Request, res: Response, next: NextFunction) => Promise<void>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
 
-    // SUPER_ADMIN and ADMIN have all permissions
-    if (isAdmin(req.user.role)) {
+      // SUPER_ADMIN and ADMIN have all permissions
+      if (isAdmin(req.user.role)) {
+        next();
+        return;
+      }
+
+      const tenantId = (req as any).tenantId || req.user.tenantId;
+      const allowed = await hasPermissionAsync(req.user.role, action, tenantId);
+
+      if (!allowed) {
+        res.status(403).json({
+          success: false,
+          error: 'Insufficient permissions',
+          required: action,
+          userRole: req.user.role
+        });
+        return;
+      }
+
       next();
-      return;
-    }
-
-    if (!hasPermission(req.user.role, action)) {
-      res.status(403).json({
+    } catch (error) {
+      logger.error('requirePermission check failed', {
+        action,
+        userId: req.user?.id,
+        role: req.user?.role,
+        error,
+      });
+      res.status(500).json({
         success: false,
-        error: 'Insufficient permissions',
-        required: action,
-        userRole: req.user.role
+        error: 'Permission check failed',
       });
       return;
     }
-
-    next();
   };
 };
 

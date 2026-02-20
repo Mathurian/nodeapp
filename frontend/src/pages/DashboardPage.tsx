@@ -214,6 +214,7 @@ const DashboardPage: React.FC = () => {
       ADMIN: [
         { label: 'System Admin', href: '/admin', icon: UsersIcon, color: 'blue' },
         { label: 'Events', href: '/events', icon: CalendarIcon, color: 'green' },
+        { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'indigo' },
         { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
         { label: 'Settings', href: '/settings', icon: UsersIcon, color: 'orange' },
         { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
@@ -246,6 +247,7 @@ const DashboardPage: React.FC = () => {
       green: 'bg-green-50 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-800',
       purple: 'bg-purple-50 dark:bg-purple-900 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-800',
       orange: 'bg-orange-50 dark:bg-orange-900 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-800',
+      indigo: 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-800',
     }
     return colors[color as keyof typeof colors] || colors.blue
   }

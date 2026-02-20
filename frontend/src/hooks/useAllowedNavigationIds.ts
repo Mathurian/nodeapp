@@ -11,7 +11,7 @@ import { canAccessNavItem } from '../utils/pageAccess'
 export const useAllowedNavigationIds = () => {
   const { user } = useAuth()
   const { data } = useAuthPermissions({ enabled: Boolean(user) })
-  const permissions = data?.permissions || []
+  const permissions = data?.permissions
 
   return useMemo(() => {
     if (!user?.role) return null

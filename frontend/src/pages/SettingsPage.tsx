@@ -248,7 +248,9 @@ const SettingsPage: React.FC = () => {
       const response = await api.get('/tenants')
       const data = response.data
       const tenantsArray = data.tenants || data.data || data
-      return Array.isArray(tenantsArray) ? tenantsArray : []
+      return Array.isArray(tenantsArray)
+        ? [...tenantsArray].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
     },
     {
       enabled: isSuperAdmin,
@@ -402,6 +404,8 @@ const SettingsPage: React.FC = () => {
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'BOARD'
+  const canManageBackupSettings = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER'
+  const canManageBackupSchedules = isSuperAdmin
 
   // Refetch settings when global/tenant mode or selected tenant changes
   useEffect(() => {
@@ -560,7 +564,7 @@ const SettingsPage: React.FC = () => {
       return response.data.data || response.data
     },
     {
-      enabled: isSuperAdmin,
+      enabled: canManageBackupSettings,
       onSuccess: (data) => {
         if (!data) return
         setBackupFormData({
@@ -603,7 +607,7 @@ const SettingsPage: React.FC = () => {
       return response.data?.data || response.data
     },
     {
-      enabled: isSuperAdmin,
+      enabled: canManageBackupSchedules,
       onSuccess: (data) => {
         const incoming = Array.isArray(data?.settings) ? data.settings : []
         const byKey = new Map<string, any>(incoming.map((s: any) => [
@@ -635,7 +639,7 @@ const SettingsPage: React.FC = () => {
       return response.data?.data || response.data
     },
     {
-      enabled: isSuperAdmin,
+      enabled: canManageBackupSettings,
       onSuccess: (data) => {
         setGoogleBackupOauthStatus({
           connected: Boolean(data?.connected),
@@ -1329,7 +1333,7 @@ const SettingsPage: React.FC = () => {
     securityLoading ||
     contestantVisibilityLoading ||
     passwordPolicyLoading ||
-    (isSuperAdmin && backupSettingsLoading) ||
+    (canManageBackupSettings && backupSettingsLoading) ||
     databaseInfoLoading ||
     (isSuperAdmin && systemHealthAlertLoading) ||
     scoringWorkflowAlertLoading ||
@@ -1658,8 +1662,8 @@ const SettingsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Backup & Off-site Replication (SUPER_ADMIN) */}
-            {isSuperAdmin && (
+            {/* Backup & Off-site Replication */}
+            {canManageBackupSettings && (
               <div className="cgr-surface overflow-hidden rounded-lg">
                 <button
                   onClick={() => toggleSection('backup')}
@@ -1775,143 +1779,149 @@ const SettingsPage: React.FC = () => {
                       Off-site retention is managed by your remote provider lifecycle/policies (or separate off-site cleanup automation), not by these local retention fields.
                     </div>
 
-                    <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Backup Frequency</h3>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {backupSchedulesLoading ? 'Loading…' : 'Applies to scheduled backups'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Configure when automatic backups run for each backup type. Changes are picked up automatically (about 1 minute).
-                      </p>
-                      <p className="text-xs text-amber-700 dark:text-amber-300">
-                        LOCAL schedules create on-site backups. REMOTE schedules run backup and replicate to configured off-site targets.
-                        Enable both for full local + remote coverage.
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Show rows</label>
-                          <select
-                            value={backupScheduleScopeFilter}
-                            onChange={(e) => setBackupScheduleScopeFilter(e.target.value as 'ALL' | 'LOCAL' | 'REMOTE')}
-                            className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          >
-                            <option value="ALL">All schedules</option>
-                            <option value="LOCAL">Local schedules only</option>
-                            <option value="REMOTE">Remote schedules only</option>
-                          </select>
+                    {canManageBackupSchedules ? (
+                      <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Backup Frequency</h3>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {backupSchedulesLoading ? 'Loading…' : 'Applies to scheduled backups'}
+                          </span>
                         </div>
-                        <label className="flex items-end gap-2 pb-2">
-                          <input
-                            type="checkbox"
-                            checked={backupScheduleEnabledOnly}
-                            onChange={(e) => setBackupScheduleEnabledOnly(e.target.checked)}
-                            className="h-4 w-4"
-                          />
-                          <span className="text-xs text-gray-700 dark:text-gray-300">Show enabled only</span>
-                        </label>
-                      </div>
-                      <div className="space-y-3">
-                        {visibleBackupSchedules.map(({ row, idx }) => (
-                          <div key={`${row.backupType}-${row.deliveryMode}`} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border border-gray-100 dark:border-gray-800 rounded-md p-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
-                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.backupType}</div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
-                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.deliveryMode}</div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
-                              <input
-                                disabled={backupSectionReadOnly}
-                                type="checkbox"
-                                checked={row.enabled}
-                                onChange={(e) => {
-                                  const next = [...backupSchedules]
-                                  next[idx] = { ...row, enabled: e.target.checked }
-                                  setBackupSchedules(next)
-                                }}
-                                className="h-4 w-4"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
-                              <select
-                                disabled={backupSectionReadOnly}
-                                value={row.frequency}
-                                onChange={(e) => {
-                                  const next = [...backupSchedules]
-                                  next[idx] = { ...row, frequency: e.target.value as BackupSchedule['frequency'] }
-                                  setBackupSchedules(next)
-                                }}
-                                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="MINUTES">Every N minutes</option>
-                                <option value="HOURS">Every N hours</option>
-                                <option value="DAILY">Daily at hour (0-23)</option>
-                                <option value="WEEKLY">Weekly at hour (0-23, Sunday)</option>
-                                <option value="MONTHLY">Monthly at hour (0-23, day 1)</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                {row.frequency === 'MINUTES' ? 'Minutes interval' :
-                                  row.frequency === 'HOURS' ? 'Hours interval' : 'Hour of day (0-23)'}
-                              </label>
-                              <input
-                                disabled={backupSectionReadOnly}
-                                type="number"
-                                min={row.frequency === 'MINUTES' ? 1 : row.frequency === 'HOURS' ? 1 : 0}
-                                max={row.frequency === 'MINUTES' ? 1440 : row.frequency === 'HOURS' ? 24 : 23}
-                                value={row.frequencyValue ?? ''}
-                                onChange={(e) => {
-                                  const next = [...backupSchedules]
-                                  next[idx] = { ...row, frequencyValue: e.target.value === '' ? null : Number(e.target.value) }
-                                  setBackupSchedules(next)
-                                }}
-                                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
-                              <input
-                                disabled={backupSectionReadOnly || row.deliveryMode === 'REMOTE'}
-                                type="number"
-                                min={1}
-                                value={row.retentionDays}
-                                onChange={(e) => {
-                                  const next = [...backupSchedules]
-                                  next[idx] = { ...row, retentionDays: Number(e.target.value || 1) }
-                                  setBackupSchedules(next)
-                                }}
-                                className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                              />
-                              {row.deliveryMode === 'REMOTE' && (
-                                <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Provider policy controls remote retention.</p>
-                              )}
-                            </div>
-                            <div className="md:col-span-6">
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatNextRunPreview(row)}
-                              </p>
-                            </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Configure when automatic backups run for each backup type. Changes are picked up automatically (about 1 minute).
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          LOCAL schedules create on-site backups. REMOTE schedules run backup and replicate to configured off-site targets.
+                          Enable both for full local + remote coverage.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Show rows</label>
+                            <select
+                              value={backupScheduleScopeFilter}
+                              onChange={(e) => setBackupScheduleScopeFilter(e.target.value as 'ALL' | 'LOCAL' | 'REMOTE')}
+                              className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                              <option value="ALL">All schedules</option>
+                              <option value="LOCAL">Local schedules only</option>
+                              <option value="REMOTE">Remote schedules only</option>
+                            </select>
                           </div>
-                        ))}
+                          <label className="flex items-end gap-2 pb-2">
+                            <input
+                              type="checkbox"
+                              checked={backupScheduleEnabledOnly}
+                              onChange={(e) => setBackupScheduleEnabledOnly(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <span className="text-xs text-gray-700 dark:text-gray-300">Show enabled only</span>
+                          </label>
+                        </div>
+                        <div className="space-y-3">
+                          {visibleBackupSchedules.map(({ row, idx }) => (
+                            <div key={`${row.backupType}-${row.deliveryMode}`} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border border-gray-100 dark:border-gray-800 rounded-md p-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.backupType}</div>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.deliveryMode}</div>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
+                                <input
+                                  disabled={backupSectionReadOnly}
+                                  type="checkbox"
+                                  checked={row.enabled}
+                                  onChange={(e) => {
+                                    const next = [...backupSchedules]
+                                    next[idx] = { ...row, enabled: e.target.checked }
+                                    setBackupSchedules(next)
+                                  }}
+                                  className="h-4 w-4"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
+                                <select
+                                  disabled={backupSectionReadOnly}
+                                  value={row.frequency}
+                                  onChange={(e) => {
+                                    const next = [...backupSchedules]
+                                    next[idx] = { ...row, frequency: e.target.value as BackupSchedule['frequency'] }
+                                    setBackupSchedules(next)
+                                  }}
+                                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                  <option value="MINUTES">Every N minutes</option>
+                                  <option value="HOURS">Every N hours</option>
+                                  <option value="DAILY">Daily at hour (0-23)</option>
+                                  <option value="WEEKLY">Weekly at hour (0-23, Sunday)</option>
+                                  <option value="MONTHLY">Monthly at hour (0-23, day 1)</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                  {row.frequency === 'MINUTES' ? 'Minutes interval' :
+                                    row.frequency === 'HOURS' ? 'Hours interval' : 'Hour of day (0-23)'}
+                                </label>
+                                <input
+                                  disabled={backupSectionReadOnly}
+                                  type="number"
+                                  min={row.frequency === 'MINUTES' ? 1 : row.frequency === 'HOURS' ? 1 : 0}
+                                  max={row.frequency === 'MINUTES' ? 1440 : row.frequency === 'HOURS' ? 24 : 23}
+                                  value={row.frequencyValue ?? ''}
+                                  onChange={(e) => {
+                                    const next = [...backupSchedules]
+                                    next[idx] = { ...row, frequencyValue: e.target.value === '' ? null : Number(e.target.value) }
+                                    setBackupSchedules(next)
+                                  }}
+                                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
+                                <input
+                                  disabled={backupSectionReadOnly || row.deliveryMode === 'REMOTE'}
+                                  type="number"
+                                  min={1}
+                                  value={row.retentionDays}
+                                  onChange={(e) => {
+                                    const next = [...backupSchedules]
+                                    next[idx] = { ...row, retentionDays: Number(e.target.value || 1) }
+                                    setBackupSchedules(next)
+                                  }}
+                                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                                {row.deliveryMode === 'REMOTE' && (
+                                  <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Provider policy controls remote retention.</p>
+                                )}
+                              </div>
+                              <div className="md:col-span-6">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatNextRunPreview(row)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => saveBackupSchedulesMutation.mutate(backupSchedules)}
+                            disabled={backupSectionReadOnly || saveBackupSchedulesMutation.isLoading}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
+                          >
+                            {saveBackupSchedulesMutation.isLoading ? 'Saving Schedule...' : 'Save Frequency Schedule'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => saveBackupSchedulesMutation.mutate(backupSchedules)}
-                          disabled={backupSectionReadOnly || saveBackupSchedulesMutation.isLoading}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
-                        >
-                          {saveBackupSchedulesMutation.isLoading ? 'Saving Schedule...' : 'Save Frequency Schedule'}
-                        </button>
+                    ) : (
+                      <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200">
+                        Backup frequency schedules are managed globally by super admins. Tenant admins can still configure backup retention and remote target settings for their tenant scope.
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
                       <div>

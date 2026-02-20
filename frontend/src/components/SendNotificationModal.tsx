@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { Modal } from './Modal'
@@ -39,13 +39,13 @@ interface SendFormData extends SendNotificationFormData {
 
 const ROLES = [
   { value: 'ADMIN', label: 'Admin' },
-  { value: 'ORGANIZER', label: 'Organizer' },
+  { value: 'AUDITOR', label: 'Auditor' },
   { value: 'BOARD', label: 'Board' },
-  { value: 'JUDGE', label: 'Judge' },
   { value: 'CONTESTANT', label: 'Contestant' },
   { value: 'EMCEE', label: 'Emcee' },
+  { value: 'JUDGE', label: 'Judge' },
+  { value: 'ORGANIZER', label: 'Organizer' },
   { value: 'TALLY_MASTER', label: 'Tally Master' },
-  { value: 'AUDITOR', label: 'Auditor' },
 ]
 
 const NOTIFICATION_TYPES: { value: NotificationType; label: string }[] = [
@@ -96,7 +96,10 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
     }
   )
 
-  const tenants = tenantsResponse?.tenants || []
+  const tenants = useMemo(
+    () => [...(tenantsResponse?.tenants || [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [tenantsResponse]
+  )
 
   // Fetch users for the dropdown - filtered by tenant for SUPER_ADMIN
   const { data: usersResponse, isLoading: isLoadingUsers } = useQuery<{ data: User[] }>(
@@ -120,7 +123,15 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
     }
   )
 
-  const users = usersResponse?.data || []
+  const users = useMemo(
+    () =>
+      [...(usersResponse?.data || [])].sort((a, b) => {
+        const byName = a.name.localeCompare(b.name)
+        if (byName !== 0) return byName
+        return a.email.localeCompare(b.email)
+      }),
+    [usersResponse]
+  )
 
   // Send to specific users mutation
   const sendMutation = useMutation(

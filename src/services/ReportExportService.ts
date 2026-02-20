@@ -22,6 +22,20 @@ interface CSVRow {
   value: string | number;
 }
 
+interface ContestSummary {
+  contestName: string;
+  categoryCount: number;
+  scoreCount: number;
+  winnerCount: number;
+}
+
+interface WinnerSummary {
+  contestName?: string;
+  contestantName: string;
+  totalScore: number;
+  totalPossibleScore: number | null;
+}
+
 @injectable()
 export class ReportExportService extends BaseService {
   /**
@@ -83,6 +97,18 @@ export class ReportExportService extends BaseService {
             doc.text(`Description: ${String(reportData.event.description)}`);
           }
           doc.moveDown();
+
+          const contestSummaries = this.getContestSummaries(reportData);
+          if (contestSummaries.length > 0) {
+            doc.fontSize(14).text('Event Summary', { underline: true });
+            doc.fontSize(11);
+            contestSummaries.forEach((summary) => {
+              doc.text(
+                `${summary.contestName}: ${summary.categoryCount} categories, ${summary.scoreCount} scores, ${summary.winnerCount} winners`
+              );
+            });
+            doc.moveDown();
+          }
         }
 
         // Contest Information
@@ -97,14 +123,15 @@ export class ReportExportService extends BaseService {
         }
 
         // Winners/Results
-        if (reportData.winners && reportData.winners.length > 0) {
+        const winnerRows = this.getWinnerSummaries(reportData);
+        if (winnerRows.length > 0) {
           doc.fontSize(16).text('Winners/Results', { underline: true });
           doc.fontSize(12);
 
-          reportData.winners.forEach((winner, index) => {
-            const name = winner.contestant?.name || 'Unknown';
+          winnerRows.forEach((winner, index) => {
+            const contestLabel = winner.contestName ? ` (${winner.contestName})` : '';
             doc.text(
-              `${index + 1}. ${name} - Score: ${winner.totalScore}` +
+              `${index + 1}. ${winner.contestantName}${contestLabel} - Score: ${winner.totalScore}` +
               (winner.totalPossibleScore ? ` / ${winner.totalPossibleScore}` : '')
             );
           });
@@ -112,15 +139,13 @@ export class ReportExportService extends BaseService {
         }
 
         // Statistics
-        if (reportData.statistics) {
+        const statisticsRows = this.getStatisticsRows(reportData);
+        if (statisticsRows.length > 0) {
           doc.fontSize(16).text('Statistics', { underline: true });
           doc.fontSize(12);
 
-          Object.entries(reportData.statistics).forEach(([key, value]) => {
-            if (typeof value !== 'object') {
-              const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-              doc.text(`${label}: ${value}`);
-            }
+          statisticsRows.forEach(({ field, value }) => {
+            doc.text(`${field}: ${value}`);
           });
         }
 
@@ -162,33 +187,45 @@ export class ReportExportService extends BaseService {
         if ('description' in reportData.event && reportData.event.description) {
           worksheet.addRow(['Description:', String(reportData.event.description)]);
         }
+        const contestSummaries = this.getContestSummaries(reportData);
+        if (contestSummaries.length > 0) {
+          worksheet.addRow(['Contest', 'Categories', 'Scores', 'Winners']);
+          contestSummaries.forEach((summary) => {
+            worksheet.addRow([
+              summary.contestName,
+              summary.categoryCount,
+              summary.scoreCount,
+              summary.winnerCount,
+            ]);
+          });
+        }
         worksheet.addRow([]);
       }
 
       // Winners
-      if (reportData.winners && reportData.winners.length > 0) {
+      const winnerRows = this.getWinnerSummaries(reportData);
+      if (winnerRows.length > 0) {
         worksheet.addRow(['Winners/Results']);
-        worksheet.addRow(['Rank', 'Contestant', 'Score', 'Possible Score']);
+        worksheet.addRow(['Rank', 'Contest', 'Contestant', 'Score', 'Possible Score']);
 
-        reportData.winners.forEach((winner, index) => {
+        winnerRows.forEach((winner, index) => {
           worksheet.addRow([
             index + 1,
-            winner.contestant?.name || 'Unknown',
+            winner.contestName || 'N/A',
+            winner.contestantName,
             winner.totalScore,
-            winner.totalPossibleScore || 'N/A'
+            winner.totalPossibleScore || 'N/A',
           ]);
         });
         worksheet.addRow([]);
       }
 
       // Statistics
-      if (reportData.statistics) {
+      const statisticsRows = this.getStatisticsRows(reportData);
+      if (statisticsRows.length > 0) {
         worksheet.addRow(['Statistics']);
-        Object.entries(reportData.statistics).forEach(([key, value]) => {
-          if (typeof value !== 'object') {
-            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-            worksheet.addRow([label, value]);
-          }
+        statisticsRows.forEach(({ field, value }) => {
+          worksheet.addRow([field, value]);
         });
       }
 
@@ -235,31 +272,40 @@ export class ReportExportService extends BaseService {
         if ('description' in reportData.event && reportData.event.description) {
           rows.push({ field: 'Description', value: String(reportData.event.description) });
         }
+        const contestSummaries = this.getContestSummaries(reportData);
+        if (contestSummaries.length > 0) {
+          rows.push({ field: 'Contest Summary', value: 'Contest,Categories,Scores,Winners' });
+          contestSummaries.forEach((summary) => {
+            rows.push({
+              field: summary.contestName,
+              value: `${summary.categoryCount},${summary.scoreCount},${summary.winnerCount}`,
+            });
+          });
+        }
         rows.push({ field: '', value: '' });
       }
 
       // Winners
-      if (reportData.winners && reportData.winners.length > 0) {
+      const winnerRows = this.getWinnerSummaries(reportData);
+      if (winnerRows.length > 0) {
         rows.push({ field: 'Winners/Results', value: '' });
-        rows.push({ field: 'Rank', value: 'Contestant,Score,Possible Score' });
+        rows.push({ field: 'Rank', value: 'Contest,Contestant,Score,Possible Score' });
 
-        reportData.winners.forEach((winner, index) => {
-          const name = winner.contestant?.name || 'Unknown';
+        winnerRows.forEach((winner, index) => {
+          const contestName = winner.contestName || 'N/A';
           const score = winner.totalScore;
           const possible = winner.totalPossibleScore || 'N/A';
-          rows.push({ field: String(index + 1), value: `${name},${score},${possible}` });
+          rows.push({ field: String(index + 1), value: `${contestName},${winner.contestantName},${score},${possible}` });
         });
         rows.push({ field: '', value: '' });
       }
 
       // Statistics
-      if (reportData.statistics) {
+      const statisticsRows = this.getStatisticsRows(reportData);
+      if (statisticsRows.length > 0) {
         rows.push({ field: 'Statistics', value: '' });
-        Object.entries(reportData.statistics).forEach(([key, value]) => {
-          if (typeof value !== 'object') {
-            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-            rows.push({ field: label, value });
-          }
+        statisticsRows.forEach(({ field, value }) => {
+          rows.push({ field, value });
         });
       }
 
@@ -269,6 +315,92 @@ export class ReportExportService extends BaseService {
     } catch (error) {
       this.handleError(error, { method: 'generateCSVBuffer' });
     }
+  }
+
+  private toReadableLabel(key: string): string {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+  }
+
+  private getContestSummaries(reportData: ReportData): ContestSummary[] {
+    const contests = Array.isArray(reportData.event?.contests) ? reportData.event.contests : [];
+    return contests.map((contest: any) => {
+      const categories = Array.isArray(contest?.categories) ? contest.categories : [];
+      const scoreCount = categories.reduce((total: number, category: any) => {
+        const scores = Array.isArray(category?.scores) ? category.scores : [];
+        return total + scores.length;
+      }, 0);
+      const winnerCount = Array.isArray(contest?.winners) ? contest.winners.length : 0;
+
+      return {
+        contestName: String(contest?.name || 'Unnamed Contest'),
+        categoryCount: categories.length,
+        scoreCount,
+        winnerCount,
+      };
+    });
+  }
+
+  private getWinnerSummaries(reportData: ReportData): WinnerSummary[] {
+    if (Array.isArray(reportData.winners) && reportData.winners.length > 0) {
+      return reportData.winners.map((winner) => ({
+        contestantName: winner.contestant?.name || 'Unknown',
+        totalScore: Number(winner.totalScore || 0),
+        totalPossibleScore: winner.totalPossibleScore ?? null,
+      }));
+    }
+
+    const eventContests = Array.isArray(reportData.event?.contests) ? reportData.event.contests : [];
+    const winnerRows: WinnerSummary[] = [];
+    eventContests.forEach((contest: any) => {
+      const winners = Array.isArray(contest?.winners) ? contest.winners : [];
+      winners.forEach((winner: any) => {
+        winnerRows.push({
+          contestName: String(contest?.name || ''),
+          contestantName: String(winner?.contestant?.name || 'Unknown'),
+          totalScore: Number(winner?.totalScore || 0),
+          totalPossibleScore: winner?.totalPossibleScore ?? null,
+        });
+      });
+    });
+
+    return winnerRows.sort((a, b) => b.totalScore - a.totalScore);
+  }
+
+  private getStatisticsRows(reportData: ReportData): CSVRow[] {
+    const rows: CSVRow[] = [];
+    const existingLabels = new Set<string>();
+
+    if (reportData.statistics) {
+      Object.entries(reportData.statistics).forEach(([key, value]) => {
+        if (typeof value === 'object') return;
+        const label = this.toReadableLabel(key);
+        existingLabels.add(label.toLowerCase());
+        rows.push({ field: label, value });
+      });
+    }
+
+    const contestSummaries = this.getContestSummaries(reportData);
+    if (contestSummaries.length > 0) {
+      const totalCategories = contestSummaries.reduce((sum, contest) => sum + contest.categoryCount, 0);
+      const totalScores = contestSummaries.reduce((sum, contest) => sum + contest.scoreCount, 0);
+      const totalWinners = contestSummaries.reduce((sum, contest) => sum + contest.winnerCount, 0);
+
+      const derivedRows: CSVRow[] = [
+        { field: 'Total Contests', value: contestSummaries.length },
+        { field: 'Total Categories', value: totalCategories },
+        { field: 'Total Scores', value: totalScores },
+        { field: 'Total Winners', value: totalWinners },
+      ];
+
+      derivedRows.forEach((row) => {
+        const key = row.field.toLowerCase();
+        if (!existingLabels.has(key)) {
+          rows.push(row);
+        }
+      });
+    }
+
+    return rows;
   }
 
   /**
@@ -311,6 +443,7 @@ export class ReportExportService extends BaseService {
     const sanitizedType = reportType
       .replace(/[^a-z0-9]/gi, '_')
       .replace(/_+/g, '_')
+      .replace(/_+$/g, '')
       .toLowerCase();
     return `${sanitizedType}_${timestamp}.${this.getFileExtension(format)}`;
   }

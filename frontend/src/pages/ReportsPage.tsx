@@ -96,8 +96,15 @@ const ReportsPage: React.FC = () => {
     const eventData = eventResponse.data?.data || eventResponse.data || []
     const contestData = contestResponse.data?.data || contestResponse.data || []
 
-    setEvents(Array.isArray(eventData) ? eventData.map((e: any) => ({ id: e.id, name: e.name })) : [])
-    setContests(Array.isArray(contestData) ? contestData.map((c: any) => ({ id: c.id, name: c.name })) : [])
+    const normalizedEvents = Array.isArray(eventData)
+      ? eventData.map((e: any) => ({ id: e.id, name: e.name }))
+      : []
+    const normalizedContests = Array.isArray(contestData)
+      ? contestData.map((c: any) => ({ id: c.id, name: c.name }))
+      : []
+
+    setEvents(normalizedEvents.sort((a, b) => a.name.localeCompare(b.name)))
+    setContests(normalizedContests.sort((a, b) => a.name.localeCompare(b.name)))
   }
 
   const loadInstances = async () => {

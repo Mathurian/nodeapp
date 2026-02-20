@@ -10,7 +10,7 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
-import { PERMISSIONS } from '../middleware/permissions';
+import { DEFAULT_ROLE_PERMISSIONS } from '../config/defaultPermissions';
 
 export interface UpdatePermissionDTO {
   role: UserRole;
@@ -58,18 +58,32 @@ export class DynamicPermissionService extends BaseService {
       return JSON.parse(cached as string);
     }
 
-    // Load from database
-    const perms = await this.prisma.rolePermission.findMany({
-      where: { role, tenantId, allowed: true },
+    // Load all role overrides from database (both allowed and denied)
+    const dbRows = await this.prisma.rolePermission.findMany({
+      where: { role, tenantId },
       select: {
         resource: true,
-        operation: true
+        operation: true,
+        allowed: true,
       }
     });
 
-    const permissions = perms.map(p =>
-      p.operation === '*' ? `${p.resource}:*` : `${p.resource}:${p.operation}`
+    // Start with static defaults, then apply tenant overrides.
+    // This keeps backward compatibility when only partial overrides are stored in DB.
+    const defaultTokens = DEFAULT_ROLE_PERMISSIONS[role] || [];
+    const permissionSet = new Set<string>(
+      defaultTokens.map((token) => token === '*' ? '*:*' : token)
     );
+    dbRows.forEach((row) => {
+      const token = row.operation === '*' ? `${row.resource}:*` : `${row.resource}:${row.operation}`;
+      if (row.allowed) {
+        permissionSet.add(token);
+      } else {
+        permissionSet.delete(token);
+      }
+    });
+
+    const permissions = Array.from(permissionSet);
 
     // Cache for 5 minutes (300 seconds)
     await this.cacheService.set(cacheKey, JSON.stringify(permissions), 300);
@@ -541,9 +555,9 @@ export class DynamicPermissionService extends BaseService {
       createdBy: string;
     }> = [];
 
-    for (const [role, permissions] of Object.entries(PERMISSIONS)) {
+    for (const [role, permissions] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
       const roleKey = role as UserRole;
-      for (const permission of permissions) {
+      for (const permission of permissions as string[]) {
         const token = (permission || '').trim();
         if (!token) continue;
 
