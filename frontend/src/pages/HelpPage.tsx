@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
+import { extractTenantSlugFromPath } from '../utils/routeSegments'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { ResponsiveTable } from '../components/ui'
@@ -40,12 +41,18 @@ const HelpPage: React.FC = () => {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const { '*': docPath } = useParams()
+  const { slug, '*': docPath } = useParams()
+  const tenantSlug = slug || extractTenantSlugFromPath(location.pathname)
+  const helpBasePath = tenantSlug ? `/${tenantSlug}/help` : '/help'
+  const tenantHomePath = tenantSlug ? `/${tenantSlug}` : '/'
 
   const [content, setContent] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(min-width: 1024px)').matches
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [loginEmail, setLoginEmail] = useState('')
@@ -211,10 +218,10 @@ const HelpPage: React.FC = () => {
       return
     }
 
-    const basePath = location.pathname.includes('/:slug/help')
-      ? location.pathname.split('/help')[0] + '/help'
-      : '/help'
-    navigate(`${basePath}/${doc.path}`)
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false)
+    }
+    navigate(`${helpBasePath}/${doc.path}`)
   }
 
   // Handle login
@@ -228,12 +235,7 @@ const HelpPage: React.FC = () => {
         toast('MFA verification is required. Continue on the login page.')
         setShowLoginModal(false)
         setLoginPassword('')
-        const maybeSlug = location.pathname.split('/').filter(Boolean)[0]
-        if (maybeSlug && maybeSlug !== 'help') {
-          navigate(`/${maybeSlug}/login`)
-        } else {
-          navigate('/login')
-        }
+        navigate(tenantSlug ? `/${tenantSlug}/login` : '/login')
         return
       }
       toast.success('Logged in successfully!')
@@ -243,10 +245,7 @@ const HelpPage: React.FC = () => {
 
       // Load the attempted doc if available
       if (attemptedDoc) {
-        const basePath = location.pathname.includes('/:slug/help')
-          ? location.pathname.split('/help')[0] + '/help'
-          : '/help'
-        navigate(`${basePath}/${attemptedDoc.path}`)
+        navigate(`${helpBasePath}/${attemptedDoc.path}`)
         setAttemptedDoc(null)
       }
     } catch (error: any) {
@@ -497,10 +496,10 @@ You now have access to all documentation for your role (${user.role}).
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => {
-                const basePath = location.pathname.includes('/:slug/help')
-                  ? location.pathname.split('/help')[0] + '/help'
-                  : '/help'
-                navigate(basePath)
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false)
+                }
+                navigate(helpBasePath)
               }}
               className={`w-full flex items-center px-3 py-2 rounded-lg text-left ${
                 !docPath
@@ -598,7 +597,7 @@ You now have access to all documentation for your role (${user.role}).
           {user ? (
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(tenantHomePath)}
                 className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Home
@@ -619,7 +618,7 @@ You now have access to all documentation for your role (${user.role}).
           ) : (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(tenantHomePath)}
                 className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Home
@@ -684,9 +683,9 @@ You now have access to all documentation for your role (${user.role}).
                       const isInline = !className?.includes('language-')
                       return isInline
                         ? <code className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-sm rounded font-mono text-blue-600 dark:text-blue-400" {...props}>{children}</code>
-                        : <code className="block p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm overflow-x-auto mb-4 font-mono" {...props}>{children}</code>
+                        : <code className="text-sm font-mono text-gray-900 dark:text-gray-100" {...props}>{children}</code>
                     },
-                    pre: ({node, ...props}) => <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700" {...props} />,
+                    pre: ({node, ...props}) => <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100" {...props} />,
                     blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 mb-4 py-2" {...props} />,
                     a: ({node, ...props}) => <a className="text-blue-600 dark:text-blue-400 hover:underline font-medium" {...props} />,
                     strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
