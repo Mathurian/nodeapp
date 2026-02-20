@@ -63,8 +63,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "build:no-check": "vite build",
+    "build": "tsc && vite build && node scripts/postbuild-tenant-manifest.mjs",
+    "build:no-check": "vite build && node scripts/postbuild-tenant-manifest.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",

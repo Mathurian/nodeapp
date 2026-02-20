@@ -65,7 +65,8 @@ assert_file "$FRONTEND_DIST/pwa-512x512.png"
 assert_file "$FRONTEND_DIST/pwa-maskable-192x192.png"
 assert_file "$FRONTEND_DIST/pwa-maskable-512x512.png"
 
-assert_contains "$FRONTEND_DIST/index.html" "rel=\"manifest\"" "index.html missing manifest link"
+assert_contains "$FRONTEND_DIST/index.html" "tenant-manifest-link" "index.html missing tenant manifest bootstrap"
+assert_contains "$FRONTEND_DIST/index.html" "/api/v1/settings/pwa-manifest" "index.html missing tenant manifest endpoint"
 assert_contains "$FRONTEND_DIST/index.html" "name=\"mobile-web-app-capable\"" "index.html missing mobile-web-app-capable meta"
 
 assert_contains "$FRONTEND_DIST/sw.js" "precacheAndRoute" "sw.js missing precache manifest"

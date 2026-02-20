@@ -13,6 +13,99 @@
     <script>
       (function () {
         try {
+          var knownRoutes = {
+            login: true,
+            register: true,
+            'forgot-password': true,
+            dashboard: true,
+            events: true,
+            contests: true,
+            categories: true,
+            scoring: true,
+            results: true,
+            users: true,
+            admin: true,
+            settings: true,
+            profile: true,
+            emcee: true,
+            templates: true,
+            reports: true,
+            notifications: true,
+            backups: true,
+            'disaster-recovery': true,
+            workflows: true,
+            files: true,
+            'email-templates': true,
+            'send-email': true,
+            'custom-fields': true,
+            tenants: true,
+            mfa: true,
+            database: true,
+            cache: true,
+            archive: true,
+            deductions: true,
+            certifications: true,
+            logs: true,
+            performance: true,
+            'data-wipe': true,
+            'event-templates': true,
+            'bulk-operations': true,
+            'category-types': true,
+            'field-visibility': true,
+            'test-event-setup': true,
+            help: true,
+            bios: true,
+            assignments: true,
+            'rate-limit-configs': true,
+            activity: true,
+            auditor: true,
+            board: true,
+            permissions: true,
+            'test-runner': true,
+            'tally-master': true,
+            winners: true,
+            'score-governance': true,
+            'login-locations': true
+          };
+          var reservedPrefixes = {
+            api: true,
+            assets: true,
+            uploads: true,
+            'socket.io': true,
+            'cdn-cgi': true,
+            'favicon.ico': true,
+            'robots.txt': true,
+            'manifest.webmanifest': true,
+            'sw.js': true,
+            'service-worker.js': true,
+            'registerSW.js': true,
+            'offline.html': true
+          };
+          var parts = (window.location.pathname || '/').split('/').filter(Boolean);
+          var first = parts.length > 0 ? parts[0] : '';
+          var slug = '';
+          if (first && !knownRoutes[first] && !reservedPrefixes[first]) {
+            slug = first;
+          }
+          var manifestHref = '/api/v1/settings/pwa-manifest';
+          if (slug) manifestHref += '?tenantSlug=' + encodeURIComponent(slug);
+          var manifestLink = document.createElement('link');
+          manifestLink.rel = 'manifest';
+          manifestLink.id = 'tenant-manifest-link';
+          manifestLink.href = manifestHref;
+          document.head.appendChild(manifestLink);
+        } catch (_e) {
+          var fallbackManifestLink = document.createElement('link');
+          fallbackManifestLink.rel = 'manifest';
+          fallbackManifestLink.id = 'tenant-manifest-link';
+          fallbackManifestLink.href = '/api/v1/settings/pwa-manifest';
+          document.head.appendChild(fallbackManifestLink);
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
           var stored = localStorage.getItem('theme');
           var theme = stored === 'light' || stored === 'dark' || stored === 'auto' ? stored : 'auto';
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

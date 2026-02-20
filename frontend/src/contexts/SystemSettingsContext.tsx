@@ -101,13 +101,26 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       ? `${DEFAULT_MANIFEST_PATH}?tenantSlug=${encodeURIComponent(tenantSlug)}`
       : DEFAULT_MANIFEST_PATH
 
-    let manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement | null
+    let manifestLink = document.getElementById('tenant-manifest-link') as HTMLLinkElement | null
+    if (!manifestLink) {
+      manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement | null
+    }
     if (!manifestLink) {
       manifestLink = document.createElement('link')
       manifestLink.rel = 'manifest'
+      manifestLink.id = 'tenant-manifest-link'
       document.head.appendChild(manifestLink)
     }
+    manifestLink.id = 'tenant-manifest-link'
     manifestLink.href = manifestHref
+
+    // Keep only one manifest link so install metadata cannot fall back to stale static values.
+    const allManifestLinks = Array.from(document.querySelectorAll("link[rel='manifest']"))
+    allManifestLinks.forEach((linkNode) => {
+      if (linkNode !== manifestLink) {
+        linkNode.remove()
+      }
+    })
   }
 
   const updateThemeColorMeta = (themeColor?: string | null) => {
