@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import api, { notificationPreferencesAPI } from '../services/api'
@@ -98,6 +98,72 @@ const toVapidUint8Array = (base64String: string): Uint8Array => {
   return output
 }
 
+const PUSH_OPERATION_TIMEOUT_MS = 15000
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+  try {
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
+    })
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+    }
+  }
+}
+
+const uint8ArrayToBase64Url = (bytes: Uint8Array): string => {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i] as number)
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+const extractPushKey = (
+  subscription: PushSubscription,
+  payloadKeys: Record<string, string> | undefined,
+  keyName: 'p256dh' | 'auth'
+): string | null => {
+  const fromPayload = payloadKeys?.[keyName]
+  if (fromPayload && fromPayload.length > 0) {
+    return fromPayload
+  }
+
+  try {
+    const rawKey = subscription.getKey(keyName)
+    if (!rawKey) return null
+    return uint8ArrayToBase64Url(new Uint8Array(rawKey))
+  } catch {
+    return null
+  }
+}
+
+const resolvePushServiceWorkerRegistration = async (): Promise<ServiceWorkerRegistration> => {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('This browser does not support service workers.')
+  }
+
+  const existing = await navigator.serviceWorker.getRegistration()
+  if (existing) {
+    return existing
+  }
+
+  try {
+    await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+  } catch {
+    // Best effort; ready check below will still fail with a clear timeout message.
+  }
+
+  return withTimeout(
+    navigator.serviceWorker.ready,
+    PUSH_OPERATION_TIMEOUT_MS,
+    'Timed out waiting for push service worker initialization.'
+  )
+}
+
 const getPushSupport = (): { supported: boolean; reason?: string } => {
   if (typeof window === 'undefined') {
     return { supported: false, reason: 'Push notifications are unavailable in this context.' }
@@ -152,7 +218,21 @@ const NotificationsPage: React.FC = () => {
     systemAlerts: true,
   })
 
-  const pushSupport = useMemo(() => getPushSupport(), [])
+  const [pushSupport, setPushSupport] = useState(() => getPushSupport())
+
+  useEffect(() => {
+    const refreshPushSupport = () => {
+      setPushSupport(getPushSupport())
+    }
+
+    refreshPushSupport()
+    window.addEventListener('focus', refreshPushSupport)
+    document.addEventListener('visibilitychange', refreshPushSupport)
+    return () => {
+      window.removeEventListener('focus', refreshPushSupport)
+      document.removeEventListener('visibilitychange', refreshPushSupport)
+    }
+  }, [])
 
   const refreshNotificationQueries = () => {
     queryClient.invalidateQueries('notifications')
@@ -304,36 +384,59 @@ const NotificationsPage: React.FC = () => {
       return false
     }
 
-    const permission = await Notification.requestPermission()
+    let permission = Notification.permission
+    if (permission === 'default') {
+      permission = await withTimeout(
+        Notification.requestPermission(),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while waiting for notification permission.'
+      )
+    }
     if (permission !== 'granted') {
-      setPushStatusMessage('Notification permission was not granted.')
+      setPushStatusMessage(
+        permission === 'denied'
+          ? 'Notifications are blocked for this app. Re-enable them in device/browser settings.'
+          : 'Notification permission was not granted.'
+      )
       return false
     }
 
-    const registration = await navigator.serviceWorker.ready
-    let subscription = await registration.pushManager.getSubscription()
+    const registration = await resolvePushServiceWorkerRegistration()
+    let subscription = await withTimeout(
+      registration.pushManager.getSubscription(),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while reading existing push subscription.'
+    )
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: toVapidUint8Array(config.publicKey) as unknown as BufferSource,
-      })
+      subscription = await withTimeout(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: toVapidUint8Array(config.publicKey) as unknown as BufferSource,
+        }),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while creating push subscription.'
+      )
     }
 
     const payload = subscription.toJSON()
     const endpoint = payload.endpoint
-    const p256dh = payload.keys?.p256dh
-    const auth = payload.keys?.auth
+    const p256dh = extractPushKey(subscription, payload.keys as Record<string, string> | undefined, 'p256dh')
+    const auth = extractPushKey(subscription, payload.keys as Record<string, string> | undefined, 'auth')
 
     if (!endpoint || !p256dh || !auth) {
       setPushStatusMessage('Unable to read browser push subscription keys.')
       return false
     }
 
-    await notificationPreferencesAPI.upsertPushSubscription({
-      endpoint,
-      expirationTime: payload.expirationTime || null,
-      keys: { p256dh, auth },
-    })
+    await withTimeout(
+      notificationPreferencesAPI.upsertPushSubscription({
+        endpoint,
+        expirationTime: payload.expirationTime || null,
+        keys: { p256dh, auth },
+      }),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while saving push subscription.'
+    )
 
     setPushStatusMessage('Push notifications are enabled for this device.')
     return true
@@ -345,20 +448,33 @@ const NotificationsPage: React.FC = () => {
       return
     }
 
-    const registration = await navigator.serviceWorker.ready
-    const existingSubscription = await registration.pushManager.getSubscription()
+    const registration = await resolvePushServiceWorkerRegistration()
+    const existingSubscription = await withTimeout(
+      registration.pushManager.getSubscription(),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while reading push subscription.'
+    )
     if (!existingSubscription) {
       setPushStatusMessage('Push notifications are disabled for this device.')
       return
     }
 
     const endpoint = existingSubscription.endpoint
-    await existingSubscription.unsubscribe()
-    await notificationPreferencesAPI.removePushSubscription(endpoint)
+    await withTimeout(
+      existingSubscription.unsubscribe(),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while removing browser push subscription.'
+    )
+    await withTimeout(
+      notificationPreferencesAPI.removePushSubscription(endpoint),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while removing server push subscription.'
+    )
     setPushStatusMessage('Push notifications are disabled for this device.')
   }
 
   const onPushToggle = async (enabled: boolean) => {
+    const previousPushEnabled = localPreferences.pushEnabled
     setIsUpdatingPush(true)
     setPushStatusMessage(null)
 
@@ -374,15 +490,24 @@ const NotificationsPage: React.FC = () => {
       }
 
       setLocalPreferences(prev => ({ ...prev, pushEnabled: enabled }))
-      await notificationPreferencesAPI.updatePreferences({
-        pushEnabled: enabled,
-        pushNotifications: enabled,
-      })
+      await withTimeout(
+        notificationPreferencesAPI.updatePreferences({
+          pushEnabled: enabled,
+          pushNotifications: enabled,
+        }),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while updating notification preferences.'
+      )
       queryClient.invalidateQueries('notification-preferences')
     } catch (err: any) {
       console.error('Failed to update push subscription:', err)
-      setPushStatusMessage('Unable to update push notification subscription.')
-      setLocalPreferences(prev => ({ ...prev, pushEnabled: false }))
+      const timeoutError = typeof err?.message === 'string' && err.message.toLowerCase().includes('timed out')
+      setPushStatusMessage(
+        timeoutError
+          ? 'Push setup timed out. Please close and reopen the app, then try again.'
+          : 'Unable to update push notification subscription.'
+      )
+      setLocalPreferences(prev => ({ ...prev, pushEnabled: previousPushEnabled }))
     } finally {
       setIsUpdatingPush(false)
     }
