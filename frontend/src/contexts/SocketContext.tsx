@@ -191,11 +191,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         setNotifications(prev => [notification, ...prev])
       })
 
-      // Request notification permission (check if Notification API exists for mobile compatibility)
-      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        Notification.requestPermission()
-      }
-
       setSocket(newSocket)
 
       return () => {

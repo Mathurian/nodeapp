@@ -70,6 +70,7 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        importScripts: ['push-sw.js'],
         // Keep SPA route refreshes working under SW control.
         // A dedicated offline document still remains available at `/offline.html`.
         navigateFallback: '/index.html',

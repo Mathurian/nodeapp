@@ -7,6 +7,7 @@ import { injectable, inject } from 'tsyringe';
 import { Notification } from '@prisma/client';
 import { NotificationRepository, CreateNotificationDTO } from '../repositories/NotificationRepository';
 import { Server as SocketIOServer } from 'socket.io';
+import { PushNotificationService } from './PushNotificationService';
 
 @injectable()
 export class NotificationService {
@@ -14,7 +15,9 @@ export class NotificationService {
 
   constructor(
     @inject(NotificationRepository)
-    private notificationRepository: NotificationRepository
+    private notificationRepository: NotificationRepository,
+    @inject(PushNotificationService)
+    private pushNotificationService: PushNotificationService
   ) {}
 
   /**
@@ -35,6 +38,26 @@ export class NotificationService {
       this.io.to(`user:${data.userId}`).emit('notification:new', notification);
     }
 
+    try {
+      const pushDispatch = await this.pushNotificationService.dispatchToUsers(
+        data.tenantId,
+        [data.userId],
+        {
+          title: notification.title,
+          message: notification.message,
+          link: notification.link,
+          notificationId: notification.id,
+          type: notification.type,
+        }
+      );
+
+      if (pushDispatch.deliveredUsers.includes(data.userId)) {
+        await this.notificationRepository.markPushSentByIds([notification.id]);
+      }
+    } catch {
+      // Push delivery must never block notification persistence or websocket emission.
+    }
+
     return notification;
   }
 
@@ -45,16 +68,45 @@ export class NotificationService {
     userIds: string[],
     notification: Omit<CreateNotificationDTO, 'userId'>
   ): Promise<number> {
-    const count = await this.notificationRepository.createMany(userIds, notification);
+    const createdNotifications = await this.notificationRepository.createManyAndReturn(userIds, notification);
 
     // Emit real-time notifications to all users
     if (this.io) {
-      userIds.forEach((userId) => {
-        this.io?.to(`user:${userId}`).emit('notification:new', { ...notification, userId });
+      createdNotifications.forEach((createdNotification) => {
+        this.io?.to(`user:${createdNotification.userId}`).emit('notification:new', createdNotification);
       });
     }
 
-    return count;
+    try {
+      const pushDispatch = await this.pushNotificationService.dispatchToUsers(
+        notification.tenantId,
+        createdNotifications.map(createdNotification => createdNotification.userId),
+        {
+          title: notification.title,
+          message: notification.message,
+          link: notification.link,
+          type: notification.type,
+        }
+      );
+
+      if (pushDispatch.deliveredUsers.length > 0) {
+        const notificationIdsByUser = new Map<string, string[]>();
+        for (const createdNotification of createdNotifications) {
+          const existing = notificationIdsByUser.get(createdNotification.userId) || [];
+          existing.push(createdNotification.id);
+          notificationIdsByUser.set(createdNotification.userId, existing);
+        }
+
+        const pushSentNotificationIds = pushDispatch.deliveredUsers.flatMap(
+          userId => notificationIdsByUser.get(userId) || []
+        );
+        await this.notificationRepository.markPushSentByIds(pushSentNotificationIds);
+      }
+    } catch {
+      // Push delivery must never block notification persistence or websocket emission.
+    }
+
+    return createdNotifications.length;
   }
 
   /**

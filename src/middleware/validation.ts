@@ -378,6 +378,22 @@ export const cleanupQuerySchema = z.object({
 });
 
 /**
+ * Push subscription schemas
+ */
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2048),
+  expirationTime: z.number().int().nullable().optional(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().url().max(2048),
+});
+
+/**
  * Certification creation schema
  */
 export const createCertificationSchema = z.object({

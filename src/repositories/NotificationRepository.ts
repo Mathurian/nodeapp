@@ -62,12 +62,6 @@ export class NotificationRepository {
    */
   async createMany(userIds: string[], notification: Omit<CreateNotificationDTO, 'userId'>): Promise<number> {
     const normalizedType = normalizeNotificationType(notification.type);
-    console.log('[NOTIFICATION_REPO] createMany called:', {
-      userCount: userIds.length,
-      userIds,
-      notification,
-    });
-
     const data = userIds.map((userId) => ({
       tenantId: notification.tenantId,
       userId,
@@ -79,13 +73,52 @@ export class NotificationRepository {
       sentBy: notification.sentBy || undefined,
     }));
 
-    console.log('[NOTIFICATION_REPO] Data to insert:', data);
-
     const result = await this.prisma.notification.createMany({
       data,
     });
 
-    console.log('[NOTIFICATION_REPO] createMany result:', result);
+    return result.count;
+  }
+
+  /**
+   * Create notifications for multiple users and return created records.
+   * Used by delivery paths that need notification IDs for channel status updates.
+   */
+  async createManyAndReturn(userIds: string[], notification: Omit<CreateNotificationDTO, 'userId'>): Promise<Notification[]> {
+    const normalizedType = normalizeNotificationType(notification.type);
+
+    return this.prisma.$transaction(
+      userIds.map((userId) =>
+        this.prisma.notification.create({
+          data: {
+            tenantId: notification.tenantId,
+            userId,
+            type: normalizedType,
+            title: notification.title,
+            message: notification.message,
+            link: notification.link || undefined,
+            metadata: notification.metadata ? JSON.stringify(notification.metadata) : undefined,
+            sentBy: notification.sentBy || undefined,
+          },
+        })
+      )
+    );
+  }
+
+  async markPushSentByIds(notificationIds: string[]): Promise<number> {
+    if (notificationIds.length === 0) {
+      return 0;
+    }
+
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        id: { in: notificationIds },
+      },
+      data: {
+        pushSent: true,
+        pushSentAt: new Date(),
+      },
+    });
 
     return result.count;
   }

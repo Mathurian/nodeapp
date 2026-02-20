@@ -21,6 +21,7 @@ import { TemplateRepository } from '../repositories/TemplateRepository';
 import { DeductionRepository } from '../repositories/DeductionRepository';
 import { NotificationRepository } from '../repositories/NotificationRepository';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
+import { PushSubscriptionRepository } from '../repositories/PushSubscriptionRepository';
 import { SearchRepository } from '../repositories/SearchRepository';
 // import { NotificationTemplateRepository } from '../repositories/NotificationTemplateRepository';
 
@@ -78,6 +79,7 @@ import { AuthService } from '../services/AuthService';
 import { AdminService } from '../services/AdminService';
 import { ResultsService } from '../services/ResultsService';
 import { NotificationService } from '../services/NotificationService';
+import { PushNotificationService } from '../services/PushNotificationService';
 import { RateLimitService } from '../services/RateLimitService';
 import { EnhancedRateLimitService } from '../services/EnhancedRateLimitService';
 import { MetricsService } from '../services/MetricsService';
@@ -177,6 +179,13 @@ export function setupContainer(): void {
     useFactory: (c) => {
       const prisma = c.resolve<PrismaClient>('PrismaClient');
       return new NotificationPreferenceRepository(prisma);
+    }
+  });
+
+  container.register(PushSubscriptionRepository, {
+    useFactory: (c) => {
+      const prisma = c.resolve<PrismaClient>('PrismaClient');
+      return new PushSubscriptionRepository(prisma);
     }
   });
 
@@ -296,6 +305,7 @@ export function setupContainer(): void {
   container.register(AdminService, AdminService);
   container.register(ResultsService, ResultsService);
   container.register(NotificationService, NotificationService);
+  container.register(PushNotificationService, PushNotificationService);
   container.register(RateLimitService, RateLimitService);
   container.register(EnhancedRateLimitService, EnhancedRateLimitService);
   // Register MetricsService as singleton to ensure only one Registry instance

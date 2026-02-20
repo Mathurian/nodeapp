@@ -48,6 +48,19 @@ export class NotificationPreferenceRepository {
     });
   }
 
+  async findManyByUserIds(tenantId: string, userIds: string[]): Promise<NotificationPreference[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    return this.prismaClient.notificationPreference.findMany({
+      where: {
+        tenantId,
+        userId: { in: userIds },
+      },
+    });
+  }
+
   /**
    * Create preference with defaults
    */

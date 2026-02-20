@@ -565,6 +565,19 @@ export const notificationsAPI = {
     api.post('/notifications/broadcast', data),
 }
 
+export const notificationPreferencesAPI = {
+  getPreferences: () => api.get('/notification-preferences'),
+  updatePreferences: (data: any) => api.put('/notification-preferences', data),
+  resetPreferences: () => api.post('/notification-preferences/reset'),
+  getPushConfig: () => api.get('/notification-preferences/push/config'),
+  upsertPushSubscription: (subscription: {
+    endpoint: string;
+    expirationTime?: number | null;
+    keys: { p256dh: string; auth: string };
+  }) => api.post('/notification-preferences/push/subscription', subscription),
+  removePushSubscription: (endpoint: string) => api.delete('/notification-preferences/push/subscription', { data: { endpoint } }),
+}
+
 export const tenantsAPI = {
   getAll: (params?: { page?: number; limit?: number; status?: string; planType?: string }) =>
     api.get('/tenants', { params }),

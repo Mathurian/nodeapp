@@ -8,8 +8,12 @@ import {
   getPreferences,
   updatePreferences,
   resetPreferences,
+  getPushConfig,
+  upsertPushSubscription,
+  removePushSubscription,
 } from '../controllers/notificationPreferencesController';
 import { authenticateToken } from '../middleware/auth';
+import { validate, pushSubscriptionSchema, pushUnsubscribeSchema } from '../middleware/validation';
 
 const router = Router();
 
@@ -172,5 +176,20 @@ router.put('/', updatePreferences);
  *         description: Unauthorized
  */
 router.post('/reset', resetPreferences);
+
+/**
+ * Push notification client bootstrap config (VAPID public key and availability)
+ */
+router.get('/push/config', getPushConfig);
+
+/**
+ * Register or refresh current device/browser push subscription
+ */
+router.post('/push/subscription', validate(pushSubscriptionSchema, 'body'), upsertPushSubscription);
+
+/**
+ * Remove/deactivate current device/browser push subscription
+ */
+router.delete('/push/subscription', validate(pushUnsubscribeSchema, 'body'), removePushSubscription);
 
 export default router;

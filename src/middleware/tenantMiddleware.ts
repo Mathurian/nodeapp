@@ -50,6 +50,7 @@ const TENANT_SCOPED_MODELS = new Set([
   'deductionRequest', 'deductionApproval', 'scoreFile', 'scoreRemovalRequest',
   'scoreComment', 'file', 'systemSetting', 'rateLimitConfig', 'themeSetting',
   'notificationDigest', 'notificationPreference', 'notificationTemplate',
+  'pushSubscription',
   'emailTemplate', 'eventTemplate', 'reportTemplate', 'reportInstance',
   'customField', 'customFieldValue', 'savedSearch', 'searchHistory',
   'backupLog', 'backupSchedule', 'backupTarget', 'drConfig', 'drMetric',
