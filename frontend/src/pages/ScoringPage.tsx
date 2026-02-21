@@ -7,7 +7,7 @@ import { scoringAPI } from '../services/api'
 import { scoreFilesAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
-import { inferFileNameFromPath, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
+import { appendDocxPreviewQuery, inferFileNameFromPath, isDocxFile, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   TrophyIcon,
   UserIcon,
@@ -155,10 +155,25 @@ const openBioFile = async (path?: string | null) => {
   const targetUrl = apiUrl || fallbackUrl
   if (!targetUrl) return
   const fileName = inferFileNameFromPath(path)
+  const docxPreviewUrl = appendDocxPreviewQuery(targetUrl)
+
+  if (isDocxFile(fileName)) {
+    const opened = openDocumentUrl(docxPreviewUrl, {
+      preferSameTabInStandalone: true,
+      allowSameTabFallback: true,
+    })
+    if (!opened && fallbackUrl && fallbackUrl !== targetUrl) {
+      openDocumentUrl(appendDocxPreviewQuery(fallbackUrl), {
+        preferSameTabInStandalone: true,
+        allowSameTabFallback: true,
+      })
+    }
+    return
+  }
 
   if (isOfficeDocumentFile(fileName)) {
     const opened = openDocumentUrl(targetUrl, {
-      preferSameTabInStandalone: false,
+      preferSameTabInStandalone: true,
       allowSameTabFallback: true,
     })
     if (!opened && fallbackUrl && fallbackUrl !== targetUrl) {

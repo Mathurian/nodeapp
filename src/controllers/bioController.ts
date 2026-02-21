@@ -5,6 +5,7 @@ import { sendSuccess } from '../utils/responseHelpers';
 import fs from 'fs';
 import path from 'path';
 import { resolveRequestTenantId } from '../utils/tenantContext';
+import { buildDocxPreviewHtml } from '../utils/docxPreview';
 
 export class BioController {
   private bioService: BioService;
@@ -166,6 +167,15 @@ export class BioController {
       }
 
       const extension = path.extname(targetPath).toLowerCase();
+      const wantsDocxPreview = extension === '.docx' && String(req.query['preview'] || '').toLowerCase() === 'html';
+      if (wantsDocxPreview) {
+        const previewHtml = await buildDocxPreviewHtml(targetPath, filename);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'private, max-age=60');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        return res.status(200).send(previewHtml);
+      }
+
       if (extension === '.doc') {
         res.setHeader('Content-Type', 'application/msword');
         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);

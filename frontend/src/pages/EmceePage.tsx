@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { eventsAPI, contestsAPI, categoriesAPI, api } from '../services/api'
-import { inferFileNameFromPath, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
+import { appendDocxPreviewQuery, inferFileNameFromPath, isDocxFile, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   MicrophoneIcon,
   TrophyIcon,
@@ -281,10 +281,22 @@ const EmceePage: React.FC = () => {
   const handleViewScript = async (script: Script) => {
     const fileName = inferFileNameFromPath(script.filePath, `${script.title}.pdf`)
     const directViewUrl = `/api/v1/emcee/scripts/${script.id}/view`
+    const docxPreviewUrl = appendDocxPreviewQuery(directViewUrl)
+
+    if (isDocxFile(fileName)) {
+      const opened = openDocumentUrl(docxPreviewUrl, {
+        preferSameTabInStandalone: true,
+        allowSameTabFallback: true,
+      })
+      if (!opened) {
+        toast.error('Unable to preview script on this device.')
+      }
+      return
+    }
 
     if (isOfficeDocumentFile(fileName)) {
       const opened = openDocumentUrl(directViewUrl, {
-        preferSameTabInStandalone: false,
+        preferSameTabInStandalone: true,
         allowSameTabFallback: true,
       })
       if (!opened) {

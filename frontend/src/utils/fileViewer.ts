@@ -67,6 +67,19 @@ export const isOfficeDocumentFile = (
   return OFFICE_EXTENSIONS.has(getFileExtension(fileName))
 }
 
+export const isDocxFile = (fileName?: string | null, mimeType?: string | null): boolean => {
+  const normalizedMime = String(mimeType || '').toLowerCase()
+  if (normalizedMime.includes('officedocument.wordprocessingml.document')) {
+    return true
+  }
+  return getFileExtension(fileName) === '.docx'
+}
+
+export const appendDocxPreviewQuery = (url: string): string => {
+  if (!url) return url
+  return `${url}${url.includes('?') ? '&' : '?'}preview=html`
+}
+
 interface OpenBlobDocumentOptions {
   blob: Blob
   fileName?: string | null

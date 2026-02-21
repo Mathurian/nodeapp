@@ -6,6 +6,7 @@ import { sendSuccess } from '../utils/responseHelpers';
 import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
+import { buildDocxPreviewHtml } from '../utils/docxPreview';
 
 /**
  * Controller for Emcee functionality
@@ -366,6 +367,16 @@ export class EmceeController {
       }
 
       const extension = path.extname(filePath).toLowerCase();
+      const wantsDocxPreview = extension === '.docx' && String(req.query['preview'] || '').toLowerCase() === 'html';
+      if (wantsDocxPreview) {
+        const previewHtml = await buildDocxPreviewHtml(filePath, path.basename(filePath));
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'private, max-age=60');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.status(200).send(previewHtml);
+        return;
+      }
+
       const contentTypeByExtension: Record<string, string> = {
         '.pdf': 'application/pdf',
         '.txt': 'text/plain; charset=utf-8',
