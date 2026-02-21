@@ -160,12 +160,12 @@ const openBioFile = async (path?: string | null) => {
   if (isDocxFile(fileName)) {
     const opened = openDocumentUrl(docxPreviewUrl, {
       preferSameTabInStandalone: true,
-      allowSameTabFallback: true,
+      allowSameTabFallback: false,
     })
     if (!opened && fallbackUrl && fallbackUrl !== targetUrl) {
       openDocumentUrl(appendDocxPreviewQuery(fallbackUrl), {
         preferSameTabInStandalone: true,
-        allowSameTabFallback: true,
+        allowSameTabFallback: false,
       })
     }
     return
@@ -174,12 +174,12 @@ const openBioFile = async (path?: string | null) => {
   if (isOfficeDocumentFile(fileName)) {
     const opened = openDocumentUrl(targetUrl, {
       preferSameTabInStandalone: true,
-      allowSameTabFallback: true,
+      allowSameTabFallback: false,
     })
     if (!opened && fallbackUrl && fallbackUrl !== targetUrl) {
       openDocumentUrl(fallbackUrl, {
         preferSameTabInStandalone: false,
-        allowSameTabFallback: true,
+        allowSameTabFallback: false,
       })
     }
     return
@@ -194,11 +194,17 @@ const openBioFile = async (path?: string | null) => {
       fileName,
     })
     if (!opened && fallbackUrl) {
-      openDocumentUrl(fallbackUrl)
+      openDocumentUrl(fallbackUrl, {
+        preferSameTabInStandalone: true,
+        allowSameTabFallback: false,
+      })
     }
   } catch {
     if (fallbackUrl) {
-      openDocumentUrl(fallbackUrl)
+      openDocumentUrl(fallbackUrl, {
+        preferSameTabInStandalone: true,
+        allowSameTabFallback: false,
+      })
     }
   }
 }

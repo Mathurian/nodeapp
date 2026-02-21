@@ -286,7 +286,7 @@ const EmceePage: React.FC = () => {
     if (isDocxFile(fileName)) {
       const opened = openDocumentUrl(docxPreviewUrl, {
         preferSameTabInStandalone: true,
-        allowSameTabFallback: true,
+        allowSameTabFallback: false,
       })
       if (!opened) {
         toast.error('Unable to preview script on this device.')
@@ -297,7 +297,7 @@ const EmceePage: React.FC = () => {
     if (isOfficeDocumentFile(fileName)) {
       const opened = openDocumentUrl(directViewUrl, {
         preferSameTabInStandalone: true,
-        allowSameTabFallback: true,
+        allowSameTabFallback: false,
       })
       if (!opened) {
         toast.error('Unable to open script on this device.')
@@ -317,7 +317,7 @@ const EmceePage: React.FC = () => {
     } catch (error: any) {
       const openedFallback = openDocumentUrl(directViewUrl, {
         preferSameTabInStandalone: false,
-        allowSameTabFallback: true,
+        allowSameTabFallback: false,
       })
       if (!openedFallback) {
         const errorMessage = error.response?.data?.message || error.message || 'Failed to open script'
