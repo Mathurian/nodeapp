@@ -9,6 +9,86 @@
 import * as swaggerJsdoc from 'swagger-jsdoc';
 import { env } from './env';
 
+const SWAGGER_DEFAULT_SUPPORT_EMAIL = 'support@conmgr.com';
+
+const deriveSupportEmailFromBaseUrl = (publicBaseUrl?: string): string | undefined => {
+  if (!publicBaseUrl) return undefined;
+
+  try {
+    const parsed = new URL(publicBaseUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    if (!hostname || hostname === 'localhost') return undefined;
+
+    const parts = hostname.split('.').filter(Boolean);
+    if (parts.length < 2) return undefined;
+
+    const registrableDomain = parts.slice(-2).join('.');
+    return `support@${registrableDomain}`;
+  } catch {
+    return undefined;
+  }
+};
+
+const normalizeSupportEmail = (input?: string | null): string | undefined => {
+  const raw = String(input || '').trim();
+  if (!raw) return undefined;
+
+  const bracketMatch = raw.match(/<([^>]+)>/);
+  const candidate = (bracketMatch?.[1] || raw).trim();
+  if (!candidate.includes('@')) return undefined;
+  return candidate;
+};
+
+const resolveSwaggerSupportEmail = (publicBaseUrl?: string, overrideEmail?: string): string => {
+  const explicit = normalizeSupportEmail(overrideEmail);
+  if (explicit) {
+    return explicit;
+  }
+
+  const securityEmail = process.env['SECURITY_EMAIL'];
+  const normalizedSecurityEmail = normalizeSupportEmail(securityEmail);
+  if (normalizedSecurityEmail) {
+    return normalizedSecurityEmail;
+  }
+
+  const smtpFrom = process.env['SMTP_FROM'];
+  const normalizedSmtpFrom = normalizeSupportEmail(smtpFrom);
+  if (normalizedSmtpFrom) {
+    return normalizedSmtpFrom;
+  }
+
+  const derivedFromHost = deriveSupportEmailFromBaseUrl(publicBaseUrl);
+  if (derivedFromHost) {
+    return derivedFromHost;
+  }
+
+  return SWAGGER_DEFAULT_SUPPORT_EMAIL;
+};
+
+const normalizeUrl = (value: string): string => value.replace(/\/+$/, '');
+
+const isLikelyLocalhostUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1';
+  } catch {
+    return false;
+  }
+};
+
+const dedupeServers = (servers: Array<{ url: string; description: string }>): Array<{ url: string; description: string }> => {
+  const seen = new Set<string>();
+  const deduped: Array<{ url: string; description: string }> = [];
+  for (const server of servers) {
+    const normalized = normalizeUrl(server.url);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push({ ...server, url: normalized });
+  }
+  return deduped;
+};
+
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
@@ -59,7 +139,7 @@ All requests must include tenant context. This can be provided via:
       `,
       contact: {
         name: 'API Support',
-        email: 'support@eventmanager.com',
+        email: resolveSwaggerSupportEmail(),
       },
       license: {
         name: 'ISC',
@@ -81,13 +161,13 @@ All requests must include tenant context. This can be provided via:
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'JWT token obtained from /api/auth/login',
+          description: 'Paste a JWT token from /api/auth/login (without the "Bearer " prefix), then click Authorize.',
         },
         tenantId: {
           type: 'apiKey',
           in: 'header',
           name: 'X-Tenant-ID',
-          description: 'Tenant ID for multi-tenancy isolation',
+          description: 'Optional tenant override header for multi-tenancy testing in docs.',
         },
       },
       schemas: {
@@ -909,6 +989,37 @@ All requests must include tenant context. This can be provided via:
 };
 
 export const swaggerSpec = swaggerJsdoc.default(options);
+
+export interface SwaggerSpecRuntimeContext {
+  publicBaseUrl?: string;
+  supportEmail?: string;
+}
+
+export const buildSwaggerSpec = (context?: SwaggerSpecRuntimeContext): Record<string, any> => {
+  const spec: Record<string, any> = JSON.parse(JSON.stringify(swaggerSpec));
+  const configuredApiUrl = env.get('API_URL');
+  const includeConfiguredUrl = configuredApiUrl && (
+    !context?.publicBaseUrl || !isLikelyLocalhostUrl(configuredApiUrl)
+  );
+  const runtimeServers = dedupeServers([
+    ...(context?.publicBaseUrl ? [{ url: context.publicBaseUrl, description: 'Current host' }] : []),
+    ...(includeConfiguredUrl ? [{ url: configuredApiUrl, description: 'Configured API URL' }] : []),
+  ]);
+
+  if (runtimeServers.length > 0) {
+    spec['servers'] = runtimeServers;
+  }
+
+  if (spec['info'] && typeof spec['info'] === 'object') {
+    spec['info']['contact'] = {
+      ...(spec['info']['contact'] || {}),
+      name: 'API Support',
+      email: resolveSwaggerSupportEmail(context?.publicBaseUrl, context?.supportEmail),
+    };
+  }
+
+  return spec;
+};
 
 /**
  * Swagger UI options

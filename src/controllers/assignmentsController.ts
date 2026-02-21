@@ -491,6 +491,54 @@ export class AssignmentsController {
       return next(error);
     }
   };
+
+  getJudgeContestLimitPolicy = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
+      const eventId = typeof req.query['eventId'] === 'string' ? req.query['eventId'] : undefined;
+      const policy = await this.assignmentService.getJudgeContestLimitPolicy(tenantId, eventId);
+      return sendSuccess(res, policy, 'Judge contest assignment policy retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  updateJudgeContestLimitPolicy = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const tenantId = this.getEffectiveTenantId(req);
+      const userId = req.user?.id;
+      if (!tenantId || !userId) {
+        return sendError(res, 'Tenant context and authenticated user are required', 400);
+      }
+
+      const rawLimit = (req.body && Object.prototype.hasOwnProperty.call(req.body, 'limit'))
+        ? req.body.limit
+        : undefined;
+      let limit: number | null;
+      if (rawLimit === null || rawLimit === '' || typeof rawLimit === 'undefined') {
+        limit = null;
+      } else {
+        const parsed = Number(rawLimit);
+        if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+          return sendError(res, 'limit must be a non-negative integer (0 = unlimited)', 400);
+        }
+        limit = parsed;
+      }
+
+      const eventId = typeof req.body?.eventId === 'string' ? req.body.eventId : undefined;
+      const policy = await this.assignmentService.updateJudgeContestLimitPolicy(tenantId, userId, {
+        limit,
+        eventId,
+      });
+
+      return sendSuccess(res, policy, 'Judge contest assignment policy updated successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Create controller instance and export methods
@@ -521,3 +569,5 @@ export const removeTallyMasterAssignment = controller.removeTallyMasterAssignmen
 export const getAuditorAssignments = controller.getAuditorAssignments;
 export const createAuditorAssignment = controller.createAuditorAssignment;
 export const removeAuditorAssignment = controller.removeAuditorAssignment;
+export const getJudgeContestLimitPolicy = controller.getJudgeContestLimitPolicy;
+export const updateJudgeContestLimitPolicy = controller.updateJudgeContestLimitPolicy;

@@ -391,6 +391,11 @@ export class ResultsService extends BaseService {
 
         whereClause = {
           judgeId: judgeUser.judge.id,
+          category: {
+            contest: {
+              winnersPublished: true,
+            },
+          },
         };
         break;
       }
@@ -547,6 +552,9 @@ export class ResultsService extends BaseService {
           },
         },
       ];
+      where.contest = {
+        winnersPublished: true,
+      };
     } else if (userRole === 'CONTESTANT') {
       const contestantUser = await this.prisma.user.findUnique({
         where: { id: userId },
@@ -631,7 +639,15 @@ export class ResultsService extends BaseService {
         return [];
       }
 
-      whereClause.judgeId = judgeUser.judge.id;
+      whereClause = {
+        ...whereClause,
+        judgeId: judgeUser.judge.id,
+        category: {
+          contest: {
+            winnersPublished: true,
+          },
+        },
+      };
     } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
@@ -715,6 +731,15 @@ export class ResultsService extends BaseService {
       }) as UserWithJudge | null;
 
       if (!judgeUser?.judge) {
+        return [];
+      }
+
+      const contestPublication = await this.prisma.contest.findUnique({
+        where: { id: category.contestId },
+        select: { winnersPublished: true },
+      });
+
+      if (!contestPublication?.winnersPublished) {
         return [];
       }
 
@@ -901,6 +926,10 @@ export class ResultsService extends BaseService {
         return [];
       }
 
+      if (!contest.winnersPublished) {
+        return [];
+      }
+
       const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
@@ -1030,6 +1059,15 @@ export class ResultsService extends BaseService {
       if (!judgeUser?.judge) {
         return [];
       }
+
+      whereClause = {
+        category: {
+          contest: {
+            eventId,
+            winnersPublished: true,
+          },
+        },
+      };
 
       const assignment = await this.prisma.assignment.findFirst({
         where: {

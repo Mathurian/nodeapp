@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
@@ -75,7 +75,7 @@ interface Score {
 
 interface ScoreFormData {
   criterionId: string
-  score: number
+  score: number | ''
   comment: string
 }
 
@@ -98,6 +98,12 @@ interface PendingCommentaryFile {
   file: File
   fileName: string
   criterionId?: string
+}
+
+interface ContestOption {
+  id: string
+  name: string
+  eventName: string
 }
 
 const getImageUrl = (path?: string | null): string | null => {
@@ -166,6 +172,7 @@ const ScoringPage: React.FC = () => {
   const queryClient = useQueryClient()
 
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null)
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -273,21 +280,51 @@ const ScoringPage: React.FC = () => {
     }
   )
 
-  const normalizedExistingScores: Score[] = Array.isArray(existingScores)
-    ? existingScores
-    : ((existingScores as unknown as { scores?: Score[] })?.scores || [])
+  const assignedContests = useMemo<ContestOption[]>(() => {
+    if (!categories || categories.length === 0) return []
+    const contestMap = new Map<string, ContestOption>()
+    for (const category of categories) {
+      const contestId = category?.contest?.id
+      if (!contestId || contestMap.has(contestId)) continue
+      contestMap.set(contestId, {
+        id: contestId,
+        name: category.contest.name,
+        eventName: category.contest.event?.name || '',
+      })
+    }
+    return Array.from(contestMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [categories])
 
-  const effectiveCriteria: Criterion[] = (criteria && criteria.length > 0)
-    ? criteria
-    : (selectedCategory
-      ? [{
-          id: '__category_total__',
-          name: 'Category Total Score',
-          maxScore: selectedCategory.scoreCap ?? 100,
-          weight: 1,
-          description: 'No criteria configured. Enter a single score for this category.',
-        }]
-      : [])
+  const filteredCategories = useMemo<Category[]>(() => {
+    if (!categories || categories.length === 0) return []
+    if (!selectedContestId) return categories
+    return categories.filter((category) => category.contest.id === selectedContestId)
+  }, [categories, selectedContestId])
+
+  const normalizedExistingScores: Score[] = useMemo(() => (
+    Array.isArray(existingScores)
+      ? existingScores
+      : ((existingScores as unknown as { scores?: Score[] })?.scores || [])
+  ), [existingScores])
+
+  const effectiveCriteria: Criterion[] = useMemo(() => (
+    (criteria && criteria.length > 0)
+      ? criteria
+      : (selectedCategory
+        ? [{
+            id: '__category_total__',
+            name: 'Category Total Score',
+            maxScore: selectedCategory.scoreCap ?? 100,
+            weight: 1,
+            description: 'No criteria configured. Enter a single score for this category.',
+          }]
+        : [])
+  ), [criteria, selectedCategory])
+
+  const hasCertifiedScores = useMemo(
+    () => normalizedExistingScores.some((score) => Boolean(score.isCertified)),
+    [normalizedExistingScores]
+  )
 
   // Initialize form data when contestant or scores change
   useEffect(() => {
@@ -299,7 +336,7 @@ const ScoringPage: React.FC = () => {
           : normalizedExistingScores.find(s => s.criterionId === criterion.id)
         initialFormData[criterion.id] = {
           criterionId: criterion.id,
-          score: existingScore?.score || 0,
+          score: existingScore?.score ?? '',
           comment: existingScore?.comment || '',
         }
       })
@@ -310,6 +347,27 @@ const ScoringPage: React.FC = () => {
   useEffect(() => {
     setIsSignOffChecked(false)
   }, [selectedCategory?.id, selectedContestant?.id])
+
+  useEffect(() => {
+    if (assignedContests.length === 0) {
+      setSelectedContestId('')
+      return
+    }
+    setSelectedContestId((current) => {
+      if (current && assignedContests.some((contest) => contest.id === current)) {
+        return current
+      }
+      return assignedContests[0]?.id || ''
+    })
+  }, [assignedContests])
+
+  useEffect(() => {
+    if (!selectedCategory) return
+    if (selectedContestId && selectedCategory.contest.id !== selectedContestId) {
+      setSelectedCategory(null)
+      setSelectedContestant(null)
+    }
+  }, [selectedCategory, selectedContestId])
 
   // Submit score mutation with optimistic updates
   const submitScoreMutation = useOptimisticMutation<
@@ -354,7 +412,7 @@ const ScoringPage: React.FC = () => {
         judgeId: user?.id || '',
         categoryId: variables.categoryId,
         criterionId: scoreData.criterionId,
-        score: scoreData.score,
+        score: Number(scoreData.score || 0),
         deduction: 0,
         comment: scoreData.comment || null,
         isSigned: false,
@@ -389,17 +447,48 @@ const ScoringPage: React.FC = () => {
   const handleScoreChange = (criterionId: string, field: keyof ScoreFormData, value: any) => {
     const criterion = effectiveCriteria.find((c) => c.id === criterionId)
     const maxScore = criterion?.maxScore ?? selectedCategory?.scoreCap ?? 100
-    const normalizedValue = field === 'score'
-      ? Math.max(0, Math.min(Number(value) || 0, Number(maxScore)))
-      : value
 
-    setScoreFormData(prev => ({
-      ...prev,
-      [criterionId]: {
-        ...prev[criterionId],
-        [field]: normalizedValue,
-      },
-    }))
+    setScoreFormData((prev) => {
+      const nextCurrent = prev[criterionId] || {
+        criterionId,
+        score: '',
+        comment: '',
+      }
+
+      if (field === 'score') {
+        if (value === '' || value === null || value === undefined) {
+          return {
+            ...prev,
+            [criterionId]: {
+              ...nextCurrent,
+              score: '',
+            },
+          }
+        }
+
+        const numericValue = Number(value)
+        if (!Number.isFinite(numericValue)) {
+          return prev
+        }
+
+        const normalizedValue = Math.max(0, Math.min(numericValue, Number(maxScore)))
+        return {
+          ...prev,
+          [criterionId]: {
+            ...nextCurrent,
+            score: normalizedValue,
+          },
+        }
+      }
+
+      return {
+        ...prev,
+        [criterionId]: {
+          ...nextCurrent,
+          [field]: value,
+        },
+      }
+    })
   }
 
   const handleSubmitScores = async () => {
@@ -713,19 +802,9 @@ const ScoringPage: React.FC = () => {
       <div className="cgr-page-container">
         <PageHeader
           title="Scoring Dashboard"
-          subtitle="Select a category and contestant to begin scoring"
+          subtitle={assignedContests.length > 1 ? 'Select a contest, category, and contestant to begin scoring' : 'Select a category and contestant to begin scoring'}
           icon={TrophyIcon}
         />
-        {user?.role === 'JUDGE' && (
-          <div className="mb-4">
-            <Link
-              to={`${basePath || ''}/score-governance?action=UNCERTIFY&scope=CONTESTANT_CATEGORY`}
-              className="inline-flex items-center rounded-md bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
-            >
-              Request Un-certify
-            </Link>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Categories */}
@@ -734,9 +813,31 @@ const ScoringPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Your Categories
               </h2>
-              {categories && categories.length > 0 ? (
+              {assignedContests.length > 1 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Assigned Contest
+                  </label>
+                  <select
+                    value={selectedContestId}
+                    onChange={(e) => {
+                      setSelectedContestId(e.target.value)
+                      setSelectedCategory(null)
+                      setSelectedContestant(null)
+                    }}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2"
+                  >
+                    {assignedContests.map((contest) => (
+                      <option key={contest.id} value={contest.id}>
+                        {contest.name}{contest.eventName ? ` (${contest.eventName})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {filteredCategories.length > 0 ? (
                 <div className="space-y-2">
-                  {categories.map(category => (
+                  {filteredCategories.map(category => (
                     <button
                       key={category.id}
                       onClick={() => {
@@ -761,7 +862,9 @@ const ScoringPage: React.FC = () => {
                 <div className="text-center py-8">
                   <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                    No categories assigned yet
+                    {categories && categories.length > 0
+                      ? 'No categories assigned in the selected contest'
+                      : 'No categories assigned yet'}
                   </p>
                 </div>
               )}
@@ -871,7 +974,7 @@ const ScoringPage: React.FC = () => {
                         View uploaded bio file
                       </button>
                     )}
-                    {user?.role === 'JUDGE' && (
+                    {user?.role === 'JUDGE' && hasCertifiedScores && (
                       <div className="mt-3">
                         <Link
                           to={`${basePath || ''}/score-governance?action=UNCERTIFY&scope=CONTESTANT_CATEGORY&contestId=${encodeURIComponent(selectedCategory.contest.id)}&categoryId=${encodeURIComponent(selectedCategory.id)}&contestantId=${encodeURIComponent(selectedContestant.id)}`}
@@ -964,8 +1067,9 @@ const ScoringPage: React.FC = () => {
                             type="number"
                             min="0"
                             max={criterion.maxScore}
-                            value={scoreFormData[criterion.id]?.score || 0}
-                            onChange={(e) => handleScoreChange(criterion.id, 'score', Number(e.target.value))}
+                            value={scoreFormData[criterion.id]?.score ?? ''}
+                            placeholder="0"
+                            onChange={(e) => handleScoreChange(criterion.id, 'score', e.target.value === '' ? '' : Number(e.target.value))}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                           <textarea

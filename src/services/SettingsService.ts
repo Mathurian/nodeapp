@@ -157,6 +157,112 @@ export class SettingsService extends BaseService {
     }
   }
 
+  private firstNonEmptyValue(...values: Array<string | null | undefined>): string {
+    for (const candidate of values) {
+      const normalized = String(candidate ?? '').trim();
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+    return '';
+  }
+
+  private normalizeGoogleOAuthClientId(value: string): string {
+    let normalized = String(value || '').trim();
+    if (!normalized) return '';
+
+    normalized = normalized.replace(/^['"]+|['"]+$/g, '').trim();
+    if (!normalized) return '';
+
+    if (/^https?:\/\//i.test(normalized)) {
+      try {
+        const parsed = new URL(normalized);
+        normalized = `${parsed.hostname}${parsed.pathname}`.replace(/\/+$/g, '');
+      } catch {
+        throw new Error('Invalid Google OAuth client ID format.');
+      }
+    }
+
+    normalized = normalized.replace(/\/+$/g, '').trim();
+    if (!/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/i.test(normalized)) {
+      throw new Error(
+        'Invalid Google OAuth client ID format. Use the raw client ID ending with ".apps.googleusercontent.com".'
+      );
+    }
+
+    return normalized;
+  }
+
+  private resolveGoogleOAuthClientId(candidates: Array<string | null | undefined>): string {
+    let firstError: string | null = null;
+    for (const candidate of candidates) {
+      const raw = String(candidate ?? '').trim();
+      if (!raw) continue;
+      try {
+        return this.normalizeGoogleOAuthClientId(raw);
+      } catch (error: any) {
+        if (!firstError) {
+          firstError = error?.message || 'Invalid Google OAuth client ID format.';
+        }
+      }
+    }
+
+    if (firstError) {
+      throw new Error(firstError);
+    }
+    return '';
+  }
+
+  private normalizeGoogleOAuthRedirectUri(value: string): string {
+    const normalized = String(value || '').trim();
+    if (!normalized) return '';
+
+    let parsed: URL;
+    try {
+      parsed = new URL(normalized);
+    } catch {
+      throw new Error('Invalid OAuth redirect URI. Set backup_google_oauth_redirect_uri in backup settings.');
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('Invalid OAuth redirect URI. Set backup_google_oauth_redirect_uri in backup settings.');
+    }
+
+    return normalized;
+  }
+
+  private async getGlobalBackupOAuthSettings(): Promise<Record<string, string>> {
+    const rows = await this.prisma.systemSetting.findMany({
+      where: {
+        tenantId: null,
+        key: {
+          in: [
+            'backup_google_oauth_client_id',
+            'backup_google_oauth_client_secret',
+            'backup_google_oauth_redirect_uri',
+          ],
+        },
+      },
+      select: {
+        key: true,
+        value: true,
+      },
+    });
+
+    const settings: Record<string, string> = {};
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+
+    if (settings['backup_google_oauth_client_secret']) {
+      settings['backup_google_oauth_client_secret'] = this.decryptSensitiveValue(
+        settings['backup_google_oauth_client_secret']
+      );
+    }
+
+    return settings;
+  }
+
   private getBackupRuntimeEnvPath(): string {
     return process.env['BACKUP_RUNTIME_ENV_PATH'] || DEFAULT_BACKUP_RUNTIME_ENV_PATH;
   }
@@ -510,6 +616,7 @@ export class SettingsService extends BaseService {
     siteName: 'app_name',
     siteDescription: 'app_description',
     contactEmail: 'footer_contactEmail',
+    securityEmail: 'security_email',
     allowRegistration: 'allow_registration',
     requireEmailVerification: 'require_email_verification',
     enableNotifications: 'notification_email_enabled',
@@ -663,6 +770,15 @@ export class SettingsService extends BaseService {
     tenantId?: string | null
   ): Promise<number> {
     const next: Record<string, string> = { ...backupSettings };
+    if ('backup_google_oauth_client_id' in next) {
+      const normalizedClientId = this.normalizeGoogleOAuthClientId(String(next['backup_google_oauth_client_id'] ?? ''));
+      next['backup_google_oauth_client_id'] = normalizedClientId;
+    }
+    if ('backup_google_oauth_redirect_uri' in next) {
+      const normalizedRedirect = this.normalizeGoogleOAuthRedirectUri(String(next['backup_google_oauth_redirect_uri'] ?? ''));
+      next['backup_google_oauth_redirect_uri'] = normalizedRedirect;
+    }
+
     const sensitiveKeys = [
       'backup_s3_secret_access_key',
       'backup_google_oauth_client_secret',
@@ -899,16 +1015,29 @@ export class SettingsService extends BaseService {
   ): Promise<{ authUrl: string; state: string }> {
     this.cleanupExpiredGoogleStates();
     const settings = await this.getBackupSettings(tenantId);
-    const clientId = String(options?.clientId ?? settings['backup_google_oauth_client_id'] ?? '').trim();
-    const clientSecret = String(options?.clientSecret ?? settings['backup_google_oauth_client_secret'] ?? '').trim();
-    const configuredRedirect = String(options?.redirectUri ?? settings['backup_google_oauth_redirect_uri'] ?? '').trim();
+    const globalFallback = tenantId ? await this.getGlobalBackupOAuthSettings() : {};
+
+    const clientId = this.resolveGoogleOAuthClientId([
+      options?.clientId,
+      settings['backup_google_oauth_client_id'],
+      globalFallback['backup_google_oauth_client_id'],
+    ]);
+    const clientSecret = this.firstNonEmptyValue(
+      options?.clientSecret,
+      settings['backup_google_oauth_client_secret'],
+      globalFallback['backup_google_oauth_client_secret']
+    );
+    const configuredRedirect = this.firstNonEmptyValue(
+      options?.redirectUri,
+      settings['backup_google_oauth_redirect_uri'],
+      globalFallback['backup_google_oauth_redirect_uri']
+    );
+
     if (!clientId || !clientSecret) {
       throw new Error('Google OAuth client ID and secret are required before connecting.');
     }
-    const redirectUri = configuredRedirect || `${(origin || '').replace(/\/$/, '')}/api/settings/backup/google-drive/oauth/callback`;
-    if (!redirectUri.startsWith('http')) {
-      throw new Error('Invalid OAuth redirect URI. Set backup_google_oauth_redirect_uri in backup settings.');
-    }
+    const defaultRedirectUri = `${(origin || '').replace(/\/$/, '')}/api/settings/backup/google-drive/oauth/callback`;
+    const redirectUri = this.normalizeGoogleOAuthRedirectUri(configuredRedirect || defaultRedirectUri);
 
     const state = crypto.randomBytes(24).toString('hex');
     this.googleOAuthStateStore.set(state, {
@@ -945,10 +1074,24 @@ export class SettingsService extends BaseService {
     this.googleOAuthStateStore.delete(state);
 
     const settings = await this.getBackupSettings(stateInfo.tenantId);
-    const clientId = String(stateInfo.oauthClientId ?? settings['backup_google_oauth_client_id'] ?? '').trim();
-    const clientSecret = String(stateInfo.oauthClientSecret ?? settings['backup_google_oauth_client_secret'] ?? '').trim();
-    const configuredRedirect = String(stateInfo.oauthRedirectUri ?? settings['backup_google_oauth_redirect_uri'] ?? '').trim();
-    const redirectUri = configuredRedirect || `${(origin || '').replace(/\/$/, '')}/api/settings/backup/google-drive/oauth/callback`;
+    const globalFallback = stateInfo.tenantId ? await this.getGlobalBackupOAuthSettings() : {};
+    const clientId = this.resolveGoogleOAuthClientId([
+      stateInfo.oauthClientId,
+      settings['backup_google_oauth_client_id'],
+      globalFallback['backup_google_oauth_client_id'],
+    ]);
+    const clientSecret = this.firstNonEmptyValue(
+      stateInfo.oauthClientSecret,
+      settings['backup_google_oauth_client_secret'],
+      globalFallback['backup_google_oauth_client_secret']
+    );
+    const configuredRedirect = this.firstNonEmptyValue(
+      stateInfo.oauthRedirectUri,
+      settings['backup_google_oauth_redirect_uri'],
+      globalFallback['backup_google_oauth_redirect_uri']
+    );
+    const defaultRedirectUri = `${(origin || '').replace(/\/$/, '')}/api/settings/backup/google-drive/oauth/callback`;
+    const redirectUri = this.normalizeGoogleOAuthRedirectUri(configuredRedirect || defaultRedirectUri);
     if (!clientId || !clientSecret) {
       throw new Error('Google OAuth client configuration missing.');
     }
@@ -1273,6 +1416,7 @@ export class SettingsService extends BaseService {
   async getGeneralSettings(tenantId?: string | null): Promise<Record<string, any>> {
     const keys = [
       'app_name', 'app_description', 'footer_contactEmail',
+      'security_email',
       'allow_registration', 'require_email_verification',
       'notification_email_enabled', 'maintenance_mode',
       'default_language', 'default_timezone',
@@ -1290,6 +1434,7 @@ export class SettingsService extends BaseService {
       siteName: keyMap['app_name'] || DEFAULT_APP_NAME,
       siteDescription: keyMap['app_description'] || '',
       contactEmail: keyMap['footer_contactEmail'] || '',
+      securityEmail: keyMap['security_email'] || env.get('SECURITY_EMAIL') || keyMap['footer_contactEmail'] || '',
       allowRegistration: (keyMap['allow_registration'] || 'true') === 'true',
       requireEmailVerification: (keyMap['require_email_verification'] || 'false') === 'true',
       enableNotifications: (keyMap['notification_email_enabled'] || 'true') === 'true',

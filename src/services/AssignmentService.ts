@@ -121,6 +121,22 @@ interface UpdateContestantInput {
   pronouns?: string | null;
 }
 
+type JudgeContestLimitPolicySource = 'event' | 'tenant' | 'global' | 'default';
+
+interface JudgeContestLimitPolicy {
+  tenantId: string;
+  eventId?: string;
+  // 0 means unlimited
+  effectiveLimit: number;
+  source: JudgeContestLimitPolicySource;
+  tenantDefaultLimit: number;
+  eventOverrideLimit: number | null;
+}
+
+const JUDGE_CONTEST_LIMIT_SETTING_KEY = 'assignment_judge_contest_limit_per_event';
+const JUDGE_CONTEST_LIMIT_EVENT_SETTING_PREFIX = `${JUDGE_CONTEST_LIMIT_SETTING_KEY}::event::`;
+const DEFAULT_JUDGE_CONTEST_LIMIT = 1;
+
 @injectable()
 export class AssignmentService extends BaseService {
   constructor(
@@ -141,6 +157,200 @@ export class AssignmentService extends BaseService {
     if (categoryId) {
       await this.cacheService.del(`assignments:category:${categoryId}`);
     }
+  }
+
+  private parseNonNegativeInteger(value: string | null | undefined): number | null {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) return null;
+    if (!/^\d+$/.test(normalized)) return null;
+    const parsed = Number.parseInt(normalized, 10);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+  }
+
+  private getEventPolicyKey(eventId: string): string {
+    return `${JUDGE_CONTEST_LIMIT_EVENT_SETTING_PREFIX}${eventId}`;
+  }
+
+  private async resolveJudgeContestLimitPolicy(
+    tenantId: string,
+    eventId?: string
+  ): Promise<JudgeContestLimitPolicy> {
+    const keys = [
+      JUDGE_CONTEST_LIMIT_SETTING_KEY,
+      ...(eventId ? [this.getEventPolicyKey(eventId)] : []),
+    ];
+
+    const rows = await this.prisma.systemSetting.findMany({
+      where: {
+        key: { in: keys },
+        OR: [{ tenantId }, { tenantId: null }],
+      },
+      select: {
+        key: true,
+        value: true,
+        tenantId: true,
+      },
+    });
+
+    const findSettingValue = (key: string, scopeTenantId: string | null): string | null => {
+      const row = rows.find((item) => item.key === key && item.tenantId === scopeTenantId);
+      return row?.value ?? null;
+    };
+
+    const tenantDefaultRaw =
+      findSettingValue(JUDGE_CONTEST_LIMIT_SETTING_KEY, tenantId) ??
+      findSettingValue(JUDGE_CONTEST_LIMIT_SETTING_KEY, null);
+    const tenantDefaultLimit = this.parseNonNegativeInteger(tenantDefaultRaw) ?? DEFAULT_JUDGE_CONTEST_LIMIT;
+
+    const eventOverrideRaw = eventId
+      ? (
+          findSettingValue(this.getEventPolicyKey(eventId), tenantId) ??
+          findSettingValue(this.getEventPolicyKey(eventId), null)
+        )
+      : null;
+    const eventOverrideLimit = this.parseNonNegativeInteger(eventOverrideRaw);
+
+    let source: JudgeContestLimitPolicySource = 'default';
+    let effectiveLimit = DEFAULT_JUDGE_CONTEST_LIMIT;
+
+    if (eventOverrideLimit !== null) {
+      source = 'event';
+      effectiveLimit = eventOverrideLimit;
+    } else if (findSettingValue(JUDGE_CONTEST_LIMIT_SETTING_KEY, tenantId) !== null) {
+      source = 'tenant';
+      effectiveLimit = tenantDefaultLimit;
+    } else if (findSettingValue(JUDGE_CONTEST_LIMIT_SETTING_KEY, null) !== null) {
+      source = 'global';
+      effectiveLimit = tenantDefaultLimit;
+    } else {
+      source = 'default';
+      effectiveLimit = DEFAULT_JUDGE_CONTEST_LIMIT;
+    }
+
+    return {
+      tenantId,
+      eventId,
+      effectiveLimit,
+      source,
+      tenantDefaultLimit,
+      eventOverrideLimit,
+    };
+  }
+
+  private async enforceContestAssignmentLimit(
+    tenantId: string,
+    eventId: string,
+    judgeId: string
+  ): Promise<void> {
+    const policy = await this.resolveJudgeContestLimitPolicy(tenantId, eventId);
+    if (policy.effectiveLimit <= 0) {
+      return;
+    }
+
+    const existingContestLevelAssignments = await this.prisma.assignment.count({
+      where: {
+        tenantId,
+        judgeId,
+        eventId,
+        categoryId: null,
+        status: {
+          in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED],
+        },
+      },
+    });
+
+    if (existingContestLevelAssignments >= policy.effectiveLimit) {
+      throw this.createBadRequestError(
+        `Judge already has ${existingContestLevelAssignments} contest-level assignment(s) for this event. ` +
+        `Limit is ${policy.effectiveLimit} (${policy.source} policy).`
+      );
+    }
+  }
+
+  async getJudgeContestLimitPolicy(tenantId: string, eventId?: string): Promise<JudgeContestLimitPolicy> {
+    const safeTenantId = String(tenantId || '').trim();
+    if (!safeTenantId) {
+      throw this.createBadRequestError('Tenant context is required');
+    }
+
+    if (eventId) {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        select: { id: true, tenantId: true },
+      });
+      if (!event || event.tenantId !== safeTenantId) {
+        throw this.createNotFoundError('Event not found');
+      }
+    }
+
+    return this.resolveJudgeContestLimitPolicy(safeTenantId, eventId);
+  }
+
+  async updateJudgeContestLimitPolicy(
+    tenantId: string,
+    userId: string,
+    input: { limit: number | null; eventId?: string | null }
+  ): Promise<JudgeContestLimitPolicy> {
+    const safeTenantId = String(tenantId || '').trim();
+    if (!safeTenantId) {
+      throw this.createBadRequestError('Tenant context is required');
+    }
+
+    const eventId = String(input.eventId || '').trim() || undefined;
+    if (eventId) {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        select: { id: true, tenantId: true },
+      });
+      if (!event || event.tenantId !== safeTenantId) {
+        throw this.createNotFoundError('Event not found');
+      }
+    }
+
+    const key = eventId
+      ? this.getEventPolicyKey(eventId)
+      : JUDGE_CONTEST_LIMIT_SETTING_KEY;
+
+    if (input.limit === null) {
+      await this.prisma.systemSetting.deleteMany({
+        where: { key, tenantId: safeTenantId },
+      });
+      return this.resolveJudgeContestLimitPolicy(safeTenantId, eventId);
+    }
+
+    const parsedLimit = Number(input.limit);
+    if (!Number.isFinite(parsedLimit) || parsedLimit < 0 || !Number.isInteger(parsedLimit)) {
+      throw this.createBadRequestError('limit must be a non-negative integer (0 = unlimited)');
+    }
+
+    await this.prisma.systemSetting.upsert({
+      where: {
+        key_tenantId: {
+          key,
+          tenantId: safeTenantId,
+        },
+      },
+      update: {
+        value: String(parsedLimit),
+        category: 'assignments',
+        description: eventId
+          ? 'Per-event override for max contest-level assignments per judge (0 = unlimited)'
+          : 'Tenant default max contest-level assignments per judge per event (0 = unlimited)',
+        updatedBy: userId || null,
+      },
+      create: {
+        key,
+        tenantId: safeTenantId,
+        value: String(parsedLimit),
+        category: 'assignments',
+        description: eventId
+          ? 'Per-event override for max contest-level assignments per judge (0 = unlimited)'
+          : 'Tenant default max contest-level assignments per judge per event (0 = unlimited)',
+        updatedBy: userId || null,
+      },
+    });
+
+    return this.resolveJudgeContestLimitPolicy(safeTenantId, eventId);
   }
 
   /**
@@ -448,6 +658,10 @@ export class AssignmentService extends BaseService {
       });
       if (existingContestLevel) {
         throw this.conflictError('Assignment already exists for this judge and contest');
+      }
+
+      if (finalEventId) {
+        await this.enforceContestAssignmentLimit(tenantId, finalEventId, data.judgeId);
       }
     } else {
       // Fetch judge to get tenantId

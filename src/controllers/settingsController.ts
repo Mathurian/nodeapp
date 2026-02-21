@@ -390,13 +390,31 @@ export class SettingsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const settings = req.body;
+      const settings = (req.body && typeof req.body === 'object')
+        ? (req.body as Record<string, unknown>)
+        : {};
+      const userRole = String(req.user?.role || '').trim().toUpperCase();
+      const isSecurityEmailWrite =
+        Object.prototype.hasOwnProperty.call(settings, 'securityEmail') ||
+        Object.prototype.hasOwnProperty.call(settings, 'security_email');
+      if (isSecurityEmailWrite && !['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
+        res.status(403).json({
+          success: false,
+          error: 'FORBIDDEN',
+          message: 'Only SUPER_ADMIN and ADMIN can update security email',
+        });
+        return;
+      }
+      const normalizedSettings = Object.fromEntries(
+        Object.entries(settings).map(([key, value]) => [key, String(value ?? '')])
+      ) as Record<string, string>;
+
       const userId = req.user?.id || '';
       const forGlobal = req.query['global'] === 'true';
       const tenantId = this.getTenantIdForWrite(req, forGlobal);
 
       const updatedCount = await this.settingsService.updateSettings(
-        settings,
+        normalizedSettings,
         userId,
         tenantId
       );
@@ -596,7 +614,15 @@ export class SettingsController {
         { updatedCount, scope: tenantId ? 'tenant' : 'global', runtimeEnvPath, runtimeEnvWarning },
         'Backup settings updated successfully'
       );
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.message || 'Unable to update backup settings';
+      if (
+        message.includes('Invalid Google OAuth client ID format') ||
+        message.includes('Invalid OAuth redirect URI')
+      ) {
+        res.status(400).json({ success: false, error: message });
+        return;
+      }
       return next(error);
     }
   };
@@ -623,7 +649,8 @@ export class SettingsController {
       const message = error?.message || 'Unable to start Google OAuth';
       if (
         message.includes('Google OAuth client ID and secret are required') ||
-        message.includes('Invalid OAuth redirect URI')
+        message.includes('Invalid OAuth redirect URI') ||
+        message.includes('Invalid Google OAuth client ID format')
       ) {
         res.status(400).json({ success: false, error: message });
         return;

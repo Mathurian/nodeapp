@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
+import { buildTenantAwareLoginPath } from '../utils/authRedirect'
 
 interface TenantInfo {
   id: string
@@ -184,6 +185,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const logout = async () => {
+    const logoutLoginPath = buildTenantAwareLoginPath(
+      typeof window !== 'undefined' ? window.location.pathname : '',
+      user?.tenant?.slug || null
+    )
+
     try {
       // Call logout endpoint to clear httpOnly cookie on server
       await api.post('/auth/logout')
@@ -192,7 +198,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     // Cookie is cleared by server, just update local state
     setUser(null)
-    navigate('/login')
+    navigate(logoutLoginPath, { replace: true })
   }
 
   const refreshUser = async () => {

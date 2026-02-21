@@ -6,6 +6,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import type { ApiResponse, ApiErrorResponse, isErrorResponse } from '../../../shared/types/api';
 import { ApiError } from '../utils/errorHandler';
+import { buildTenantAwareLoginPath } from '../utils/authRedirect';
 
 const isPublicPath = (pathname: string): boolean => {
   if (pathname === '/') return true;
@@ -77,7 +78,7 @@ class ApiClient {
           const requestUrl = String(originalRequest?.url || '');
           const isProfileProbe = requestUrl.includes('/auth/profile');
           if (!isPublicPath(window.location.pathname) && !isProfileProbe) {
-            window.location.href = '/login';
+            window.location.href = buildTenantAwareLoginPath(window.location.pathname);
           }
           return Promise.reject(error);
         }

@@ -836,8 +836,11 @@ export class CertificationController {
         const scopedContestantIds = contestantsByCategory.get(category.id) || new Set<string>();
         const scopedCriterionIds = criteriaByCategory.get(category.id) || new Set<string>();
 
-        const expectedCriteriaCount = scopedCriterionIds.size > 0 ? scopedCriterionIds.size : 1;
-        const expectedTotal = assignedJudgeIds.size * scopedContestantIds.size * expectedCriteriaCount;
+        const assignedJudgeCount = assignedJudgeIds.size;
+        const scopedContestantCount = scopedContestantIds.size;
+        const scopedCriteriaCount = scopedCriterionIds.size;
+        const expectedCriteriaCount = scopedCriteriaCount > 0 ? scopedCriteriaCount : 1;
+        const expectedTotal = assignedJudgeCount * scopedContestantCount * expectedCriteriaCount;
 
         const submittedKeys = new Set<string>();
         const certifiedKeys = new Set<string>();
@@ -862,7 +865,10 @@ export class CertificationController {
           total: expectedTotal,
           submitted: submittedKeys.size,
           certified: certifiedKeys.size,
-          locked: lockedKeys.size
+          locked: lockedKeys.size,
+          judges: assignedJudgeCount,
+          contestants: scopedContestantCount,
+          criteria: scopedCriteriaCount
         };
 
         const judgeCertifiedDerived = judgeRows.length > 0

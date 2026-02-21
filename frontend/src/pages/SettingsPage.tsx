@@ -33,6 +33,7 @@ interface GeneralSettings {
   siteName: string
   siteDescription: string
   contactEmail: string
+  securityEmail: string
   allowRegistration: boolean
   requireEmailVerification: boolean
   enableNotifications: boolean
@@ -274,6 +275,7 @@ const SettingsPage: React.FC = () => {
     siteName: '',
     siteDescription: '',
     contactEmail: '',
+    securityEmail: '',
     allowRegistration: true,
     requireEmailVerification: false,
     enableNotifications: true,
@@ -399,11 +401,13 @@ const SettingsPage: React.FC = () => {
     email?: string
     connectedAt?: string
   }>({ connected: false })
+  const [isAwaitingGoogleOauthCompletion, setIsAwaitingGoogleOauthCompletion] = useState(false)
   const [backupSchedules, setBackupSchedules] = useState<BackupSchedule[]>(defaultBackupSchedules())
 
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'BOARD'
+  const canManageSecurityEmail = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
   const canManageBackupSettings = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER'
   const canManageBackupSchedules = isSuperAdmin
 
@@ -434,7 +438,11 @@ const SettingsPage: React.FC = () => {
     {
       enabled: isAdmin,
       onSuccess: (data) => {
-        setGeneralFormData(data)
+        setGeneralFormData((prev) => ({
+          ...prev,
+          ...data,
+          securityEmail: data?.securityEmail || '',
+        }))
       },
     }
   )
@@ -635,7 +643,7 @@ const SettingsPage: React.FC = () => {
   useQuery<any>(
     ['backup-google-oauth-status', editingGlobal, selectedTenantId],
     async () => {
-      const response = await settingsAPI.getGoogleDriveBackupOAuthStatus()
+      const response = await settingsAPI.getGoogleDriveBackupOAuthStatus(getGlobalParam())
       return response.data?.data || response.data
     },
     {
@@ -652,6 +660,36 @@ const SettingsPage: React.FC = () => {
       },
     }
   )
+
+  const pollGoogleDriveOauthStatus = async (
+    scopeQuery: string,
+    timeoutMs: number = 120000,
+    intervalMs: number = 2500,
+    shouldStop?: () => boolean
+  ): Promise<{ connected: boolean; email?: string; connectedAt?: string } | null> => {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+      if (shouldStop?.()) return null
+      try {
+        const response = await settingsAPI.getGoogleDriveBackupOAuthStatus(scopeQuery)
+        const data = response.data?.data || response.data
+        if (Boolean(data?.connected)) {
+          return {
+            connected: true,
+            email: data?.email || undefined,
+            connectedAt: data?.connectedAt || undefined,
+          }
+        }
+      } catch {
+        // Ignore transient poll failures during OAuth redirect handoff.
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+
+    return null
+  }
 
   const { data: databaseInfo, isLoading: databaseInfoLoading } = useQuery<any>(
     'database-connection-info',
@@ -762,7 +800,7 @@ const SettingsPage: React.FC = () => {
 
   // Update mutations
   const updateGeneralMutation = useMutation(
-    async (data: GeneralSettings) => {
+    async (data: Partial<GeneralSettings>) => {
       const response = await api.put(`/settings${getGlobalParam()}`, data)
       return response.data
     },
@@ -926,45 +964,86 @@ const SettingsPage: React.FC = () => {
 
   const startGoogleDriveOauthMutation = useMutation(
     async () => {
+      const clientId = backupFormData.backup_google_oauth_client_id.trim()
+      const clientSecret = backupFormData.backup_google_oauth_client_secret.trim()
+      const redirectUri =
+        backupFormData.backup_google_oauth_redirect_uri.trim() || defaultGoogleDriveRedirectUri
+      const scopeQuery = getGlobalParam()
+
       const response = await settingsAPI.startGoogleDriveBackupOAuth({
         origin: window.location.origin,
-        clientId: backupFormData.backup_google_oauth_client_id,
-        clientSecret: backupFormData.backup_google_oauth_client_secret,
-        redirectUri: backupFormData.backup_google_oauth_redirect_uri || defaultGoogleDriveRedirectUri,
-      })
-      return response.data?.data || response.data
+        clientId: clientId || undefined,
+        clientSecret: clientSecret || undefined,
+        redirectUri,
+      }, scopeQuery)
+      return {
+        scopeQuery,
+        payload: response.data?.data || response.data,
+      }
     },
     {
-      onSuccess: (data: any) => {
+      onSuccess: ({ payload, scopeQuery }: { payload: any; scopeQuery: string }) => {
+        let completed = false
+        let stopPolling = false
+        const finish = (type: 'success' | 'error', text: string) => {
+          if (completed) return
+          completed = true
+          stopPolling = true
+          setIsAwaitingGoogleOauthCompletion(false)
+          setMessage({ type, text })
+          setTimeout(() => setMessage(null), 7000)
+        }
+
+        setIsAwaitingGoogleOauthCompletion(true)
+
+        const data = payload
         const authUrl = data?.authUrl
         if (!authUrl) {
-          setMessage({ type: 'error', text: 'Google OAuth URL was not returned.' })
+          finish('error', 'Google OAuth URL was not returned.')
           return
         }
 
         const popup = window.open(authUrl, 'google-drive-oauth', 'width=560,height=700')
         if (!popup) {
-          setMessage({ type: 'error', text: 'Popup blocked. Allow popups and try again.' })
-          return
+          const fallback = window.open(authUrl, '_blank', 'noopener,noreferrer')
+          if (!fallback) {
+            finish('error', 'Popup blocked. Allow popups (or open in browser) and try again.')
+            return
+          }
         }
+        setMessage({ type: 'success', text: 'Complete Google sign-in in the opened window. This page will auto-update once connected.' })
 
         const handleMessage = (event: MessageEvent) => {
           if (event.origin !== window.location.origin) return
           const payload = event.data || {}
           if (payload?.type !== 'google-drive-oauth-result') return
           window.removeEventListener('message', handleMessage)
-          queryClient.invalidateQueries(['backup-google-oauth-status', editingGlobal, selectedTenantId])
-          if (payload.success) {
-            setMessage({ type: 'success', text: payload.message || 'Google Drive connected.' })
-          } else {
-            setMessage({ type: 'error', text: payload.message || 'Google Drive connection failed.' })
+          stopPolling = true
+          if (!payload.success) {
+            finish('error', payload.message || 'Google Drive connection failed.')
+            return
           }
-          setTimeout(() => setMessage(null), 7000)
+          queryClient.invalidateQueries(['backup-google-oauth-status', editingGlobal, selectedTenantId])
+          finish('success', payload.message || 'Google Drive connected.')
         }
 
         window.addEventListener('message', handleMessage)
+
+        void (async () => {
+          const connected = await pollGoogleDriveOauthStatus(scopeQuery, 120000, 2500, () => stopPolling)
+          if (stopPolling) return
+          window.removeEventListener('message', handleMessage)
+          if (!connected) {
+            finish('error', 'Timed out waiting for Google OAuth completion. If you completed sign-in, try refresh and reconnect.')
+            return
+          }
+          setGoogleBackupOauthStatus(connected)
+          queryClient.invalidateQueries(['backup-google-oauth-status', editingGlobal, selectedTenantId])
+          finish('success', connected.email ? `Google Drive connected as ${connected.email}.` : 'Google Drive connected.')
+        })()
       },
       onError: (error: any) => {
+        setIsAwaitingGoogleOauthCompletion(false)
         setMessage({ type: 'error', text: `Failed to start Google OAuth: ${error?.response?.data?.error || error.message}` })
         setTimeout(() => setMessage(null), 7000)
       },
@@ -973,7 +1052,7 @@ const SettingsPage: React.FC = () => {
 
   const disconnectGoogleDriveOauthMutation = useMutation(
     async () => {
-      const response = await settingsAPI.disconnectGoogleDriveBackupOAuth()
+      const response = await settingsAPI.disconnectGoogleDriveBackupOAuth(getGlobalParam())
       return response.data
     },
     {
@@ -1280,7 +1359,12 @@ const SettingsPage: React.FC = () => {
   const handleSaveSection = (section: string) => {
     switch (section) {
       case 'general':
-        updateGeneralMutation.mutate(generalFormData)
+        if (canManageSecurityEmail) {
+          updateGeneralMutation.mutate(generalFormData)
+        } else {
+          const { securityEmail: _ignoredSecurityEmail, ...generalPayload } = generalFormData
+          updateGeneralMutation.mutate(generalPayload)
+        }
         break
       case 'email':
         updateEmailMutation.mutate(emailFormData)
@@ -1503,6 +1587,23 @@ const SettingsPage: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+
+                    {canManageSecurityEmail && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Security Email
+                        </label>
+                        <input
+                          type="email"
+                          value={generalFormData.securityEmail}
+                          onChange={(e) => setGeneralFormData({ ...generalFormData, securityEmail: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Used for security alerts and API documentation contact details.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -2182,10 +2283,19 @@ const SettingsPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => startGoogleDriveOauthMutation.mutate()}
-                                disabled={backupSectionReadOnly || !backupRemoteEnabled || startGoogleDriveOauthMutation.isLoading}
+                                disabled={
+                                  backupSectionReadOnly ||
+                                  !backupRemoteEnabled ||
+                                  startGoogleDriveOauthMutation.isLoading ||
+                                  isAwaitingGoogleOauthCompletion
+                                }
                                 className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                               >
-                                {startGoogleDriveOauthMutation.isLoading ? 'Starting...' : (googleBackupOauthStatus.connected ? 'Reconnect Google Drive' : 'Connect Google Drive')}
+                                {startGoogleDriveOauthMutation.isLoading
+                                  ? 'Starting...'
+                                  : isAwaitingGoogleOauthCompletion
+                                    ? 'Waiting for Google...'
+                                    : (googleBackupOauthStatus.connected ? 'Reconnect Google Drive' : 'Connect Google Drive')}
                               </button>
                               {googleBackupOauthStatus.connected && (
                                 <button

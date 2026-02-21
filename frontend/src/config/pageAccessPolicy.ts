@@ -54,7 +54,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'activity', path: '/activity', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'login-locations', path: '/login-locations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], resource: 'activity-logs', allowCrudReadOverride: true },
   { id: 'performance', path: '/performance', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
-  { id: 'backups', path: '/backups', baseRoles: ['SUPER_ADMIN'], hardProtected: true },
+  { id: 'backups', path: '/backups', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], hardProtected: true },
   { id: 'disaster-recovery', path: '/disaster-recovery', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'data-wipe', path: '/data-wipe', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
 

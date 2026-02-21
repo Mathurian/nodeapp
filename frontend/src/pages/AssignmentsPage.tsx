@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
-import { api, tenantsAPI } from '../services/api'
+import { api, assignmentsAPI, tenantsAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
 import {
@@ -61,6 +61,7 @@ interface JudgeAssignment {
   judgeId?: string
   categoryId?: string
   contestId?: string
+  eventId?: string
   judge: Judge
   category?: Category
   contest?: { id: string; name: string }
@@ -121,6 +122,15 @@ interface AssignmentFormData {
   categoryId: string
 }
 
+interface JudgeContestLimitPolicy {
+  tenantId: string
+  eventId?: string
+  effectiveLimit: number
+  source: 'event' | 'tenant' | 'global' | 'default'
+  tenantDefaultLimit: number
+  eventOverrideLimit: number | null
+}
+
 type TabType = 'judges' | 'contestants' | 'tally-masters' | 'auditors'
 
 const getAssignmentLevel = (a: { eventId?: string; contestId?: string; categoryId?: string; _derivedLevel?: string }): string => {
@@ -155,9 +165,21 @@ const AssignmentsPage: React.FC = () => {
     contestId: '',
     categoryId: '',
   })
+  const [policyEventId, setPolicyEventId] = useState('')
+  const [tenantPolicyInput, setTenantPolicyInput] = useState('1')
+  const [eventPolicyInput, setEventPolicyInput] = useState('')
 
   const canManageAssignments = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  const policyTenantId = isSuperAdmin ? selectedTenantId : undefined
+  const isPolicyContextReady = !isSuperAdmin || !!policyTenantId
+
+  const parsePolicyLimit = (value: string): number | null => {
+    const normalized = value.trim()
+    if (!normalized) return null
+    if (!/^\d+$/.test(normalized)) return Number.NaN
+    return Number.parseInt(normalized, 10)
+  }
 
   // ─── Queries ───────────────────────────────────────────────────────────────
 
@@ -255,11 +277,39 @@ const AssignmentsPage: React.FC = () => {
   )
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery<Event[]>(
-    'events-list',
+    ['events-list', selectedTenantId],
     async () => {
-      const response = await api.get('/events')
+      const params = selectedTenantId ? { tenantId: selectedTenantId } : undefined
+      const response = await api.get('/events', { params })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
+    }
+  )
+
+  const { data: tenantJudgeContestLimitPolicy, isLoading: isLoadingTenantJudgeContestLimitPolicy } = useQuery<JudgeContestLimitPolicy>(
+    ['judge-contest-limit-policy', 'tenant', policyTenantId || 'current'],
+    async () => {
+      const response = await assignmentsAPI.getJudgeContestLimitPolicy(
+        policyTenantId ? { tenantId: policyTenantId } : undefined
+      )
+      return response.data?.data || response.data
+    },
+    {
+      enabled: activeTab === 'judges' && isPolicyContextReady
+    }
+  )
+
+  const { data: eventJudgeContestLimitPolicy, isLoading: isLoadingEventJudgeContestLimitPolicy } = useQuery<JudgeContestLimitPolicy>(
+    ['judge-contest-limit-policy', 'event', policyTenantId || 'current', policyEventId],
+    async () => {
+      const response = await assignmentsAPI.getJudgeContestLimitPolicy({
+        eventId: policyEventId,
+        ...(policyTenantId ? { tenantId: policyTenantId } : {})
+      })
+      return response.data?.data || response.data
+    },
+    {
+      enabled: activeTab === 'judges' && isPolicyContextReady && !!policyEventId
     }
   )
 
@@ -308,6 +358,30 @@ const AssignmentsPage: React.FC = () => {
   )
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
+
+  const updateJudgeContestLimitPolicyMutation = useMutation(
+    async (payload: { limit: number | null; eventId?: string }) => {
+      const response = await assignmentsAPI.updateJudgeContestLimitPolicy(
+        payload,
+        policyTenantId ? { tenantId: policyTenantId } : undefined
+      )
+      return response.data?.data || response.data
+    },
+    {
+      onSuccess: (_data, payload) => {
+        queryClient.invalidateQueries(['judge-contest-limit-policy', 'tenant', policyTenantId || 'current'])
+        if (payload.eventId) {
+          queryClient.invalidateQueries(['judge-contest-limit-policy', 'event', policyTenantId || 'current', payload.eventId])
+        } else {
+          queryClient.invalidateQueries(['judge-contest-limit-policy', 'event', policyTenantId || 'current'])
+        }
+        toast.success(payload.eventId ? 'Per-event judge assignment limit updated' : 'Tenant default judge assignment limit updated')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to update assignment policy'}`)
+      }
+    }
+  )
 
   // Judge assignment — supports category-level and contest-level
   const assignJudgeMutation = useMutation(
@@ -633,15 +707,56 @@ const AssignmentsPage: React.FC = () => {
     }
   }
 
+  const handleSaveTenantPolicy = () => {
+    const parsed = parsePolicyLimit(tenantPolicyInput)
+    if (parsed === null || Number.isNaN(parsed)) {
+      toast.error('Tenant default limit must be a non-negative integer (0 = unlimited)')
+      return
+    }
+    updateJudgeContestLimitPolicyMutation.mutate({ limit: parsed })
+  }
+
+  const handleResetTenantPolicy = () => {
+    updateJudgeContestLimitPolicyMutation.mutate({ limit: null })
+  }
+
+  const handleSaveEventPolicy = () => {
+    if (!policyEventId) {
+      toast.error('Select an event before saving an override')
+      return
+    }
+    const parsed = parsePolicyLimit(eventPolicyInput)
+    if (parsed === null || Number.isNaN(parsed)) {
+      toast.error('Event override limit must be a non-negative integer (0 = unlimited)')
+      return
+    }
+    updateJudgeContestLimitPolicyMutation.mutate({ eventId: policyEventId, limit: parsed })
+  }
+
+  const handleClearEventPolicy = () => {
+    if (!policyEventId) {
+      toast.error('Select an event before clearing an override')
+      return
+    }
+    updateJudgeContestLimitPolicyMutation.mutate({ eventId: policyEventId, limit: null })
+  }
+
   const handleRemoveSingle = async (assignment: any) => {
     if (!confirm('Are you sure you want to remove this assignment?')) return
     const ids: string[] = Array.isArray(assignment._groupedIds) ? assignment._groupedIds : [assignment.id]
+    const effectiveSingleId = ids[0]
 
     if (ids.length === 1) {
-      if (activeTab === 'judges') removeJudgeAssignmentMutation.mutate(assignment.id)
-      else if (activeTab === 'contestants') removeContestantAssignmentMutation.mutate({ assignment })
-      else if (activeTab === 'tally-masters') removeTallyMasterMutation.mutate(assignment.id)
-      else if (activeTab === 'auditors') removeAuditorMutation.mutate(assignment.id)
+      if (activeTab === 'judges') {
+        removeJudgeAssignmentMutation.mutate(effectiveSingleId)
+      } else if (activeTab === 'contestants') {
+        const sourceAssignment = contestantAssignments.find(a => a.id === effectiveSingleId) || assignment
+        removeContestantAssignmentMutation.mutate({ assignment: sourceAssignment })
+      } else if (activeTab === 'tally-masters') {
+        removeTallyMasterMutation.mutate(effectiveSingleId)
+      } else if (activeTab === 'auditors') {
+        removeAuditorMutation.mutate(effectiveSingleId)
+      }
       return
     }
 
@@ -734,6 +849,28 @@ const AssignmentsPage: React.FC = () => {
     setFilterContestId('')
     setFilterCategoryId('')
   }, [activeTab])
+
+  useEffect(() => {
+    setPolicyEventId('')
+    setEventPolicyInput('')
+  }, [selectedTenantId])
+
+  useEffect(() => {
+    if (!tenantJudgeContestLimitPolicy) return
+    setTenantPolicyInput(String(tenantJudgeContestLimitPolicy.tenantDefaultLimit))
+  }, [tenantJudgeContestLimitPolicy?.tenantDefaultLimit, policyTenantId])
+
+  useEffect(() => {
+    if (!policyEventId) {
+      setEventPolicyInput('')
+      return
+    }
+    if (!eventJudgeContestLimitPolicy || eventJudgeContestLimitPolicy.eventOverrideLimit === null) {
+      setEventPolicyInput('')
+      return
+    }
+    setEventPolicyInput(String(eventJudgeContestLimitPolicy.eventOverrideLimit))
+  }, [policyEventId, eventJudgeContestLimitPolicy?.eventOverrideLimit])
 
   // ─── Derived data ──────────────────────────────────────────────────────────
 
@@ -886,8 +1023,52 @@ const AssignmentsPage: React.FC = () => {
         .map((a: any) => ({ id: a.category?.id || a.categoryId, name: a.category?.name }))
         .filter((c: any) => c.id && c.name)
         .map((c: any) => [c.id, c])
-    ).values()
+      ).values()
   )
+
+  const judgeContestLevelCountsByJudgeEvent = useMemo(() => {
+    const map = new Map<string, { count: number; judgeName: string; eventName: string; contestNames: Set<string> }>()
+
+    for (const assignment of judgeAssignments) {
+      const isContestLevel = !!(assignment.contest?.id || assignment.contestId) && !(assignment.category?.id || assignment.categoryId)
+      if (!isContestLevel) continue
+
+      const judgeId = assignment.judge?.id || assignment.judgeId
+      const eventId = assignment.event?.id || assignment.eventId
+      if (!judgeId || !eventId) continue
+
+      const key = `${judgeId}::${eventId}`
+      const existing = map.get(key)
+      const contestName = assignment.contest?.name || 'Unnamed contest'
+
+      if (!existing) {
+        map.set(key, {
+          count: 1,
+          judgeName: assignment.judge?.name || 'Unnamed judge',
+          eventName: assignment.event?.name || 'Unnamed event',
+          contestNames: new Set([contestName]),
+        })
+      } else {
+        existing.count += 1
+        existing.contestNames.add(contestName)
+      }
+    }
+
+    return map
+  }, [judgeAssignments])
+
+  const judgeContestLevelWarnings = useMemo(() => (
+    Array.from(judgeContestLevelCountsByJudgeEvent.entries())
+      .filter(([, value]) => value.count > 1)
+      .map(([key, value]) => ({
+        key,
+        judgeName: value.judgeName,
+        eventName: value.eventName,
+        count: value.count,
+        contests: Array.from(value.contestNames).sort((a, b) => a.localeCompare(b)),
+      }))
+      .sort((a, b) => a.judgeName.localeCompare(b.judgeName) || a.eventName.localeCompare(b.eventName))
+  ), [judgeContestLevelCountsByJudgeEvent])
 
   return (
     <div className="cgr-page-container space-y-6">
@@ -929,6 +1110,148 @@ const AssignmentsPage: React.FC = () => {
         </nav>
       </div>
       </Card>
+
+      {activeTab === 'judges' && (
+        <Card className="rounded-lg p-4 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Judge Contest Assignment Guardrail</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Limit how many contest-level assignments a judge can hold in one event (0 = unlimited).
+            </p>
+          </div>
+
+          {isSuperAdmin && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Tenant</label>
+              <select
+                value={selectedTenantId}
+                onChange={(e) => setSelectedTenantId(e.target.value)}
+                className="w-full md:w-80 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">Select tenant...</option>
+                {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {!isPolicyContextReady ? (
+            <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 text-xs text-yellow-800 dark:text-yellow-200">
+              Select a tenant to configure guardrails.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Tenant Default</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Effective now: {isLoadingTenantJudgeContestLimitPolicy ? 'Loading...' : `${tenantJudgeContestLimitPolicy?.effectiveLimit ?? 1}`}
+                    {' '}({tenantJudgeContestLimitPolicy?.source ?? 'default'})
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={tenantPolicyInput}
+                    onChange={(e) => setTenantPolicyInput(e.target.value)}
+                    className="w-full sm:w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveTenantPolicy}
+                    disabled={updateJudgeContestLimitPolicyMutation.isLoading}
+                  >
+                    Save Default
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleResetTenantPolicy}
+                    disabled={updateJudgeContestLimitPolicyMutation.isLoading}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Per-Event Override</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Current event setting: {isLoadingEventJudgeContestLimitPolicy ? 'Loading...' : (
+                      policyEventId
+                        ? `${eventJudgeContestLimitPolicy?.eventOverrideLimit ?? 'Inherited'}`
+                        : 'Select event'
+                    )}
+                  </p>
+                </div>
+
+                <select
+                  value={policyEventId}
+                  onChange={(e) => setPolicyEventId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Select event...</option>
+                  {events.map(event => (
+                    <option key={event.id} value={event.id}>{event.name}</option>
+                  ))}
+                </select>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={eventPolicyInput}
+                    onChange={(e) => setEventPolicyInput(e.target.value)}
+                    disabled={!policyEventId}
+                    className="w-full sm:w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                    placeholder="(inherit)"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveEventPolicy}
+                    disabled={!policyEventId || updateJudgeContestLimitPolicyMutation.isLoading}
+                  >
+                    Save Override
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearEventPolicy}
+                    disabled={!policyEventId || updateJudgeContestLimitPolicyMutation.isLoading}
+                  >
+                    Clear Override
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {activeTab === 'judges' && judgeContestLevelWarnings.length > 0 && (
+        <Card className="rounded-lg p-4 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
+          <div className="text-sm font-semibold text-amber-900 dark:text-amber-100">Visibility Warning</div>
+          <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
+            These judges currently have more than one contest-level assignment in the same event:
+          </p>
+          <div className="mt-3 space-y-2">
+            {judgeContestLevelWarnings.map((warning) => (
+              <div key={warning.key} className="text-xs text-amber-900 dark:text-amber-100">
+                <span className="font-semibold">{warning.judgeName}</span>
+                <span> in </span>
+                <span className="font-semibold">{warning.eventName}</span>
+                <span>: {warning.count} contest assignments ({warning.contests.join(', ')})</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Search + Filters + Bulk actions */}
       <Card className="rounded-lg p-4">
@@ -1034,7 +1357,14 @@ const AssignmentsPage: React.FC = () => {
                     activeTab === 'judges' && assignment.judge?.isHeadJudge ? 'Head Judge' :
                     activeTab === 'contestants' && assignment.contestant?.contestantNumber
                       ? `#${assignment.contestant.contestantNumber}` : null
-                  const isGroupedContestRow = Array.isArray(assignment._groupedIds) && assignment._groupedIds.length > 1
+                  const judgeIdForRow = activeTab === 'judges' ? (assignment.judge?.id || assignment.judgeId) : undefined
+                  const eventIdForRow = assignment.event?.id || assignment.eventId
+                  const contestLevelCountInEvent =
+                    activeTab === 'judges' && judgeIdForRow && eventIdForRow
+                      ? (judgeContestLevelCountsByJudgeEvent.get(`${judgeIdForRow}::${eventIdForRow}`)?.count || 0)
+                      : 0
+                  const hasContestLevelWarning = activeTab === 'judges' && contestLevelCountInEvent > 1
+                  const isGroupedContestRow = Array.isArray(assignment._groupedIds)
 
                   return (
                     <tr
@@ -1052,6 +1382,11 @@ const AssignmentsPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">{personName}</div>
                         {personSub && <div className="text-xs text-indigo-600 dark:text-indigo-400">{personSub}</div>}
+                        {hasContestLevelWarning && (
+                          <div className="text-xs text-amber-600 dark:text-amber-300">
+                            {contestLevelCountInEvent} contest-level assignments in this event
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {getAssignmentLevel(assignment)}

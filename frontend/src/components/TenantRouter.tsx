@@ -211,7 +211,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/backups" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><BackupManagementPage /></ProtectedRoute>} />
+            <Route path="/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />
@@ -275,7 +275,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
-            <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><BackupManagementPage /></ProtectedRoute>} />
+            <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
             <Route path="/:slug/workflows" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><WorkflowManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/files" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><FileManagementPage /></ProtectedRoute>} />

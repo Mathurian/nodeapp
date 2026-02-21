@@ -99,6 +99,14 @@ normalize_nginx_pwa_cache_headers() {
   sudo mv "$tmp" "$file"
 }
 
+normalize_nginx_api_docs_location() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  # Prevent regex static-asset locations from overriding Swagger UI assets.
+  sudo sed -i -E 's|location[[:space:]]+/api-docs[[:space:]]*\{|location ^~ /api-docs {|g' "$file"
+}
+
 prune_old_releases() {
   if ! [[ "$RETAIN_RELEASES" =~ ^[0-9]+$ ]]; then
     echo "Skipping release pruning: RETAIN_RELEASES must be a positive integer (current: $RETAIN_RELEASES)"
@@ -136,6 +144,8 @@ normalize_nginx_roots "$NGINX_ENABLED"
 normalize_nginx_roots "$NGINX_AVAILABLE"
 normalize_nginx_pwa_cache_headers "$NGINX_ENABLED"
 normalize_nginx_pwa_cache_headers "$NGINX_AVAILABLE"
+normalize_nginx_api_docs_location "$NGINX_ENABLED"
+normalize_nginx_api_docs_location "$NGINX_AVAILABLE"
 
 if [ -d /etc/nginx/backup-sites-enabled ]; then
   for f in /etc/nginx/sites-enabled/*.bak-*; do

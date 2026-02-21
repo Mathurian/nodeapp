@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { buildTenantAwareLoginPath } from '../utils/authRedirect'
 
 /**
  * API Version Configuration
@@ -70,7 +71,7 @@ api.interceptors.response.use(
       const isProfileProbe = requestUrl.includes('/auth/profile')
       // On public pages and auth profile probing, unauthenticated 401 is expected
       if (!isPublicPath(window.location.pathname) && !isProfileProbe) {
-        window.location.href = '/login'
+        window.location.href = buildTenantAwareLoginPath(window.location.pathname)
       }
       return Promise.reject(error)
     }
@@ -396,10 +397,15 @@ export const settingsAPI = {
   // Backup settings
   getBackupSettings: () => api.get('/settings/backup'),
   updateBackupSettings: (settings: any) => api.put('/settings/backup', settings),
-  startGoogleDriveBackupOAuth: (payload?: { origin?: string; clientId?: string; clientSecret?: string; redirectUri?: string }) =>
-    api.post('/settings/backup/google-drive/oauth/start', payload || {}),
-  getGoogleDriveBackupOAuthStatus: () => api.get('/settings/backup/google-drive/oauth/status'),
-  disconnectGoogleDriveBackupOAuth: () => api.post('/settings/backup/google-drive/oauth/disconnect'),
+  startGoogleDriveBackupOAuth: (
+    payload?: { origin?: string; clientId?: string; clientSecret?: string; redirectUri?: string },
+    scopeQuery: string = ''
+  ) =>
+    api.post(`/settings/backup/google-drive/oauth/start${scopeQuery}`, payload || {}),
+  getGoogleDriveBackupOAuthStatus: (scopeQuery: string = '') =>
+    api.get(`/settings/backup/google-drive/oauth/status${scopeQuery}`),
+  disconnectGoogleDriveBackupOAuth: (scopeQuery: string = '') =>
+    api.post(`/settings/backup/google-drive/oauth/disconnect${scopeQuery}`),
   uploadGcsBackupServiceAccount: (serviceAccountJson: string, projectNumber?: string) =>
     api.post('/settings/backup/gcs/service-account', { serviceAccountJson, projectNumber }),
   // Email settings
@@ -443,6 +449,12 @@ export const assignmentsAPI = {
   delete: (id: string) => api.delete(`/assignments/${id}`),
   assignJudge: (judgeId: string, categoryId: string) => api.post('/assignments/judge', { judgeId, categoryId }),
   removeAssignment: (assignmentId: string) => api.delete(`/assignments/${assignmentId}`),
+  getJudgeContestLimitPolicy: (params?: { eventId?: string; tenantId?: string }) =>
+    api.get('/assignments/policies/judge-contest-limit', { params }),
+  updateJudgeContestLimitPolicy: (
+    data: { limit: number | null; eventId?: string },
+    params?: { tenantId?: string }
+  ) => api.put('/assignments/policies/judge-contest-limit', data, { params }),
 }
 
 export const auditorAPI = {

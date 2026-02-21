@@ -40,6 +40,9 @@ interface CategoryOverview {
     submitted?: number
     certified: number
     locked: number
+    judges?: number
+    contestants?: number
+    criteria?: number
   }
   judges: JudgeRow[]
 }
@@ -491,6 +494,13 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                   const scoresExpanded = expandedScoreCategories.has(cat.categoryId)
                   const judgeStageComplete = isJudgeStageComplete(cat)
                   const compact = density === 'compact'
+                  const scoreBreakdown = cat.scoreProgress.judges !== undefined && cat.scoreProgress.contestants !== undefined
+                    ? `Expected total = ${cat.scoreProgress.judges} judges × ${cat.scoreProgress.contestants} contestants × ${
+                      (cat.scoreProgress.criteria ?? 0) > 0
+                        ? `${cat.scoreProgress.criteria} criteria`
+                        : '1 (no criteria configured)'
+                    }`
+                    : 'Expected total = judges × contestants × criteria (or 1 when no criteria is configured)'
                   return (
                     <div
                       key={cat.categoryId}
@@ -518,6 +528,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                       <div className={`grid grid-cols-1 gap-1 ${compact ? 'text-[11px]' : 'text-xs'} text-gray-700 dark:text-gray-300`}>
                         <div>Judges: {cat.judgeProgress.certified}/{cat.judgeProgress.total}</div>
                         <div>Scores: {(cat.scoreProgress.submitted ?? cat.scoreProgress.certified)}/{cat.scoreProgress.total} submitted, {cat.scoreProgress.certified} certified, {cat.scoreProgress.locked} locked</div>
+                        <div className="text-gray-500 dark:text-gray-400">{scoreBreakdown}</div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">

@@ -838,7 +838,7 @@ const NotificationsPage: React.FC = () => {
             }
           </p>
         </div>
-        <div className="flex w-full flex-wrap gap-2 sm:gap-3 lg:w-auto lg:justify-end">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3 lg:w-auto lg:justify-end">
           {canSendNotifications && (
             <Button onClick={() => setIsSendModalOpen(true)} className="w-full sm:w-auto">
               <PaperAirplaneIcon className="h-5 w-5" />

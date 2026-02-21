@@ -28,7 +28,7 @@ import { setupContainer } from './config/container';
 import { parseAllowedOrigins, configureMiddleware } from './config/express.config';
 import { createSocketServer, configureSocketHandlers } from './config/socket.config';
 import { registerRoutes } from './config/routes.config';
-import { swaggerSpec, swaggerUiOptions } from './config/swagger.config';
+import { buildSwaggerSpec, swaggerUiOptions } from './config/swagger.config';
 
 // Middleware
 import { requestLogging, errorLogging } from './middleware/requestLogger';
@@ -37,7 +37,7 @@ import { rateLimitMiddleware } from './middleware/enhancedRateLimiting';
 import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
-import { tenantMiddleware } from './middleware/tenantMiddleware';
+import { tenantMiddleware, TenantIdentifier } from './middleware/tenantMiddleware';
 import { authenticateToken } from './middleware/auth';
 // S4-2: Correlation ID middleware for request tracing
 import { correlationIdMiddleware, contextMiddleware } from './middleware/correlationId';
@@ -54,6 +54,7 @@ import { BusinessMetricsCollector } from './services/BusinessMetricsCollector';
 import { ServiceMonitor } from './services/ServiceMonitor';
 import { ActiveSessionTracker } from './services/ActiveSessionTracker';
 import WorkflowSchedulerService from './services/workflowSchedulerService';
+import { SettingsService } from './services/SettingsService';
 import { container } from './config/container';
 
 // Controllers
@@ -203,11 +204,144 @@ app.get('/api/v1/csrf-token', publicEndpointLimiter, getCsrfToken);
  */
 const enableApiDocs = env.get('ENABLE_API_DOCS');
 if (enableApiDocs) {
-  app.use('/api-docs', swaggerUi.serve);
-  app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-  app.get('/api-docs.json', (_req: Request, res: Response) => {
+  const settingsService = container.resolve(SettingsService);
+
+  const getSwaggerRequestHost = (req: Request): string => {
+    const forwardedHostRaw = req.headers['x-forwarded-host'];
+    const hostSource = (Array.isArray(forwardedHostRaw) ? forwardedHostRaw[0] : forwardedHostRaw) || req.get('host') || '';
+    const host = hostSource.toString().split(',')[0]?.trim() || '';
+    return host.replace(/:\d+$/, '').toLowerCase();
+  };
+
+  const getReservedSubdomains = (): Set<string> => {
+    const defaults = ['www', 'api', 'app', 'admin', 'dev', 'staging', 'stage', 'test', 'preview'];
+    const configured = (process.env['TENANT_RESERVED_SUBDOMAINS'] || '')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    return new Set([...defaults, ...configured]);
+  };
+
+  const isIpOrLocalHost = (hostname: string): boolean => {
+    if (!hostname) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+    return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+  };
+
+  const findActiveTenantIdByIdentifier = async (identifier: string): Promise<string | null> => {
+    const normalized = String(identifier || '').trim();
+    if (!normalized) return null;
+
+    const tenant = await prisma.tenant.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { id: normalized },
+          { slug: normalized.toLowerCase() },
+        ],
+      },
+      select: { id: true },
+    });
+
+    return tenant?.id || null;
+  };
+
+  const resolveSwaggerTenantId = async (req: Request): Promise<string | null> => {
+    const headerTenant = TenantIdentifier.fromHeader(req);
+    if (headerTenant) {
+      const headerTenantId = await findActiveTenantIdByIdentifier(headerTenant);
+      if (headerTenantId) return headerTenantId;
+    }
+
+    const hostWithoutPort = getSwaggerRequestHost(req);
+    if (!hostWithoutPort || isIpOrLocalHost(hostWithoutPort)) {
+      return null;
+    }
+
+    const hostParts = hostWithoutPort.split('.').filter(Boolean);
+    if (hostParts.length >= 3) {
+      const subdomain = hostParts[0] || '';
+      if (subdomain && !getReservedSubdomains().has(subdomain)) {
+        const tenantBySubdomain = await findActiveTenantIdByIdentifier(subdomain);
+        if (tenantBySubdomain) return tenantBySubdomain;
+      }
+    }
+
+    const customDomain = TenantIdentifier.fromCustomDomain(req);
+    if (customDomain) {
+      const tenant = await prisma.tenant.findFirst({
+        where: { domain: customDomain.toLowerCase(), isActive: true },
+        select: { id: true },
+      });
+      if (tenant?.id) return tenant.id;
+    }
+
+    return null;
+  };
+
+  const getSwaggerPublicBaseUrl = (req: Request): string | undefined => {
+    const forwardedProtoRaw = req.headers['x-forwarded-proto'];
+    const forwardedHostRaw = req.headers['x-forwarded-host'];
+    const protoSource = (Array.isArray(forwardedProtoRaw) ? forwardedProtoRaw[0] : forwardedProtoRaw) || req.protocol || 'https';
+    const hostSource = (Array.isArray(forwardedHostRaw) ? forwardedHostRaw[0] : forwardedHostRaw) || req.get('host') || '';
+    const protoValues = protoSource.toString().split(',').map((value) => value.trim().toLowerCase()).filter(Boolean);
+    let proto = protoValues.includes('https') ? 'https' : (protoValues[0] || 'https');
+    const host = hostSource.toString().split(',')[0]?.trim() || '';
+
+    if (!host) return undefined;
+    const hostWithoutPort = host.replace(/:\d+$/, '').toLowerCase();
+    const isLocalHost = hostWithoutPort === 'localhost' || hostWithoutPort === '127.0.0.1' || hostWithoutPort === '::1';
+    if (!isLocalHost && proto !== 'https') {
+      proto = 'https';
+    }
+    return `${proto}://${host}`;
+  };
+
+  const apiDocsUiOptions = {
+    ...swaggerUiOptions,
+    swaggerOptions: {
+      ...swaggerUiOptions.swaggerOptions,
+      url: '/api-docs.json',
+    },
+  };
+
+  app.get(['/api-docs', '/api-docs/'], (_req: Request, res: Response) => {
+    return res.redirect(302, '/api-docs-v2/');
+  });
+
+  app.use('/api-docs-v2', (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    return next();
+  });
+  app.use('/api-docs-v2', swaggerUi.serve, swaggerUi.setup(undefined, apiDocsUiOptions));
+  app.get('/api-docs.json', async (req: Request, res: Response) => {
+    const publicBaseUrl = getSwaggerPublicBaseUrl(req);
+    let supportEmail: string | undefined;
+
+    try {
+      const tenantId = await resolveSwaggerTenantId(req);
+      supportEmail = (
+        await settingsService.getSettingWithFallback('security_email', tenantId)
+      ) || (
+        await settingsService.getSettingWithFallback('footer_contactEmail', tenantId)
+      ) || undefined;
+    } catch (error: unknown) {
+      appLogger.warn('Unable to resolve tenant-aware Swagger support email; falling back to environment defaults', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    const spec = buildSwaggerSpec({ publicBaseUrl, supportEmail });
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.setHeader('Content-Type', 'application/json');
-    res.send(swaggerSpec);
+    res.vary('Host');
+    res.vary('X-Tenant-Slug');
+    res.vary('X-Tenant-ID');
+    res.send(spec);
   });
   appLogger.info('Swagger UI available at /api-docs');
 } else {

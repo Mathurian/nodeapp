@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useQuery } from 'react-query'
+import { useQuery, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
@@ -33,6 +33,8 @@ interface LayoutProps {
 }
 
 const SIDEBAR_STORAGE_KEY = 'event-manager-sidebar-open'
+const PULL_REFRESH_TRIGGER_PX = 72
+const PULL_REFRESH_MAX_PX = 120
 
 // Map of route segments to human-readable labels
 const ROUTE_LABELS: Record<string, string> = {
@@ -106,10 +108,54 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     return true
   })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [isRefreshingByPull, setIsRefreshingByPull] = useState(false)
   const desktopSidebarRef = useRef<HTMLElement | null>(null)
   const desktopToggleRef = useRef<HTMLButtonElement | null>(null)
+  const pullTouchStartYRef = useRef<number | null>(null)
+  const pullDistanceRef = useRef(0)
+  const isPullGestureActiveRef = useRef(false)
+  const isStandalonePwaRef = useRef(false)
+  const isTouchCapableRef = useRef(false)
+  const queryClient = useQueryClient()
   const { user, logout } = useAuth()
   const { actualTheme, toggleTheme } = useTheme()
+
+  const resetPullGesture = useCallback(() => {
+    pullTouchStartYRef.current = null
+    pullDistanceRef.current = 0
+    isPullGestureActiveRef.current = false
+    setPullDistance(0)
+  }, [])
+
+  const hasScrollableAncestor = useCallback((target: EventTarget | null): boolean => {
+    if (!(target instanceof HTMLElement) || typeof window === 'undefined') return false
+
+    let node: HTMLElement | null = target
+    while (node && node !== document.body && node !== document.documentElement) {
+      const style = window.getComputedStyle(node)
+      const canScrollY = ['auto', 'scroll'].includes(style.overflowY)
+      if (canScrollY && node.scrollHeight > node.clientHeight) {
+        return true
+      }
+      node = node.parentElement
+    }
+
+    return false
+  }, [])
+
+  const refreshDataByPull = useCallback(async () => {
+    setIsRefreshingByPull(true)
+    try {
+      await queryClient.invalidateQueries()
+    } finally {
+      window.setTimeout(() => {
+        setIsRefreshingByPull(false)
+        pullDistanceRef.current = 0
+        setPullDistance(0)
+      }, 350)
+    }
+  }, [queryClient])
 
   // Persist sidebar state to localStorage
   useEffect(() => {
@@ -158,6 +204,93 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       document.body.style.overflow = ''
     }
   }, [mobileMenuOpen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateRuntimeContext = () => {
+      const mediaStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches === true
+      const iosStandalone = (window.navigator as any)?.standalone === true
+      isStandalonePwaRef.current = mediaStandalone || iosStandalone
+      isTouchCapableRef.current = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    }
+
+    updateRuntimeContext()
+    window.addEventListener('resize', updateRuntimeContext)
+
+    return () => {
+      window.removeEventListener('resize', updateRuntimeContext)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return
+      if (!isTouchCapableRef.current || !isStandalonePwaRef.current) return
+      if (mobileMenuOpen || isRefreshingByPull) return
+      if (window.scrollY > 0) return
+      if (hasScrollableAncestor(event.target)) return
+
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-disable-pull-refresh=\"true\"], [role=\"dialog\"]')) return
+
+      pullTouchStartYRef.current = event.touches[0].clientY
+      isPullGestureActiveRef.current = true
+    }
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!isPullGestureActiveRef.current || pullTouchStartYRef.current === null) return
+      if (event.touches.length !== 1) return
+      if (window.scrollY > 0) {
+        resetPullGesture()
+        return
+      }
+
+      const deltaY = event.touches[0].clientY - pullTouchStartYRef.current
+      if (deltaY <= 0) {
+        pullDistanceRef.current = 0
+        setPullDistance(0)
+        return
+      }
+
+      const dampenedDistance = Math.min(PULL_REFRESH_MAX_PX, deltaY * 0.45)
+      pullDistanceRef.current = dampenedDistance
+      setPullDistance(dampenedDistance)
+      event.preventDefault()
+    }
+
+    const handleTouchEnd = () => {
+      if (!isPullGestureActiveRef.current) return
+
+      const shouldRefresh = pullDistanceRef.current >= PULL_REFRESH_TRIGGER_PX && !isRefreshingByPull
+      isPullGestureActiveRef.current = false
+      pullTouchStartYRef.current = null
+
+      if (!shouldRefresh) {
+        pullDistanceRef.current = 0
+        setPullDistance(0)
+        return
+      }
+
+      pullDistanceRef.current = PULL_REFRESH_TRIGGER_PX
+      setPullDistance(PULL_REFRESH_TRIGGER_PX)
+      void refreshDataByPull()
+    }
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleTouchEnd, { passive: true })
+    window.addEventListener('touchcancel', resetPullGesture, { passive: true })
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+      window.removeEventListener('touchcancel', resetPullGesture)
+    }
+  }, [hasScrollableAncestor, isRefreshingByPull, mobileMenuOpen, refreshDataByPull, resetPullGesture])
 
   // Close open menus after navigation so the new page content is immediately visible.
   useEffect(() => {
@@ -315,6 +448,13 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const isDarkMode = actualTheme === 'dark'
   const socketStatusLabel = isConnected ? 'Live' : 'Connecting...'
+  const pullProgress = Math.min(1, pullDistance / PULL_REFRESH_TRIGGER_PX)
+  const showPullIndicator = pullDistance > 0 || isRefreshingByPull
+  const pullIndicatorText = isRefreshingByPull
+    ? 'Refreshing data...'
+    : pullDistance >= PULL_REFRESH_TRIGGER_PX
+      ? 'Release to refresh'
+      : 'Pull to refresh'
 
   // Close desktop sidebar when clicking outside of it
   useEffect(() => {
@@ -338,7 +478,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   }, [sidebarOpen])
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 prevent-pull-refresh">
       {/* Skip Navigation Link - Accessibility */}
       <a
         href="#main-content"
@@ -346,6 +486,30 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       >
         Skip to main content
       </a>
+
+      {showPullIndicator && (
+        <div
+          className="pointer-events-none fixed left-1/2 z-[70] transition-transform duration-150"
+          style={{
+            top: 'max(env(safe-area-inset-top, 0px), 0px)',
+            transform: `translate(-50%, ${Math.max(-56, pullDistance - 56)}px)`,
+          }}
+          aria-live="polite"
+          role="status"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 px-4 py-2 shadow-md">
+            <span
+              className={`h-4 w-4 rounded-full border-2 border-indigo-500 border-t-transparent ${
+                isRefreshingByPull ? 'animate-spin' : ''
+              }`}
+              style={{ opacity: Math.max(0.45, pullProgress) }}
+            />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
+              {pullIndicatorText}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Minimal Top Bar - Command Palette First */}
       <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm safe-area-top safe-area-left safe-area-right">
@@ -723,7 +887,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       {/* Floating Command Palette Hint - Mobile */}
       <button
         onClick={onOpenCommandPalette}
-        className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all z-40 flex items-center justify-center"
+        className="md:hidden fixed w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all z-40 flex items-center justify-center"
+        style={{
+          bottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)',
+          right: 'max(env(safe-area-inset-right, 0px), 1.5rem)',
+        }}
         title="Open Command Palette"
         aria-label="Open Command Palette"
       >

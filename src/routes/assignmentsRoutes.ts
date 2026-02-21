@@ -16,7 +16,9 @@ import {
   removeTallyMasterAssignment,
   getAuditorAssignments,
   createAuditorAssignment,
-  removeAuditorAssignment
+  removeAuditorAssignment,
+  getJudgeContestLimitPolicy,
+  updateJudgeContestLimitPolicy
 } from '../controllers/assignmentsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
@@ -105,6 +107,10 @@ router.delete('/tally-masters/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANI
 router.get('/auditors', getAuditorAssignments)
 router.post('/auditors', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ASSIGN_AUDITOR', 'ASSIGNMENT'), createAuditorAssignment)
 router.delete('/auditors/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_AUDITOR', 'ASSIGNMENT'), removeAuditorAssignment)
+
+// Assignment policy endpoints
+router.get('/policies/judge-contest-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getJudgeContestLimitPolicy)
+router.put('/policies/judge-contest-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_ASSIGNMENT_POLICY', 'ASSIGNMENT'), updateJudgeContestLimitPolicy)
 
 // Legacy endpoints for backward compatibility
 router.post('/judge', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ASSIGN_JUDGE', 'ASSIGNMENT'), assignJudge)

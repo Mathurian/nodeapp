@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuthPermissions } from '../hooks/useAuthPermissions'
 import { canAccessPageByPolicy, getPagePolicyByPath, permissionSetFromList } from '../utils/pageAccess'
+import { buildTenantAwareLoginPath } from '../utils/authRedirect'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -33,7 +34,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
   // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to={buildTenantAwareLoginPath(location.pathname)} replace />
   }
 
   // Check role authorization if required

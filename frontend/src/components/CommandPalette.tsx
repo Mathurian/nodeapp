@@ -284,7 +284,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
           <div className="fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20 safe-area-top safe-area-bottom safe-area-left safe-area-right">
+        <div className="fixed inset-0 z-10 overflow-y-auto command-palette-safe-area">
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -294,7 +294,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="mx-auto max-w-3xl max-h-[calc(100dvh-2rem)] flex flex-col transform divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all">
+            <Dialog.Panel
+              className="mx-auto max-w-3xl flex flex-col transform divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all"
+              style={{
+                maxHeight:
+                  'calc(100dvh - max(env(safe-area-inset-top, 0px), 1rem) - max(env(safe-area-inset-bottom, 0px), 1rem))',
+              }}
+            >
               {/* Search Input */}
               <div className="relative">
                 <MagnifyingGlassIcon

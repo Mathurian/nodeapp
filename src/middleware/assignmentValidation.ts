@@ -2,7 +2,63 @@ import { Request, Response, NextFunction } from 'express';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('AssignmentValidation');
-const prisma = require('../utils/prisma')
+const prisma = require('../utils/prisma').default
+
+const JUDGE_CONTEST_LIMIT_SETTING_KEY = 'assignment_judge_contest_limit_per_event'
+const JUDGE_CONTEST_LIMIT_EVENT_SETTING_PREFIX = `${JUDGE_CONTEST_LIMIT_SETTING_KEY}::event::`
+const DEFAULT_JUDGE_CONTEST_LIMIT = 1
+
+const parseNonNegativeInt = (value: string | null | undefined): number | null => {
+  const normalized = String(value ?? '').trim()
+  if (!normalized) return null
+  if (!/^\d+$/.test(normalized)) return null
+  const parsed = Number.parseInt(normalized, 10)
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : null
+}
+
+const getEventPolicyKey = (eventId: string): string =>
+  `${JUDGE_CONTEST_LIMIT_EVENT_SETTING_PREFIX}${eventId}`
+
+const resolveJudgeContestLimitPolicy = async (
+  tenantId: string,
+  eventId: string
+): Promise<{ effectiveLimit: number; source: 'event' | 'tenant' | 'global' | 'default' }> => {
+  const keys = [JUDGE_CONTEST_LIMIT_SETTING_KEY, getEventPolicyKey(eventId)]
+  const rows = await prisma.systemSetting.findMany({
+    where: {
+      key: { in: keys },
+      OR: [{ tenantId }, { tenantId: null }]
+    },
+    select: { key: true, value: true, tenantId: true }
+  })
+
+  const readValue = (key: string, settingTenantId: string | null): string | null => {
+    const row = rows.find((item: { key: string; tenantId: string | null; value: string }) =>
+      item.key === key && item.tenantId === settingTenantId
+    )
+    return row?.value ?? null
+  }
+
+  const eventOverrideRaw = readValue(getEventPolicyKey(eventId), tenantId) ?? readValue(getEventPolicyKey(eventId), null)
+  const eventOverrideLimit = parseNonNegativeInt(eventOverrideRaw)
+  if (eventOverrideLimit !== null) {
+    return { effectiveLimit: eventOverrideLimit, source: 'event' }
+  }
+
+  const tenantDefaultRaw = readValue(JUDGE_CONTEST_LIMIT_SETTING_KEY, tenantId)
+  const tenantDefaultLimit = parseNonNegativeInt(tenantDefaultRaw)
+  if (tenantDefaultLimit !== null) {
+    return { effectiveLimit: tenantDefaultLimit, source: 'tenant' }
+  }
+
+  const globalDefaultRaw = readValue(JUDGE_CONTEST_LIMIT_SETTING_KEY, null)
+  const globalDefaultLimit = parseNonNegativeInt(globalDefaultRaw)
+  if (globalDefaultLimit !== null) {
+    return { effectiveLimit: globalDefaultLimit, source: 'global' }
+  }
+
+  return { effectiveLimit: DEFAULT_JUDGE_CONTEST_LIMIT, source: 'default' }
+}
 
 // Assignment Validation Middleware Functions
 
@@ -11,18 +67,13 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
   try {
     const { judgeId, categoryId, eventId, contestId } = req.body
 
-    // Check if judge exists and has JUDGE role
-    const judge = await prisma.user.findUnique({
-      where: { id: judgeId },
-      include: { judge: true }
+    // judgeId in assignment payload refers to judges.id, not users.id
+    const judge = await prisma.judge.findUnique({
+      where: { id: judgeId }
     })
 
     if (!judge) {
       res.status(404).json({ error: 'Judge not found' }); return;
-    }
-
-    if (judge.role !== 'JUDGE') {
-      res.status(400).json({ error: 'User must have JUDGE role to be assigned' }); return;
     }
 
     let category = null
@@ -204,22 +255,30 @@ const validateAssignmentCreation = async (req: Request, res: Response, next: Nex
         }
       }
 
-      // Check judge workload (max assignments per judge per event)
-      judgeEventAssignments = await prisma.assignment.count({
-        where: {
-          judgeId,
-          status: { in: ['ACTIVE'] },
-          contestId: contest.id
-        }
-      })
+      // Contest-level policy guardrail:
+      // limit how many contest-level assignments a judge can hold in the same event.
+      if (!category && contest?.eventId && contest?.tenantId) {
+        const policy = await resolveJudgeContestLimitPolicy(contest.tenantId, contest.eventId)
+        if (policy.effectiveLimit > 0) {
+          judgeEventAssignments = await prisma.assignment.count({
+            where: {
+              tenantId: contest.tenantId,
+              judgeId,
+              eventId: contest.eventId,
+              categoryId: null,
+              status: { in: ['PENDING', 'ACTIVE', 'COMPLETED'] },
+            }
+          })
 
-      const maxAssignmentsPerJudge = 3
-      if (judgeEventAssignments >= maxAssignmentsPerJudge) {
-        res.status(400).json({ 
-          error: `Judge has reached maximum assignments for this contest (${maxAssignmentsPerJudge}); return;`,
-          currentAssignments: judgeEventAssignments,
-          maxCapacity: maxAssignmentsPerJudge
-        })
+          if (judgeEventAssignments >= policy.effectiveLimit) {
+            res.status(400).json({
+              error: `Judge has reached the contest-level assignment limit for this event (${policy.effectiveLimit}, source: ${policy.source})`,
+              currentAssignments: judgeEventAssignments,
+              maxCapacity: policy.effectiveLimit
+            })
+            return
+          }
+        }
       }
     }
 
@@ -250,11 +309,7 @@ const validateAssignmentUpdate = async (req: Request, res: Response, next: NextF
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
-        judge: {
-          include: {
-            user: true
-          }
-        },
+        judge: true,
         category: {
           include: {
             contest: {
@@ -319,6 +374,13 @@ const validateAssignmentUpdate = async (req: Request, res: Response, next: NextF
 
     // Validate completion requirements
     if (status === 'COMPLETED') {
+      if (!assignment.categoryId) {
+        res.status(400).json({
+          error: 'Cannot complete assignment without a category scope'
+        });
+        return;
+      }
+
       // Check if all required scores are submitted
       const requiredScores = await prisma.score.count({
         where: {
@@ -374,8 +436,7 @@ const validateAssignmentDeletion = async (req: Request, res: Response, next: Nex
           select: {
             id: true,
             name: true,
-            email: true,
-            role: true
+            email: true
           }
         },
         category: {
@@ -462,11 +523,7 @@ const validateBulkAssignmentOperation = async (req: Request, res: Response, next
         id: { in: assignmentIds }
       },
       include: {
-        judge: {
-          include: {
-            user: true
-          }
-        },
+        judge: true,
         category: {
           include: {
             contest: {
@@ -552,29 +609,34 @@ const validateAssignmentQuery = async (req: Request, res: Response, next: NextFu
     }
 
     // Validate ID parameters exist
-    if (judgeId) {
-      const judge = await prisma.user.findUnique({ where: { id: judgeId } })
+    const judgeIdValue = typeof judgeId === 'string' ? judgeId : null
+    const categoryIdValue = typeof categoryId === 'string' ? categoryId : null
+    const eventIdValue = typeof eventId === 'string' ? eventId : null
+    const contestIdValue = typeof contestId === 'string' ? contestId : null
+
+    if (judgeIdValue) {
+      const judge = await prisma.judge.findUnique({ where: { id: judgeIdValue } })
       if (!judge) {
         res.status(404).json({ error: 'Judge not found' }); return;
       }
     }
 
-    if (categoryId) {
-      const category = await prisma.category.findUnique({ where: { id: categoryId } })
+    if (categoryIdValue) {
+      const category = await prisma.category.findUnique({ where: { id: categoryIdValue } })
       if (!category) {
         res.status(404).json({ error: 'Category not found' }); return;
       }
     }
 
-    if (eventId) {
-      const event = await prisma.event.findUnique({ where: { id: eventId } })
+    if (eventIdValue) {
+      const event = await prisma.event.findUnique({ where: { id: eventIdValue } })
       if (!event) {
         res.status(404).json({ error: 'Event not found' }); return;
       }
     }
 
-    if (contestId) {
-      const contest = await prisma.contest.findUnique({ where: { id: contestId } })
+    if (contestIdValue) {
+      const contest = await prisma.contest.findUnique({ where: { id: contestIdValue } })
       if (!contest) {
         res.status(404).json({ error: 'Contest not found' }); return;
       }
