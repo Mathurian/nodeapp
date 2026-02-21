@@ -184,18 +184,19 @@ class ScheduledBackupService {
       const database = dbUrl.pathname.slice(1).split('?')[0];
       const username = dbUrl.username;
       const password = dbUrl.password || '';
+      const pgOptions = '-c app.tenant_rls_mode=enforce -c app.is_super_admin=true';
 
       // Create backup based on type
       let command
       switch (baseType) {
         case 'FULL':
-          command = `PGPASSWORD="${password}" pg_dump -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
+          command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
           break
         case 'SCHEMA':
-          command = `PGPASSWORD="${password}" pg_dump --schema-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
+          command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security --schema-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
           break
         case 'DATA':
-          command = `PGPASSWORD="${password}" pg_dump --data-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
+          command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security --data-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
           break
         default:
           await this.withSystemDbContext(async db =>

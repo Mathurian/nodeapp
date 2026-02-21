@@ -251,18 +251,28 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     const database = dbUrl.pathname.slice(1).split('?')[0];
     const username = dbUrl.username;
     const password = dbUrl.password || '';
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+    const tenantScopeId = isSuperAdmin ? null : (req.tenantId || req.user?.tenantId || null);
+    const pgOptionsParts = [
+      '-c app.tenant_rls_mode=enforce',
+      `-c app.is_super_admin=${isSuperAdmin ? 'true' : 'false'}`,
+    ];
+    if (tenantScopeId) {
+      pgOptionsParts.push(`-c app.tenant_id=${tenantScopeId}`);
+    }
+    const pgOptions = pgOptionsParts.join(' ');
 
     // Create backup command
     let command: string;
     switch (type) {
       case 'FULL':
-        command = `PGPASSWORD="${password}" pg_dump -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`;
+        command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`;
         break;
       case 'SCHEMA':
-        command = `PGPASSWORD="${password}" pg_dump --schema-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`;
+        command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security --schema-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`;
         break;
       case 'DATA':
-        command = `PGPASSWORD="${password}" pg_dump --data-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`;
+        command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security --data-only -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`;
         break;
       default:
         await prisma.backupLog.update({

@@ -7,7 +7,7 @@ import { scoringAPI } from '../services/api'
 import { scoreFilesAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
-import { inferFileNameFromPath, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
+import { inferFileNameFromPath, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   TrophyIcon,
   UserIcon,
@@ -154,15 +154,33 @@ const openBioFile = async (path?: string | null) => {
   const fallbackUrl = getFileUrl(path)
   const targetUrl = apiUrl || fallbackUrl
   if (!targetUrl) return
+  const fileName = inferFileNameFromPath(path)
+
+  if (isOfficeDocumentFile(fileName)) {
+    const opened = openDocumentUrl(targetUrl, {
+      preferSameTabInStandalone: false,
+      allowSameTabFallback: true,
+    })
+    if (!opened && fallbackUrl && fallbackUrl !== targetUrl) {
+      openDocumentUrl(fallbackUrl, {
+        preferSameTabInStandalone: false,
+        allowSameTabFallback: true,
+      })
+    }
+    return
+  }
 
   try {
     const response = await fetch(targetUrl, { credentials: 'include' })
     if (!response.ok) throw new Error(`Failed (${response.status})`)
     const blob = await response.blob()
-    openBlobDocument({
+    const opened = openBlobDocument({
       blob,
-      fileName: inferFileNameFromPath(path),
+      fileName,
     })
+    if (!opened && fallbackUrl) {
+      openDocumentUrl(fallbackUrl)
+    }
   } catch {
     if (fallbackUrl) {
       openDocumentUrl(fallbackUrl)

@@ -11,6 +11,14 @@ const INLINE_EXTENSIONS = new Set([
   '.webp',
   '.svg',
 ])
+const OFFICE_EXTENSIONS = new Set([
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+])
 
 const getFileExtension = (value?: string | null): string => {
   if (!value) return ''
@@ -40,6 +48,23 @@ const canInlinePreview = (mimeType?: string | null, fileName?: string | null): b
   }
 
   return INLINE_EXTENSIONS.has(getFileExtension(fileName))
+}
+
+export const isOfficeDocumentFile = (
+  fileName?: string | null,
+  mimeType?: string | null
+): boolean => {
+  const normalizedMime = String(mimeType || '').toLowerCase()
+  if (
+    normalizedMime.includes('msword') ||
+    normalizedMime.includes('officedocument.wordprocessingml') ||
+    normalizedMime.includes('spreadsheetml') ||
+    normalizedMime.includes('presentationml')
+  ) {
+    return true
+  }
+
+  return OFFICE_EXTENSIONS.has(getFileExtension(fileName))
 }
 
 interface OpenBlobDocumentOptions {

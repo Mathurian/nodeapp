@@ -462,6 +462,7 @@ export class DRAutomationService {
       const database = dbUrl.pathname.slice(1).split('?')[0];
       const username = dbUrl.username;
       const password = dbUrl.password || '';
+      const pgOptions = '-c app.tenant_rls_mode=enforce -c app.is_super_admin=true';
 
       // Create backup filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -475,7 +476,7 @@ export class DRAutomationService {
 
       // Build backup command
       let command: string;
-      const pgDumpBase = `PGPASSWORD="${password}" pg_dump -h ${host} -p ${port} -U ${username} -d ${database}`;
+      const pgDumpBase = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security -h ${host} -p ${port} -U ${username} -d ${database}`;
 
       switch (schedule.backupType) {
         case 'full':

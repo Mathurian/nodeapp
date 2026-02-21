@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { eventsAPI, contestsAPI, categoriesAPI, api } from '../services/api'
-import { inferFileNameFromPath, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
+import { inferFileNameFromPath, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   MicrophoneIcon,
   TrophyIcon,
@@ -279,14 +279,34 @@ const EmceePage: React.FC = () => {
   }
 
   const handleViewScript = async (script: Script) => {
+    const fileName = inferFileNameFromPath(script.filePath, `${script.title}.pdf`)
+    const directViewUrl = `/api/v1/emcee/scripts/${script.id}/view`
+
+    if (isOfficeDocumentFile(fileName)) {
+      const opened = openDocumentUrl(directViewUrl, {
+        preferSameTabInStandalone: false,
+        allowSameTabFallback: true,
+      })
+      if (!opened) {
+        toast.error('Unable to open script on this device.')
+      }
+      return
+    }
+
     try {
       const response = await api.get(`/emcee/scripts/${script.id}/view`, { responseType: 'blob' })
-      openBlobDocument({
+      const opened = openBlobDocument({
         blob: response.data,
-        fileName: inferFileNameFromPath(script.filePath, `${script.title}.pdf`),
+        fileName,
       })
+      if (!opened) {
+        throw new Error('Unable to open file')
+      }
     } catch (error: any) {
-      const openedFallback = openDocumentUrl(`/api/v1/emcee/scripts/${script.id}/view`)
+      const openedFallback = openDocumentUrl(directViewUrl, {
+        preferSameTabInStandalone: false,
+        allowSameTabFallback: true,
+      })
       if (!openedFallback) {
         const errorMessage = error.response?.data?.message || error.message || 'Failed to open script'
         toast.error(`Error: ${errorMessage}`)

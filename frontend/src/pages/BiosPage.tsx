@@ -3,7 +3,7 @@ import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import { Card, PageHeader } from '../components/ui'
-import { inferFileNameFromPath, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
+import { inferFileNameFromPath, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   UserCircleIcon,
   MagnifyingGlassIcon,
@@ -107,6 +107,21 @@ const openBioFile = async (path?: string | null) => {
   const fallbackUrl = toFileUrl(path)
   const targetUrl = apiUrl || fallbackUrl
   if (!targetUrl) return
+  const fileName = inferFileNameFromPath(path)
+
+  if (isOfficeDocumentFile(fileName)) {
+    const opened = openDocumentUrl(targetUrl, {
+      preferSameTabInStandalone: false,
+      allowSameTabFallback: true,
+    })
+    if (!opened && fallbackUrl && fallbackUrl !== targetUrl) {
+      openDocumentUrl(fallbackUrl, {
+        preferSameTabInStandalone: false,
+        allowSameTabFallback: true,
+      })
+    }
+    return
+  }
 
   try {
     const response = await fetch(targetUrl, { credentials: 'include' })
@@ -114,10 +129,13 @@ const openBioFile = async (path?: string | null) => {
       throw new Error(`Failed (${response.status})`)
     }
     const blob = await response.blob()
-    openBlobDocument({
+    const opened = openBlobDocument({
       blob,
-      fileName: inferFileNameFromPath(path),
+      fileName,
     })
+    if (!opened && fallbackUrl) {
+      openDocumentUrl(fallbackUrl)
+    }
   } catch {
     if (fallbackUrl) {
       openDocumentUrl(fallbackUrl)

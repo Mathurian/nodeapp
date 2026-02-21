@@ -373,7 +373,11 @@ export class EmceeController {
         '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       };
       const contentType = contentTypeByExtension[extension] || 'application/octet-stream';
-      const isInlinePreview = extension === '.pdf' || extension === '.txt';
+      const isInlinePreview =
+        extension === '.pdf' ||
+        extension === '.txt' ||
+        extension === '.doc' ||
+        extension === '.docx';
 
       res.setHeader('Content-Type', contentType);
       res.setHeader('X-Content-Type-Options', 'nosniff');
