@@ -429,6 +429,11 @@ const WinnersPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2">
+                {minimumWinningScore !== null && minimumWinningScore !== undefined && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Minimum winning score: {minimumWinningScore}
+                  </p>
+                )}
                 {effectiveWinners.map((winner, idx) => (
                   <div key={`${winner.contestant?.id || 'winner'}-${idx}`} className="flex justify-between border rounded-md p-3">
                     <div className="font-medium text-gray-900 dark:text-white">

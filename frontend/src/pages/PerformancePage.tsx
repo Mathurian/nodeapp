@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import {
+  ArrowTopRightOnSquareIcon,
   ChartBarIcon,
   ClockIcon,
   CircleStackIcon,
@@ -46,6 +47,10 @@ interface SlowQuery {
 
 const PerformancePage: React.FC = () => {
   const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  const canAccessMonitoring = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(user?.role || '')
+  const tenantId = user?.tenantId || ''
+  const tenantSlug = user?.tenant?.slug || ''
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null)
   const [slowQueries, setSlowQueries] = useState<SlowQuery[]>([])
   const [loading, setLoading] = useState(true)
@@ -115,7 +120,22 @@ const PerformancePage: React.FC = () => {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
   }
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
+  const grafanaParams = new URLSearchParams()
+  if (!isSuperAdmin) {
+    if (tenantId) grafanaParams.set('var-tenantId', tenantId)
+    if (tenantSlug) grafanaParams.set('var-tenantSlug', tenantSlug)
+  }
+  const tenantScopedGrafanaUrl = grafanaParams.toString()
+    ? `/monitoring/grafana/?${grafanaParams.toString()}`
+    : '/monitoring/grafana/'
+  const tenantScopedPrometheusExpression = !isSuperAdmin && tenantId
+    ? `sum by (route, method) (rate(http_requests_total{tenantId="${tenantId}"}[5m]))`
+    : ''
+  const tenantScopedPrometheusUrl = tenantScopedPrometheusExpression
+    ? `/monitoring/prometheus/graph?g0.expr=${encodeURIComponent(tenantScopedPrometheusExpression)}&g0.tab=0`
+    : '/monitoring/prometheus/'
+
+  if (!canAccessMonitoring) {
     return (
       <div className="cgr-page-container">
         <Card className="p-12 text-center">
@@ -123,7 +143,7 @@ const PerformancePage: React.FC = () => {
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
-            Only administrators can view performance metrics.
+            Super admins, admins, and organizers can view performance metrics.
           </p>
         </Card>
       </div>
@@ -316,6 +336,35 @@ const PerformancePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                Monitoring Dashboards
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Access Grafana and Prometheus from inside the app. Non-super-admin links include tenant context when dashboards support tenant variables.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href={tenantScopedGrafanaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Open Grafana
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                </a>
+                <a
+                  href={tenantScopedPrometheusUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-slate-700 hover:bg-slate-800 text-white"
+                >
+                  Open Prometheus
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                </a>
               </div>
             </div>
           </>

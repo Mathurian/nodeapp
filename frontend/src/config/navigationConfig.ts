@@ -46,6 +46,7 @@ export interface AppNavSection {
 export const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
 export const ADMIN_ONLY_ROLES = ['SUPER_ADMIN', 'ADMIN']
+export const MONITORING_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
 
 const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
   {
@@ -128,7 +129,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
       { id: 'activity', name: 'Activity Log', href: '/activity', icon: ClockIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'rate-limit-configs', name: 'Rate Limit Configs', href: '/rate-limit-configs', icon: ShieldCheckIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'login-locations', name: 'Login Locations', href: '/login-locations', icon: MapPinIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'] },
-      { id: 'performance', name: 'Performance', href: '/performance', icon: ChartBarIcon, roles: ADMIN_ONLY_ROLES },
+      { id: 'performance', name: 'Performance', href: '/performance', icon: ChartBarIcon, roles: MONITORING_ROLES },
       { id: 'backups', name: 'Backups', href: '/backups', icon: CloudArrowDownIcon, roles: ADMIN_ROLES },
       { id: 'disaster-recovery', name: 'Disaster Recovery', href: '/disaster-recovery', icon: CloudArrowDownIcon, roles: ADMIN_ONLY_ROLES },
       { id: 'data-wipe', name: 'Data Wipe', href: '/data-wipe', icon: DocumentTextIcon, roles: ADMIN_ONLY_ROLES },

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useQuery } from 'react-query'
 import toast from 'react-hot-toast'
-import { resultsAPI, scoreFilesAPI } from '../services/api'
+import { contestsAPI, resultsAPI, scoreFilesAPI } from '../services/api'
 import {
   TrophyIcon,
   ChartBarIcon,
@@ -16,6 +16,7 @@ import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 import { safeFormatDate } from '../utils/dateUtils'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Event {
   id: string
@@ -130,10 +131,12 @@ interface ScoreAttachment {
 }
 
 const ResultsPage: React.FC = () => {
+  const { user } = useAuth()
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [showScoreBreakdowns, setShowScoreBreakdowns] = useState(false)
+  const canViewMinimumWinningScore = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(user?.role || '')
 
   // Fetch events
   const { data: events, isLoading: eventsLoading, error: eventsError } = useQuery<Event[]>(
@@ -188,6 +191,19 @@ const ResultsPage: React.FC = () => {
       enabled: !!selectedEventId,
       retry: 1,
       onError: (err) => console.error('Fetch contests failed:', err),
+    }
+  )
+
+  const { data: minimumWinningScoreData } = useQuery<{ contestId: string; minimumWinningScore: number | null }>(
+    ['results-minimum-winning-score', selectedContestId],
+    async () => {
+      if (!selectedContestId) return { contestId: '', minimumWinningScore: null }
+      const response = await contestsAPI.getMinimumWinningScore(selectedContestId)
+      return response.data?.data || response.data
+    },
+    {
+      enabled: !!selectedContestId && canViewMinimumWinningScore,
+      retry: 1,
     }
   )
 
@@ -400,6 +416,7 @@ const ResultsPage: React.FC = () => {
   const hasCategoryResults = Boolean(selectedCategoryId && effectiveCategoryResults && (effectiveCategoryResults.winners?.length || 0) > 0)
   const hasContestResults = Boolean(selectedContestId && !selectedCategoryId && contestLevelResults.length > 0)
   const selectedContestName = contests?.find((c) => c.id === selectedContestId)?.name || ''
+  const minimumWinningScore = minimumWinningScoreData?.minimumWinningScore
 
   // Early return for error states
   if (eventsError) {
@@ -686,6 +703,14 @@ const ResultsPage: React.FC = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 {effectiveCategoryResults.category.contest?.name || selectedContestName}
               </p>
+              {canViewMinimumWinningScore && selectedContestId && (
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  Minimum winning score:{' '}
+                  <span className="font-semibold">
+                    {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
+                  </span>
+                </p>
+              )}
               <div className="mt-2 flex items-center">
                 {effectiveCategoryResults.category.boardApproved ? (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
@@ -838,6 +863,14 @@ const ResultsPage: React.FC = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Overall contest standings across all scored categories
               </p>
+              {canViewMinimumWinningScore && selectedContestId && (
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  Minimum winning score:{' '}
+                  <span className="font-semibold">
+                    {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
+                  </span>
+                </p>
+              )}
             </div>
             {contestLevelResults.length === 0 ? (
               <div className="text-center py-10 text-gray-500 dark:text-gray-400">
@@ -931,6 +964,11 @@ const ResultsPage: React.FC = () => {
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No results available for this category yet
             </p>
+            {canViewMinimumWinningScore && selectedContestId && (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Minimum winning score: {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
+              </p>
+            )}
           </Card>
         ) : (
           <Card className="rounded-lg p-12 text-center">

@@ -160,6 +160,7 @@ const RoleDefaultRoute: React.FC<{ basePath: string }> = ({ basePath }) => {
 
 const ADMIN_STANDARD_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
 const ADMIN_STRICT_ROLES = ['SUPER_ADMIN', 'ADMIN']
+const MONITORING_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
 const SUPER_ADMIN_ONLY = ['SUPER_ADMIN']
 const SCORING_ROLES = ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
 const EMCEE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']
@@ -234,7 +235,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/logs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><LogViewerPage /></ProtectedRoute>} />
             <Route path="/activity" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><ActivityLogPage /></ProtectedRoute>} />
             <Route path="/login-locations" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']}><LoginLocationsPage /></ProtectedRoute>} />
-            <Route path="/performance" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><PerformancePage /></ProtectedRoute>} />
+            <Route path="/performance" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><PerformancePage /></ProtectedRoute>} />
             <Route path="/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
             <Route path="/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
@@ -296,7 +297,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
             <Route path="/:slug/certifications" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']}><CertificationsPage /></ProtectedRoute>} />
             <Route path="/:slug/logs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><LogViewerPage /></ProtectedRoute>} />
-            <Route path="/:slug/performance" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><PerformancePage /></ProtectedRoute>} />
+            <Route path="/:slug/performance" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><PerformancePage /></ProtectedRoute>} />
             <Route path="/:slug/data-wipe" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DataWipePage /></ProtectedRoute>} />
             <Route path="/:slug/event-templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><EventTemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/bulk-operations" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BulkOperationsPage /></ProtectedRoute>} />
