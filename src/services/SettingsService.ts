@@ -1459,6 +1459,7 @@ export class SettingsService extends BaseService {
     return {
       canViewWinners: (keyMap['contestant_visibility_canViewWinners'] || 'true') === 'true',
       canViewOverallResults: (keyMap['contestant_visibility_canViewOverallResults'] || 'true') === 'true',
+      canViewMinimumWinningScore: (keyMap['contestant_visibility_canViewMinimumWinningScore'] || 'false') === 'true',
     };
   }
 
@@ -1484,6 +1485,8 @@ export class SettingsService extends BaseService {
         transformedSettings['contestant_visibility_canViewWinners'] = stringValue;
       } else if (key === 'canViewOverallResults') {
         transformedSettings['contestant_visibility_canViewOverallResults'] = stringValue;
+      } else if (key === 'canViewMinimumWinningScore') {
+        transformedSettings['contestant_visibility_canViewMinimumWinningScore'] = stringValue;
       } else if (key.startsWith('contestant_visibility_')) {
         // Already in correct format
         transformedSettings[key] = stringValue;

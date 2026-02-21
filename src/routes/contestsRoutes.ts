@@ -146,7 +146,7 @@ router.post('/:id/reactivate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER',
  *                   type: boolean
  */
 router.get('/:id/olympic-scoring-validation', getOlympicScoringValidation);
-router.get('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE']), getMinimumWinningScore);
+router.get('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE', 'CONTESTANT']), getMinimumWinningScore);
 router.put('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CONTEST_MIN_WINNING_SCORE', 'CONTEST'), updateMinimumWinningScore);
 
 export default router;

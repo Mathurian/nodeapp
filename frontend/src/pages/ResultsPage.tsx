@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useQuery } from 'react-query'
 import toast from 'react-hot-toast'
-import { contestsAPI, resultsAPI, scoreFilesAPI } from '../services/api'
+import api, { contestsAPI, resultsAPI, scoreFilesAPI } from '../services/api'
 import {
   TrophyIcon,
   ChartBarIcon,
@@ -130,13 +130,36 @@ interface ScoreAttachment {
   filePath: string
 }
 
+interface ContestantVisibilitySettings {
+  canViewWinners: boolean
+  canViewOverallResults: boolean
+  canViewMinimumWinningScore: boolean
+}
+
 const ResultsPage: React.FC = () => {
   const { user } = useAuth()
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [showScoreBreakdowns, setShowScoreBreakdowns] = useState(false)
-  const canViewMinimumWinningScore = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(user?.role || '')
+  const isContestant = user?.role === 'CONTESTANT'
+  const staffCanViewMinimumWinningScore = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(user?.role || '')
+
+  const { data: contestantVisibility } = useQuery<ContestantVisibilitySettings | null>(
+    ['results-contestant-visibility'],
+    async () => {
+      const response = await api.get('/settings/contestant-visibility')
+      return (response.data?.data || response.data) as ContestantVisibilitySettings
+    },
+    {
+      enabled: isContestant,
+      retry: 1,
+    }
+  )
+
+  const canViewMinimumWinningScore = isContestant
+    ? contestantVisibility?.canViewMinimumWinningScore === true
+    : staffCanViewMinimumWinningScore
 
   // Fetch events
   const { data: events, isLoading: eventsLoading, error: eventsError } = useQuery<Event[]>(

@@ -248,15 +248,17 @@ export class ResultsService extends BaseService {
     return globalSetting?.value ?? null;
   }
 
-  private async getContestantVisibility(tenantId: string): Promise<{ canViewWinners: boolean; canViewOverallResults: boolean }> {
-    const [winnersRaw, overallRaw] = await Promise.all([
+  private async getContestantVisibility(tenantId: string): Promise<{ canViewWinners: boolean; canViewOverallResults: boolean; canViewMinimumWinningScore: boolean }> {
+    const [winnersRaw, overallRaw, minimumWinningScoreRaw] = await Promise.all([
       this.getSettingWithTenantFallback('contestant_visibility_canViewWinners', tenantId),
       this.getSettingWithTenantFallback('contestant_visibility_canViewOverallResults', tenantId),
+      this.getSettingWithTenantFallback('contestant_visibility_canViewMinimumWinningScore', tenantId),
     ]);
 
     return {
       canViewWinners: (winnersRaw ?? 'true') === 'true',
       canViewOverallResults: (overallRaw ?? 'true') === 'true',
+      canViewMinimumWinningScore: (minimumWinningScoreRaw ?? 'false') === 'true',
     };
   }
 

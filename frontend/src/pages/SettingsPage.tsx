@@ -77,6 +77,7 @@ interface SecuritySettings {
 interface ContestantVisibilitySettings {
   canViewWinners: boolean
   canViewOverallResults: boolean
+  canViewMinimumWinningScore: boolean
 }
 
 interface PasswordPolicy {
@@ -321,6 +322,7 @@ const SettingsPage: React.FC = () => {
   const [contestantVisibilityFormData, setContestantVisibilityFormData] = useState<ContestantVisibilitySettings>({
     canViewWinners: true,
     canViewOverallResults: true,
+    canViewMinimumWinningScore: false,
   })
 
   const [passwordPolicyFormData, setPasswordPolicyFormData] = useState<PasswordPolicy>({
@@ -540,6 +542,7 @@ const SettingsPage: React.FC = () => {
           setContestantVisibilityFormData({
             canViewWinners: data.canViewWinners !== false,
             canViewOverallResults: data.canViewOverallResults !== false,
+            canViewMinimumWinningScore: data.canViewMinimumWinningScore === true,
           })
         }
       },
@@ -3317,6 +3320,19 @@ const SettingsPage: React.FC = () => {
                         type="checkbox"
                         checked={contestantVisibilityFormData.canViewOverallResults}
                         onChange={(e) => setContestantVisibilityFormData({ ...contestantVisibilityFormData, canViewOverallResults: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Can View Minimum Winning Score</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to see the contest minimum winning score threshold in results views</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={contestantVisibilityFormData.canViewMinimumWinningScore}
+                        onChange={(e) => setContestantVisibilityFormData({ ...contestantVisibilityFormData, canViewMinimumWinningScore: e.target.checked })}
                         className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                       />
                     </div>

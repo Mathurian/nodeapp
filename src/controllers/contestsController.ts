@@ -23,6 +23,46 @@ export class ContestsController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
+  private async getSettingWithTenantFallback(key: string, tenantId: string): Promise<string | null> {
+    const tenantSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId },
+      select: { value: true }
+    });
+    if (tenantSetting?.value !== undefined && tenantSetting?.value !== null) {
+      return tenantSetting.value;
+    }
+
+    const globalSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId: null },
+      select: { value: true }
+    });
+    return globalSetting?.value ?? null;
+  }
+
+  private contestantCanViewContest(contest: {
+    contestantViewRestricted?: boolean | null;
+    contestantViewReleaseDate?: Date | null;
+    event?: {
+      contestantViewRestricted?: boolean | null;
+      contestantViewReleaseDate?: Date | null;
+    } | null;
+  }): boolean {
+    const now = new Date();
+    const eventRestricted = Boolean(contest.event?.contestantViewRestricted);
+    const eventRelease = contest.event?.contestantViewReleaseDate || null;
+    if (eventRestricted && (!eventRelease || eventRelease > now)) {
+      return false;
+    }
+
+    const contestRestricted = Boolean(contest.contestantViewRestricted);
+    const contestRelease = contest.contestantViewReleaseDate || null;
+    if (contestRestricted && (!contestRelease || contestRelease > now)) {
+      return false;
+    }
+
+    return true;
+  }
+
   /**
    * Get all contests with optional filters
    */
@@ -390,14 +430,76 @@ export class ContestsController {
     try {
       const { id } = req.params;
       const tenantId = req.tenantId || req.user?.tenantId;
+      const userId = req.user?.id;
+      const userRole = String(req.user?.role || '');
       if (!id) return sendError(res, 'Contest ID is required', 400);
       if (!tenantId) return sendError(res, 'Tenant context is required', 400);
+      if (!userId) return sendError(res, 'Unauthorized', 401);
 
       const contest = await this.prisma.contest.findFirst({
         where: { id, tenantId },
-        select: { id: true }
+        select: {
+          id: true,
+          contestantViewRestricted: true,
+          contestantViewReleaseDate: true,
+          event: {
+            select: {
+              contestantViewRestricted: true,
+              contestantViewReleaseDate: true
+            }
+          }
+        }
       });
       if (!contest) return sendError(res, 'Contest not found', 404);
+
+      if (userRole === 'CONTESTANT') {
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { contestantId: true }
+        });
+        if (!user?.contestantId) {
+          return sendError(res, 'Contestant profile not found', 403);
+        }
+
+        const [canViewOverallResultsRaw, canViewMinimumWinningScoreRaw] = await Promise.all([
+          this.getSettingWithTenantFallback('contestant_visibility_canViewOverallResults', tenantId),
+          this.getSettingWithTenantFallback('contestant_visibility_canViewMinimumWinningScore', tenantId),
+        ]);
+        const canViewOverallResults = (canViewOverallResultsRaw || 'true') === 'true';
+        const canViewMinimumWinningScore = (canViewMinimumWinningScoreRaw || 'false') === 'true';
+        if (!canViewOverallResults || !canViewMinimumWinningScore) {
+          return sendError(res, 'Contestant minimum winning score visibility is disabled', 403);
+        }
+
+        if (!this.contestantCanViewContest(contest)) {
+          return sendError(res, 'Contest results are not visible yet', 403);
+        }
+
+        const [contestAssignment, categoryAssignment] = await Promise.all([
+          this.prisma.contestContestant.findFirst({
+            where: { contestId: id, contestantId: user.contestantId }
+          }),
+          this.prisma.categoryContestant.findFirst({
+            where: {
+              contestantId: user.contestantId,
+              category: { contestId: id }
+            }
+          })
+        ]);
+
+        if (!contestAssignment && !categoryAssignment) {
+          const hasScores = await this.prisma.score.findFirst({
+            where: {
+              contestantId: user.contestantId,
+              category: { contestId: id }
+            },
+            select: { id: true }
+          });
+          if (!hasScores) {
+            return sendError(res, 'Not assigned to this contest', 403);
+          }
+        }
+      }
 
       const key = `contest_min_winning_score:${id}`;
       const setting = await this.prisma.systemSetting.findFirst({
