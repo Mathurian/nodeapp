@@ -344,8 +344,7 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="cgr-page-container min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-100 dark:from-gray-950 dark:via-slate-900 dark:to-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
+    <main className="cgr-page-container min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-100 dark:from-gray-950 dark:via-slate-900 dark:to-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="text-center">
             {/* Custom Logo */}
@@ -379,19 +378,19 @@ const LoginPage: React.FC = () => {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-200 dark:border-gray-700">
-            <div className="mb-6 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+            <div className="mb-6 rounded-lg border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 p-4">
               <div className="flex items-start gap-3">
-                <DevicePhoneMobileIcon className="h-5 w-5 text-blue-600 dark:text-blue-300 mt-0.5 flex-shrink-0" />
+                <DevicePhoneMobileIcon className="h-5 w-5 text-blue-700 dark:text-blue-200 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                  <p className="text-sm font-semibold text-blue-950 dark:text-blue-100">
                     Did you know?
                   </p>
-                  <p className="mt-1 text-sm text-blue-800 dark:text-blue-300">
+                  <p className="mt-1 text-sm text-blue-900 dark:text-blue-100">
                     You can install {settings.appName} on your mobile device for quick access from your home screen.
                   </p>
                   <a
                     href={installGuideHref}
-                    className="mt-2 inline-block text-sm font-medium text-blue-700 dark:text-blue-200 hover:underline"
+                    className="mt-2 inline-block text-sm font-semibold text-blue-900 dark:text-blue-100 hover:underline"
                   >
                     View mobile install instructions
                   </a>
@@ -453,7 +452,7 @@ const LoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={form.formState.isSubmitting}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
                 </button>
@@ -462,7 +461,7 @@ const LoginPage: React.FC = () => {
                   {settings.showForgotPassword ? (
                     <a
                       href={`${slug ? `/${slug}` : ''}/forgot-password`}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
+                      className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline"
                     >
                       Forgot password?
                     </a>
@@ -570,7 +569,7 @@ const LoginPage: React.FC = () => {
                   type="button"
                   onClick={mfaRequiresSetup ? verifyAndEnableMfa : completeMfaChallenge}
                   disabled={mfaVerifyLoading || mfaCode.trim().length === 0}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {mfaVerifyLoading
                     ? (mfaRequiresSetup ? 'Enabling MFA...' : 'Verifying...')
@@ -604,7 +603,7 @@ const LoginPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-2 justify-center items-center text-sm">
                   <a
                     href={helpBasePath}
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium"
+                    className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline font-medium"
                     aria-label="View help documentation"
                   >
                     Help Documentation
@@ -612,7 +611,7 @@ const LoginPage: React.FC = () => {
                   <span className="hidden sm:inline text-gray-400 dark:text-gray-500">|</span>
                   <a
                     href={`mailto:${settings.contactEmail || DEFAULT_APP_BASELINE.contactEmail}`}
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium"
+                    className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:underline font-medium"
                     aria-label="Contact support via email"
                   >
                     Contact Support
@@ -629,8 +628,7 @@ const LoginPage: React.FC = () => {
             Accessible design with WCAG 2.1 Level AA compliance
           </p>
         </div>
-      </div>
-    </div>
+    </main>
   )
 }
 

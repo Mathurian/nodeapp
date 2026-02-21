@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { eventsAPI, contestsAPI, categoriesAPI, api } from '../services/api'
+import { inferFileNameFromPath, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   MicrophoneIcon,
   TrophyIcon,
@@ -65,10 +67,13 @@ interface ScriptFormData {
 const EmceePage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [selectedContestId, setSelectedContestId] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'scripts'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'scripts'>(
+    searchParams.get('tab') === 'scripts' ? 'scripts' : 'overview'
+  )
   const [isScriptFormOpen, setIsScriptFormOpen] = useState(false)
   const [editingScript, setEditingScript] = useState<Script | null>(null)
   const [scriptFormData, setScriptFormData] = useState<ScriptFormData>({
@@ -130,6 +135,22 @@ const EmceePage: React.FC = () => {
 
   // Check permissions for script management
   const canManageScripts = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') === 'scripts' ? 'scripts' : 'overview'
+    setActiveTab(tab)
+  }, [searchParams])
+
+  const handleTabChange = (tab: 'overview' | 'scripts') => {
+    setActiveTab(tab)
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'scripts') {
+      next.set('tab', 'scripts')
+    } else {
+      next.delete('tab')
+    }
+    setSearchParams(next, { replace: true })
+  }
 
   // Upload script mutation
   const uploadScriptMutation = useMutation(
@@ -257,15 +278,19 @@ const EmceePage: React.FC = () => {
     }
   }
 
-  const handleViewScript = async (scriptId: string) => {
+  const handleViewScript = async (script: Script) => {
     try {
-      const response = await api.get(`/emcee/scripts/${scriptId}/view`, { responseType: 'blob' })
-      const blobUrl = URL.createObjectURL(response.data)
-      window.open(blobUrl, '_blank', 'noopener,noreferrer')
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+      const response = await api.get(`/emcee/scripts/${script.id}/view`, { responseType: 'blob' })
+      openBlobDocument({
+        blob: response.data,
+        fileName: inferFileNameFromPath(script.filePath, `${script.title}.pdf`),
+      })
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to get view URL'
-      toast.error(`Error: ${errorMessage}`)
+      const openedFallback = openDocumentUrl(`/api/v1/emcee/scripts/${script.id}/view`)
+      if (!openedFallback) {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to open script'
+        toast.error(`Error: ${errorMessage}`)
+      }
     }
   }
 
@@ -307,9 +332,13 @@ const EmceePage: React.FC = () => {
 
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-8" role="tablist" aria-label="Emcee dashboard tabs">
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={() => handleTabChange('overview')}
+              role="tab"
+              aria-selected={activeTab === 'overview'}
+              aria-controls="emcee-overview-tab-panel"
+              id="emcee-overview-tab"
               className={`${
                 activeTab === 'overview'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
@@ -319,7 +348,11 @@ const EmceePage: React.FC = () => {
               Overview
             </button>
             <button
-              onClick={() => setActiveTab('scripts')}
+              onClick={() => handleTabChange('scripts')}
+              role="tab"
+              aria-selected={activeTab === 'scripts'}
+              aria-controls="emcee-scripts-tab-panel"
+              id="emcee-scripts-tab"
               className={`${
                 activeTab === 'scripts'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
@@ -333,7 +366,7 @@ const EmceePage: React.FC = () => {
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="tabpanel" id="emcee-overview-tab-panel" aria-labelledby="emcee-overview-tab">
 
         {/* Event Selection */}
         <Card className="rounded-lg p-6 mb-6">
@@ -524,15 +557,15 @@ const EmceePage: React.FC = () => {
           <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-300">
             <li className="flex items-start">
               <ChevronRightIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-              <span>Use this dashboard to monitor contest progress and category status</span>
+              <span>Use this dashboard to monitor contest progress and category status.</span>
             </li>
             <li className="flex items-start">
               <ChevronRightIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-              <span>Check certification status to know when results are ready to announce</span>
+              <span>Use the Scripts tab for run-of-show documents and speaking notes.</span>
             </li>
             <li className="flex items-start">
               <ChevronRightIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-              <span>Navigate to the Results page to view winners and rankings</span>
+              <span>Results are available only after winners are officially published.</span>
             </li>
           </ul>
         </div>
@@ -541,7 +574,7 @@ const EmceePage: React.FC = () => {
 
         {/* Scripts Tab */}
         {activeTab === 'scripts' && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="tabpanel" id="emcee-scripts-tab-panel" aria-labelledby="emcee-scripts-tab">
             {/* Header with Add Button */}
             <div className="flex justify-between items-center">
               <div>
@@ -597,9 +630,10 @@ const EmceePage: React.FC = () => {
                         </div>
                         <div className="ml-4 flex items-center gap-2">
                           <button
-                            onClick={() => handleViewScript(script.id)}
+                            onClick={() => handleViewScript(script)}
                             className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             title="View script"
+                            aria-label={`View script ${script.title}`}
                           >
                             <DocumentTextIcon className="h-5 w-5" />
                           </button>
@@ -609,6 +643,7 @@ const EmceePage: React.FC = () => {
                                 onClick={() => handleEditScript(script)}
                                 className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                 title="Edit script"
+                                aria-label={`Edit script ${script.title}`}
                               >
                                 <PencilIcon className="h-5 w-5" />
                               </button>
@@ -616,6 +651,7 @@ const EmceePage: React.FC = () => {
                                 onClick={() => handleDeleteScript(script.id)}
                                 className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                 title="Delete script"
+                                aria-label={`Delete script ${script.title}`}
                               >
                                 <TrashIcon className="h-5 w-5" />
                               </button>
@@ -643,6 +679,7 @@ const EmceePage: React.FC = () => {
                   <button
                     onClick={resetScriptForm}
                     className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                    aria-label="Close script form"
                   >
                     <XMarkIcon className="w-6 h-6" />
                   </button>

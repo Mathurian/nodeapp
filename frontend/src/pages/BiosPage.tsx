@@ -3,6 +3,7 @@ import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import { Card, PageHeader } from '../components/ui'
+import { inferFileNameFromPath, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   UserCircleIcon,
   MagnifyingGlassIcon,
@@ -113,12 +114,13 @@ const openBioFile = async (path?: string | null) => {
       throw new Error(`Failed (${response.status})`)
     }
     const blob = await response.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank', 'noopener,noreferrer')
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+    openBlobDocument({
+      blob,
+      fileName: inferFileNameFromPath(path),
+    })
   } catch {
     if (fallbackUrl) {
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+      openDocumentUrl(fallbackUrl)
     }
   }
 }
@@ -273,21 +275,27 @@ const BiosPage: React.FC = () => {
 
       {showJudgesTab && (
         <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="-mb-px flex space-x-8">
+          <div className="overflow-x-auto">
+            <nav className="-mb-px flex min-w-max gap-6 pr-2" role="tablist" aria-label="Bio directory role tabs">
             {roleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`bios-role-tabpanel-${tab.id}`}
+                id={`bios-role-tab-${tab.id}`}
                 className={`py-3 px-1 border-b-2 text-sm font-medium ${
                   activeTab === tab.id
                     ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                     : 'border-transparent text-gray-500 dark:text-gray-400'
-                }`}
+                } whitespace-nowrap`}
               >
                 {tab.label} ({tab.count})
               </button>
             ))}
-          </nav>
+            </nav>
+          </div>
         </div>
       )}
 
@@ -300,7 +308,12 @@ const BiosPage: React.FC = () => {
       ) : (
         <>
           {(activeTab === 'contestants' || !showJudgesTab) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+              role="tabpanel"
+              id="bios-role-tabpanel-contestants"
+              aria-labelledby="bios-role-tab-contestants"
+            >
               {filteredContestants.map((contestant) => (
                 <div key={contestant.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -339,7 +352,12 @@ const BiosPage: React.FC = () => {
           )}
 
           {showJudgesTab && activeTab === 'judges' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+              role="tabpanel"
+              id="bios-role-tabpanel-judges"
+              aria-labelledby="bios-role-tab-judges"
+            >
               {filteredJudges.map((judge) => (
                 <div key={judge.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -379,7 +397,12 @@ const BiosPage: React.FC = () => {
           )}
 
           {canSeeAllRoles && ['EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'].includes(activeTab) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+              role="tabpanel"
+              id={`bios-role-tabpanel-${activeTab}`}
+              aria-labelledby={`bios-role-tab-${activeTab}`}
+            >
               {(filteredUsersByRole[activeTab] || []).map((entry) => (
                 <div key={entry.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-3">

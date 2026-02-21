@@ -32,7 +32,7 @@ import { buildSwaggerSpec, swaggerUiOptions } from './config/swagger.config';
 
 // Middleware
 import { requestLogging, errorLogging } from './middleware/requestLogger';
-import { generalLimiter, authLimiter, bootstrapEndpointLimiter, publicEndpointLimiter } from './middleware/rateLimiting';
+import { generalLimiter, bootstrapEndpointLimiter, publicEndpointLimiter } from './middleware/rateLimiting';
 import { rateLimitMiddleware } from './middleware/enhancedRateLimiting';
 import { errorHandler } from './middleware/errorHandler';
 import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csrf';
@@ -141,8 +141,6 @@ uploadDirs.forEach(dir => {
 /**
  * Rate limiting
  */
-app.use('/api/auth/', authLimiter);
-app.use('/api/v1/auth/', authLimiter);
 app.use('/api/', generalLimiter);
 app.use([
   '/api/settings/theme',

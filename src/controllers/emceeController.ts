@@ -366,13 +366,21 @@ export class EmceeController {
       }
 
       const extension = path.extname(filePath).toLowerCase();
-      if (extension === '.pdf') {
-        res.setHeader('Content-Type', 'application/pdf');
-      } else if (extension === '.txt') {
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      }
+      const contentTypeByExtension: Record<string, string> = {
+        '.pdf': 'application/pdf',
+        '.txt': 'text/plain; charset=utf-8',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      };
+      const contentType = contentTypeByExtension[extension] || 'application/octet-stream';
+      const isInlinePreview = extension === '.pdf' || extension === '.txt';
 
-      res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader(
+        'Content-Disposition',
+        `${isInlinePreview ? 'inline' : 'attachment'}; filename="${path.basename(filePath)}"`
+      );
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {

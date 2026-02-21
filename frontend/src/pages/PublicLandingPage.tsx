@@ -205,6 +205,7 @@ const PublicLandingPage: React.FC = () => {
         </div>
       </nav>
 
+      <main>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-100/50 via-transparent to-indigo-100/50 dark:from-blue-900/20 dark:via-transparent dark:to-indigo-900/20" />
@@ -215,7 +216,7 @@ const PublicLandingPage: React.FC = () => {
             variants={containerVariants}
             className="text-center max-w-4xl mx-auto"
           >
-            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium mb-8">
+            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium mb-8">
               <SparklesIcon className="w-4 h-4" />
               <span>Event Management Simplified</span>
             </motion.div>
@@ -244,7 +245,7 @@ const PublicLandingPage: React.FC = () => {
             >
               <Link
                 to={`${basePath}/login`}
-                className="group w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40"
+                className="group w-full sm:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-700/25 hover:shadow-blue-700/40"
               >
                 Log In to Your Account
                 <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -327,7 +328,7 @@ const PublicLandingPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 to={`${basePath}/login`}
-                className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-blue-600/25"
+                className="w-full sm:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-blue-700/25"
               >
                 Sign In
               </Link>
@@ -335,6 +336,7 @@ const PublicLandingPage: React.FC = () => {
           </motion.div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">

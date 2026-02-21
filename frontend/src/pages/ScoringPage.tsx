@@ -7,6 +7,7 @@ import { scoringAPI } from '../services/api'
 import { scoreFilesAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
+import { inferFileNameFromPath, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   TrophyIcon,
   UserIcon,
@@ -158,12 +159,13 @@ const openBioFile = async (path?: string | null) => {
     const response = await fetch(targetUrl, { credentials: 'include' })
     if (!response.ok) throw new Error(`Failed (${response.status})`)
     const blob = await response.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank', 'noopener,noreferrer')
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+    openBlobDocument({
+      blob,
+      fileName: inferFileNameFromPath(path),
+    })
   } catch {
     if (fallbackUrl) {
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+      openDocumentUrl(fallbackUrl)
     }
   }
 }

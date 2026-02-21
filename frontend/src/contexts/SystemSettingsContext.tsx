@@ -229,11 +229,11 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       }
       dynamicStyle.textContent = `
         .bg-blue-600, .bg-blue-500, .bg-indigo-600, .bg-indigo-500,
-        .dark\\:bg-blue-500, .dark\\:bg-blue-600, .dark\\:bg-indigo-500, .dark\\:bg-indigo-600 { background-color: ${primary} !important; }
+        .dark .dark\\:bg-blue-500, .dark .dark\\:bg-blue-600, .dark .dark\\:bg-indigo-500, .dark .dark\\:bg-indigo-600 { background-color: ${primary} !important; }
         .hover\\:bg-blue-700:hover, .hover\\:bg-blue-600:hover, .hover\\:bg-indigo-700:hover, .hover\\:bg-indigo-600:hover,
-        .dark\\:hover\\:bg-blue-600:hover, .dark\\:hover\\:bg-blue-500:hover, .dark\\:hover\\:bg-indigo-600:hover, .dark\\:hover\\:bg-indigo-500:hover { filter: brightness(0.9); }
+        .dark .dark\\:hover\\:bg-blue-600:hover, .dark .dark\\:hover\\:bg-blue-500:hover, .dark .dark\\:hover\\:bg-indigo-600:hover, .dark .dark\\:hover\\:bg-indigo-500:hover { filter: brightness(0.9); }
         .text-blue-600, .text-blue-500, .text-indigo-600, .text-indigo-500,
-        .dark\\:text-blue-400, .dark\\:text-blue-300, .dark\\:text-indigo-400, .dark\\:text-indigo-300 { color: ${primary} !important; }
+        .dark .dark\\:text-blue-400, .dark .dark\\:text-blue-300, .dark .dark\\:text-indigo-400, .dark .dark\\:text-indigo-300 { color: ${primary} !important; }
         .border-blue-600, .border-blue-500, .border-indigo-600, .border-indigo-500,
         .ring-blue-500, .focus\\:ring-blue-500 { border-color: ${primary} !important; --tw-ring-color: ${primary} !important; }
         .from-blue-600, .from-blue-500, .from-indigo-600, .from-indigo-500 { --tw-gradient-from: ${primary} var(--tw-gradient-from-position) !important; }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { uploadAPI, api } from '../services/api'
+import { openDocumentUrl } from '../utils/fileViewer'
 import {
   CloudArrowDownIcon,
   TrashIcon,
@@ -185,7 +186,10 @@ const FileManagementPage: React.FC = () => {
   }
 
   const downloadFile = (file: FileItem) => {
-    window.open(file.url, '_blank')
+    const opened = openDocumentUrl(file.url)
+    if (!opened) {
+      setError('Unable to open the selected document on this device.')
+    }
   }
 
   const formatSize = (bytes: number) => {
@@ -362,7 +366,7 @@ const FileManagementPage: React.FC = () => {
                             <CloudArrowDownIcon className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={() => window.open(file.url, '_blank')}
+                            onClick={() => downloadFile(file)}
                             className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors"
                             title="View"
                           >

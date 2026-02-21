@@ -4,8 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright Configuration for Visual Regression Testing
  * @see https://playwright.dev/docs/test-configuration
  */
+const playwrightPort = process.env.PLAYWRIGHT_WEB_PORT || '4173';
+const defaultBaseUrl = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${playwrightPort}`;
+
 export default defineConfig({
-  testDir: './tests/visual',
+  testDir: './tests',
 
   // Timeout for each test
   timeout: 30000,
@@ -13,6 +16,19 @@ export default defineConfig({
   // Expect timeout
   expect: {
     timeout: 10000,
+    toHaveScreenshot: {
+      // Maximum number of pixels that can differ
+      maxDiffPixels: 100,
+
+      // Threshold for pixel difference (0-1)
+      threshold: 0.2,
+
+      // Animations can cause flakiness
+      animations: 'disabled',
+
+      // Allow some tolerance for anti-aliasing
+      maxDiffPixelRatio: 0.01,
+    },
   },
 
   // Run tests in files in parallel
@@ -34,27 +50,10 @@ export default defineConfig({
     ...(process.env.CI ? [['github'] as const] : []),
   ],
 
-  // Screenshot comparison settings
-  expect: {
-    toHaveScreenshot: {
-      // Maximum number of pixels that can differ
-      maxDiffPixels: 100,
-
-      // Threshold for pixel difference (0-1)
-      threshold: 0.2,
-
-      // Animations can cause flakiness
-      animations: 'disabled',
-
-      // Allow some tolerance for anti-aliasing
-      maxDiffPixelRatio: 0.01,
-    },
-  },
-
   // Shared settings for all projects
   use: {
     // Base URL for navigation
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
+    baseURL: defaultBaseUrl,
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -105,8 +104,8 @@ export default defineConfig({
 
   // Run local dev server before tests (optional)
   webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    command: `VITE_PORT=${playwrightPort} npm run dev`,
+    url: defaultBaseUrl,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

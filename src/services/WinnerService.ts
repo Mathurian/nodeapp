@@ -3,6 +3,8 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 import * as crypto from 'crypto';
 import { createLogger } from '../utils/logger';
+import { NotificationService } from './NotificationService';
+import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
 
 const logger = createLogger('WinnerService');
 
@@ -125,9 +127,94 @@ interface ContestWinner {
 @injectable()
 export class WinnerService extends BaseService {
   constructor(
-    @inject('PrismaClient') private prisma: PrismaClient
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject(NotificationService) private notificationService?: NotificationService,
+    @inject(NotificationPreferenceRepository) private notificationPreferenceRepository?: NotificationPreferenceRepository
   ) {
     super();
+  }
+
+  private parseNotificationTypes(raw: string | null | undefined): string[] {
+    if (!raw || !raw.trim()) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((value) => String(value).toUpperCase());
+    } catch {
+      return [];
+    }
+  }
+
+  private isEventNotificationEnabled(preference: {
+    emailTypes?: string | null;
+    pushTypes?: string | null;
+    inAppTypes?: string | null;
+  }): boolean {
+    const selectedTypes = new Set<string>([
+      ...this.parseNotificationTypes(preference.emailTypes),
+      ...this.parseNotificationTypes(preference.pushTypes),
+      ...this.parseNotificationTypes(preference.inAppTypes),
+    ]);
+
+    // Empty selections mean "no explicit filtering configured" for legacy/default rows.
+    if (selectedTypes.size === 0) {
+      return true;
+    }
+
+    return selectedTypes.has('EVENT') || selectedTypes.has('SYSTEM');
+  }
+
+  private async notifyWinnerPublicationChange(input: {
+    tenantId: string;
+    contestId: string;
+    contestName: string;
+    published: boolean;
+  }): Promise<void> {
+    if (!this.notificationService) {
+      return;
+    }
+
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        tenantId: input.tenantId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (recipients.length === 0) {
+      return;
+    }
+
+    let recipientIds = recipients.map((user) => user.id);
+    if (this.notificationPreferenceRepository) {
+      const preferences = await this.notificationPreferenceRepository.findManyByUserIds(
+        input.tenantId,
+        recipientIds
+      );
+      const preferenceByUserId = new Map(preferences.map((row) => [row.userId, row]));
+      recipientIds = recipientIds.filter((userId) => {
+        const preference = preferenceByUserId.get(userId);
+        if (!preference) return true;
+        return this.isEventNotificationEnabled(preference);
+      });
+    }
+
+    if (recipientIds.length === 0) {
+      return;
+    }
+
+    await this.notificationService.broadcastNotification(recipientIds, {
+      tenantId: input.tenantId,
+      type: input.published ? 'SUCCESS' : 'WARNING',
+      title: input.published ? 'Winners Published' : 'Winners Unpublished',
+      message: input.published
+        ? `Winners for "${input.contestName}" are now published.`
+        : `Winners for "${input.contestName}" were unpublished for correction.`,
+      link: `/winners?contestId=${input.contestId}`,
+    });
   }
 
   private getContestMinimumWinningScoreKey(contestId: string): string {
@@ -991,6 +1078,21 @@ export class WinnerService extends BaseService {
       categoriesCount: contest.categories.length,
     });
 
+    try {
+      await this.notifyWinnerPublicationChange({
+        tenantId,
+        contestId,
+        contestName: contest.name,
+        published: true,
+      });
+    } catch (error: unknown) {
+      logger.warn('Unable to dispatch winner publication notifications', {
+        contestId,
+        tenantId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     return {
       message: 'Winners published successfully',
       contest: updatedContest,
@@ -1042,6 +1144,21 @@ export class WinnerService extends BaseService {
       unpublishedBy: userId,
       reason,
     });
+
+    try {
+      await this.notifyWinnerPublicationChange({
+        tenantId,
+        contestId,
+        contestName: contest.name,
+        published: false,
+      });
+    } catch (error: unknown) {
+      logger.warn('Unable to dispatch winner unpublish notifications', {
+        contestId,
+        tenantId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return {
       message: 'Winners unpublished successfully',

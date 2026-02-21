@@ -600,7 +600,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                 className="h-7 w-7 text-blue-600 dark:text-blue-400"
                 style={{ display: logoPath ? 'none' : 'block' }}
               />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent truncate">
+              <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent truncate">
                 {appName}
               </h1>
             </Link>
@@ -627,12 +627,13 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
           </button>
 
           {/* Right side: Theme, Notifications, Profile */}
-          <div className="flex items-center space-x-2 lg:space-x-3">
+          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 shrink-0">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode (${modifierKey}+Shift+D)`}
+              aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
             >
               {isDarkMode ? (
                 <SunIcon className="h-5 w-5" />
@@ -644,8 +645,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             {/* Quick Actions Toggle */}
             <button
               onClick={() => setQuickActionsOpen(!quickActionsOpen)}
-              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="hidden sm:inline-flex relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Quick actions"
+              aria-label="Open quick actions"
             >
               <LightBulbIcon className="h-5 w-5" />
               {(recentCommands.length > 0 || favoriteCommands.length > 0) && (
@@ -658,7 +660,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               href="/help"
               target="_blank"
               rel="noopener noreferrer"
-              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="hidden sm:inline-flex relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Open Help Documentation"
               aria-label="Open help documentation in a new tab"
             >
@@ -670,6 +672,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               to={buildPath("/notifications")}
               className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Notifications"
+              aria-label="Open notifications"
             >
               <BellIcon className="h-5 w-5" />
               {unreadCount > 0 && (
@@ -702,7 +705,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             <div className="relative">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="flex items-center space-x-2 pl-1 pr-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center space-x-2 pl-1 pr-1 sm:pr-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Open profile menu"
+                aria-expanded={profileMenuOpen}
               >
                 {user?.imagePath ? (
                   <img

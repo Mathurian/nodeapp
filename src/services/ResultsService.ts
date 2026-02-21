@@ -375,7 +375,6 @@ export class ResultsService extends BaseService {
       case 'BOARD':
       case 'TALLY_MASTER':
       case 'AUDITOR':
-      case 'EMCEE':
         // Full access to all results
         break;
 
@@ -391,6 +390,17 @@ export class ResultsService extends BaseService {
 
         whereClause = {
           judgeId: judgeUser.judge.id,
+          category: {
+            contest: {
+              winnersPublished: true,
+            },
+          },
+        };
+        break;
+      }
+
+      case 'EMCEE': {
+        whereClause = {
           category: {
             contest: {
               winnersPublished: true,
@@ -555,6 +565,10 @@ export class ResultsService extends BaseService {
       where.contest = {
         winnersPublished: true,
       };
+    } else if (userRole === 'EMCEE') {
+      where.contest = {
+        winnersPublished: true,
+      };
     } else if (userRole === 'CONTESTANT') {
       const contestantUser = await this.prisma.user.findUnique({
         where: { id: userId },
@@ -583,7 +597,7 @@ export class ResultsService extends BaseService {
           },
         },
       ];
-    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE', 'SUPER_ADMIN'].includes(userRole)) {
+    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'SUPER_ADMIN'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
 
@@ -648,7 +662,16 @@ export class ResultsService extends BaseService {
           },
         },
       };
-    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(userRole)) {
+    } else if (userRole === 'EMCEE') {
+      whereClause = {
+        ...whereClause,
+        category: {
+          contest: {
+            winnersPublished: true,
+          },
+        },
+      };
+    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
 
@@ -724,16 +747,7 @@ export class ResultsService extends BaseService {
       }
 
       whereClause.contestantId = user.contestantId;
-    } else if (userRole === 'JUDGE') {
-      const judgeUser = await this.prisma.user.findUnique({
-        where: { id: userId },
-        include: { judge: true },
-      }) as UserWithJudge | null;
-
-      if (!judgeUser?.judge) {
-        return [];
-      }
-
+    } else if (userRole === 'JUDGE' || userRole === 'EMCEE') {
       const contestPublication = await this.prisma.contest.findUnique({
         where: { id: category.contestId },
         select: { winnersPublished: true },
@@ -743,31 +757,42 @@ export class ResultsService extends BaseService {
         return [];
       }
 
-      // Check assignment
-      const assignment = await this.prisma.assignment.findFirst({
-        where: {
-          judgeId: judgeUser.judge.id,
-          OR: [
-            { categoryId },
-            { contestId: category.contestId, categoryId: null }
-          ],
-          status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
-        },
-      }) as Assignment | null;
+      if (userRole === 'JUDGE') {
+        const judgeUser = await this.prisma.user.findUnique({
+          where: { id: userId },
+          include: { judge: true },
+        }) as UserWithJudge | null;
 
-      if (!assignment) {
-        const hasScores = await this.prisma.score.findFirst({
+        if (!judgeUser?.judge) {
+          return [];
+        }
+
+        // Check assignment
+        const assignment = await this.prisma.assignment.findFirst({
           where: {
-            categoryId,
             judgeId: judgeUser.judge.id,
+            OR: [
+              { categoryId },
+              { contestId: category.contestId, categoryId: null }
+            ],
+            status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
           },
-        });
+        }) as Assignment | null;
 
-        if (!hasScores) {
-          throw new Error('Not assigned to this category');
+        if (!assignment) {
+          const hasScores = await this.prisma.score.findFirst({
+            where: {
+              categoryId,
+              judgeId: judgeUser.judge.id,
+            },
+          });
+
+          if (!hasScores) {
+            throw new Error('Not assigned to this category');
+          }
         }
       }
-    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(userRole)) {
+    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
 
@@ -952,7 +977,11 @@ export class ResultsService extends BaseService {
           throw new Error('Not assigned to this contest');
         }
       }
-    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(userRole)) {
+    } else if (userRole === 'EMCEE') {
+      if (!contest.winnersPublished) {
+        return [];
+      }
+    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
 
@@ -1093,7 +1122,16 @@ export class ResultsService extends BaseService {
           throw new Error('Not assigned to this event');
         }
       }
-    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(userRole)) {
+    } else if (userRole === 'EMCEE') {
+      whereClause = {
+        category: {
+          contest: {
+            eventId,
+            winnersPublished: true,
+          },
+        },
+      };
+    } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
 

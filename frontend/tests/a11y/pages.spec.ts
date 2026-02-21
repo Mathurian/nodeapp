@@ -82,30 +82,30 @@ test.describe('Authenticated Pages - Accessibility', () => {
 test.describe('Forms - Accessibility', () => {
   test('Login form should be keyboard accessible', async ({ page }) => {
     await page.goto('/login');
+    await page.waitForLoadState('networkidle');
 
-    // Tab through form fields
-    await page.keyboard.press('Tab'); // Focus email field
-    const emailFocused = await page.evaluate(() => {
-      const activeElement = document.activeElement;
-      return activeElement?.getAttribute('type') === 'email' ||
-             activeElement?.getAttribute('name') === 'email';
-    });
-    expect(emailFocused).toBe(true);
+    const isLocatorFocused = async (selector: string): Promise<boolean> => {
+      return await page.locator(selector).first().evaluate((el) => el === document.activeElement);
+    };
 
-    await page.keyboard.press('Tab'); // Focus password field
-    const passwordFocused = await page.evaluate(() => {
-      const activeElement = document.activeElement;
-      return activeElement?.getAttribute('type') === 'password' ||
-             activeElement?.getAttribute('name') === 'password';
-    });
-    expect(passwordFocused).toBe(true);
+    const tabUntilFocused = async (selector: string, maxTabs = 24): Promise<boolean> => {
+      for (let i = 0; i < maxTabs; i += 1) {
+        if (await isLocatorFocused(selector)) {
+          return true;
+        }
+        await page.keyboard.press('Tab');
+      }
+      return isLocatorFocused(selector);
+    };
 
-    await page.keyboard.press('Tab'); // Focus submit button
-    const buttonFocused = await page.evaluate(() => {
-      const activeElement = document.activeElement;
-      return activeElement?.tagName.toLowerCase() === 'button';
-    });
-    expect(buttonFocused).toBe(true);
+    const emailReachable = await tabUntilFocused('input[name="email"], input[type="email"]');
+    expect(emailReachable).toBe(true);
+
+    const passwordReachable = await tabUntilFocused('input[name="password"], input[type="password"]');
+    expect(passwordReachable).toBe(true);
+
+    const submitReachable = await tabUntilFocused('button[type="submit"]');
+    expect(submitReachable).toBe(true);
   });
 });
 

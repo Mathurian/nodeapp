@@ -165,6 +165,24 @@ export class BioController {
         return res.status(404).json({ success: false, message: 'Bio file not found' });
       }
 
+      const extension = path.extname(targetPath).toLowerCase();
+      if (extension === '.doc') {
+        res.setHeader('Content-Type', 'application/msword');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      } else if (extension === '.docx') {
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      } else if (extension === '.pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      } else if (extension === '.txt') {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      }
+
       res.setHeader('Cache-Control', 'private, max-age=300');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       return res.sendFile(targetPath);

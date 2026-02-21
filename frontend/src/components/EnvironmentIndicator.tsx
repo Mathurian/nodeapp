@@ -6,7 +6,10 @@ const EnvironmentIndicator: React.FC = () => {
   if (env !== 'dev') return null
 
   return (
-    <div className="pointer-events-none fixed top-2 right-2 z-[100]">
+    <aside
+      className="pointer-events-none fixed top-2 right-2 z-[100]"
+      aria-label="Environment indicator"
+    >
       <div
         className="inline-flex items-center rounded-md border border-amber-300 bg-amber-500 px-2.5 py-1 text-[11px] font-bold tracking-wide text-amber-950 shadow"
         aria-label="Development environment"
@@ -14,7 +17,7 @@ const EnvironmentIndicator: React.FC = () => {
       >
         DEV ENVIRONMENT
       </div>
-    </div>
+    </aside>
   )
 }
 

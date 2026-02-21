@@ -193,6 +193,7 @@ const DashboardPage: React.FC = () => {
       ],
       EMCEE: [
         { label: 'Emcee Console', href: '/emcee', icon: UsersIcon, color: 'blue' },
+        { label: 'Scripts', href: '/emcee?tab=scripts', icon: TrophyIcon, color: 'indigo' },
         { label: 'Bios Directory', href: '/bios', icon: UsersIcon, color: 'green' },
       ],
       TALLY_MASTER: [

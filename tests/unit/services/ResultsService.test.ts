@@ -66,6 +66,8 @@ describe('ResultsService', () => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new ResultsService(mockPrisma as any);
     jest.clearAllMocks();
+    (mockPrisma.deductionRequest.findMany as jest.Mock).mockResolvedValue([]);
+    (mockPrisma.overallDeduction.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -227,6 +229,38 @@ describe('ResultsService', () => {
         expect.objectContaining({
           skip: 10,
           take: 20
+        })
+      );
+    });
+
+    it('should restrict EMCEE role to published contests only', async () => {
+      (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([mockScore]);
+      (mockPrisma.score.count as jest.Mock).mockResolvedValue(1);
+      (mockPrisma.score.groupBy as jest.Mock).mockResolvedValue([
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          _sum: { score: 85 },
+          _count: 1
+        }
+      ]);
+
+      await service.getAllResults({
+        userRole: 'EMCEE' as UserRole,
+        userId: 'emcee-1',
+        offset: 0,
+        limit: 50
+      });
+
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            category: {
+              contest: {
+                winnersPublished: true
+              }
+            }
+          })
         })
       );
     });
@@ -403,6 +437,7 @@ describe('ResultsService', () => {
 
     it('should check assignment for JUDGE role', async () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1' });
+      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({ winnersPublished: true });
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
         judge: { id: 'judge-1' }
@@ -424,6 +459,7 @@ describe('ResultsService', () => {
 
     it('should throw error when JUDGE not assigned to category', async () => {
       (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1' });
+      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({ winnersPublished: true });
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
         judge: { id: 'judge-1' }
@@ -455,7 +491,8 @@ describe('ResultsService', () => {
         userId: 'admin-1'
       });
 
-      expect(result).toEqual([mockScore]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(expect.objectContaining(mockScore));
     });
 
     it('should throw error when contest not found', async () => {
@@ -468,6 +505,23 @@ describe('ResultsService', () => {
           userId: 'admin-1'
         })
       ).rejects.toThrow('Contest not found');
+    });
+
+    it('should return empty for EMCEE when contest winners are unpublished', async () => {
+      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({
+        id: 'contest-1',
+        name: 'Contest 1',
+        winnersPublished: false,
+      });
+
+      const result = await service.getContestResults({
+        contestId: 'contest-1',
+        userRole: 'EMCEE' as UserRole,
+        userId: 'emcee-1'
+      });
+
+      expect(result).toEqual([]);
+      expect(mockPrisma.score.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -485,7 +539,8 @@ describe('ResultsService', () => {
         userId: 'admin-1'
       });
 
-      expect(result).toEqual([mockScore]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(expect.objectContaining(mockScore));
     });
 
     it('should throw error when event not found', async () => {
@@ -518,6 +573,33 @@ describe('ResultsService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             contestantId: 'contestant-1'
+          })
+        })
+      );
+    });
+
+    it('should restrict EMCEE event results to published contests only', async () => {
+      (mockPrisma.event.findUnique as jest.Mock).mockResolvedValue({
+        id: 'event-1',
+        name: 'Event 1'
+      });
+      (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.getEventResults({
+        eventId: 'event-1',
+        userRole: 'EMCEE' as UserRole,
+        userId: 'emcee-1'
+      });
+
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            category: {
+              contest: {
+                eventId: 'event-1',
+                winnersPublished: true,
+              }
+            }
           })
         })
       );
