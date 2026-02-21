@@ -428,12 +428,12 @@ const ProfilePage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="cgr-form-actions">
                 <Button
                   type="button"
                   onClick={handleCancel}
                   variant="secondary"
-                  className="flex-1 justify-center"
+                  className="w-full sm:flex-1 justify-center"
                 >
                   <XMarkIcon className="h-5 w-5 mr-2" />
                   Cancel
@@ -441,7 +441,7 @@ const ProfilePage: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={updateProfileMutation.isLoading}
-                  className="flex-1 justify-center"
+                  className="w-full sm:flex-1 justify-center"
                 >
                   {updateProfileMutation.isLoading ? (
                     <>
@@ -541,7 +541,7 @@ const ProfilePage: React.FC = () => {
                 placeholder="Re-enter new password"
                 required
               />
-              <div className="flex gap-3 pt-4">
+              <div className="cgr-form-actions">
                 <Button
                   type="button"
                   onClick={() => {
@@ -549,14 +549,14 @@ const ProfilePage: React.FC = () => {
                     setIsChangingPassword(false)
                   }}
                   variant="secondary"
-                  className="flex-1 justify-center"
+                  className="w-full sm:flex-1 justify-center"
                 >
                   <XMarkIcon className="h-5 w-5 mr-2" />
                   Cancel
                 </Button>
                 <FormSubmitButton
                   loading={changePasswordMutation.isLoading}
-                  className="flex-1 !w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  className="w-full sm:flex-1 sm:!w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                 >
                   <KeyIcon className="h-5 w-5 mr-2" aria-hidden="true" />
                   Change Password

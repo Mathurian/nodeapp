@@ -449,7 +449,7 @@ const ReportsPage: React.FC = () => {
         </Card>
 
         {sendingReportId && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="cgr-modal-overlay">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Report</h3>
               <input
@@ -589,7 +589,7 @@ const ReportsPage: React.FC = () => {
         )}
 
         {viewingReport && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="cgr-modal-overlay">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto">
               <div className="flex items-start justify-between gap-3">
                 <div>

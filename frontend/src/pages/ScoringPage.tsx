@@ -1284,7 +1284,7 @@ const ScoringPage: React.FC = () => {
       </div>
 
       {showSignatureModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="cgr-modal-overlay-soft">
           <div className="w-full max-w-xl rounded-lg bg-white dark:bg-gray-800 p-5 shadow-xl">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Judge Certification Signature</h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Provide typed and/or drawn signature to finalize score certification.</p>

@@ -566,10 +566,10 @@ const ContestsPage: React.FC = () => {
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-4 border-t">
+                <div className="cgr-card-actions">
                   <button
                     onClick={() => navigate(`/contests/${contest.id}/categories`)}
-                    className="flex-1 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
+                    className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
                   >
                     <ListBulletIcon className="h-4 w-4 mr-1" />
                     View Categories
@@ -579,7 +579,7 @@ const ContestsPage: React.FC = () => {
                       {contest.archived ? (
                         <button
                           onClick={() => handleReactivate(contest)}
-                          className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                          className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                         >
                           <ArrowPathIcon className="h-4 w-4 mr-1" />
                           Reactivate
@@ -588,21 +588,21 @@ const ContestsPage: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleEdit(contest)}
-                            className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
                           >
                             <PencilIcon className="h-4 w-4 mr-1" />
                             Edit
                           </button>
                           <button
                             onClick={() => handleArchive(contest)}
-                            className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                           >
                             <ArchiveBoxIcon className="h-4 w-4 mr-1" />
                             Archive
                           </button>
                           <button
                             onClick={() => handleDelete(contest)}
-                            className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                           >
                             <TrashIcon className="h-4 w-4 mr-1" />
                             Delete
@@ -628,22 +628,23 @@ const ContestsPage: React.FC = () => {
 
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {editingContest ? 'Edit Contest' : 'Create New Contest'}
-                </h2>
-                <button
-                  onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
-                  aria-label="Close dialog"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
+          <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
+            <div className="flex min-h-full items-start sm:items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl p-4 sm:p-6 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {editingContest ? 'Edit Contest' : 'Create New Contest'}
+                  </h2>
+                  <button
+                    onClick={resetForm}
+                    className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                    aria-label="Close dialog"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
 
-              <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
+                <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
                 {/* Event Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -795,34 +796,35 @@ const ContestsPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Form Actions */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isLoading || updateMutation.isLoading}
-                    className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
-                  >
-                    {createMutation.isLoading || updateMutation.isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <CheckIcon className="h-5 w-5 mr-2" />
-                        {editingContest ? 'Update Contest' : 'Create Contest'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+                  {/* Form Actions */}
+                <div className="cgr-form-actions">
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="w-full sm:flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createMutation.isLoading || updateMutation.isLoading}
+                      className="w-full sm:flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
+                    >
+                      {createMutation.isLoading || updateMutation.isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="h-5 w-5 mr-2" />
+                          {editingContest ? 'Update Contest' : 'Create Contest'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}

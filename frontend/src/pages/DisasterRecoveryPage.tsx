@@ -436,7 +436,7 @@ const DisasterRecoveryPage: React.FC = () => {
 
         {/* Create Plan Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="cgr-modal-overlay">
             <div className="bg-white dark:bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white mb-4">
                 Create DR Plan

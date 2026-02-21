@@ -188,8 +188,12 @@ const WinnersPage: React.FC = () => {
     }
   )
 
+  const hasContestWinnersPayload = winnersResponse !== null && winnersResponse !== undefined
+
   const winners: Winner[] = (() => {
-    const source = Array.isArray(winnersResponse?.winners)
+    const source = Array.isArray(winnersResponse)
+      ? winnersResponse
+      : Array.isArray(winnersResponse?.winners)
       ? winnersResponse.winners
       : Array.isArray(winnersResponse?.data?.winners)
         ? winnersResponse.data.winners
@@ -211,7 +215,9 @@ const WinnersPage: React.FC = () => {
   const minimumWinningScore = (winnersResponse as any)?.minimumWinningScore as number | null | undefined
 
   const effectiveWinners: Winner[] = useMemo(() => {
-    if (winners.length > 0) return winners
+    // If contest winners payload loaded successfully, trust it even when empty.
+    // This prevents fallback data from masking threshold-qualified empty winner states.
+    if (hasContestWinnersPayload) return winners
     if (!selectedContestId || isOverviewMode || fallbackContestScores.length === 0) return []
 
     const totals = new Map<string, { contestant: ContestScoreRow['contestant']; total: number }>()
@@ -229,7 +235,7 @@ const WinnersPage: React.FC = () => {
         totalScore: row.total,
         rank: index + 1
       }))
-  }, [fallbackContestScores, isOverviewMode, selectedContestId, winners])
+  }, [fallbackContestScores, hasContestWinnersPayload, isOverviewMode, selectedContestId, winners])
 
   const publishMutation = useMutation(
     async (contestId: string) => winnersAPI.publish(contestId),

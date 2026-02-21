@@ -366,7 +366,7 @@ You now have access to all documentation for your role (${user.role}).
     <div className="cgr-page-container min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="cgr-modal-overlay">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

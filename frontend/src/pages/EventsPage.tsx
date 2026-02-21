@@ -480,10 +480,10 @@ const EventsPage: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="cgr-card-actions">
                   <button
                     onClick={() => navigate(`/events/${event.id}/contests`)}
-                    className="flex-1 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
+                    className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
                   >
                     <TrophyIcon className="h-4 w-4 mr-1" />
                     View Contests
@@ -493,7 +493,7 @@ const EventsPage: React.FC = () => {
                       {event.archived ? (
                         <button
                           onClick={() => handleUnarchive(event)}
-                          className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                          className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                         >
                           <ArrowPathIcon className="h-4 w-4 mr-1" />
                           Reactivate
@@ -502,21 +502,21 @@ const EventsPage: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleEdit(event)}
-                            className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
                           >
                             <PencilIcon className="h-4 w-4 mr-1" />
                             Edit
                           </button>
                           <button
                             onClick={() => handleArchive(event)}
-                            className="flex-1 px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                           >
                             <ArchiveBoxIcon className="h-4 w-4 mr-1" />
                             Archive
                           </button>
                           <button
                             onClick={() => handleDelete(event)}
-                            className="flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                           >
                             <TrashIcon className="h-4 w-4 mr-1" />
                             Delete
@@ -542,8 +542,8 @@ const EventsPage: React.FC = () => {
 
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6">
+          <div className="cgr-modal-overlay">
+            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl p-4 sm:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {editingEvent ? 'Edit Event' : 'Create New Event'}
@@ -587,7 +587,7 @@ const EventsPage: React.FC = () => {
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Start Date <span className="text-red-500 dark:text-red-400">*</span>
@@ -704,18 +704,18 @@ const EventsPage: React.FC = () => {
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex gap-3 pt-4">
+                <div className="cgr-form-actions">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full sm:flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createMutation.isLoading || updateMutation.isLoading}
-                    className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
+                    className="w-full sm:flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
                   >
                     {createMutation.isLoading || updateMutation.isLoading ? (
                       <>

@@ -414,7 +414,7 @@ const EventTemplatesPage: React.FC = () => {
         </div>
 
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="cgr-modal-overlay">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               {editingTemplateId ? 'Edit Event Template' : 'Create Event Template'}
@@ -593,7 +593,7 @@ const EventTemplatesPage: React.FC = () => {
       )}
 
       {showCreateEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="cgr-modal-overlay">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create Event from Template</h3>
             <div className="space-y-3">

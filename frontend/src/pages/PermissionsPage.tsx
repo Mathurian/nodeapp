@@ -455,7 +455,7 @@ const PermissionsPage: React.FC = () => {
 
       {/* Reason Modal */}
       {showReasonModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="cgr-modal-overlay">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               Confirm Permission Change

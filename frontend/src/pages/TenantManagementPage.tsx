@@ -340,17 +340,17 @@ const TenantManagementPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => openEditModal(tenant)}
-                  className="flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
+                  className="w-full sm:flex-1 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
                 >
                   <PencilIcon className="h-4 w-4 inline mr-1" />
                   Edit
                 </button>
                 <button
                   onClick={() => toggleTenant(tenant.id, tenant.isActive)}
-                  className={`flex-1 px-3 py-2 rounded-lg transition-colors text-sm ${
+                  className={`w-full sm:flex-1 px-3 py-2 rounded-lg transition-colors text-sm ${
                     tenant.isActive
                       ? 'bg-yellow-600 dark:bg-yellow-500 text-white hover:bg-yellow-700 dark:hover:bg-yellow-600'
                       : 'bg-green-600 dark:bg-green-500 text-white hover:bg-green-700 dark:hover:bg-green-600'
@@ -362,7 +362,7 @@ const TenantManagementPage: React.FC = () => {
                   <button
                     onClick={() => deleteTenant(tenant.id, tenant.name)}
                     disabled={deletingTenantId === tenant.id}
-                    className={`px-3 py-2 text-white rounded-lg transition-colors text-sm ${
+                    className={`w-full sm:w-auto px-3 py-2 text-white rounded-lg transition-colors text-sm ${
                       deletingTenantId === tenant.id
                         ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                         : 'bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600'
@@ -388,7 +388,7 @@ const TenantManagementPage: React.FC = () => {
 
         {/* Create/Edit Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="cgr-modal-overlay">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 {editingTenant ? 'Edit Tenant' : 'Create Tenant'}

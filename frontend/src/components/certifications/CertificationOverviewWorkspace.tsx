@@ -732,7 +732,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
         </div>
 
         {pendingCertification && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="cgr-modal-overlay-soft">
             <div className="w-full max-w-xl rounded-lg bg-white dark:bg-gray-800 p-5 shadow-xl">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{pendingCertification.actionLabel} Signature</h3>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -797,7 +797,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
         )}
 
         {pendingUncertifyCategoryId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="cgr-modal-overlay-soft">
             <div className="w-full max-w-xl rounded-lg bg-white dark:bg-gray-800 p-5 shadow-xl">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Request Un-certification</h3>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
