@@ -107,6 +107,15 @@ normalize_nginx_api_docs_location() {
   sudo sed -i -E 's|location[[:space:]]+/api-docs[[:space:]]*\{|location ^~ /api-docs {|g' "$file"
 }
 
+normalize_nginx_monitoring_locations() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  # Ensure monitoring subpaths win against regex static-asset locations.
+  sudo sed -i -E 's|location[[:space:]]+/monitoring/grafana/[[:space:]]*\{|location ^~ /monitoring/grafana/ {|g' "$file"
+  sudo sed -i -E 's|location[[:space:]]+/monitoring/prometheus/[[:space:]]*\{|location ^~ /monitoring/prometheus/ {|g' "$file"
+}
+
 prune_old_releases() {
   if ! [[ "$RETAIN_RELEASES" =~ ^[0-9]+$ ]]; then
     echo "Skipping release pruning: RETAIN_RELEASES must be a positive integer (current: $RETAIN_RELEASES)"
@@ -146,6 +155,8 @@ normalize_nginx_pwa_cache_headers "$NGINX_ENABLED"
 normalize_nginx_pwa_cache_headers "$NGINX_AVAILABLE"
 normalize_nginx_api_docs_location "$NGINX_ENABLED"
 normalize_nginx_api_docs_location "$NGINX_AVAILABLE"
+normalize_nginx_monitoring_locations "$NGINX_ENABLED"
+normalize_nginx_monitoring_locations "$NGINX_AVAILABLE"
 
 if [ -d /etc/nginx/backup-sites-enabled ]; then
   for f in /etc/nginx/sites-enabled/*.bak-*; do

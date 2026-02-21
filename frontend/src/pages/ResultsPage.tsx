@@ -588,10 +588,10 @@ const ResultsPage: React.FC = () => {
   }
 
   const getRankColor = (rank: number) => {
-    if (rank === 1) return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-    if (rank === 2) return 'text-gray-600 bg-gray-50 border-gray-200'
-    if (rank === 3) return 'text-orange-600 bg-orange-50 border-orange-200'
-    return 'text-blue-600 bg-blue-50 border-blue-200'
+    if (rank === 1) return 'text-yellow-900 bg-yellow-50 border-yellow-200 dark:text-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-700'
+    if (rank === 2) return 'text-slate-900 bg-slate-50 border-slate-200 dark:text-slate-100 dark:bg-slate-800/70 dark:border-slate-600'
+    if (rank === 3) return 'text-orange-900 bg-orange-50 border-orange-200 dark:text-orange-100 dark:bg-orange-900/20 dark:border-orange-700'
+    return 'text-blue-900 bg-blue-50 border-blue-200 dark:text-blue-100 dark:bg-blue-900/20 dark:border-blue-700'
   }
 
   return (
@@ -728,7 +728,7 @@ const ResultsPage: React.FC = () => {
               </p>
               {canViewMinimumWinningScore && selectedContestId && (
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                  Minimum winning score:{' '}
+                  Contest minimum winning score:{' '}
                   <span className="font-semibold">
                     {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
                   </span>
@@ -888,7 +888,7 @@ const ResultsPage: React.FC = () => {
               </p>
               {canViewMinimumWinningScore && selectedContestId && (
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                  Minimum winning score:{' '}
+                  Contest minimum winning score:{' '}
                   <span className="font-semibold">
                     {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
                   </span>
@@ -989,7 +989,7 @@ const ResultsPage: React.FC = () => {
             </p>
             {canViewMinimumWinningScore && selectedContestId && (
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Minimum winning score: {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
+                Contest minimum winning score: {minimumWinningScore !== null && minimumWinningScore !== undefined ? minimumWinningScore : 'Not configured'}
               </p>
             )}
           </Card>
