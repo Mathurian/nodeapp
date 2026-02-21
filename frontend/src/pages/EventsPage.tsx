@@ -37,6 +37,8 @@ interface Event {
   scoringType: 'STRAIGHT' | 'OLYMPIC' | null
   contestantViewRestricted?: boolean
   contestantViewReleaseDate?: string | null
+  requireAllTallyCertifiers?: boolean | null
+  requireAllAuditorCertifiers?: boolean | null
   createdAt: string
   updatedAt: string
   _count?: {
@@ -53,6 +55,8 @@ interface EventFormData {
   scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
   contestantViewRestricted?: boolean
   contestantViewReleaseDate?: string | null
+  requireAllTallyCertifiers?: boolean | null
+  requireAllAuditorCertifiers?: boolean | null
 }
 
 const eventFormSchema = z.object({
@@ -64,6 +68,8 @@ const eventFormSchema = z.object({
   scoringType: z.string(),
   contestantViewRestricted: z.boolean().optional(),
   contestantViewReleaseDate: z.string().optional(),
+  requireAllTallyCertifiers: z.string(),
+  requireAllAuditorCertifiers: z.string(),
 }).refine(data => {
   if (data.startDate && data.endDate) {
     return new Date(data.endDate) >= new Date(data.startDate)
@@ -89,6 +95,8 @@ const EventsPage: React.FC = () => {
       scoringType: '',
       contestantViewRestricted: false,
       contestantViewReleaseDate: '',
+      requireAllTallyCertifiers: '',
+      requireAllAuditorCertifiers: '',
     },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, watch, formState: { errors } } = form
@@ -249,6 +257,8 @@ const EventsPage: React.FC = () => {
       scoringType: '',
       contestantViewRestricted: false,
       contestantViewReleaseDate: '',
+      requireAllTallyCertifiers: '',
+      requireAllAuditorCertifiers: '',
     })
     setEditingEvent(null)
     setIsFormOpen(false)
@@ -265,6 +275,8 @@ const EventsPage: React.FC = () => {
       scoringType: event.scoringType || '',
       contestantViewRestricted: !!event.contestantViewRestricted,
       contestantViewReleaseDate: event.contestantViewReleaseDate ? event.contestantViewReleaseDate.split('T')[0] : '',
+      requireAllTallyCertifiers: event.requireAllTallyCertifiers == null ? '' : String(event.requireAllTallyCertifiers),
+      requireAllAuditorCertifiers: event.requireAllAuditorCertifiers == null ? '' : String(event.requireAllAuditorCertifiers),
     })
     setIsFormOpen(true)
   }
@@ -300,6 +312,8 @@ const EventsPage: React.FC = () => {
       scoringType: data.scoringType ? (data.scoringType as 'STRAIGHT' | 'OLYMPIC') : null,
       contestantViewRestricted: !!data.contestantViewRestricted,
       contestantViewReleaseDate: data.contestantViewReleaseDate ? new Date(data.contestantViewReleaseDate).toISOString() : null,
+      requireAllTallyCertifiers: data.requireAllTallyCertifiers === '' ? null : data.requireAllTallyCertifiers === 'true',
+      requireAllAuditorCertifiers: data.requireAllAuditorCertifiers === '' ? null : data.requireAllAuditorCertifiers === 'true',
     }
 
     if (editingEvent) {
@@ -658,6 +672,35 @@ const EventsPage: React.FC = () => {
                       </p>
                     </div>
                   )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Tally Certification Requirement
+                    </label>
+                    <select
+                      {...register('requireAllTallyCertifiers')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Inherit tenant policy</option>
+                      <option value="true">Require all assigned tally masters</option>
+                      <option value="false">Allow any assigned tally master</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Auditor Certification Requirement
+                    </label>
+                    <select
+                      {...register('requireAllAuditorCertifiers')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Inherit tenant policy</option>
+                      <option value="true">Require all assigned auditors</option>
+                      <option value="false">Allow any assigned auditor</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Form Actions */}

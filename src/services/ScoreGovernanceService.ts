@@ -534,14 +534,138 @@ export class ScoreGovernanceService extends BaseService {
     const cert = await tx.certification.findFirst({ where: { tenantId, categoryId } })
     if (!cert) return
 
-    const hasJudge = await tx.judgeCertification.findFirst({ where: { tenantId, categoryId }, select: { judgeId: true } })
-    const hasTally = await tx.categoryCertification.findFirst({ where: { tenantId, categoryId, role: 'TALLY_MASTER' }, select: { id: true } })
-    const hasAuditor = await tx.categoryCertification.findFirst({ where: { tenantId, categoryId, role: 'AUDITOR' }, select: { id: true } })
-    const hasBoard = await tx.categoryCertification.findFirst({ where: { tenantId, categoryId, role: 'BOARD' }, select: { id: true } })
+    const category = await tx.category.findFirst({
+      where: { id: categoryId, tenantId, deletedAt: null },
+      select: {
+        contestId: true,
+        contest: {
+          select: {
+            eventId: true
+          }
+        }
+      }
+    })
+    if (!category?.contest?.eventId) return
+
+    const parseBoolean = (raw: string | null | undefined, fallback: boolean): boolean => {
+      if (raw == null) return fallback
+      const normalized = String(raw).trim().toLowerCase()
+      if (['true', '1', 'yes', 'on'].includes(normalized)) return true
+      if (['false', '0', 'no', 'off'].includes(normalized)) return false
+      return fallback
+    }
+
+    const [
+      hasJudge,
+      hasBoard,
+      tenantRequireAllTallyRaw,
+      tenantRequireAllAuditorRaw,
+      eventPolicy,
+      tallyAssignments,
+      auditorAssignments,
+      tallyCertifications,
+      auditorCertifications
+    ] = await Promise.all([
+      tx.judgeCertification.findFirst({ where: { tenantId, categoryId }, select: { judgeId: true } }),
+      tx.categoryCertification.findFirst({ where: { tenantId, categoryId, role: 'BOARD' }, select: { id: true } }),
+      tx.systemSetting.findFirst({
+        where: { key: 'certification_require_all_tally_masters', tenantId }
+      }).then(async (tenantScoped) => {
+        if (tenantScoped?.value != null) return tenantScoped.value
+        const globalScoped = await tx.systemSetting.findFirst({
+          where: { key: 'certification_require_all_tally_masters', tenantId: null },
+          select: { value: true }
+        })
+        return globalScoped?.value ?? null
+      }),
+      tx.systemSetting.findFirst({
+        where: { key: 'certification_require_all_auditors', tenantId }
+      }).then(async (tenantScoped) => {
+        if (tenantScoped?.value != null) return tenantScoped.value
+        const globalScoped = await tx.systemSetting.findFirst({
+          where: { key: 'certification_require_all_auditors', tenantId: null },
+          select: { value: true }
+        })
+        return globalScoped?.value ?? null
+      }),
+      tx.event.findFirst({
+        where: { id: category.contest.eventId, tenantId, deletedAt: null },
+        select: { requireAllTallyCertifiers: true, requireAllAuditorCertifiers: true }
+      }),
+      tx.tallyMasterAssignment.findMany({
+        where: {
+          tenantId,
+          status: 'ACTIVE',
+          OR: [
+            { categoryId },
+            { categoryId: null, contestId: category.contestId },
+            { categoryId: null, contestId: null, eventId: category.contest.eventId }
+          ]
+        },
+        select: {
+          userId: true,
+          user: { select: { isActive: true, role: true } }
+        }
+      }),
+      tx.auditorAssignment.findMany({
+        where: {
+          tenantId,
+          status: 'ACTIVE',
+          OR: [
+            { categoryId },
+            { categoryId: null, contestId: category.contestId },
+            { categoryId: null, contestId: null, eventId: category.contest.eventId }
+          ]
+        },
+        select: {
+          userId: true,
+          user: { select: { isActive: true, role: true } }
+        }
+      }),
+      tx.categoryCertification.findMany({
+        where: { tenantId, categoryId, role: 'TALLY_MASTER' },
+        select: { userId: true }
+      }),
+      tx.categoryCertification.findMany({
+        where: { tenantId, categoryId, role: 'AUDITOR' },
+        select: { userId: true }
+      })
+    ])
+
+    const requireAllTally = typeof eventPolicy?.requireAllTallyCertifiers === 'boolean'
+      ? eventPolicy.requireAllTallyCertifiers
+      : parseBoolean(tenantRequireAllTallyRaw, true)
+    const requireAllAuditor = typeof eventPolicy?.requireAllAuditorCertifiers === 'boolean'
+      ? eventPolicy.requireAllAuditorCertifiers
+      : parseBoolean(tenantRequireAllAuditorRaw, true)
+
+    const tallyRequired = Array.from(new Set(
+      tallyAssignments
+        .filter((row) => row.user?.isActive && row.user.role === 'TALLY_MASTER')
+        .map((row) => row.userId)
+    ))
+    const auditorRequired = Array.from(new Set(
+      auditorAssignments
+        .filter((row) => row.user?.isActive && row.user.role === 'AUDITOR')
+        .map((row) => row.userId)
+    ))
+    const tallySigned = new Set(tallyCertifications.map((row) => row.userId))
+    const auditorSigned = new Set(auditorCertifications.map((row) => row.userId))
+
+    const tallyStageComplete = tallyRequired.length > 0
+      ? (requireAllTally
+        ? tallyRequired.every((userId) => tallySigned.has(userId))
+        : tallyRequired.some((userId) => tallySigned.has(userId)))
+      : tallySigned.size > 0
+    const auditorStageComplete = auditorRequired.length > 0
+      ? (requireAllAuditor
+        ? auditorRequired.every((userId) => auditorSigned.has(userId))
+        : auditorRequired.some((userId) => auditorSigned.has(userId)))
+      : auditorSigned.size > 0
 
     const judgeCertified = !!hasJudge
-    const tallyCertified = !!hasTally
-    const auditorCertified = !!hasAuditor
+    const tallyCertified = judgeCertified && tallyStageComplete
+    const auditorCertified = tallyCertified && auditorStageComplete
     const boardApproved = !!hasBoard
 
     const status = boardApproved ? 'CERTIFIED' : (judgeCertified || tallyCertified || auditorCertified) ? 'IN_PROGRESS' : 'PENDING'

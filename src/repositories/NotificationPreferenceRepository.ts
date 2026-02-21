@@ -70,6 +70,7 @@ export class NotificationPreferenceRepository {
         tenantId: data.tenantId,
         userId: data.userId,
         emailEnabled: data.emailEnabled ?? true,
+        // Push should default to disabled until at least one device subscription is registered.
         pushEnabled: data.pushEnabled ?? false,
         inAppEnabled: data.inAppEnabled ?? true,
         emailDigestFrequency: data.emailDigestFrequency ?? 'daily',

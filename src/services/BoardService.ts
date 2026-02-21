@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma, EmceeScript, RequestStatus } from '@prisma/client';
-import { applyCertificationStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 type ScoreRemovalRequestWithDetails = Prisma.JudgeScoreRemovalRequestGetPayload<{
   include: {
@@ -51,6 +51,8 @@ interface BoardCertificationRow {
   eventName: string;
   contestName: string;
   auditorId: string | null;
+  auditorIds: string[];
+  auditorSignedCount: number;
   auditorName: string;
   status: string;
   certifiedAt: Date | null;
@@ -120,11 +122,56 @@ export class BoardService extends BaseService {
       orderBy: { createdAt: 'desc' },
     });
 
+    if (certifications.length === 0) {
+      return [];
+    }
+
     const categoryIds = Array.from(new Set(certifications.map((cert) => cert.categoryId)));
     const contestIds = Array.from(new Set(certifications.map((cert) => cert.contestId)));
-    const userIds = Array.from(new Set(certifications.map((cert) => cert.userId).filter((id): id is string => Boolean(id))));
+    const auditorSignatures = await this.prisma.categoryCertification.findMany({
+      where: {
+        tenantId,
+        categoryId: { in: categoryIds },
+        role: 'AUDITOR'
+      },
+      orderBy: [
+        { categoryId: 'asc' },
+        { certifiedAt: 'asc' }
+      ],
+      select: {
+        categoryId: true,
+        userId: true,
+        certifiedAt: true
+      }
+    });
 
-    const [categories, contests, users] = await Promise.all([
+    const fallbackSignerIds = certifications
+      .flatMap((cert) => [cert.certifiedBy, cert.userId])
+      .filter((value): value is string => Boolean(value));
+    const signerIds = Array.from(
+      new Set([
+        ...auditorSignatures.map((signature) => signature.userId),
+        ...fallbackSignerIds
+      ])
+    );
+    const signerUsers = signerIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: {
+            tenantId,
+            id: { in: signerIds }
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        })
+      : [];
+    const signerNameById = new Map(
+      signerUsers.map((user) => [user.id, user.name || user.email || 'Unknown Auditor'])
+    );
+
+    const [categories, contests] = await Promise.all([
       this.prisma.category.findMany({
         where: { id: { in: categoryIds } },
         select: { id: true, name: true }
@@ -141,27 +188,75 @@ export class BoardService extends BaseService {
             }
           }
         }
-      }),
-      this.prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, name: true, email: true }
       })
     ]);
 
     const categoryById = new Map(categories.map((c) => [c.id, c]));
     const contestById = new Map(contests.map((c) => [c.id, c]));
-    const userById = new Map(users.map((u) => [u.id, u]));
+    const auditorsByCategory = new Map<string, Array<{
+      userId: string;
+      name: string;
+      certifiedAt: Date;
+    }>>();
+    for (const row of auditorSignatures) {
+      const list = auditorsByCategory.get(row.categoryId) || [];
+      const fallbackName = row.userId
+        ? `Unknown Auditor (${row.userId.slice(0, 8)})`
+        : 'Unknown Auditor';
+      list.push({
+        userId: row.userId,
+        name: signerNameById.get(row.userId) || fallbackName,
+        certifiedAt: row.certifiedAt
+      });
+      auditorsByCategory.set(row.categoryId, list);
+    }
 
     return certifications.map((cert) => ({
+      ...(function buildAuditorData() {
+        const raw = auditorsByCategory.get(cert.categoryId) || [];
+        const byUserId = new Map<string, { name: string; certifiedAt: Date }>();
+        for (const row of raw) {
+          if (!byUserId.has(row.userId)) {
+            byUserId.set(row.userId, { name: row.name, certifiedAt: row.certifiedAt });
+          }
+        }
+        const uniqueRows = Array.from(byUserId.entries()).map(([userId, value]) => ({
+          userId,
+          name: value.name,
+          certifiedAt: value.certifiedAt
+        }));
+        const fallbackAuditorId = cert.certifiedBy || cert.userId || null;
+        const fallbackAuditorName = fallbackAuditorId
+          ? (signerNameById.get(fallbackAuditorId) || `Unknown Auditor (${fallbackAuditorId.slice(0, 8)})`)
+          : 'Unknown Auditor';
+        const resolvedRows = uniqueRows.length > 0
+          ? uniqueRows
+          : fallbackAuditorId
+            ? [{
+                userId: fallbackAuditorId,
+                name: fallbackAuditorName,
+                certifiedAt: cert.certifiedAt || cert.updatedAt || cert.createdAt
+              }]
+            : [];
+        const latestCertifiedAt = resolvedRows.length > 0
+          ? resolvedRows
+              .map((row) => row.certifiedAt)
+              .sort((a, b) => b.getTime() - a.getTime())[0] || null
+          : null;
+        return {
+          auditorId: resolvedRows[0]?.userId || null,
+          auditorIds: resolvedRows.map((row) => row.userId),
+          auditorSignedCount: resolvedRows.length,
+          auditorName: resolvedRows.length > 0 ? resolvedRows.map((row) => row.name).join(', ') : 'Unknown Auditor',
+          certifiedAt: cert.certifiedAt || latestCertifiedAt || cert.updatedAt || cert.createdAt
+        };
+      })(),
       id: cert.id,
       categoryId: cert.categoryId,
       categoryName: categoryById.get(cert.categoryId)?.name || 'Unknown Category',
       contestName: contestById.get(cert.contestId)?.name || 'Unknown Contest',
       eventName: contestById.get(cert.contestId)?.event?.name || 'Unknown Event',
-      auditorId: cert.userId,
-      auditorName: cert.userId ? (userById.get(cert.userId)?.name || userById.get(cert.userId)?.email || 'Unknown Auditor') : 'Unknown Auditor',
       status: cert.status,
-      certifiedAt: cert.certifiedAt,
       notes: cert.comments || undefined
     }));
   }
@@ -192,6 +287,25 @@ export class BoardService extends BaseService {
     });
     const boardRoleSnapshot = actor?.role === 'BOARD' ? (actor.boardRole || null) : null;
 
+    const synced = await refreshRoleStages(this.prisma, tenantId, certification.categoryId, userId);
+    if (!synced.auditorCertified) {
+      throw this.badRequestError('Auditor certification must be completed first');
+    }
+    if (synced.boardApproved) {
+      throw this.conflictError('Board approval already completed for this category');
+    }
+
+    await upsertCategoryRoleCertification({
+      prisma: this.prisma,
+      tenantId,
+      categoryId: certification.categoryId,
+      role: 'BOARD',
+      userId,
+      boardRoleSnapshot,
+      signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+      comments: signature?.comments || null
+    });
+
     await applyCertificationStage({
       prisma: this.prisma,
       tenantId,
@@ -200,32 +314,6 @@ export class BoardService extends BaseService {
       comments: signature?.comments || null,
       userId,
       certifiedBy: userId
-    });
-
-    await this.prisma.categoryCertification.upsert({
-      where: {
-        tenantId_categoryId_role: {
-          tenantId,
-          categoryId: certification.categoryId,
-          role: 'BOARD'
-        }
-      },
-      create: {
-        tenantId,
-        categoryId: certification.categoryId,
-        role: 'BOARD',
-        userId,
-        boardRoleSnapshot,
-        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-        comments: signature?.comments || null
-      },
-      update: {
-        userId,
-        boardRoleSnapshot,
-        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-        comments: signature?.comments || null,
-        certifiedAt: new Date()
-      }
     });
 
     return { message: 'Certification approved', certificationId, categoryId: certification.categoryId };

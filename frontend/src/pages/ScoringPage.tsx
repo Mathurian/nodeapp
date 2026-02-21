@@ -66,6 +66,7 @@ interface Score {
   comment: string | null
   isCertified?: boolean
   isLocked?: boolean
+  certifiedAt?: Date | null
   isSigned: boolean
   signedAt: Date | null
   createdAt: Date
@@ -322,7 +323,7 @@ const ScoringPage: React.FC = () => {
   ), [criteria, selectedCategory])
 
   const hasCertifiedScores = useMemo(
-    () => normalizedExistingScores.some((score) => Boolean(score.isCertified)),
+    () => normalizedExistingScores.some((score) => Boolean(score.isCertified || score.isLocked || score.certifiedAt)),
     [normalizedExistingScores]
   )
 
@@ -601,6 +602,10 @@ const ScoringPage: React.FC = () => {
         typedSignature: typedSignature.trim() || undefined,
         drawnSignatureData: drawnSignatureData || undefined
       })
+      if (selectedContestant) {
+        await queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id])
+      }
+      await queryClient.invalidateQueries(['scoring-categories'])
       setShowSignatureModal(false)
       setTypedSignature('')
       setDrawnSignatureData('')

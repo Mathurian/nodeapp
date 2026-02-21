@@ -74,7 +74,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'auditor-reports', path: '/auditor/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'reports', allowCrudReadOverride: true },
   { id: 'auditor-audit-log', path: '/auditor/audit-log', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'audit-logs', allowCrudReadOverride: true },
   { id: 'board', path: '/board', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'approvals', allowCrudReadOverride: true },
-  { id: 'board-certifications', path: '/board/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'certifications', allowCrudReadOverride: true },
+  { id: 'board-certifications', path: '/board/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'certifications' },
   { id: 'board-score-removal', path: '/board/score-removal', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'scores', allowCrudReadOverride: true },
 
   { id: 'field-visibility', path: '/field-visibility', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },

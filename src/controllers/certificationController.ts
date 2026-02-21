@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { sendSuccess, sendNotFound, sendBadRequest, sendConflict } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
-import { applyCertificationStage, refreshJudgeStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshJudgeStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 export class CertificationController {
   private prisma: PrismaClient;
@@ -299,38 +299,25 @@ export class CertificationController {
         return sendNotFound(res, 'Certification not found');
       }
 
-      if (!certification.judgeCertified) {
+      const synced = await refreshRoleStages(this.prisma, tenantId, certification.categoryId, req.user?.id || null);
+
+      if (!synced.judgeCertified) {
         return sendBadRequest(res, 'Judge must certify first');
       }
 
-      if (certification.tallyCertified) {
+      if (synced.tallyCertified) {
         return sendBadRequest(res, 'Tally Master certification already completed');
       }
 
-      await this.prisma.categoryCertification.upsert({
-        where: {
-          tenantId_categoryId_role: {
-            tenantId,
-            categoryId: certification.categoryId,
-            role: 'TALLY_MASTER'
-          }
-        },
-        create: {
-          tenantId,
-          categoryId: certification.categoryId,
-          role: 'TALLY_MASTER',
-          userId: req.user?.id || '',
-          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null
-        },
-        update: {
-          userId: req.user?.id || '',
-          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          certifiedAt: new Date(),
-          comments: comments || null
-        }
+      await upsertCategoryRoleCertification({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'TALLY_MASTER',
+        userId: req.user?.id || '',
+        boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
+        signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: comments || null
       });
 
       const updated = await applyCertificationStage({
@@ -369,38 +356,25 @@ export class CertificationController {
         return sendNotFound(res, 'Certification not found');
       }
 
-      if (!certification.tallyCertified) {
+      const synced = await refreshRoleStages(this.prisma, tenantId, certification.categoryId, req.user?.id || null);
+
+      if (!synced.tallyCertified) {
         return sendBadRequest(res, 'Tally Master must certify first');
       }
 
-      if (certification.auditorCertified) {
+      if (synced.auditorCertified) {
         return sendBadRequest(res, 'Auditor certification already completed');
       }
 
-      await this.prisma.categoryCertification.upsert({
-        where: {
-          tenantId_categoryId_role: {
-            tenantId,
-            categoryId: certification.categoryId,
-            role: 'AUDITOR'
-          }
-        },
-        create: {
-          tenantId,
-          categoryId: certification.categoryId,
-          role: 'AUDITOR',
-          userId: req.user?.id || '',
-          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null
-        },
-        update: {
-          userId: req.user?.id || '',
-          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          certifiedAt: new Date(),
-          comments: comments || null
-        }
+      await upsertCategoryRoleCertification({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'AUDITOR',
+        userId: req.user?.id || '',
+        boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
+        signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: comments || null
       });
 
       const updated = await applyCertificationStage({
@@ -439,38 +413,25 @@ export class CertificationController {
         return sendNotFound(res, 'Certification not found');
       }
 
-      if (!certification.auditorCertified) {
+      const synced = await refreshRoleStages(this.prisma, tenantId, certification.categoryId, req.user?.id || null);
+
+      if (!synced.auditorCertified) {
         return sendBadRequest(res, 'Auditor must certify first');
       }
 
-      if (certification.boardApproved) {
+      if (synced.boardApproved) {
         return sendBadRequest(res, 'Board approval already completed');
       }
 
-      await this.prisma.categoryCertification.upsert({
-        where: {
-          tenantId_categoryId_role: {
-            tenantId,
-            categoryId: certification.categoryId,
-            role: 'BOARD'
-          }
-        },
-        create: {
-          tenantId,
-          categoryId: certification.categoryId,
-          role: 'BOARD',
-          userId: req.user?.id || '',
-          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null
-        },
-        update: {
-          userId: req.user?.id || '',
-          boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          certifiedAt: new Date(),
-          comments: comments || null
-        }
+      await upsertCategoryRoleCertification({
+        prisma: this.prisma,
+        tenantId,
+        categoryId: certification.categoryId,
+        role: 'BOARD',
+        userId: req.user?.id || '',
+        boardRoleSnapshot: req.user?.role === 'BOARD' ? (req.user.boardRole || null) : null,
+        signatureName: typedSignature || signatureName || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: comments || null
       });
 
       const updated = await applyCertificationStage({
@@ -665,8 +626,21 @@ export class CertificationController {
       if (categoryIds.length === 0) {
         return sendSuccess(res, { contests: [] });
       }
+      const contestIds = Array.from(new Set(categories.map((c) => c.contestId)));
+      const eventIds = Array.from(new Set(
+        categories
+          .map((c) => c.contest?.event?.id)
+          .filter((id): id is string => Boolean(id))
+      ));
 
-      const [certifications, assignments, judgeCertifications, scores, categoryContestants, criteria] = await Promise.all([
+      await Promise.all(
+        categoryIds.map((categoryId) =>
+          refreshRoleStages(this.prisma, tenantId, categoryId, req.user?.id || null, true)
+            .catch(() => null)
+        )
+      );
+
+      const [certifications, assignments, judgeCertifications, scores, categoryContestants, criteria, tallyAssignments, auditorAssignments, categoryRoleCertifications, settingsRows, eventPolicyRows] = await Promise.all([
         this.prisma.certification.findMany({
           where: {
             tenantId,
@@ -680,7 +654,7 @@ export class CertificationController {
             status: 'ACTIVE',
             OR: [
               { categoryId: { in: categoryIds } },
-              { categoryId: null, contestId: { in: Array.from(new Set(categories.map((c) => c.contestId))) } }
+              { categoryId: null, contestId: { in: contestIds } }
             ]
           },
           select: {
@@ -740,6 +714,88 @@ export class CertificationController {
             categoryId: true,
             id: true
           }
+        }),
+        this.prisma.tallyMasterAssignment.findMany({
+          where: {
+            tenantId,
+            status: 'ACTIVE',
+            OR: [
+              { categoryId: { in: categoryIds } },
+              { categoryId: null, contestId: { in: contestIds } },
+              { categoryId: null, contestId: null, eventId: { in: eventIds } }
+            ],
+            user: {
+              isActive: true,
+              role: 'TALLY_MASTER'
+            }
+          },
+          select: {
+            userId: true,
+            categoryId: true,
+            contestId: true,
+            eventId: true
+          }
+        }),
+        this.prisma.auditorAssignment.findMany({
+          where: {
+            tenantId,
+            status: 'ACTIVE',
+            OR: [
+              { categoryId: { in: categoryIds } },
+              { categoryId: null, contestId: { in: contestIds } },
+              { categoryId: null, contestId: null, eventId: { in: eventIds } }
+            ],
+            user: {
+              isActive: true,
+              role: 'AUDITOR'
+            }
+          },
+          select: {
+            userId: true,
+            categoryId: true,
+            contestId: true,
+            eventId: true
+          }
+        }),
+        this.prisma.categoryCertification.findMany({
+          where: {
+            tenantId,
+            categoryId: { in: categoryIds },
+            role: { in: ['TALLY_MASTER', 'AUDITOR'] }
+          },
+          select: {
+            categoryId: true,
+            role: true,
+            userId: true
+          }
+        }),
+        this.prisma.systemSetting.findMany({
+          where: {
+            key: {
+              in: ['certification_require_all_tally_masters', 'certification_require_all_auditors']
+            },
+            OR: [
+              { tenantId },
+              { tenantId: null }
+            ]
+          },
+          select: {
+            key: true,
+            value: true,
+            tenantId: true
+          }
+        }),
+        this.prisma.event.findMany({
+          where: {
+            tenantId,
+            id: { in: eventIds },
+            deletedAt: null
+          },
+          select: {
+            id: true,
+            requireAllTallyCertifiers: true,
+            requireAllAuditorCertifiers: true
+          }
         })
       ]);
 
@@ -749,6 +805,24 @@ export class CertificationController {
           latestByCategory.set(cert.categoryId, cert);
         }
       }
+
+      const parseBooleanSetting = (raw: string | null | undefined, fallback: boolean): boolean => {
+        if (raw == null) return fallback;
+        const normalized = String(raw).trim().toLowerCase();
+        if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+        if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+        return fallback;
+      };
+      const getSettingValue = (key: string): string | null => {
+        const tenantValue = settingsRows.find((row) => row.key === key && row.tenantId === tenantId)?.value;
+        if (tenantValue != null) return tenantValue;
+        return settingsRows.find((row) => row.key === key && row.tenantId === null)?.value ?? null;
+      };
+      const tenantRequireAllTally = parseBooleanSetting(getSettingValue('certification_require_all_tally_masters'), true);
+      const tenantRequireAllAuditors = parseBooleanSetting(getSettingValue('certification_require_all_auditors'), true);
+      const eventPolicyById = new Map(
+        eventPolicyRows.map((row) => [row.id, row])
+      );
 
       const categoryIdsByContest = new Map<string, string[]>();
       for (const category of categories) {
@@ -778,6 +852,66 @@ export class CertificationController {
           continue;
         }
       }
+
+      const addUserToScope = (map: Map<string, Set<string>>, scopeId: string | null, userId: string) => {
+        if (!scopeId) return;
+        const users = map.get(scopeId) || new Set<string>();
+        users.add(userId);
+        map.set(scopeId, users);
+      };
+
+      const tallyUsersByCategory = new Map<string, Set<string>>();
+      const tallyUsersByContest = new Map<string, Set<string>>();
+      const tallyUsersByEvent = new Map<string, Set<string>>();
+      for (const row of tallyAssignments) {
+        if (row.categoryId) {
+          addUserToScope(tallyUsersByCategory, row.categoryId, row.userId);
+          continue;
+        }
+        if (row.contestId) {
+          addUserToScope(tallyUsersByContest, row.contestId, row.userId);
+          continue;
+        }
+        addUserToScope(tallyUsersByEvent, row.eventId, row.userId);
+      }
+
+      const auditorUsersByCategory = new Map<string, Set<string>>();
+      const auditorUsersByContest = new Map<string, Set<string>>();
+      const auditorUsersByEvent = new Map<string, Set<string>>();
+      for (const row of auditorAssignments) {
+        if (row.categoryId) {
+          addUserToScope(auditorUsersByCategory, row.categoryId, row.userId);
+          continue;
+        }
+        if (row.contestId) {
+          addUserToScope(auditorUsersByContest, row.contestId, row.userId);
+          continue;
+        }
+        addUserToScope(auditorUsersByEvent, row.eventId, row.userId);
+      }
+
+      const roleCertUsersByCategoryRole = new Map<string, Set<string>>();
+      for (const row of categoryRoleCertifications) {
+        const key = `${row.categoryId}:${row.role}`;
+        const signedUsers = roleCertUsersByCategoryRole.get(key) || new Set<string>();
+        signedUsers.add(row.userId);
+        roleCertUsersByCategoryRole.set(key, signedUsers);
+      }
+
+      const resolveScopedRequiredUsers = (
+        categoryId: string,
+        contestId: string,
+        eventId: string,
+        usersByCategory: Map<string, Set<string>>,
+        usersByContest: Map<string, Set<string>>,
+        usersByEvent: Map<string, Set<string>>
+      ): Set<string> => {
+        const scoped = new Set<string>();
+        for (const userId of usersByCategory.get(categoryId) || []) scoped.add(userId);
+        for (const userId of usersByContest.get(contestId) || []) scoped.add(userId);
+        for (const userId of usersByEvent.get(eventId) || []) scoped.add(userId);
+        return scoped;
+      };
 
       const judgeCertByCategory = new Map<string, Map<string, Date>>();
       for (const jc of judgeCertifications) {
@@ -874,6 +1008,37 @@ export class CertificationController {
         const judgeCertifiedDerived = judgeRows.length > 0
           ? judgeRows.every((judge) => judge.certified)
           : Boolean(certification?.judgeCertified);
+        const eventPolicy = eventPolicyById.get(category.contest?.event?.id || '');
+        const requireAllTally = typeof eventPolicy?.requireAllTallyCertifiers === 'boolean'
+          ? eventPolicy.requireAllTallyCertifiers
+          : tenantRequireAllTally;
+        const requireAllAuditor = typeof eventPolicy?.requireAllAuditorCertifiers === 'boolean'
+          ? eventPolicy.requireAllAuditorCertifiers
+          : tenantRequireAllAuditors;
+        const tallyRequiredUsers = resolveScopedRequiredUsers(
+          category.id,
+          category.contestId,
+          category.contest?.event?.id || '',
+          tallyUsersByCategory,
+          tallyUsersByContest,
+          tallyUsersByEvent
+        );
+        const auditorRequiredUsers = resolveScopedRequiredUsers(
+          category.id,
+          category.contestId,
+          category.contest?.event?.id || '',
+          auditorUsersByCategory,
+          auditorUsersByContest,
+          auditorUsersByEvent
+        );
+        const tallySignedUsers = roleCertUsersByCategoryRole.get(`${category.id}:TALLY_MASTER`) || new Set<string>();
+        const auditorSignedUsers = roleCertUsersByCategoryRole.get(`${category.id}:AUDITOR`) || new Set<string>();
+        const tallySignedAssigned = tallyRequiredUsers.size > 0
+          ? Array.from(tallyRequiredUsers).filter((userId) => tallySignedUsers.has(userId)).length
+          : tallySignedUsers.size;
+        const auditorSignedAssigned = auditorRequiredUsers.size > 0
+          ? Array.from(auditorRequiredUsers).filter((userId) => auditorSignedUsers.has(userId)).length
+          : auditorSignedUsers.size;
         const tallyCertified = Boolean(certification?.tallyCertified);
         const auditorCertified = Boolean(certification?.auditorCertified);
         const boardApproved = Boolean(certification?.boardApproved);
@@ -893,6 +1058,7 @@ export class CertificationController {
                 : 1;
 
         const categoryOverview = {
+          certificationId: certification?.id || null,
           categoryId: category.id,
           categoryName: category.name,
           contestId: category.contestId,
@@ -911,6 +1077,18 @@ export class CertificationController {
           judgeProgress: {
             certified: judgeRows.filter((j) => j.certified).length,
             total: judgeRows.length
+          },
+          tallyProgress: {
+            signed: tallySignedAssigned,
+            required: tallyRequiredUsers.size,
+            pending: tallyRequiredUsers.size > 0 ? Math.max(tallyRequiredUsers.size - tallySignedAssigned, 0) : 0,
+            requireAll: requireAllTally
+          },
+          auditorProgress: {
+            signed: auditorSignedAssigned,
+            required: auditorRequiredUsers.size,
+            pending: auditorRequiredUsers.size > 0 ? Math.max(auditorRequiredUsers.size - auditorSignedAssigned, 0) : 0,
+            requireAll: requireAllAuditor
           },
           scoreProgress: scoreStats,
           judges: judgeRows

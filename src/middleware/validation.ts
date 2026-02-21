@@ -208,7 +208,9 @@ export const createEventSchema = z.object({
   location: z.string().optional(),
   maxContestants: z.number().int().positive().optional(),
   contestantViewRestricted: z.boolean().optional(),
-  contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional()
+  contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional(),
+  requireAllTallyCertifiers: z.boolean().nullable().optional(),
+  requireAllAuditorCertifiers: z.boolean().nullable().optional()
 }).refine(data => {
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
@@ -230,7 +232,9 @@ export const updateEventSchema = z.object({
   maxContestants: z.number().int().positive().optional(),
   archived: z.boolean().optional(),
   contestantViewRestricted: z.boolean().optional(),
-  contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional()
+  contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional(),
+  requireAllTallyCertifiers: z.boolean().nullable().optional(),
+  requireAllAuditorCertifiers: z.boolean().nullable().optional()
 });
 
 /**

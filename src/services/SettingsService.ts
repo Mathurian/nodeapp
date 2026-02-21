@@ -55,6 +55,8 @@ export interface ScoringWorkflowAlertSettings {
   notifyOnCategoryCertified: boolean;
   onlyIfUnviewed: boolean;
   escalationMinutes: number;
+  requireAllTallyCertifiers: boolean;
+  requireAllAuditorCertifiers: boolean;
 }
 
 export interface AlertCandidateUser {
@@ -1645,7 +1647,9 @@ export class SettingsService extends BaseService {
       judgeCertifiedRaw,
       categoryCertifiedRaw,
       onlyIfUnviewedRaw,
-      escalationMinutesRaw
+      escalationMinutesRaw,
+      requireAllTallyRaw,
+      requireAllAuditorRaw
     ] = await Promise.all([
       this.getSettingWithFallback('alerts_scoring_enabled', tenantId),
       this.getSettingWithFallback('alerts_scoring_recipient_roles', tenantId),
@@ -1660,6 +1664,8 @@ export class SettingsService extends BaseService {
       this.getSettingWithFallback('alerts_scoring_on_category_certified', tenantId),
       this.getSettingWithFallback('alerts_scoring_only_if_unviewed', tenantId),
       this.getSettingWithFallback('alerts_scoring_escalation_minutes', tenantId),
+      this.getSettingWithFallback('certification_require_all_tally_masters', tenantId),
+      this.getSettingWithFallback('certification_require_all_auditors', tenantId),
     ]);
 
     const parsedRoles = this.parseStringArraySetting(recipientRolesRaw).filter((r): r is UserRole =>
@@ -1680,6 +1686,8 @@ export class SettingsService extends BaseService {
       notifyOnCategoryCertified: this.parseBooleanSetting(categoryCertifiedRaw, true),
       onlyIfUnviewed: this.parseBooleanSetting(onlyIfUnviewedRaw, false),
       escalationMinutes: this.parseNumberSetting(escalationMinutesRaw, 60, 5, 10080),
+      requireAllTallyCertifiers: this.parseBooleanSetting(requireAllTallyRaw, true),
+      requireAllAuditorCertifiers: this.parseBooleanSetting(requireAllAuditorRaw, true),
     };
   }
 
@@ -1713,6 +1721,8 @@ export class SettingsService extends BaseService {
       ['alerts_scoring_on_category_certified', String(merged.notifyOnCategoryCertified)],
       ['alerts_scoring_only_if_unviewed', String(merged.onlyIfUnviewed)],
       ['alerts_scoring_escalation_minutes', String(merged.escalationMinutes)],
+      ['certification_require_all_tally_masters', String(merged.requireAllTallyCertifiers)],
+      ['certification_require_all_auditors', String(merged.requireAllAuditorCertifiers)],
     ];
 
     for (const [key, value] of kv) {

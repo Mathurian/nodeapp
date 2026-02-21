@@ -121,6 +121,8 @@ interface ScoringWorkflowAlertSettings {
   notifyOnCategoryCertified: boolean
   onlyIfUnviewed: boolean
   escalationMinutes: number
+  requireAllTallyCertifiers: boolean
+  requireAllAuditorCertifiers: boolean
 }
 
 interface BackupSettings {
@@ -363,6 +365,8 @@ const SettingsPage: React.FC = () => {
     notifyOnCategoryCertified: true,
     onlyIfUnviewed: false,
     escalationMinutes: 60,
+    requireAllTallyCertifiers: true,
+    requireAllAuditorCertifiers: true,
   })
 
   const [scoringAlertEmailInput, setScoringAlertEmailInput] = useState('')
@@ -764,6 +768,8 @@ const SettingsPage: React.FC = () => {
             notifyOnCategoryCertified: data.notifyOnCategoryCertified !== false,
             onlyIfUnviewed: data.onlyIfUnviewed === true,
             escalationMinutes: Number(data.escalationMinutes || 60),
+            requireAllTallyCertifiers: data.requireAllTallyCertifiers !== false,
+            requireAllAuditorCertifiers: data.requireAllAuditorCertifiers !== false,
           })
         }
       }
@@ -2601,6 +2607,37 @@ const SettingsPage: React.FC = () => {
                       onChange={(e) => setScoringWorkflowAlertFormData({ ...scoringWorkflowAlertFormData, enabled: e.target.checked })}
                       className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
+                      <span className="text-sm text-gray-900 dark:text-white">Require all assigned tally masters</span>
+                      <input
+                        type="checkbox"
+                        checked={scoringWorkflowAlertFormData.requireAllTallyCertifiers}
+                        onChange={(e) =>
+                          setScoringWorkflowAlertFormData({
+                            ...scoringWorkflowAlertFormData,
+                            requireAllTallyCertifiers: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
+                      <span className="text-sm text-gray-900 dark:text-white">Require all assigned auditors</span>
+                      <input
+                        type="checkbox"
+                        checked={scoringWorkflowAlertFormData.requireAllAuditorCertifiers}
+                        onChange={(e) =>
+                          setScoringWorkflowAlertFormData({
+                            ...scoringWorkflowAlertFormData,
+                            requireAllAuditorCertifiers: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
+                    </label>
                   </div>
 
                   <div>

@@ -1,22 +1,11 @@
 import React from 'react'
 import CertificationOverviewWorkspace from '../components/certifications/CertificationOverviewWorkspace'
 import { PageHeader } from '../components/ui'
-import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const CertificationsPage: React.FC = () => {
   const { user } = useAuth()
-  const canFinalize = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
-
-  const finalizeCategory = async (
-    categoryId: string,
-    signature: { typedSignature?: string; drawnSignatureData?: string }
-  ) => {
-    await api.post(`/board/category/${categoryId}/certification/submit`, {
-      typedSignature: signature.typedSignature,
-      drawnSignatureData: signature.drawnSignatureData
-    })
-  }
+  const canCertifyInOverview = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'].includes(user?.role || '')
 
   return (
     <div className="cgr-page-container space-y-6">
@@ -28,10 +17,7 @@ const CertificationsPage: React.FC = () => {
         title=""
         subtitle=""
         mode="all"
-        allowCertify={canFinalize}
-        certifyLabel="Final Approve"
-        onCertifyCategory={finalizeCategory}
-        canCertifyCategory={(category) => category.auditorCertified && !category.boardApproved}
+        allowCertify={canCertifyInOverview}
       />
     </div>
   )

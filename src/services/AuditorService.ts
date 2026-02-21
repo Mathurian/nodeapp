@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { applyCertificationStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 // P2-4: Proper type definitions for auditor responses
 type CategoryWithCertifications = Prisma.CategoryGetPayload<{
@@ -308,29 +308,22 @@ export class AuditorService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    // Create auditor category certification
-    const certification = await this.prisma.categoryCertification.upsert({
-      where: {
-        tenantId_categoryId_role: {
-          tenantId: category.tenantId,
-          categoryId,
-          role: 'AUDITOR'
-        }
-      },
-      create: {
-        tenantId: category.tenantId,
-        categoryId,
-        userId,
-        role: 'AUDITOR',
-        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-        comments: signature?.comments || 'Auditor category certification (final for audit)',
-      },
-      update: {
-        userId,
-        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-        comments: signature?.comments || 'Auditor category certification (final for audit)',
-        certifiedAt: new Date()
-      }
+    const synced = await refreshRoleStages(this.prisma, category.tenantId, categoryId, userId);
+    if (!synced.tallyCertified) {
+      throw this.badRequestError('Tally Master certification must be completed first');
+    }
+    if (synced.auditorCertified) {
+      throw this.badRequestError('Auditor certification already completed');
+    }
+
+    const certification = await upsertCategoryRoleCertification({
+      prisma: this.prisma,
+      tenantId: category.tenantId,
+      categoryId,
+      userId,
+      role: 'AUDITOR',
+      signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+      comments: signature?.comments || 'Auditor category certification (final for audit)',
     });
 
     await applyCertificationStage({

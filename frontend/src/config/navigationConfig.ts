@@ -83,6 +83,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
       { id: 'scoring', name: 'Judge Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], description: 'Enter and manage scores', keywords: ['score', 'judge', 'points'], priority: 80 },
       { id: 'tally-master', name: 'Tally Dashboard', href: '/tally-master', icon: CalculatorIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'] },
       { id: 'auditor', name: 'Auditor', href: '/auditor', icon: ClipboardDocumentCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'] },
+      { id: 'board-certifications', name: 'Board Certifications', href: '/board/certifications', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'] },
       { id: 'certifications', name: 'Certifications', href: '/certifications', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'AUDITOR', 'ORGANIZER', 'BOARD'] },
       { id: 'score-governance', name: 'Score Governance', href: '/score-governance', icon: ClipboardDocumentCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'] },
       { id: 'deductions', name: 'Deductions', href: '/deductions', icon: DocumentTextIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'] },

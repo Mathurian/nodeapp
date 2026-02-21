@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { applyCertificationStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 // P2-4: Proper type definitions for category certification responses
 type CategoryContestantWithContestant = Prisma.CategoryContestantGetPayload<{
@@ -92,11 +92,11 @@ export class CategoryCertificationService extends BaseService {
 
   async certifyCategory(categoryId: string, userId: string, userRole: string, tenantId: string): Promise<Prisma.CategoryCertificationGetPayload<{}>> {
     const existing = await this.prisma.categoryCertification.findFirst({
-      where: { categoryId, role: userRole }
+      where: { tenantId, categoryId, role: userRole, userId }
     });
 
     if (existing) {
-      throw this.badRequestError('Category already certified for this role');
+      throw this.badRequestError('Category already certified by this user for this role');
     }
 
     const boardRoleSnapshot = userRole === 'BOARD'
@@ -106,17 +106,26 @@ export class CategoryCertificationService extends BaseService {
         }))?.boardRole || null)
       : null;
 
-    const created = await this.prisma.categoryCertification.create({
-      data: {
-        tenantId,
-        categoryId,
-        role: userRole,
-        userId,
-        boardRoleSnapshot
-      }
+    const created = await upsertCategoryRoleCertification({
+      prisma: this.prisma,
+      tenantId,
+      categoryId,
+      role: userRole,
+      userId,
+      boardRoleSnapshot
     });
 
     if (userRole === 'TALLY_MASTER' || userRole === 'AUDITOR' || userRole === 'BOARD') {
+      const synced = await refreshRoleStages(this.prisma, tenantId, categoryId, userId);
+      if (userRole === 'TALLY_MASTER' && !synced.judgeCertified) {
+        throw this.badRequestError('Judge certification must be completed first');
+      }
+      if (userRole === 'AUDITOR' && !synced.tallyCertified) {
+        throw this.badRequestError('Tally Master certification must be completed first');
+      }
+      if (userRole === 'BOARD' && !synced.auditorCertified) {
+        throw this.badRequestError('Auditor certification must be completed first');
+      }
       await applyCertificationStage({
         prisma: this.prisma,
         tenantId,

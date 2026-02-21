@@ -49,6 +49,8 @@ interface CreateEventDto {
   contestantNumberingMode?: 'MANUAL' | 'AUTO_INDEXED' | 'OPTIONAL';
   contestantViewRestricted?: boolean;
   contestantViewReleaseDate?: Date | string | null;
+  requireAllTallyCertifiers?: boolean | null;
+  requireAllAuditorCertifiers?: boolean | null;
 }
 
 interface UpdateEventDto extends Partial<CreateEventDto> {}

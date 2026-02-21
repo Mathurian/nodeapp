@@ -80,7 +80,7 @@ const toNotificationPreferences = (raw: any): NotificationPreferences => {
 
   return {
     emailEnabled: Boolean(raw?.emailEnabled ?? raw?.emailNotifications ?? true),
-    pushEnabled: Boolean(raw?.pushEnabled ?? raw?.pushNotifications ?? false),
+    pushEnabled: Boolean(raw?.pushEnabled ?? raw?.pushNotifications ?? true),
     inAppEnabled: Boolean(raw?.inAppEnabled ?? raw?.systemAlerts ?? true),
     eventUpdates: Boolean(raw?.eventUpdates ?? mergedTypes.has('EVENT')),
     scoreUpdates: Boolean(raw?.scoreUpdates ?? mergedTypes.has('SCORE')),

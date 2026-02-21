@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
+import { PushSubscriptionRepository } from '../repositories/PushSubscriptionRepository';
 import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 import { PushNotificationService } from '../services/PushNotificationService';
 
@@ -29,10 +30,12 @@ const parseStringArrayField = (value: unknown): string[] => {
 
 export class NotificationPreferencesController {
   private preferenceRepository: NotificationPreferenceRepository;
+  private pushSubscriptionRepository: PushSubscriptionRepository;
   private pushNotificationService: PushNotificationService;
 
   constructor() {
     this.preferenceRepository = container.resolve(NotificationPreferenceRepository);
+    this.pushSubscriptionRepository = container.resolve(PushSubscriptionRepository);
     this.pushNotificationService = container.resolve(PushNotificationService);
   }
 
@@ -48,13 +51,20 @@ export class NotificationPreferencesController {
 
       const tenantId = req.user.tenantId;
       const userId = req.user.id;
-      const preferences = await this.preferenceRepository.getOrCreate(tenantId, userId);
+      let preferences = await this.preferenceRepository.getOrCreate(tenantId, userId);
+      const activeSubscriptions = await this.pushSubscriptionRepository.findActiveByUserId(tenantId, userId);
+
+      // Keep preference state honest: push cannot be enabled without an active endpoint.
+      if (preferences.pushEnabled && activeSubscriptions.length === 0) {
+        preferences = await this.preferenceRepository.update(tenantId, userId, { pushEnabled: false });
+      }
 
       const parsed = {
         ...preferences,
         emailTypes: parseStringArrayField(preferences.emailTypes),
         pushTypes: parseStringArrayField(preferences.pushTypes),
         inAppTypes: parseStringArrayField(preferences.inAppTypes),
+        hasActivePushSubscription: activeSubscriptions.length > 0,
       };
 
       return sendSuccess(res, parsed);
@@ -92,8 +102,15 @@ export class NotificationPreferencesController {
       } = req.body;
 
       const emailEnabled = requestEmailEnabled ?? emailNotifications;
-      const pushEnabled = requestPushEnabled ?? pushNotifications;
+      let pushEnabled = requestPushEnabled ?? pushNotifications;
       const inAppEnabled = requestInAppEnabled ?? systemAlerts;
+
+      if (pushEnabled === true) {
+        const activeSubscriptions = await this.pushSubscriptionRepository.findActiveByUserId(tenantId, userId);
+        if (activeSubscriptions.length === 0) {
+          pushEnabled = false;
+        }
+      }
 
       const preferences = await this.preferenceRepository.update(tenantId, userId, {
         emailEnabled,
@@ -179,6 +196,11 @@ export class NotificationPreferencesController {
         keys,
         userAgent,
       });
+
+      const existingPreferences = await this.preferenceRepository.getOrCreate(tenantId, userId);
+      if (!existingPreferences.pushEnabled) {
+        await this.preferenceRepository.update(tenantId, userId, { pushEnabled: true });
+      }
 
       return sendSuccess(res, { endpoint }, 'Push subscription saved');
     } catch (error) {

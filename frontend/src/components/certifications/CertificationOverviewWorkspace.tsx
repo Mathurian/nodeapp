@@ -17,7 +17,15 @@ interface JudgeRow {
   certifiedAt: string | null
 }
 
-interface CategoryOverview {
+interface RoleStageProgress {
+  signed: number
+  required: number
+  pending: number
+  requireAll: boolean
+}
+
+export interface CategoryOverview {
+  certificationId?: string | null
   categoryId: string
   categoryName: string
   contestId: string
@@ -35,6 +43,8 @@ interface CategoryOverview {
     certified: number
     total: number
   }
+  tallyProgress?: RoleStageProgress
+  auditorProgress?: RoleStageProgress
   scoreProgress: {
     total: number
     submitted?: number
@@ -65,7 +75,11 @@ interface CertificationOverviewWorkspaceProps {
   mode?: WorkspaceMode
   allowCertify?: boolean
   certifyLabel?: string
-  onCertifyCategory?: (categoryId: string, signature: { typedSignature?: string; drawnSignatureData?: string }) => Promise<void>
+  onCertifyCategory?: (
+    categoryId: string,
+    signature: { typedSignature?: string; drawnSignatureData?: string },
+    category?: CategoryOverview
+  ) => Promise<void>
   canCertifyCategory?: (category: CategoryOverview) => boolean
 }
 
@@ -108,6 +122,42 @@ const isJudgeStageComplete = (category: CategoryOverview): boolean => {
   return category.judgeProgress.total > 0 && category.judgeProgress.certified >= category.judgeProgress.total
 }
 
+type CertificationActionType = 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'
+
+interface CertificationAction {
+  type: CertificationActionType
+  label: string
+}
+
+const roleCanCertify = (role: string | undefined, type: CertificationActionType): boolean => {
+  const normalizedRole = role || ''
+  if (type === 'TALLY_MASTER') return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER'].includes(normalizedRole)
+  if (type === 'AUDITOR') return ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'].includes(normalizedRole)
+  return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(normalizedRole)
+}
+
+const resolveDefaultCertificationAction = (category: CategoryOverview, role: string | undefined): CertificationAction | null => {
+  const judgeReady = isJudgeStageComplete(category)
+  if (judgeReady && !category.tallyCertified && roleCanCertify(role, 'TALLY_MASTER')) {
+    return { type: 'TALLY_MASTER', label: 'Certify Totals' }
+  }
+  if (category.tallyCertified && !category.auditorCertified && roleCanCertify(role, 'AUDITOR')) {
+    return { type: 'AUDITOR', label: 'Certify Audit' }
+  }
+  if (category.auditorCertified && !category.boardApproved && roleCanCertify(role, 'BOARD')) {
+    return { type: 'BOARD', label: 'Final Approve' }
+  }
+  return null
+}
+
+const getRoleProgressHint = (progress: RoleStageProgress | undefined, certified: boolean): string => {
+  if (!progress) return certified ? '1/1 complete' : '0/1 complete'
+  if (progress.required > 0) {
+    return `${progress.signed}/${progress.required} complete${progress.requireAll ? ' (all required)' : ' (any assigned signer)'}`
+  }
+  return `${progress.signed} signed${progress.requireAll ? ' (assignment not set)' : ' (any signer mode)'}`
+}
+
 const DENSITY_STORAGE_KEY = 'certification-overview-density'
 
 const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspaceProps> = ({
@@ -136,7 +186,12 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
   const [expandedScoreCategories, setExpandedScoreCategories] = useState<Set<string>>(new Set())
   const [categoryScores, setCategoryScores] = useState<Record<string, CategoryScoreRow[]>>({})
   const [loadingScoreCategoryId, setLoadingScoreCategoryId] = useState<string | null>(null)
-  const [pendingCategoryId, setPendingCategoryId] = useState<string | null>(null)
+  const [pendingCertification, setPendingCertification] = useState<{
+    categoryId: string
+    certificationId: string | null
+    actionLabel: string
+    actionType: CertificationActionType | 'CUSTOM'
+  } | null>(null)
   const [pendingUncertifyCategoryId, setPendingUncertifyCategoryId] = useState<string | null>(null)
   const [uncertifyTargetLevel, setUncertifyTargetLevel] = useState<'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'>('JUDGE')
   const [uncertifyReason, setUncertifyReason] = useState('')
@@ -291,7 +346,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
   }
 
   const handleCertify = async () => {
-    if (!allowCertify || !onCertifyCategory || !pendingCategoryId) return
+    if (!allowCertify || !pendingCertification) return
 
     if (!typedSignature.trim() && !drawnSignatureData.trim()) {
       toast.error('Please provide a typed or drawn signature')
@@ -299,11 +354,42 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
     }
 
     try {
-      setActingCategoryId(pendingCategoryId)
-      await onCertifyCategory(pendingCategoryId, {
-        typedSignature: typedSignature.trim() || undefined,
-        drawnSignatureData: drawnSignatureData || undefined
-      })
+      const targetCategory = allCategories.find((category) => category.categoryId === pendingCertification.categoryId)
+      if (!targetCategory) {
+        toast.error('Selected category is no longer available')
+        return
+      }
+
+      setActingCategoryId(pendingCertification.categoryId)
+      if (onCertifyCategory) {
+        await onCertifyCategory(
+          pendingCertification.categoryId,
+          {
+            typedSignature: typedSignature.trim() || undefined,
+            drawnSignatureData: drawnSignatureData || undefined
+          },
+          targetCategory
+        )
+      } else {
+        if (!pendingCertification.certificationId) {
+          toast.error('Certification record not found for this category')
+          return
+        }
+        const payload = {
+          typedSignature: typedSignature.trim() || undefined,
+          drawnSignatureData: drawnSignatureData || undefined
+        }
+        if (pendingCertification.actionType === 'TALLY_MASTER') {
+          await api.post(`/certifications/${pendingCertification.certificationId}/certify-tally`, payload)
+        } else if (pendingCertification.actionType === 'AUDITOR') {
+          await api.post(`/certifications/${pendingCertification.certificationId}/certify-auditor`, payload)
+        } else if (pendingCertification.actionType === 'BOARD') {
+          await api.post(`/certifications/${pendingCertification.certificationId}/approve-board`, payload)
+        } else {
+          toast.error('Unsupported certification action')
+          return
+        }
+      }
       toast.success('Certification submitted')
       await loadOverview()
     } catch (err: any) {
@@ -311,7 +397,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
       toast.error(message)
     } finally {
       setActingCategoryId(null)
-      setPendingCategoryId(null)
+      setPendingCertification(null)
       setTypedSignature('')
       setDrawnSignatureData('')
     }
@@ -494,6 +580,10 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                   const scoresExpanded = expandedScoreCategories.has(cat.categoryId)
                   const judgeStageComplete = isJudgeStageComplete(cat)
                   const compact = density === 'compact'
+                  const defaultAction = resolveDefaultCertificationAction(cat, user?.role)
+                  const showCustomCertify = allowCertify && Boolean(onCertifyCategory) && (!canCertifyCategory || canCertifyCategory(cat))
+                  const showDefaultCertify = allowCertify && !onCertifyCategory && Boolean(defaultAction) && Boolean(cat.certificationId)
+                  const certifyActionLabel = showCustomCertify ? certifyLabel : (defaultAction?.label || 'Certify')
                   const scoreBreakdown = cat.scoreProgress.judges !== undefined && cat.scoreProgress.contestants !== undefined
                     ? `Expected total = ${cat.scoreProgress.judges} judges × ${cat.scoreProgress.contestants} contestants × ${
                       (cat.scoreProgress.criteria ?? 0) > 0
@@ -527,6 +617,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
 
                       <div className={`grid grid-cols-1 gap-1 ${compact ? 'text-[11px]' : 'text-xs'} text-gray-700 dark:text-gray-300`}>
                         <div>Judges: {cat.judgeProgress.certified}/{cat.judgeProgress.total}</div>
+                        <div>Tally Certifiers: {getRoleProgressHint(cat.tallyProgress, cat.tallyCertified)}</div>
+                        <div>Auditor Certifiers: {getRoleProgressHint(cat.auditorProgress, cat.auditorCertified)}</div>
                         <div>Scores: {(cat.scoreProgress.submitted ?? cat.scoreProgress.certified)}/{cat.scoreProgress.total} submitted, {cat.scoreProgress.certified} certified, {cat.scoreProgress.locked} locked</div>
                         <div className="text-gray-500 dark:text-gray-400">{scoreBreakdown}</div>
                       </div>
@@ -554,14 +646,21 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                         >
                           Governance
                         </button>
-                        {allowCertify && onCertifyCategory && (!canCertifyCategory || canCertifyCategory(cat)) && (
+                        {(showCustomCertify || showDefaultCertify) && (
                           <button
                             type="button"
                             disabled={actingCategoryId === cat.categoryId}
-                            onClick={() => setPendingCategoryId(cat.categoryId)}
+                            onClick={() => {
+                              setPendingCertification({
+                                categoryId: cat.categoryId,
+                                certificationId: cat.certificationId || null,
+                                actionLabel: certifyActionLabel,
+                                actionType: showCustomCertify ? 'CUSTOM' : (defaultAction?.type || 'CUSTOM')
+                              })
+                            }}
                             className={`${compact ? 'text-[11px] px-2 py-0.5' : 'text-xs px-2 py-1'} rounded bg-blue-600 text-white disabled:bg-gray-400`}
                           >
-                            {actingCategoryId === cat.categoryId ? 'Submitting...' : certifyLabel}
+                            {actingCategoryId === cat.categoryId ? 'Submitting...' : certifyActionLabel}
                           </button>
                         )}
                         {canRequestUncertify && (cat.judgeCertified || cat.tallyCertified || cat.auditorCertified || cat.boardApproved) && (
@@ -632,10 +731,10 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
           )}
         </div>
 
-        {pendingCategoryId && (
+        {pendingCertification && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-xl rounded-lg bg-white dark:bg-gray-800 p-5 shadow-xl">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Certification Signature</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{pendingCertification.actionLabel} Signature</h3>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 Provide either a typed signature, drawn signature, or both.
               </p>
@@ -677,7 +776,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                 <button
                   type="button"
                   onClick={() => {
-                    setPendingCategoryId(null)
+                    setPendingCertification(null)
                     setTypedSignature('')
                     setDrawnSignatureData('')
                   }}

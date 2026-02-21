@@ -54,6 +54,8 @@ model Event {
   lockedAt                  DateTime?
   lockVerifiedBy            String?
   scoringType               ScoringType?            // Optional: inherits from tenant if null
+  requireAllTallyCertifiers Boolean?                // Optional: null inherits tenant/global policy
+  requireAllAuditorCertifiers Boolean?              // Optional: null inherits tenant/global policy
   tenantId                  String
 
   // S4-3: Soft delete fields
@@ -911,10 +913,11 @@ model CategoryCertification {
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, categoryId, role])
+  @@unique([tenantId, categoryId, role, userId])
   @@index([tenantId])
   @@index([tenantId, categoryId])
   @@index([categoryId, role])
+  @@index([tenantId, categoryId, role, userId])
   @@map("category_certifications")
 }
 

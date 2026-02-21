@@ -12,19 +12,28 @@ export const useAllowedNavigationIds = () => {
   const { user } = useAuth()
   const { data } = useAuthPermissions({ enabled: Boolean(user) })
   const permissions = data?.permissions
+  const normalizedRole = String(user?.role || '').trim().toUpperCase()
 
   return useMemo(() => {
-    if (!user?.role) return null
+    if (!normalizedRole) return null
     const ids = new Set<string>()
     NAV_SECTIONS.forEach((section) => {
+      const sectionAllowsRole = section.roles.some((role) => role.toUpperCase() === normalizedRole)
+      if (!sectionAllowsRole) {
+        return
+      }
       section.items.forEach((item) => {
-        if (canAccessNavItem(item.id, item.href, user.role, permissions)) {
+        const itemAllowsRole = item.roles.some((role) => role.toUpperCase() === normalizedRole)
+        if (!itemAllowsRole) {
+          return
+        }
+        if (canAccessNavItem(item.id, item.href, normalizedRole, permissions)) {
           ids.add(item.id)
         }
       })
     })
     return ids
-  }, [permissions, user?.role])
+  }, [normalizedRole, permissions])
 }
 
 export default useAllowedNavigationIds

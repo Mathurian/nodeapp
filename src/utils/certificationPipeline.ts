@@ -1,4 +1,7 @@
-import { Certification, NotificationType, Prisma, PrismaClient, UserRole } from '@prisma/client';
+import { Certification, NotificationType, PrismaClient, UserRole } from '@prisma/client';
+import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
+import { PushSubscriptionRepository } from '../repositories/PushSubscriptionRepository';
+import { PushNotificationService } from '../services/PushNotificationService';
 
 type StageRole = 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD' | 'ORGANIZER' | 'ADMIN';
 type StageNotification = 'JUDGE_CERTIFIED' | 'TALLY_CERTIFIED' | 'AUDITOR_CERTIFIED' | 'BOARD_APPROVED';
@@ -23,6 +26,26 @@ const isFinalApprovalRole = (role: StageRole): boolean => {
 const ALERT_ENABLED_KEY = 'alerts_scoring_enabled';
 const ALERT_JUDGE_KEY = 'alerts_scoring_on_judge_certified';
 const ALERT_CATEGORY_KEY = 'alerts_scoring_on_category_certified';
+const REQUIRE_ALL_TALLY_KEY = 'certification_require_all_tally_masters';
+const REQUIRE_ALL_AUDITOR_KEY = 'certification_require_all_auditors';
+
+type StagePolicyRole = 'TALLY_MASTER' | 'AUDITOR';
+
+interface StagePolicy {
+  requireAllTallyMasters: boolean;
+  requireAllAuditors: boolean;
+}
+
+export interface StageCompletionState {
+  role: StagePolicyRole;
+  requireAll: boolean;
+  isComplete: boolean;
+  requiredUserIds: string[];
+  completedUserIds: string[];
+  requiredCount: number;
+  completedCount: number;
+  pendingCount: number;
+}
 
 const parseBooleanSetting = (value: string | null | undefined, fallback: boolean): boolean => {
   if (value == null) return fallback;
@@ -58,6 +81,142 @@ async function getSystemSettingValue(
     select: { value: true }
   });
   return globalScoped?.value ?? null;
+}
+
+const uniqueIds = (values: Array<string | null | undefined>): string[] => (
+  Array.from(new Set(values.filter((value): value is string => Boolean(value))))
+);
+
+function buildScopedAssignmentFilter(categoryId: string, contestId: string, eventId: string) {
+  return {
+    status: 'ACTIVE',
+    OR: [
+      { categoryId },
+      { categoryId: null, contestId },
+      { categoryId: null, contestId: null, eventId }
+    ]
+  };
+}
+
+async function resolveStagePolicy(
+  prisma: PrismaClient,
+  tenantId: string,
+  eventId: string
+): Promise<StagePolicy> {
+  const [tenantTallyRaw, tenantAuditorRaw, eventOverride] = await Promise.all([
+    getSystemSettingValue(prisma, tenantId, REQUIRE_ALL_TALLY_KEY),
+    getSystemSettingValue(prisma, tenantId, REQUIRE_ALL_AUDITOR_KEY),
+    prisma.event.findFirst({
+      where: { id: eventId, tenantId, deletedAt: null },
+      select: {
+        requireAllTallyCertifiers: true,
+        requireAllAuditorCertifiers: true
+      }
+    })
+  ]);
+
+  const tenantRequireAllTally = parseBooleanSetting(tenantTallyRaw, true);
+  const tenantRequireAllAuditors = parseBooleanSetting(tenantAuditorRaw, true);
+
+  return {
+    requireAllTallyMasters: typeof eventOverride?.requireAllTallyCertifiers === 'boolean'
+      ? eventOverride.requireAllTallyCertifiers
+      : tenantRequireAllTally,
+    requireAllAuditors: typeof eventOverride?.requireAllAuditorCertifiers === 'boolean'
+      ? eventOverride.requireAllAuditorCertifiers
+      : tenantRequireAllAuditors
+  };
+}
+
+async function getAssignedUserIdsForRole(
+  prisma: PrismaClient,
+  tenantId: string,
+  categoryId: string,
+  contestId: string,
+  eventId: string,
+  role: StagePolicyRole
+): Promise<string[]> {
+  const scopedFilter = buildScopedAssignmentFilter(categoryId, contestId, eventId);
+  if (role === 'TALLY_MASTER') {
+    const assignments = await prisma.tallyMasterAssignment.findMany({
+      where: { tenantId, ...scopedFilter },
+      select: {
+        userId: true,
+        user: {
+          select: {
+            isActive: true,
+            role: true
+          }
+        }
+      }
+    });
+    return uniqueIds(assignments
+      .filter((row) => row.user?.isActive && row.user.role === 'TALLY_MASTER')
+      .map((row) => row.userId));
+  }
+
+  const assignments = await prisma.auditorAssignment.findMany({
+    where: { tenantId, ...scopedFilter },
+    select: {
+      userId: true,
+      user: {
+        select: {
+          isActive: true,
+          role: true
+        }
+      }
+    }
+  });
+  return uniqueIds(assignments
+    .filter((row) => row.user?.isActive && row.user.role === 'AUDITOR')
+    .map((row) => row.userId));
+}
+
+export async function getStageCompletionState(
+  prisma: PrismaClient,
+  tenantId: string,
+  categoryId: string,
+  contestId: string,
+  eventId: string,
+  role: StagePolicyRole,
+  requireAll: boolean
+): Promise<StageCompletionState> {
+  const [assignedUserIds, roleCertifications] = await Promise.all([
+    getAssignedUserIdsForRole(prisma, tenantId, categoryId, contestId, eventId, role),
+    prisma.categoryCertification.findMany({
+      where: {
+        tenantId,
+        categoryId,
+        role
+      },
+      select: {
+        userId: true
+      }
+    })
+  ]);
+
+  const completedUserIds = uniqueIds(roleCertifications.map((row) => row.userId));
+  const completedByUserId = new Set(completedUserIds);
+  const completedAssignedCount = assignedUserIds.length > 0
+    ? assignedUserIds.filter((userId) => completedByUserId.has(userId)).length
+    : completedUserIds.length;
+
+  const isComplete = assignedUserIds.length > 0
+    ? (requireAll
+      ? assignedUserIds.every((userId) => completedByUserId.has(userId))
+      : assignedUserIds.some((userId) => completedByUserId.has(userId)))
+    : completedUserIds.length > 0;
+
+  return {
+    role,
+    requireAll,
+    isComplete,
+    requiredUserIds: assignedUserIds,
+    completedUserIds,
+    requiredCount: assignedUserIds.length,
+    completedCount: completedAssignedCount,
+    pendingCount: assignedUserIds.length > 0 ? Math.max(assignedUserIds.length - completedAssignedCount, 0) : 0
+  };
 }
 
 async function sendStageNotification({
@@ -110,12 +269,7 @@ async function sendStageNotification({
     const scopedAssignments = await prisma.tallyMasterAssignment.findMany({
       where: {
         tenantId,
-        status: 'ACTIVE',
-        OR: [
-          { categoryId: category.id },
-          { categoryId: null, contestId: category.contestId },
-          { categoryId: null, eventId: category.contest.eventId }
-        ]
+        ...buildScopedAssignmentFilter(category.id, category.contestId, category.contest.eventId)
       },
       select: { userId: true }
     });
@@ -133,12 +287,7 @@ async function sendStageNotification({
     const scopedAssignments = await prisma.auditorAssignment.findMany({
       where: {
         tenantId,
-        status: 'ACTIVE',
-        OR: [
-          { categoryId: category.id },
-          { categoryId: null, contestId: category.contestId },
-          { categoryId: null, eventId: category.contest.eventId }
-        ]
+        ...buildScopedAssignmentFilter(category.id, category.contestId, category.contest.eventId)
       },
       select: { userId: true }
     });
@@ -204,23 +353,78 @@ async function sendStageNotification({
   const title = stage === 'BOARD_APPROVED' ? 'Board Certification Complete' : 'Certification Stage Ready';
   const message = `${stageText}: ${category.contest.event.name} / ${category.contest.name} / ${category.name}`;
 
-  await prisma.notification.createMany({
-    data: uniqueRecipientIds.map((userId) => ({
+  const metadata = JSON.stringify({
+    stage,
+    categoryId: category.id,
+    contestId: category.contestId,
+    eventId: category.contest.eventId
+  });
+
+  const createResults = await Promise.allSettled(
+    uniqueRecipientIds.map((userId) =>
+      prisma.notification.create({
+        data: {
+          tenantId,
+          userId,
+          type: NotificationType.INFO,
+          title,
+          message,
+          link: '/certifications',
+          metadata,
+          sentBy: actorUserId ?? null
+        }
+      })
+    )
+  );
+
+  const createdNotifications = createResults.flatMap((result) => (
+    result.status === 'fulfilled'
+      ? [{ id: result.value.id, userId: result.value.userId }]
+      : []
+  ));
+
+  if (createdNotifications.length === 0) {
+    return;
+  }
+
+  try {
+    const pushNotificationService = new PushNotificationService(
+      new PushSubscriptionRepository(prisma),
+      new NotificationPreferenceRepository(prisma)
+    );
+
+    const pushDispatch = await pushNotificationService.dispatchToUsers(
       tenantId,
-      userId,
-      type: NotificationType.INFO,
-      title,
-      message,
-      link: '/certifications',
-      metadata: JSON.stringify({
-        stage,
-        categoryId: category.id,
-        contestId: category.contestId,
-        eventId: category.contest.eventId
-      }),
-      sentBy: actorUserId ?? null
-    }))
-  }).catch(() => undefined);
+      uniqueRecipientIds,
+      {
+        title,
+        message,
+        link: '/certifications',
+        type: NotificationType.INFO
+      }
+    );
+
+    if (pushDispatch.deliveredUsers.length > 0) {
+      const deliveredUserIds = new Set(pushDispatch.deliveredUsers);
+      const pushSentNotificationIds = createdNotifications
+        .filter((notification) => deliveredUserIds.has(notification.userId))
+        .map((notification) => notification.id);
+
+      if (pushSentNotificationIds.length > 0) {
+        await prisma.notification.updateMany({
+          where: {
+            id: { in: pushSentNotificationIds }
+          },
+          data: {
+            pushSent: true,
+            pushSentAt: new Date()
+          }
+        });
+      }
+    }
+  } catch {
+    // Push delivery errors should never block certification state changes.
+  }
 }
 
 export async function ensureCertificationRecord({
@@ -277,7 +481,8 @@ export async function refreshJudgeStage(
   prisma: PrismaClient,
   tenantId: string,
   categoryId: string,
-  actorUserId?: string | null
+  actorUserId?: string | null,
+  suppressNotifications: boolean = false
 ): Promise<Certification> {
   const certification = await ensureCertificationRecord({ prisma, tenantId, categoryId });
   const category = await prisma.category.findFirst({
@@ -373,7 +578,7 @@ export async function refreshJudgeStage(
       status
     }
   });
-  if (!certification.judgeCertified && updated.judgeCertified) {
+  if (!suppressNotifications && !certification.judgeCertified && updated.judgeCertified) {
     await sendStageNotification({
       prisma,
       tenantId,
@@ -382,6 +587,142 @@ export async function refreshJudgeStage(
       actorUserId
     });
   }
+  return updated;
+}
+
+interface UpsertCategoryRoleCertificationOptions {
+  prisma: PrismaClient;
+  tenantId: string;
+  categoryId: string;
+  role: string;
+  userId: string;
+  signatureName?: string | null;
+  comments?: string | null;
+  boardRoleSnapshot?: string | null;
+}
+
+export async function upsertCategoryRoleCertification({
+  prisma,
+  tenantId,
+  categoryId,
+  role,
+  userId,
+  signatureName = null,
+  comments = null,
+  boardRoleSnapshot = null
+}: UpsertCategoryRoleCertificationOptions) {
+  const existing = await prisma.categoryCertification.findFirst({
+    where: {
+      tenantId,
+      categoryId,
+      role,
+      userId
+    },
+    select: { id: true }
+  });
+
+  if (existing) {
+    return prisma.categoryCertification.update({
+      where: { id: existing.id },
+      data: {
+        signatureName,
+        comments,
+        boardRoleSnapshot,
+        certifiedAt: new Date()
+      }
+    });
+  }
+
+  return prisma.categoryCertification.create({
+    data: {
+      tenantId,
+      categoryId,
+      role,
+      userId,
+      signatureName,
+      comments,
+      boardRoleSnapshot
+    }
+  });
+}
+
+export async function refreshRoleStages(
+  prisma: PrismaClient,
+  tenantId: string,
+  categoryId: string,
+  actorUserId?: string | null,
+  suppressNotifications: boolean = false
+): Promise<Certification> {
+  const judgeSynced = await refreshJudgeStage(prisma, tenantId, categoryId, actorUserId, suppressNotifications);
+  const stagePolicy = await resolveStagePolicy(prisma, tenantId, judgeSynced.eventId);
+  const [tallyState, auditorState] = await Promise.all([
+    getStageCompletionState(
+      prisma,
+      tenantId,
+      categoryId,
+      judgeSynced.contestId,
+      judgeSynced.eventId,
+      'TALLY_MASTER',
+      stagePolicy.requireAllTallyMasters
+    ),
+    getStageCompletionState(
+      prisma,
+      tenantId,
+      categoryId,
+      judgeSynced.contestId,
+      judgeSynced.eventId,
+      'AUDITOR',
+      stagePolicy.requireAllAuditors
+    )
+  ]);
+
+  const tallyCertified = judgeSynced.judgeCertified && tallyState.isComplete;
+  const auditorCertified = tallyCertified && auditorState.isComplete;
+  const currentStep = judgeSynced.boardApproved
+    ? 4
+    : auditorCertified
+      ? 4
+      : tallyCertified
+        ? 3
+        : judgeSynced.judgeCertified
+          ? 2
+          : 1;
+  const status = judgeSynced.boardApproved
+    ? 'CERTIFIED'
+    : (judgeSynced.judgeCertified || tallyCertified || auditorCertified)
+      ? 'IN_PROGRESS'
+      : 'PENDING';
+
+  const updated = await prisma.certification.update({
+    where: { id: judgeSynced.id },
+    data: {
+      tallyCertified,
+      auditorCertified,
+      currentStep,
+      status
+    }
+  });
+
+  if (!suppressNotifications && !judgeSynced.tallyCertified && updated.tallyCertified) {
+    await sendStageNotification({
+      prisma,
+      tenantId,
+      categoryId,
+      stage: 'TALLY_CERTIFIED',
+      actorUserId
+    });
+  }
+
+  if (!suppressNotifications && !judgeSynced.auditorCertified && updated.auditorCertified) {
+    await sendStageNotification({
+      prisma,
+      tenantId,
+      categoryId,
+      stage: 'AUDITOR_CERTIFIED',
+      actorUserId
+    });
+  }
+
   return updated;
 }
 
@@ -394,13 +735,11 @@ export async function applyCertificationStage({
   certifiedBy = null,
   userId = null
 }: ApplyStageOptions): Promise<Certification> {
-  let certification = await ensureCertificationRecord({ prisma, tenantId, categoryId, userId });
+  await ensureCertificationRecord({ prisma, tenantId, categoryId, userId });
+  let certification = await refreshRoleStages(prisma, tenantId, categoryId, userId);
 
-  if (role === 'TALLY_MASTER') {
-    certification = await refreshJudgeStage(prisma, tenantId, categoryId);
-    if (!certification.judgeCertified) {
-      throw new Error('Judge certification must be completed first');
-    }
+  if (role === 'TALLY_MASTER' && !certification.judgeCertified) {
+    throw new Error('Judge certification must be completed first');
   }
 
   if (role === 'AUDITOR' && !certification.tallyCertified) {
@@ -411,42 +750,40 @@ export async function applyCertificationStage({
     throw new Error('Auditor certification must be completed first');
   }
 
-  const data: Prisma.CertificationUpdateInput = {
-    comments: comments ?? certification.comments
-  };
-
-  if (role === 'JUDGE') {
-    data.judgeCertified = true;
-    data.currentStep = Math.max(certification.currentStep, 2);
-    data.status = certification.boardApproved ? 'CERTIFIED' : 'IN_PROGRESS';
-  } else if (role === 'TALLY_MASTER') {
-    data.tallyCertified = true;
-    data.currentStep = Math.max(certification.currentStep, 3);
-    data.status = certification.boardApproved ? 'CERTIFIED' : 'IN_PROGRESS';
-  } else if (role === 'AUDITOR') {
-    data.auditorCertified = true;
-    data.currentStep = Math.max(certification.currentStep, 4);
-    data.status = certification.boardApproved ? 'CERTIFIED' : 'IN_PROGRESS';
-  } else if (isFinalApprovalRole(role)) {
-    data.boardApproved = true;
-    data.status = 'CERTIFIED';
-    data.certifiedAt = new Date();
-    data.certifiedBy = certifiedBy ?? userId ?? null;
-    data.currentStep = 4;
+  if (comments !== null && comments !== certification.comments) {
+    certification = await prisma.certification.update({
+      where: { id: certification.id },
+      data: {
+        comments
+      }
+    });
   }
 
-  const updated = await prisma.certification.update({
+  if (!isFinalApprovalRole(role)) {
+    return refreshRoleStages(prisma, tenantId, categoryId, userId);
+  }
+
+  const boardUpdated = await prisma.certification.update({
     where: { id: certification.id },
-    data
+    data: {
+      boardApproved: true,
+      status: 'CERTIFIED',
+      certifiedAt: new Date(),
+      certifiedBy: certifiedBy ?? userId ?? null,
+      currentStep: 4,
+      comments: comments ?? certification.comments
+    }
   });
-  if (role === 'JUDGE' && !certification.judgeCertified && updated.judgeCertified) {
-    await sendStageNotification({ prisma, tenantId, categoryId, stage: 'JUDGE_CERTIFIED', actorUserId: userId });
-  } else if (role === 'TALLY_MASTER' && !certification.tallyCertified && updated.tallyCertified) {
-    await sendStageNotification({ prisma, tenantId, categoryId, stage: 'TALLY_CERTIFIED', actorUserId: userId });
-  } else if (role === 'AUDITOR' && !certification.auditorCertified && updated.auditorCertified) {
-    await sendStageNotification({ prisma, tenantId, categoryId, stage: 'AUDITOR_CERTIFIED', actorUserId: userId });
-  } else if (isFinalApprovalRole(role) && !certification.boardApproved && updated.boardApproved) {
-    await sendStageNotification({ prisma, tenantId, categoryId, stage: 'BOARD_APPROVED', actorUserId: userId });
+
+  if (!certification.boardApproved && boardUpdated.boardApproved) {
+    await sendStageNotification({
+      prisma,
+      tenantId,
+      categoryId,
+      stage: 'BOARD_APPROVED',
+      actorUserId: userId
+    });
   }
-  return updated;
+
+  return boardUpdated;
 }

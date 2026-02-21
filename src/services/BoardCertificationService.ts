@@ -7,7 +7,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma, CategoryCertification } from '@prisma/client';
-import { applyCertificationStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshRoleStages } from '../utils/certificationPipeline';
 
 // Type definitions
 type CategoryWithCertifications = Prisma.CategoryGetPayload<{
@@ -99,16 +99,7 @@ export class BoardCertificationService extends BaseService {
       const auditorCertifications = category.categoryCertifications.filter(
         (cert) => cert.role === 'AUDITOR'
       );
-      const pipelineCertification = await this.prisma.certification.findFirst({
-        where: {
-          tenantId,
-          categoryId
-        },
-        select: {
-          auditorCertified: true,
-          boardApproved: true
-        }
-      });
+      const pipelineCertification = await refreshRoleStages(this.prisma, tenantId, categoryId);
 
       const totalAuditors = assignedAuditors.length;
       const completedAuditors = auditorCertifications.length;
@@ -124,9 +115,7 @@ export class BoardCertificationService extends BaseService {
 
       if (boardCertification || pipelineCertification?.boardApproved) {
         reason = 'Board has already approved this category';
-      } else if (pipelineCertification?.auditorCertified || completedAuditors > 0) {
-        // Unified pipeline: explicit assignment rows are not required as long as
-        // auditor certification evidence exists.
+      } else if (pipelineCertification?.auditorCertified) {
         canCertify = true;
       } else if (totalAuditors === 0) {
         reason = 'Auditor certification must be completed first';
@@ -183,13 +172,11 @@ export class BoardCertificationService extends BaseService {
       }
 
       // Check if Board has already certified
-      const existingCert = await this.prisma.categoryCertification.findUnique({
+      const existingCert = await this.prisma.categoryCertification.findFirst({
         where: {
-          tenantId_categoryId_role: {
-            tenantId,
-            categoryId,
-            role: 'BOARD',
-          },
+          tenantId,
+          categoryId,
+          role: 'BOARD',
         },
       });
 
@@ -341,13 +328,11 @@ export class BoardCertificationService extends BaseService {
   ): Promise<void> {
     try {
       // Get existing Board certification
-      const certification = await this.prisma.categoryCertification.findUnique({
+      const certification = await this.prisma.categoryCertification.findFirst({
         where: {
-          tenantId_categoryId_role: {
-            tenantId,
-            categoryId,
-            role: 'BOARD',
-          },
+          tenantId,
+          categoryId,
+          role: 'BOARD',
         },
       });
 
@@ -357,8 +342,12 @@ export class BoardCertificationService extends BaseService {
 
       // Delete certification and reset category status in a transaction
       await this.prisma.$transaction([
-        this.prisma.categoryCertification.delete({
-          where: { id: certification.id },
+        this.prisma.categoryCertification.deleteMany({
+          where: {
+            tenantId,
+            categoryId,
+            role: 'BOARD'
+          },
         }),
         this.prisma.category.update({
           where: { id: categoryId },

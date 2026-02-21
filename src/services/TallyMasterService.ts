@@ -2,7 +2,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, UserRole, Prisma, RequestStatus } from '@prisma/client';
-import { applyCertificationStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 // P2-4: Comprehensive type definitions for Tally Master service
 type CategoryWithScoresAndContest = Prisma.CategoryGetPayload<{
@@ -701,28 +701,22 @@ export class TallyMasterService extends BaseService {
       },
     });
 
-    await this.prisma.categoryCertification.upsert({
-      where: {
-        tenantId_categoryId_role: {
-          tenantId: category.tenantId,
-          categoryId,
-          role: 'TALLY_MASTER'
-        }
-      },
-      create: {
-        tenantId: category.tenantId,
-        categoryId,
-        role: 'TALLY_MASTER',
-        userId: _userId,
-        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-        comments: signature?.comments || null
-      },
-      update: {
-        userId: _userId,
-        signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-        comments: signature?.comments || null,
-        certifiedAt: new Date()
-      }
+    const synced = await refreshRoleStages(this.prisma, category.tenantId, categoryId, _userId);
+    if (!synced.judgeCertified) {
+      throw this.badRequestError('Judge certification must be completed first');
+    }
+    if (synced.tallyCertified) {
+      throw this.badRequestError('Tally Master certification already completed');
+    }
+
+    await upsertCategoryRoleCertification({
+      prisma: this.prisma,
+      tenantId: category.tenantId,
+      categoryId,
+      role: 'TALLY_MASTER',
+      userId: _userId,
+      signatureName: signature?.typedSignature || (signature?.drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+      comments: signature?.comments || null
     });
 
     await applyCertificationStage({

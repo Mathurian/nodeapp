@@ -23,7 +23,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuthAndTenant } from '../utils/requestValidation';
 import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { resolveBioFromCandidates } from '../utils/bioResolver';
-import { applyCertificationStage, refreshJudgeStage } from '../utils/certificationPipeline';
+import { applyCertificationStage, refreshJudgeStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class ScoringController {
@@ -1122,31 +1122,23 @@ export class ScoringController {
         return sendNotFound(res, 'Category not found');
       }
 
-      // Create or update category certification for TALLY_MASTER
-      const certification = await this.prisma.categoryCertification.upsert({
-        where: {
-          tenantId_categoryId_role: {
-            tenantId: req.user.tenantId,
-            categoryId: categoryId!,
-            role: 'TALLY_MASTER'
-          }
-        },
-        create: {
-          categoryId: categoryId!,
-          role: 'TALLY_MASTER',
-          userId: req.user.id,
-          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null,
-          tenantId: req.user.tenantId
-        },
-        update: {
-          userId: req.user.id,
-          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null,
-          certifiedAt: new Date()
-        },
+      const synced = await refreshRoleStages(this.prisma, req.user.tenantId, categoryId!, req.user.id);
+      if (!synced.judgeCertified) {
+        return sendBadRequest(res, 'Judge must certify first');
+      }
+      if (synced.tallyCertified) {
+        return sendBadRequest(res, 'Tally Master certification already completed');
+      }
+
+      const certification = await upsertCategoryRoleCertification({
+        prisma: this.prisma,
+        tenantId: req.user.tenantId,
+        categoryId: categoryId!,
+        role: 'TALLY_MASTER',
+        userId: req.user.id,
+        boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
+        signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: comments || null
       });
 
       await applyCertificationStage({
@@ -1197,46 +1189,24 @@ export class ScoringController {
         return sendNotFound(res, 'Category not found');
       }
 
-      // Check if Tally Master has certified
-      const tallyMasterCert = await this.prisma.categoryCertification.findUnique({
-        where: {
-          tenantId_categoryId_role: {
-            tenantId: req.user.tenantId,
-            categoryId: categoryId!,
-            role: 'TALLY_MASTER'
-          }
-        }
-      });
-
-      if (!tallyMasterCert) {
+      const synced = await refreshRoleStages(this.prisma, req.user.tenantId, categoryId!, req.user.id);
+      if (!synced.tallyCertified) {
         return sendBadRequest(res, 'Tally Master must certify totals first');
+      }
+      if (synced.auditorCertified) {
+        return sendBadRequest(res, 'Auditor certification already completed');
       }
 
       // Create or update category certification for AUDITOR
-      const certification = await this.prisma.categoryCertification.upsert({
-        where: {
-          tenantId_categoryId_role: {
-            tenantId: req.user.tenantId,
-            categoryId: categoryId!,
-            role: 'AUDITOR'
-          }
-        },
-        create: {
-          categoryId: categoryId!,
-          role: 'AUDITOR',
-          userId: req.user.id,
-          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null,
-          tenantId: req.user.tenantId
-        },
-        update: {
-          userId: req.user.id,
-          boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
-          signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
-          comments: comments || null,
-          certifiedAt: new Date()
-        },
+      const certification = await upsertCategoryRoleCertification({
+        prisma: this.prisma,
+        tenantId: req.user.tenantId,
+        categoryId: categoryId!,
+        role: 'AUDITOR',
+        userId: req.user.id,
+        boardRoleSnapshot: req.user.role === 'BOARD' ? (req.user.boardRole || null) : null,
+        signatureName: signatureName || typedSignature || (drawnSignatureData ? 'DRAWN_SIGNATURE' : null),
+        comments: comments || null
       });
 
       await applyCertificationStage({

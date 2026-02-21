@@ -12,7 +12,9 @@ interface Certification {
   categoryName: string
   eventName: string
   contestName: string
-  auditorId: string
+  auditorId: string | null
+  auditorIds: string[]
+  auditorSignedCount: number
   auditorName: string
   status: string
   certifiedAt: string
@@ -278,8 +280,15 @@ const BoardCertificationsPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {cert.categoryName}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {cert.auditorName}
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                        <div className="flex flex-col">
+                          <span className="break-words">{cert.auditorName}</span>
+                          {cert.auditorSignedCount > 1 && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {cert.auditorSignedCount} auditors signed
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${

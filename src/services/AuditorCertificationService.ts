@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { applyCertificationStage, ensureCertificationRecord } from '../utils/certificationPipeline';
+import { applyCertificationStage, ensureCertificationRecord, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 // P2-4: Proper type definitions for auditor certification responses
 type CategoryJudgeWithJudge = Prisma.CategoryJudgeGetPayload<{
@@ -40,11 +40,12 @@ export class AuditorCertificationService extends BaseService {
       throw this.notFoundError('Category', categoryId);
     }
 
-    const certification = await ensureCertificationRecord({
+    await ensureCertificationRecord({
       prisma: this.prisma,
       tenantId: category.tenantId,
       categoryId
     });
+    const certification = await refreshRoleStages(this.prisma, category.tenantId, categoryId);
 
     const tallyCertifications = await this.prisma.categoryCertification.findMany({
       where: { categoryId, role: 'TALLY_MASTER' },
@@ -61,7 +62,7 @@ export class AuditorCertificationService extends BaseService {
     const requiredTallyCertifications = categoryJudges.length;
     const completedTallyCertifications = tallyCertifications.length;
 
-    const canCertify = certification.tallyCertified || completedTallyCertifications >= requiredTallyCertifications;
+    const canCertify = certification.tallyCertified;
     const alreadyCertified = !!auditorCertification;
 
     const allScores = await this.prisma.score.findMany({
@@ -128,25 +129,20 @@ export class AuditorCertificationService extends BaseService {
       throw this.forbiddenError('Only AUDITOR role can submit final certification');
     }
 
-    const certification = await this.prisma.categoryCertification.upsert({
-      where: {
-        tenantId_categoryId_role: {
-          tenantId: auditor.tenantId,
-          categoryId,
-          role: 'AUDITOR'
-        }
-      },
-      create: {
-        tenantId: auditor.tenantId,
-        categoryId,
-        role: 'AUDITOR',
-        userId,
-        certifiedAt: new Date()
-      },
-      update: {
-        userId,
-        certifiedAt: new Date()
-      }
+    const synced = await refreshRoleStages(this.prisma, auditor.tenantId, categoryId, userId);
+    if (!synced.tallyCertified) {
+      throw this.badRequestError('Tally Master certification must be completed first');
+    }
+    if (synced.auditorCertified) {
+      throw this.badRequestError('Final certification has already been completed for this category');
+    }
+
+    const certification = await upsertCategoryRoleCertification({
+      prisma: this.prisma,
+      tenantId: auditor.tenantId,
+      categoryId,
+      role: 'AUDITOR',
+      userId
     });
 
     await applyCertificationStage({

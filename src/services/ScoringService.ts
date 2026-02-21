@@ -21,6 +21,10 @@ type ScoreWithRelations = Prisma.ScoreGetPayload<{
     comment: true;
     certifiedAt: true;
     certifiedBy: true;
+    isCertified: true;
+    isLocked: true;
+    lockedAt: true;
+    lockedBy: true;
     createdAt: true;
     updatedAt: true;
     tenantId: true;
@@ -129,6 +133,10 @@ const SCORE_WITH_RELATIONS_SELECT = {
   comment: true,
   certifiedAt: true,
   certifiedBy: true,
+  isCertified: true,
+  isLocked: true,
+  lockedAt: true,
+  lockedBy: true,
   createdAt: true,
   updatedAt: true,
   tenantId: true,
