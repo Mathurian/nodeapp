@@ -95,9 +95,10 @@ See [Security Guide - Permission Matrix](07-SECURITY.md#permission-matrix) for c
 - **Health Check**: http://conmgr.com/health
 
 ### Monitoring & Metrics (Production)
-- **Grafana Dashboard**: http://conmgr.com/monitoring/grafana/ (admin/admin)
-- **Prometheus**: http://conmgr.com/monitoring/prometheus/
-- **Metrics Endpoint**: http://conmgr.com/metrics
+- **Grafana Dashboard (SSO)**: https://conmgr.com/monitoring/grafana/
+- **Grafana Breakglass**: https://conmgr.com/monitoring/grafana-breakglass
+- **Prometheus**: https://conmgr.com/monitoring/prometheus/
+- **Metrics Endpoint**: https://conmgr.com/metrics
 
 ### Development Tools
 - **Playwright Test UI**: Run `npm run test:e2e:ui` (interactive testing)

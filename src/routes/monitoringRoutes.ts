@@ -9,10 +9,17 @@ import {
   reportTestStart,
   updateServiceStatus,
   getSystemStatus,
+  authorizeGrafanaProxy,
 } from '../controllers/monitoringController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
+
+/**
+ * GET /api/monitoring/grafana/auth-proxy
+ * Nginx auth_request endpoint for Grafana SSO bridge.
+ */
+router.get('/grafana/auth-proxy', authenticateToken, authorizeGrafanaProxy);
 
 // Monitoring is privileged operational telemetry.
 router.use(authenticateToken);

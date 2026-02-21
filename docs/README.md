@@ -177,9 +177,10 @@ Welcome to the complete documentation for Event Manager Contest System!
 - **System Health**: http://conmgr.com/health
 
 ### Monitoring & Tools
-- **Grafana Dashboard**: http://conmgr.com/monitoring/grafana/
-- **Prometheus**: http://conmgr.com/monitoring/prometheus/
-- **Metrics Endpoint**: http://conmgr.com/metrics
+- **Grafana Dashboard (SSO)**: https://conmgr.com/monitoring/grafana/
+- **Grafana Breakglass**: https://conmgr.com/monitoring/grafana-breakglass
+- **Prometheus**: https://conmgr.com/monitoring/prometheus/
+- **Metrics Endpoint**: https://conmgr.com/metrics
 - **Database GUI**: Run `npx prisma studio`
 
 ### Development Tools

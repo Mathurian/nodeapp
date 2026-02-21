@@ -14,6 +14,12 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 const logger = createLogger('MonitoringController');
 const SAFE_SUITE_PATTERN = /^(unit|integration|e2e)([._:-][a-zA-Z0-9._:-]{1,40})?$/;
+const GRAFANA_ALLOWED_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']);
+const GRAFANA_ROLE_MAP: Record<string, 'Admin' | 'Viewer'> = {
+  SUPER_ADMIN: 'Admin',
+  ADMIN: 'Viewer',
+  ORGANIZER: 'Viewer',
+};
 const ALLOWED_SERVICE_LABELS = new Set([
   'backend-production',
   'grafana',
@@ -26,6 +32,8 @@ const ALLOWED_SERVICE_LABELS = new Set([
 ]);
 
 const normalizeLabel = (value: unknown): string => String(value ?? '').trim();
+const toSafeHeaderValue = (value: unknown): string =>
+  String(value ?? '').replace(/[\r\n]/g, '').trim();
 
 export class MonitoringController {
   private metricsService: MetricsService;
@@ -168,6 +176,54 @@ export class MonitoringController {
     } catch (error) {
       logger.error('Error getting system status:', error);
       return res.status(500).json({ success: false, message: 'Failed to get system status' });
+    }
+  };
+
+  /**
+   * GET /api/monitoring/grafana/auth-proxy
+   * Validate app session for Grafana auth.proxy and return identity headers.
+   */
+  authorizeGrafanaProxy = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      if (!req.user) {
+        return res.status(401).send('Unauthorized');
+      }
+
+      const appRole = normalizeLabel(req.user.role).toUpperCase();
+      if (!GRAFANA_ALLOWED_ROLES.has(appRole)) {
+        logger.warn('Grafana auth proxy denied: role not permitted', {
+          userId: req.user.id,
+          role: req.user.role,
+          tenantId: req.user.tenantId,
+        });
+        return res.status(403).send('Forbidden');
+      }
+
+      const grafanaUser = toSafeHeaderValue(req.user.email || req.user.id);
+      if (!grafanaUser) {
+        logger.warn('Grafana auth proxy denied: missing username source', {
+          userId: req.user.id,
+          role: req.user.role,
+        });
+        return res.status(403).send('Forbidden');
+      }
+
+      const grafanaEmail = toSafeHeaderValue(req.user.email);
+      const grafanaName = toSafeHeaderValue(req.user.preferredName || req.user.name || req.user.email || grafanaUser);
+      const grafanaRole = GRAFANA_ROLE_MAP[appRole] || 'Viewer';
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Grafana-User', grafanaUser);
+      res.setHeader('X-Grafana-Email', grafanaEmail);
+      res.setHeader('X-Grafana-Name', grafanaName);
+      res.setHeader('X-Grafana-Role', grafanaRole);
+      res.setHeader('X-Grafana-Tenant-Id', toSafeHeaderValue(req.user.tenantId || req.tenantId || ''));
+      res.setHeader('X-Grafana-Tenant-Slug', toSafeHeaderValue(req.tenant?.slug || ''));
+
+      return res.status(204).send();
+    } catch (error) {
+      logger.error('Error during Grafana auth proxy validation:', error);
+      return res.status(500).send('Internal Server Error');
     }
   };
 
@@ -324,3 +380,4 @@ export const reportTestResults = controller.reportTestResults;
 export const reportTestStart = controller.reportTestStart;
 export const updateServiceStatus = controller.updateServiceStatus;
 export const getSystemStatus = controller.getSystemStatus;
+export const authorizeGrafanaProxy = controller.authorizeGrafanaProxy;

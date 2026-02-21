@@ -27,6 +27,7 @@ All services are accessible through the main domain or localhost:
 | **Backend API** | https://conmgr.com/api/ | http://localhost:3000/api/ | 80 → 3000 | REST API endpoints |
 | **API Documentation** | https://conmgr.com/api-docs | http://localhost:3000/api-docs | 80 → 3000 | Swagger/OpenAPI docs |
 | **Grafana Dashboard** | https://conmgr.com/monitoring/grafana/ | http://localhost:3001 | 80 → 3001 | Performance monitoring |
+| **Grafana Breakglass** | https://conmgr.com/monitoring/grafana-breakglass | http://SERVER_IP/monitoring/grafana-breakglass | 80 → 3001 | Emergency fallback access |
 | **Prometheus Metrics** | https://conmgr.com/monitoring/prometheus/ | http://localhost:9090 | 80 → 9090 | Metrics collection |
 | **Metrics Endpoint** | https://conmgr.com/metrics | http://localhost:3000/metrics | 80 → 3000 | Raw Prometheus metrics |
 | **Health Check** | https://conmgr.com/health | http://localhost:3000/health | 80 → 3000 | System health status |
@@ -36,9 +37,9 @@ All services are accessible through the main domain or localhost:
 ### Default Credentials
 
 **Grafana Dashboard**:
-- Username: `admin`
-- Password: `admin` (Change on first login!)
-- **⚠️ IMPORTANT**: Change the default password immediately after first login
+- Primary access is app SSO via `SUPER_ADMIN`, `ADMIN`, or `ORGANIZER` accounts.
+- Breakglass credentials are stored in `/etc/event-manager/grafana-breakglass.credentials` (root-only).
+- Native Grafana local login remains available for emergency recovery only.
 
 **PostgreSQL Database**:
 - Username: Configured in `.env` file
@@ -49,7 +50,10 @@ All services are accessible through the main domain or localhost:
 
 ### Grafana Dashboard
 
-**Access**: https://conmgr.com/monitoring/grafana/
+**Access**:
+- Standard SSO: `https://conmgr.com/monitoring/grafana/`
+- Breakglass shortcut: `https://conmgr.com/monitoring/grafana-breakglass`
+- Direct fallback path: `http://SERVER_IP/monitoring/grafana-breakglass`
 
 **Features**:
 - Real-time performance metrics
