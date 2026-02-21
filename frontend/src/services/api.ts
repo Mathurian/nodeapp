@@ -214,6 +214,7 @@ export const resultsAPI = {
 export const winnersAPI = {
   getAll: (params?: { eventId?: string; contestId?: string }) => api.get('/winners', { params }),
   getByContest: (contestId: string) => api.get(`/winners/contest/${contestId}`),
+  getPublicationOverview: (params?: { eventId?: string }) => api.get('/winners/publication-overview', { params }),
   getPublicationStatus: (contestId: string) => api.get(`/winners/contest/${contestId}/publication-status`),
   publish: (contestId: string) => api.post(`/winners/contest/${contestId}/publish`),
   unpublish: (contestId: string, reason: string) => api.post(`/winners/contest/${contestId}/unpublish`, { reason }),

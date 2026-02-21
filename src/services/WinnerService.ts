@@ -1112,7 +1112,99 @@ export class WinnerService extends BaseService {
         .map((cat) => ({
           id: cat.id,
           name: cat.name,
-        })),
+      })),
+    };
+  }
+
+  /**
+   * Get winners publication overview for all active contests in a tenant (optionally filtered by event).
+   */
+  async getWinnersPublicationOverview(tenantId: string, eventId?: string) {
+    const contests = await this.prisma.contest.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        archived: false,
+        ...(eventId ? { eventId } : {}),
+        event: {
+          deletedAt: null,
+          archived: false,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        winnersPublished: true,
+        publishedAt: true,
+        publishedBy: true,
+        eventId: true,
+        event: {
+          select: {
+            name: true,
+          },
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            categoryCertifications: {
+              where: {
+                role: 'BOARD',
+                tenantId,
+              },
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { eventId: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+
+    const publicationStatuses = contests.map((contest) => {
+      const totalCategories = contest.categories.length;
+      const approvedCategories = contest.categories.filter(
+        (category) => category.categoryCertifications.length > 0
+      ).length;
+      const pendingCategories = totalCategories - approvedCategories;
+      const canPublish =
+        !contest.winnersPublished &&
+        totalCategories > 0 &&
+        approvedCategories === totalCategories;
+
+      return {
+        contestId: contest.id,
+        contestName: contest.name,
+        eventId: contest.eventId,
+        eventName: contest.event?.name || 'Unknown Event',
+        winnersPublished: contest.winnersPublished,
+        publishedAt: contest.publishedAt,
+        publishedBy: contest.publishedBy,
+        canPublish,
+        categories: {
+          total: totalCategories,
+          approved: approvedCategories,
+          pending: pendingCategories,
+        },
+      };
+    });
+
+    const readyToPublish = publicationStatuses.filter((status) => status.canPublish).length;
+    const published = publicationStatuses.filter((status) => status.winnersPublished).length;
+    const unpublished = publicationStatuses.length - published;
+
+    return {
+      contests: publicationStatuses,
+      totals: {
+        contests: publicationStatuses.length,
+        readyToPublish,
+        published,
+        unpublished,
+      },
     };
   }
 

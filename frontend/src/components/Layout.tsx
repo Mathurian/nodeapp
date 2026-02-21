@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,7 +6,7 @@ import { useTenant } from '../contexts/TenantContext'
 import { useSocket } from '../contexts/SocketContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
-import { settingsAPI, notificationsAPI } from '../services/api'
+import { settingsAPI, notificationsAPI, winnersAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import AccordionNav from './AccordionNav'
 import Breadcrumb, { BreadcrumbItem } from './Breadcrumb'
@@ -30,6 +30,20 @@ import {
 interface LayoutProps {
   children: React.ReactNode
   onOpenCommandPalette?: () => void
+}
+
+interface PendingPublicationContest {
+  contestId: string
+  contestName: string
+  canPublish: boolean
+  winnersPublished: boolean
+}
+
+interface PendingPublicationOverview {
+  contests?: PendingPublicationContest[]
+  totals?: {
+    readyToPublish?: number
+  }
 }
 
 const SIDEBAR_STORAGE_KEY = 'event-manager-sidebar-open'
@@ -356,6 +370,33 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       refetchIntervalInBackground: true,
       retry: false,
     }
+  )
+
+  const canSeeWinnersPublishAlert = Boolean(
+    user && ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(user.role || '')
+  )
+
+  const { data: winnersPublicationOverview } = useQuery<PendingPublicationOverview | null>(
+    ['winners-publication-overview-banner', user?.tenantId, user?.role],
+    async () => {
+      const response = await winnersAPI.getPublicationOverview()
+      return response.data?.data || response.data
+    },
+    {
+      enabled: canSeeWinnersPublishAlert,
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchIntervalInBackground: true,
+      retry: false,
+    }
+  )
+
+  const contestsReadyToPublish = useMemo(
+    () =>
+      (winnersPublicationOverview?.contests || []).filter(
+        (contest) => contest.canPublish && !contest.winnersPublished
+      ),
+    [winnersPublicationOverview]
   )
 
   const { data: systemStatus = 'Unknown' } = useQuery<string>(
@@ -823,6 +864,33 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
           </>
         )}
       </div>
+
+      {user && contestsReadyToPublish.length > 0 && (
+        <div className="border-b border-amber-200 bg-amber-50/95 dark:border-amber-900/50 dark:bg-amber-950/30 safe-area-left safe-area-right">
+          <div className="px-4 lg:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-amber-900 dark:text-amber-200">
+              <span className="font-semibold">
+                {winnersPublicationOverview?.totals?.readyToPublish ?? contestsReadyToPublish.length}
+              </span>{' '}
+              contest result{contestsReadyToPublish.length === 1 ? '' : 's'} ready for board/organizer publication.
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                to={`${buildPath('/winners')}?contestId=${encodeURIComponent(contestsReadyToPublish[0]!.contestId)}`}
+                className="text-sm font-medium text-amber-900 underline decoration-amber-500 underline-offset-2 hover:text-amber-700 dark:text-amber-100 dark:hover:text-amber-300"
+              >
+                Publish now
+              </Link>
+              <Link
+                to={buildPath('/winners')}
+                className="text-sm font-medium text-amber-900 underline decoration-amber-500 underline-offset-2 hover:text-amber-700 dark:text-amber-100 dark:hover:text-amber-300"
+              >
+                View all
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (

@@ -1,12 +1,19 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { contestsAPI, resultsAPI, winnersAPI } from '../services/api'
+import { contestsAPI, eventsAPI, resultsAPI, winnersAPI } from '../services/api'
 import { TrophyIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader } from '../components/ui'
 
 interface Contest {
+  id: string
+  name: string
+  eventId: string
+}
+
+interface Event {
   id: string
   name: string
 }
@@ -54,10 +61,36 @@ interface PublicationStatus {
   }
 }
 
+interface PublicationOverviewContest {
+  contestId: string
+  contestName: string
+  eventId: string
+  eventName: string
+  winnersPublished: boolean
+  canPublish: boolean
+  categories: {
+    total: number
+    approved: number
+    pending: number
+  }
+}
+
+interface PublicationOverviewPayload {
+  contests: PublicationOverviewContest[]
+  totals: {
+    contests: number
+    readyToPublish: number
+    published: number
+    unpublished: number
+  }
+}
+
 const WinnersPage: React.FC = () => {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
-  const [selectedContestId, setSelectedContestId] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState<string>(searchParams.get('eventId') || 'ALL')
+  const [selectedContestId, setSelectedContestId] = useState<string>(searchParams.get('contestId') || 'ALL')
 
   const canManagePublish = useMemo(
     () => ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || ''),
@@ -69,37 +102,74 @@ const WinnersPage: React.FC = () => {
     [user?.role]
   )
 
-  const { data: contests = [] } = useQuery<Contest[]>(
-    ['winners-contests'],
+  const isOverviewMode = selectedContestId === 'ALL'
+
+  const { data: events = [] } = useQuery<Event[]>(
+    ['winners-events'],
     async () => {
-      const response = await contestsAPI.getAll()
+      const response = await eventsAPI.getAll({ archived: false })
       const payload = response.data?.data || response.data
       return Array.isArray(payload) ? payload : []
     },
     { retry: 1 }
   )
 
+  const { data: contests = [] } = useQuery<Contest[]>(
+    ['winners-contests', selectedEventId],
+    async () => {
+      const response = await contestsAPI.getAll(
+        selectedEventId !== 'ALL' ? { eventId: selectedEventId } : undefined
+      )
+      const payload = response.data?.data || response.data
+      return Array.isArray(payload) ? payload : []
+    },
+    { retry: 1 }
+  )
+
+  useEffect(() => {
+    if (selectedContestId === 'ALL') return
+    if (!contests.some((contest) => contest.id === selectedContestId)) {
+      setSelectedContestId('ALL')
+    }
+  }, [contests, selectedContestId])
+
+  const { data: publicationOverview } = useQuery<PublicationOverviewPayload | null>(
+    ['winners-publication-overview', selectedEventId],
+    async () => {
+      const response = await winnersAPI.getPublicationOverview(
+        selectedEventId !== 'ALL' ? { eventId: selectedEventId } : undefined
+      )
+      return response.data?.data || response.data
+    },
+    { enabled: isOverviewMode && canCheckPublicationStatus, retry: 1 }
+  )
+
   const { data: publicationStatus, isLoading: isPublicationStatusLoading } = useQuery<PublicationStatus | null>(
     ['winners-publication-status', selectedContestId],
     async () => {
-      if (!selectedContestId || !canCheckPublicationStatus) return null
+      if (!selectedContestId || isOverviewMode || !canCheckPublicationStatus) return null
       const response = await winnersAPI.getPublicationStatus(selectedContestId)
       return response.data?.data || response.data
     },
-    { enabled: !!selectedContestId && canCheckPublicationStatus, retry: 1 }
+    { enabled: !!selectedContestId && !isOverviewMode && canCheckPublicationStatus, retry: 1 }
   )
 
-  const shouldHideForUnpublishedEmcee = isEmcee && selectedContestId && publicationStatus && !publicationStatus.winnersPublished
+  const shouldHideForUnpublishedEmcee =
+    !isOverviewMode &&
+    isEmcee &&
+    Boolean(selectedContestId) &&
+    publicationStatus &&
+    !publicationStatus.winnersPublished
 
   const { data: winnersResponse, error: winnersError } = useQuery<ContestWinnersPayload | null>(
     ['winners-by-contest', selectedContestId],
     async () => {
-      if (!selectedContestId) return null
+      if (!selectedContestId || isOverviewMode) return null
       const response = await winnersAPI.getByContest(selectedContestId)
       return response.data?.data || response.data
     },
     {
-      enabled: !!selectedContestId && (!isEmcee || publicationStatus?.winnersPublished === true),
+      enabled: !!selectedContestId && !isOverviewMode && (!isEmcee || publicationStatus?.winnersPublished === true),
       retry: 1
     }
   )
@@ -107,13 +177,13 @@ const WinnersPage: React.FC = () => {
   const { data: fallbackContestScores = [] } = useQuery<ContestScoreRow[]>(
     ['winners-fallback-contest-results', selectedContestId],
     async () => {
-      if (!selectedContestId) return []
+      if (!selectedContestId || isOverviewMode) return []
       const response = await resultsAPI.getContestResults(selectedContestId)
       const payload = response.data?.data || response.data
       return Array.isArray(payload) ? payload : []
     },
     {
-      enabled: !!selectedContestId && (!isEmcee || publicationStatus?.winnersPublished === true),
+      enabled: !!selectedContestId && !isOverviewMode && (!isEmcee || publicationStatus?.winnersPublished === true),
       retry: 1
     }
   )
@@ -142,7 +212,7 @@ const WinnersPage: React.FC = () => {
 
   const effectiveWinners: Winner[] = useMemo(() => {
     if (winners.length > 0) return winners
-    if (!selectedContestId || fallbackContestScores.length === 0) return []
+    if (!selectedContestId || isOverviewMode || fallbackContestScores.length === 0) return []
 
     const totals = new Map<string, { contestant: ContestScoreRow['contestant']; total: number }>()
     for (const row of fallbackContestScores) {
@@ -159,21 +229,30 @@ const WinnersPage: React.FC = () => {
         totalScore: row.total,
         rank: index + 1
       }))
-  }, [fallbackContestScores, selectedContestId, winners])
+  }, [fallbackContestScores, isOverviewMode, selectedContestId, winners])
 
   const publishMutation = useMutation(
-    async () => winnersAPI.publish(selectedContestId),
+    async (contestId: string) => winnersAPI.publish(contestId),
     {
-      onSuccess: async () => {
+      onSuccess: async (_, contestId) => {
         toast.success('Winners published')
-        await queryClient.invalidateQueries(['winners-publication-status', selectedContestId])
-        await queryClient.invalidateQueries(['winners-by-contest', selectedContestId])
+        await queryClient.invalidateQueries(['winners-publication-overview'])
+        await queryClient.invalidateQueries(['winners-publication-status', contestId])
+        await queryClient.invalidateQueries(['winners-by-contest', contestId])
       },
       onError: (error: any) => {
         toast.error(error?.response?.data?.message || error?.response?.data?.error || 'Failed to publish winners')
       }
     }
   )
+
+  const eventsById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const event of events) {
+      map.set(event.id, event.name)
+    }
+    return map
+  }, [events])
 
   return (
     <div className="cgr-page-container">
@@ -184,21 +263,45 @@ const WinnersPage: React.FC = () => {
         />
 
         <Card className="rounded-lg p-4 mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Contest
-          </label>
-          <select
-            value={selectedContestId}
-            onChange={(e) => setSelectedContestId(e.target.value)}
-            className="w-full md:w-96 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-          >
-            <option value="">Select a contest...</option>
-            {contests.map((contest) => (
-              <option key={contest.id} value={contest.id}>{contest.name}</option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Event
+              </label>
+              <select
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              >
+                <option value="ALL">All events</option>
+                {events.map((event) => (
+                  <option key={event.id} value={event.id}>{event.name}</option>
+                ))}
+              </select>
+            </div>
 
-          {selectedContestId && publicationStatus && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Contest
+              </label>
+              <select
+                value={selectedContestId}
+                onChange={(e) => setSelectedContestId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+              >
+                <option value="ALL">All contests (status overview)</option>
+                {contests.map((contest) => (
+                  <option key={contest.id} value={contest.id}>
+                    {selectedEventId === 'ALL'
+                      ? `${eventsById.get(contest.eventId) || 'Unknown Event'} / ${contest.name}`
+                      : contest.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {!isOverviewMode && selectedContestId && publicationStatus && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${publicationStatus.winnersPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                 {publicationStatus.winnersPublished ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />}
@@ -211,7 +314,7 @@ const WinnersPage: React.FC = () => {
               )}
               {canManagePublish && !publicationStatus.winnersPublished && (
                 <Button
-                  onClick={() => publishMutation.mutate()}
+                  onClick={() => publishMutation.mutate(selectedContestId)}
                   disabled={!publicationStatus.canPublish || publishMutation.isLoading}
                 >
                   {publishMutation.isLoading ? 'Publishing...' : 'Publish Winners'}
@@ -221,25 +324,86 @@ const WinnersPage: React.FC = () => {
           )}
         </Card>
 
-        {selectedContestId && winnersError && (
+        {isOverviewMode && publicationOverview && (
+          <Card className="rounded-lg p-6 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                Contests: {publicationOverview.totals.contests}
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-800">
+                Ready to publish: {publicationOverview.totals.readyToPublish}
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+                Published: {publicationOverview.totals.published}
+              </span>
+            </div>
+
+            {publicationOverview.contests.length === 0 ? (
+              <p className="text-gray-600 dark:text-gray-400">No active contests found for the selected event filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {publicationOverview.contests.map((contest) => {
+                  const isPublishingThisContest =
+                    publishMutation.isLoading && publishMutation.variables === contest.contestId
+
+                  return (
+                    <div key={contest.contestId} className="rounded-md border border-gray-200 dark:border-gray-700 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{contest.eventName}</p>
+                          <p className="text-base font-semibold text-gray-900 dark:text-white">{contest.contestName}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                            Categories approved: {contest.categories.approved}/{contest.categories.total}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${contest.winnersPublished ? 'bg-green-100 text-green-800' : contest.canPublish ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'}`}>
+                            {contest.winnersPublished ? <LockOpenIcon className="h-4 w-4" /> : <LockClosedIcon className="h-4 w-4" />}
+                            {contest.winnersPublished ? 'Published' : contest.canPublish ? 'Ready to publish' : 'Awaiting certification'}
+                          </span>
+                          <Button
+                            onClick={() => setSelectedContestId(contest.contestId)}
+                            variant="secondary"
+                          >
+                            View Details
+                          </Button>
+                          {canManagePublish && !contest.winnersPublished && (
+                            <Button
+                              onClick={() => publishMutation.mutate(contest.contestId)}
+                              disabled={!contest.canPublish || isPublishingThisContest}
+                            >
+                              {isPublishingThisContest ? 'Publishing...' : 'Publish Winners'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {!isOverviewMode && selectedContestId && winnersError && (
           <Card className="bg-yellow-50 border-yellow-200 rounded-lg p-6 text-yellow-800">
             Results not finalized
           </Card>
         )}
 
-        {selectedContestId && isEmcee && isPublicationStatusLoading && (
+        {!isOverviewMode && selectedContestId && isEmcee && isPublicationStatusLoading && (
           <Card className="bg-slate-50 border-slate-200 rounded-lg p-6 text-slate-700">
             Checking publication status...
           </Card>
         )}
 
-        {selectedContestId && shouldHideForUnpublishedEmcee && (
+        {!isOverviewMode && selectedContestId && shouldHideForUnpublishedEmcee && (
           <Card className="bg-yellow-50 border-yellow-200 rounded-lg p-6 text-yellow-800">
             Results not finalized
           </Card>
         )}
 
-        {selectedContestId && !winnersError && !shouldHideForUnpublishedEmcee && (!isEmcee || !isPublicationStatusLoading) && (
+        {!isOverviewMode && selectedContestId && !winnersError && !shouldHideForUnpublishedEmcee && (!isEmcee || !isPublicationStatusLoading) && (
           <Card className="rounded-lg p-6">
             {effectiveWinners.length === 0 ? (
               <div className="space-y-2">

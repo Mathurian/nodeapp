@@ -347,6 +347,29 @@ export class WinnersController {
       return next(error);
     }
   };
+
+  /**
+   * Get winners publication overview for all active contests in tenant.
+   */
+  getWinnersPublicationOverview = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { eventId } = req.query;
+      const user = (req as any).user;
+
+      const result = await this.winnerService.getWinnersPublicationOverview(
+        user.tenantId,
+        typeof eventId === 'string' ? eventId : undefined
+      );
+
+      sendSuccess(res, result);
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and methods
@@ -362,3 +385,4 @@ export const certifyScores = controller.certifyScores;
 export const publishWinners = controller.publishWinners;
 export const unpublishWinners = controller.unpublishWinners;
 export const getWinnersPublicationStatus = controller.getWinnersPublicationStatus;
+export const getWinnersPublicationOverview = controller.getWinnersPublicationOverview;
