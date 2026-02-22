@@ -329,10 +329,10 @@ export const backupAPI = {
   getAll: () => api.get('/backups'),
   create: (type: 'FULL' | 'SCHEMA' | 'DATA', destination: 'LOCAL' | 'OFF_SITE' | 'BOTH' = 'LOCAL') =>
     api.post('/backups', { type, destination }),
-  getSchedules: () => api.get('/backups/settings'),
-  createSchedule: (payload: any) => api.post('/backups/settings', payload),
-  updateSchedule: (id: string, payload: any) => api.put(`/backups/settings/${id}`, payload),
-  deleteSchedule: (id: string) => api.delete(`/backups/settings/${id}`),
+  getSchedules: (scopeQuery: string = '') => api.get(`/backups/settings${scopeQuery}`),
+  createSchedule: (payload: any, scopeQuery: string = '') => api.post(`/backups/settings${scopeQuery}`, payload),
+  updateSchedule: (id: string, payload: any, scopeQuery: string = '') => api.put(`/backups/settings/${id}${scopeQuery}`, payload),
+  deleteSchedule: (id: string, scopeQuery: string = '') => api.delete(`/backups/settings/${id}${scopeQuery}`),
   list: () => api.get('/backups'),
   download: async (backupId: string) => {
     const response = await api.get(`/backups/${backupId}/download`, { responseType: 'blob' })

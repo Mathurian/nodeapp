@@ -92,8 +92,8 @@ router.post('/restore-from-file', requireRole(['SUPER_ADMIN']), upload.single('f
  *       200:
  *         description: Backup settings retrieved successfully
  */
-router.get('/settings', requireRole(['SUPER_ADMIN']), getBackupSettings)
-router.post('/settings', requireRole(['SUPER_ADMIN']), logActivity('CREATE_BACKUP_SETTING', 'BACKUP'), createBackupSetting)
+router.get('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getBackupSettings)
+router.post('/settings', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('CREATE_BACKUP_SETTING', 'BACKUP'), createBackupSetting)
 router.put('/settings/:id', requireRole(['SUPER_ADMIN']), logActivity('UPDATE_BACKUP_SETTING', 'BACKUP'), updateBackupSetting)
 router.delete('/settings/:id', requireRole(['SUPER_ADMIN']), logActivity('DELETE_BACKUP_SETTING', 'BACKUP'), deleteBackupSetting)
 

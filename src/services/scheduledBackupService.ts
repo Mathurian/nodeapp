@@ -1,4 +1,4 @@
-import { PrismaClient, BackupSetting } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
@@ -9,14 +9,51 @@ import BackupTransferService, { BackupTarget } from './BackupTransferService';
 import { SettingsService } from './SettingsService';
 import { uploadToRuntimeRemoteTarget } from './runtimeBackupUploadService';
 import { resolveDefaultTenantId } from '../utils/defaultTenantResolver';
+import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
+import {
+  BackupScheduleFrequency,
+  BackupScheduleOverride,
+  BackupTypeBase,
+  applyScheduleOverride,
+  buildScheduleIdentity,
+  encodeStoredBackupType,
+  isValidScheduleFrequency,
+  normalizeStoredBackupType,
+  parseScheduleOverrides,
+  sortBackupScheduleRows,
+} from '../utils/backupScheduleConfig';
 import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('ScheduledBackupService');
 
+type ScheduledScope = 'platform' | 'tenant';
+type ScheduleSource = 'global' | 'tenant_override';
+
+interface ScheduledBackupDefinition {
+  id: string;
+  backupType: string;
+  frequency: BackupScheduleFrequency;
+  frequencyValue: number | null;
+  retentionDays: number;
+  enabled: boolean;
+  tenantId: string | null;
+  scope: ScheduledScope;
+  source: ScheduleSource;
+}
+
+interface ActiveScheduleSummary {
+  backupType: string;
+  frequency: string;
+  isActive: boolean;
+  tenantId: string | null;
+  scope: ScheduledScope;
+  source: ScheduleSource;
+}
 
 class ScheduledBackupService {
   private prisma: PrismaClient;
   private jobs: Map<string, ReturnType<typeof cron.schedule>>;
+  private jobSummaries: Map<string, ActiveScheduleSummary>;
   private isRunning: boolean;
   private settingsRefreshInterval: NodeJS.Timeout | null;
   private systemTenantId: string | null;
@@ -24,6 +61,7 @@ class ScheduledBackupService {
   constructor(prismaClient: PrismaClient) {
     this.prisma = prismaClient;
     this.jobs = new Map();
+    this.jobSummaries = new Map();
     this.isRunning = false;
     this.settingsRefreshInterval = null;
     this.systemTenantId = null;
@@ -57,6 +95,135 @@ class ScheduledBackupService {
       const settingsService = new SettingsService(db);
       return settingsService.getBackupSettings(tenantId);
     });
+  }
+
+  private isDefaultTenant(tenantId: string, tenantSlug: string): boolean {
+    const segregationConfig = getTenantSegregationConfig();
+    const normalizedId = String(tenantId || '').trim().toLowerCase();
+    const normalizedSlug = String(tenantSlug || '').trim().toLowerCase();
+    return (
+      segregationConfig.defaultTenantIds.map((value) => String(value || '').trim().toLowerCase()).includes(normalizedId) ||
+      segregationConfig.defaultTenantSlugs.map((value) => String(value || '').trim().toLowerCase()).includes(normalizedSlug)
+    );
+  }
+
+  private parseFrequency(rawValue: string, fallback: BackupScheduleFrequency): BackupScheduleFrequency {
+    const upper = String(rawValue || '').toUpperCase();
+    return isValidScheduleFrequency(upper) ? upper : fallback;
+  }
+
+  private asBaseType(rawType: string): BackupTypeBase {
+    const normalized = String(rawType || '').toUpperCase();
+    if (normalized === 'FULL' || normalized === 'SCHEMA' || normalized === 'DATA') {
+      return normalized;
+    }
+    return 'FULL';
+  }
+
+  private toDefinition(
+    id: string,
+    storedType: string,
+    frequency: string,
+    frequencyValue: number | null,
+    retentionDays: number,
+    enabled: boolean,
+    tenantId: string | null,
+    scope: ScheduledScope,
+    source: ScheduleSource
+  ): ScheduledBackupDefinition {
+    return {
+      id,
+      backupType: storedType,
+      frequency: this.parseFrequency(frequency, 'DAILY'),
+      frequencyValue,
+      retentionDays: Number(retentionDays || 30),
+      enabled: Boolean(enabled),
+      tenantId,
+      scope,
+      source,
+    };
+  }
+
+  private async loadScheduledDefinitions(): Promise<ScheduledBackupDefinition[]> {
+    const [globalSettings, tenants, allOverrideRows] = await this.withSystemDbContext(async db =>
+      Promise.all([
+        db.backupSetting.findMany({
+          orderBy: [{ backupType: 'asc' }, { createdAt: 'asc' }],
+        }),
+        db.tenant.findMany({
+          where: { isActive: true },
+          select: { id: true, slug: true },
+        }),
+        db.systemSetting.findMany({
+          where: {
+            category: 'backup',
+            key: { startsWith: 'backup_schedule_' },
+            tenantId: { not: null },
+          },
+          select: { tenantId: true, key: true, value: true },
+        }),
+      ])
+    );
+
+    const globalRows = sortBackupScheduleRows(
+      globalSettings.map((setting) => ({
+        id: setting.id,
+        ...normalizeStoredBackupType(setting.backupType),
+        enabled: Boolean(setting.enabled),
+        frequency: this.parseFrequency(setting.frequency, 'DAILY'),
+        frequencyValue: setting.frequencyValue ?? null,
+        retentionDays: Number(setting.retentionDays || 30),
+      }))
+    );
+
+    const definitions: ScheduledBackupDefinition[] = globalRows.map((row) =>
+      this.toDefinition(
+        row.id || buildScheduleIdentity(row.backupType, row.deliveryMode),
+        encodeStoredBackupType(row.backupType, row.deliveryMode),
+        row.frequency,
+        row.frequencyValue,
+        row.retentionDays,
+        row.enabled,
+        null,
+        'platform',
+        'global'
+      )
+    );
+
+    const tenantOverrideRowsByTenant = new Map<string, Array<{ key: string; value: string }>>();
+    for (const row of allOverrideRows) {
+      if (!row.tenantId) continue;
+      const existing = tenantOverrideRowsByTenant.get(row.tenantId) || [];
+      existing.push({ key: row.key, value: row.value });
+      tenantOverrideRowsByTenant.set(row.tenantId, existing);
+    }
+
+    for (const tenant of tenants) {
+      if (!tenant.id || this.isDefaultTenant(tenant.id, tenant.slug)) {
+        continue;
+      }
+      const tenantOverrides = parseScheduleOverrides(tenantOverrideRowsByTenant.get(tenant.id) || []);
+      for (const globalRow of globalRows) {
+        const storedType = encodeStoredBackupType(globalRow.backupType, globalRow.deliveryMode);
+        const override: BackupScheduleOverride | undefined = tenantOverrides.get(storedType);
+        const merged = applyScheduleOverride(globalRow, override);
+        definitions.push(
+          this.toDefinition(
+            `tenant-${tenant.id}-${storedType.toLowerCase()}`,
+            storedType,
+            merged.frequency,
+            merged.frequencyValue,
+            merged.retentionDays,
+            merged.enabled,
+            tenant.id,
+            'tenant',
+            override ? 'tenant_override' : 'global'
+          )
+        );
+      }
+    }
+
+    return definitions;
   }
 
   async start() {
@@ -94,6 +261,7 @@ class ScheduledBackupService {
     });
 
     this.jobs.clear()
+    this.jobSummaries.clear()
     if (this.settingsRefreshInterval) {
       clearInterval(this.settingsRefreshInterval);
       this.settingsRefreshInterval = null;
@@ -109,10 +277,10 @@ class ScheduledBackupService {
         return;
       }
 
-      const settings = await this.withSystemDbContext(async db => db.backupSetting.findMany())
-      for (const setting of settings) {
-        if (setting.enabled) {
-          await this.scheduleBackup(setting)
+      const definitions = await this.loadScheduledDefinitions();
+      for (const definition of definitions) {
+        if (definition.enabled) {
+          await this.scheduleBackup(definition);
         }
       }
     } catch (error) {
@@ -123,8 +291,26 @@ class ScheduledBackupService {
     }
   }
 
-  async scheduleBackup(setting: BackupSetting): Promise<void> {
-    const jobKey = `${setting.id}_${setting.backupType}_${setting.frequency}`
+  private buildCronExpression(setting: ScheduledBackupDefinition): string | null {
+    switch (setting.frequency) {
+      case 'MINUTES':
+        return `*/${setting.frequencyValue || 60} * * * *`; // Every N minutes
+      case 'HOURS':
+        return `0 */${setting.frequencyValue || 1} * * *`; // Every N hours
+      case 'DAILY':
+        return `0 ${setting.frequencyValue || 2} * * *`; // Daily at specified hour
+      case 'WEEKLY':
+        return `0 ${setting.frequencyValue || 2} * * 0`; // Weekly on Sunday at specified hour
+      case 'MONTHLY':
+        return `0 ${setting.frequencyValue || 2} 1 * *`; // Monthly on 1st at specified hour
+      default:
+        return null;
+    }
+  }
+
+  async scheduleBackup(setting: ScheduledBackupDefinition): Promise<void> {
+    const scopePrefix = setting.tenantId ? `tenant:${setting.tenantId}` : 'platform';
+    const jobKey = `${scopePrefix}:${setting.id}:${setting.backupType}:${setting.frequency}`
     
     // Stop existing job if it exists
     const existingJob = this.jobs.get(jobKey);
@@ -132,49 +318,51 @@ class ScheduledBackupService {
       existingJob.stop();
     }
 
-    // Create cron expression based on frequency
-    let cronExpression
-    switch (setting.frequency) {
-      case 'MINUTES':
-        cronExpression = `*/${setting.frequencyValue || 60} * * * *` // Every N minutes
-        break
-      case 'HOURS':
-        cronExpression = `0 */${setting.frequencyValue || 1} * * *` // Every N hours
-        break
-      case 'DAILY':
-        cronExpression = `0 ${setting.frequencyValue || 2} * * *` // Daily at specified hour
-        break
-      case 'WEEKLY':
-        cronExpression = `0 ${setting.frequencyValue || 2} * * 0` // Weekly on Sunday at specified hour
-        break
-      case 'MONTHLY':
-        cronExpression = `0 ${setting.frequencyValue || 2} 1 * *` // Monthly on 1st at specified hour
-        break
-      default:
-        logger.warn(`Unknown backup frequency: ${setting.frequency}`)
-        return
+    const cronExpression = this.buildCronExpression(setting);
+    if (!cronExpression) {
+      logger.warn(`Unknown backup frequency: ${setting.frequency}`)
+      return
     }
 
     // Create cron job
     const job = cron.schedule(cronExpression, async () => {
-      logger.info(`Running scheduled ${setting.backupType} backup...`)
+      logger.info(`Running scheduled ${setting.backupType} backup...`, {
+        tenantId: setting.tenantId || undefined,
+        scope: setting.scope,
+        source: setting.source,
+      })
       await this.runScheduledBackup(setting)
     })
 
     this.jobs.set(jobKey, job)
-    logger.info(`Scheduled ${setting.backupType} backup`, { cronExpression })
+    this.jobSummaries.set(jobKey, {
+      backupType: setting.backupType,
+      frequency: setting.frequency,
+      isActive: true,
+      tenantId: setting.tenantId,
+      scope: setting.scope,
+      source: setting.source,
+    });
+    logger.info(`Scheduled ${setting.backupType} backup`, {
+      cronExpression,
+      tenantId: setting.tenantId || undefined,
+      scope: setting.scope,
+      source: setting.source,
+    })
   }
 
-  async runScheduledBackup(setting: BackupSetting): Promise<void> {
+  async runScheduledBackup(setting: ScheduledBackupDefinition): Promise<void> {
     try {
       const rawType = String(setting.backupType || '').toUpperCase();
       const isRemoteMode = rawType.endsWith('_REMOTE');
       const baseType = (rawType.endsWith('_LOCAL') || rawType.endsWith('_REMOTE'))
         ? rawType.replace(/_(LOCAL|REMOTE)$/, '')
         : rawType;
+      const normalizedBaseType = this.asBaseType(baseType);
+      const scopeTag = setting.tenantId ? `tenant-${setting.tenantId}` : 'platform';
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `scheduled-backup-${baseType.toLowerCase()}-${timestamp}.sql`
+      const filename = `scheduled-backup-${scopeTag}-${normalizedBaseType.toLowerCase()}-${timestamp}.sql`
       const filepath = path.join('backups', filename)
 
       // Ensure backups directory exists
@@ -188,7 +376,7 @@ class ScheduledBackupService {
           db.backupLog.create({
             data: {
               tenantId,
-              type: baseType,
+              type: normalizedBaseType,
               location: filepath,
               size: 0,
               status: 'running',
@@ -203,19 +391,24 @@ class ScheduledBackupService {
         );
 
       let systemTenantId = await this.ensureSystemTenantId();
+      const logTenantId = setting.tenantId || systemTenantId;
       let backupLog;
       try {
-        backupLog = await createBackupLog(systemTenantId);
+        backupLog = await createBackupLog(logTenantId);
       } catch (error) {
         const isTenantFkFailure = (error as { code?: string })?.code === 'P2003';
         if (!isTenantFkFailure) {
           throw error;
         }
         logger.warn('Scheduled backup tenant FK error, refreshing default tenant resolution', {
-          tenantId: systemTenantId,
+          tenantId: logTenantId,
         });
-        systemTenantId = await this.ensureSystemTenantId(true);
-        backupLog = await createBackupLog(systemTenantId);
+        if (!setting.tenantId) {
+          systemTenantId = await this.ensureSystemTenantId(true);
+          backupLog = await createBackupLog(systemTenantId);
+        } else {
+          throw error;
+        }
       }
 
       // Parse DATABASE_URL to extract connection details
@@ -225,11 +418,18 @@ class ScheduledBackupService {
       const database = dbUrl.pathname.slice(1).split('?')[0];
       const username = dbUrl.username;
       const password = dbUrl.password || '';
-      const pgOptions = '-c app.tenant_rls_mode=enforce -c app.is_super_admin=true';
+      const pgOptionsParts = [
+        '-c app.tenant_rls_mode=enforce',
+        `-c app.is_super_admin=${setting.tenantId ? 'false' : 'true'}`,
+      ];
+      if (setting.tenantId) {
+        pgOptionsParts.push(`-c app.tenant_id=${setting.tenantId}`);
+      }
+      const pgOptions = pgOptionsParts.join(' ');
 
       // Create backup based on type
       let command
-      switch (baseType) {
+        switch (normalizedBaseType) {
         case 'FULL':
           command = `PGOPTIONS="${pgOptions}" PGPASSWORD="${password}" pg_dump --enable-row-security -h ${host} -p ${port} -U ${username} -d ${database} -f ${filepath}`
           break
@@ -279,17 +479,18 @@ class ScheduledBackupService {
         let remoteResults: Array<{ targetId: string; targetName: string; success: boolean; error?: string }> = []
 
         if (isRemoteMode) {
+          const targetTenantId = setting.tenantId || systemTenantId;
           const targets = await this.withSystemDbContext(async db =>
             db.backupTarget.findMany({
               where: {
                 enabled: true,
-                OR: [{ tenantId: systemTenantId }, { tenantId: null }],
+                OR: [{ tenantId: targetTenantId }, { tenantId: null }],
               },
               orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }]
             })
           );
           if (targets.length === 0) {
-            const runtimeSettings = await this.getRuntimeBackupSettings(systemTenantId);
+            const runtimeSettings = await this.getRuntimeBackupSettings(targetTenantId);
             const remoteEnabled = String(runtimeSettings['backup_remote_enabled'] || 'false') === 'true';
             if (!remoteEnabled) {
               finalStatus = 'failed'
@@ -346,6 +547,9 @@ class ScheduledBackupService {
               metadata: {
                 scheduled: true,
                 deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+                scope: setting.scope,
+                source: setting.source,
+                tenantId: setting.tenantId,
                 remoteResults,
               }
             }
@@ -364,7 +568,11 @@ class ScheduledBackupService {
 
         // Clean up old backups based on retention policy
         if (!isRemoteMode) {
-          await this.cleanupOldBackups(setting)
+          await this.cleanupOldBackups({
+            baseType: normalizedBaseType,
+            retentionDays: setting.retentionDays,
+            tenantId: logTenantId,
+          })
         }
       })
 
@@ -373,16 +581,17 @@ class ScheduledBackupService {
     }
   }
 
-  async cleanupOldBackups(setting: BackupSetting): Promise<void> {
+  async cleanupOldBackups(params: { baseType: BackupTypeBase; retentionDays: number; tenantId: string }): Promise<void> {
     try {
       const cutoffDate = new Date()
-      cutoffDate.setDate(cutoffDate.getDate() - setting.retentionDays)
+      cutoffDate.setDate(cutoffDate.getDate() - params.retentionDays)
 
       // Find old backup files
       const oldBackups = await this.withSystemDbContext(async db =>
         db.backupLog.findMany({
           where: {
-            type: setting.backupType,
+            tenantId: params.tenantId,
+            type: params.baseType,
             createdAt: {
               lt: cutoffDate
             },
@@ -412,7 +621,7 @@ class ScheduledBackupService {
     }
   }
 
-  async updateBackupSchedule(_setting: BackupSetting): Promise<void> {
+  async updateBackupSchedule(_setting: ScheduledBackupDefinition): Promise<void> {
     await this.reloadSettings();
   }
 
@@ -422,6 +631,7 @@ class ScheduledBackupService {
       job.stop()
     })
     this.jobs.clear()
+    this.jobSummaries.clear()
 
     // Reload settings from database
     await this.loadBackupSettings();
@@ -440,7 +650,19 @@ class ScheduledBackupService {
         throw new Error('Backup setting not found')
       }
 
-      await this.runScheduledBackup(setting)
+      const definition = this.toDefinition(
+        setting.id,
+        setting.backupType,
+        setting.frequency,
+        setting.frequencyValue ?? null,
+        setting.retentionDays,
+        setting.enabled,
+        null,
+        'platform',
+        'global'
+      );
+
+      await this.runScheduledBackup(definition)
       return { success: true, message: 'Manual backup completed' }
     } catch (error) {
       logger.error('Error running manual backup', { error })
@@ -450,13 +672,8 @@ class ScheduledBackupService {
   }
 
   // Method to get all active backup schedules
-  getActiveSchedules(): Array<{backupType: string, frequency: string, isActive: boolean}> {
-    const schedules: Array<{backupType: string, frequency: string, isActive: boolean}> = [];
-    this.jobs.forEach((_job: ReturnType<typeof cron.schedule>, key: string) => {
-      const [backupType, frequency] = key.split('_');
-      schedules.push({ backupType: backupType ?? '', frequency: frequency ?? '', isActive: true });
-    });
-    return schedules;
+  getActiveSchedules(): Array<ActiveScheduleSummary> {
+    return Array.from(this.jobSummaries.values());
   }
 }
 

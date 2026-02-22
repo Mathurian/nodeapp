@@ -15,31 +15,69 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { env } from '../config/env';
+import {
+  BackupScheduleRow,
+  buildAllScheduleOverrideKeys,
+  buildScheduleOverrideKey,
+  encodeStoredBackupType,
+  isValidBackupTypeBase,
+  isValidScheduleFrequency,
+  normalizeStoredBackupType,
+  parseScheduleOverrides,
+  sortBackupScheduleRows,
+  applyScheduleOverride,
+} from '../utils/backupScheduleConfig';
 
-type BackupTypeBase = 'FULL' | 'SCHEMA' | 'DATA';
-type BackupDeliveryMode = 'LOCAL' | 'REMOTE';
+interface BackupScheduleScope {
+  isSuperAdmin: boolean;
+  tenantId: string | null;
+  isTenantScope: boolean;
+}
 
-const normalizeStoredBackupType = (rawType: string): { backupType: BackupTypeBase; deliveryMode: BackupDeliveryMode } => {
-  const upper = String(rawType || '').toUpperCase();
-  if (upper.endsWith('_REMOTE')) {
-    return { backupType: upper.replace(/_REMOTE$/, '') as BackupTypeBase, deliveryMode: 'REMOTE' };
+const resolveBackupScheduleScope = (req: Request): BackupScheduleScope => {
+  const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+  const queryTenantId = typeof req.query['tenantId'] === 'string' ? req.query['tenantId'] : null;
+  const wantsGlobal = req.query['global'] === 'true';
+
+  if (isSuperAdmin) {
+    if (wantsGlobal) {
+      return { isSuperAdmin, tenantId: null, isTenantScope: false };
+    }
+    if (queryTenantId) {
+      return { isSuperAdmin, tenantId: queryTenantId, isTenantScope: true };
+    }
   }
-  if (upper.endsWith('_LOCAL')) {
-    return { backupType: upper.replace(/_LOCAL$/, '') as BackupTypeBase, deliveryMode: 'LOCAL' };
+
+  const contextualTenantId = req.tenantId || req.user?.tenantId || null;
+  if (contextualTenantId) {
+    return { isSuperAdmin, tenantId: contextualTenantId, isTenantScope: true };
   }
-  return { backupType: upper as BackupTypeBase, deliveryMode: 'LOCAL' };
+  return { isSuperAdmin, tenantId: null, isTenantScope: false };
 };
 
-const encodeStoredBackupType = (backupType: string, deliveryMode?: string): string => {
-  const base = String(backupType || '').toUpperCase();
-  const mode = String(deliveryMode || 'LOCAL').toUpperCase();
-  if (!['FULL', 'SCHEMA', 'DATA'].includes(base)) {
-    return base;
-  }
-  if (mode === 'REMOTE') {
-    return `${base}_REMOTE`;
-  }
-  return `${base}_LOCAL`;
+const toScheduleRow = (setting: {
+  id: string;
+  backupType: string;
+  enabled: boolean;
+  frequency: string;
+  frequencyValue: number | null;
+  retentionDays: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): BackupScheduleRow => {
+  const normalized = normalizeStoredBackupType(setting.backupType);
+  return {
+    id: setting.id,
+    backupType: normalized.backupType,
+    deliveryMode: normalized.deliveryMode,
+    enabled: Boolean(setting.enabled),
+    frequency: String(setting.frequency || 'DAILY').toUpperCase() as BackupScheduleRow['frequency'],
+    frequencyValue: setting.frequencyValue ?? null,
+    retentionDays: Number(setting.retentionDays || 30),
+    createdAt: setting.createdAt.toISOString(),
+    updatedAt: setting.updatedAt.toISOString(),
+    inherited: false,
+  };
 };
 
 // Get services from container
@@ -486,28 +524,47 @@ export const deleteBackup = async (req: Request, res: Response, next: NextFuncti
  */
 export const getBackupSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Get backup settings from database (backupSetting table)
+    const scope = resolveBackupScheduleScope(_req);
     const backupSettings = await prisma.backupSetting.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: [{ backupType: 'asc' }, { createdAt: 'asc' }]
     });
-    
-    // Transform to match frontend format
-    const schedules = backupSettings.map(setting => ({
-      id: setting.id,
-      ...normalizeStoredBackupType(setting.backupType),
-      enabled: setting.enabled,
-      frequency: setting.frequency,
-      frequencyValue: setting.frequencyValue ?? null,
-      retentionDays: setting.retentionDays || 30,
-      createdAt: setting.createdAt.toISOString(),
-      updatedAt: setting.updatedAt.toISOString()
-    }));
-    
-    // Return settings in the format expected by the frontend
+
+    const globalDefaults = sortBackupScheduleRows(backupSettings.map(toScheduleRow));
+
+    if (!scope.isTenantScope || !scope.tenantId) {
+      sendSuccess(res, {
+        success: true,
+        scope: 'platform',
+        settings: globalDefaults,
+        globalDefaults,
+      });
+      return;
+    }
+
+    const overrideRows = await prisma.systemSetting.findMany({
+      where: {
+        tenantId: scope.tenantId,
+        category: 'backup',
+        key: { startsWith: 'backup_schedule_' },
+      },
+      select: { key: true, value: true },
+    });
+    const overridesByStoredType = parseScheduleOverrides(overrideRows);
+    const mergedRows = sortBackupScheduleRows(
+      globalDefaults.map((baseRow) => {
+        const storedType = encodeStoredBackupType(baseRow.backupType, baseRow.deliveryMode);
+        return applyScheduleOverride(baseRow, overridesByStoredType.get(storedType));
+      })
+    );
+
     sendSuccess(res, {
       success: true,
-      scope: 'platform',
-      settings: schedules
+      scope: 'tenant',
+      tenantId: scope.tenantId,
+      settings: mergedRows,
+      globalDefaults,
+      fallbackNote:
+        'Rows marked as inherited use the live global schedule defaults and update automatically when global values change.',
     });
   } catch (error: unknown) {
     // If backupSetting table doesn't exist, return empty array
@@ -516,7 +573,8 @@ export const getBackupSettings = async (_req: Request, res: Response, next: Next
       sendSuccess(res, {
         success: true,
         scope: 'platform',
-        settings: []
+        settings: [],
+        globalDefaults: [],
       });
       return;
     }
@@ -529,6 +587,7 @@ export const getBackupSettings = async (_req: Request, res: Response, next: Next
  */
 export const createBackupSetting = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const scope = resolveBackupScheduleScope(_req);
     const {
       backupType,
       deliveryMode,
@@ -536,24 +595,126 @@ export const createBackupSetting = async (_req: Request, res: Response, next: Ne
       frequencyValue,
       retentionDays,
       enabled,
+      inheritDefault,
     } = _req.body || {};
 
-    if (!backupType || !frequency) {
-      res.status(400).json({ error: 'backupType and frequency are required' });
+    const normalizedBackupType = String(backupType || '').toUpperCase();
+    if (!isValidBackupTypeBase(normalizedBackupType)) {
+      res.status(400).json({ error: 'backupType must be FULL, SCHEMA, or DATA' });
+      return;
+    }
+    const normalizedDeliveryMode = String(deliveryMode || 'LOCAL').toUpperCase();
+    const storedType = encodeStoredBackupType(normalizedBackupType, normalizedDeliveryMode);
+
+    if (scope.isTenantScope && scope.tenantId) {
+      const shouldInherit = Boolean(inheritDefault);
+      if (shouldInherit) {
+        await prisma.systemSetting.deleteMany({
+          where: {
+            tenantId: scope.tenantId,
+            category: 'backup',
+            key: { in: buildAllScheduleOverrideKeys(storedType) },
+          },
+        });
+        sendSuccess(
+          res,
+          { tenantId: scope.tenantId, backupType: normalizedBackupType, deliveryMode: normalizedDeliveryMode, inherited: true },
+          'Tenant backup schedule reset to global default'
+        );
+        return;
+      }
+
+      const normalizedFrequency = String(frequency || '').toUpperCase();
+      if (!isValidScheduleFrequency(normalizedFrequency)) {
+        res.status(400).json({ error: 'frequency must be MINUTES, HOURS, DAILY, WEEKLY, or MONTHLY' });
+        return;
+      }
+
+      const globalBase = await prisma.backupSetting.findFirst({
+        where: { backupType: storedType },
+        select: { enabled: true, frequency: true, frequencyValue: true, retentionDays: true },
+      });
+
+      const scheduleValues = {
+        enabled: enabled != null ? Boolean(enabled) : Boolean(globalBase?.enabled ?? false),
+        frequency: normalizedFrequency,
+        frequencyValue:
+          frequencyValue !== undefined
+            ? (frequencyValue == null ? null : Number(frequencyValue))
+            : (globalBase?.frequencyValue ?? null),
+        retentionDays: retentionDays != null ? Number(retentionDays) : Number(globalBase?.retentionDays ?? 30),
+      };
+
+      const upserts = [
+        { key: buildScheduleOverrideKey(storedType, 'enabled'), value: String(scheduleValues.enabled) },
+        { key: buildScheduleOverrideKey(storedType, 'frequency'), value: scheduleValues.frequency },
+        {
+          key: buildScheduleOverrideKey(storedType, 'frequencyValue'),
+          value: scheduleValues.frequencyValue == null ? '' : String(scheduleValues.frequencyValue),
+        },
+        { key: buildScheduleOverrideKey(storedType, 'retentionDays'), value: String(scheduleValues.retentionDays) },
+      ];
+
+      for (const setting of upserts) {
+        await prisma.systemSetting.upsert({
+          where: { key_tenantId: { key: setting.key, tenantId: scope.tenantId } },
+          update: {
+            value: setting.value,
+            category: 'backup',
+            description: 'Tenant backup schedule override',
+            updatedBy: _req.user?.id,
+          },
+          create: {
+            key: setting.key,
+            value: setting.value,
+            category: 'backup',
+            description: 'Tenant backup schedule override',
+            tenantId: scope.tenantId,
+            updatedBy: _req.user?.id,
+          },
+        });
+      }
+
+      sendSuccess(
+        res,
+        { tenantId: scope.tenantId, backupType: normalizedBackupType, deliveryMode: normalizedDeliveryMode, inherited: false },
+        'Tenant backup schedule override saved'
+      );
       return;
     }
 
-    const created = await prisma.backupSetting.create({
-      data: {
-        backupType: encodeStoredBackupType(String(backupType), String(deliveryMode || 'LOCAL')),
-        frequency: String(frequency).toUpperCase(),
-        frequencyValue: frequencyValue != null ? Number(frequencyValue) : null,
-        retentionDays: retentionDays != null ? Number(retentionDays) : 30,
-        enabled: Boolean(enabled),
-      }
+    if (!scope.isSuperAdmin) {
+      res.status(403).json({ error: 'Only super admins can manage platform backup schedule defaults.' });
+      return;
+    }
+
+    const normalizedFrequency = String(frequency || '').toUpperCase();
+    if (!isValidScheduleFrequency(normalizedFrequency)) {
+      res.status(400).json({ error: 'frequency must be MINUTES, HOURS, DAILY, WEEKLY, or MONTHLY' });
+      return;
+    }
+
+    const existing = await prisma.backupSetting.findFirst({
+      where: { backupType: storedType },
+      select: { id: true },
     });
 
-    sendSuccess(res, created, 'Backup setting created');
+    const payload = {
+      backupType: storedType,
+      frequency: normalizedFrequency,
+      frequencyValue: frequencyValue != null ? Number(frequencyValue) : null,
+      retentionDays: retentionDays != null ? Number(retentionDays) : 30,
+      enabled: Boolean(enabled),
+    };
+
+    const created = existing
+      ? await prisma.backupSetting.update({
+          where: { id: existing.id },
+          data: payload,
+        })
+      : await prisma.backupSetting.create({ data: payload });
+
+    sendSuccess(res, created, existing ? 'Backup setting updated' : 'Backup setting created');
   } catch (error: unknown) {
     return next(error);
   }

@@ -172,6 +172,16 @@ interface BackupSchedule {
   frequency: 'MINUTES' | 'HOURS' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
   frequencyValue: number | null
   retentionDays: number
+  inherited?: boolean
+}
+
+const formatScheduleCadence = (row: BackupSchedule): string => {
+  const value = Number(row.frequencyValue ?? 0)
+  if (row.frequency === 'MINUTES') return `Every ${Math.max(1, value || 60)} minute(s)`
+  if (row.frequency === 'HOURS') return `Every ${Math.max(1, value || 1)} hour(s)`
+  if (row.frequency === 'DAILY') return `Daily at ${Math.min(23, Math.max(0, value || 2))}:00`
+  if (row.frequency === 'WEEKLY') return `Weekly on Sunday at ${Math.min(23, Math.max(0, value || 2))}:00`
+  return `Monthly (1st) at ${Math.min(23, Math.max(0, value || 2))}:00`
 }
 
 const formatNextRunPreview = (row: BackupSchedule): string => {
@@ -413,13 +423,15 @@ const SettingsPage: React.FC = () => {
   }>({ connected: false })
   const [isAwaitingGoogleOauthCompletion, setIsAwaitingGoogleOauthCompletion] = useState(false)
   const [backupSchedules, setBackupSchedules] = useState<BackupSchedule[]>(defaultBackupSchedules())
+  const [globalScheduleDefaults, setGlobalScheduleDefaults] = useState<BackupSchedule[]>(defaultBackupSchedules())
 
   const [scoringType, setScoringType] = useState<'STRAIGHT' | 'OLYMPIC'>('STRAIGHT')
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER' || user?.role === 'BOARD'
   const canManageSecurityEmail = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
   const canManageBackupSettings = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER'
-  const canManageBackupSchedules = isSuperAdmin
+  const canManageBackupSchedules = canManageBackupSettings
+  const isTenantScheduleScope = !isSuperAdmin || (!editingGlobal && Boolean(selectedTenantId))
 
   // Refetch settings when global/tenant mode or selected tenant changes
   useEffect(() => {
@@ -620,22 +632,27 @@ const SettingsPage: React.FC = () => {
   )
 
   const { isLoading: backupSchedulesLoading } = useQuery<any>(
-    ['backup-schedules'],
+    ['backup-schedules', editingGlobal, selectedTenantId],
     async () => {
-      const response = await backupAPI.getSchedules()
+      const response = await backupAPI.getSchedules(getGlobalParam())
       return response.data?.data || response.data
     },
     {
       enabled: canManageBackupSchedules,
       onSuccess: (data) => {
         const incoming = Array.isArray(data?.settings) ? data.settings : []
+        const incomingDefaults = Array.isArray(data?.globalDefaults) ? data.globalDefaults : incoming
         const byKey = new Map<string, any>(incoming.map((s: any) => [
           `${String(s.backupType || '').toUpperCase()}::${String(s.deliveryMode || 'LOCAL').toUpperCase()}`,
           s
         ]))
+        const defaultByKey = new Map<string, any>(incomingDefaults.map((s: any) => [
+          `${String(s.backupType || '').toUpperCase()}::${String(s.deliveryMode || 'LOCAL').toUpperCase()}`,
+          s
+        ]))
         const defaults: BackupSchedule[] = defaultBackupSchedules()
-        setBackupSchedules(defaults.map((d) => {
-          const s = byKey.get(`${d.backupType}::${d.deliveryMode}`)
+        setGlobalScheduleDefaults(defaults.map((d) => {
+          const s = defaultByKey.get(`${d.backupType}::${d.deliveryMode}`)
           if (!s) return d
           return {
             id: s.id,
@@ -645,6 +662,23 @@ const SettingsPage: React.FC = () => {
             frequency: (String(s.frequency || d.frequency).toUpperCase() as BackupSchedule['frequency']),
             frequencyValue: s.frequencyValue == null ? d.frequencyValue : Number(s.frequencyValue),
             retentionDays: Number(s.retentionDays || d.retentionDays),
+            inherited: false,
+          }
+        }))
+        setBackupSchedules(defaults.map((d) => {
+          const s = byKey.get(`${d.backupType}::${d.deliveryMode}`)
+          if (!s) {
+            return { ...d, inherited: isTenantScheduleScope }
+          }
+          return {
+            id: s.id,
+            backupType: d.backupType,
+            deliveryMode: d.deliveryMode,
+            enabled: Boolean(s.enabled),
+            frequency: (String(s.frequency || d.frequency).toUpperCase() as BackupSchedule['frequency']),
+            frequencyValue: s.frequencyValue == null ? d.frequencyValue : Number(s.frequencyValue),
+            retentionDays: Number(s.retentionDays || d.retentionDays),
+            inherited: Boolean(s.inherited),
           }
         }))
       },
@@ -1172,6 +1206,7 @@ const SettingsPage: React.FC = () => {
 
   const saveBackupSchedulesMutation = useMutation(
     async (rows: BackupSchedule[]) => {
+      const scopeQuery = getGlobalParam()
       for (const row of rows) {
         const payload = {
           backupType: row.backupType,
@@ -1180,17 +1215,22 @@ const SettingsPage: React.FC = () => {
           frequency: row.frequency,
           frequencyValue: row.frequencyValue,
           retentionDays: row.retentionDays,
+          inheritDefault: isTenantScheduleScope ? Boolean(row.inherited) : false,
+        }
+        if (isTenantScheduleScope) {
+          await backupAPI.createSchedule(payload, scopeQuery)
+          continue
         }
         if (row.id) {
-          await backupAPI.updateSchedule(row.id, payload)
+          await backupAPI.updateSchedule(row.id, payload, scopeQuery)
         } else {
-          await backupAPI.createSchedule(payload)
+          await backupAPI.createSchedule(payload, scopeQuery)
         }
       }
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries(['backup-schedules'])
+        queryClient.invalidateQueries(['backup-schedules', editingGlobal, selectedTenantId])
         setMessage({ type: 'success', text: 'Backup frequency schedules updated. Active jobs refresh automatically within about 1 minute.' })
         setTimeout(() => setMessage(null), 7000)
       },
@@ -1347,6 +1387,9 @@ const SettingsPage: React.FC = () => {
 
   const backupRemoteEnabled = backupFormData.backup_remote_enabled === 'true'
   const backupSectionReadOnly = isSuperAdmin && !editingGlobal
+  const globalScheduleDefaultMap = new Map(
+    globalScheduleDefaults.map((row) => [`${row.backupType}::${row.deliveryMode}`, row])
+  )
   const defaultGoogleDriveRedirectUri = `${window.location.origin}/api/settings/backup/google-drive/oauth/callback`
   const visibleBackupSchedules = backupSchedules
     .map((row, idx) => ({ row, idx }))
@@ -1977,6 +2020,21 @@ const SettingsPage: React.FC = () => {
                           LOCAL schedules create on-site backups. REMOTE schedules run backup and replicate to configured off-site targets.
                           Enable both for full local + remote coverage.
                         </p>
+                        {isTenantScheduleScope && (
+                          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200 space-y-2">
+                            <p className="font-medium">
+                              Tenant schedule fallback: rows left on “Use Global Default” inherit live platform defaults and update automatically whenever global values change.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {globalScheduleDefaults.map((row) => (
+                                <div key={`global-default-${row.backupType}-${row.deliveryMode}`} className="rounded border border-blue-200/70 dark:border-blue-800/70 px-2 py-1">
+                                  <p className="font-semibold">{row.backupType} / {row.deliveryMode}</p>
+                                  <p>{row.enabled ? 'Enabled' : 'Disabled'} | {formatScheduleCadence(row)} | Retention {row.retentionDays} day(s)</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Show rows</label>
@@ -2001,93 +2059,132 @@ const SettingsPage: React.FC = () => {
                           </label>
                         </div>
                         <div className="space-y-3">
-                          {visibleBackupSchedules.map(({ row, idx }) => (
-                            <div key={`${row.backupType}-${row.deliveryMode}`} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border border-gray-100 dark:border-gray-800 rounded-md p-3">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
-                                <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.backupType}</div>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
-                                <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.deliveryMode}</div>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
-                                <input
-                                  disabled={backupSectionReadOnly}
-                                  type="checkbox"
-                                  checked={row.enabled}
-                                  onChange={(e) => {
-                                    const next = [...backupSchedules]
-                                    next[idx] = { ...row, enabled: e.target.checked }
-                                    setBackupSchedules(next)
-                                  }}
-                                  className="h-4 w-4"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
-                                <select
-                                  disabled={backupSectionReadOnly}
-                                  value={row.frequency}
-                                  onChange={(e) => {
-                                    const next = [...backupSchedules]
-                                    next[idx] = { ...row, frequency: e.target.value as BackupSchedule['frequency'] }
-                                    setBackupSchedules(next)
-                                  }}
-                                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="MINUTES">Every N minutes</option>
-                                  <option value="HOURS">Every N hours</option>
-                                  <option value="DAILY">Daily at hour (0-23)</option>
-                                  <option value="WEEKLY">Weekly at hour (0-23, Sunday)</option>
-                                  <option value="MONTHLY">Monthly at hour (0-23, day 1)</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                  {row.frequency === 'MINUTES' ? 'Minutes interval' :
-                                    row.frequency === 'HOURS' ? 'Hours interval' : 'Hour of day (0-23)'}
-                                </label>
-                                <input
-                                  disabled={backupSectionReadOnly}
-                                  type="number"
-                                  min={row.frequency === 'MINUTES' ? 1 : row.frequency === 'HOURS' ? 1 : 0}
-                                  max={row.frequency === 'MINUTES' ? 1440 : row.frequency === 'HOURS' ? 24 : 23}
-                                  value={row.frequencyValue ?? ''}
-                                  onChange={(e) => {
-                                    const next = [...backupSchedules]
-                                    next[idx] = { ...row, frequencyValue: e.target.value === '' ? null : Number(e.target.value) }
-                                    setBackupSchedules(next)
-                                  }}
-                                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
-                                <input
-                                  disabled={backupSectionReadOnly || row.deliveryMode === 'REMOTE'}
-                                  type="number"
-                                  min={1}
-                                  value={row.retentionDays}
-                                  onChange={(e) => {
-                                    const next = [...backupSchedules]
-                                    next[idx] = { ...row, retentionDays: Number(e.target.value || 1) }
-                                    setBackupSchedules(next)
-                                  }}
-                                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                />
-                                {row.deliveryMode === 'REMOTE' && (
-                                  <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Provider policy controls remote retention.</p>
+                          {visibleBackupSchedules.map(({ row, idx }) => {
+                            const defaultRow = globalScheduleDefaultMap.get(`${row.backupType}::${row.deliveryMode}`)
+                            const inherited = Boolean(isTenantScheduleScope && row.inherited)
+                            const rowReadOnly = backupSectionReadOnly || inherited
+
+                            return (
+                              <div key={`${row.backupType}-${row.deliveryMode}`} className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end border border-gray-100 dark:border-gray-800 rounded-md p-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.backupType}</div>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.deliveryMode}</div>
+                                </div>
+                                {isTenantScheduleScope && (
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Use Global Default</label>
+                                    <input
+                                      disabled={backupSectionReadOnly}
+                                      type="checkbox"
+                                      checked={inherited}
+                                      onChange={(e) => {
+                                        const useInherited = e.target.checked
+                                        const next = [...backupSchedules]
+                                        if (useInherited && defaultRow) {
+                                          next[idx] = {
+                                            ...row,
+                                            enabled: defaultRow.enabled,
+                                            frequency: defaultRow.frequency,
+                                            frequencyValue: defaultRow.frequencyValue,
+                                            retentionDays: defaultRow.retentionDays,
+                                            inherited: true,
+                                          }
+                                        } else {
+                                          next[idx] = { ...row, inherited: false }
+                                        }
+                                        setBackupSchedules(next)
+                                      }}
+                                      className="h-4 w-4"
+                                    />
+                                  </div>
                                 )}
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
+                                  <input
+                                    disabled={rowReadOnly}
+                                    type="checkbox"
+                                    checked={row.enabled}
+                                    onChange={(e) => {
+                                      const next = [...backupSchedules]
+                                      next[idx] = { ...row, enabled: e.target.checked, inherited: false }
+                                      setBackupSchedules(next)
+                                    }}
+                                    className="h-4 w-4"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
+                                  <select
+                                    disabled={rowReadOnly}
+                                    value={row.frequency}
+                                    onChange={(e) => {
+                                      const next = [...backupSchedules]
+                                      next[idx] = { ...row, frequency: e.target.value as BackupSchedule['frequency'], inherited: false }
+                                      setBackupSchedules(next)
+                                    }}
+                                    className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  >
+                                    <option value="MINUTES">Every N minutes</option>
+                                    <option value="HOURS">Every N hours</option>
+                                    <option value="DAILY">Daily at hour (0-23)</option>
+                                    <option value="WEEKLY">Weekly at hour (0-23, Sunday)</option>
+                                    <option value="MONTHLY">Monthly at hour (0-23, day 1)</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    {row.frequency === 'MINUTES' ? 'Minutes interval' :
+                                      row.frequency === 'HOURS' ? 'Hours interval' : 'Hour of day (0-23)'}
+                                  </label>
+                                  <input
+                                    disabled={rowReadOnly}
+                                    type="number"
+                                    min={row.frequency === 'MINUTES' ? 1 : row.frequency === 'HOURS' ? 1 : 0}
+                                    max={row.frequency === 'MINUTES' ? 1440 : row.frequency === 'HOURS' ? 24 : 23}
+                                    value={row.frequencyValue ?? ''}
+                                    onChange={(e) => {
+                                      const next = [...backupSchedules]
+                                      next[idx] = { ...row, frequencyValue: e.target.value === '' ? null : Number(e.target.value), inherited: false }
+                                      setBackupSchedules(next)
+                                    }}
+                                    className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
+                                  <input
+                                    disabled={rowReadOnly || row.deliveryMode === 'REMOTE'}
+                                    type="number"
+                                    min={1}
+                                    value={row.retentionDays}
+                                    onChange={(e) => {
+                                      const next = [...backupSchedules]
+                                      next[idx] = { ...row, retentionDays: Number(e.target.value || 1), inherited: false }
+                                      setBackupSchedules(next)
+                                    }}
+                                    className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                  {row.deliveryMode === 'REMOTE' && (
+                                    <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Provider policy controls remote retention.</p>
+                                  )}
+                                </div>
+                                <div className="md:col-span-7">
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {formatNextRunPreview(row)}
+                                  </p>
+                                  {isTenantScheduleScope && inherited && defaultRow && (
+                                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                      Inheriting global default: {defaultRow.enabled ? 'Enabled' : 'Disabled'} | {formatScheduleCadence(defaultRow)} | Retention {defaultRow.retentionDays} day(s)
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="md:col-span-6">
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  {formatNextRunPreview(row)}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                         <div className="flex justify-end">
                           <button
