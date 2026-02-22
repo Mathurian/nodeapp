@@ -6,6 +6,8 @@ import { exec } from 'child_process';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 import BackupTransferService, { BackupTarget } from './BackupTransferService';
+import { SettingsService } from './SettingsService';
+import { uploadToRuntimeRemoteTarget } from './runtimeBackupUploadService';
 import { resolveDefaultTenantId } from '../utils/defaultTenantResolver';
 import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
@@ -48,6 +50,13 @@ class ScheduledBackupService {
     }
     this.systemTenantId = resolvedTenantId;
     return resolvedTenantId;
+  }
+
+  private async getRuntimeBackupSettings(tenantId: string): Promise<Record<string, string>> {
+    return this.withSystemDbContext(async db => {
+      const settingsService = new SettingsService(db);
+      return settingsService.getBackupSettings(tenantId);
+    });
   }
 
   async start() {
@@ -272,13 +281,32 @@ class ScheduledBackupService {
         if (isRemoteMode) {
           const targets = await this.withSystemDbContext(async db =>
             db.backupTarget.findMany({
-              where: { enabled: true, tenantId: null },
+              where: {
+                enabled: true,
+                OR: [{ tenantId: systemTenantId }, { tenantId: null }],
+              },
               orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }]
             })
           );
           if (targets.length === 0) {
-            finalStatus = 'failed'
-            finalError = 'No enabled off-site backup targets configured.'
+            const runtimeSettings = await this.getRuntimeBackupSettings(systemTenantId);
+            const remoteEnabled = String(runtimeSettings['backup_remote_enabled'] || 'false') === 'true';
+            if (!remoteEnabled) {
+              finalStatus = 'failed'
+              finalError = 'No enabled off-site backup targets configured and runtime remote backup is disabled.'
+            } else {
+              const runtimeResult = await uploadToRuntimeRemoteTarget(filepath, runtimeSettings);
+              remoteResults.push({
+                targetId: 'runtime-config',
+                targetName: 'Runtime remote backup settings',
+                success: runtimeResult.success,
+                error: runtimeResult.error,
+              });
+              if (!runtimeResult.success) {
+                finalStatus = 'failed'
+                finalError = runtimeResult.error || 'Off-site transfer failed for runtime remote backup settings.'
+              }
+            }
           } else {
             const mappedTargets: BackupTarget[] = targets.map((target) => ({
               id: target.id,
