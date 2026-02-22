@@ -671,17 +671,49 @@ export class SettingsController {
     const error = String(req.query['error'] || '');
     const safeOrigin = `${req.protocol}://${req.get('host') || ''}`;
     const sendPopupHtml = (ok: boolean, message: string): void => {
-      const escaped = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      res.status(ok ? 200 : 400).send(`<!doctype html><html><head><meta charset="utf-8"><title>Google Backup Connection</title></head><body><script>
+      const escaped = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const callbackPayload = JSON.stringify({
+        type: 'google-drive-oauth-result',
+        success: ok,
+        message,
+      });
+      const fallbackUrl = safeOrigin ? `${safeOrigin}/settings` : '/settings';
+      res.status(ok ? 200 : 400).send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Google Backup Connection</title></head><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px;line-height:1.45;">
+      <script>
         (function(){
+          var resultPayload = ${callbackPayload};
+          var expectedOrigin = ${JSON.stringify(safeOrigin)} || window.location.origin;
+          try {
+            window.sessionStorage.setItem('google-drive-oauth-result', JSON.stringify(resultPayload));
+          } catch (e) {}
           try {
             if (window.opener && !window.opener.closed) {
-              window.opener.postMessage({ type: 'google-drive-oauth-result', success: ${ok ? 'true' : 'false'}, message: ${JSON.stringify(message)} }, ${JSON.stringify(safeOrigin)});
+              window.opener.postMessage(resultPayload, expectedOrigin);
+              window.close();
+              return;
             }
           } catch (e) {}
-          window.close();
+          try {
+            var returnUrl = window.sessionStorage.getItem('google-drive-oauth-return-url');
+            if (returnUrl) {
+              window.sessionStorage.removeItem('google-drive-oauth-return-url');
+              var parsed = new URL(returnUrl, expectedOrigin);
+              if (parsed.origin === expectedOrigin) {
+                window.location.replace(parsed.toString());
+                return;
+              }
+            }
+          } catch (e) {}
+          var returnLink = document.getElementById('oauth-return-link');
+          if (returnLink) {
+            returnLink.setAttribute('href', ${JSON.stringify(fallbackUrl)});
+          }
         })();
-      </script><p>${escaped}</p></body></html>`);
+      </script>
+      <h1 style="margin:0 0 12px;font-size:1.2rem;">Google Backup Connection</h1>
+      <p style="margin:0 0 16px;">${escaped}</p>
+      <p style="margin:0;"><a id="oauth-return-link" href="${fallbackUrl}">Return to Settings</a></p>
+      </body></html>`);
     };
 
     try {

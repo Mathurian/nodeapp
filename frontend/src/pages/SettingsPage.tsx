@@ -5,6 +5,7 @@ import { useSystemSettings } from '../contexts/SystemSettingsContext'
 import { settingsAPI, backupAPI } from '../services/api'
 import api from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
+import { isStandaloneAppContext } from '../utils/fileViewer'
 import {
   Cog6ToothIcon,
   CheckIcon,
@@ -218,6 +219,9 @@ const defaultBackupSchedules = (): BackupSchedule[] => ([
   { backupType: 'DATA', deliveryMode: 'LOCAL', enabled: false, frequency: 'HOURS', frequencyValue: 6, retentionDays: 14 },
   { backupType: 'DATA', deliveryMode: 'REMOTE', enabled: false, frequency: 'HOURS', frequencyValue: 6, retentionDays: 14 },
 ])
+
+const GOOGLE_DRIVE_OAUTH_RESULT_SESSION_KEY = 'google-drive-oauth-result'
+const GOOGLE_DRIVE_OAUTH_RETURN_URL_SESSION_KEY = 'google-drive-oauth-return-url'
 
 const SettingsPage: React.FC = () => {
   const { user } = useAuth()
@@ -698,6 +702,59 @@ const SettingsPage: React.FC = () => {
     return null
   }
 
+  useEffect(() => {
+    if (!canManageBackupSettings || typeof window === 'undefined') return
+
+    let rawPayload: string | null = null
+    try {
+      rawPayload = window.sessionStorage.getItem(GOOGLE_DRIVE_OAUTH_RESULT_SESSION_KEY)
+      if (rawPayload) {
+        window.sessionStorage.removeItem(GOOGLE_DRIVE_OAUTH_RESULT_SESSION_KEY)
+      }
+    } catch {
+      rawPayload = null
+    }
+
+    if (!rawPayload) return
+
+    let payload: any
+    try {
+      payload = JSON.parse(rawPayload)
+    } catch {
+      return
+    }
+
+    if (payload?.type !== 'google-drive-oauth-result') return
+
+    setIsAwaitingGoogleOauthCompletion(false)
+    const wasSuccessful = Boolean(payload.success)
+    const statusMessage = String(
+      payload.message || (wasSuccessful ? 'Google Drive connected.' : 'Google Drive connection failed.')
+    )
+    setMessage({ type: wasSuccessful ? 'success' : 'error', text: statusMessage })
+    setTimeout(() => setMessage(null), 7000)
+
+    if (!wasSuccessful) return
+
+    const scopeQuery = getGlobalParam()
+    void (async () => {
+      try {
+        const response = await settingsAPI.getGoogleDriveBackupOAuthStatus(scopeQuery)
+        const data = response.data?.data || response.data
+        if (Boolean(data?.connected)) {
+          setGoogleBackupOauthStatus({
+            connected: true,
+            email: data?.email || undefined,
+            connectedAt: data?.connectedAt || undefined,
+          })
+        }
+      } catch {
+        // Ignore and let regular query refresh recover.
+      }
+      queryClient.invalidateQueries(['backup-google-oauth-status', editingGlobal, selectedTenantId])
+    })()
+  }, [canManageBackupSettings, editingGlobal, selectedTenantId, queryClient])
+
   const { data: databaseInfo, isLoading: databaseInfoLoading } = useQuery<any>(
     'database-connection-info',
     async () => {
@@ -1012,11 +1069,27 @@ const SettingsPage: React.FC = () => {
           return
         }
 
+        const continueInCurrentWindow = () => {
+          try {
+            window.sessionStorage.setItem(GOOGLE_DRIVE_OAUTH_RETURN_URL_SESSION_KEY, window.location.href)
+          } catch {
+            // Best effort only.
+          }
+          window.location.assign(authUrl)
+        }
+
+        if (isStandaloneAppContext()) {
+          setMessage({ type: 'success', text: 'Continuing Google sign-in in this tab for PWA compatibility...' })
+          continueInCurrentWindow()
+          return
+        }
+
         const popup = window.open(authUrl, 'google-drive-oauth', 'width=560,height=700')
         if (!popup) {
           const fallback = window.open(authUrl, '_blank', 'noopener,noreferrer')
           if (!fallback) {
-            finish('error', 'Popup blocked. Allow popups (or open in browser) and try again.')
+            setMessage({ type: 'success', text: 'Popup blocked. Continuing Google sign-in in this tab...' })
+            continueInCurrentWindow()
             return
           }
         }
