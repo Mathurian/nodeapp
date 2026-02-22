@@ -49,6 +49,51 @@ export class DataWipeController {
   };
 
   /**
+   * Legacy-compatible tenant-scoped wipe endpoint.
+   * Supports scope payload used by older clients.
+   */
+  wipeData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const log = createRequestLogger(req, 'dataWipe');
+    try {
+      const { scope = 'ALL', dryRun } = req.body || {};
+
+      if (!req.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const tenantId = req.tenantId || req.user.tenantId;
+      const isSuperAdmin = req.isSuperAdmin === true || req.user.role === 'SUPER_ADMIN';
+      const normalizedScope = String(scope || 'ALL').toUpperCase() as 'ALL' | 'EVENTS' | 'USERS' | 'SCORES';
+      const result = await this.dataWipeService.wipeTenantScopedData(
+        normalizedScope,
+        req.user.id,
+        req.user.role,
+        tenantId,
+        isSuperAdmin,
+        Boolean(dryRun)
+      );
+
+      log.warn('Tenant scoped data wipe executed', {
+        scope: normalizedScope,
+        userId: req.user.id,
+        tenantId: result.tenantId,
+        dryRun: Boolean(dryRun),
+      });
+
+      sendSuccess(
+        res,
+        result,
+        Boolean(dryRun)
+          ? `Dry-run completed for ${normalizedScope}. No data was deleted.`
+          : `${normalizedScope} data wipe completed successfully`
+      );
+    } catch (error) {
+      log.error('Tenant scoped data wipe error', { error: (error as Error).message });
+      return next(error);
+    }
+  };
+
+  /**
    * Wipe data for a specific event
    */
   wipeEventData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -86,6 +131,6 @@ export class DataWipeController {
 // Create controller instance and export methods
 const controller = new DataWipeController();
 
+export const wipeData = controller.wipeData;
 export const wipeAllData = controller.wipeAllData;
 export const wipeEventData = controller.wipeEventData;
-

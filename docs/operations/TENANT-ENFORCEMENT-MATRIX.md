@@ -284,6 +284,7 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 | POST | `/api/v1/custom-fields/values/bulk` | TENANT_SCOPED | - | `src/routes/customFieldsRoutes.ts` |
 | POST | `/api/v1/data-wipe/all` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/dataWipeRoutes.ts` |
 | POST | `/api/v1/data-wipe/event/:eventId` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/dataWipeRoutes.ts` |
+| POST | `/api/v1/data-wipe` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/dataWipeRoutes.ts` |
 | GET | `/api/v1/database-browser/history` | TENANT_SCOPED | - | `src/routes/databaseBrowserRoutes.ts` |
 | POST | `/api/v1/database-browser/query` | TENANT_SCOPED | - | `src/routes/databaseBrowserRoutes.ts` |
 | GET | `/api/v1/database-browser/tables` | TENANT_SCOPED | - | `src/routes/databaseBrowserRoutes.ts` |
@@ -1000,4 +1001,3 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 - This matrix is generated from source patterns and should be reviewed when adding new routes or DB access paths.
 - `SUPER_ADMIN_GLOBAL_OR_EXPLICIT_TENANT` means super admins may run global views or explicitly scoped tenant operations.
 - `TENANT_SCOPED_OPTIONAL` models include rows that can be tenant-scoped or platform-global by design.
-

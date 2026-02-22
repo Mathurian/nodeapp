@@ -6,14 +6,17 @@
 import { PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
+import { isDefaultTenant } from '../utils/tenantSegregationPolicy';
 
 export interface DataWipeSummary {
-  scope: 'GLOBAL' | 'EVENT';
+  scope: 'GLOBAL' | 'EVENT' | 'TENANT';
   eventId?: string;
   tenantId?: string;
   counts: Record<string, number>;
   dryRun: boolean;
 }
+
+type TenantWipeScope = 'ALL' | 'EVENTS' | 'USERS' | 'SCORES';
 
 @injectable()
 export class DataWipeService extends BaseService {
@@ -33,6 +36,29 @@ export class DataWipeService extends BaseService {
       }
 
       const categoryIds = scope.categoryIds || [];
+      if (!scope.eventId && categoryIds.length === 0) {
+        await executor.$executeRawUnsafe(
+          `
+          DELETE FROM score_governance_approvals
+          WHERE "requestId" IN (
+            SELECT id
+            FROM score_governance_requests
+            WHERE "tenantId" = $1
+          )
+          `,
+          scope.tenantId
+        );
+
+        await executor.$executeRawUnsafe(
+          `
+          DELETE FROM score_governance_requests
+          WHERE "tenantId" = $1
+          `,
+          scope.tenantId
+        );
+        return;
+      }
+
       await executor.$executeRawUnsafe(
         `
         DELETE FROM score_governance_approvals
@@ -94,6 +120,97 @@ export class DataWipeService extends BaseService {
       assignments,
       deductionRequests: deductions,
     };
+  }
+
+  private mergeCounts(target: Record<string, number>, source: Record<string, number>): void {
+    for (const [key, value] of Object.entries(source)) {
+      target[key] = (target[key] || 0) + value;
+    }
+  }
+
+  private async getTenantScopeSummary(tenantId: string): Promise<Record<string, number>> {
+    const [
+      events,
+      contests,
+      categories,
+      scores,
+      files,
+      assignments,
+      deductions,
+      nonAdminUsers,
+      judges,
+      contestants,
+      notifications,
+      roleAssignments,
+      certifications,
+      scoreFiles,
+    ] = await Promise.all([
+      this.prisma.event.count({ where: { tenantId } }),
+      this.prisma.contest.count({ where: { tenantId } }),
+      this.prisma.category.count({ where: { tenantId } }),
+      this.prisma.score.count({ where: { tenantId } }),
+      this.prisma.file.count({ where: { tenantId } }),
+      this.prisma.assignment.count({ where: { tenantId } }),
+      this.prisma.deductionRequest.count({ where: { tenantId } }),
+      this.prisma.user.count({
+        where: {
+          tenantId,
+          role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }
+        }
+      }),
+      this.prisma.judge.count({ where: { tenantId } }),
+      this.prisma.contestant.count({ where: { tenantId } }),
+      this.prisma.notification.count({ where: { tenantId } }),
+      this.prisma.roleAssignment.count({ where: { tenantId } }),
+      this.prisma.categoryCertification.count({ where: { tenantId } }),
+      this.prisma.scoreFile.count({ where: { tenantId } }),
+    ]);
+
+    return {
+      events,
+      contests,
+      categories,
+      scores,
+      files,
+      assignments,
+      deductionRequests: deductions,
+      nonAdminUsers,
+      judges,
+      contestants,
+      notifications,
+      roleAssignments,
+      categoryCertifications: certifications,
+      scoreFiles,
+    };
+  }
+
+  private async wipeTenantEvents(
+    tenantId: string,
+    userId: string,
+    userRole: string,
+    isSuperAdmin: boolean,
+    dryRun: boolean
+  ): Promise<Record<string, number>> {
+    const eventIds = await this.prisma.event.findMany({
+      where: { tenantId },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    const aggregate: Record<string, number> = { events: eventIds.length };
+    for (const event of eventIds) {
+      const summary = await this.wipeEventData(
+        event.id,
+        userId,
+        userRole,
+        tenantId,
+        isSuperAdmin,
+        dryRun
+      );
+      this.mergeCounts(aggregate, summary.counts);
+    }
+
+    return aggregate;
   }
 
   private async getEventWipeSummary(eventId: string, tenantId: string): Promise<Record<string, number>> {
@@ -304,6 +421,150 @@ export class DataWipeService extends BaseService {
       scope: 'EVENT',
       eventId,
       tenantId: targetTenantId,
+      counts,
+      dryRun: false,
+    };
+  }
+
+  /**
+   * Legacy compatibility + tenant-safe wipe endpoint.
+   * Never performs global cross-tenant wipes.
+   */
+  async wipeTenantScopedData(
+    scope: TenantWipeScope,
+    userId: string,
+    userRole: string,
+    tenantId: string | undefined,
+    isSuperAdmin: boolean,
+    dryRun: boolean
+  ): Promise<DataWipeSummary> {
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
+      throw this.forbiddenError('You do not have permission to wipe data');
+    }
+    if (!tenantId) {
+      throw this.forbiddenError('Tenant context is required');
+    }
+    if (isDefaultTenant(tenantId, null)) {
+      throw this.forbiddenError('Default tenant data wipe is blocked for safety');
+    }
+
+    const normalizedScope = String(scope || 'ALL').toUpperCase() as TenantWipeScope;
+    if (!['ALL', 'EVENTS', 'USERS', 'SCORES'].includes(normalizedScope)) {
+      throw this.validationError('Invalid scope. Must be ALL, EVENTS, USERS, or SCORES.');
+    }
+
+    const counts = await this.getTenantScopeSummary(tenantId);
+    if (dryRun) {
+      return {
+        scope: 'TENANT',
+        tenantId,
+        counts,
+        dryRun: true,
+      };
+    }
+
+    if (normalizedScope === 'EVENTS') {
+      await this.wipeTenantEvents(tenantId, userId, userRole, isSuperAdmin, false);
+    }
+
+    if (normalizedScope === 'SCORES') {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.scoreFile.deleteMany({ where: { tenantId } });
+        await tx.scoreComment.deleteMany({ where: { tenantId } });
+        await tx.score.deleteMany({ where: { tenantId } });
+        await tx.judgeComment.deleteMany({ where: { tenantId } });
+        await tx.certification.deleteMany({ where: { tenantId } });
+        await tx.categoryCertification.deleteMany({ where: { tenantId } });
+        await tx.contestCertification.deleteMany({ where: { tenantId } });
+        await tx.judgeCertification.deleteMany({ where: { tenantId } });
+        await tx.judgeContestantCertification.deleteMany({ where: { tenantId } });
+        await tx.reviewContestantCertification.deleteMany({ where: { tenantId } });
+        await tx.reviewJudgeScoreCertification.deleteMany({ where: { tenantId } });
+        await tx.judgeScoreRemovalRequest.deleteMany({ where: { tenantId } });
+        await tx.judgeUncertificationRequest.deleteMany({ where: { tenantId } });
+        await tx.scoreRemovalRequest.deleteMany({ where: { tenantId } });
+        await this.purgeScoreGovernance(tx, { tenantId });
+        await tx.deductionApproval.deleteMany({ where: { tenantId } });
+        await tx.deductionRequest.deleteMany({ where: { tenantId } });
+        await tx.overallDeduction.deleteMany({ where: { tenantId } });
+      });
+    }
+
+    if (normalizedScope === 'USERS') {
+      await this.prisma.$transaction(async (tx) => {
+        const users = await tx.user.findMany({
+          where: {
+            tenantId,
+            role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }
+          },
+          select: { id: true }
+        });
+        const userIds = users.map((user) => user.id);
+
+        if (userIds.length === 0) {
+          return;
+        }
+
+        await tx.notification.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.notificationDigest.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.notificationPreference.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.pushSubscription.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.savedSearch.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.searchHistory.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.roleAssignment.deleteMany({ where: { tenantId, userId: { in: userIds } } });
+        await tx.user.updateMany({
+          where: { id: { in: userIds } },
+          data: {
+            isActive: false,
+            judgeId: null,
+            contestantId: null,
+          }
+        });
+      });
+    }
+
+    if (normalizedScope === 'ALL') {
+      await this.wipeTenantEvents(tenantId, userId, userRole, isSuperAdmin, false);
+      await this.prisma.$transaction(async (tx) => {
+        await tx.file.deleteMany({ where: { tenantId } });
+        await tx.scoreFile.deleteMany({ where: { tenantId } });
+        await tx.scoreComment.deleteMany({ where: { tenantId } });
+        await tx.assignment.deleteMany({ where: { tenantId } });
+        await tx.roleAssignment.deleteMany({ where: { tenantId } });
+        await tx.notification.deleteMany({ where: { tenantId } });
+        await tx.notificationDigest.deleteMany({ where: { tenantId } });
+        await tx.notificationPreference.deleteMany({ where: { tenantId } });
+        await tx.pushSubscription.deleteMany({ where: { tenantId } });
+        await tx.savedSearch.deleteMany({ where: { tenantId } });
+        await tx.searchHistory.deleteMany({ where: { tenantId } });
+
+        await tx.user.updateMany({
+          where: {
+            tenantId,
+            role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }
+          },
+          data: {
+            isActive: false,
+            judgeId: null,
+            contestantId: null,
+          }
+        });
+
+        await tx.judge.deleteMany({ where: { tenantId } });
+        await tx.contestant.deleteMany({ where: { tenantId } });
+      });
+    }
+
+    this.logInfo('Tenant scoped data wipe executed', {
+      userId,
+      userRole,
+      tenantId,
+      scope: normalizedScope
+    });
+
+    return {
+      scope: 'TENANT',
+      tenantId,
       counts,
       dryRun: false,
     };

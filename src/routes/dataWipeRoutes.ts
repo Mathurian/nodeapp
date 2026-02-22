@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { wipeAllData, wipeEventData } from '../controllers/dataWipeController';
+import { wipeData, wipeAllData, wipeEventData } from '../controllers/dataWipeController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 
@@ -7,6 +7,17 @@ const router: Router = express.Router();
 
 // Apply authentication to all routes
 router.use(authenticateToken);
+
+/**
+ * @swagger
+ * /api/data-wipe:
+ *   post:
+ *     summary: Tenant-scoped data wipe by scope (legacy compatibility path)
+ *     tags: [Data Wipe]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('WIPE_DATA_SCOPE', 'SYSTEM'), wipeData);
 
 /**
  * @swagger
@@ -34,4 +45,3 @@ export default router;
 
 // CommonJS compatibility
 module.exports = router;
-
