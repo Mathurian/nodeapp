@@ -1116,6 +1116,21 @@ export class SettingsService extends BaseService {
     if (!refreshToken && !accessToken) {
       throw new Error('Google token exchange failed.');
     }
+    let existingRefreshToken = '';
+    try {
+      const existingTokenPayloadRaw = String(settings['backup_google_drive_oauth_tokens'] || '').trim();
+      if (existingTokenPayloadRaw) {
+        const existingTokenPayload = JSON.parse(existingTokenPayloadRaw) as Record<string, unknown>;
+        existingRefreshToken = String(existingTokenPayload['refresh_token'] || '').trim();
+      }
+    } catch {
+      existingRefreshToken = '';
+    }
+
+    const effectiveRefreshToken = refreshToken || existingRefreshToken;
+    if (!effectiveRefreshToken) {
+      throw new Error('Google token exchange did not return a refresh token. Reconnect Google Drive with consent.');
+    }
 
     let email = '';
     if (idToken) {
@@ -1128,19 +1143,23 @@ export class SettingsService extends BaseService {
       }
     }
 
+    const expiresIn = Number(tokenRes.data?.expires_in || 3600);
+    const expiry = new Date(Date.now() + Math.max(expiresIn, 60) * 1000).toISOString();
+
     const tokenPayload = {
-      refresh_token: refreshToken,
+      refresh_token: effectiveRefreshToken,
       access_token: accessToken,
-      token_type: tokenRes.data?.token_type,
+      token_type: tokenRes.data?.token_type || 'Bearer',
+      expiry,
       scope: tokenRes.data?.scope,
-      expires_in: tokenRes.data?.expires_in,
+      expires_in: expiresIn,
       updated_at: new Date().toISOString(),
       email,
     };
 
     await this.updateBackupSettings(
       {
-        backup_google_drive_oauth_tokens: this.encryptSensitiveValue(JSON.stringify(tokenPayload)),
+        backup_google_drive_oauth_tokens: JSON.stringify(tokenPayload),
         backup_google_drive_oauth_connected_email: email || '',
         backup_google_drive_oauth_connected_at: new Date().toISOString(),
         backup_remote_type: 'rclone',
@@ -1184,7 +1203,7 @@ export class SettingsService extends BaseService {
         backup_remote_type: 'rclone',
         backup_rclone_provider: 'google_cloud_storage',
         backup_rclone_auth_mode: 'service_account',
-        backup_rclone_service_account_json: this.encryptSensitiveValue(JSON.stringify(parsed)),
+        backup_rclone_service_account_json: JSON.stringify(parsed),
         backup_rclone_gcs_project_number: String(projectNumber || ''),
       },
       userId,

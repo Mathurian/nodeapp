@@ -18,16 +18,23 @@ interface Backup {
   id: string
   type: 'FULL' | 'SCHEMA' | 'DATA'
   filename: string
-  size: number
+  size: number | null
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   createdAt: string
   createdBy: string
+  errorMessage?: string | null
   metadata?: {
     destination?: 'LOCAL' | 'OFF_SITE' | 'BOTH'
     offsite?: {
       attempted?: boolean
       successCount?: number
       failedCount?: number
+      results?: Array<{
+        targetId: string
+        targetName: string
+        success: boolean
+        error?: string
+      }>
     }
   }
 }
@@ -123,7 +130,8 @@ const BackupManagementPage: React.FC = () => {
     }
   }
 
-  const formatSize = (bytes: number) => {
+  const formatSize = (bytes: number | null | undefined) => {
+    if (bytes == null || Number.isNaN(bytes)) return '—'
     if (bytes < 1024) return bytes + ' B'
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
     if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
@@ -141,6 +149,28 @@ const BackupManagementPage: React.FC = () => {
       default:
         return <ClockIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
     }
+  }
+
+  const truncateIssueMessage = (message: string, maxLength = 220) => {
+    if (message.length <= maxLength) return message
+    return `${message.slice(0, maxLength - 3)}...`
+  }
+
+  const getBackupIssueMessage = (backup: Backup): string | null => {
+    const directError = String(backup.errorMessage || '').trim()
+    if (directError) return directError
+
+    const offsite = backup.metadata?.offsite
+    const failedCount = Number(offsite?.failedCount || 0)
+    if (!offsite?.attempted || failedCount <= 0) return null
+
+    const successCount = Number(offsite?.successCount || 0)
+    const totalTargets = successCount + failedCount
+    const firstFailure = offsite.results?.find((result) => !result.success)
+    const summary = `Off-site transfer failed for ${failedCount}/${totalTargets || failedCount} target${(totalTargets || failedCount) === 1 ? '' : 's'}.`
+
+    if (!firstFailure?.error) return summary
+    return `${summary} ${firstFailure.error}`
   }
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
@@ -306,7 +336,12 @@ const BackupManagementPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  backups.map((backup) => (
+                  backups.map((backup) => {
+                    const issueMessage = getBackupIssueMessage(backup)
+                    const issueToneClass = backup.status === 'FAILED'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-amber-700 dark:text-amber-400'
+                    return (
                     <tr key={backup.id} className="hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusIcon(backup.status)}
@@ -322,7 +357,12 @@ const BackupManagementPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white dark:text-white">
-                        {backup.filename}
+                        <div className="font-medium text-gray-900 dark:text-white">{backup.filename}</div>
+                        {issueMessage && (
+                          <p className={`mt-1 text-xs ${issueToneClass}`} title={issueMessage}>
+                            {truncateIssueMessage(issueMessage)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                         {formatSize(backup.size)}
@@ -362,7 +402,8 @@ const BackupManagementPage: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    )
+                  })
                 )}
               </tbody>
             </table>

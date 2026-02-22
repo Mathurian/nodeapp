@@ -84,11 +84,25 @@ const uploadToRuntimeRemoteTarget = async (
           if (!tokenPayload) {
             return { success: false, error: 'Google Drive OAuth token is missing' };
           }
+          let parsedToken: Record<string, unknown>;
+          try {
+            parsedToken = JSON.parse(tokenPayload) as Record<string, unknown>;
+          } catch {
+            return { success: false, error: 'Google Drive OAuth token is invalid. Reconnect Google Drive in Backup Settings.' };
+          }
+          const refreshToken = String(parsedToken['refresh_token'] || '').trim();
+          const accessToken = String(parsedToken['access_token'] || '').trim();
+          if (!refreshToken && !accessToken) {
+            return { success: false, error: 'Google Drive OAuth token is incomplete. Reconnect Google Drive in Backup Settings.' };
+          }
+          if (!refreshToken) {
+            return { success: false, error: 'Google Drive OAuth refresh token is missing. Reconnect Google Drive to enable off-site backups.' };
+          }
           const clientId = String(runtimeSettings['backup_google_oauth_client_id'] || '').trim();
           const clientSecret = String(runtimeSettings['backup_google_oauth_client_secret'] || '').trim();
           if (clientId) configLines.push(`client_id = ${clientId}`);
           if (clientSecret) configLines.push(`client_secret = ${clientSecret}`);
-          configLines.push(`token = ${tokenPayload}`);
+          configLines.push(`token = ${JSON.stringify(parsedToken)}`);
         } else if (authMode === 'service_account') {
           const serviceAccountJson = String(runtimeSettings['backup_rclone_service_account_json'] || '').trim();
           if (!serviceAccountJson) {
@@ -172,6 +186,16 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
       type?: 'FULL' | 'SCHEMA' | 'DATA';
       destination?: 'LOCAL' | 'OFF_SITE' | 'BOTH';
     };
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
+    const requestedTenantId = (req.query['tenantId'] as string | undefined) || undefined;
+    const effectiveTenantId = isSuperAdmin
+      ? (requestedTenantId ?? req.tenantId ?? req.user?.tenantId ?? null)
+      : (req.tenantId || req.user?.tenantId || null);
+    const logTenantId = effectiveTenantId || req.user?.tenantId || req.tenantId || '';
+    if (!logTenantId) {
+      res.status(400).json({ error: 'Unable to resolve tenant context for backup operation.' });
+      return;
+    }
     const normalizedDestination = String(destination || 'LOCAL').toUpperCase() as 'LOCAL' | 'OFF_SITE' | 'BOTH';
     if (!['LOCAL', 'OFF_SITE', 'BOTH'].includes(normalizedDestination)) {
       res.status(400).json({ error: 'Invalid backup destination. Use LOCAL, OFF_SITE, or BOTH.' });
@@ -183,11 +207,13 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     let useRuntimeOffsiteTarget = false;
     let runtimeBackupSettings: Record<string, string> = {};
     if (shouldReplicateOffsite) {
-      const tenantId = req.tenantId || null;
+      const targetTenantFilter = effectiveTenantId
+        ? { OR: [{ tenantId: effectiveTenantId }, { tenantId: null }] }
+        : { tenantId: null };
       const rawTargets = await prisma.backupTarget.findMany({
         where: {
           enabled: true,
-          OR: [{ tenantId }, { tenantId: null }],
+          ...targetTenantFilter,
         },
         orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
       });
@@ -202,7 +228,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
 
       if (offsiteTargets.length === 0) {
         const settingsService = getSettingsService();
-        runtimeBackupSettings = await settingsService.getBackupSettings(tenantId);
+        runtimeBackupSettings = await settingsService.getBackupSettings(effectiveTenantId);
         const remoteEnabled = String(runtimeBackupSettings['backup_remote_enabled'] || 'false') === 'true';
         if (!remoteEnabled) {
           res.status(400).json({
@@ -226,7 +252,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     // Create backup log entry
     const backupLog = await prisma.backupLog.create({
       data: {
-        tenantId: req.tenantId!,
+        tenantId: logTenantId,
         type: type,
         location: filepath,
         size: BigInt(0),
@@ -251,8 +277,7 @@ export const createBackup = async (req: Request, res: Response, next: NextFuncti
     const database = dbUrl.pathname.slice(1).split('?')[0];
     const username = dbUrl.username;
     const password = dbUrl.password || '';
-    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' || req.isSuperAdmin === true;
-    const tenantScopeId = isSuperAdmin ? null : (req.tenantId || req.user?.tenantId || null);
+    const tenantScopeId = isSuperAdmin ? null : logTenantId;
     const pgOptionsParts = [
       '-c app.tenant_rls_mode=enforce',
       `-c app.is_super_admin=${isSuperAdmin ? 'true' : 'false'}`,
