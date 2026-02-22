@@ -8,6 +8,10 @@ import { useTheme } from '../contexts/ThemeContext'
 import { useCommands, getModifierKeySymbol } from '../hooks'
 import { settingsAPI, notificationsAPI, winnersAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
+import {
+  ROLE_WELCOME_GUIDE_FORCE_OPEN_STORAGE_KEY,
+  ROLE_WELCOME_GUIDE_OPEN_EVENT,
+} from '../constants/onboarding'
 import AccordionNav from './AccordionNav'
 import Breadcrumb, { BreadcrumbItem } from './Breadcrumb'
 import {
@@ -320,6 +324,16 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
   const toggleMobileMenu = useCallback(() => {
     setMobileMenuOpen(prev => !prev)
+  }, [])
+
+  const handleOpenWelcomeGuide = useCallback(() => {
+    try {
+      window.localStorage.setItem(ROLE_WELCOME_GUIDE_FORCE_OPEN_STORAGE_KEY, '1')
+    } catch {
+      // Best effort only.
+    }
+    window.dispatchEvent(new Event(ROLE_WELCOME_GUIDE_OPEN_EVENT))
+    setProfileMenuOpen(false)
   }, [])
 
   const handleDesktopNavigate = useCallback(() => {
@@ -759,6 +773,14 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
                       <CogIcon className="h-4 w-4 mr-3 text-gray-400" />
                       Settings
                     </Link>
+                    <button
+                      type="button"
+                      onClick={handleOpenWelcomeGuide}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <LightBulbIcon className="h-4 w-4 mr-3 text-gray-400" />
+                      Welcome Guide
+                    </button>
                     <div className="border-t border-gray-100 dark:border-gray-700">
                       <button
                         onClick={() => {

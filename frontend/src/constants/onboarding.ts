@@ -1,0 +1,5 @@
+export const ROLE_WELCOME_GUIDE_VERSION = '2026-02-role-welcome-v1'
+export const ROLE_WELCOME_GUIDE_FORCE_OPEN_STORAGE_KEY = 'roleWelcomeGuideForceOpen'
+export const ROLE_WELCOME_GUIDE_OPEN_EVENT = 'event-manager:open-role-welcome'
+export const ROLE_WELCOME_GUIDE_SEEN_STORAGE_PREFIX = 'roleWelcomeGuideSeen'
+export const ROLE_WELCOME_GUIDE_DISABLED_STORAGE_PREFIX = 'roleWelcomeGuideDisabled'

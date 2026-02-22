@@ -101,7 +101,11 @@ function App() {
                     />
                   </Suspense>
                   <CommandPaletteOnboardingWrapper
-                    onComplete={() => setIsCommandPaletteOpen(true)}
+                    onComplete={(options) => {
+                      if (options?.openCommandPalette) {
+                        setIsCommandPaletteOpen(true)
+                      }
+                    }}
                   />
                   <TenantRouter onOpenCommandPalette={() => setIsCommandPaletteOpen(true)} />
                 </SocketProvider>
