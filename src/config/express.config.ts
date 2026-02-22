@@ -76,6 +76,34 @@ const normalizeOriginValue = (value: string): string | null => {
   }
 };
 
+const isIpHostname = (hostname: string): boolean => {
+  const normalized = hostname.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes(':')) return true; // IPv6/other literal host forms
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(normalized);
+};
+
+const canUseSubdomainMatching = (hostname: string): boolean => {
+  const normalized = hostname.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === 'localhost' || normalized.endsWith('.localhost')) return false;
+  if (!normalized.includes('.')) return false;
+  if (isIpHostname(normalized)) return false;
+  return true;
+};
+
+const collectSubdomainBaseHostnames = (hostname: string): string[] => {
+  const normalized = hostname.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const candidates = new Set<string>([normalized]);
+  if (normalized.startsWith('www.')) {
+    candidates.add(normalized.slice(4));
+  }
+
+  return Array.from(candidates).filter(canUseSubdomainMatching);
+};
+
 export const isAllowedOrigin = (origin: string | undefined, allowedOrigins: string[]): boolean => {
   if (!origin) return true // Allow same-origin/no-origin requests
 
@@ -98,8 +126,31 @@ export const isAllowedOrigin = (origin: string | undefined, allowedOrigins: stri
   const normalizedAllowedOrigins = allowedOrigins
     .map(normalizeOriginValue)
     .filter((value): value is string => !!value)
+  const isExactMatch = normalizedAllowedOrigins.includes(normalizedOrigin)
+  let isAllowed = isExactMatch
 
-  const isAllowed = normalizedAllowedOrigins.includes(normalizedOrigin)
+  // Allow tenant subdomains for explicitly configured platform origins
+  // (e.g. conmgr.com -> okckw.conmgr.com) while keeping protocol/port constraints.
+  if (!isAllowed) {
+    try {
+      const originUrl = new URL(normalizedOrigin);
+      const originHostname = originUrl.hostname.toLowerCase();
+
+      for (const allowedOriginValue of normalizedAllowedOrigins) {
+        const allowedUrl = new URL(allowedOriginValue);
+        if (originUrl.protocol !== allowedUrl.protocol) continue;
+        if (originUrl.port !== allowedUrl.port) continue;
+
+        const baseHostnames = collectSubdomainBaseHostnames(allowedUrl.hostname);
+        if (baseHostnames.some((baseHostname) => originHostname.endsWith(`.${baseHostname}`))) {
+          isAllowed = true;
+          break;
+        }
+      }
+    } catch {
+      isAllowed = false;
+    }
+  }
 
   // Log CORS rejections for debugging
   if (!isAllowed) {
