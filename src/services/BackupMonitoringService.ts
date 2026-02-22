@@ -2,7 +2,7 @@ import { Prisma, BackupLog, PrismaClient } from '@prisma/client';
 import { EventEmitter } from 'events';
 import prisma from '../config/database';
 import { createLogger } from '../utils/logger';
-import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
+import { resolveDefaultTenantId } from '../utils/defaultTenantResolver';
 import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('BackupMonitoringService');
@@ -51,11 +51,11 @@ export interface BackupHealthCheck {
 
 class BackupMonitoringService extends EventEmitter {
   private static instance: BackupMonitoringService;
-  private readonly systemTenantId: string;
+  private systemTenantId: string | null;
 
   private constructor() {
     super();
-    this.systemTenantId = getTenantSegregationConfig().defaultTenantIds[0] || 'default';
+    this.systemTenantId = null;
   }
 
   private async withSystemDbContext<T>(
@@ -83,6 +83,19 @@ class BackupMonitoringService extends EventEmitter {
     );
   }
 
+  private async ensureSystemTenantId(forceRefresh: boolean = false): Promise<string> {
+    if (!forceRefresh && this.systemTenantId) {
+      return this.systemTenantId;
+    }
+
+    const resolvedTenantId = await this.withSystemDbContext(async db => resolveDefaultTenantId(db));
+    if (resolvedTenantId !== this.systemTenantId) {
+      logger.info('Resolved backup monitoring system tenant', { tenantId: resolvedTenantId });
+    }
+    this.systemTenantId = resolvedTenantId;
+    return resolvedTenantId;
+  }
+
   public static getInstance(): BackupMonitoringService {
     if (!BackupMonitoringService.instance) {
       BackupMonitoringService.instance = new BackupMonitoringService();
@@ -95,7 +108,7 @@ class BackupMonitoringService extends EventEmitter {
    */
   async logBackup(data: BackupLogData, tenantId?: string): Promise<BackupLog> {
     try {
-      const effectiveTenantId = tenantId || this.systemTenantId;
+      const effectiveTenantId = tenantId || await this.ensureSystemTenantId();
       const backupLog = await this.withOptionalTenantDbContext(tenantId, async db =>
         db.backupLog.create({
           data: {

@@ -6,7 +6,7 @@ import { exec } from 'child_process';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 import BackupTransferService, { BackupTarget } from './BackupTransferService';
-import { getTenantSegregationConfig } from '../utils/tenantSegregationPolicy';
+import { resolveDefaultTenantId } from '../utils/defaultTenantResolver';
 import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const logger = createLogger('ScheduledBackupService');
@@ -17,14 +17,14 @@ class ScheduledBackupService {
   private jobs: Map<string, ReturnType<typeof cron.schedule>>;
   private isRunning: boolean;
   private settingsRefreshInterval: NodeJS.Timeout | null;
-  private readonly systemTenantId: string;
+  private systemTenantId: string | null;
 
   constructor(prismaClient: PrismaClient) {
     this.prisma = prismaClient;
     this.jobs = new Map();
     this.isRunning = false;
     this.settingsRefreshInterval = null;
-    this.systemTenantId = getTenantSegregationConfig().defaultTenantIds[0] || 'default';
+    this.systemTenantId = null;
   }
 
   private async withSystemDbContext<T>(
@@ -37,6 +37,19 @@ class ScheduledBackupService {
     );
   }
 
+  private async ensureSystemTenantId(forceRefresh: boolean = false): Promise<string> {
+    if (!forceRefresh && this.systemTenantId) {
+      return this.systemTenantId;
+    }
+
+    const resolvedTenantId = await this.withSystemDbContext(async db => resolveDefaultTenantId(db));
+    if (resolvedTenantId !== this.systemTenantId) {
+      logger.info('Resolved scheduled backup system tenant', { tenantId: resolvedTenantId });
+    }
+    this.systemTenantId = resolvedTenantId;
+    return resolvedTenantId;
+  }
+
   async start() {
     if (this.isRunning) {
       logger.info('Scheduled backup service is already running')
@@ -45,6 +58,8 @@ class ScheduledBackupService {
 
     this.isRunning = true
     logger.info('Starting scheduled backup service...')
+
+    await this.ensureSystemTenantId();
 
     // Load backup settings from database
     await this.reloadSettings()
@@ -159,23 +174,40 @@ class ScheduledBackupService {
       }
 
       // Create backup log entry
-      const backupLog = await this.withSystemDbContext(async db =>
-        db.backupLog.create({
-          data: {
-            tenantId: this.systemTenantId,
-            type: baseType,
-            location: filepath,
-            size: 0,
-            status: 'running',
-            startedAt: new Date(),
-            errorMessage: null,
-            metadata: {
-              scheduled: true,
-              deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+      const createBackupLog = async (tenantId: string) =>
+        this.withSystemDbContext(async db =>
+          db.backupLog.create({
+            data: {
+              tenantId,
+              type: baseType,
+              location: filepath,
+              size: 0,
+              status: 'running',
+              startedAt: new Date(),
+              errorMessage: null,
+              metadata: {
+                scheduled: true,
+                deliveryMode: isRemoteMode ? 'REMOTE' : 'LOCAL',
+              }
             }
-          }
-        })
-      )
+          })
+        );
+
+      let systemTenantId = await this.ensureSystemTenantId();
+      let backupLog;
+      try {
+        backupLog = await createBackupLog(systemTenantId);
+      } catch (error) {
+        const isTenantFkFailure = (error as { code?: string })?.code === 'P2003';
+        if (!isTenantFkFailure) {
+          throw error;
+        }
+        logger.warn('Scheduled backup tenant FK error, refreshing default tenant resolution', {
+          tenantId: systemTenantId,
+        });
+        systemTenantId = await this.ensureSystemTenantId(true);
+        backupLog = await createBackupLog(systemTenantId);
+      }
 
       // Parse DATABASE_URL to extract connection details
       const dbUrl = new URL(env.get('DATABASE_URL'));
