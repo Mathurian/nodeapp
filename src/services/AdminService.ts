@@ -77,6 +77,7 @@ export interface FormattedActivityLog {
   resource: string; // For backward compatibility
   resourceId: string | null;
   details: Prisma.JsonValue;
+  metadata?: Record<string, unknown> | null; // For backward compatibility with frontend audit views
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string; // ISO string format
@@ -477,24 +478,41 @@ export class AdminService extends BaseService {
         this.prisma.activityLog.count({ where })
       ]);
 
-      const formattedLogs = logs.map(log => ({
-        id: log.id,
-        userId: log.userId,
-        action: log.action,
-        resourceType: log.resourceType ?? '',
-        resource: log.resourceType ?? '', // For compatibility
-        resourceId: log.resourceId,
-        details: log.details,
-        ipAddress: log.ipAddress,
-        userAgent: log.userAgent,
-        createdAt: log.createdAt.toISOString(),
-        user: log.user ? {
-          id: log.user.id,
-          name: log.user.name,
-          email: log.user.email,
-          role: log.user.role
-        } : null
-      }));
+      const formattedLogs = logs.map(log => {
+        let metadata: Record<string, unknown> | null = null;
+        if (log.details && typeof log.details === 'object' && !Array.isArray(log.details)) {
+          metadata = log.details as Record<string, unknown>;
+        } else if (typeof log.details === 'string') {
+          try {
+            const parsed = JSON.parse(log.details);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              metadata = parsed as Record<string, unknown>;
+            }
+          } catch {
+            metadata = null;
+          }
+        }
+
+        return {
+          id: log.id,
+          userId: log.userId,
+          action: log.action,
+          resourceType: log.resourceType ?? '',
+          resource: log.resourceType ?? '', // For compatibility
+          resourceId: log.resourceId,
+          details: log.details,
+          metadata,
+          ipAddress: log.ipAddress,
+          userAgent: log.userAgent,
+          createdAt: log.createdAt.toISOString(),
+          user: log.user ? {
+            id: log.user.id,
+            name: log.user.name,
+            email: log.user.email,
+            role: log.user.role
+          } : null
+        };
+      });
 
       return createPaginatedResponse(formattedLogs, total, options);
     } catch (error) {

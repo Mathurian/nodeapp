@@ -10,6 +10,49 @@ export class ScoreGovernanceController {
     this.service = container.resolve(ScoreGovernanceService)
   }
 
+  private buildActorContext(request: any) {
+    const requestor = request?.requestedBy
+      ? {
+          id: request.requestedBy.id || request.requestedById || null,
+          name: request.requestedBy.name || null,
+          email: request.requestedBy.email || null,
+          role: request.requestedBy.role || request.requesterRole || null,
+          boardRole: request.requestedBy.boardRole || null
+        }
+      : (request?.requestedById
+        ? {
+            id: request.requestedById,
+            name: null,
+            email: null,
+            role: request.requesterRole || null,
+            boardRole: request.requesterBoardRoleSnapshot || null
+          }
+        : null)
+
+    const approvers = Array.isArray(request?.approvals)
+      ? request.approvals.map((approval: any) => ({
+          id: approval.approvedById || null,
+          name: approval.approvedByName || null,
+          email: approval.approvedByEmail || null,
+          role: approval.approverRole || null,
+          boardRole: approval.effectiveBoardRoleSnapshot || approval.approverBoardRoleSnapshot || null,
+          approvedAt: approval.approvedAt || null
+        }))
+      : []
+
+    return { requestor, approvers }
+  }
+
+  private setGovernanceActivityContext(res: Response, request: any): void {
+    res.locals['activityContext'] = {
+      governanceRequestId: request?.id || null,
+      actionType: request?.actionType || null,
+      scopeType: request?.scopeType || null,
+      status: request?.status || null,
+      ...this.buildActorContext(request)
+    }
+  }
+
   private getEffectiveTenantId(req: Request): string | undefined {
     if (!req.user) return req.tenantId
     if (req.user.role === 'SUPER_ADMIN') {
@@ -109,6 +152,7 @@ export class ScoreGovernanceController {
         }
       })
 
+      this.setGovernanceActivityContext(res, created)
       return sendSuccess(res, created, 'Governance request created successfully')
     } catch (error) {
       return next(error)
@@ -162,6 +206,7 @@ export class ScoreGovernanceController {
         signatureFilePath: req.body?.signatureFilePath
       })
 
+      this.setGovernanceActivityContext(res, updated)
       return sendSuccess(res, updated, 'Governance request certification recorded')
     } catch (error) {
       return next(error)
@@ -183,6 +228,7 @@ export class ScoreGovernanceController {
       }
 
       const result = await this.service.rejectRequest(id, tenantId, req.user.role, String(req.body?.reason || ''))
+      this.setGovernanceActivityContext(res, result)
       return sendSuccess(res, result, 'Governance request rejected')
     } catch (error) {
       return next(error)

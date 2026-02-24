@@ -170,6 +170,23 @@ const ScoreGovernancePage: React.FC = () => {
   }, [requests])
 
   const approverIdsForRequest = (request: any): string[] => (request.approvals || []).map((a: any) => a.approvedById).filter(Boolean)
+  const normalizeRoleLabel = (role?: string | null, boardRole?: string | null): string => {
+    if (!role) return 'Unknown Role'
+    if (role === 'BOARD' && boardRole) return `BOARD (${boardRole})`
+    return role
+  }
+  const requestorLabel = (request: any): string => {
+    const requestorName = request.requestedBy?.name || request.requestedBy?.email || request.requestedById || 'Unknown Requestor'
+    const requestorRole = normalizeRoleLabel(request.requestedBy?.role || request.requesterRole, request.requestedBy?.boardRole || request.requesterBoardRoleSnapshot)
+    return `${requestorName} - ${requestorRole}`
+  }
+  const additionalApproverRows = (request: any): any[] => {
+    const requesterId = request.requestedBy?.id || request.requestedById || null
+    return (request.approvals || []).filter((approval: any) => {
+      if (!requesterId || !approval.approvedById) return true
+      return approval.approvedById !== requesterId
+    })
+  }
 
   const canCurrentUserApprove = (request: any) => {
     if (!canApprove || request.status !== 'PENDING' || !user) return false
@@ -597,22 +614,22 @@ const ScoreGovernancePage: React.FC = () => {
         </Card>
 
         <Card className="rounded-lg p-0 overflow-x-auto">
-          <ResponsiveTable caption="Governance requests" minWidth="1050px">
-            <table className="w-full min-w-[1050px]">
+          <ResponsiveTable caption="Governance requests" minWidth="1200px">
+            <table className="w-full min-w-[1200px]">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Target</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Action/Scope</th>
+                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Flow Actors</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Reason</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Approvals</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Execution</th>
                   <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredRequests.map((request: any) => {
-                  const additionalApprovals = Math.max(0, (request.approvals?.length || 0) - 1)
+                  const additionalApprovals = additionalApproverRows(request).length
                   const approvalsNeeded = Math.max(0, Number(request.requiredAdditionalApprovals || 0) - additionalApprovals)
                   const canAct = canCurrentUserApprove(request)
                   return (
@@ -628,6 +645,36 @@ const ScoreGovernancePage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.actionType} / {request.scopeType}</td>
+                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-[11px] uppercase text-gray-500 dark:text-gray-400">Requestor</div>
+                            <div>{requestorLabel(request)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[11px] uppercase text-gray-500 dark:text-gray-400">Approver(s)</div>
+                            {additionalApproverRows(request).length > 0 ? (
+                              <div className="space-y-1">
+                                {additionalApproverRows(request).map((approval: any) => (
+                                  <div key={approval.id}>
+                                    {(approval.approvedByName || approval.approvedByEmail || approval.approvedById || 'Unknown Approver')}
+                                    {' - '}
+                                    {normalizeRoleLabel(approval.approverRole, approval.effectiveBoardRoleSnapshot)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Pending</div>
+                            )}
+                          </div>
+                          <div className="text-xs">
+                            {additionalApprovals}/{request.requiredAdditionalApprovals} additional approvals
+                            {request.status === 'PENDING' && approvalsNeeded > 0 && (
+                              <div className="text-yellow-700 dark:text-yellow-300 mt-1">{approvalsNeeded} more needed</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.reason}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -639,14 +686,6 @@ const ScoreGovernancePage: React.FC = () => {
                         }`}>
                           {request.status}
                         </span>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                        {additionalApprovals}/{request.requiredAdditionalApprovals} additional
-                        {request.status === 'PENDING' && approvalsNeeded > 0 && (
-                          <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                            {approvalsNeeded} more needed
-                          </div>
-                        )}
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.executionSummary || '-'}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">

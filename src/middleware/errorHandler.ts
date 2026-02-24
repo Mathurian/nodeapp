@@ -58,6 +58,8 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
             const userRole: string | null = req.user?.role || null;
             const tenantId: string | null = (req as any).tenantId || req.user?.tenantId || null;
 
+            const activityContext = res.locals?.['activityContext'] || null;
+
             await prisma.activityLog.create({
               data: {
                 userId: req.user!.id,
@@ -120,7 +122,8 @@ const logActivity = (action: string, resourceType: string | null = null, resourc
                     return acc;
                   }, {}) : null,
                   query: req.query || null,
-                  params: req.params || null
+                  params: req.params || null,
+                  activityContext
                 })
               }
             })
