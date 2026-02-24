@@ -2,15 +2,29 @@ import { inject, injectable } from 'tsyringe'
 import { Prisma, PrismaClient, RequestStatus, UserRole } from '@prisma/client'
 import { randomUUID } from 'crypto'
 import { BaseService } from './BaseService'
+import { NotificationService } from './NotificationService'
 import { refreshJudgeStage } from '../utils/certificationPipeline'
+import { createLogger } from '../utils/logger'
+
+const logger = createLogger('ScoreGovernanceService')
 
 const SETTINGS_KEYS = {
   REQUIRED_ADDITIONAL_APPROVALS: 'score_governance_required_additional_approvals',
   APPROVER_ROLES: 'score_governance_approver_roles'
 }
 
+const ALERT_SETTINGS_KEYS = {
+  ENABLED: 'alerts_scoring_enabled',
+  RECIPIENT_ROLES: 'alerts_scoring_recipient_roles',
+  RECIPIENT_USER_IDS: 'alerts_scoring_recipient_user_ids',
+  ON_GOVERNANCE_CREATED: 'alerts_scoring_on_governance_created',
+  ON_GOVERNANCE_APPROVED: 'alerts_scoring_on_governance_approved',
+  ON_GOVERNANCE_REJECTED: 'alerts_scoring_on_governance_rejected'
+} as const
+
 const DEFAULT_REQUIRED_ADDITIONAL_APPROVALS = 2
 const DEFAULT_APPROVER_ROLES: UserRole[] = ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
+const DEFAULT_ALERT_RECIPIENT_ROLES: UserRole[] = ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
 
 type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY' | 'ADJUST'
 type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL' | 'CONTEST_LEVEL'
@@ -53,9 +67,52 @@ interface GovernanceFilter {
   actionType?: GovernanceAction
 }
 
+interface GovernanceAlertSettings {
+  enabled: boolean
+  recipientRoles: UserRole[]
+  recipientUserIds: string[]
+  notifyOnGovernanceRequestCreated: boolean
+  notifyOnGovernanceRequestApproved: boolean
+  notifyOnGovernanceRequestRejected: boolean
+}
+
+type GovernanceNotificationEventType =
+  | 'REQUEST_CREATED'
+  | 'REQUEST_APPROVAL_RECORDED'
+  | 'REQUEST_APPROVED'
+  | 'REQUEST_REJECTED'
+
+interface GovernanceRequestRecord {
+  id: string
+  tenantId: string
+  actionType: GovernanceAction
+  scopeType: GovernanceScope
+  status: RequestStatus | string
+  reason?: string | null
+  executionSummary?: string | null
+  requestedById?: string | null
+  requestedBy?: {
+    id?: string | null
+    name?: string | null
+    email?: string | null
+  } | null
+  category?: { id?: string | null; name?: string | null } | null
+  contest?: { id?: string | null; name?: string | null } | null
+  contestant?: { id?: string | null; name?: string | null } | null
+  judge?: { id?: string | null; name?: string | null } | null
+  approvals?: Array<{
+    approvedById?: string | null
+    approvedByName?: string | null
+    approvedByEmail?: string | null
+  }>
+}
+
 @injectable()
 export class ScoreGovernanceService extends BaseService {
-  constructor(@inject('PrismaClient') private prisma: PrismaClient) {
+  constructor(
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject(NotificationService) private notificationService: NotificationService
+  ) {
     super()
   }
 
@@ -64,6 +121,208 @@ export class ScoreGovernanceService extends BaseService {
     if (tenantSetting) return tenantSetting.value
     const globalSetting = await this.prisma.systemSetting.findFirst({ where: { key, tenantId: null } })
     return globalSetting?.value || null
+  }
+
+  private parseBooleanSetting(raw: string | null, fallback: boolean): boolean {
+    if (raw == null) return fallback
+    const normalized = String(raw).trim().toLowerCase()
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false
+    return fallback
+  }
+
+  private parseStringArraySetting(raw: string | null): string[] {
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.map((value) => String(value)).filter(Boolean)
+      }
+    } catch {
+      return []
+    }
+    return []
+  }
+
+  private parseRoleArraySetting(raw: string | null, fallback: UserRole[]): UserRole[] {
+    const parsed = this.parseStringArraySetting(raw)
+      .map((value) => value.toUpperCase())
+      .filter((value): value is UserRole => Object.values(UserRole).includes(value as UserRole))
+
+    return parsed.length > 0 ? parsed : fallback
+  }
+
+  private async getGovernanceAlertSettings(tenantId: string): Promise<GovernanceAlertSettings> {
+    const [
+      enabledRaw,
+      recipientRolesRaw,
+      recipientUserIdsRaw,
+      createdRaw,
+      approvedRaw,
+      rejectedRaw
+    ] = await Promise.all([
+      this.getTenantSetting(ALERT_SETTINGS_KEYS.ENABLED, tenantId),
+      this.getTenantSetting(ALERT_SETTINGS_KEYS.RECIPIENT_ROLES, tenantId),
+      this.getTenantSetting(ALERT_SETTINGS_KEYS.RECIPIENT_USER_IDS, tenantId),
+      this.getTenantSetting(ALERT_SETTINGS_KEYS.ON_GOVERNANCE_CREATED, tenantId),
+      this.getTenantSetting(ALERT_SETTINGS_KEYS.ON_GOVERNANCE_APPROVED, tenantId),
+      this.getTenantSetting(ALERT_SETTINGS_KEYS.ON_GOVERNANCE_REJECTED, tenantId)
+    ])
+
+    return {
+      enabled: this.parseBooleanSetting(enabledRaw, true),
+      recipientRoles: this.parseRoleArraySetting(recipientRolesRaw, DEFAULT_ALERT_RECIPIENT_ROLES),
+      recipientUserIds: this.parseStringArraySetting(recipientUserIdsRaw),
+      notifyOnGovernanceRequestCreated: this.parseBooleanSetting(createdRaw, true),
+      notifyOnGovernanceRequestApproved: this.parseBooleanSetting(approvedRaw, true),
+      notifyOnGovernanceRequestRejected: this.parseBooleanSetting(rejectedRaw, true)
+    }
+  }
+
+  private buildGovernanceTargetLabel(request: GovernanceRequestRecord): string {
+    if (request.category?.name) return `category "${request.category.name}"`
+    if (request.contest?.name) return `contest "${request.contest.name}"`
+    if (request.contestant?.name) return `contestant "${request.contestant.name}"`
+    if (request.judge?.name) return `judge "${request.judge.name}"`
+    return 'the selected scoring scope'
+  }
+
+  private resolveGovernanceActorLabel(
+    request: GovernanceRequestRecord,
+    actorUserId?: string,
+    actorRole?: UserRole
+  ): string {
+    if (actorUserId && request.requestedBy?.id === actorUserId) {
+      return request.requestedBy.name || request.requestedBy.email || actorRole || 'A user'
+    }
+
+    if (actorUserId && Array.isArray(request.approvals)) {
+      const approval = request.approvals.find((row) => row.approvedById === actorUserId)
+      if (approval) return approval.approvedByName || approval.approvedByEmail || actorRole || 'A user'
+    }
+
+    return actorRole || 'A user'
+  }
+
+  private async resolveGovernanceNotificationRecipients(
+    tenantId: string,
+    settings: GovernanceAlertSettings,
+    supplementalUserIds: string[] = []
+  ): Promise<string[]> {
+    const [roleUsers, explicitUsers] = await Promise.all([
+      settings.recipientRoles.length > 0
+        ? this.prisma.user.findMany({
+            where: {
+              tenantId,
+              isActive: true,
+              role: { in: settings.recipientRoles }
+            },
+            select: { id: true }
+          })
+        : Promise.resolve([] as Array<{ id: string }>),
+      settings.recipientUserIds.length > 0
+        ? this.prisma.user.findMany({
+            where: {
+              tenantId,
+              isActive: true,
+              id: { in: settings.recipientUserIds }
+            },
+            select: { id: true }
+          })
+        : Promise.resolve([] as Array<{ id: string }>)
+    ])
+
+    const recipientIds = new Set<string>()
+    roleUsers.forEach((user) => recipientIds.add(user.id))
+    explicitUsers.forEach((user) => recipientIds.add(user.id))
+    supplementalUserIds.filter(Boolean).forEach((userId) => recipientIds.add(userId))
+    return Array.from(recipientIds)
+  }
+
+  private async sendGovernanceLifecycleNotifications(params: {
+    tenantId: string
+    eventType: GovernanceNotificationEventType
+    request: GovernanceRequestRecord
+    actorUserId?: string
+    actorRole?: UserRole
+  }): Promise<void> {
+    const { tenantId, eventType, request, actorUserId, actorRole } = params
+
+    try {
+      const alertSettings = await this.getGovernanceAlertSettings(tenantId)
+      if (!alertSettings.enabled) return
+
+      if (eventType === 'REQUEST_CREATED' && !alertSettings.notifyOnGovernanceRequestCreated) return
+      if ((eventType === 'REQUEST_APPROVAL_RECORDED' || eventType === 'REQUEST_APPROVED') && !alertSettings.notifyOnGovernanceRequestApproved) return
+      if (eventType === 'REQUEST_REJECTED' && !alertSettings.notifyOnGovernanceRequestRejected) return
+
+      const targetLabel = this.buildGovernanceTargetLabel(request)
+      const actionLabel = `${request.actionType} (${request.scopeType})`
+      const actorLabel = this.resolveGovernanceActorLabel(request, actorUserId, actorRole)
+      const supplementalRecipients: string[] = []
+      if (request.requestedById) supplementalRecipients.push(request.requestedById)
+      if (eventType === 'REQUEST_APPROVED' && Array.isArray(request.approvals)) {
+        request.approvals.forEach((approval) => {
+          if (approval.approvedById) supplementalRecipients.push(approval.approvedById)
+        })
+      }
+
+      const recipientUserIds = await this.resolveGovernanceNotificationRecipients(
+        tenantId,
+        alertSettings,
+        supplementalRecipients
+      )
+      if (recipientUserIds.length === 0) return
+
+      let title = 'Governance Update'
+      let message = `Governance request ${actionLabel} updated for ${targetLabel}.`
+      let type: 'INFO' | 'SUCCESS' | 'WARNING' = 'INFO'
+
+      if (eventType === 'REQUEST_CREATED') {
+        title = 'Governance Request Created'
+        message = `${actorLabel} submitted a ${actionLabel} request for ${targetLabel}.`
+        type = 'WARNING'
+      } else if (eventType === 'REQUEST_APPROVAL_RECORDED') {
+        title = 'Governance Request Approval Recorded'
+        message = `${actorLabel} approved ${actionLabel} for ${targetLabel}. Additional approvals are still required.`
+        type = 'INFO'
+      } else if (eventType === 'REQUEST_APPROVED') {
+        title = 'Governance Request Approved'
+        message = `${actorLabel} approved and executed ${actionLabel} for ${targetLabel}.`
+        type = 'SUCCESS'
+      } else if (eventType === 'REQUEST_REJECTED') {
+        title = 'Governance Request Rejected'
+        const rejectionReason = String(request.executionSummary || '').trim()
+        message = rejectionReason.length > 0
+          ? `${actorLabel} rejected ${actionLabel} for ${targetLabel}. Reason: ${rejectionReason}`
+          : `${actorLabel} rejected ${actionLabel} for ${targetLabel}.`
+        type = 'WARNING'
+      }
+
+      await this.notificationService.broadcastNotification(recipientUserIds, {
+        tenantId,
+        type,
+        title,
+        message,
+        link: '/score-governance',
+        metadata: {
+          category: 'SCORE',
+          domain: 'score_governance',
+          eventType,
+          requestId: request.id,
+          actionType: request.actionType,
+          scopeType: request.scopeType,
+          status: request.status
+        }
+      })
+    } catch (error) {
+      logger.warn('Failed to send governance lifecycle notifications', {
+        tenantId,
+        eventType,
+        requestId: request.id,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
   }
 
   async getSettings(tenantId: string): Promise<GovernanceSettings> {
@@ -415,7 +674,16 @@ export class ScoreGovernanceService extends BaseService {
       `
     })
 
-    return this.getRequestById(requestId, normalized.tenantId)
+    const createdRequest = await this.getRequestById(requestId, normalized.tenantId)
+    await this.sendGovernanceLifecycleNotifications({
+      tenantId: normalized.tenantId,
+      eventType: 'REQUEST_CREATED',
+      request: createdRequest,
+      actorUserId: normalized.userId,
+      actorRole: normalized.userRole
+    })
+
+    return createdRequest
   }
 
   private async getRequestById(id: string, tenantId: string) {
@@ -923,10 +1191,19 @@ export class ScoreGovernanceService extends BaseService {
       await refreshJudgeStage(this.prisma, tenantId, categoryIdToRefresh).catch(() => undefined)
     }
 
-    return this.getRequestById(id, tenantId)
+    const updatedRequest = await this.getRequestById(id, tenantId)
+    await this.sendGovernanceLifecycleNotifications({
+      tenantId,
+      eventType: updatedRequest.status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_APPROVAL_RECORDED',
+      request: updatedRequest,
+      actorUserId: approverId,
+      actorRole: approverRole
+    })
+
+    return updatedRequest
   }
 
-  async rejectRequest(id: string, tenantId: string, rejectedByRole: UserRole, reason: string) {
+  async rejectRequest(id: string, tenantId: string, rejectedById: string, rejectedByRole: UserRole, reason: string) {
     if (!reason?.trim()) throw this.badRequestError('Rejection reason is required')
 
     const settings = await this.getSettings(tenantId)
@@ -947,7 +1224,16 @@ export class ScoreGovernanceService extends BaseService {
       WHERE id = ${id}
     `
 
-    return this.getRequestById(id, tenantId)
+    const updatedRequest = await this.getRequestById(id, tenantId)
+    await this.sendGovernanceLifecycleNotifications({
+      tenantId,
+      eventType: 'REQUEST_REJECTED',
+      request: updatedRequest,
+      actorUserId: rejectedById,
+      actorRole: rejectedByRole
+    })
+
+    return updatedRequest
   }
 
   private async buildScopedCategoryFilter(tenantId: string, userId: string, userRole: UserRole): Promise<Prisma.CategoryWhereInput | null> {

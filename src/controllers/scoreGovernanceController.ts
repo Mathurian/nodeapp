@@ -227,7 +227,7 @@ export class ScoreGovernanceController {
         return sendBadRequest(res, 'Request ID is required')
       }
 
-      const result = await this.service.rejectRequest(id, tenantId, req.user.role, String(req.body?.reason || ''))
+      const result = await this.service.rejectRequest(id, tenantId, req.user.id, req.user.role, String(req.body?.reason || ''))
       this.setGovernanceActivityContext(res, result)
       return sendSuccess(res, result, 'Governance request rejected')
     } catch (error) {

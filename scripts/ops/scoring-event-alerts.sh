@@ -3,23 +3,80 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NOTIFY_SCRIPT="${SCRIPT_DIR}/notify.sh"
 STATE_DIR="${STATE_DIR:-/var/lib/event-manager/alerts}"
 STATE_FILE="${STATE_DIR}/scoring-events.last_ts"
 MAX_LINES="${MAX_LINES:-40}"
 
-DB_URL="${DB_URL:-}"
-DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-5432}"
-DB_NAME="${DB_NAME:-event_manager}"
-DB_USER="${DB_USER:-event_manager}"
-DB_PASSWORD="${DB_PASSWORD:-dittibop}"
+ENV_FILE="${ENV_FILE:-}"
+if [[ -z "$ENV_FILE" ]]; then
+  env_candidates=()
+  if [[ "$REPO_ROOT" == /srv/event-manager/dev* ]]; then
+    env_candidates+=("/etc/event-manager/event-manager-dev.env" "/etc/event-manager/event-manager.env")
+  else
+    env_candidates+=("/etc/event-manager/event-manager.env" "/etc/event-manager/event-manager-dev.env")
+  fi
+  env_candidates+=("${REPO_ROOT}/.env")
+
+  for candidate in "${env_candidates[@]}"; do
+    if [[ -r "$candidate" ]]; then
+      ENV_FILE="$candidate"
+      break
+    fi
+  done
+fi
+
+# Preserve explicit runtime overrides so sourced env files cannot clobber them.
+DB_URL_INPUT_SET=0
+DATABASE_URL_INPUT_SET=0
+DB_HOST_INPUT_SET=0
+DB_PORT_INPUT_SET=0
+DB_NAME_INPUT_SET=0
+DB_USER_INPUT_SET=0
+DB_PASSWORD_INPUT_SET=0
+if [[ "${DB_URL+x}" == "x" ]]; then DB_URL_INPUT_SET=1; DB_URL_INPUT="$DB_URL"; fi
+if [[ "${DATABASE_URL+x}" == "x" ]]; then DATABASE_URL_INPUT_SET=1; DATABASE_URL_INPUT="$DATABASE_URL"; fi
+if [[ "${DB_HOST+x}" == "x" ]]; then DB_HOST_INPUT_SET=1; DB_HOST_INPUT="$DB_HOST"; fi
+if [[ "${DB_PORT+x}" == "x" ]]; then DB_PORT_INPUT_SET=1; DB_PORT_INPUT="$DB_PORT"; fi
+if [[ "${DB_NAME+x}" == "x" ]]; then DB_NAME_INPUT_SET=1; DB_NAME_INPUT="$DB_NAME"; fi
+if [[ "${DB_USER+x}" == "x" ]]; then DB_USER_INPUT_SET=1; DB_USER_INPUT="$DB_USER"; fi
+if [[ "${DB_PASSWORD+x}" == "x" ]]; then DB_PASSWORD_INPUT_SET=1; DB_PASSWORD_INPUT="$DB_PASSWORD"; fi
+
+if [[ -n "$ENV_FILE" && -r "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+if [[ "$DB_URL_INPUT_SET" -eq 1 ]]; then DB_URL="$DB_URL_INPUT"; fi
+if [[ "$DATABASE_URL_INPUT_SET" -eq 1 ]]; then DATABASE_URL="$DATABASE_URL_INPUT"; fi
+if [[ "$DB_HOST_INPUT_SET" -eq 1 ]]; then DB_HOST="$DB_HOST_INPUT"; fi
+if [[ "$DB_PORT_INPUT_SET" -eq 1 ]]; then DB_PORT="$DB_PORT_INPUT"; fi
+if [[ "$DB_NAME_INPUT_SET" -eq 1 ]]; then DB_NAME="$DB_NAME_INPUT"; fi
+if [[ "$DB_USER_INPUT_SET" -eq 1 ]]; then DB_USER="$DB_USER_INPUT"; fi
+if [[ "$DB_PASSWORD_INPUT_SET" -eq 1 ]]; then DB_PASSWORD="$DB_PASSWORD_INPUT"; fi
+
+sanitize_psql_url() {
+  printf '%s' "$1" | sed -E 's/([?&])schema=[^&]*&?/\1/g; s/\?&/\?/g; s/[?&]$//'
+}
+
+DB_URL="${DB_URL:-${DATABASE_URL:-}}"
+if [[ -n "$DB_URL" ]]; then
+  DB_URL="$(sanitize_psql_url "$DB_URL")"
+fi
+DB_HOST="${DB_HOST:-${PGHOST:-127.0.0.1}}"
+DB_PORT="${DB_PORT:-${PGPORT:-5432}}"
+DB_NAME="${DB_NAME:-${PGDATABASE:-event_manager}}"
+DB_USER="${DB_USER:-${PGUSER:-event_manager}}"
+DB_PASSWORD="${DB_PASSWORD:-${PGPASSWORD:-dittibop}}"
 
 run_psql() {
   if [[ -n "$DB_URL" ]]; then
-    psql "$DB_URL" "$@"
+    psql -X "$DB_URL" "$@"
   else
-    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
+    PGPASSWORD="$DB_PASSWORD" psql -X -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
   fi
 }
 
@@ -303,19 +360,26 @@ WITH event_rows AS (
   UNION ALL
 
   SELECT
-    d."updatedAt" AS ts,
+    da."approvedAt" AS ts,
     d."tenantId" AS tenant_id,
     t.slug AS tenant_slug,
     'DEDUCTION_APPROVED' AS event_type,
-    d.id AS event_id,
-    concat('status=', d.status, ', amount=', d.amount, ', contestant=', c.name, ', category=', cat.name) AS details
+    da.id AS event_id,
+    concat(
+      'status=', d.status,
+      ', amount=', d.amount,
+      ', contestant=', c.name,
+      ', category=', cat.name,
+      ', approver=', COALESCE(u.email, 'unknown')
+    ) AS details
   FROM deduction_requests d
+  JOIN deduction_approvals da ON da."requestId" = d.id AND da."tenantId" = d."tenantId"
   JOIN tenants t ON t.id = d."tenantId"
+  LEFT JOIN users u ON u.id = da."approvedById"
   LEFT JOIN contestants c ON c.id = d."contestantId"
   LEFT JOIN categories cat ON cat.id = d."categoryId"
-  WHERE d."updatedAt" > :'since_ts'::timestamptz
+  WHERE da."approvedAt" > :'since_ts'::timestamptz
     AND d.status = 'APPROVED'
-    AND d."updatedAt" <> d."createdAt"
 
   UNION ALL
 
