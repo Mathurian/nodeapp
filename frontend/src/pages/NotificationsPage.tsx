@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenant } from '../contexts/TenantContext'
 import api, { notificationPreferencesAPI } from '../services/api'
 import {
   BellIcon,
@@ -12,10 +14,12 @@ import {
   BellAlertIcon,
   PaperAirplaneIcon,
   ArrowUturnLeftIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import { SendNotificationModal } from '../components/SendNotificationModal'
 import { Button, Card, PageHeader } from '../components/ui'
 import { safeFormatDate } from '../utils/dateUtils'
+import { isKnownRoute } from '../utils/routeSegments'
 
 interface Notification {
   id: string
@@ -23,6 +27,7 @@ interface Notification {
   type: string
   title: string
   message: string
+  link?: string | null
   read: boolean
   createdAt: string
   data?: any
@@ -104,6 +109,47 @@ const PUSH_SERVICE_WORKER_PATH = '/sw.js'
 const PUSH_SERVICE_WORKER_SCOPE = '/'
 const PUSH_SERVICE_WORKER_VERSION = '2026-02-20-ios-push-fix-2'
 const PUSH_SERVICE_WORKER_URL = `${PUSH_SERVICE_WORKER_PATH}?v=${PUSH_SERVICE_WORKER_VERSION}`
+const NON_APP_NOTIFICATION_PREFIXES = new Set(['api', 'assets', 'uploads', 'socket.io', 'cdn-cgi'])
+
+const sanitizeNotificationDestination = (
+  rawLink: string | null | undefined,
+  slug: string,
+  buildPath: (path: string) => string
+): string | null => {
+  const link = String(rawLink || '').trim()
+  if (!link || /^javascript:/i.test(link)) {
+    return null
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(link, window.location.origin)
+  } catch {
+    return null
+  }
+
+  if (parsed.origin !== window.location.origin) {
+    return null
+  }
+
+  const normalizedPath = parsed.pathname.startsWith('/') ? parsed.pathname : `/${parsed.pathname}`
+  const segments = normalizedPath.split('/').filter(Boolean)
+  const firstSegment = segments[0] || ''
+  if (!firstSegment || NON_APP_NOTIFICATION_PREFIXES.has(firstSegment)) {
+    return null
+  }
+
+  const withQuery = `${normalizedPath}${parsed.search}${parsed.hash}`
+  if (firstSegment === slug) {
+    return withQuery
+  }
+
+  if (isKnownRoute(firstSegment)) {
+    return buildPath(`${normalizedPath}${parsed.search}${parsed.hash}`)
+  }
+
+  return null
+}
 
 const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null
@@ -346,6 +392,8 @@ const formatPushErrorMessage = (error: unknown): string => {
 
 const NotificationsPage: React.FC = () => {
   const { user } = useAuth()
+  const { buildPath, slug } = useTenant()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'sent' | 'deleted'>('all')
   const [showPreferences, setShowPreferences] = useState(false)
@@ -504,6 +552,25 @@ const NotificationsPage: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to permanently delete notification:', err)
     }
+  }
+
+  const openNotification = async (notification: Notification) => {
+    const destination = sanitizeNotificationDestination(notification.link, slug, buildPath)
+    if (!destination) {
+      return
+    }
+
+    const canMarkRead = filter !== 'sent' && filter !== 'deleted' && !notification.read
+    if (canMarkRead) {
+      try {
+        await api.put(`/notifications/${notification.id}/read`)
+      } catch (err: any) {
+        console.error('Failed to mark notification as read before navigation:', err)
+      }
+    }
+
+    refreshNotificationQueries()
+    navigate(destination)
   }
 
   const buildCategoryTypes = (values: NotificationPreferences): string[] => {
@@ -1029,6 +1096,7 @@ const NotificationsPage: React.FC = () => {
         ) : (
           filteredNotifications.map((notification) => {
             const Icon = getNotificationIcon(notification.type)
+            const destination = sanitizeNotificationDestination(notification.link, slug, buildPath)
             return (
               <div
                 key={notification.id}
@@ -1089,6 +1157,15 @@ const NotificationsPage: React.FC = () => {
                               title="Mark as read"
                             >
                               <CheckCircleIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                          {destination && (
+                            <button
+                              onClick={() => openNotification(notification)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg transition-colors"
+                              title="Open related page"
+                            >
+                              <ArrowTopRightOnSquareIcon className="h-5 w-5" />
                             </button>
                           )}
                           <button

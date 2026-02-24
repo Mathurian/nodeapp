@@ -270,7 +270,7 @@ async function handleContestCertified(event: AppEvent) {
     type: 'SUCCESS' as const,
     title: 'Contest Certified',
     message: `${contestName} has been fully certified and finalized`,
-    link: `/contests/${contestId}`,
+    link: '/contests',
   }));
 
   if (notifications.length > 0) {

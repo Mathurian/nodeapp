@@ -233,7 +233,7 @@ export class NotificationService {
       type: 'SUCCESS',
       title: 'Score Submitted',
       message: `Your score for ${contestantName} in ${categoryName} has been submitted successfully.`,
-      link: '/judge/scoring',
+      link: '/scoring',
     });
   }
 
@@ -269,7 +269,7 @@ export class NotificationService {
         action === 'assigned'
           ? `You have been assigned to judge "${contestName}".`
           : `You have been removed from judging "${contestName}".`,
-      link: '/judge/assignments',
+      link: '/assignments',
     });
   }
 
@@ -283,7 +283,7 @@ export class NotificationService {
       type: 'SUCCESS',
       title: 'Report Ready',
       message: `Your requested report "${reportName}" is ready for download.`,
-      link: `/reports/${reportId}`,
+      link: `/reports?reportId=${encodeURIComponent(reportId)}`,
     });
   }
 
@@ -303,7 +303,7 @@ export class NotificationService {
       type: 'WARNING',
       title: 'Certification Required',
       message: `Your action is required for ${levels[level]} of "${contestName}".`,
-      link: '/certification',
+      link: '/certifications',
     });
   }
 
@@ -349,6 +349,7 @@ export class NotificationService {
       type: 'SYSTEM',
       title: 'System Maintenance',
       message,
+      link: '/notifications',
     });
   }
 
@@ -362,6 +363,7 @@ export class NotificationService {
       type: 'ERROR',
       title,
       message,
+      link: '/notifications',
     });
   }
 }

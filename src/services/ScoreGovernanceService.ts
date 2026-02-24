@@ -87,6 +87,11 @@ interface GovernanceRequestRecord {
   tenantId: string
   actionType: GovernanceAction
   scopeType: GovernanceScope
+  targetCertificationLevel?: CertificationLevel | null
+  contestId?: string | null
+  categoryId?: string | null
+  contestantId?: string | null
+  scoreId?: string | null
   status: RequestStatus | string
   reason?: string | null
   executionSummary?: string | null
@@ -180,11 +185,62 @@ export class ScoreGovernanceService extends BaseService {
   }
 
   private buildGovernanceTargetLabel(request: GovernanceRequestRecord): string {
-    if (request.category?.name) return `category "${request.category.name}"`
-    if (request.contest?.name) return `contest "${request.contest.name}"`
-    if (request.contestant?.name) return `contestant "${request.contestant.name}"`
-    if (request.judge?.name) return `judge "${request.judge.name}"`
+    if (request.contestant?.name && request.category?.name) {
+      return `${request.contestant.name} in ${request.category.name}`
+    }
+    if (request.judge?.name && request.category?.name) {
+      return `${request.judge.name} in ${request.category.name}`
+    }
+    if (request.category?.name) return request.category.name
+    if (request.contest?.name) return request.contest.name
+    if (request.contestant?.name) return request.contestant.name
+    if (request.judge?.name) return request.judge.name
     return 'the selected scoring scope'
+  }
+
+  private toSentenceCase(value: string): string {
+    const normalized = value.trim().toLowerCase().replace(/_/g, ' ')
+    if (!normalized) return value
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+  }
+
+  private buildGovernanceActionLabel(request: GovernanceRequestRecord): string {
+    if (request.actionType === 'THROW_OUT') {
+      return 'judge throw-out'
+    }
+
+    if (request.actionType === 'UNCERTIFY') {
+      if (request.targetCertificationLevel) {
+        return `${this.toSentenceCase(request.targetCertificationLevel)} uncertification`
+      }
+      return 'uncertification'
+    }
+
+    if (request.actionType === 'ADJUST') {
+      return 'score adjustment'
+    }
+
+    return this.toSentenceCase(request.actionType)
+  }
+
+  private truncateNotificationText(value: string, maxLength = 120): string {
+    const normalized = String(value || '').trim()
+    if (normalized.length <= maxLength) return normalized
+    return `${normalized.slice(0, maxLength - 1).trimEnd()}…`
+  }
+
+  private buildGovernanceNotificationLink(request: GovernanceRequestRecord): string {
+    const params = new URLSearchParams()
+
+    params.set('action', request.actionType)
+    params.set('scope', request.scopeType)
+    if (request.contestId) params.set('contestId', request.contestId)
+    if (request.categoryId) params.set('categoryId', request.categoryId)
+    if (request.contestantId) params.set('contestantId', request.contestantId)
+    if (request.scoreId) params.set('scoreId', request.scoreId)
+
+    const query = params.toString()
+    return query.length > 0 ? `/score-governance?${query}` : '/score-governance'
   }
 
   private resolveGovernanceActorLabel(
@@ -257,7 +313,7 @@ export class ScoreGovernanceService extends BaseService {
       if (eventType === 'REQUEST_REJECTED' && !alertSettings.notifyOnGovernanceRequestRejected) return
 
       const targetLabel = this.buildGovernanceTargetLabel(request)
-      const actionLabel = `${request.actionType} (${request.scopeType})`
+      const actionLabel = this.buildGovernanceActionLabel(request)
       const actorLabel = this.resolveGovernanceActorLabel(request, actorUserId, actorRole)
       const supplementalRecipients: string[] = []
       if (request.requestedById) supplementalRecipients.push(request.requestedById)
@@ -275,27 +331,27 @@ export class ScoreGovernanceService extends BaseService {
       if (recipientUserIds.length === 0) return
 
       let title = 'Governance Update'
-      let message = `Governance request ${actionLabel} updated for ${targetLabel}.`
+      let message = `${actionLabel} was updated for ${targetLabel}.`
       let type: 'INFO' | 'SUCCESS' | 'WARNING' = 'INFO'
 
       if (eventType === 'REQUEST_CREATED') {
-        title = 'Governance Request Created'
-        message = `${actorLabel} submitted a ${actionLabel} request for ${targetLabel}.`
+        title = 'Governance Review Needed'
+        message = `${actorLabel} requested ${actionLabel} for ${targetLabel}. Tap to review.`
         type = 'WARNING'
       } else if (eventType === 'REQUEST_APPROVAL_RECORDED') {
-        title = 'Governance Request Approval Recorded'
-        message = `${actorLabel} approved ${actionLabel} for ${targetLabel}. Additional approvals are still required.`
+        title = 'Governance Approval Recorded'
+        message = `${actorLabel} approved ${actionLabel} for ${targetLabel}. Waiting for additional approvals.`
         type = 'INFO'
       } else if (eventType === 'REQUEST_APPROVED') {
         title = 'Governance Request Approved'
-        message = `${actorLabel} approved and executed ${actionLabel} for ${targetLabel}.`
+        message = `${actionLabel} for ${targetLabel} was approved and applied.`
         type = 'SUCCESS'
       } else if (eventType === 'REQUEST_REJECTED') {
         title = 'Governance Request Rejected'
         const rejectionReason = String(request.executionSummary || '').trim()
         message = rejectionReason.length > 0
-          ? `${actorLabel} rejected ${actionLabel} for ${targetLabel}. Reason: ${rejectionReason}`
-          : `${actorLabel} rejected ${actionLabel} for ${targetLabel}.`
+          ? `${actionLabel} for ${targetLabel} was rejected. Reason: ${rejectionReason}`
+          : `${actionLabel} for ${targetLabel} was rejected.`
         type = 'WARNING'
       }
 
@@ -303,8 +359,8 @@ export class ScoreGovernanceService extends BaseService {
         tenantId,
         type,
         title,
-        message,
-        link: '/score-governance',
+        message: this.truncateNotificationText(message),
+        link: this.buildGovernanceNotificationLink(request),
         metadata: {
           category: 'SCORE',
           domain: 'score_governance',
