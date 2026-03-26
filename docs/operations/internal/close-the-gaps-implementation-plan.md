@@ -38,8 +38,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
 2. Add Prisma model for idempotency persistence:
-   - `IdempotencyRecord` with `key`, `tenantId`, `method`, `path`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
-   - unique index: `(tenantId, method, path, key)`
+   - `IdempotencyRecord` with `key`, `tenantId`, `actorType`, `actorId`, `method`, `path`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
+   - unique index: `(tenantId, actorType, actorId, method, path, key)`
 3. Add backend idempotency storage abstraction:
    - `IdempotencyStore` interface, DB source-of-truth with Redis accelerator.
 4. Keep/extend idempotency headers:
@@ -57,6 +57,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 8. Add deterministic idempotency conflict/mismatch codes:
    - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
    - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
+9. Add deterministic auth-expiry replay code:
+   - `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE` -> 401 + `Retry-After` (replay remains retryable after re-auth).
 
 ## Phase 1: Restore Green Build and Typing
 1. Update `frontend/src/vite-env.d.ts` to declare `VITE_OFFLINE_MUTATION_QUEUE_ENABLED`.
@@ -78,14 +80,22 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - On key present, read Redis, fallback DB.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
-   - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, method, path, key)`.
+   - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, path, key)`.
    - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with `Retry-After: 1` (no side effects).
    - If existing `pending` is stale (`updatedAt` older than `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - On first successful 2xx, transition `pending -> completed`, persist replay payload, then cache Redis.
-   - On deterministic client error (400/401/403/404/409/422), transition to `failed_terminal`, persist replay payload.
+   - On deterministic client error (400/404/409/422), transition to `failed_terminal`, persist replay payload.
+   - On auth/session-expiry errors (401 and retryable 403 cases such as CSRF/session refresh), transition to `failed_retryable` and return `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`; do not pin terminal outcome.
+   - On authorization-denied errors (non-retryable 403 such as `ACCESS_DENIED`/`AUTHORIZATION_ERROR`), transition to `failed_terminal`.
    - On transient/unknown failure (429/5xx/timeout/network abort), transition to `failed_retryable` with short expiry/heartbeat, no replay payload commitment.
    - On Redis miss + DB hit, repopulate Redis.
-   - Define crash-window semantics when side effects commit but idempotency completion write fails.
+   - Crash-window semantics are explicit and mandatory:
+     - for DB-backed mutations on covered routes, perform idempotency completion write in the same DB transaction as business side effects.
+     - if transaction-bound completion write fails, entire transaction rolls back (no committed side effect without idempotency state).
+     - for non-transactional/external side effects, write `pending` reservation first, execute side effect, then on duplicate hit run a reconciliation probe (deterministic lookup by mutation fingerprint) before reclaiming stale reservation.
+     - reconciliation probe result:
+       - found side effect => transition to `completed` and replay.
+       - not found and stale timeout exceeded => reclaim reservation and execute once.
    - Replay payload persistence guardrails:
      - redact denylisted fields: `password`, `access_token`, `refresh_token`, `signature`, `secret`
      - enforce max serialized replay payload size (`IDEMPOTENCY_MAX_RESPONSE_BYTES`, default 65536)
@@ -103,12 +113,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - stale `pending` reservations are reclaimed by timeout/cleanup policy.
    - side-effect-committed/completion-write-failed cases are reconciled without duplicate side effects.
    - same idempotency key with different payload returns `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` and does not execute side effects.
+   - auth-expiry replay does not become terminal; after successful re-auth the same key can complete exactly once.
 
 ## Phase 3: Timeout Semantics End-to-End
 1. Wire query timeout middleware into active Prisma setup in `src/config/database.ts`.
 2. Ensure middleware registration order remains deterministic with soft-delete/query monitoring.
 3. Replace app-layer timeout race for mutating DB operations with real DB-side cancellation semantics:
-   - apply transaction-scoped `SET LOCAL statement_timeout` for write paths (and optionally long-read paths with explicit limits)
+   - apply transaction-scoped `SET LOCAL statement_timeout` for covered write paths and explicitly enumerated heavy-read paths
    - ensure timeout actually aborts SQL execution before side effects complete
 4. Keep middleware timer as observability signal only (slow-query logging), not the authoritative cancellation mechanism for writes.
 5. Emit explicit timeout/transient error metadata from middleware/service layer, not message-only inference.
@@ -118,6 +129,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 7. Add regression guard: timeout response must imply DB write cancellation for covered mutation paths.
 8. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
 9. Canonical error payload fields are versioned and contract-tested end-to-end.
+10. Covered timeout-enforced route set (explicit):
+   - scoring writes: `POST /api/v1/scoring/category/:categoryId/contestant/:contestantId`, `PUT /api/v1/scoring/:scoreId`
+   - commentary writes: `POST /api/v1/commentary`, `POST /api/v1/commentary/scores`, `PUT /api/v1/commentary/:id`
+   - score-file writes: `POST /api/v1/score-files`, `PUT|PATCH|DELETE /api/v1/score-files/:id` where implemented
+   - all covered routes must execute Prisma writes via a shared `withMutationTimeoutTx` helper that sets `SET LOCAL statement_timeout` before write operations.
 
 ## Phase 4: Dual Queue Guardrails (App Queue + Workbox Sync)
 1. Keep both queues but define responsibilities:
@@ -257,12 +273,17 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 5. Queue interaction model is documented and observable in ops dashboards.
 6. Reliability test gates pass before release.
 7. Quantitative release gates are defined and met:
-   - replay success-rate threshold (rolling window)
-   - duplicate-write incident threshold
-   - p95/p99 sync-delay SLO thresholds
-   - sustained queue-depth bounds
-   - telemetry drop-rate threshold
-8. Rollback trigger thresholds are defined and tied to alert conditions.
+   - replay success-rate >= 99.5% over rolling 15 minutes (per environment)
+   - duplicate-write incidents = 0 confirmed incidents in rolling 24 hours
+   - sync-delay SLOs: p95 <= 60s and p99 <= 180s over rolling 30 minutes
+   - sustained queue depth bounds: global queued count <= 2000 and per-tenant p95 <= 50 over rolling 15 minutes
+   - telemetry drop-rate < 1.0% over rolling 15 minutes
+8. Rollback trigger thresholds are defined and tied to alert conditions:
+   - replay success-rate < 98.5% for 15 continuous minutes
+   - any confirmed duplicate-write incident in production
+   - sync delay breaches: p95 > 180s for 30 continuous minutes
+   - sustained queue-depth breach: global queued count > 5000 for 15 continuous minutes
+   - telemetry drop-rate >= 5% for 15 continuous minutes
 
 ## Assumptions and Defaults
 1. Idempotency retention defaults to 24 hours.
