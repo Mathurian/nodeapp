@@ -41,6 +41,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 2. Add Prisma model for idempotency persistence:
    - `IdempotencyRecord` with `key`, `tenantId`, `actorType`, `actorId`, `method`, `path`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
    - unique index: `(tenantId, actorType, actorId, method, path, key)`
+   - actor resolution contract:
+     - authenticated user: `actorType='USER'`, `actorId=<userId>`
+     - service credential/job token: `actorType='SERVICE'`, `actorId=<serviceName|clientId>`
+     - internal/system path: `actorType='SYSTEM'`, `actorId='internal'`
+   - `actorType`/`actorId` are non-null for all new writes; legacy null records are migrated before enforcement.
 3. Add backend idempotency storage abstraction:
    - `IdempotencyStore` interface, DB source-of-truth with Redis accelerator.
 4. Keep/extend idempotency headers:
@@ -57,6 +62,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `TRANSIENT_UPSTREAM_FAILURE` -> 503
    - `RATE_LIMITED_RETRYABLE` -> 429 + `Retry-After`
    - gateway/service-level network-abort/transient transport failures normalized to retryable contract payloads
+   - compatibility rule: emit legacy `RATE_LIMIT_EXCEEDED` alias in response metadata during migration window; remove only after client compatibility gate passes.
 8. Add deterministic idempotency conflict/mismatch codes:
    - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
    - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
@@ -75,6 +81,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 
 ## Phase 2: Durable Idempotency (Hybrid DB + Redis)
 1. Add Prisma schema + migration for `IdempotencyRecord`.
+   - include migration/backfill script for existing records:
+     - map known user-origin rows to `actorType='USER'` + resolved `actorId`
+     - map unresolvable legacy rows to `actorType='SYSTEM'`, `actorId='legacy'`
+     - enforce non-null + unique index only after backfill verification succeeds.
 2. Implement backend store components:
    - DB repository for canonical persistence and replay lookup
    - Redis accessor for fast cache hit path with matching TTL
@@ -87,6 +97,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, path, key)`.
    - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with `Retry-After: 1` (no side effects).
    - If existing `pending` is stale (`updatedAt` older than `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
+   - If existing `failed_retryable` is stale (`updatedAt` older than `IDEMPOTENCY_RETRYABLE_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - On first successful 2xx, transition `pending -> completed`, persist replay payload, then cache Redis.
    - On deterministic client error (400/404/409/422), transition to `failed_terminal`, persist replay payload.
    - On auth/session-expiry errors (401 and retryable 403 cases such as CSRF/session refresh), transition to `failed_retryable` and return `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`; do not pin terminal outcome.
@@ -101,7 +112,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
        - found side effect => transition to `completed` and replay.
        - not found and stale timeout exceeded => reclaim reservation and execute once.
    - Replay payload persistence guardrails:
-     - redact denylisted fields: `password`, `access_token`, `refresh_token`, `signature`, `secret`
+     - allowlist-first replay envelope for persisted response fields (`success`, `code`, `message`, `data.id`, `data.status`, correlation identifiers)
+     - apply denylist redaction as defense-in-depth: `password`, `access_token`, `refresh_token`, `signature`, `secret`
      - enforce max serialized replay payload size (`IDEMPOTENCY_MAX_RESPONSE_BYTES`, default 65536)
      - if over limit after redaction, store minimal replay envelope (status/code/message/digest) and mark replay mode as metadata-only
 5. TTL:
@@ -149,6 +161,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - Workbox queue = only queue for score-file uploads/updates where browser SW retry is preferred
 2. Queue precedence is deterministic:
    - queue ownership is defined by a single shared route+method manifest consumed by app queue logic, Workbox routing, and tests.
+   - authoritative artifact:
+     - `frontend/src/config/offlineWriteOwnership.manifest.ts` (source of truth)
+     - generated `frontend/src/config/offlineWriteOwnership.manifest.json` for tooling/tests
+   - ownership rules:
+     - only this manifest defines queue ownership
+     - `frontend/vite.config.ts` and app queue selector import from this source (no duplicated route literals)
+     - CI fails if generated artifact drifts from source.
    - if endpoint belongs to app-queue domain, Workbox must not enqueue it
    - if endpoint belongs to Workbox domain, app queue must not enqueue it
    - build/test validation fails on overlapping ownership or manifest drift.
@@ -256,6 +275,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `frontend/src/services/offlineMutationQueue.ts`
    - `frontend/src/services/offlineSyncOrchestrator.ts`
    - `frontend/src/pages/ScoringPage.tsx`
+   - `frontend/src/config/offlineWriteOwnership.manifest.ts`
+   - `frontend/src/config/offlineWriteOwnership.manifest.json`
    - `frontend/vite.config.ts`
    - `frontend/public/offline.html`
 2. Backend:
