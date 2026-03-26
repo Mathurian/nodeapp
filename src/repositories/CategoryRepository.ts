@@ -30,9 +30,12 @@ export class CategoryRepository extends BaseRepository<Category> {
     return this.findMany(
       {
         contestId,
+        deletedAt: null,
         contest: {
+          deletedAt: null,
           event: {
-            archived: false
+            archived: false,
+            deletedAt: null,
           }
         }
       },
@@ -44,8 +47,17 @@ export class CategoryRepository extends BaseRepository<Category> {
    * Find category with full details
    */
   async findCategoryWithDetails(categoryId: string): Promise<CategoryWithDetails | null> {
-    return this.prisma.category.findUnique({
-      where: { id: categoryId },
+    return this.prisma.category.findFirst({
+      where: {
+        id: categoryId,
+        deletedAt: null,
+        contest: {
+          deletedAt: null,
+          event: {
+            deletedAt: null,
+          },
+        },
+      },
       include: {
         contest: {
           include: {
@@ -95,6 +107,7 @@ export class CategoryRepository extends BaseRepository<Category> {
    */
   async searchCategories(query: string): Promise<Category[]> {
     return this.findMany({
+      deletedAt: null,
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },
@@ -149,7 +162,7 @@ export class CategoryRepository extends BaseRepository<Category> {
    * Find all categories with pagination
    */
   async findAllPaginated(options: PaginationOptions): Promise<PaginatedResult<Category>> {
-    return this.findManyPaginated({}, options);
+    return this.findManyPaginated({ deletedAt: null }, options);
   }
 
   /**
@@ -159,9 +172,12 @@ export class CategoryRepository extends BaseRepository<Category> {
     return this.findManyPaginated(
       {
         contestId,
+        deletedAt: null,
         contest: {
+          deletedAt: null,
           event: {
-            archived: false
+            archived: false,
+            deletedAt: null,
           }
         }
       },
@@ -174,6 +190,7 @@ export class CategoryRepository extends BaseRepository<Category> {
    */
   async searchCategoriesPaginated(query: string, options: PaginationOptions): Promise<PaginatedResult<Category>> {
     return this.findManyPaginated({
+      deletedAt: null,
       OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },

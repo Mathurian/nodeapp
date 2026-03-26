@@ -55,6 +55,13 @@ export class CategoriesController {
         const categories = await this.prisma.category.findMany({
           where: {
             tenantId: user.tenantId,
+            deletedAt: null,
+            contest: {
+              deletedAt: null,
+              event: {
+                deletedAt: null,
+              },
+            },
             OR: [
               { categoryContestants: { some: { contestantId: user.contestantId } } },
               { contest: { contestContestants: { some: { contestantId: user.contestantId } } } }
@@ -78,6 +85,13 @@ export class CategoriesController {
         const categories = await this.prisma.category.findMany({
           where: {
             tenantId: user.tenantId,
+            deletedAt: null,
+            contest: {
+              deletedAt: null,
+              event: {
+                deletedAt: null,
+              },
+            },
             OR: [
               {
                 assignments: {
@@ -161,6 +175,13 @@ export class CategoriesController {
           where: {
             contestId,
             tenantId: user.tenantId,
+            deletedAt: null,
+            contest: {
+              deletedAt: null,
+              event: {
+                deletedAt: null,
+              },
+            },
             OR: [
               { categoryContestants: { some: { contestantId: user.contestantId } } },
               { contest: { contestContestants: { some: { contestantId: user.contestantId } } } }
@@ -176,6 +197,13 @@ export class CategoriesController {
           where: {
             contestId,
             tenantId: user.tenantId,
+            deletedAt: null,
+            contest: {
+              deletedAt: null,
+              event: {
+                deletedAt: null,
+              },
+            },
             OR: [
               {
                 assignments: {
@@ -588,7 +616,8 @@ export class CategoriesController {
       const validCategories = await this.prisma.category.findMany({
         where: {
           id: { in: categoryIds },
-          tenantId: tenantId
+          tenantId: tenantId,
+          deletedAt: null,
         },
         select: { id: true }
       });
