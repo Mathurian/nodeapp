@@ -40,6 +40,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 6. Browser/API compatibility requirements are explicit:
    - CORS allowlist includes request headers used by replay/idempotency (`x-idempotency-key`, `x-queue-source`) and any rollout diagnostics headers.
    - CORS exposed headers include replay diagnostics used by frontend (`X-Idempotent-Replay`, `X-Idempotency-Digest`, migration aliases where applicable).
+   - CORS exposed headers include retry controls consumed by browser replay/backoff logic (`Retry-After` for 401/409/429 retryable responses).
 7. API governance is mandatory for staged rollout:
    - OpenAPI/reference docs are updated for new headers, error codes, and phase behavior before phase advancement.
    - client compatibility matrix (by client version/integration) gates progression from soft-fail to hard-fail phases.
@@ -49,6 +50,12 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 2. Add Prisma model for idempotency persistence:
    - `IdempotencyRecord` with `key`, `tenantId`, `actorType`, `actorId`, `method`, `path`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
    - unique index: `(tenantId, actorType, actorId, method, path, key)`
+   - state invariants are explicit and enforced:
+     - `pending`: `statusCode`/`responseBody`/`digest` are null, `lastSeenAt` required.
+     - `completed`: `statusCode` + replay payload/digest required (subject to metadata-only size guardrail mode).
+     - `failed_retryable`: `statusCode` optional, `responseBody` null, `digest` optional, `lastSeenAt` required.
+     - `failed_terminal`: `statusCode` required, `responseBody` optional (redacted/allowlisted), `digest` required when payload committed.
+   - migration enforces nullable/required transitions per status before enabling strict constraints.
    - actor resolution contract:
      - authenticated user: `actorType='USER'`, `actorId=<userId>`
      - service credential/job token: `actorType='SERVICE'`, `actorId=<serviceName|clientId>`
@@ -59,6 +66,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 4. Keep/extend idempotency headers:
    - `X-Idempotent-Replay`, `X-Idempotency-Digest`
    - optional debug header: `X-Idempotency-Store` (`db`, `redis`, `db+redis`) in non-prod diagnostics only.
+   - expose `Retry-After` alongside idempotency headers on retryable responses so browser clients can read authoritative backoff hints.
 5. Add telemetry endpoint:
    - `POST /api/v1/telemetry/offline-sync` (authenticated, tenant-scoped, rate-limited).
    - versioned payload contract with bounded-cardinality fields and request-size guardrails.
@@ -100,13 +108,16 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - map unresolvable legacy rows to `actorType='SYSTEM'`, `actorId='legacy'`
      - detect/deduplicate legacy collisions before adding unique index using deterministic winner rules (status precedence + latest `updatedAt`) and archive/tombstone losers for auditability.
      - enforce non-null + unique index only after backfill verification succeeds and collision report is clean.
+   - use reversible migration staging (expand -> backfill -> validate -> contract), with explicit rollback notes at each stage.
+   - define migration abort thresholds before contract phase (lock timeout, migration error-rate, unresolved collision count) and stop criteria if exceeded.
+   - require snapshot/backup checkpoint before irreversible steps (non-null + unique constraint contract phase).
 2. Implement backend store components:
    - DB repository for canonical persistence and replay lookup
    - Redis accessor for fast cache hit path with matching TTL
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
-   - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend: stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
+   - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend from a single shared implementation artifact (not duplicated logic): stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
    - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, path, key)`.
@@ -147,6 +158,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - side-effect-committed/completion-write-failed cases are reconciled without duplicate side effects.
    - same idempotency key with different payload returns `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` and does not execute side effects.
    - auth-expiry replay does not become terminal; after successful re-auth the same key can complete exactly once.
+   - shared request-hash fixture vectors pass identically in backend and frontend runtimes (parity gate for canonicalizer).
 
 ## Phase 3: Timeout Semantics End-to-End
 1. Wire query timeout middleware into active Prisma setup in `src/config/database.ts`.
@@ -162,6 +174,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - rate-limit -> 429 + `RATE_LIMITED_RETRYABLE` + `Retry-After`
    - server-observed transport failures -> mapped to retryable transient classification with stable payload fields
    - client-only network abort/drop before response -> classified in frontend telemetry/queue policy (not required as server response mapping)
+   - all retryable mappings that include retry semantics return readable `Retry-After` when applicable.
 7. Add regression guard: timeout response must imply DB write cancellation for covered mutation paths.
 8. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
 9. Canonical error payload fields are versioned and contract-tested end-to-end.
@@ -255,6 +268,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - disable queue feature flag safely
    - retain online-write behavior
    - preserve idempotency protections
+   - database rollback path for in-flight idempotency migration is defined per stage:
+     - expand/backfill stages are reversible by schema + code rollback.
+     - contract stage requires pre-captured backup/snapshot for full data rollback; otherwise use forward-fix playbook.
 
 ## Phase 7: Test and Verification Gates
 1. Backend unit tests:
@@ -265,6 +281,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - replay behavior across multi-instance simulation
    - pending-reservation crash-window reconciliation behavior
    - CORS preflight coverage for replay/idempotency headers on write routes
+   - CORS/readability coverage for `Retry-After` on retryable 401/409/429 responses
    - telemetry ingest outage/latency does not block primary write success
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
@@ -305,7 +322,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/middleware/idempotency.ts`
    - `src/config/database.ts`
    - `src/config/queryTimeouts.ts`
-   - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers)
+   - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers plus `Retry-After` exposure)
    - `src/middleware/errorHandler.ts`
    - telemetry route/controller/service files
    - `src/services/MetricsService.ts`
@@ -324,6 +341,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - document telemetry schema versioning + cardinality constraints
    - document idempotency reservation (`pending`) semantics and recovery behavior
    - publish/update API reference (OpenAPI or equivalent) for new headers, error codes, phase behavior, and client compatibility timeline
+   - publish migration rollback runbook for `IdempotencyRecord` expand/backfill/contract lifecycle and abort thresholds
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
