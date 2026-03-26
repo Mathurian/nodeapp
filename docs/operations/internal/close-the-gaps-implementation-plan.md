@@ -38,7 +38,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
 2. Add Prisma model for idempotency persistence:
-   - `IdempotencyRecord` with `key`, `tenantId`, `method`, `path`, `status` (`pending` | `completed`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `lastSeenAt`
+   - `IdempotencyRecord` with `key`, `tenantId`, `method`, `path`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
    - unique index: `(tenantId, method, path, key)`
 3. Add backend idempotency storage abstraction:
    - `IdempotencyStore` interface, DB source-of-truth with Redis accelerator.
@@ -54,6 +54,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 7. Standardize retry-classification server contract:
    - `QUERY_TIMEOUT` -> 504
    - `TRANSIENT_UPSTREAM_FAILURE` -> 503
+8. Add deterministic idempotency conflict/mismatch codes:
+   - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
+   - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
 
 ## Phase 1: Restore Green Build and Typing
 1. Update `frontend/src/vite-env.d.ts` to declare `VITE_OFFLINE_MUTATION_QUEUE_ENABLED`.
@@ -73,13 +76,20 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
-   - If record status is `completed` and unexpired, return cached response.
-   - Before controller side effects, attempt an atomic DB reservation (`pending`) for `(tenantId, method, path, key)`.
-   - If reservation already exists as `pending`, return deterministic retry guidance (or bounded wait/poll behavior) without executing side effects.
-   - On first successful 2xx write, transition DB record `pending -> completed`, persist response, then cache Redis.
-   - On non-2xx terminal result, clear or mark reservation according to retryability policy.
+   - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
+   - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
+   - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, method, path, key)`.
+   - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with `Retry-After: 1` (no side effects).
+   - If existing `pending` is stale (`updatedAt` older than `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
+   - On first successful 2xx, transition `pending -> completed`, persist replay payload, then cache Redis.
+   - On deterministic client error (400/401/403/404/409/422), transition to `failed_terminal`, persist replay payload.
+   - On transient/unknown failure (429/5xx/timeout/network abort), transition to `failed_retryable` with short expiry/heartbeat, no replay payload commitment.
    - On Redis miss + DB hit, repopulate Redis.
    - Define crash-window semantics when side effects commit but idempotency completion write fails.
+   - Replay payload persistence guardrails:
+     - redact denylisted fields: `password`, `access_token`, `refresh_token`, `signature`, `secret`
+     - enforce max serialized replay payload size (`IDEMPOTENCY_MAX_RESPONSE_BYTES`, default 65536)
+     - if over limit after redaction, store minimal replay envelope (status/code/message/digest) and mark replay mode as metadata-only
 5. TTL:
    - 24h default
    - env-configurable with min/max guardrails
@@ -92,40 +102,48 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - same idempotency key submitted concurrently across processes executes side effects at most once.
    - stale `pending` reservations are reclaimed by timeout/cleanup policy.
    - side-effect-committed/completion-write-failed cases are reconciled without duplicate side effects.
+   - same idempotency key with different payload returns `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` and does not execute side effects.
 
 ## Phase 3: Timeout Semantics End-to-End
 1. Wire query timeout middleware into active Prisma setup in `src/config/database.ts`.
 2. Ensure middleware registration order remains deterministic with soft-delete/query monitoring.
-3. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
-4. Emit explicit timeout/transient error metadata from middleware, not message-only inference.
-5. Enforce response mapping in `errorHandler`:
+3. Replace app-layer timeout race for mutating DB operations with real DB-side cancellation semantics:
+   - apply transaction-scoped `SET LOCAL statement_timeout` for write paths (and optionally long-read paths with explicit limits)
+   - ensure timeout actually aborts SQL execution before side effects complete
+4. Keep middleware timer as observability signal only (slow-query logging), not the authoritative cancellation mechanism for writes.
+5. Emit explicit timeout/transient error metadata from middleware/service layer, not message-only inference.
+6. Enforce response mapping in `errorHandler`:
    - timeout-like -> 504 + `QUERY_TIMEOUT`
    - transient upstream-like -> 503 + `TRANSIENT_UPSTREAM_FAILURE`
-6. Canonical error payload fields are versioned and contract-tested end-to-end.
+7. Add regression guard: timeout response must imply DB write cancellation for covered mutation paths.
+8. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
+9. Canonical error payload fields are versioned and contract-tested end-to-end.
 
 ## Phase 4: Dual Queue Guardrails (App Queue + Workbox Sync)
 1. Keep both queues but define responsibilities:
-   - app queue = primary for scoring/commentary JSON mutations
-   - Workbox queue = safety net and score-file write coverage
-2. For overlap paths:
-   - require idempotency key on all writes (phased enforcement per compatibility plan)
-   - preserve key through replay paths
-3. Confirm Workbox runtime rules:
+   - app queue = only queue for scoring/commentary JSON mutations
+   - Workbox queue = only queue for score-file uploads/updates where browser SW retry is preferred
+2. Queue precedence is deterministic:
+   - if endpoint belongs to app-queue domain, Workbox must not enqueue it
+   - if endpoint belongs to Workbox domain, app queue must not enqueue it
+   - `X-Queue-Source` header is retained for diagnostics/telemetry attribution
+3. For all queued write paths:
+   - require idempotency key on every mutation (phased enforcement per compatibility plan where needed)
+   - preserve key through replay paths unchanged
+4. Confirm Workbox runtime rules:
    - write endpoints remain `NetworkOnly`
    - mutation responses are not cached as read data
    - method coverage matrix is explicit and tested:
-     - `POST`: scoring, commentary, score-files write endpoints
-     - `PUT`: scoring, commentary, score-files write endpoints
-     - `PATCH`: scoring, commentary, score-files write endpoints (or documented intentional exclusions)
-     - `DELETE`: scoring, commentary, score-files write endpoints (or documented intentional exclusions)
-4. Add poison-message handling:
+     - app queue routes: scoring/commentary `POST`/`PUT` (documented exclusions for `PATCH`/`DELETE` if not used)
+     - Workbox routes: score-files `POST`/`PUT` (documented exclusions for `PATCH`/`DELETE` if not used)
+5. Add poison-message handling:
    - app queue permanent failure threshold with user-visible failed state
    - SW failures surfaced via telemetry/logging
-5. Document queue interaction model:
+6. Document queue interaction model:
    - app queue drives UI state
-   - SW queue is fallback transport
+   - SW queue is separate domain transport, not overlapping fallback for app queue routes
    - backend idempotency is final dedupe authority
-6. Frontend mutation API parity:
+7. Frontend mutation API parity:
    - reliability wrappers and queue contracts explicitly support configured write methods (`POST`/`PUT`/`PATCH`/`DELETE`) or document intentional exclusions.
    - current `'POST' | 'PUT'` only surfaces are expanded or gated with documented rationale before rollout.
 
@@ -149,6 +167,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - Define auth/session-expiry behavior during offline flush (refresh/retry/degrade/drop semantics).
    - Ensure telemetry ingest failures are non-blocking for scoring/commentary writes.
    - Define retention windows and field-level redaction enforcement point.
+   - Fixed metric label schema (no tenant/user/request IDs in labels):
+     - `queue_source`: `app|sw`
+     - `operation`: `submit_score|update_score|create_comment|update_comment|upload_score_file`
+     - `result`: `enqueued|replay_success|replay_retry|replay_permanent_failure|dropped`
+     - `network_state`: `online|offline|unknown`
+     - `status_bucket`: `2xx|4xx|429|5xx|timeout|network_error`
+   - Tenant/user correlation remains in logs/event storage only, not Prometheus label cardinality.
 2. Add Prometheus metrics:
    - queue depth
    - replay success/failure
@@ -227,8 +252,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
 2. No silent score/comment mutation loss during timeout/offline/reconnect.
-3. Duplicate replay is blocked across restarts and replicas.
-4. Timeout/transient responses are stable and machine-classifiable.
+3. Duplicate replay is blocked across restarts and replicas, including concurrent duplicate submissions.
+4. Timeout/transient responses are stable and machine-classifiable, and mutation timeouts must abort DB execution (no post-timeout side effects).
 5. Queue interaction model is documented and observable in ops dashboards.
 6. Reliability test gates pass before release.
 7. Quantitative release gates are defined and met:
