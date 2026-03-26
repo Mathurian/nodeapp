@@ -21,7 +21,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
 2. Add Prisma model for idempotency persistence:
-   - `IdempotencyRecord` with `key`, `tenantId`, `method`, `path`, `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `lastSeenAt`
+   - `IdempotencyRecord` with `key`, `tenantId`, `method`, `path`, `status` (`pending` | `completed`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `lastSeenAt`
    - unique index: `(tenantId, method, path, key)`
 3. Add backend idempotency storage abstraction:
    - `IdempotencyStore` interface, DB source-of-truth with Redis accelerator.
@@ -30,6 +30,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - optional debug header: `X-Idempotency-Store` (`db`, `redis`, `db+redis`) in non-prod diagnostics only.
 5. Add telemetry endpoint:
    - `POST /api/v1/telemetry/offline-sync` (authenticated, tenant-scoped, rate-limited).
+   - versioned payload contract with bounded-cardinality fields and request-size guardrails.
 6. Add queue-source contract for overlap diagnostics:
    - `X-Queue-Source: app` for app replays
    - classify SW-origin writes as `sw` for telemetry when possible.
@@ -54,8 +55,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
-   - If replayable and unexpired, return cached response.
-   - On first successful 2xx write, persist to DB then cache Redis.
+   - If record status is `completed` and unexpired, return cached response.
+   - Before controller side effects, attempt an atomic DB reservation (`pending`) for `(tenantId, method, path, key)`.
+   - If reservation already exists as `pending`, return deterministic retry guidance (or bounded wait/poll behavior) without executing side effects.
+   - On first successful 2xx write, transition DB record `pending -> completed`, persist response, then cache Redis.
+   - On non-2xx terminal result, clear or mark reservation according to retryability policy.
    - On Redis miss + DB hit, repopulate Redis.
 5. TTL:
    - 24h default
@@ -65,6 +69,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 7. Multi-instance safety:
    - DB uniqueness is the dedupe authority.
    - Redis is acceleration only, never the only source.
+8. Concurrency and recovery tests:
+   - same idempotency key submitted concurrently across processes executes side effects at most once.
+   - stale `pending` reservations are reclaimed by timeout/cleanup policy.
 
 ## Phase 3: Timeout Semantics End-to-End
 1. Wire query timeout middleware into active Prisma setup in `src/config/database.ts`.
@@ -84,6 +91,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Confirm Workbox runtime rules:
    - write endpoints remain `NetworkOnly`
    - mutation responses are not cached as read data
+   - method coverage matrix is explicit and tested:
+     - `POST`: scoring, commentary, score-files write endpoints
+     - `PUT`: scoring, commentary, score-files write endpoints
+     - `PATCH`: scoring, commentary, score-files write endpoints (or documented intentional exclusions)
+     - `DELETE`: scoring, commentary, score-files write endpoints (or documented intentional exclusions)
 4. Add poison-message handling:
    - app queue permanent failure threshold with user-visible failed state
    - SW failures surfaced via telemetry/logging
@@ -105,6 +117,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 
 ## Phase 6: Operational Readiness, Telemetry, and Rollout Controls
 1. Implement telemetry ingest endpoint for client offline-sync metrics.
+   - Require `schemaVersion` and validate payload against versioned contract.
+   - Enforce allowlist-only fields (no raw mutation payloads or PII).
+   - Apply request body size limits and bounded enum/label values to avoid high-cardinality metrics.
+   - Add sampling/backpressure handling when ingest volume spikes.
 2. Add Prometheus metrics:
    - queue depth
    - replay success/failure
@@ -136,6 +152,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - replay on reconnect/foreground
    - retry cap and permanent failure path
    - ordering guarantees for same entity stream
+   - Workbox method coverage parity checks for configured write endpoints (`POST`/`PUT`/`PATCH`/`DELETE` or documented exclusions)
 4. E2E/manual scenario verification:
    - online save
    - forced timeout and retry
@@ -173,6 +190,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - update checklist status
    - add rollout and rollback runbook details
    - update ADR for final dual-queue interaction model
+   - document telemetry schema versioning + cardinality constraints
+   - document idempotency reservation (`pending`) semantics and recovery behavior
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
@@ -188,3 +207,6 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Dual queue remains in place with strict guardrails and dedupe.
 4. Telemetry stores operational metadata only, not sensitive mutation payloads.
 5. Rollout is staged and feature-flagged before broad production enablement.
+6. TTL invariants are enforced:
+   - Redis replay entry TTL must never exceed DB `expiresAt`.
+   - App queue retry horizon and Workbox retention must not exceed server idempotency retention unless fallback behavior is explicitly documented.
