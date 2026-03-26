@@ -20,7 +20,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 ## Cross-Cutting Guardrails and Compatibility Requirements
 1. Backward-compatible idempotency rollout:
    - `x-idempotency-key` moves to required-for-writes via staged enforcement.
-   - migration phases: observe-only -> soft-fail diagnostics -> allowlisted hard-fail.
+   - migration phases: observe-only -> soft-fail diagnostics -> allowlisted hard-fail -> global hard-fail.
+   - publish a route+method enforcement matrix per phase, including explicit exemptions, expiry dates, and rollback toggle behavior.
    - legacy clients/integrations without key must have an explicit compatibility path and deprecation timeline.
 2. Canonical error payload contract (no message parsing):
    - timeout/transient responses include stable fields (e.g. `code`, `retryable`, `classification`, `requestId`).
@@ -54,6 +55,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 7. Standardize retry-classification server contract:
    - `QUERY_TIMEOUT` -> 504
    - `TRANSIENT_UPSTREAM_FAILURE` -> 503
+   - `RATE_LIMITED_RETRYABLE` -> 429 + `Retry-After`
+   - gateway/service-level network-abort/transient transport failures normalized to retryable contract payloads
 8. Add deterministic idempotency conflict/mismatch codes:
    - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
    - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
@@ -78,6 +81,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
+   - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend: stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
    - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, path, key)`.
@@ -105,9 +109,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - env-configurable with min/max guardrails
 6. Expired record cleanup:
    - scheduled cleanup task for DB rows by `expiresAt`
+   - in multi-instance deployments, cleanup ownership uses a single-runner lock strategy (e.g., DB advisory lock/leader election), bounded batch size, and bounded runtime to prevent stampedes
 7. Multi-instance safety:
    - DB uniqueness is the dedupe authority.
    - Redis is acceleration only, never the only source.
+   - stale `pending` reclamation and expiry cleanup emit metrics (rows scanned/deleted, reclaim attempts, lock contention, failures) and have alert thresholds.
 8. Concurrency and recovery tests:
    - same idempotency key submitted concurrently across processes executes side effects at most once.
    - stale `pending` reservations are reclaimed by timeout/cleanup policy.
@@ -126,6 +132,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 6. Enforce response mapping in `errorHandler`:
    - timeout-like -> 504 + `QUERY_TIMEOUT`
    - transient upstream-like -> 503 + `TRANSIENT_UPSTREAM_FAILURE`
+   - rate-limit -> 429 + `RATE_LIMITED_RETRYABLE` + `Retry-After`
+   - transport/network-abort-like -> mapped to retryable transient classification with stable payload fields
 7. Add regression guard: timeout response must imply DB write cancellation for covered mutation paths.
 8. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
 9. Canonical error payload fields are versioned and contract-tested end-to-end.
@@ -140,8 +148,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - app queue = only queue for scoring/commentary JSON mutations
    - Workbox queue = only queue for score-file uploads/updates where browser SW retry is preferred
 2. Queue precedence is deterministic:
+   - queue ownership is defined by a single shared route+method manifest consumed by app queue logic, Workbox routing, and tests.
    - if endpoint belongs to app-queue domain, Workbox must not enqueue it
    - if endpoint belongs to Workbox domain, app queue must not enqueue it
+   - build/test validation fails on overlapping ownership or manifest drift.
    - `X-Queue-Source` header is retained for diagnostics/telemetry attribution
 3. For all queued write paths:
    - require idempotency key on every mutation (phased enforcement per compatibility plan where needed)
@@ -183,6 +193,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - Define auth/session-expiry behavior during offline flush (refresh/retry/degrade/drop semantics).
    - Ensure telemetry ingest failures are non-blocking for scoring/commentary writes.
    - Define retention windows and field-level redaction enforcement point.
+   - Define bounded client telemetry buffering: max queue size, max event age, retry schedule/attempt cap, and deterministic drop policy with reason counters.
    - Fixed metric label schema (no tenant/user/request IDs in labels):
      - `queue_source`: `app|sw`
      - `operation`: `submit_score|update_score|create_comment|update_comment|upload_score_file`
@@ -231,6 +242,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - reconnect sync
    - duplicate prevention
    - telemetry flush with expired auth/session and expected degrade behavior
+   - shared queue-routing manifest parity test between app and Workbox consumers
+   - request-hash canonicalization parity tests across frontend/backend fixtures
 5. Final gate commands:
    - `git status --short`
    - `npm run build`
@@ -291,6 +304,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Dual queue remains in place with strict guardrails and dedupe.
 4. Telemetry stores operational metadata only, not sensitive mutation payloads.
 5. Rollout is staged and feature-flagged before broad production enablement.
-6. TTL invariants are enforced:
+6. A single shared queue-routing manifest is authoritative for app and Workbox write ownership.
+7. Request-hash canonicalization is standardized across all mutation producers.
+8. TTL invariants are enforced:
    - Redis replay entry TTL must never exceed DB `expiresAt`.
    - App queue retry horizon and Workbox retention must not exceed server idempotency retention unless fallback behavior is explicitly documented.
