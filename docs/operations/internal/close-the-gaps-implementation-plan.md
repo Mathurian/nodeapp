@@ -22,6 +22,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `x-idempotency-key` moves to required-for-writes via staged enforcement.
    - migration phases: observe-only -> soft-fail diagnostics -> allowlisted hard-fail -> global hard-fail.
    - publish a route+method enforcement matrix per phase, including explicit exemptions, expiry dates, and rollback toggle behavior.
+   - each phase must define default server behavior for missing key per route+method (`status`, `code`, retryability, and fallback path) so enforcement is uniform across teams.
    - legacy clients/integrations without key must have an explicit compatibility path and deprecation timeline.
 2. Canonical error payload contract (no message parsing):
    - timeout/transient responses include stable fields (e.g. `code`, `retryable`, `classification`, `requestId`).
@@ -35,6 +36,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - telemetry failures never block primary write flows.
    - auth/session-expiry behavior for offline replay is defined (retry window, refresh attempt, graceful drop policy with counters).
    - retention policy, redaction/allowlist enforcement point, and high-cardinality protections are explicitly documented.
+   - auth-expiry behavior is deterministic: bounded refresh attempts, retry schedule with attempt cap, deterministic drop reasons/counters, and circuit-breaker protection against retry storms.
+6. Browser/API compatibility requirements are explicit:
+   - CORS allowlist includes request headers used by replay/idempotency (`x-idempotency-key`, `x-queue-source`) and any rollout diagnostics headers.
+   - CORS exposed headers include replay diagnostics used by frontend (`X-Idempotent-Replay`, `X-Idempotency-Digest`, migration aliases where applicable).
+7. API governance is mandatory for staged rollout:
+   - OpenAPI/reference docs are updated for new headers, error codes, and phase behavior before phase advancement.
+   - client compatibility matrix (by client version/integration) gates progression from soft-fail to hard-fail phases.
 
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
@@ -57,17 +65,23 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 6. Add queue-source contract for overlap diagnostics:
    - `X-Queue-Source: app` for app replays
    - classify SW-origin writes as `sw` for telemetry when possible.
-7. Standardize retry-classification server contract:
-   - `QUERY_TIMEOUT` -> 504
-   - `TRANSIENT_UPSTREAM_FAILURE` -> 503
-   - `RATE_LIMITED_RETRYABLE` -> 429 + `Retry-After`
-   - gateway/service-level network-abort/transient transport failures normalized to retryable contract payloads
+   - define CORS `allowedHeaders`/`exposedHeaders` updates so browser clients can send/read required headers without preflight failures.
+7. Standardize retry-classification contract with observability boundaries:
+   - server-observable classifications:
+     - `QUERY_TIMEOUT` -> 504
+     - `TRANSIENT_UPSTREAM_FAILURE` -> 503
+     - `RATE_LIMITED_RETRYABLE` -> 429 + `Retry-After`
+     - upstream transport failures observed by server stack -> retryable transient classification
+   - client-observable-only classifications (local network drop/abort before response) are emitted by frontend queue/orchestrator telemetry, not enforced as server response mapping requirements.
    - compatibility rule: emit legacy `RATE_LIMIT_EXCEEDED` alias in response metadata during migration window; remove only after client compatibility gate passes.
 8. Add deterministic idempotency conflict/mismatch codes:
    - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
    - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
 9. Add deterministic auth-expiry replay code:
    - `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE` -> 401 + `Retry-After` (replay remains retryable after re-auth).
+   - client compatibility contract is explicit: this code must not trigger logout/session wipe, and legacy clients are gated until compatibility checks pass.
+10. Publish canonical write ownership matrix artifact:
+   - one authoritative route+method table governs timeout coverage, app-queue ownership, Workbox ownership, idempotency enforcement phase, and intentional exclusions.
 
 ## Phase 1: Restore Green Build and Typing
 1. Update `frontend/src/vite-env.d.ts` to declare `VITE_OFFLINE_MUTATION_QUEUE_ENABLED`.
@@ -84,7 +98,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - include migration/backfill script for existing records:
      - map known user-origin rows to `actorType='USER'` + resolved `actorId`
      - map unresolvable legacy rows to `actorType='SYSTEM'`, `actorId='legacy'`
-     - enforce non-null + unique index only after backfill verification succeeds.
+     - detect/deduplicate legacy collisions before adding unique index using deterministic winner rules (status precedence + latest `updatedAt`) and archive/tombstone losers for auditability.
+     - enforce non-null + unique index only after backfill verification succeeds and collision report is clean.
 2. Implement backend store components:
    - DB repository for canonical persistence and replay lookup
    - Redis accessor for fast cache hit path with matching TTL
@@ -105,9 +120,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - On transient/unknown failure (429/5xx/timeout/network abort), transition to `failed_retryable` with short expiry/heartbeat, no replay payload commitment.
    - On Redis miss + DB hit, repopulate Redis.
    - Crash-window semantics are explicit and mandatory:
-     - for DB-backed mutations on covered routes, perform idempotency completion write in the same DB transaction as business side effects.
+     - for DB-backed mutations on covered routes where business side effects are transaction-capable, perform idempotency completion write in the same DB transaction as business side effects.
      - if transaction-bound completion write fails, entire transaction rolls back (no committed side effect without idempotency state).
-     - for non-transactional/external side effects, write `pending` reservation first, execute side effect, then on duplicate hit run a reconciliation probe (deterministic lookup by mutation fingerprint) before reclaiming stale reservation.
+     - for non-transactional/external side effects (or handlers that span mixed service boundaries), write `pending` reservation first, execute side effect, then on duplicate hit run a reconciliation probe (deterministic lookup by mutation fingerprint) before reclaiming stale reservation.
      - reconciliation probe result:
        - found side effect => transition to `completed` and replay.
        - not found and stale timeout exceeded => reclaim reservation and execute once.
@@ -145,15 +160,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - timeout-like -> 504 + `QUERY_TIMEOUT`
    - transient upstream-like -> 503 + `TRANSIENT_UPSTREAM_FAILURE`
    - rate-limit -> 429 + `RATE_LIMITED_RETRYABLE` + `Retry-After`
-   - transport/network-abort-like -> mapped to retryable transient classification with stable payload fields
+   - server-observed transport failures -> mapped to retryable transient classification with stable payload fields
+   - client-only network abort/drop before response -> classified in frontend telemetry/queue policy (not required as server response mapping)
 7. Add regression guard: timeout response must imply DB write cancellation for covered mutation paths.
 8. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
 9. Canonical error payload fields are versioned and contract-tested end-to-end.
-10. Covered timeout-enforced route set (explicit):
-   - scoring writes: `POST /api/v1/scoring/category/:categoryId/contestant/:contestantId`, `PUT /api/v1/scoring/:scoreId`
-   - commentary writes: `POST /api/v1/commentary`, `POST /api/v1/commentary/scores`, `PUT /api/v1/commentary/:id`
-   - score-file writes: `POST /api/v1/score-files`, `PUT|PATCH|DELETE /api/v1/score-files/:id` where implemented
-   - all covered routes must execute Prisma writes via a shared `withMutationTimeoutTx` helper that sets `SET LOCAL statement_timeout` before write operations.
+10. Covered timeout-enforced route set is sourced from the canonical write ownership matrix artifact (no duplicated route literals across sections).
+11. All covered routes must execute Prisma writes via a shared `withMutationTimeoutTx` helper that sets `SET LOCAL statement_timeout` before write operations.
 
 ## Phase 4: Dual Queue Guardrails (App Queue + Workbox Sync)
 1. Keep both queues but define responsibilities:
@@ -178,9 +191,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 4. Confirm Workbox runtime rules:
    - write endpoints remain `NetworkOnly`
    - mutation responses are not cached as read data
-   - method coverage matrix is explicit and tested:
-     - app queue routes: scoring/commentary `POST`/`PUT` (documented exclusions for `PATCH`/`DELETE` if not used)
-     - Workbox routes: score-files `POST`/`PUT` (documented exclusions for `PATCH`/`DELETE` if not used)
+   - method coverage matrix comes only from the canonical write ownership matrix artifact (including explicit score-file `PUT`/`PATCH`/`DELETE` decisions and rationale where not implemented).
 5. Add poison-message handling:
    - app queue permanent failure threshold with user-visible failed state
    - SW failures surfaced via telemetry/logging
@@ -209,7 +220,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - Enforce allowlist-only fields (no raw mutation payloads or PII).
    - Apply request body size limits and bounded enum/label values to avoid high-cardinality metrics.
    - Add sampling/backpressure handling when ingest volume spikes.
-   - Define auth/session-expiry behavior during offline flush (refresh/retry/degrade/drop semantics).
+   - Define auth/session-expiry behavior during offline flush (refresh/retry/degrade/drop semantics):
+     - max refresh attempts per flush window (default 1), then bounded retry schedule
+     - deterministic drop conditions (`auth_refresh_exhausted`, `token_invalid_terminal`, `max_event_age_exceeded`) with counters
+     - circuit-breaker backoff to prevent retry storms when auth endpoint is degraded
    - Ensure telemetry ingest failures are non-blocking for scoring/commentary writes.
    - Define retention windows and field-level redaction enforcement point.
    - Define bounded client telemetry buffering: max queue size, max event age, retry schedule/attempt cap, and deterministic drop policy with reason counters.
@@ -247,6 +261,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - replay behavior across restart simulation
    - replay behavior across multi-instance simulation
    - pending-reservation crash-window reconciliation behavior
+   - CORS preflight coverage for replay/idempotency headers on write routes
+   - telemetry ingest outage/latency does not block primary write success
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
    - replay on reconnect/foreground
@@ -254,6 +270,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - ordering guarantees for same entity stream
    - Workbox method coverage parity checks for configured write endpoints (`POST`/`PUT`/`PATCH`/`DELETE` or documented exclusions)
    - TTL mismatch behavior when client replay exceeds server idempotency retention
+   - `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE` does not trigger logout for compatible clients and replays after successful re-auth
+   - client-observable transport abort classification is emitted to telemetry and queue policy correctly
 4. E2E/manual scenario verification:
    - online save
    - forced timeout and retry
@@ -298,6 +316,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - update ADR for final dual-queue interaction model
    - document telemetry schema versioning + cardinality constraints
    - document idempotency reservation (`pending`) semantics and recovery behavior
+   - publish/update API reference (OpenAPI or equivalent) for new headers, error codes, phase behavior, and client compatibility timeline
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
