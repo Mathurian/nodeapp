@@ -16,7 +16,24 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 5. Timeout code mapping exists in `errorHandler`, but query-timeout middleware is not wired into active Prisma path.
 6. Offline queue/orchestrator has implementation but limited dedicated automated coverage.
 7. Workbox write Background Sync and app queue both exist, requiring explicit coordination.
-8. Working tree is currently clean.
+
+## Cross-Cutting Guardrails and Compatibility Requirements
+1. Backward-compatible idempotency rollout:
+   - `x-idempotency-key` moves to required-for-writes via staged enforcement.
+   - migration phases: observe-only -> soft-fail diagnostics -> allowlisted hard-fail.
+   - legacy clients/integrations without key must have an explicit compatibility path and deprecation timeline.
+2. Canonical error payload contract (no message parsing):
+   - timeout/transient responses include stable fields (e.g. `code`, `retryable`, `classification`, `requestId`).
+   - frontend retry classifier and queueing logic consume these fields as the source of truth.
+3. TTL alignment is enforceable, not advisory:
+   - startup/runtime checks ensure app queue retry horizon and Workbox retention do not exceed server idempotency TTL unless documented fallback semantics are enabled.
+   - define behavior when client replay arrives after server TTL expiry (e.g., reject with deterministic non-retryable code + user-visible conflict handling).
+4. Prisma timeout middleware must be consistently registered:
+   - apply across all Prisma client construction paths (global singleton, request-scoped tenant clients, container-resolved clients, read/replica variants).
+5. Telemetry ingestion must be operationally safe:
+   - telemetry failures never block primary write flows.
+   - auth/session-expiry behavior for offline replay is defined (retry window, refresh attempt, graceful drop policy with counters).
+   - retention policy, redaction/allowlist enforcement point, and high-cardinality protections are explicitly documented.
 
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
@@ -43,6 +60,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 2. Fix queue typing mismatch:
    - make `enqueueMutation` input omit `lastError`
    - default stored `lastError` to `null` inside queue write path
+   - use an explicit enqueue input type to prevent accidental reintroduction of required internal fields
 3. Validation:
    - `npm run build`
    - `cd frontend && npm run build`
@@ -61,6 +79,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - On first successful 2xx write, transition DB record `pending -> completed`, persist response, then cache Redis.
    - On non-2xx terminal result, clear or mark reservation according to retryability policy.
    - On Redis miss + DB hit, repopulate Redis.
+   - Define crash-window semantics when side effects commit but idempotency completion write fails.
 5. TTL:
    - 24h default
    - env-configurable with min/max guardrails
@@ -72,21 +91,24 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 8. Concurrency and recovery tests:
    - same idempotency key submitted concurrently across processes executes side effects at most once.
    - stale `pending` reservations are reclaimed by timeout/cleanup policy.
+   - side-effect-committed/completion-write-failed cases are reconciled without duplicate side effects.
 
 ## Phase 3: Timeout Semantics End-to-End
 1. Wire query timeout middleware into active Prisma setup in `src/config/database.ts`.
 2. Ensure middleware registration order remains deterministic with soft-delete/query monitoring.
-3. Emit explicit timeout/transient error metadata from middleware, not message-only inference.
-4. Enforce response mapping in `errorHandler`:
+3. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
+4. Emit explicit timeout/transient error metadata from middleware, not message-only inference.
+5. Enforce response mapping in `errorHandler`:
    - timeout-like -> 504 + `QUERY_TIMEOUT`
    - transient upstream-like -> 503 + `TRANSIENT_UPSTREAM_FAILURE`
+6. Canonical error payload fields are versioned and contract-tested end-to-end.
 
 ## Phase 4: Dual Queue Guardrails (App Queue + Workbox Sync)
 1. Keep both queues but define responsibilities:
    - app queue = primary for scoring/commentary JSON mutations
    - Workbox queue = safety net and score-file write coverage
 2. For overlap paths:
-   - require idempotency key on all writes
+   - require idempotency key on all writes (phased enforcement per compatibility plan)
    - preserve key through replay paths
 3. Confirm Workbox runtime rules:
    - write endpoints remain `NetworkOnly`
@@ -103,6 +125,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - app queue drives UI state
    - SW queue is fallback transport
    - backend idempotency is final dedupe authority
+6. Frontend mutation API parity:
+   - reliability wrappers and queue contracts explicitly support configured write methods (`POST`/`PUT`/`PATCH`/`DELETE`) or document intentional exclusions.
+   - current `'POST' | 'PUT'` only surfaces are expanded or gated with documented rationale before rollout.
 
 ## Phase 5: User Messaging Consistency
 1. Enforce exact state messaging contract across scoring/commentary flows:
@@ -121,6 +146,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - Enforce allowlist-only fields (no raw mutation payloads or PII).
    - Apply request body size limits and bounded enum/label values to avoid high-cardinality metrics.
    - Add sampling/backpressure handling when ingest volume spikes.
+   - Define auth/session-expiry behavior during offline flush (refresh/retry/degrade/drop semantics).
+   - Ensure telemetry ingest failures are non-blocking for scoring/commentary writes.
+   - Define retention windows and field-level redaction enforcement point.
 2. Add Prometheus metrics:
    - queue depth
    - replay success/failure
@@ -147,18 +175,21 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 2. Backend integration tests:
    - replay behavior across restart simulation
    - replay behavior across multi-instance simulation
+   - pending-reservation crash-window reconciliation behavior
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
    - replay on reconnect/foreground
    - retry cap and permanent failure path
    - ordering guarantees for same entity stream
    - Workbox method coverage parity checks for configured write endpoints (`POST`/`PUT`/`PATCH`/`DELETE` or documented exclusions)
+   - TTL mismatch behavior when client replay exceeds server idempotency retention
 4. E2E/manual scenario verification:
    - online save
    - forced timeout and retry
    - offline enqueue
    - reconnect sync
    - duplicate prevention
+   - telemetry flush with expired auth/session and expected degrade behavior
 5. Final gate commands:
    - `git status --short`
    - `npm run build`
@@ -200,6 +231,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 4. Timeout/transient responses are stable and machine-classifiable.
 5. Queue interaction model is documented and observable in ops dashboards.
 6. Reliability test gates pass before release.
+7. Quantitative release gates are defined and met:
+   - replay success-rate threshold (rolling window)
+   - duplicate-write incident threshold
+   - p95/p99 sync-delay SLO thresholds
+   - sustained queue-depth bounds
+   - telemetry drop-rate threshold
+8. Rollback trigger thresholds are defined and tied to alert conditions.
 
 ## Assumptions and Defaults
 1. Idempotency retention defaults to 24 hours.
