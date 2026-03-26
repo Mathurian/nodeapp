@@ -175,11 +175,14 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 2. Queue precedence is deterministic:
    - queue ownership is defined by a single shared route+method manifest consumed by app queue logic, Workbox routing, and tests.
    - authoritative artifact:
-     - `frontend/src/config/offlineWriteOwnership.manifest.ts` (source of truth)
-     - generated `frontend/src/config/offlineWriteOwnership.manifest.json` for tooling/tests
+     - `config/offline-write-ownership.manifest.json` (repo-level source of truth consumed by backend + frontend)
+     - generated/typed frontend projections:
+       - `frontend/src/config/offlineWriteOwnership.manifest.ts`
+       - `frontend/src/config/offlineWriteOwnership.manifest.json`
    - ownership rules:
      - only this manifest defines queue ownership
      - `frontend/vite.config.ts` and app queue selector import from this source (no duplicated route literals)
+     - backend timeout/idempotency enforcement reads the same manifest source (`config/offline-write-ownership.manifest.json`) so phase behavior and enforcement cannot drift.
      - CI fails if generated artifact drifts from source.
    - if endpoint belongs to app-queue domain, Workbox must not enqueue it
    - if endpoint belongs to Workbox domain, app queue must not enqueue it
@@ -292,6 +295,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `frontend/src/vite-env.d.ts`
    - `frontend/src/services/offlineMutationQueue.ts`
    - `frontend/src/services/offlineSyncOrchestrator.ts`
+   - `frontend/src/services/api.ts` (401 handling compatibility for `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`)
    - `frontend/src/pages/ScoringPage.tsx`
    - `frontend/src/config/offlineWriteOwnership.manifest.ts`
    - `frontend/src/config/offlineWriteOwnership.manifest.json`
@@ -301,16 +305,19 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/middleware/idempotency.ts`
    - `src/config/database.ts`
    - `src/config/queryTimeouts.ts`
+   - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers)
    - `src/middleware/errorHandler.ts`
    - telemetry route/controller/service files
    - `src/services/MetricsService.ts`
-3. Data model:
+3. Shared configuration:
+   - `config/offline-write-ownership.manifest.json`
+4. Data model:
    - `prisma/schema.prisma`
    - idempotency migration files
-4. Tests:
+5. Tests:
    - backend unit/integration additions for idempotency and timeout
    - frontend tests for queue/orchestrator/retry behavior
-5. Documentation:
+6. Documentation:
    - update checklist status
    - add rollout and rollback runbook details
    - update ADR for final dual-queue interaction model
