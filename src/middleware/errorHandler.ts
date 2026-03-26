@@ -329,6 +329,32 @@ const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunc
     }
   }
 
+  // Explicit timeout/transient backend semantics for frontend retry classification
+  if (
+    error.code === 'ETIMEDOUT' ||
+    error.code === 'ECONNABORTED' ||
+    /timeout|timed out|statement timeout/i.test(error.message || '')
+  ) {
+    res.status(504).json(buildErrorResponse(
+      error.message || 'Request timed out',
+      ErrorCode.QUERY_TIMEOUT
+    ));
+    return;
+  }
+
+  if (
+    error.code === 'ECONNRESET' ||
+    error.code === 'EAI_AGAIN' ||
+    error.code === 'ENOTFOUND' ||
+    /temporar|transient|upstream/i.test(error.message || '')
+  ) {
+    res.status(503).json(buildErrorResponse(
+      error.message || 'Temporary upstream failure',
+      ErrorCode.TRANSIENT_UPSTREAM_FAILURE
+    ));
+    return;
+  }
+
   // Default internal server error
   const statusCode = error.statusCode || 500;
   const errorMessage = env.isProduction() ? 'An unexpected error occurred' : (error.message || 'Unknown error');

@@ -3,6 +3,7 @@ import { getCategories, getScores, submitScore, updateScore, deleteScore, certif
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { validate, createScoreSchema, updateScoreSchema } from '../middleware/validation';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router: Router = express.Router();
 
@@ -71,6 +72,7 @@ router.get('/category/:categoryId/contestant/:contestantId',
  */
 router.post('/category/:categoryId/contestant/:contestantId',
   requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']),
+  idempotencyMiddleware,
   validate(createScoreSchema, 'body'),
   logActivity('SUBMIT_SCORE', 'SCORE'),
   submitScore
@@ -83,6 +85,7 @@ router.post('/category/:categoryId/uncertify', requireRole(['SUPER_ADMIN', 'ADMI
 // Score-specific routes (must come after category routes)
 router.put('/:scoreId',
   requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']),
+  idempotencyMiddleware,
   validate(updateScoreSchema, 'body'),
   logActivity('UPDATE_SCORE', 'SCORE'),
   updateScore

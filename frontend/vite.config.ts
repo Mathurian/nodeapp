@@ -85,6 +85,32 @@ export default defineConfig({
         ],
         runtimeCaching: [
           {
+            urlPattern: /\/api\/v1\/(scoring|commentary|score-files)(\/.*)?$/i,
+            handler: 'NetworkOnly',
+            method: 'POST',
+            options: {
+              backgroundSync: {
+                name: 'scoring-write-queue',
+                options: {
+                  maxRetentionTime: 24 * 60,
+                }
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/v1\/(scoring|commentary|score-files)(\/.*)?$/i,
+            handler: 'NetworkOnly',
+            method: 'PUT',
+            options: {
+              backgroundSync: {
+                name: 'scoring-write-queue',
+                options: {
+                  maxRetentionTime: 24 * 60,
+                }
+              }
+            }
+          },
+          {
             urlPattern: /^https:\/\/api\..*/i,
             handler: 'NetworkFirst',
             options: {

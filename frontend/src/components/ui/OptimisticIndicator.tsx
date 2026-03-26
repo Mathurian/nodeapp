@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react'
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 
-export type OptimisticStatus = 'idle' | 'saving' | 'saved' | 'error'
+export type OptimisticStatus = 'idle' | 'saving' | 'retrying' | 'queued' | 'syncing' | 'saved' | 'error' | 'failed'
 
 export interface OptimisticIndicatorProps {
   /** Current status of the optimistic operation */
@@ -91,6 +91,46 @@ const OptimisticIndicator: React.FC<OptimisticIndicatorProps> = ({
     )
   }
 
+  if (status === 'retrying') {
+    return (
+      <span
+        className={`${containerClasses} text-amber-600 dark:text-amber-400 ${sizeClasses[size]} ${className}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span className={`${iconSizes[size]} animate-spin rounded-full border-2 border-current border-t-transparent`} />
+        <span>Network unstable, retrying…</span>
+      </span>
+    )
+  }
+
+  if (status === 'queued') {
+    return (
+      <span
+        className={`${containerClasses} text-yellow-700 dark:text-yellow-300 ${sizeClasses[size]} ${className}`}
+        role="status"
+        aria-live="polite"
+      >
+        <ExclamationCircleIcon className={iconSizes[size]} />
+        <span>Saved offline. Will sync automatically.</span>
+      </span>
+    )
+  }
+
+  if (status === 'syncing') {
+    return (
+      <span
+        className={`${containerClasses} text-indigo-600 dark:text-indigo-300 ${sizeClasses[size]} ${className}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span className={`${iconSizes[size]} animate-spin rounded-full border-2 border-current border-t-transparent`} />
+        <span>Syncing queued updates…</span>
+      </span>
+    )
+  }
+
+
   if (status === 'saved') {
     return (
       <span
@@ -104,7 +144,7 @@ const OptimisticIndicator: React.FC<OptimisticIndicatorProps> = ({
     )
   }
 
-  if (status === 'error') {
+  if (status === 'error' || status === 'failed') {
     return (
       <span
         className={`${containerClasses} text-red-600 dark:text-red-400 ${sizeClasses[size]} ${className}`}
@@ -112,7 +152,7 @@ const OptimisticIndicator: React.FC<OptimisticIndicatorProps> = ({
         aria-live="assertive"
       >
         <ExclamationCircleIcon className={iconSizes[size]} />
-        <span>{errorText}</span>
+        <span>{status === 'failed' ? 'Sync failed — tap to retry.' : errorText}</span>
       </span>
     )
   }
