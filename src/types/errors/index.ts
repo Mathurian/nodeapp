@@ -45,6 +45,8 @@ export enum ErrorCode {
 
   // Service unavailable (503)
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
+  QUERY_TIMEOUT = 'QUERY_TIMEOUT',
+  TRANSIENT_UPSTREAM_FAILURE = 'TRANSIENT_UPSTREAM_FAILURE',
 }
 
 export interface AppError extends Error {

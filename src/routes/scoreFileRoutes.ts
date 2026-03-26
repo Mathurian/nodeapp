@@ -17,6 +17,7 @@ import {
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { resolveRequestTenantId } from '../utils/tenantContext';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router: Router = express.Router();
 
@@ -82,6 +83,7 @@ router.use(authenticateToken);
 router.post(
   '/',
   requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  idempotencyMiddleware,
   scoreFileUpload.single('file'),
   logActivity('UPLOAD_SCORE_FILE', 'SCORE'),
   uploadScoreFile
@@ -151,7 +153,7 @@ router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTE
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_SCORE_FILE', 'SCORE'), updateScoreFile);
+router.patch('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), idempotencyMiddleware, logActivity('UPDATE_SCORE_FILE', 'SCORE'), updateScoreFile);
 
 /**
  * @swagger
@@ -162,7 +164,7 @@ router.patch('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER']), logActivity('DELETE_SCORE_FILE', 'SCORE'), deleteScoreFile);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER']), idempotencyMiddleware, logActivity('DELETE_SCORE_FILE', 'SCORE'), deleteScoreFile);
 
 /**
  * @swagger

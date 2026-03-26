@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { classifyNetworkError } from './networkErrorClassifier'
+import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from './idempotency'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
 
 /**
@@ -37,12 +39,15 @@ const isPublicPath = (pathname: string): boolean => {
   return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
 }
 
+const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete'])
+
 // Request interceptor to add CSRF token for state-changing requests
 api.interceptors.request.use(
   (config) => {
     // Cookies with httpOnly are automatically sent with requests
     // Add CSRF token from cookie for POST, PUT, DELETE, PATCH requests
-    if (config.method && ['post', 'put', 'delete', 'patch'].includes(config.method.toLowerCase())) {
+    const method = config.method?.toLowerCase() || ''
+    if (MUTATION_METHODS.has(method)) {
       const csrfToken = document.cookie
         .split('; ')
         .find(row => row.startsWith('_csrf='))
@@ -51,10 +56,17 @@ api.interceptors.request.use(
       if (csrfToken && config.headers) {
         config.headers['X-CSRF-Token'] = csrfToken
       }
+
+      if (config.headers && !config.headers[IDEMPOTENCY_HEADER]) {
+        const action = `${method}:${String(config.url || 'unknown')}`
+        config.headers[IDEMPOTENCY_HEADER] = createMutationIdempotencyKey(action)
+      }
     }
     return config
   },
   (error) => {
+    const classification = classifyNetworkError(error)
+    error.networkClassification = classification
     return Promise.reject(error)
   }
 )
@@ -73,6 +85,8 @@ api.interceptors.response.use(
       if (!isPublicPath(window.location.pathname) && !isProfileProbe) {
         window.location.href = buildTenantAwareLoginPath(window.location.pathname)
       }
+      const classification = classifyNetworkError(error)
+      error.networkClassification = classification
       return Promise.reject(error)
     }
 
@@ -104,6 +118,8 @@ api.interceptors.response.use(
       }
     }
 
+    const classification = classifyNetworkError(error)
+    error.networkClassification = classification
     return Promise.reject(error)
   }
 )
@@ -167,17 +183,17 @@ export const categoriesAPI = {
 
 export const scoringAPI = {
   getScores: (categoryId: string, contestantId: string) => api.get(`/scoring/category/${categoryId}/contestant/${contestantId}`),
-  submitScore: (categoryIdOrData: string | any, contestantIdOrData?: string, data?: any) => {
+  submitScore: (categoryIdOrData: string | any, contestantIdOrData?: string, data?: any, config?: any) => {
     if (typeof categoryIdOrData === 'string' && typeof contestantIdOrData === 'string') {
       // Called with (categoryId, contestantId, data)
-      return api.post(`/scoring/category/${categoryIdOrData}/contestant/${contestantIdOrData}`, data)
+      return api.post(`/scoring/category/${categoryIdOrData}/contestant/${contestantIdOrData}`, data, config)
     } else {
       // Called with (scoreData) - extract categoryId and contestantId from data
       const { categoryId, contestantId, ...scoreData } = categoryIdOrData
-      return api.post(`/scoring/category/${categoryId}/contestant/${contestantId}`, scoreData)
+      return api.post(`/scoring/category/${categoryId}/contestant/${contestantId}`, scoreData, config)
     }
   },
-  updateScore: (scoreId: string, data: any) => api.put(`/scoring/${scoreId}`, data),
+  updateScore: (scoreId: string, data: any, config?: any) => api.put(`/scoring/${scoreId}`, data, config),
   deleteScore: (scoreId: string) => api.delete(`/scoring/${scoreId}`),
   certifyScores: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify`, signature || {}),
   certifyTotals: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify-totals`, signature || {}),
@@ -191,15 +207,19 @@ export const scoringAPI = {
 }
 
 export const scoreFilesAPI = {
-  upload: (formData: FormData) => api.post('/score-files', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+  upload: (formData: FormData, config?: any) => api.post('/score-files', formData, {
+    ...config,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      ...(config?.headers || {}),
+    },
   }),
   getAll: (params?: { categoryId?: string; judgeId?: string; contestantId?: string; status?: string; criterionId?: string; contextType?: string }) =>
     api.get('/score-files', { params }),
   getByCategory: (categoryId: string) => api.get(`/score-files/category/${categoryId}`),
   getByContestant: (contestantId: string) => api.get(`/score-files/contestant/${contestantId}`),
   download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' }),
-  remove: (id: string) => api.delete(`/score-files/${id}`)
+  remove: (id: string, config?: any) => api.delete(`/score-files/${id}`, config)
 }
 
 export const resultsAPI = {
@@ -698,5 +718,5 @@ export const permissionsAPI = {
 };
 
 // Export the api instance for direct use
-export { api }
+export { api, api as apiClient }
 export default api

@@ -7,6 +7,11 @@ import { scoringAPI } from '../services/api'
 import { scoreFilesAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
+import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from '../services/idempotency'
+import { executeWithRetry } from '../services/retryExecutor'
+import { classifyNetworkError } from '../services/networkErrorClassifier'
+import { enqueueMutation } from '../services/offlineMutationQueue'
+import { startOfflineSyncOrchestrator } from '../services/offlineSyncOrchestrator'
 import { appendDocxPreviewQuery, inferFileNameFromPath, isDocxFile, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   TrophyIcon,
@@ -107,6 +112,8 @@ interface ContestOption {
   name: string
   eventName: string
 }
+
+const OFFLINE_MUTATION_QUEUE_ENABLED = import.meta.env.VITE_OFFLINE_MUTATION_QUEUE_ENABLED === 'true'
 
 const getImageUrl = (path?: string | null): string | null => {
   if (!path) return null
@@ -227,11 +234,70 @@ const ScoringPage: React.FC = () => {
   const [typedSignature, setTypedSignature] = useState('')
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
   const [isDrawingSignature, setIsDrawingSignature] = useState(false)
+  const [queueMetrics, setQueueMetrics] = useState({ queuedCount: 0, failedCount: 0, syncingCount: 0 })
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/scoring'
   const basePath = currentPath.replace(/\/scoring\/?$/, '')
   const signatureCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const requiresSignOff = user?.role === 'JUDGE'
+
+  useEffect(() => {
+    if (!OFFLINE_MUTATION_QUEUE_ENABLED) return
+    return startOfflineSyncOrchestrator((metrics) => {
+      setQueueMetrics(metrics)
+      if (metrics.syncingCount > 0) {
+        setSaveStatus('syncing')
+      } else if (metrics.queuedCount === 0 && saveStatus === 'syncing') {
+        setSaveStatus('saved')
+      }
+    })
+  }, [saveStatus])
+
+  const executeMutationWithReliability = async (
+    actionLabel: string,
+    endpoint: string,
+    method: 'POST' | 'PUT',
+    payload: unknown,
+    entityKey: string,
+    runner: (headers: Record<string, string>) => Promise<void>,
+  ) => {
+    const idempotencyKey = createMutationIdempotencyKey(actionLabel)
+    const headers = { [IDEMPOTENCY_HEADER]: idempotencyKey }
+
+    try {
+      setSaveStatus('saving')
+      await executeWithRetry(
+        async () => {
+          await runner(headers)
+        },
+        undefined,
+        {
+          onRetry: () => setSaveStatus('retrying'),
+        },
+      )
+      setSaveStatus('saved')
+      return
+    } catch (error) {
+      const classification = classifyNetworkError(error)
+      if (OFFLINE_MUTATION_QUEUE_ENABLED && classification.retryable) {
+        await enqueueMutation({
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          endpoint,
+          method,
+          payload,
+          headers,
+          idempotencyKey,
+          entityKey,
+        })
+        setSaveStatus('queued')
+        toast('Saved offline. Will sync automatically.')
+        return
+      }
+
+      setSaveStatus(classification.retryable ? 'failed' : 'error')
+      throw error
+    }
+  }
 
   // Check if user can access scoring page (judges, admins, board members, and tally masters for viewing)
   const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'BOARD'].includes(user?.role || '')
@@ -432,12 +498,31 @@ const ScoringPage: React.FC = () => {
         }
 
         if (existing?.id) {
-          await scoringAPI.updateScore(existing.id, payload)
+          await executeMutationWithReliability(
+            `score-update:${existing.id}`,
+            `/scoring/${existing.id}`,
+            'PUT',
+            payload,
+            `score:${existing.id}`,
+            async (headers) => {
+              await scoringAPI.updateScore(existing.id, payload, { headers })
+            },
+          )
         } else {
-          await scoringAPI.submitScore(data.categoryId, data.contestantId, {
+          const body = {
             criteriaId: criterionId,
             ...payload,
-          })
+          }
+          await executeMutationWithReliability(
+            `score-submit:${data.categoryId}:${data.contestantId}:${criterionId || 'total'}`,
+            `/scoring/category/${data.categoryId}/contestant/${data.contestantId}`,
+            'POST',
+            body,
+            `score:${data.categoryId}:${data.contestantId}:${criterionId || 'total'}`,
+            async (headers) => {
+              await scoringAPI.submitScore(data.categoryId, data.contestantId, body, { headers })
+            },
+          )
         }
       }))
       return { success: true }
@@ -672,7 +757,21 @@ const ScoringPage: React.FC = () => {
       if (criterionId) {
         formData.append('criterionId', criterionId)
       }
-      await scoreFilesAPI.upload(formData)
+      await executeWithRetry(
+        async () => {
+          await scoreFilesAPI.upload(formData, {
+            headers: {
+              [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(
+                `score-file-upload:${selectedCategory.id}:${selectedContestant.id}:${criterionId || 'contestant'}`,
+              ),
+            },
+          })
+        },
+        undefined,
+        {
+          onRetry: () => setSaveStatus('retrying'),
+        },
+      )
       await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
       if (!silent) toast.success('Attachment uploaded')
     } catch (error: any) {
@@ -740,17 +839,25 @@ const ScoringPage: React.FC = () => {
         existingByCriterion.set(key, score)
       })
 
-      const commentUpdates = Array.from(existingByCriterion.entries())
-        .map(([criterionKey, score]) => {
+      const commentUpdates = Array.from(existingByCriterion.entries()).map(async ([criterionKey, score]) => {
           const nextComment = scoreFormData[criterionKey]?.comment ?? ''
           const currentComment = score.comment ?? ''
           if (nextComment === currentComment) return null
-          return scoringAPI.updateScore(score.id, { comments: nextComment })
+          await executeMutationWithReliability(
+            `comment-update:${score.id}`,
+            `/scoring/${score.id}`,
+            'PUT',
+            { comments: nextComment },
+            `comment:${score.id}`,
+            async (headers) => {
+              await scoringAPI.updateScore(score.id, { comments: nextComment }, { headers })
+            },
+          )
+          return true
         })
-        .filter((entry): entry is ReturnType<typeof scoringAPI.updateScore> => Boolean(entry))
-
-      if (commentUpdates.length > 0) {
-        await Promise.all(commentUpdates)
+      const commentResults = await Promise.all(commentUpdates)
+      if (commentResults.some(Boolean)) {
+        setSaveStatus('saved')
       }
 
       if (pendingCommentaryFiles.length > 0) {
@@ -1255,11 +1362,18 @@ const ScoringPage: React.FC = () => {
                           <OptimisticIndicator
                             status={saveStatus}
                             size="md"
-                            savingText="Saving scores..."
+                            savingText="Saving…"
                             savedText="Scores saved"
-                            errorText="Failed to save - scores rolled back"
+                            errorText="Failed to save"
                           />
                         </div>
+                        {OFFLINE_MUTATION_QUEUE_ENABLED && queueMetrics.queuedCount > 0 && (
+                          <div className="text-center text-xs text-amber-700 dark:text-amber-300">
+                            {queueMetrics.syncingCount > 0
+                              ? `Syncing queued updates… ${queueMetrics.queuedCount} pending`
+                              : `${queueMetrics.queuedCount} queued updates waiting for sync`}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (

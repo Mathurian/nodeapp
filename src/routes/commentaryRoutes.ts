@@ -11,6 +11,7 @@ const router: Router = express.Router();
 
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -33,7 +34,7 @@ router.use(authenticateToken)
  *       201:
  *         description: Comment created successfully
  */
-router.post("/scores", requireRole(["ADMIN", "JUDGE"]), logActivity("CREATE_SCORE_COMMENT", "COMMENTARY"), createScoreComment)
+router.post("/scores", requireRole(["ADMIN", "JUDGE"]), idempotencyMiddleware, logActivity("CREATE_SCORE_COMMENT", "COMMENTARY"), createScoreComment)
 
 /**
  * @swagger
@@ -53,9 +54,9 @@ router.post("/scores", requireRole(["ADMIN", "JUDGE"]), logActivity("CREATE_SCOR
  *       201:
  *         description: Commentary created successfully
  */
-router.post('/', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), logActivity('CREATE_COMMENT', 'COMMENTARY'), createComment)
+router.post('/', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('CREATE_COMMENT', 'COMMENTARY'), createComment)
 router.get('/score/:scoreId', getCommentsForScore)
-router.put('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), logActivity('UPDATE_COMMENT', 'COMMENTARY'), updateComment)
+router.put('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('UPDATE_COMMENT', 'COMMENTARY'), updateComment)
 router.delete('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), logActivity('DELETE_COMMENT', 'COMMENTARY'), deleteComment)
 router.get('/contestant/:contestantId', getCommentsByContestant)
 
