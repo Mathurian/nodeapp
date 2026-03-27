@@ -24,6 +24,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - publish a route+method enforcement matrix per phase, including explicit exemptions, expiry dates, and rollback toggle behavior.
    - each phase must define default server behavior for missing key per route+method (`status`, `code`, retryability, and fallback path) so enforcement is uniform across teams.
    - legacy clients/integrations without key must have an explicit compatibility path and deprecation timeline.
+   - phase advancement is objective and gated:
+     - minimum soak duration per phase/environment: 7 days in staging, 14 days in production.
+     - missing-key request rate on covered write paths must be < 0.5% (rolling 24h) before promotion.
+     - no p95 write-latency regression > 10% and no write-error-rate regression > 0.2 percentage points versus pre-phase baseline (rolling 24h).
+     - client compatibility coverage for the next phase must be >= 99% of write traffic by version/integration.
+     - all rollback/alert thresholds must remain green for 72 continuous hours before promotion.
+   - phase transitions require explicit owner approval (API + SRE + product owner), recorded in rollout runbook changelog.
 2. Canonical error payload contract (no message parsing):
    - timeout/transient responses include stable fields (e.g. `code`, `retryable`, `classification`, `requestId`).
    - frontend retry classifier and queueing logic consume these fields as the source of truth.
@@ -44,6 +51,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 7. API governance is mandatory for staged rollout:
    - OpenAPI/reference docs are updated for new headers, error codes, and phase behavior before phase advancement.
    - client compatibility matrix (by client version/integration) gates progression from soft-fail to hard-fail phases.
+   - migration payload examples must include both canonical and legacy alias fields during compatibility windows, with explicit alias removal dates.
 
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
@@ -82,6 +90,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - upstream transport failures observed by server stack -> retryable transient classification
    - client-observable-only classifications (local network drop/abort before response) are emitted by frontend queue/orchestrator telemetry, not enforced as server response mapping requirements.
    - compatibility rule: emit legacy `RATE_LIMIT_EXCEEDED` alias in response metadata during migration window; remove only after client compatibility gate passes.
+   - compatibility rule: emit legacy timeout/transient aliases during migration window (e.g., legacy timeout/transient codes/messages) and remove only after client compatibility gate passes.
 8. Add deterministic idempotency conflict/mismatch codes:
    - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
    - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
@@ -126,6 +135,17 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - If existing `failed_retryable` is stale (`updatedAt` older than `IDEMPOTENCY_RETRYABLE_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - On first successful 2xx, transition `pending -> completed`, persist replay payload, then cache Redis.
    - On deterministic client error (400/404/422), transition to `failed_terminal`, persist replay payload.
+   - Idempotency response-classification matrix is exhaustive and authoritative:
+     - 2xx: `completed`.
+     - 3xx on covered mutation routes: `failed_terminal` (treat redirect responses as non-retryable misconfiguration unless explicitly allowlisted).
+     - 4xx:
+       - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> retryable 409 (state preserved; no terminalization).
+       - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> terminal 409 (no side effects; no replay mutation of existing completed record).
+       - retryable auth-expiry cases (`IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`) -> `failed_retryable`.
+       - all other 401/403/404/405/408/409(domain)/410/412/415/422/423/424/428 -> `failed_terminal` unless explicitly listed as retryable in the ownership matrix.
+     - 429/5xx/query-timeout/server-observed transport failures: `failed_retryable`.
+     - uncaught exceptions/unknown classifications: default to `failed_retryable` with bounded expiry and deterministic `UNKNOWN_RETRYABLE` code until classified.
+   - no response path may leave a reservation stuck in `pending` after handler completion; contract tests enforce closure to `completed`/`failed_retryable`/`failed_terminal`.
    - 409 handling is explicit and code-driven (never generic by status alone):
      - `IDEMPOTENCY_REQUEST_IN_PROGRESS`: return retryable 409 + `Retry-After`, preserve current reservation state (`pending`/`failed_retryable`), no terminalization.
      - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`: return terminal 409 conflict, execute no side effects, and do not mutate an existing completed replay record.
@@ -181,10 +201,14 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 7. Add regression guard: timeout response must imply DB write cancellation for covered mutation paths.
 8. Extend timeout middleware wiring/verification to all Prisma construction paths (request-scoped, container-resolved, replica/read variants).
 9. Canonical error payload fields are versioned and contract-tested end-to-end.
-10. Covered timeout-enforced route set is sourced from the canonical write ownership matrix artifact (no duplicated route literals across sections).
-11. All covered routes must execute Prisma writes via a shared `withMutationTimeoutTx` helper that sets `SET LOCAL statement_timeout` before write operations.
-12. All covered non-Prisma mutation paths (raw SQL/query builders) must execute through a shared timeout-enforcing DB helper that applies transaction-scoped statement timeout with equivalent cancellation semantics.
-13. Any write path that cannot support transaction-scoped timeout must be explicitly excluded in the canonical write ownership matrix with rationale, compensating controls, and owner approval before rollout.
+10. Backward compatibility for timeout/transient contracts is explicit:
+   - migration payloads include canonical fields plus legacy alias fields/messages for pre-upgrade clients.
+   - OpenAPI examples include canonical-only target form and migration-era dual form.
+   - alias removal is blocked until compatibility matrix gate passes for each client/integration class.
+11. Covered timeout-enforced route set is sourced from the canonical write ownership matrix artifact (no duplicated route literals across sections).
+12. All covered routes must execute Prisma writes via a shared `withMutationTimeoutTx` helper that sets `SET LOCAL statement_timeout` before write operations.
+13. All covered non-Prisma mutation paths (raw SQL/query builders) must execute through a shared timeout-enforcing DB helper that applies transaction-scoped statement timeout with equivalent cancellation semantics.
+14. Any write path that cannot support transaction-scoped timeout must be explicitly excluded in the canonical write ownership matrix with rationale, compensating controls, and owner approval before rollout.
 
 ## Phase 4: Dual Queue Guardrails (App Queue + Workbox Sync)
 1. Keep both queues but define responsibilities:
@@ -201,8 +225,16 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - only this manifest defines queue ownership
      - backend timeout/idempotency enforcement reads the root source manifest (`config/offline-write-ownership.manifest.json`).
      - frontend runtime consumers (`frontend/vite.config.ts`, queue selectors, and tests) read generated frontend projections only (`frontend/src/config/offlineWriteOwnership.manifest.ts` / `.json`) produced from the root source manifest.
-     - generation and CI parity checks enforce source/projection drift prevention (no duplicated route literals).
-     - CI fails if generated artifact drifts from source.
+   - generation and CI parity checks enforce source/projection drift prevention (no duplicated route literals).
+   - generation lifecycle is explicit:
+     - local dev: generator runs via `npm run build:offline-write-ownership` (or equivalent) and is required before frontend dev/build.
+     - CI: parity check runs in required status checks and fails on drift.
+     - release build: generator runs in prebuild stage for backend/frontend artifacts.
+   - CI fails if generated artifact drifts from source.
+   - packaging/runtime contract is explicit:
+     - backend runtime reads packaged `config/offline-write-ownership.manifest.json` from deploy artifact (not from source checkout assumptions).
+     - startup fail-fast in strict mode if source manifest missing/invalid/version-mismatched; non-strict mode serves writes disabled for covered routes and emits critical alerts.
+     - frontend projections embed the same manifest version/hash as backend source; startup diagnostics verify parity.
    - if endpoint belongs to app-queue domain, Workbox must not enqueue it
    - if endpoint belongs to Workbox domain, app queue must not enqueue it
    - build/test validation fails on overlapping ownership or manifest drift.
@@ -323,6 +355,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `npm run build`
    - `cd frontend && npm run build`
    - targeted reliability/offline test suites
+7. Additional rollout gate assertions:
+   - manifest source/projection hash parity verified in CI and at runtime startup diagnostics.
+   - idempotency classification matrix contract tests prove no terminal handler path leaves `pending`.
+   - timeout/transient legacy alias compatibility tests pass for all listed pre-upgrade clients/integrations.
 
 ## File-Level Deliverables
 1. Frontend:
@@ -347,6 +383,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Shared configuration:
    - `config/offline-write-ownership.manifest.json`
    - `scripts/build/generate-offline-write-ownership-manifest.ts` (or equivalent generator + parity check entrypoint)
+   - build hooks/wiring for generator in backend/frontend build pipelines and CI required checks
 4. Data model:
    - `prisma/schema.prisma`
    - idempotency migration files
@@ -361,7 +398,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - document telemetry schema versioning + cardinality constraints
    - document idempotency reservation (`pending`) semantics and recovery behavior
    - publish/update API reference (OpenAPI or equivalent) for new headers, error codes, phase behavior, and client compatibility timeline
+   - include migration-era compatibility examples (canonical + legacy aliases) for timeout/transient/rate-limit contracts
    - publish migration rollback runbook for `IdempotencyRecord` expand/backfill/contract lifecycle and abort thresholds
+   - document phase-promotion gate metrics, approval owners, and runbook recording requirements
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
