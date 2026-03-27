@@ -54,6 +54,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - migration payload examples must include both canonical and legacy alias fields during compatibility windows, with explicit alias removal dates.
 8. Idempotency key abuse resistance is mandatory:
    - enforce strict `x-idempotency-key` validation (allowed charset, min/max length, transport decoding) with deterministic invalid-key error code.
+   - publish a normative wire-format grammar for `x-idempotency-key` (single header instance, accepted character class, and explicit byte-length bounds aligned to API gateway/CDN/WAF limits).
+   - reject malformed/duplicate/non-printable header variants deterministically, including explicit behavior for multiple header instances and invalid transport-encoding edge cases.
    - validation is parse/accept-reject only: do not apply semantic normalization (no trim/case-fold/rewrite) after decode, so key identity remains byte-stable.
    - publish client-generation guidance (UUIDv4 or equivalent high-entropy keys) and prohibit low-entropy/reused keys.
    - apply per-tenant/per-actor request and in-flight pending-reservation limits to prevent storage exhaustion and hot-partition abuse.
@@ -61,8 +63,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - canonical route identity for idempotency scope is explicitly normalized before lookup/reservation (method casing, path trailing-slash policy, decode/encode handling, and version/alias handling) to prevent path-variant dedupe bypass.
 9. Offline queue client storage must follow data-minimization and security controls:
    - queued payloads store only required mutation fields; tokens/secrets are prohibited.
+   - queued fields are classified by sensitivity (`public`/`internal`/`confidential`/`restricted`) with explicit policy on which classes are allowed to persist offline.
+   - restricted-class fields are never persisted offline; violations fail queue admission deterministically and emit auditable security events.
    - queue purge triggers are explicit (logout/session switch/tenant switch/max age expiry).
-   - shared-device risk posture and optional at-rest encryption requirements are documented for sensitive deployments.
+   - shared-device risk posture and at-rest encryption requirements are mandatory for sensitive deployments (non-optional when confidential data is present).
 10. Manifest signing key custody must follow supply-chain security best practices:
    - signing private keys are non-exportable and hosted in KMS/HSM-backed systems (no plaintext key material on CI runners or release hosts).
    - signing operations are executed only in trusted CI/release identity boundaries (OIDC/service identity), never from developer workstations.
@@ -75,6 +79,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - replay-payload encryption keys are non-exportable and hosted in KMS/HSM-backed systems (no plaintext key material on app hosts, CI runners, or release hosts).
    - encryption/decryption operations use trusted runtime identities and key-versioned provider APIs; workstation-managed keys are prohibited.
    - rotation, revocation, and breakglass recovery procedures are documented and tested before any payload-persistence allowlist is enabled.
+13. Multi-region high-availability and disaster-recovery behavior is explicit:
+   - define region topology for idempotency authority (single-writer or active-active) and failover invariants that preserve at-most-once side-effect guarantees.
+   - document RTO/RPO targets for idempotency persistence, telemetry ingest, and manifest trust-store dependencies.
+   - failover/recovery runbooks must include in-flight `pending` reservation handling, replication-lag reconciliation, and duplicate-prevention probes before traffic restoration.
+   - promotion to hard-fail phases is gated on successful game-day DR exercises for idempotency + telemetry + manifest verification paths.
 
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
@@ -300,6 +309,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - backend startup verifies signature against trusted key material before enabling covered write routes.
      - signature envelope includes `keyId`, `algorithm`, `manifestHash`, and `signedAt`.
      - trust validation checks key status (active/revoked), allowed algorithm set, and optional max signature age policy.
+     - trust validation includes anti-rollback protection: startup rejects validly signed manifests older than the last accepted manifest version/hash unless a time-bounded breakglass override is explicitly enabled and audited.
      - invalid signature is treated as invalid manifest under strict/non-strict behavior.
    - CI fails if generated artifact drifts from source.
    - packaging/runtime contract is explicit:
@@ -328,6 +338,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - app queue drives UI state
    - SW queue is separate domain transport, not overlapping fallback for app queue routes
    - backend idempotency is final dedupe authority
+   - browser cross-context coordination is explicit (multi-tab + service worker): a lease/lock protocol governs which context may flush each queue at a given time, with deterministic leader-election and takeover behavior.
+   - reconnect storm handling is explicit: replay workers apply jitter/backoff and entity-stream ordering guarantees across tabs/SW to avoid race-driven duplicate dispatch.
 7. Frontend mutation API parity:
    - reliability wrappers and queue contracts explicitly support configured write methods (`POST`/`PUT`/`PATCH`/`DELETE`) or document intentional exclusions.
    - current `'POST' | 'PUT'` only surfaces are expanded or gated with documented rationale before rollout.
@@ -377,6 +389,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - permanent failure count
    - sync delay buckets
    - idempotent replay hit rate
+   - idempotency correctness SLIs:
+     - duplicate-side-effect incidence rate
+     - stale/pending reservation leak rate
+     - reconciliation probe success rate
+     - payload-mismatch conflict rate
 3. Add Grafana dashboards and alerts:
    - sustained queue depth growth
    - replay failure spikes
@@ -388,6 +405,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - phase promotion is additionally gated by explicit error-budget burn-rate policy (fast/slow burn thresholds), with automatic freeze when exceeded.
    - phase advancement/resume after freeze requires recorded owner approval and stabilization window completion.
    - canonical-path enforcement promotion is independently gated by shadow/compare metrics and explicit owner approval record.
+   - rollout freeze is also triggered by idempotency correctness SLO burn (not only latency/error budgets); resume requires documented corrective actions and post-fix validation.
 5. Rollback procedure:
    - disable queue feature flag safely
    - retain online-write behavior
@@ -402,7 +420,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - Redis TTL <= DB `expiresAt`
    - strict mode fails startup on invariant violations; non-strict mode emits error logs + metrics and blocks phase advancement.
    - expose invariant status in health/diagnostic telemetry for deployment gate checks.
-7. Long-horizon storage operations and bloat controls:
+7. Correctness SLO governance for idempotency lifecycle:
+   - publish explicit SLO targets for correctness SLIs (duplicate prevention, pending-leak rate, reconciliation success) per environment.
+   - add alerting + auto-freeze thresholds tied to these SLOs, with incident/postmortem workflow before promotion resumes.
+8. Long-horizon storage operations and bloat controls:
    - define idempotency and telemetry table maintenance policy:
      - scheduled vacuum/analyze cadence for high-churn tables
      - index health checks and reindex criteria
@@ -429,6 +450,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - canonical shadow-mode parity tests verify divergence accounting and safe promotion criteria behavior before canonical enforcement enablement
    - canonicalPath backfill migration tests validate deterministic collision handling and zero unresolved-collision contract gate
    - telemetry abuse controls (quota/freshness/malformed payload throttling) enforce bounded ingest resource usage
+   - multi-tab/service-worker replay coordination tests verify lease/lock exclusivity and deterministic takeover after leader loss
+   - DR/failover simulation tests verify idempotency duplicate prevention across replication lag/failback scenarios
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
    - replay on reconnect/foreground
@@ -441,6 +464,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - generated ownership projection parity checks against source manifest fixtures
 4. Configuration invariant tests:
    - startup/runtime TTL invariant checks fail as expected on misconfiguration and pass on valid bounds.
+   - manifest anti-rollback validation rejects signed-but-stale manifest artifacts unless audited breakglass override is active.
 5. E2E/manual scenario verification:
    - online save
    - forced timeout and retry
@@ -460,6 +484,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - manifest signature verification passes in CI and at runtime startup diagnostics.
    - idempotency classification matrix contract tests prove no terminal handler path leaves `pending`.
    - timeout/transient legacy alias compatibility tests pass for all listed pre-upgrade clients/integrations.
+   - correctness SLO gates (duplicate prevention + pending leak + reconciliation success) remain within thresholds for the documented stabilization window.
 
 ## Phase 8: Capacity and Data-Lifecycle Hardening
 1. Capacity model and baseline:
@@ -477,6 +502,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - measure and gate on cleanup job duration, lock contention, and query performance impact.
 4. Release-gate integration:
    - block promotion when capacity gates fail (latency/error/bloat/cleanup lag thresholds).
+   - block promotion when correctness gates fail (duplicate-side-effect incidence, pending leak rate, reconciliation failures) even if latency/error gates pass.
    - require explicit owner sign-off for any temporary exception with expiration date and rollback plan.
 
 ## File-Level Deliverables
