@@ -285,7 +285,7 @@ export class TenantService {
             where,
             skip: params?.skip || 0,
             take: params?.take || 50,
-            orderBy: { createdAt: 'desc' },
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
           }),
           db.tenant.count({ where }),
         ])

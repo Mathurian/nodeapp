@@ -69,6 +69,67 @@ interface EventFilters {
 
 @injectable()
 export class EventService extends BaseService {
+  private compareEvents(
+    left: Event,
+    right: Event,
+    direction: 'asc' | 'desc' = 'desc'
+  ): number {
+    const leftStart = new Date(left.startDate).getTime();
+    const rightStart = new Date(right.startDate).getTime();
+    const leftValid = Number.isFinite(leftStart);
+    const rightValid = Number.isFinite(rightStart);
+
+    if (leftValid && rightValid && leftStart !== rightStart) {
+      return direction === 'asc' ? leftStart - rightStart : rightStart - leftStart;
+    }
+
+    if (leftValid !== rightValid) {
+      return leftValid ? -1 : 1;
+    }
+
+    const byName = String(left.name || '').localeCompare(String(right.name || ''), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+    if (byName !== 0) return byName;
+
+    return String(left.id || '').localeCompare(String(right.id || ''), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+  }
+
+  private sortEvents(events: Event[], filters?: EventFilters): Event[] {
+    if (filters?.sortBy) {
+      const sortField = filters.sortBy as keyof Event;
+      const sortDir = filters.sortDirection || 'desc';
+      return [...events].sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+
+        if (aVal === null || aVal === undefined) return sortDir === 'asc' ? 1 : -1;
+        if (bVal === null || bVal === undefined) return sortDir === 'asc' ? -1 : 1;
+
+        let primary = 0;
+
+        if (aVal instanceof Date && bVal instanceof Date) {
+          primary = sortDir === 'asc' ? aVal.getTime() - bVal.getTime() : bVal.getTime() - aVal.getTime();
+        } else if (typeof aVal === 'string' && typeof bVal === 'string') {
+          primary = sortDir === 'asc'
+            ? aVal.localeCompare(bVal, undefined, { sensitivity: 'base', numeric: true })
+            : bVal.localeCompare(aVal, undefined, { sensitivity: 'base', numeric: true });
+        } else {
+          primary = sortDir === 'asc' ? (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) : (bVal < aVal ? -1 : bVal > aVal ? 1 : 0);
+        }
+
+        if (primary !== 0) return primary;
+        return this.compareEvents(a, b, sortDir === 'asc' ? 'asc' : 'desc');
+      });
+    }
+
+    return [...events].sort((a, b) => this.compareEvents(a, b, 'desc'));
+  }
+
   constructor(
     @inject('EventRepository') private eventRepo: EventRepository,
     @inject('CacheService') private cacheService: CacheService,
@@ -253,28 +314,7 @@ export class EventService extends BaseService {
         events = events.filter(event => new Date(event.createdAt) <= filters.createdBefore!);
       }
 
-      // Sort events
-      if (filters?.sortBy) {
-        const sortField = filters.sortBy as keyof Event;
-        const sortDir = filters.sortDirection || 'desc';
-        events.sort((a, b) => {
-          const aVal = a[sortField];
-          const bVal = b[sortField];
-
-          if (aVal === null || aVal === undefined) return sortDir === 'asc' ? 1 : -1;
-          if (bVal === null || bVal === undefined) return sortDir === 'asc' ? -1 : 1;
-
-          if (aVal instanceof Date && bVal instanceof Date) {
-            return sortDir === 'asc' ? aVal.getTime() - bVal.getTime() : bVal.getTime() - aVal.getTime();
-          }
-
-          if (typeof aVal === 'string' && typeof bVal === 'string') {
-            return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-          }
-
-          return sortDir === 'asc' ? (aVal < bVal ? -1 : 1) : (bVal < aVal ? -1 : 1);
-        });
-      }
+      events = this.sortEvents(events, filters);
 
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, events, 300);

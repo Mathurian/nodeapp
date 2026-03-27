@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useSearchParams } from 'react-router-dom'
@@ -20,6 +20,7 @@ import {
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader } from '../components/ui'
+import { compareCategories, compareContests, compareEvents, compareText, stableSort } from '../utils/listOrdering'
 
 interface Event {
   id: string
@@ -140,6 +141,28 @@ const EmceePage: React.FC = () => {
     const tab = searchParams.get('tab') === 'scripts' ? 'scripts' : 'overview'
     setActiveTab(tab)
   }, [searchParams])
+
+  const sortedEvents = useMemo(() => stableSort(events || [], (a, b) => compareEvents(a, b, 'desc')), [events])
+  const sortedContests = useMemo(() => stableSort(contests || [], compareContests), [contests])
+  const sortedCategories = useMemo(() => stableSort(categories || [], compareCategories), [categories])
+  const sortedScripts = useMemo(() => stableSort(scripts, (a, b) => {
+    const byTitle = compareText(a.title, b.title)
+    if (byTitle !== 0) return byTitle
+    return compareText(a.id, b.id)
+  }), [scripts])
+
+  useEffect(() => {
+    if (selectedEventId && !sortedEvents.some((event) => event.id === selectedEventId)) {
+      setSelectedEventId('')
+      setSelectedContestId('')
+    }
+  }, [selectedEventId, sortedEvents])
+
+  useEffect(() => {
+    if (selectedContestId && !sortedContests.some((contest) => contest.id === selectedContestId)) {
+      setSelectedContestId('')
+    }
+  }, [selectedContestId, sortedContests])
 
   const handleTabChange = (tab: 'overview' | 'scripts') => {
     setActiveTab(tab)
@@ -350,8 +373,8 @@ const EmceePage: React.FC = () => {
     )
   }
 
-  const selectedEvent = events?.find(e => e.id === selectedEventId)
-  const selectedContest = contests?.find(c => c.id === selectedContestId)
+  const selectedEvent = sortedEvents.find(e => e.id === selectedEventId)
+  const selectedContest = sortedContests.find(c => c.id === selectedContestId)
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -391,7 +414,7 @@ const EmceePage: React.FC = () => {
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
-              Scripts ({scripts.length})
+              Scripts ({sortedScripts.length})
             </button>
           </nav>
         </div>
@@ -417,7 +440,7 @@ const EmceePage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select an event...</option>
-                {events?.map((event) => (
+                {sortedEvents.map((event) => (
                   <option key={event.id} value={event.id}>
                     {event.name}
                   </option>
@@ -436,7 +459,7 @@ const EmceePage: React.FC = () => {
                 disabled={!selectedEventId}
               >
                 <option value="">Select a contest...</option>
-                {contests?.map((contest) => (
+                {sortedContests.map((contest) => (
                   <option key={contest.id} value={contest.id}>
                     {contest.name}
                   </option>
@@ -512,7 +535,7 @@ const EmceePage: React.FC = () => {
               Categories
             </h2>
             <div className="space-y-3">
-              {categories.map((category) => (
+              {sortedCategories.map((category) => (
                 <div
                   key={category.id}
                   className="border-l-4 border-blue-500 pl-4 py-3 hover:bg-gray-50 dark:bg-gray-900 transition-colors"
@@ -642,7 +665,7 @@ const EmceePage: React.FC = () => {
             ) : (
               <Card className="rounded-lg overflow-hidden p-0">
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {scripts.map((script) => (
+                  {sortedScripts.map((script) => (
                     <li key={script.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">

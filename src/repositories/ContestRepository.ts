@@ -38,7 +38,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     
     return this.findMany(
       where,
-      { orderBy: { createdAt: 'asc' } }
+      { orderBy: [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -55,7 +55,7 @@ export class ContestRepository extends BaseRepository<Contest> {
     
     return this.findMany(
       where,
-      { orderBy: { createdAt: 'asc' } }
+      { orderBy: [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -74,7 +74,7 @@ export class ContestRepository extends BaseRepository<Contest> {
           deletedAt: null
         }
       },
-      { orderBy: { createdAt: 'asc' } }
+      { orderBy: [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -84,7 +84,7 @@ export class ContestRepository extends BaseRepository<Contest> {
   async findArchivedContests(): Promise<Contest[]> {
     return this.findMany(
       { archived: true, deletedAt: null },
-      { orderBy: { createdAt: 'desc' } }
+      { orderBy: [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -101,7 +101,7 @@ export class ContestRepository extends BaseRepository<Contest> {
           deletedAt: null
         }
       },
-      { orderBy: { createdAt: 'desc' } }
+      { orderBy: [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 

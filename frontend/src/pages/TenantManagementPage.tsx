@@ -11,6 +11,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import { Card, PageHeader } from '../components/ui'
+import { compareText, stableSort } from '../utils/listOrdering'
 
 interface Tenant {
   id: string
@@ -65,7 +66,13 @@ const TenantManagementPage: React.FC = () => {
       const response = await api.get('/tenants')
       // Backend returns { tenants: [...], total, skip, take }
       const tenantsData = response.data.tenants || []
-      setTenants(Array.isArray(tenantsData) ? tenantsData : [])
+      setTenants(Array.isArray(tenantsData)
+        ? stableSort(tenantsData, (a, b) => {
+            const byName = compareText(a.name, b.name)
+            if (byName !== 0) return byName
+            return compareText(a.id, b.id)
+          })
+        : [])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load tenants')
     } finally {

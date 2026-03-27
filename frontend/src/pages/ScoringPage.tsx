@@ -26,6 +26,7 @@ import {
   PaperClipIcon,
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
+import { compareCategories, compareContestants, compareContests, stableSort } from '../utils/listOrdering'
 
 interface Category {
   id: string
@@ -396,10 +397,15 @@ const ScoringPage: React.FC = () => {
     }
   )
 
+  const sortedCategories = useMemo<Category[]>(() => {
+    if (!categories || categories.length === 0) return []
+    return stableSort(categories, compareCategories)
+  }, [categories])
+
   const assignedContests = useMemo<ContestOption[]>(() => {
     if (!categories || categories.length === 0) return []
     const contestMap = new Map<string, ContestOption>()
-    for (const category of categories) {
+    for (const category of sortedCategories) {
       const contestId = category?.contest?.id
       if (!contestId || contestMap.has(contestId)) continue
       contestMap.set(contestId, {
@@ -408,14 +414,19 @@ const ScoringPage: React.FC = () => {
         eventName: category.contest.event?.name || '',
       })
     }
-    return Array.from(contestMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [categories])
+    return stableSort(Array.from(contestMap.values()), compareContests)
+  }, [sortedCategories])
 
   const filteredCategories = useMemo<Category[]>(() => {
-    if (!categories || categories.length === 0) return []
-    if (!selectedContestId) return categories
-    return categories.filter((category) => category.contest.id === selectedContestId)
-  }, [categories, selectedContestId])
+    if (sortedCategories.length === 0) return []
+    if (!selectedContestId) return sortedCategories
+    return sortedCategories.filter((category) => category.contest.id === selectedContestId)
+  }, [sortedCategories, selectedContestId])
+
+  const sortedContestants = useMemo<Contestant[]>(() => {
+    if (!contestants || contestants.length === 0) return []
+    return stableSort(contestants, compareContestants)
+  }, [contestants])
 
   const normalizedExistingScores: Score[] = useMemo(() => (
     Array.isArray(existingScores)
@@ -484,6 +495,31 @@ const ScoringPage: React.FC = () => {
       setSelectedContestant(null)
     }
   }, [selectedCategory, selectedContestId])
+
+  useEffect(() => {
+    if (!selectedCategory) return
+    const nextSelectedCategory = filteredCategories.find((category) => category.id === selectedCategory.id) || null
+    if (!nextSelectedCategory) {
+      setSelectedCategory(null)
+      setSelectedContestant(null)
+      return
+    }
+    if (nextSelectedCategory !== selectedCategory) {
+      setSelectedCategory(nextSelectedCategory)
+    }
+  }, [filteredCategories, selectedCategory])
+
+  useEffect(() => {
+    if (!selectedContestant) return
+    const nextSelectedContestant = sortedContestants.find((contestant) => contestant.id === selectedContestant.id) || null
+    if (!nextSelectedContestant) {
+      setSelectedContestant(null)
+      return
+    }
+    if (nextSelectedContestant !== selectedContestant) {
+      setSelectedContestant(nextSelectedContestant)
+    }
+  }, [selectedContestant, sortedContestants])
 
   // Submit score mutation with optimistic updates
   const submitScoreMutation = useOptimisticMutation<
@@ -1045,7 +1081,7 @@ const ScoringPage: React.FC = () => {
                   </div>
                 ) : contestants && contestants.length > 0 ? (
                   <div className="space-y-2">
-                    {contestants.map(contestant => (
+                    {sortedContestants.map(contestant => (
                       <button
                         key={contestant.id}
                         onClick={() => setSelectedContestant(contestant)}

@@ -1052,6 +1052,12 @@ export class ScoringController {
             }
           },
           categoryContestants: {
+            orderBy: [
+              { contestant: { contestantNumber: 'asc' } },
+              { contestant: { name: 'asc' } },
+              { contestant: { id: 'asc' } },
+              { id: 'asc' }
+            ],
             select: {
               contestant: {
                 select: {
@@ -1072,7 +1078,7 @@ export class ScoringController {
             }
           }
         } as any,
-        orderBy: { name: 'asc' }
+        orderBy: [{ name: 'asc' }, { id: 'asc' }]
       } as any)) as any;
 
       // Filter out categories with soft-deleted contests or events
@@ -1104,6 +1110,32 @@ export class ScoringController {
               };
             }).filter(Boolean)
           : [];
+
+        contestants.sort((left: any, right: any) => {
+          const leftNumber = left?.contestantNumber;
+          const rightNumber = right?.contestantNumber;
+          const leftMissing = leftNumber === null || leftNumber === undefined;
+          const rightMissing = rightNumber === null || rightNumber === undefined;
+
+          if (leftMissing !== rightMissing) {
+            return leftMissing ? 1 : -1;
+          }
+
+          if (!leftMissing && !rightMissing && leftNumber !== rightNumber) {
+            return leftNumber - rightNumber;
+          }
+
+          const byName = String(left?.name || '').localeCompare(String(right?.name || ''), undefined, {
+            sensitivity: 'base',
+            numeric: true
+          });
+          if (byName !== 0) return byName;
+
+          return String(left?.id || '').localeCompare(String(right?.id || ''), undefined, {
+            sensitivity: 'base',
+            numeric: true
+          });
+        });
 
         // Remove deletedAt fields from response
         if (cat.contest) {

@@ -20,6 +20,7 @@ import {
   UsersIcon,
   CalculatorIcon
 } from '@heroicons/react/24/outline'
+import { compareText, stableSort } from '../utils/listOrdering'
 
 export type NavIcon = ComponentType<{ className?: string }>
 
@@ -163,7 +164,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
 const PRIMARY_DASHBOARD_ITEM_ID = 'dashboard'
 
 const sortItemsByName = (items: AppNavItem[]): AppNavItem[] =>
-  [...items].sort((a, b) => a.name.localeCompare(b.name))
+  stableSort(items, (a, b) => compareText(a.name, b.name))
 
 const sortNavigationSectionItems = (section: AppNavSection): AppNavItem[] => {
   const sortedItems = sortItemsByName(section.items)

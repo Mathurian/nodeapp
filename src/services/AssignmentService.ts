@@ -139,6 +139,42 @@ const DEFAULT_JUDGE_CONTEST_LIMIT = 1;
 
 @injectable()
 export class AssignmentService extends BaseService {
+  private compareContestantAssignmentRecords(
+    left: { contestant?: { contestantNumber?: number | null; name?: string | null; id?: string | null } | null; contestantId?: string | null; categoryId?: string | null },
+    right: { contestant?: { contestantNumber?: number | null; name?: string | null; id?: string | null } | null; contestantId?: string | null; categoryId?: string | null }
+  ): number {
+    const leftNumber = left.contestant?.contestantNumber;
+    const rightNumber = right.contestant?.contestantNumber;
+    const leftMissing = leftNumber === null || leftNumber === undefined;
+    const rightMissing = rightNumber === null || rightNumber === undefined;
+
+    if (leftMissing !== rightMissing) {
+      return leftMissing ? 1 : -1;
+    }
+
+    if (!leftMissing && !rightMissing && leftNumber !== rightNumber) {
+      return leftNumber - rightNumber;
+    }
+
+    const byName = String(left.contestant?.name || '').localeCompare(String(right.contestant?.name || ''), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+    if (byName !== 0) return byName;
+
+    const byContestantId = String(left.contestant?.id || left.contestantId || '').localeCompare(
+      String(right.contestant?.id || right.contestantId || ''),
+      undefined,
+      { sensitivity: 'base', numeric: true }
+    );
+    if (byContestantId !== 0) return byContestantId;
+
+    return String(left.categoryId || '').localeCompare(String(right.categoryId || ''), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+  }
+
   constructor(
     @inject('PrismaClient') private prisma: PrismaClient,
     @inject('CacheService') private cacheService: CacheService
@@ -1032,9 +1068,7 @@ export class AssignmentService extends BaseService {
           bio: true,
           isHeadJudge: true,
         },
-        orderBy: {
-          name: 'asc',
-        },
+        orderBy: [{ name: 'asc' }, { email: 'asc' }, { id: 'asc' }],
         skip,
         take,
       }),
@@ -1069,9 +1103,7 @@ export class AssignmentService extends BaseService {
             },
           },
         },
-        orderBy: {
-          name: 'asc',
-        },
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }, { id: 'asc' }],
       }),
       this.prisma.user.findMany({
         where: {
@@ -1156,9 +1188,7 @@ export class AssignmentService extends BaseService {
           },
         },
       },
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
 
     // Filter out categories from archived events
@@ -1236,12 +1266,13 @@ export class AssignmentService extends BaseService {
           },
         },
       },
-      orderBy: {
-        contestantId: 'asc',
-      },
+      orderBy: [
+        { contestant: { contestantNumber: 'asc' } },
+        { contestant: { name: 'asc' } },
+      ],
     });
 
-    return result;
+    return [...result].sort((a, b) => this.compareContestantAssignmentRecords(a, b));
   }
 
   /**
@@ -1273,12 +1304,13 @@ export class AssignmentService extends BaseService {
           },
         },
       },
-      orderBy: {
-        contestantId: 'asc',
-      },
+      orderBy: [
+        { contestant: { contestantNumber: 'asc' } },
+        { contestant: { name: 'asc' } },
+      ],
     });
 
-    return contestants;
+    return [...contestants].sort((a, b) => this.compareContestantAssignmentRecords(a, b));
   }
 
   /**
@@ -1587,9 +1619,13 @@ export class AssignmentService extends BaseService {
           },
         },
       },
-      orderBy: {
-        assignedAt: 'desc',
-      },
+      orderBy: [
+        { user: { name: 'asc' } },
+        { event: { name: 'asc' } },
+        { contest: { name: 'asc' } },
+        { category: { name: 'asc' } },
+        { id: 'asc' },
+      ],
     });
   }
 
@@ -1752,9 +1788,13 @@ export class AssignmentService extends BaseService {
           },
         },
       },
-      orderBy: {
-        assignedAt: 'desc',
-      },
+      orderBy: [
+        { user: { name: 'asc' } },
+        { event: { name: 'asc' } },
+        { contest: { name: 'asc' } },
+        { category: { name: 'asc' } },
+        { id: 'asc' },
+      ],
     });
   }
 

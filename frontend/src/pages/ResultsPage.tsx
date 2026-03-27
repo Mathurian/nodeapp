@@ -17,6 +17,7 @@ import * as XLSX from 'xlsx'
 import { safeFormatDate } from '../utils/dateUtils'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
+import { compareCategories, compareContests, compareContestants, compareEvents, stableSort } from '../utils/listOrdering'
 
 interface Event {
   id: string
@@ -433,8 +434,36 @@ const ResultsPage: React.FC = () => {
       totalsMap.set(key, base)
     }
 
-    return Array.from(totalsMap.values()).sort((a, b) => b.totalScore - a.totalScore)
+    return stableSort(Array.from(totalsMap.values()), (a, b) => {
+      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore
+      return compareContestants(a, b)
+    })
   }, [contestScores, selectedCategoryId, selectedContestId])
+
+  const sortedEvents = useMemo(() => stableSort(events || [], (a, b) => compareEvents(a, b, 'desc')), [events])
+  const sortedContests = useMemo(() => stableSort(contests || [], compareContests), [contests])
+  const sortedCategories = useMemo(() => stableSort(categories || [], compareCategories), [categories])
+
+  React.useEffect(() => {
+    if (selectedEventId && !sortedEvents.some((event) => event.id === selectedEventId)) {
+      setSelectedEventId('')
+      setSelectedContestId('')
+      setSelectedCategoryId('')
+    }
+  }, [selectedEventId, sortedEvents])
+
+  React.useEffect(() => {
+    if (selectedContestId && !sortedContests.some((contest) => contest.id === selectedContestId)) {
+      setSelectedContestId('')
+      setSelectedCategoryId('')
+    }
+  }, [selectedContestId, sortedContests])
+
+  React.useEffect(() => {
+    if (selectedCategoryId && !sortedCategories.some((category) => category.id === selectedCategoryId)) {
+      setSelectedCategoryId('')
+    }
+  }, [selectedCategoryId, sortedCategories])
 
   const hasCategoryResults = Boolean(selectedCategoryId && effectiveCategoryResults && (effectiveCategoryResults.winners?.length || 0) > 0)
   const hasContestResults = Boolean(selectedContestId && !selectedCategoryId && contestLevelResults.length > 0)
@@ -627,7 +656,7 @@ const ResultsPage: React.FC = () => {
                 disabled={eventsLoading}
               >
                 <option value="">Select an event...</option>
-                {events?.map((event) => (
+                {sortedEvents.map((event) => (
                   <option key={event.id} value={event.id}>
                     {event.name}
                   </option>
@@ -650,7 +679,7 @@ const ResultsPage: React.FC = () => {
                 disabled={!selectedEventId || contestsLoading}
               >
                 <option value="">Select a contest...</option>
-                {contests?.map((contest) => (
+                {sortedContests.map((contest) => (
                   <option key={contest.id} value={contest.id}>
                     {contest.name}
                   </option>
@@ -670,7 +699,7 @@ const ResultsPage: React.FC = () => {
                 disabled={!selectedContestId || categoriesLoading}
               >
                 <option value="">Select a category...</option>
-                {categories?.map((category) => (
+                {sortedCategories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                     {category.totalsCertified && ' ✓'}

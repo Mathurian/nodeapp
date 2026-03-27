@@ -39,7 +39,7 @@ export class CategoryRepository extends BaseRepository<Category> {
           }
         }
       },
-      { orderBy: { createdAt: 'asc' } }
+      { orderBy: [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -181,7 +181,7 @@ export class CategoryRepository extends BaseRepository<Category> {
           }
         }
       },
-      { ...options, orderBy: options.orderBy || { createdAt: 'asc' } }
+      { ...options, orderBy: options.orderBy || [{ name: 'asc' }, { id: 'asc' }] }
     );
   }
 

@@ -74,7 +74,7 @@ export class CategoriesController {
               }
             }
           },
-          orderBy: { name: 'asc' }
+          orderBy: [{ name: 'asc' }, { id: 'asc' }]
         });
 
         const visible = categories.filter((category) => this.isContestVisibleToContestant(category.contest as any));
@@ -114,7 +114,7 @@ export class CategoriesController {
               }
             ]
           },
-          orderBy: { name: 'asc' }
+          orderBy: [{ name: 'asc' }, { id: 'asc' }]
         });
         return sendSuccess(res, categories, 'Categories retrieved successfully');
       }
@@ -187,7 +187,7 @@ export class CategoriesController {
               { contest: { contestContestants: { some: { contestantId: user.contestantId } } } }
             ]
           },
-          orderBy: { name: 'asc' }
+          orderBy: [{ name: 'asc' }, { id: 'asc' }]
         });
         return sendSuccess(res, categories, 'Categories retrieved successfully');
       }

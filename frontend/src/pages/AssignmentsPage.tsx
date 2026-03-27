@@ -14,6 +14,7 @@ import {
   PencilIcon,
 } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { compareCategories, compareContestants, compareContests, compareEvents, compareText, compareUsersByName, stableSort } from '../utils/listOrdering'
 
 interface Judge {
   id: string
@@ -945,9 +946,9 @@ const AssignmentsPage: React.FC = () => {
   const getCurrentAssignments = (): any[] => {
     const filtered = getRawAssignmentsForTab().filter(matchesSearch).filter(matchesScope)
     if (filterContestId && !filterCategoryId) {
-      return collapseByContest(filtered)
+      return stableSort(collapseByContest(filtered), compareAssignmentRows)
     }
-    return filtered
+    return stableSort(filtered, compareAssignmentRows)
   }
 
   const getIsLoading = () => {
@@ -967,12 +968,39 @@ const AssignmentsPage: React.FC = () => {
 
   const getPeople = () => {
     switch (activeTab) {
-      case 'judges': return judges
-      case 'contestants': return contestants
-      case 'tally-masters': return tallyMasters
-      case 'auditors': return auditors
+      case 'judges': return stableSort(judges, compareUsersByName)
+      case 'contestants': return stableSort(contestants, compareContestants)
+      case 'tally-masters': return stableSort(tallyMasters, compareUsersByName)
+      case 'auditors': return stableSort(auditors, compareUsersByName)
       default: return []
     }
+  }
+
+  const compareAssignmentRows = (left: any, right: any): number => {
+    const leftPerson =
+      activeTab === 'judges' ? left.judge :
+      activeTab === 'contestants' ? left.contestant :
+      left.user
+    const rightPerson =
+      activeTab === 'judges' ? right.judge :
+      activeTab === 'contestants' ? right.contestant :
+      right.user
+
+    const byPerson = activeTab === 'contestants'
+      ? compareContestants(leftPerson || {}, rightPerson || {})
+      : compareUsersByName(leftPerson || {}, rightPerson || {})
+    if (byPerson !== 0) return byPerson
+
+    const byEvent = compareText(left.event?.name || '', right.event?.name || '')
+    if (byEvent !== 0) return byEvent
+
+    const byContest = compareText(left.contest?.name || '', right.contest?.name || '')
+    if (byContest !== 0) return byContest
+
+    const byCategory = compareText(left.category?.name || '', right.category?.name || '')
+    if (byCategory !== 0) return byCategory
+
+    return compareText(left.id || '', right.id || '')
   }
 
   // Which assignment levels the current tab supports
@@ -1008,15 +1036,25 @@ const AssignmentsPage: React.FC = () => {
   const currentAssignments = getCurrentAssignments()
   const people = getPeople()
   const rawAssignments = getRawAssignmentsForTab()
-  const contestOptions = Array.from(
+  const sortedTenants = stableSort(tenants, (a, b) => {
+    const byName = compareText(a.name, b.name)
+    if (byName !== 0) return byName
+    return compareText(a.id, b.id)
+  })
+  const sortedEvents = stableSort(events, (a, b) => compareEvents(a as any, b as any, 'desc'))
+  const sortedContests = stableSort(contests, compareContests)
+  const sortedCategories = stableSort(categories, compareCategories)
+  const sortedEditContests = stableSort(editContests, compareContests)
+  const sortedEditCategories = stableSort(editCategories, compareCategories)
+  const contestOptions = stableSort(Array.from(
     new Map(
       rawAssignments
         .map((a: any) => ({ id: a.contest?.id || a.contestId, name: a.contest?.name }))
         .filter((c: any) => c.id && c.name)
         .map((c: any) => [c.id, c])
     ).values()
-  )
-  const categoryOptions = Array.from(
+  ), compareContests)
+  const categoryOptions = stableSort(Array.from(
     new Map(
       rawAssignments
         .filter((a: any) => !filterContestId || (a.contest?.id || a.contestId) === filterContestId)
@@ -1024,7 +1062,7 @@ const AssignmentsPage: React.FC = () => {
         .filter((c: any) => c.id && c.name)
         .map((c: any) => [c.id, c])
       ).values()
-  )
+  ), compareCategories)
 
   const judgeContestLevelCountsByJudgeEvent = useMemo(() => {
     const map = new Map<string, { count: number; judgeName: string; eventName: string; contestNames: Set<string> }>()
@@ -1065,9 +1103,9 @@ const AssignmentsPage: React.FC = () => {
         judgeName: value.judgeName,
         eventName: value.eventName,
         count: value.count,
-        contests: Array.from(value.contestNames).sort((a, b) => a.localeCompare(b)),
+        contests: stableSort(Array.from(value.contestNames), compareText),
       }))
-      .sort((a, b) => a.judgeName.localeCompare(b.judgeName) || a.eventName.localeCompare(b.eventName))
+      .sort((a, b) => compareText(a.judgeName, b.judgeName) || compareText(a.eventName, b.eventName))
   ), [judgeContestLevelCountsByJudgeEvent])
 
   return (
@@ -1129,7 +1167,7 @@ const AssignmentsPage: React.FC = () => {
                 className="w-full md:w-80 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">Select tenant...</option>
-                {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {sortedTenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
           )}
@@ -1195,7 +1233,7 @@ const AssignmentsPage: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Select event...</option>
-                  {events.map(event => (
+                  {sortedEvents.map(event => (
                     <option key={event.id} value={event.id}>{event.name}</option>
                   ))}
                 </select>
@@ -1466,7 +1504,7 @@ const AssignmentsPage: React.FC = () => {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                       <option value="">All tenants</option>
-                      {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {sortedTenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   </div>
                 )}
@@ -1536,7 +1574,7 @@ const AssignmentsPage: React.FC = () => {
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
                   >
                     <option value="">{isLoadingEvents ? 'Loading...' : events.length === 0 ? 'No events available' : 'Select an event...'}</option>
-                    {events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+                    {sortedEvents.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
                   </select>
                 </div>
 
@@ -1551,7 +1589,7 @@ const AssignmentsPage: React.FC = () => {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                       <option value="">{contests.length === 0 ? 'No contests in this event' : 'Select a contest...'}</option>
-                      {contests.map(contest => <option key={contest.id} value={contest.id}>{contest.name}</option>)}
+                      {sortedContests.map(contest => <option key={contest.id} value={contest.id}>{contest.name}</option>)}
                     </select>
                   </div>
                 )}
@@ -1567,7 +1605,7 @@ const AssignmentsPage: React.FC = () => {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                       <option value="">{categories.length === 0 ? 'No categories in this contest' : 'Select a category...'}</option>
-                      {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                      {sortedCategories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                     </select>
                   </div>
                 )}
@@ -1628,7 +1666,7 @@ const AssignmentsPage: React.FC = () => {
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="">{events.length === 0 ? 'No events' : 'Select an event...'}</option>
-                    {events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+                    {sortedEvents.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
                   </select>
                 </div>
 
@@ -1643,7 +1681,7 @@ const AssignmentsPage: React.FC = () => {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                       <option value="">{editContests.length === 0 ? 'No contests in this event' : (activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Event level —' : 'Select a contest...'}</option>
-                      {editContests.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {sortedEditContests.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 )}
@@ -1659,7 +1697,7 @@ const AssignmentsPage: React.FC = () => {
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                       <option value="">{editCategories.length === 0 ? 'No categories' : (activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Contest level —' : 'Select a category...'}</option>
-                      {editCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {sortedEditCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 )}

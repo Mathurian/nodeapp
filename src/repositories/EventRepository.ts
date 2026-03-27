@@ -51,7 +51,7 @@ export class EventRepository extends BaseRepository<Event> {
   async findActiveEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     return this.findMany(
       this.withTenantScope({ archived: false, deletedAt: null }, tenantId, isSuperAdmin),
-      { orderBy: { startDate: 'desc' } }
+      { orderBy: [{ startDate: 'desc' }, { name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -61,7 +61,7 @@ export class EventRepository extends BaseRepository<Event> {
   async findArchivedEvents(tenantId?: string, isSuperAdmin: boolean = false): Promise<Event[]> {
     return this.findMany(
       this.withTenantScope({ archived: true, deletedAt: null }, tenantId, isSuperAdmin),
-      { orderBy: { startDate: 'desc' } }
+      { orderBy: [{ startDate: 'desc' }, { name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -76,7 +76,7 @@ export class EventRepository extends BaseRepository<Event> {
         deletedAt: null,
         startDate: { gte: now }
       }, tenantId, isSuperAdmin),
-      { orderBy: { startDate: 'asc' } }
+      { orderBy: [{ startDate: 'asc' }, { name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -90,7 +90,9 @@ export class EventRepository extends BaseRepository<Event> {
       deletedAt: null,
       startDate: { lte: now },
       endDate: { gte: now }
-    }, tenantId, isSuperAdmin));
+    }, tenantId, isSuperAdmin), {
+      orderBy: [{ startDate: 'asc' }, { name: 'asc' }, { id: 'asc' }]
+    });
   }
 
   /**
@@ -104,7 +106,7 @@ export class EventRepository extends BaseRepository<Event> {
         deletedAt: null,
         endDate: { lt: now }
       }, tenantId, isSuperAdmin),
-      { orderBy: { endDate: 'desc' } }
+      { orderBy: [{ endDate: 'desc' }, { name: 'asc' }, { id: 'asc' }] }
     );
   }
 
@@ -191,7 +193,9 @@ export class EventRepository extends BaseRepository<Event> {
           ]
         }
       ]
-    }, tenantId, isSuperAdmin));
+    }, tenantId, isSuperAdmin), {
+      orderBy: [{ startDate: 'desc' }, { name: 'asc' }, { id: 'asc' }]
+    });
   }
 
   /**
@@ -205,7 +209,9 @@ export class EventRepository extends BaseRepository<Event> {
         { description: { contains: query, mode: 'insensitive' } },
         { location: { contains: query, mode: 'insensitive' } }
       ]
-    }, tenantId, isSuperAdmin));
+    }, tenantId, isSuperAdmin), {
+      orderBy: [{ startDate: 'desc' }, { name: 'asc' }, { id: 'asc' }]
+    });
   }
 
   /**

@@ -55,6 +55,50 @@ interface ContestFilters {
 
 @injectable()
 export class ContestService extends BaseService {
+  private compareContests(left: Contest, right: Contest): number {
+    const byName = String(left.name || '').localeCompare(String(right.name || ''), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+    if (byName !== 0) return byName;
+
+    return String(left.id || '').localeCompare(String(right.id || ''), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+  }
+
+  private sortContests(contests: Contest[], filters?: ContestFilters): Contest[] {
+    if (filters?.sortBy) {
+      const sortField = filters.sortBy as keyof Contest;
+      const sortDir = filters.sortDirection || 'desc';
+      return [...contests].sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+
+        if (aVal === null || aVal === undefined) return sortDir === 'asc' ? 1 : -1;
+        if (bVal === null || bVal === undefined) return sortDir === 'asc' ? -1 : 1;
+
+        let primary = 0;
+
+        if (aVal instanceof Date && bVal instanceof Date) {
+          primary = sortDir === 'asc' ? aVal.getTime() - bVal.getTime() : bVal.getTime() - aVal.getTime();
+        } else if (typeof aVal === 'string' && typeof bVal === 'string') {
+          primary = sortDir === 'asc'
+            ? aVal.localeCompare(bVal, undefined, { sensitivity: 'base', numeric: true })
+            : bVal.localeCompare(aVal, undefined, { sensitivity: 'base', numeric: true });
+        } else {
+          primary = sortDir === 'asc' ? (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) : (bVal < aVal ? -1 : bVal > aVal ? 1 : 0);
+        }
+
+        if (primary !== 0) return primary;
+        return this.compareContests(a, b);
+      });
+    }
+
+    return [...contests].sort((a, b) => this.compareContests(a, b));
+  }
+
   constructor(
     @inject('ContestRepository') private contestRepo: ContestRepository,
     @inject('CacheService') private cacheService: CacheService,
@@ -252,28 +296,7 @@ export class ContestService extends BaseService {
         contests = contests.filter(contest => new Date(contest.createdAt) <= filters.createdBefore!);
       }
 
-      // Sort contests
-      if (filters?.sortBy) {
-        const sortField = filters.sortBy as keyof Contest;
-        const sortDir = filters.sortDirection || 'desc';
-        contests.sort((a, b) => {
-          const aVal = a[sortField];
-          const bVal = b[sortField];
-
-          if (aVal === null || aVal === undefined) return sortDir === 'asc' ? 1 : -1;
-          if (bVal === null || bVal === undefined) return sortDir === 'asc' ? -1 : 1;
-
-          if (aVal instanceof Date && bVal instanceof Date) {
-            return sortDir === 'asc' ? aVal.getTime() - bVal.getTime() : bVal.getTime() - aVal.getTime();
-          }
-
-          if (typeof aVal === 'string' && typeof bVal === 'string') {
-            return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-          }
-
-          return sortDir === 'asc' ? (aVal < bVal ? -1 : 1) : (bVal < aVal ? -1 : 1);
-        });
-      }
+      contests = this.sortContests(contests, filters);
 
       // Cache for 10 minutes
       await this.cacheService.set(cacheKey, contests, 600);
