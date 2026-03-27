@@ -1054,9 +1054,7 @@ export class ScoringController {
           categoryContestants: {
             orderBy: [
               { contestant: { contestantNumber: 'asc' } },
-              { contestant: { name: 'asc' } },
-              { contestant: { id: 'asc' } },
-              { id: 'asc' }
+              { contestant: { name: 'asc' } }
             ],
             select: {
               contestant: {
